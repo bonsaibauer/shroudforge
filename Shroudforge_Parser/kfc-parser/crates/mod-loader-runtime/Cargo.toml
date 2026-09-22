@@ -1,0 +1,13 @@
+[package]
+name = "mod-loader-runtime"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+mod-loader = { package = "mod-loader-base", path = "../mod-loader-base" }
+
+parking_lot.workspace = true
+tracing.workspace = true
+
+# libloading = "0.9.0"

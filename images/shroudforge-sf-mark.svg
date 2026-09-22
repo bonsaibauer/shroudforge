@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">ShroudForge SF mark</title>
+  <desc id="description">Gold faceted hexagonal mark with the dark letters SF.</desc>
+  <path fill="#c9ad6e" d="M512 64 960 279.04 852.48 798.72 512 960 171.52 798.72 64 279.04Z"/>
+  <text
+    x="512"
+    y="548"
+    fill="#10191d"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="300"
+    font-weight="700"
+    letter-spacing="-14"
+    text-anchor="middle"
+    dominant-baseline="middle"
+  >SF</text>
+</svg>

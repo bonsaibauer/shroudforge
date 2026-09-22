@@ -1,0 +1,42 @@
+# Build output
+build/
+x64/
+target/
+node_modules/
+coverage/
+artifacts/
+release/
+out/
+__pycache__/
+*.pyc
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.tmp
+*.bak
+*.dmp
+*.exe.WebView2/
+*.profraw
+*.profdata
+
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+*.code-workspace
+
+# Runtime output
+*.log
+
+# Local environment and operating system files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+Desktop.ini

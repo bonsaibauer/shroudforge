@@ -1,0 +1,24 @@
+[package]
+name = "shroudforge-modloader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "shroudforge"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+semver.workspace = true
+shroudforge-parser = { path = "../Shroudforge_Parser/core" }
+shroudforge-compatibility = { path = "../Shroudforge_Compatibility" }
+shroudforge-api = { path = "../Shroudforge_API" }
+shroudforge-package.workspace = true
+mlua = { version = "0.11.2", features = ["lua54", "vendored"] }

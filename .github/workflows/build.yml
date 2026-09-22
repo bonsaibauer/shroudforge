@@ -1,0 +1,61 @@
+name: Build ShroudForge
+
+on:
+  push:
+    branches:
+      - "*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set version from branch
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "The selected branch must be a version such as 1.0.0. Current branch: $version"
+          }
+          Set-Content -LiteralPath VERSION -Value $version -Encoding ascii
+          "value=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build, test and package
+        shell: pwsh
+        run: .\build.ps1 -BuildNumber "${{ github.run_id }}"
+
+      - name: Publish development prerelease
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}-dev.${{ github.run_id }}
+          name: Dev v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            build/shroudforge-*.zip
+            build/shroudforge-*.zip.sha256
+          generate_release_notes: true
+          prerelease: true
+          make_latest: false
+
+      - name: Publish release build
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}-build.${{ github.run_id }}
+          name: ShroudForge v${{ steps.version.outputs.value }} build ${{ github.run_id }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            build/shroudforge-*.zip
+            build/shroudforge-*.zip.sha256
+          generate_release_notes: true
+          prerelease: false
+          make_latest: true

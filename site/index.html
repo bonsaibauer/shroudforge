@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="ShroudForge API 2.0 – Lua-Referenz und echter Enshrouded-Spielkatalog.">
+  <title>ShroudForge API 2.0</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="ShroudForge API">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 2 62 16.4 54.8 51.2 32 62 9.2 51.2 2 16.4Z"/><text x="32" y="36">SF</text></svg>
+      <span><strong>SHROUDFORGE</strong><small>API REFERENCE</small></span>
+    </a>
+    <div class="build-state"><i></i><span id="build-state">Lade echten Spielkatalog …</span></div>
+  </header>
+
+  <aside class="sidebar">
+    <nav>
+      <button class="nav-item active" data-view="overview">Übersicht</button>
+      <button class="nav-item" data-view="api">Lua API <b id="api-count">–</b></button>
+      <button class="nav-item" data-view="types">Spieltypen <b id="type-count">–</b></button>
+      <button class="nav-item" data-view="resources">Ressourcen <b id="resource-count">–</b></button>
+      <button class="nav-item" data-view="format">Mod-Format</button>
+    </nav>
+    <div class="principle">
+      <span>Ein Vertrag</span>
+      <p>Lua greift direkt über <code>game.*</code>, <code>runtime.*</code> und <code>shroudforge.*</code> zu.</p>
+    </div>
+  </aside>
+
+  <main>
+    <section id="overview" class="view active">
+      <div class="eyebrow">SHROUDFORGE API 1.0.0</div>
+      <h1>Eine API. Echte Spieldaten.</h1>
+      <p class="lead">Diese Referenz wird aus dem implementierten Lua-Vertrag und einem tatsächlich geparsten Enshrouded-Build erzeugt. Keine C++-ABI, keine Patch-Oberfläche und keine erfundenen Platzhalter.</p>
+      <div class="metrics">
+        <article><strong id="metric-types">–</strong><span>Spieltypen</span></article>
+        <article><strong id="metric-fields">–</strong><span>Typfelder</span></article>
+        <article><strong id="metric-resources">–</strong><span>Ressourcentypen</span></article>
+        <article><strong id="metric-symbols">–</strong><span>Lua-API-Symbole</span></article>
+      </div>
+      <div class="flow">
+        <span>Parser</span><i>→</i><span>Compatibility</span><i>→</i><span>API</span><i>→</i><span>Modloader</span><i>→</i><span>Lua-Mod</span>
+      </div>
+      <div class="cards">
+        <article><h2><code>game.*</code></h2><p>Exakte <code>keen::…</code>-Typnamen, Felder, Größen und Ressourcen des erfassten Builds.</p></article>
+        <article><h2><code>runtime.*</code></h2><p>Pregame-/Ingame-Phase, Abhängigkeiten und ausschließlich implementierte Laufzeitfunktionen.</p></article>
+        <article><h2><code>shroudforge.*</code></h2><p>API-Version, Mod-Identität und einheitliches modbezogenes Logging.</p></article>
+      </div>
+    </section>
+
+    <section id="api" class="view catalogue-view">
+      <div class="section-head"><div><div class="eyebrow">IMPLEMENTIERTER VERTRAG</div><h1>Lua API</h1></div><input class="search" data-search="api" placeholder="Funktion suchen …"></div>
+      <div class="namespace-filter" aria-label="API-Namespace">
+        <button class="active" data-namespace="all">Alle</button>
+        <button data-namespace="game"><code>game.*</code></button>
+        <button data-namespace="runtime"><code>runtime.*</code></button>
+        <button data-namespace="shroudforge"><code>shroudforge.*</code></button>
+      </div>
+      <div id="api-results" class="results"></div>
+    </section>
+
+    <section id="types" class="view catalogue-view">
+      <div class="section-head"><div><div class="eyebrow">PARSER-SNAPSHOT</div><h1>Spieltypen</h1></div><input class="search" data-search="types" placeholder="keen::RenderModel oder Feldname …"></div>
+      <p class="hint">Die Ergebnisse stammen direkt aus <code>types.json</code> des unten genannten Spielbuilds.</p>
+      <div id="type-results" class="results"></div>
+    </section>
+
+    <section id="resources" class="view catalogue-view">
+      <div class="section-head"><div><div class="eyebrow">ECHTE GUIDS</div><h1>Ressourcen</h1></div><input class="search" data-search="resources" placeholder="Ressourcentyp oder GUID …"></div>
+      <p class="hint">Ressourcentypen und GUIDs wurden aus den installierten Game-Dateien gelesen.</p>
+      <div id="resource-results" class="results"></div>
+    </section>
+
+    <section id="format" class="view">
+      <div class="eyebrow">EIN MODFORMAT</div><h1>Lua-Modpaket</h1>
+      <pre><code>mods/
+└── mod.example/
+    ├── mod.json
+    └── src/
+        └── mod.lua</code></pre>
+      <h2><code>mod.json</code></h2>
+      <pre><code>{
+  "id": "mod.example",
+  "name": "Example Mod",
+  "version": "1.0.0",
+  "api": "^1.0.0",
+  "target": "both",
+  "capabilities": ["runtime"],
+  "dependencies": []
+}</code></pre>
+      <p class="lead small">Der Einstiegspunkt ist immer <code>src/mod.lua</code>. Mods liefern keine DLL, Signatur oder Maschinencode-Payload.</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>ShroudForge API <b id="footer-api">1.0.0</b></span>
+    <span>Enshrouded <b id="footer-game">–</b></span>
+    <span>Spielstand <b id="footer-date">–</b></span>
+    <span>Parser <b id="footer-parser">–</b></span>
+  </footer>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

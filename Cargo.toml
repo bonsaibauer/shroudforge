@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+members = [
+    "Shroudforge_Parser/core",
+    "Shroudforge_Compatibility",
+    "Shroudforge_API",
+    "Shroudforge_Modloader",
+    "Shroudforge_Modloader/package",
+    "Shroudforge_Modules/commands",
+    "Shroudforge_Modules/debug-console",
+    "Shroudforge_Modules/modloader-ui",
+    "Shroudforge_Modules/updater",
+]
+exclude = [
+    "Shroudforge_Parser/kfc-parser",
+    "Shroudforge_Parser/kfc-parser/crates/*",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.88.0"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+semver = { version = "1.0", features = ["serde"] }
+shroudforge-package = { path = "Shroudforge_Modloader/package" }

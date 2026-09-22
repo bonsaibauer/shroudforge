@@ -1,0 +1,3 @@
+[submodule "Shroudforge_Parser/kfc-parser"]
+	path = Shroudforge_Parser/kfc-parser
+	url = https://github.com/Brabb3l/kfc-parser.git

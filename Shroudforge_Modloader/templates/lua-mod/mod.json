@@ -1,0 +1,10 @@
+{
+  "$schema": "../../schemas/mod.schema.json",
+  "id": "mod.example",
+  "name": "Example Mod",
+  "version": "1.0.0",
+  "api": "^1.0.0",
+  "capabilities": ["runtime"],
+  "dependencies": [],
+  "target": "both"
+}

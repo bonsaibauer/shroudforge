@@ -1,0 +1,31 @@
+[package]
+name = "shroudforge-modloader-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "shroudforge-modloader-ui"
+path = "src/main.rs"
+
+[dependencies]
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+sha2 = "0.10"
+base64 = "0.22"
+zip = { version = "4.6", default-features = false, features = ["deflate"] }
+shroudforge-package.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+tao = "0.37.0"
+wry = "0.57.0"
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }

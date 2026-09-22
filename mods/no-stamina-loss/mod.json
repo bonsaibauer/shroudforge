@@ -1,0 +1,66 @@
+{
+  "id": "mod.no-stamina-loss",
+  "name": "ShroudForge No Stamina Loss",
+  "version": "1.0.0",
+  "api": "^1.0.0",
+  "capabilities": ["runtime"],
+  "dependencies": [],
+  "target": "client",
+  "description": "Keeps the local player's typed stamina runtime components from depleting.",
+  "release": {
+    "changelog": [
+      "Added a declarative overview page for the Modloader UI.",
+      "Added separate depletion prevention and automatic refill controls."
+    ]
+  },
+  "settingGroups": [
+    {
+      "id": "stamina",
+      "label": "Stamina behavior",
+      "description": "Configure the two typed stamina operations independently."
+    }
+  ],
+  "settings": [
+    {
+      "key": "preventDepletion",
+      "type": "boolean",
+      "control": "checkbox",
+      "label": "Prevent stamina depletion",
+      "description": "Clears accumulated stamina depletion during gameplay.",
+      "default": true,
+      "group": "stamina",
+      "restartRequired": true
+    },
+    {
+      "key": "refillToMaximum",
+      "type": "boolean",
+      "control": "checkbox",
+      "label": "Refill stamina to maximum",
+      "description": "Restores current stamina to the typed maximum value.",
+      "default": true,
+      "group": "stamina",
+      "restartRequired": true
+    }
+  ],
+  "ui": {
+    "sections": [
+      {
+        "title": "No Stamina Loss",
+        "description": "Runtime behavior and scope",
+        "components": [
+          {
+            "type": "status",
+            "label": "Local client runtime",
+            "text": "The mod applies the selected stamina operations during gameplay."
+          },
+          {
+            "type": "text",
+            "text": "Depletion prevention and automatic refill can be configured independently."
+          },
+          { "type": "setting", "key": "preventDepletion" },
+          { "type": "setting", "key": "refillToMaximum" }
+        ]
+      }
+    ]
+  }
+}

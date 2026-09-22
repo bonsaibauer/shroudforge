@@ -1,0 +1,7 @@
+{
+  "id": "shroudforge.commands",
+  "name": "ShroudForge Commands",
+  "version": "1.0.0",
+  "entrypoint": "shroudforge-commands.exe",
+  "description": "First-party command gateway for ShroudForge modules and runtime mods."
+}

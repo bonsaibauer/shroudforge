@@ -1,0 +1,24 @@
+{
+  "id": "shroudforge.modloader-ui",
+  "name": "ShroudForge Modloader UI",
+  "version": "1.0.0",
+  "entrypoint": "shroudforge-modloader-ui.exe",
+  "toggleKey": 120,
+  "refreshMilliseconds": 1000,
+  "updateProvider": {
+    "enabled": false,
+    "kind": "shroudedit",
+    "baseUrl": "https://api.shroudedit.com",
+    "projectId": "shroudforge",
+    "loader": "shroudforge",
+    "checkMinutes": 30
+  },
+  "systemUpdateProvider": {
+    "enabled": true,
+    "kind": "github-releases",
+    "baseUrl": "https://api.github.com",
+    "projectId": "bonsaibauer/shroudforge",
+    "loader": "shroudforge",
+    "checkMinutes": 60
+  }
+}

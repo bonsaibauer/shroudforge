@@ -1,0 +1,56 @@
+{
+  "id": "mod.infinite-item-use",
+  "name": "ShroudForge Infinite Item Use",
+  "version": "1.0.0",
+  "api": "^1.0.0",
+  "capabilities": ["runtime"],
+  "dependencies": [],
+  "target": "client",
+  "description": "Restores the typed inventory slot addressed by a Consume item action.",
+  "release": {
+    "changelog": [
+      "Added a declarative overview page for the Modloader UI.",
+      "Added an item ID exclusion list."
+    ]
+  },
+  "settingGroups": [
+    {
+      "id": "restoration",
+      "label": "Restoration",
+      "description": "Control when consumed items are restored."
+    }
+  ],
+  "settings": [
+    {
+      "key": "excludedItemIds",
+      "type": "string",
+      "control": "textarea",
+      "label": "Excluded item IDs",
+      "description": "Comma-separated or whitespace-separated numeric item IDs that may still be consumed.",
+      "default": "",
+      "group": "restoration",
+      "maximumLength": 2000,
+      "restartRequired": true
+    }
+  ],
+  "ui": {
+    "sections": [
+      {
+        "title": "Infinite Item Use",
+        "description": "Runtime behavior and scope",
+        "components": [
+          {
+            "type": "status",
+            "label": "Local client runtime",
+            "text": "When enabled, the mod watches completed consume actions."
+          },
+          {
+            "type": "text",
+            "text": "The mod records the addressed inventory slot before an item is consumed, then restores its count and identity after the server acknowledges the action."
+          },
+          { "type": "setting", "key": "excludedItemIds" }
+        ]
+      }
+    ]
+  }
+}

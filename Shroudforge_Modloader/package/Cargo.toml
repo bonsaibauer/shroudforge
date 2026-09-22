@@ -1,0 +1,21 @@
+[package]
+name = "shroudforge-package"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror = "2.0"
+walkdir = "2.5"
+serde.workspace = true
+serde_json.workspace = true
+indexmap = "2.9"
+parking_lot = "0.12"
+camino = "1.1"
+semver.workspace = true
+
+tracing = "0.1"
+tracing-subscriber = "0.3.23"
+
+zip = "4.2.0"

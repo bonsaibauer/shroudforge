@@ -1,0 +1,60 @@
+{
+  "id": "mod.infinite-item-split",
+  "name": "ShroudForge Infinite Item Split",
+  "version": "1.0.0",
+  "api": "^1.0.0",
+  "capabilities": ["runtime"],
+  "dependencies": [],
+  "target": "client",
+  "description": "Preserves the typed source inventory slot during local stack-split actions.",
+  "release": {
+    "changelog": [
+      "Added a declarative overview page for the Modloader UI.",
+      "Added separate controls for each supported split action."
+    ]
+  },
+  "settingGroups": [
+    {
+      "id": "split-behavior",
+      "label": "Split behavior",
+      "description": "Choose which completed stack-split actions restore the source amount."
+    }
+  ],
+  "settings": [
+    {
+      "key": "splitTypes",
+      "type": "array",
+      "control": "multiselect",
+      "label": "Restored split types",
+      "description": "Select the split operations that should preserve the source stack.",
+      "default": ["One", "Half", "CustomAmount"],
+      "group": "split-behavior",
+      "options": [
+        { "value": "One", "label": "One item" },
+        { "value": "Half", "label": "Half stack" },
+        { "value": "CustomAmount", "label": "Custom amount" }
+      ],
+      "restartRequired": true
+    }
+  ],
+  "ui": {
+    "sections": [
+      {
+        "title": "Infinite Item Split",
+        "description": "Runtime behavior and scope",
+        "components": [
+          {
+            "type": "status",
+            "label": "Local client runtime",
+            "text": "The mod watches the selected completed stack-split actions."
+          },
+          {
+            "type": "text",
+            "text": "After Enshrouded creates the split stack, the mod restores the amount removed from the source slot. It supports one-item, half-stack, and custom-amount splits."
+          },
+          { "type": "setting", "key": "splitTypes" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "shroudforge-modloader-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "npm run locale:check && npm run flags:build && vite build",
+    "dev": "npm run flags:build && vite",
+    "flags:build": "node scripts/generate-flags.mjs",
+    "locale:check": "node scripts/check-locales.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "flag-icons": "^7.5.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vite-plugin-singlefile": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShroudForge | Debug Console</title>
+    <style>__SHROUDFORGE_STYLES__</style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar" data-drag-region>
+        <div class="brand" data-drag-region>
+          <span class="brand-mark">SF</span>
+          <div data-drag-region>
+            <strong>SHROUDFORGE</strong>
+            <small>DEBUG CONSOLE</small>
+          </div>
+        </div>
+        <div id="mode" class="mode-badge standalone" data-drag-region><i></i><span id="session">STANDALONE</span></div>
+        <button id="close" class="window-close" aria-label="Hide console">×</button>
+      </header>
+
+      <section class="toolbar">
+        <label class="search">
+          <span>Search</span>
+          <input id="search" type="search" placeholder="Filter log lines…" autocomplete="off" />
+        </label>
+        <button id="level" class="control">Level: All</button>
+        <button id="copy" class="control">Copy Logs</button>
+        <button id="pause" class="control">Pause</button>
+        <button id="follow" class="control active">Auto-Scroll: On</button>
+      </section>
+
+      <section class="meta">
+        <span id="source">enshrouded.log</span>
+        <span id="stats">Waiting for log data…</span>
+      </section>
+
+      <section id="log" class="log" aria-live="polite"></section>
+
+      <nav class="tabs" aria-label="Log source">
+        <button class="tab active" data-tab="game"><span>Enshrouded Log</span><b id="game-count">0</b></button>
+        <button class="tab" data-tab="loader"><span>ShroudForge Debug Log</span><b id="loader-count">0</b></button>
+      </nav>
+    </main>
+    <script type="module">__SHROUDFORGE_SCRIPT__</script>
+  </body>
+</html>

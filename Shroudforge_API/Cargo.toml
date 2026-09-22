@@ -1,0 +1,30 @@
+[package]
+name = "shroudforge-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+shroudforge-parser = { path = "../Shroudforge_Parser/core" }
+shroudforge-compatibility = { path = "../Shroudforge_Compatibility" }
+kfc = { path = "../Shroudforge_Parser/kfc-parser/crates/kfc", features = ["resource", "content"] }
+mod-loader = { package = "shroudforge-package", path = "../Shroudforge_Modloader/package" }
+
+thiserror = "2.0"
+walkdir = "2.5"
+anyhow = { version = "1.0", features = ["backtrace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+indexmap = { version = "2.9", features = ["serde"] }
+parking_lot = "0.12"
+uuid = { version = "1.18", features = ["v4"] }
+crc = "3.3"
+camino = "1.1"
+bitflags = { version = "2.8", features = ["serde"] }
+half = "2.6"
+image = "0.25"
+tracing = "0.1"
+mlua = { version = "0.11.2", features = ["lua54", "error-send", "vendored"] }
+once_cell = "1.21.3"
+ouroboros = "0.18.5"

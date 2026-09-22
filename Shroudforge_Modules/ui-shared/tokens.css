@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+  --sf-bg: #071013;
+  --sf-bg-deep: #04090b;
+  --sf-glass: rgba(14, 27, 31, 0.78);
+  --sf-glass-strong: rgba(19, 35, 39, 0.9);
+  --sf-glass-soft: rgba(25, 43, 47, 0.58);
+  --sf-line: rgba(151, 181, 181, 0.14);
+  --sf-line-strong: rgba(201, 173, 110, 0.28);
+  --sf-gold: #c9ad6e;
+  --sf-gold-bright: #e1cb91;
+  --sf-gold-soft: rgba(201, 173, 110, 0.13);
+  --sf-text: #eef2ed;
+  --sf-text-strong: #f7faf6;
+  --sf-muted: #91a5a7;
+  --sf-faint: #617477;
+  --sf-blue: #53c7ea;
+  --sf-blue-soft: rgba(83, 199, 234, 0.13);
+  --sf-green: #62d69a;
+  --sf-green-soft: rgba(98, 214, 154, 0.13);
+  --sf-orange: #e9ad5b;
+  --sf-orange-soft: rgba(233, 173, 91, 0.13);
+  --sf-red: #ff7078;
+  --sf-red-soft: rgba(255, 112, 120, 0.13);
+  --sf-radius-xs: 6px;
+  --sf-radius-sm: 9px;
+  --sf-radius-md: 12px;
+  --sf-radius-lg: 16px;
+  --sf-radius: var(--sf-radius-md);
+  --sf-shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
+  --sf-shadow-soft: 0 10px 32px rgba(0, 0, 0, 0.2);
+  --sf-font: "Segoe UI Variable", "Segoe UI", Inter, sans-serif;
+  --sf-font-display: "Segoe UI Variable Display", "Segoe UI", Inter, sans-serif;
+  --sf-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --sf-speed: 160ms;
+  --sf-transition: color var(--sf-speed) ease, background var(--sf-speed) ease,
+    border-color var(--sf-speed) ease, transform var(--sf-speed) ease;
+  font-family: var(--sf-font);
+  background: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-app-region: no-drag;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--sf-blue);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 99px;
+  background: rgba(145, 165, 167, 0.32);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 173, 110, 0.48);
+  background-clip: padding-box;
+}
