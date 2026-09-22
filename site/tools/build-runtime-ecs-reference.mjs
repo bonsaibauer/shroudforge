@@ -8,6 +8,11 @@ const snapshot = path.join(dataDirectory, current.snapshot);
 const profile = JSON.parse(fs.readFileSync(path.join(snapshot, "profile.json"), "utf8"));
 const types = JSON.parse(fs.readFileSync(path.join(snapshot, "types.json"), "utf8"));
 const outputDirectory = snapshot;
+const capturedAt = profile.game_version.split("|").at(-1);
+
+if (!capturedAt || Number.isNaN(Date.parse(capturedAt))) {
+  throw new Error(`The snapshot has no valid capture timestamp: ${profile.game_version}`);
+}
 
 fs.mkdirSync(outputDirectory, { recursive: true });
 
@@ -43,7 +48,7 @@ const summary = entries.reduce((accumulator, entry) => {
 const output = {
   generated_from: current.snapshot,
   game_version: profile.game_version,
-  generated_at: new Date().toISOString(),
+  generated_at: new Date(capturedAt).toISOString(),
   total: entries.length,
   summary,
   entries,

@@ -13248,12 +13248,12 @@
         },
         {
           "name": "fallback?",
-          "type": "boolean|string|number",
+          "type": "boolean|string|number|any[]",
           "description": ""
         }
       ],
       "returns": [
-        "boolean|string|number|nil"
+        "boolean|string|number|any[]|nil"
       ],
       "description": "",
       "source": "shroudforge.lua"
