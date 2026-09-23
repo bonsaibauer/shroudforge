@@ -207,7 +207,7 @@ mod tests {
         .unwrap();
         fs::write(
             root.join("config").join("shroudforge.json"),
-            br#"{"mods":{"mod.example":{"enabled":false,"settings":{}}}}"#,
+            br#"{"schemaVersion":1,"logging":{"enabled":true,"minimumLevel":"INFO"},"modules":{},"mods":{"mod.example":{"enabled":false,"settings":{}}}}"#,
         )
         .unwrap();
 
