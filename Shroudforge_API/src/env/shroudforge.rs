@@ -10,7 +10,14 @@ use serde_json::json;
 use crate::lua::LuaValue;
 
 pub(crate) fn set_settings(lua: &mlua::Lua, id: &str, values: &serde_json::Value) -> mlua::Result<()> {
-    lua.set_named_registry_value(&format!("shroudforge.settings.{id}"), json_to_lua(lua, values)?)
+    let settings = values
+        .as_object()
+        .ok_or_else(|| mlua::Error::runtime("mod settings must be an object"))?;
+    let table = lua.create_table_with_capacity(0, settings.len())?;
+    for (key, value) in settings {
+        table.raw_set(key.as_str(), json_to_lua(lua, value)?)?;
+    }
+    lua.set_named_registry_value(&format!("shroudforge.settings.{id}"), table)
 }
 
 pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
