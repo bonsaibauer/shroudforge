@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "general": {
+    "locale": "de"
+  },
+  "logging": {
+    "enabled": true,
+    "minimumLevel": "INFO"
+  },
+  "catalog": {
+    "provider": null
+  },
+  "modules": {
+    "debugConsole": {
+      "enabled": true,
+      "defaultSource": "game",
+      "levelFilter": "ALL",
+      "autoScroll": true,
+      "toggleKey": 121,
+      "refreshMilliseconds": 500,
+      "tailBytes": 1048576,
+      "window": {
+        "position": null
+      }
+    },
+    "modloaderUi": {
+      "enabled": true,
+      "startPage": "activity",
+      "toggleKey": 120,
+      "refreshMilliseconds": 1000,
+      "window": {
+        "position": null
+      }
+    },
+    "runtimeDiagnostics": {
+      "enabled": false,
+      "intervalMilliseconds": 2000,
+      "continuous": true,
+      "maximumDurationSeconds": 120,
+      "slowCallbackMilliseconds": 20,
+      "onlyChanges": true,
+      "areas": [
+        "runtime",
+        "queue",
+        "mods"
+      ],
+      "requestId": 0
+    },
+    "updates": {
+      "system": {
+        "enabled": true,
+        "checkMinutes": 60,
+        "channel": "stable"
+      }
+    }
+  }
+}

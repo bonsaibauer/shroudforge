@@ -32,6 +32,7 @@ use crate::{
 };
 
 pub struct AppState {
+    pub(crate) runtime_configured: Cell<bool>,
     env: ModEnvironment,
     api: ShroudForgeApi,
     config: AppConfig,
@@ -71,7 +72,7 @@ bitflags! {
 impl AppState {
     pub fn new(
         env: ModEnvironment,
-        api: ShroudForgeApi,
+        api: Option<ShroudForgeApi>,
         args: RunArgs,
         cache_diff: &CacheDiff,
     ) -> Result<Self, ()> {
@@ -129,18 +130,41 @@ impl AppState {
 
         let (type_registry, is_dirty) =
             crate::load::load_type_registry(game_dir, cache_dir, file_name)?;
-        crate::load::export_lua_definitions(
-            cache_dir,
-            &type_registry,
-            options.skip_cache || is_dirty || cache_diff.build_id_changed(),
-        );
+        if phase == RuntimePhase::Pregame {
+            crate::load::export_lua_definitions(
+                cache_dir,
+                &type_registry,
+                options.skip_cache || is_dirty || cache_diff.build_id_changed(),
+            );
+        }
         let type_registry = Rc::new(type_registry);
 
         let kfc_path = game_dir.join(file_name).with_extension("kfc");
-        let bak_path = crate::load::create_backup(&kfc_path)?;
-
-        let ref_file = crate::load::load_kfc_file(&bak_path)?;
-        let reader = crate::load::create_reader(game_dir, file_name)?;
+        let (ref_file, reader) = if phase == RuntimePhase::Ingame {
+            (
+                crate::load::load_kfc_file(&kfc_path)?,
+                crate::load::create_reader_with_extension(game_dir, file_name, "kfc")?,
+            )
+        } else {
+            let bak_path = crate::load::create_backup(&kfc_path)?;
+            (
+                crate::load::load_kfc_file(&bak_path)?,
+                crate::load::create_reader(game_dir, file_name)?,
+            )
+        };
+        let api = match api {
+            Some(api) => api,
+            None => {
+                let operations =
+                    crate::runtime_operations(game_dir.as_std_path()).map_err(|error| {
+                        warn!(%error, "Invalid installed API contract");
+                    })?;
+                let schema = shroudforge_parser::schema_from_registry(&type_registry, &ref_file);
+                ShroudForgeApi::new(
+                    shroudforge_compatibility::Compatibility::new(operations).resolve(schema),
+                )
+            }
+        };
         let writer = if options.assets_write {
             let stage = shroudforge_parser::transaction::begin(game_dir.as_std_path(), file_name)
                 .map_err(|error| {
@@ -174,6 +198,7 @@ impl AppState {
         };
 
         Ok(Self {
+            runtime_configured: Cell::new(false),
             env,
             api,
             config,

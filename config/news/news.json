@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "messages": [
+    {
+      "id": "shroudforge-welcome-1.0.0",
+      "title": "Welcome to ShroudForge",
+      "message": "Manage your mods and their settings in the Modloader. Mod packages live in the mods directory. A mod stays disabled unless enabled is explicitly set to true.",
+      "level": "info"
+    },
+    {
+      "id": "shroudforge-configuration-1",
+      "title": "Mod settings are stored in mod.json",
+      "message": "Activation and user values are stored under enabled and settings in mods/<Mod>/mod.json. You can edit this file without the UI, for example on a dedicated server.",
+      "level": "info"
+    },
+    {
+      "id": "shroudforge-apply-settings-1",
+      "title": "When do changes take effect?",
+      "message": "Saving a setting does not mean it is already active in the game. Runtime settings currently require a restart. Asset mods also require preparation while the game is closed.",
+      "level": "info"
+    },
+    {
+      "id": "shroudforge-feedback-1",
+      "title": "Report issues and help improve ShroudForge",
+      "message": "When reporting an issue, include your game version, enabled mods, and steps to reproduce it. Check log files for personal information before sharing them.",
+      "level": "info",
+      "actionUrl": "https://github.com/bonsaibauer/shroudforge/issues"
+    },
+    {
+      "id": "shroudforge-support-1",
+      "repeatEveryDays": 90,
+      "title": "Support ShroudForge",
+      "message": "Want to support ShroudForge's development? Feedback, issue reports, and an optional coffee help us improve the project and add features.",
+      "level": "info",
+      "actionUrl": "https://buymeacoffee.com/bonsaibauer"
+    }
+  ],
+  "templates": {
+    "mod.install.success": {
+      "title": "{name} installed",
+      "message": "Version {version} was installed successfully."
+    },
+    "mod.update.success": {
+      "title": "{name} updated",
+      "message": "Installed version {version} over {previousVersion}."
+    },
+    "mod.remove.success": {
+      "title": "{name} removed",
+      "message": "Version {version} was moved to the ShroudForge recycle bin."
+    },
+    "system.update": {
+      "title": "ShroudForge {version} is available",
+      "message": "A system update is available. Review the release notes before installing it."
+    },
+    "system.error": {
+      "title": "Update check failed",
+      "message": "The update service could not be reached. Check your connection and try again."
+    },
+    "system.staged": {
+      "title": "Systemupdate vorgemerkt",
+      "message": "The verified version will be installed after the game exits."
+    }
+  }
+}

@@ -2,20 +2,20 @@
 
 ## Purpose
 
-This crate turns parser output into a verified game contract. It is the boundary between data that can be discovered in Enshrouded files and operations that ShroudForge is willing to expose safely.
+This crate combines parser metadata and declared API operations. Declaring an operation does not prove live readiness: the API/provider checks the current world, entity and individual component on every live access.
 
 ## Current status
 
 The current Windows client profile targets Enshrouded build `1076226`. The profile records the expected runtime operations, component layouts, and native addresses used by the runtime bridge.
 
-Unsupported builds must not silently reuse this profile. A new game build requires a new or reviewed profile before runtime features are considered compatible.
+An explicitly opted-in profile may undergo structural revalidation after a game update instead of being rejected solely for a changed build identity. Missing/ambiguous hooks, invalid layouts and incompatible component sizes produce scoped failures. Structural checks do not prove unchanged engine semantics.
 
 ## Layout
 
 | Path | Responsibility |
 | --- | --- |
 | `src/lib.rs` | Compatibility contract, availability states, and validation |
-| `windows/enshrouded_client_1076226.h` | Native Windows profile for the supported client build |
+| `../Shroudforge_Modloader/kfc-runtime/compatibility/profiles/` | Authoritative native build profiles; installed by the runtime submodule under `runtime/compatibility/profiles/` |
 
 ## Development
 
@@ -23,4 +23,4 @@ Unsupported builds must not silently reuse this profile. A new game build requir
 cargo test -p shroudforge-compatibility
 ```
 
-Update the Rust contract and native header together when a supported runtime operation or game build changes.
+Build-specific data lives exclusively in the runtime repository's JSON profiles. Changing a profile does not require rebuilding the modloader. New hook calling conventions require runtime code changes; incompatible provider ABI changes require a host update.

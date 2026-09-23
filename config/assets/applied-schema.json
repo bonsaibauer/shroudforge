@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "status", "target"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "enum": ["preparing", "applied"] },
+    "target": { "enum": ["enshrouded", "enshrouded_server"] },
+    "phase": { "const": "prepare" },
+    "completedAt": { "type": "integer", "minimum": 0 },
+    "fingerprint": {"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "mods": { "type": "array", "items": { "type": "object", "required": ["id", "version"] } }
+  },
+  "if": { "properties": { "status": { "const": "applied" } } },
+  "then": { "required": ["phase", "completedAt", "mods", "fingerprint"] }
+}

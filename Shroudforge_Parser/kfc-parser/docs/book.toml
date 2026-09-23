@@ -1,8 +1,0 @@
-[book]
-authors = ["Brabb3l"]
-language = "en"
-src = "src"
-title = "Enshrouded Modding Documentation"
-
-[output.html]
-preferred-dark-theme = "ayu"

@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "logging",
+    "modules"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "logging": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "minimumLevel"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minimumLevel": {
+          "enum": [
+            "TRACE",
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ]
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "properties": {
+        "debugConsole": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "defaultSource": {
+              "enum": [
+                "game",
+                "loader",
+                "diagnostics"
+              ]
+            },
+            "levelFilter": {
+              "enum": [
+                "ALL",
+                "TRACE",
+                "DEBUG",
+                "INFO",
+                "WARN",
+                "ERROR"
+              ]
+            },
+            "autoScroll": {
+              "type": "boolean"
+            },
+            "toggleKey": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 255
+            },
+            "refreshMilliseconds": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 10000
+            },
+            "tailBytes": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 1048576
+            },
+            "window": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "integer",
+                      "minimum": -100000,
+                      "maximum": 100000
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": -100000,
+                      "maximum": 100000
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "modloaderUi": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "startPage": {
+              "enum": [
+                "activity",
+                "news",
+                "installed",
+                "discover",
+                "updates",
+                "compatibility",
+                "settings"
+              ]
+            },
+            "toggleKey": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 255
+            },
+            "refreshMilliseconds": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 10000
+            },
+            "window": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "integer",
+                      "minimum": -100000,
+                      "maximum": 100000
+                    },
+                    "y": {
+                      "type": "integer",
+                      "minimum": -100000,
+                      "maximum": 100000
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "runtimeDiagnostics": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "continuous": {
+              "type": "boolean"
+            },
+            "intervalMilliseconds": {
+              "type": "integer",
+              "minimum": 500,
+              "maximum": 60000
+            },
+            "maximumDurationSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3600
+            },
+            "slowCallbackMilliseconds": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 60000
+            },
+            "onlyChanges": {
+              "type": "boolean"
+            },
+            "areas": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "runtime",
+                  "queue",
+                  "mods"
+                ]
+              }
+            },
+            "requestId": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "updates": {
+          "type": "object",
+          "properties": {
+            "system": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "checkMinutes": {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 1440
+                },
+                "channel": {
+                  "enum": [
+                    "stable"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "general": {
+      "type": "object",
+      "properties": {
+        "locale": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$"
+        },
+        "compactMode": {
+          "type": "boolean"
+        },
+        "reducedMotion": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

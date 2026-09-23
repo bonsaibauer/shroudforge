@@ -69,26 +69,10 @@ impl Compatibility {
         self
     }
 
-    pub fn resolve(mut self, schema: GameSchema) -> GameContract {
-        let runtime_anchor = schema.types.get("keen::ecs::CurrentTransform");
-        let runtime_schema_valid = runtime_anchor
-            .is_some_and(|definition| definition.size > 0 && definition.primitive == "Struct");
-        if !runtime_schema_valid {
-            let reason = "required game type keen::ecs::CurrentTransform is absent or invalid";
-            for operation in [
-                "runtime.ecs.query",
-                "runtime.ecs.resolve",
-                "runtime.ecs.read",
-                "runtime.ecs.write",
-            ] {
-                self.runtime.insert(
-                    operation.into(),
-                    Availability::Unavailable {
-                        reason: reason.into(),
-                    },
-                );
-            }
-        }
+    pub fn resolve(self, schema: GameSchema) -> GameContract {
+        // Operation support is not proof of live readiness. The provider checks
+        // each requested component and its current layout at the API boundary.
+        // An unrelated missing parser type must not disable every ECS operation.
         GameContract {
             schema,
             runtime: self.runtime,
@@ -117,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_runtime_schema_disables_only_ecs_operations() {
+    fn missing_unrelated_type_does_not_disable_provider_operations() {
         let schema = GameSchema {
             parser: "test".into(),
             game_version: "build-1".into(),
@@ -127,6 +111,6 @@ mod tests {
         let contract =
             Compatibility::new(["runtime.lifecycle", "runtime.ecs.write"]).resolve(schema);
         assert!(contract.has_runtime("runtime.lifecycle"));
-        assert!(!contract.has_runtime("runtime.ecs.write"));
+        assert!(contract.has_runtime("runtime.ecs.write"));
     }
 }

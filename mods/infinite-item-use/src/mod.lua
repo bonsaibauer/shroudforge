@@ -49,20 +49,26 @@ end
 
 local function restore_consumed_item(item)
     local handle = runtime.ecs.resolve(item.entity)
-    if handle == nil then return end
+    if handle == nil then return false end
     local inventory = runtime.ecs.read(handle, Inventory)
-    if inventory == nil then return end
+    if inventory == nil then return false end
     local slot = inventory.slots[item.slot + 1]
-    if slot == nil then return end
+    if slot == nil then return false end
 
-    if item.alreadyConsumed then
-        slot.data.count = slot.data.count + 1
-    else
-        slot.data.count = item.count
+    if slot.id ~= 0 and slot.id ~= item.id then return false end
+    if slot.data.pide.id ~= 0 and slot.data.pide.id ~= item.pide then return false end
+    if item.restoreCount == nil then
+        item.beforeRestore = slot.data.count
+        item.restoreCount = item.alreadyConsumed and (slot.data.count + 1) or item.count
     end
+    -- Reconcile an earlier timed-out write before retrying. Never increment twice.
+    if slot.id == item.id and slot.data.count == item.restoreCount then return true end
+    if slot.data.count ~= item.beforeRestore then return false end
+
+    slot.data.count = item.restoreCount
     if slot.id == 0 and item.id ~= 0 then slot.id = item.id end
     if slot.data.pide.id == 0 and item.pide ~= 0 then slot.data.pide.id = item.pide end
-    runtime.ecs.write(handle, Inventory, inventory)
+    return runtime.ecs.write(handle, Inventory, inventory)
 end
 
 local function update_item_use()
@@ -96,9 +102,10 @@ local function update_item_use()
 
             local item = pending[player]
             if item and item.version == consumed_version then
-                restore_consumed_item(item)
-                restored_versions[player] = item.version
-                pending[player] = nil
+                if restore_consumed_item(item) then
+                    restored_versions[player] = item.version
+                    pending[player] = nil
+                end
             end
         end
     end
@@ -110,4 +117,5 @@ return {
         shroudforge.log.info("Infinite item use active")
     end,
     on_update = update_item_use,
+    on_unload = function() pending = {}; restored_versions = {} end,
 }

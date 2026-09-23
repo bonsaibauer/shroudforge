@@ -12,6 +12,7 @@ Modules are first-party companion processes shipped with ShroudForge. They are t
 | `debug-console/` | `shroudforge-debug-console.exe` | Searchable view of Enshrouded and ShroudForge logs | Included in releases |
 | `modloader-ui/` | `shroudforge-modloader-ui.exe` | Mod management, settings, news, compatibility, and updates | Included in releases |
 | `updater/` | `shroudforge-updater.exe` | Applies staged updates after Enshrouded exits and rolls back failed installs | Included in releases |
+| `runtime-diagnostics/` | `shroudforge-runtime-diagnostics.exe` | Explicit, bounded native inspection with shared logging | Included in releases |
 
 Each packaged module except the updater has a `module.json` beside its executable. The updater is launched from the dedicated `Shroudforge_Updater` release directory.
 

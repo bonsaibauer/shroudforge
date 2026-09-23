@@ -161,10 +161,7 @@ impl GameParser for KfcParser {
     }
 
     fn parse(&self, files: &GameFiles) -> Result<GameSchema, ParserError> {
-        use kfc::{
-            container::KFCFile,
-            reflection::{LookupKey, TypeRegistry},
-        };
+        use kfc::{container::KFCFile, reflection::TypeRegistry};
 
         require_file(&files.executable, true)?;
         require_file(&files.kfc, false)?;
@@ -173,82 +170,92 @@ impl GameParser for KfcParser {
         let container = KFCFile::from_path(&files.kfc, false)
             .map_err(|error| ParserError::Backend(error.to_string()))?;
 
-        let mut types = BTreeMap::new();
-        for metadata in registry.iter() {
-            let fields = metadata
-                .struct_fields
-                .values()
-                .map(|field| {
-                    let type_name = registry
-                        .get(field.r#type)
-                        .map(|value| value.qualified_name.clone())
-                        .unwrap_or_else(|| "<unknown>".into());
-                    (
-                        field.name.clone(),
-                        FieldDefinition {
-                            name: field.name.clone(),
-                            type_name,
-                            data_offset: field.data_offset,
-                        },
-                    )
-                })
-                .collect();
-            let enum_values = metadata
-                .enum_fields
-                .values()
-                .map(|field| {
-                    (
-                        field.name.clone(),
-                        EnumValueDefinition {
-                            name: field.name.clone(),
-                            value: field.value,
-                        },
-                    )
-                })
-                .collect();
-            types.insert(
-                metadata.qualified_name.clone(),
-                TypeDefinition {
-                    name: metadata.name.clone(),
-                    impact_name: metadata.impact_name.clone(),
-                    qualified_name: metadata.qualified_name.clone(),
-                    namespace: metadata.namespace.clone(),
-                    inner_type: metadata
-                        .inner_type
-                        .and_then(|index| registry.get(index))
-                        .map(|value| value.qualified_name.clone()),
-                    primitive: format!("{:?}", metadata.primitive_type),
-                    size: metadata.size,
-                    alignment: metadata.alignment,
-                    element_alignment: metadata.element_alignment,
-                    field_count: metadata.field_count,
-                    fields,
-                    enum_values,
-                },
-            );
-        }
+        Ok(schema_from_registry(&registry, &container))
+    }
+}
 
-        let mut resources = BTreeMap::new();
-        for type_hash in container.resource_types() {
-            let Some(metadata) = registry.get_by_hash(LookupKey::Qualified(type_hash)) else {
-                continue;
-            };
-            let values = container
-                .resources_by_type(type_hash)
-                .map(|resource| ResourceReference {
-                    guid: resource.to_string(),
-                    part: resource.part_index(),
-                })
-                .collect();
-            resources.insert(metadata.qualified_name.clone(), values);
-        }
+/// Build the API view from already loaded metadata; never rescan the executable.
+pub fn schema_from_registry(
+    registry: &kfc::reflection::TypeRegistry,
+    container: &kfc::container::KFCFile,
+) -> GameSchema {
+    use kfc::reflection::LookupKey;
 
-        Ok(GameSchema {
-            parser: self.id().into(),
-            game_version: container.game_version().into(),
-            types,
-            resources,
-        })
+    let mut types = BTreeMap::new();
+    for metadata in registry.iter() {
+        let fields = metadata
+            .struct_fields
+            .values()
+            .map(|field| {
+                let type_name = registry
+                    .get(field.r#type)
+                    .map(|value| value.qualified_name.clone())
+                    .unwrap_or_else(|| "<unknown>".into());
+                (
+                    field.name.clone(),
+                    FieldDefinition {
+                        name: field.name.clone(),
+                        type_name,
+                        data_offset: field.data_offset,
+                    },
+                )
+            })
+            .collect();
+        let enum_values = metadata
+            .enum_fields
+            .values()
+            .map(|field| {
+                (
+                    field.name.clone(),
+                    EnumValueDefinition {
+                        name: field.name.clone(),
+                        value: field.value,
+                    },
+                )
+            })
+            .collect();
+        types.insert(
+            metadata.qualified_name.clone(),
+            TypeDefinition {
+                name: metadata.name.clone(),
+                impact_name: metadata.impact_name.clone(),
+                qualified_name: metadata.qualified_name.clone(),
+                namespace: metadata.namespace.clone(),
+                inner_type: metadata
+                    .inner_type
+                    .and_then(|index| registry.get(index))
+                    .map(|value| value.qualified_name.clone()),
+                primitive: format!("{:?}", metadata.primitive_type),
+                size: metadata.size,
+                alignment: metadata.alignment,
+                element_alignment: metadata.element_alignment,
+                field_count: metadata.field_count,
+                fields,
+                enum_values,
+            },
+        );
+    }
+
+    let mut resources = BTreeMap::new();
+    for type_hash in container.resource_types() {
+        let Some(metadata) = registry.get_by_hash(LookupKey::Qualified(type_hash)) else {
+            continue;
+        };
+        let values = container
+            .resources_by_type(type_hash)
+            .map(|resource| ResourceReference {
+                guid: resource.to_string(),
+                part: resource.part_index(),
+            })
+            .collect();
+        resources.insert(metadata.qualified_name.clone(), values);
+    }
+
+    GameSchema {
+        parser: "kfc".into(),
+        game_version: container.game_version().into(),
+        types,
+        resources,
     }
 }
 

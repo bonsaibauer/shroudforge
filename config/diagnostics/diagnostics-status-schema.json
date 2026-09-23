@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object",
+  "required":["schemaVersion","pid","updatedAt","active","reason","remainingSeconds","lastSampleAt","loggingEnabled","minimumLevel"],
+  "properties":{
+    "schemaVersion":{"const":1},"pid":{"type":"integer","minimum":1},"updatedAt":{"type":"integer","minimum":0},
+    "active":{"type":"boolean"},"reason":{"enum":["disabled","active","stopped","duration-complete","snapshot-complete","process-stopped"]},
+    "remainingSeconds":{"type":"integer","minimum":0},"lastSampleAt":{"type":"integer","minimum":0},
+    "loggingEnabled":{"type":"boolean"},"minimumLevel":{"enum":["TRACE","DEBUG","INFO","WARN","ERROR"]}
+  },"additionalProperties":false
+}

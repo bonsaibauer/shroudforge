@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "status", "version", "build", "installedAt", "backup"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "const": "installed" },
+    "version": { "type": "string" },
+    "build": { "type": "string" },
+    "installedAt": { "type": "integer", "minimum": 0 },
+    "backup": { "type": "string" }
+  }
+}

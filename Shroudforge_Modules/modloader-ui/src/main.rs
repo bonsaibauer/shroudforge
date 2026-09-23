@@ -8,7 +8,7 @@ fn main() {
 #[cfg(windows)]
 mod windows {
     use std::{
-        fs::{self, File, OpenOptions},
+        fs::{self, File},
         io::{BufRead, BufReader, Read, Write},
         os::windows::ffi::OsStrExt,
         path::{Component, Path, PathBuf},
@@ -101,6 +101,10 @@ mod windows {
     #[serde(rename_all = "camelCase")]
     struct UiSettings {
         #[serde(default)]
+        config_revision: String,
+        #[serde(default)]
+        module_preferences: Option<serde_json::Value>,
+        #[serde(default)]
         compact_mode: bool,
         #[serde(default)]
         reduced_motion: bool,
@@ -114,6 +118,8 @@ mod windows {
 
     #[derive(Deserialize)]
     struct UiCommand {
+        #[serde(default)]
+        revision: Option<String>,
         command: String,
         #[serde(default)]
         settings: Option<UiSettings>,
@@ -144,8 +150,8 @@ mod windows {
         CheckUpdates,
         StageUpdate,
         OpenUrl(String),
-        SetModEnabled(String, bool),
-        SaveModSettings(String, serde_json::Value),
+        SetModEnabled(String, bool, String),
+        SaveModSettings(String, serde_json::Value, String),
         SaveSettings(UiSettings),
         SearchCatalog(String),
         InstallMod(String),
@@ -153,6 +159,7 @@ mod windows {
         RunModAction(String, String),
         RemoveMod(String),
         MarkNewsRead(Vec<String>),
+        Diagnostics(String),
     }
 
     struct Arguments {
@@ -160,11 +167,13 @@ mod windows {
         game_pid: u32,
         stop_name: Option<String>,
         standalone: bool,
+        server: bool,
     }
 
     #[derive(Clone, Serialize)]
     #[serde(rename_all = "camelCase")]
     struct ModInfo {
+        revision: String,
         id: String,
         name: String,
         version: String,
@@ -277,6 +286,8 @@ mod windows {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Snapshot {
+        diagnostics: serde_json::Value,
+        configuration: serde_json::Value,
         connected: bool,
         mode: &'static str,
         game_version: String,
@@ -284,6 +295,7 @@ mod windows {
         mods: Vec<ModInfo>,
         activity: Vec<Activity>,
         notices: Vec<Notice>,
+        news_templates: serde_json::Value,
         read_notice_ids: Vec<String>,
         release: ReleaseState,
         settings: SnapshotSettings,
@@ -294,6 +306,8 @@ mod windows {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct SnapshotSettings {
+        config_revision: String,
+        module_preferences: serde_json::Value,
         compact_mode: bool,
         reduced_motion: bool,
         logging_enabled: bool,
@@ -395,7 +409,13 @@ mod windows {
 
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let arguments = arguments()?;
-        let module_config = load_module_config();
+        match shroudforge_package::migration::migrate_installation(&arguments.root) {
+            Ok(errors)=>for error in errors {write_activity(&arguments.root,"mods","Migration","Failed",Some(&error),"error");},
+            Err(error)=>write_activity(&arguments.root,"state","Migration","Failed",Some(&error),"error"),
+        }
+        if let Err(error)=shroudforge_package::news::migrate(&arguments.root) { write_activity(&arguments.root,"news","Migration","Failed",Some(&error),"error"); }
+        let mut module_config = load_module_config(&arguments.root).unwrap_or_else(|_| ModuleConfig { toggle_key:default_toggle_key(),refresh_milliseconds:default_refresh(),update_provider:ProviderConfig::default(),system_update_provider:default_system_provider() });
+        if shroudforge_package::config::read_loader(&arguments.root).is_ok_and(|value|value["modules"]["modloaderUi"]["enabled"] == false) { return Ok(()); }
         let user_config = load_user_config(&arguments.root);
         let provider = effective_provider(&module_config, &user_config);
         let installed = installed_release(&arguments.root);
@@ -423,12 +443,15 @@ mod windows {
             .with_min_inner_size(LogicalSize::new(860.0, 560.0))
             .build(&event_loop)?;
 
+        let mut saved_position = read_central_config(&arguments.root)["modules"]["modloaderUi"]["window"]["position"].clone();
+        position_window(&window, &saved_position, false);
         let (sender, receiver) = mpsc::channel();
         let handler = move |message: wry::http::Request<String>| {
             let Ok(value) = serde_json::from_str::<UiCommand>(message.body()) else {
                 return;
             };
             let command = match value.command.as_str() {
+                "diagnostics" => Command::Diagnostics(value.action.unwrap_or_default()),
                 "hide" => Command::Hide,
                 "drag" => Command::Drag,
                 "refresh" => Command::Refresh,
@@ -451,11 +474,11 @@ mod windows {
                     None => return,
                 },
                 "save-mod-settings" => match (value.mod_id, value.values) {
-                    (Some(id), Some(values)) => Command::SaveModSettings(id, values),
+                    (Some(id), Some(values)) => Command::SaveModSettings(id, values, value.revision.unwrap_or_default()),
                     _ => return,
                 },
                 "set-mod-enabled" => match (value.mod_id, value.enabled) {
-                    (Some(id), Some(enabled)) => Command::SetModEnabled(id, enabled),
+                    (Some(id), Some(enabled)) => Command::SetModEnabled(id, enabled, value.revision.unwrap_or_default()),
                     _ => return,
                 },
                 "save-settings" => match value.settings {
@@ -489,7 +512,7 @@ mod windows {
             Instant::now() + Duration::from_secs(86400)
         };
         let mut active_provider = provider;
-        let system_provider = module_config.system_update_provider.clone();
+        let mut system_provider = module_config.system_update_provider.clone();
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
             match event {
@@ -529,11 +552,14 @@ mod windows {
                                 project_id,
                             ),
                             Command::SaveLanguage(locale) => {
-                                let _ = save_language(&arguments.root, &locale);
+                                if let Err(error) = save_language(&arguments.root, &locale) {
+                                    write_activity(&arguments.root, "Modloader", "Save language", "Failed", Some(&error), "error");
+                                }
+                                next_refresh = Instant::now();
                             }
                             Command::OpenUrl(url) => open_url(&url),
-                            Command::SetModEnabled(id, enabled) => {
-                                let result = set_mod_enabled(&arguments.root, &id, enabled);
+                            Command::SetModEnabled(id, enabled, revision) => {
+                                let result = set_mod_enabled(&arguments.root, &id, enabled, &revision);
                                 let success = result.is_ok();
                                 let error = result.err();
                                 write_activity(
@@ -550,13 +576,15 @@ mod windows {
                                 );
                                 next_refresh = Instant::now();
                             }
-                            Command::SaveModSettings(id, values) => {
-                                if save_mod_settings(&arguments.root, &id, &values).is_ok() {
+                            Command::SaveModSettings(id, values, revision) => {
+                                let result = save_mod_settings(&arguments.root, &id, &values, &revision);
+                                if let Err(error) = &result { write_activity(&arguments.root, &id, "Save settings", "Failed", Some(error), "error"); }
+                                if result.is_ok() {
                                     write_activity(
                                         &arguments.root,
                                         &id,
-                                        "Einstellungen gespeichert",
-                                        "Erfolgreich",
+                                        "Settings saved",
+                                        "Succeeded",
                                         None,
                                         "success",
                                     );
@@ -564,7 +592,12 @@ mod windows {
                                 next_refresh = Instant::now();
                             }
                             Command::SaveSettings(settings) => {
-                                if save_settings(&arguments.root, &settings).is_ok() {
+                                let result = save_settings(&arguments.root, &settings);
+                                if let Err(error) = &result {
+                                    write_activity(&arguments.root, "Modloader", "Save settings", "Failed", Some(error), "error");
+                                }
+                                next_refresh = Instant::now();
+                                if result.is_ok() {
                                     active_provider.enabled = settings.update_enabled;
                                     active_provider.base_url = settings.base_url;
                                     active_provider.project_id = settings.project_id;
@@ -574,8 +607,8 @@ mod windows {
                                     write_activity(
                                         &arguments.root,
                                         "Modloader",
-                                        "Einstellungen gespeichert",
-                                        "Erfolgreich",
+                                        "Settings saved",
+                                        "Succeeded",
                                         None,
                                         "success",
                                     );
@@ -588,11 +621,11 @@ mod windows {
                                 write_activity(
                                     &arguments.root,
                                     &id,
-                                    "Aktion ausgeführt",
+                                    "Run mod action",
                                     if success {
-                                        "Übergeben"
+                                        "Queued"
                                     } else {
-                                        "Fehlgeschlagen"
+                                        "Failed"
                                     },
                                     error.as_deref(),
                                     if success { "success" } else { "error" },
@@ -606,11 +639,11 @@ mod windows {
                                 write_activity(
                                     &arguments.root,
                                     &id,
-                                    "Mod entfernt",
+                                    "Mod removed",
                                     if success {
-                                        "Erfolgreich"
+                                        "Succeeded"
                                     } else {
-                                        "Fehlgeschlagen"
+                                        "Failed"
                                     },
                                     error.as_deref(),
                                     if success { "success" } else { "error" },
@@ -618,8 +651,16 @@ mod windows {
                                 next_refresh = Instant::now();
                             }
                             Command::MarkNewsRead(ids) => {
-                                let _ = mark_news_read(&arguments.root, &ids);
+                                if let Err(error) = mark_news_read(&arguments.root, &ids) {
+                                    write_activity(&arguments.root, "Modloader", "Mark notices as read", "Failed", Some(&error), "error");
+                                }
                                 next_refresh = Instant::now();
+                            }
+                            Command::Diagnostics(action) => {
+                                if let Err(error)=shroudforge_runtime_diagnostics::request(&arguments.root,&action) {
+                                    write_activity(&arguments.root,"diagnostics","Diagnostic request","Failed",Some(&error),"error");
+                                }
+                                next_refresh=Instant::now();
                             }
                         }
                     }
@@ -628,7 +669,7 @@ mod windows {
                     let game_focused = arguments.standalone || foreground == arguments.game_pid;
                     let ui_focused = foreground == unsafe { GetCurrentProcessId() };
                     let down = unsafe { GetAsyncKeyState(module_config.toggle_key as i32) } < 0;
-                    if game_focused && down && !key_down {
+                    if (game_focused || ui_focused) && down && !key_down {
                         shown = !shown;
                         window.set_visible(shown);
                         if shown {
@@ -650,6 +691,19 @@ mod windows {
                             );
                     }
                     if Instant::now() >= next_refresh {
+                        let next_position = read_central_config(&arguments.root)["modules"]["modloaderUi"]["window"]["position"].clone();
+                        if next_position != saved_position {
+                            position_window(&window, &next_position, false);
+                            saved_position = next_position;
+                        }
+                        if let Ok(next) = load_module_config(&arguments.root) {
+                            if next.system_update_provider.enabled != system_provider.enabled || next.system_update_provider.check_minutes != system_provider.check_minutes {
+                                next_update_check = Instant::now();
+                            }
+                            system_provider = next.system_update_provider.clone();
+                            active_provider = effective_provider(&next, &load_user_config(&arguments.root));
+                            module_config = next;
+                        }
                         next_refresh = Instant::now()
                             + Duration::from_millis(
                                 module_config.refresh_milliseconds.clamp(250, 10_000),
@@ -664,6 +718,16 @@ mod windows {
                     }
                 }
                 Event::WindowEvent {
+                    event: WindowEvent::Moved(position),
+                    ..
+                } => {
+                    saved_position = serde_json::json!({"x":position.x,"y":position.y});
+                    let _ = shroudforge_package::config::update_loader(&arguments.root, |value| {
+                        value["modules"]["modloaderUi"]["window"]["position"] = saved_position.clone();
+                        Ok(())
+                    });
+                }
+                Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
@@ -673,6 +737,21 @@ mod windows {
                 _ => {}
             }
         });
+    }
+
+    fn position_window(window: &tao::window::Window, saved: &serde_json::Value, right: bool) {
+        if let Some(monitor) = window.current_monitor() {
+            let origin = monitor.position();
+            let size = monitor.size();
+            let extent = window.outer_size();
+            let available_x = size.width.saturating_sub(extent.width) as i32;
+            let available_y = size.height.saturating_sub(extent.height) as i32;
+            let x = saved["x"].as_i64().unwrap_or((origin.x + if right { available_x.saturating_sub(20) } else { available_x / 2 }) as i64);
+            let y = saved["y"].as_i64().unwrap_or((origin.y + available_y / 2) as i64);
+            window.set_outer_position(tao::dpi::PhysicalPosition::new(
+                (x as i32).clamp(origin.x, origin.x + available_x),
+                (y as i32).clamp(origin.y, origin.y + available_y)));
+        }
     }
 
     fn arguments() -> Result<Arguments, Box<dyn std::error::Error>> {
@@ -695,61 +774,62 @@ mod windows {
         } else {
             Some(value("--stop-event").ok_or("missing --stop-event")?)
         };
+        let server = if standalone {
+            match value("--target").as_deref() {
+                Some("server") => true,
+                Some("client") => false,
+                Some(_) => return Err("--target must be client or server".into()),
+                None => match (root.join("enshrouded.exe").is_file(), root.join("enshrouded_server.exe").is_file()) {
+                    (true, false) => false,
+                    (false, true) => true,
+                    _ => return Err("Select an installation target with --target client or --target server".into()),
+                },
+            }
+        } else {
+            use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
+            let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, game_pid) };
+            if process.is_null() { return Err(std::io::Error::last_os_error().into()); }
+            let mut buffer = vec![0u16; 32768];
+            let mut length = buffer.len() as u32;
+            let success = unsafe { QueryFullProcessImageNameW(process, 0, buffer.as_mut_ptr(), &mut length) };
+            let error = std::io::Error::last_os_error();
+            unsafe { CloseHandle(process); }
+            if success == 0 { return Err(error.into()); }
+            let executable = PathBuf::from(String::from_utf16(&buffer[..length as usize])?);
+            if executable.parent().ok_or("target has no installation directory")?.canonicalize()? != root.canonicalize()? {
+                return Err("Target process does not belong to the selected installation".into());
+            }
+            match executable.file_name().and_then(|name| name.to_str()).map(str::to_ascii_lowercase).as_deref() {
+                Some("enshrouded_server.exe") => true,
+                Some("enshrouded.exe") => false,
+                _ => return Err("Target process is not an Enshrouded client or dedicated server".into()),
+            }
+        };
         Ok(Arguments {
             root,
             game_pid,
             stop_name,
             standalone,
+            server,
         })
     }
 
-    fn load_module_config() -> ModuleConfig {
-        let path = std::env::current_exe()
-            .ok()
-            .and_then(|path| path.parent().map(|parent| parent.join("module.json")));
-        let mut config = path
-            .and_then(|path| fs::read(path).ok())
-            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-            .unwrap_or(ModuleConfig {
-                toggle_key: default_toggle_key(),
-                refresh_milliseconds: default_refresh(),
-                update_provider: ProviderConfig::default(),
-                system_update_provider: default_system_provider(),
-            });
-        if !(1..=255).contains(&config.toggle_key) {
-            config.toggle_key = default_toggle_key();
-        }
-        config
+    fn load_module_config(root: &Path) -> Result<ModuleConfig, String> {
+        let value = shroudforge_package::config::read_loader(root)?;
+        let mut config: ModuleConfig = serde_json::from_value(value["modules"]["modloaderUi"].clone()).map_err(|e| e.to_string())?;
+        if let Some(enabled) = value.pointer("/modules/updates/system/enabled").and_then(|v| v.as_bool()) { config.system_update_provider.enabled = enabled; }
+        if let Some(minutes) = value.pointer("/modules/updates/system/checkMinutes").and_then(|v| v.as_u64()) { config.system_update_provider.check_minutes = minutes; }
+        Ok(config)
     }
 
-    fn central_config_path(root: &Path) -> PathBuf {
-        root.join("config/shroudforge.json")
-    }
 
     fn read_central_config(root: &Path) -> serde_json::Value {
-        let path = central_config_path(root);
-        if let Some(value) = fs::read(&path)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-            .filter(|value| value.is_object())
-        {
-            return value;
-        }
-
-        let value = serde_json::json!({
-            "schemaVersion": 1,
-            "general": {
-                "locale": "de"
-            },
-            "logging": { "enabled": true, "level": "INFO" },
-            "catalog": {
-                "provider": null
-            },
-            "mods": {}
-        });
-        let _ = write_json(&path, &value);
-        value
+        shroudforge_package::config::read_loader(root).unwrap_or_else(|error| {
+            eprintln!("loader configuration: {error}");
+            serde_json::json!({"configurationError": error})
+        })
     }
+
 
     fn load_user_config(root: &Path) -> UserConfig {
         let value = read_central_config(root);
@@ -803,14 +883,17 @@ mod windows {
         release: &Arc<Mutex<ReleaseState>>,
         catalog: &Arc<Mutex<CatalogState>>,
     ) -> Snapshot {
-        let logging = read_logging(&arguments.root);
+        let central = read_central_config(&arguments.root);
+        let logging = (central.pointer("/logging/enabled").and_then(|v| v.as_bool()).unwrap_or(true), central.pointer("/logging/minimumLevel").and_then(|v| v.as_str()).unwrap_or("INFO").to_owned());
         let mods = read_mods(&arguments.root);
         sync_mod_events(&arguments.root, &mods);
         Snapshot {
+            diagnostics: shroudforge_runtime_diagnostics::status(&arguments.root),
+            configuration: shroudforge_package::status::configuration(&arguments.root, arguments.server, env!("CARGO_PKG_VERSION")),
             connected: !arguments.standalone,
             mode: if arguments.standalone {
-                "STANDALONE"
-            } else if arguments.root.join("enshrouded.exe").is_file() {
+                if arguments.server { "STANDALONE SERVER" } else { "STANDALONE CLIENT" }
+            } else if !arguments.server {
                 "CLIENT"
             } else {
                 "SERVER"
@@ -820,17 +903,21 @@ mod windows {
             mods,
             activity: read_activity(&arguments.root),
             notices: read_notifications(&arguments.root),
+            news_templates: shroudforge_package::news::read(&arguments.root)
+                .ok().and_then(|value| value.get("templates").cloned()).unwrap_or_else(|| serde_json::json!({})),
             read_notice_ids: read_news_state(&arguments.root),
             release: release
                 .lock()
                 .map(|value| value.clone())
                 .unwrap_or_else(|_| ReleaseState::idle(installed_release(&arguments.root), false)),
             settings: SnapshotSettings {
-                compact_mode: read_central_config(&arguments.root)
+                config_revision: config_revision(&central),
+                module_preferences: central["modules"].clone(),
+                compact_mode: central
                     .pointer("/general/compactMode")
                     .and_then(|value| value.as_bool())
                     .unwrap_or(false),
-                reduced_motion: read_central_config(&arguments.root)
+                reduced_motion: central
                     .pointer("/general/reducedMotion")
                     .and_then(|value| value.as_bool())
                     .unwrap_or(false),
@@ -865,44 +952,34 @@ mod windows {
             .unwrap_or_else(|| "Automatisch erkannt".into())
     }
 
-    fn read_logging(root: &Path) -> (bool, String) {
-        let value = read_central_config(root);
-        let enabled = value
-            .pointer("/logging/enabled")
-            .and_then(|value| value.as_bool())
-            .unwrap_or(true);
-        let level = value
-            .pointer("/logging/level")
-            .and_then(|value| value.as_str())
-            .unwrap_or("INFO")
-            .to_ascii_uppercase();
-        (enabled, level)
-    }
-
     fn read_mods(root: &Path) -> Vec<ModInfo> {
         let Ok(entries) = fs::read_dir(root.join("mods")) else {
             return Vec::new();
         };
-        let config = read_central_config(root);
         let catalog_mods = catalog_installed_mod_ids(root);
         let mut mods = Vec::new();
         for entry in entries.flatten() {
             let package = entry.path();
-            let Some(value) = read_package_file(&package, "mod.json")
+            let Ok(bytes)=read_package_file(&package,"mod.json") else {continue};
+            let revision=shroudforge_package::config::revision(&bytes);
+            let Some(value) = serde_json::from_slice(&bytes).map_err(|e|e.to_string())
+                .and_then(|value|shroudforge_package::config::parse_manifest(root,value))
+                .and_then(|manifest| serde_json::to_value(manifest).map_err(|e| e.to_string()))
                 .ok()
-                .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
             else {
                 continue;
             };
             let Some(id) = value.get("id").and_then(|value| value.as_str()) else {
                 continue;
             };
+            let config=serde_json::json!({"enabled":value["enabled"],"settings":value["settingValues"]});
             let ui = value
                 .get("ui")
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({}));
             let assets = read_mod_assets(&package, &ui);
             mods.push(ModInfo {
+                revision,
                 id: id.into(),
                 name: value
                     .get("name")
@@ -929,11 +1006,9 @@ mod windows {
                     "local"
                 },
                 enabled: config
-                    .get("mods")
-                    .and_then(|value| value.get(id))
-                    .and_then(|value| value.get("enabled"))
+                    .get("enabled")
                     .and_then(|value| value.as_bool())
-                    .unwrap_or(true),
+                    .unwrap_or(false),
                 settings: value
                     .get("settings")
                     .and_then(|value| value.as_array())
@@ -958,9 +1033,7 @@ mod windows {
                     .unwrap_or_default(),
                 assets,
                 setting_values: config
-                    .get("mods")
-                    .and_then(|value| value.get(id))
-                    .and_then(|value| value.get("settings"))
+                    .get("settings")
                     .cloned()
                     .unwrap_or_else(|| serde_json::json!({})),
             });
@@ -968,6 +1041,7 @@ mod windows {
         mods.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         mods
     }
+
 
     fn read_mod_assets(
         package: &Path,
@@ -1063,14 +1137,24 @@ mod windows {
     }
 
     fn read_activity(root: &Path) -> Vec<Activity> {
-        let Ok(file) = File::open(root.join("Shroudforge_UI/activity.jsonl")) else {
+        let Ok(file) = File::open(root.join("shroudforge.log")) else {
             return Vec::new();
         };
-        let mut items = BufReader::new(file)
-            .lines()
-            .map_while(Result::ok)
-            .filter_map(|line| serde_json::from_str::<Activity>(&line).ok())
-            .collect::<Vec<_>>();
+        let mut items = BufReader::new(file).lines().map_while(Result::ok).enumerate().filter_map(|(index, line)| {
+            let close = line.find("] [")?;
+            let level = match line.as_bytes().first().copied()? { b'[' => line.chars().nth(1)?, _ => return None };
+            let level = match level { 'T' | 'D' | 'I' => "info", 'W' => "warn", 'E' => "error", _ => return None };
+            let time_text = line.get(3..close)?;
+            let mut parts = time_text.split([':', ',']);
+            let hours = parts.next()?.parse::<u64>().ok()?;
+            let minutes = parts.next()?.parse::<u64>().ok()?;
+            let seconds = parts.next()?.parse::<u64>().ok()?;
+            let source_end = line.get(close + 3..)?.find("] ")? + close + 3;
+            let source = line.get(close + 3..source_end)?.to_owned();
+            let message = line.get(source_end + 2..)?.to_owned();
+            let level = if level == "info" && message.starts_with("Operation completed successfully") { "success" } else { level };
+            Some(Activity { id: format!("{}-{}-{}-{}", index, time_text, source, message), time: hours * 3600 + minutes * 60 + seconds, source, action: message, result: level.to_owned(), details: None, level: level.to_owned() })
+        }).collect::<Vec<_>>();
         items.reverse();
         items.truncate(100);
         items
@@ -1084,47 +1168,38 @@ mod windows {
         details: Option<&str>,
         level: &str,
     ) {
-        let directory = root.join("Shroudforge_UI");
-        if fs::create_dir_all(&directory).is_err() {
-            return;
-        }
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
-        let time = timestamp.as_secs();
-        let item = Activity {
-            id: format!("{}-{}", timestamp.as_nanos(), std::process::id()),
-            time,
-            source: source.chars().take(80).collect(),
-            action: action.chars().take(120).collect(),
-            result: result.chars().take(80).collect(),
-            details: details.map(|value| value.chars().take(500).collect()),
-            level: level.to_owned(),
+        let severity = match level { "warn" => 'W', "error" => 'E', "debug" => 'D', _ => 'I' };
+        let message = if level == "success" {
+            format!("Operation completed successfully: {action}")
+        } else if let Some(details) = details {
+            format!("{action}: {} — {}", match level { "error" => "failed", "warn" => "warning", _ => "in progress" }, details.chars().take(500).collect::<String>())
+        } else {
+            format!("{action}: {result}")
         };
-        let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(directory.join("activity.jsonl"))
-        else {
-            return;
-        };
-        if let Ok(line) = serde_json::to_string(&item) {
-            let _ = writeln!(file, "{line}");
-        }
+        let _ = shroudforge_package::logging::append(root, severity, source, &message);
     }
 
     fn read_notifications(root: &Path) -> Vec<Notice> {
-        let Ok(entries) = fs::read_dir(root.join("Shroudforge_UI/notifications")) else {
-            return Vec::new();
-        };
-        let mut notices = entries
-            .flatten()
-            .filter_map(|entry| fs::read(entry.path()).ok())
-            .filter_map(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        let events=shroudforge_package::config::read_document(root,"events-state").unwrap_or_default();
+        let news = fs::read(shroudforge_package::config::document_path(root, "news"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .filter(|value| {
+                shroudforge_package::config::validate_document(root, "news", value).is_ok()
+            })
+            .and_then(|value| value.get("messages").and_then(|v| v.as_array()).cloned())
+            .unwrap_or_default();
+        let mut notices = events.as_object().into_iter().flat_map(|values|values.values().cloned())
+            .filter(|value| shroudforge_package::news::validate_event(root, value).is_ok())
+            .chain(news)
             .filter_map(|value| {
                 Some(Notice {
                     id: value.get("id")?.as_str()?.to_owned(),
-                    mod_id: value.get("modId")?.as_str()?.to_owned(),
+                    mod_id: value
+                        .get("modId")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("shroudforge")
+                        .to_owned(),
                     title: value.get("title")?.as_str()?.chars().take(120).collect(),
                     message: value
                         .get("message")?
@@ -1186,50 +1261,17 @@ mod windows {
             })
     }
 
-    fn news_state_path(root: &Path) -> PathBuf {
-        root.join("Shroudforge_UI/news-state.json")
-    }
 
     fn read_news_state(root: &Path) -> Vec<String> {
-        fs::read(news_state_path(root))
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-            .and_then(|value| {
-                value
-                    .get("read")
-                    .and_then(|value| value.as_array())
-                    .cloned()
-            })
-            .map(|items| {
-                items
-                    .into_iter()
-                    .filter_map(|value| {
-                        value
-                            .as_str()
-                            .filter(|id| valid_news_id(id))
-                            .map(str::to_owned)
-                    })
-                    .take(1000)
-                    .collect()
-            })
-            .unwrap_or_default()
+        shroudforge_package::news::read_ids(root).unwrap_or_else(|error| {
+            eprintln!("news state: {error}");
+            Vec::new()
+        })
     }
 
     fn mark_news_read(root: &Path, ids: &[String]) -> Result<(), String> {
-        let mut read = read_news_state(root);
-        for id in ids.iter().filter(|id| valid_news_id(id)) {
-            if !read.contains(id) {
-                read.push(id.clone());
-            }
-        }
-        if read.len() > 1000 {
-            read.drain(..read.len() - 1000);
-        }
-        write_json(&news_state_path(root), &serde_json::json!({ "read": read }))
-    }
-
-    fn mod_state_path(root: &Path) -> PathBuf {
-        root.join("Shroudforge_UI/mod-state.json")
+        let ids = ids.iter().filter(|id| valid_news_id(id)).cloned().collect::<Vec<_>>();
+        shroudforge_package::news::mark_read(root, &ids)
     }
 
     fn sync_mod_events(root: &Path, mods: &[ModInfo]) {
@@ -1246,13 +1288,10 @@ mod windows {
                 )
             })
             .collect::<serde_json::Map<_, _>>();
-        let path = mod_state_path(root);
-        let previous = fs::read(&path)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-            .and_then(|value| value.as_object().cloned());
+        let previous = shroudforge_package::config::read_document(root,"mod-state")
+            .ok().and_then(|value|value.as_object().cloned());
         let Some(previous) = previous else {
-            let _ = write_json(&path, &serde_json::Value::Object(current));
+            let _=shroudforge_package::config::update_state_section(root,"mods", |_| Ok(serde_json::Value::Object(current)));
             return;
         };
         for (id, item) in &current {
@@ -1316,7 +1355,7 @@ mod windows {
                 );
             }
         }
-        let _ = write_json(&path, &serde_json::Value::Object(current));
+        let _=shroudforge_package::config::update_state_section(root,"mods", |_| Ok(serde_json::Value::Object(current)));
     }
 
     fn write_event_notice(
@@ -1329,10 +1368,6 @@ mod windows {
         previous_version: Option<&str>,
         changelog: Option<&serde_json::Value>,
     ) {
-        let directory = root.join("Shroudforge_UI/notifications");
-        if fs::create_dir_all(&directory).is_err() {
-            return;
-        }
         let values = serde_json::json!({
             "name": name,
             "version": version,
@@ -1349,7 +1384,9 @@ mod windows {
             "changelog": changelog.cloned().unwrap_or_else(|| serde_json::json!([])),
             "updatedAt": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
         });
-        let _ = write_json(&directory.join(format!("event-{id}.json")), &payload);
+        if let Err(error) = shroudforge_package::news::write_event(root, &format!("event-{id}"), &payload) {
+            write_activity(root, "news", "Publish notification", "Failed", Some(&error), "error");
+        }
     }
 
     fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<(), String> {
@@ -1361,7 +1398,7 @@ mod windows {
         let manifest = serde_json::from_slice::<serde_json::Value>(&manifest)
             .map_err(|error| error.to_string())?;
         let declared = manifest
-            .get("ui")
+            .pointer("/shroudforge/ui")
             .is_some_and(|ui| ui_declares_action(ui, action));
         if !declared {
             return Err("mod action is not declared by the package".into());
@@ -1442,76 +1479,24 @@ mod windows {
         forget_catalog_install(root, id)
     }
 
-    fn save_mod_settings(root: &Path, id: &str, values: &serde_json::Value) -> Result<(), String> {
-        if !values.is_object() || !valid_identifier(id) {
-            return Err("invalid mod settings target".into());
-        }
+    fn save_mod_settings(root: &Path, id: &str, values: &serde_json::Value, revision: &str) -> Result<(), String> {
         let package = find_mod_package(root, id).ok_or("mod package not found")?;
-        let manifest = read_package_file(&package, "mod.json").and_then(|bytes| {
-            serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|error| error.to_string())
-        })?;
-        let definitions = manifest
-            .get("settings")
-            .and_then(|value| value.as_array())
-            .cloned()
-            .unwrap_or_default();
-        let object = values.as_object().ok_or("settings must be an object")?;
-        let mut validated = serde_json::Map::new();
-        for definition in &definitions {
-            let Some(key) = definition.get("key").and_then(|value| value.as_str()) else {
-                continue;
-            };
-            let Some(value) = object.get(key) else {
-                continue;
-            };
-            validate_setting_value(definition, value)?;
-            validated.insert(key.to_owned(), value.clone());
-        }
-        if validated.len() != object.len() {
-            return Err("settings contain unknown keys".into());
-        }
-        let mut config = read_central_config(root);
-        let root_object = config
-            .as_object_mut()
-            .ok_or("central config must be an object")?;
-        let mods = root_object
-            .entry("mods")
-            .or_insert_with(|| serde_json::json!({}));
-        let mods = mods
-            .as_object_mut()
-            .ok_or("mods config must be an object")?;
-        let entry = mods
-            .entry(id)
-            .or_insert_with(|| serde_json::json!({ "enabled": true, "settings": {} }));
-        let entry = entry
-            .as_object_mut()
-            .ok_or("mod config must be an object")?;
-        entry.insert("settings".into(), serde_json::Value::Object(validated));
-        write_json(&central_config_path(root), &config)
+        let manifest = shroudforge_package::config::read_manifest_path(root, &package)?;
+        shroudforge_package::config::validate_settings(&manifest.settings, values)?;
+        shroudforge_package::config::update_mod_config_revision(root, id, Some(revision), |config| {
+            config["settings"] = values.clone();
+            Ok(())
+        })
     }
 
-    fn set_mod_enabled(root: &Path, id: &str, enabled: bool) -> Result<(), String> {
-        if !valid_identifier(id) || find_mod_package(root, id).is_none() {
-            return Err("invalid mod activation target".into());
+    fn set_mod_enabled(root: &Path, id: &str, enabled: bool, revision: &str) -> Result<(), String> {
+        if find_mod_package(root, id).is_none() {
+            return Err("mod not found".into());
         }
-        let mut config = read_central_config(root);
-        let root_object = config
-            .as_object_mut()
-            .ok_or("central config must be an object")?;
-        let mods = root_object
-            .entry("mods")
-            .or_insert_with(|| serde_json::json!({}));
-        let mods = mods
-            .as_object_mut()
-            .ok_or("mods config must be an object")?;
-        let entry = mods
-            .entry(id)
-            .or_insert_with(|| serde_json::json!({ "enabled": true, "settings": {} }));
-        let entry = entry
-            .as_object_mut()
-            .ok_or("mod config must be an object")?;
-        entry.insert("enabled".into(), serde_json::Value::Bool(enabled));
-        write_json(&central_config_path(root), &config)
+        shroudforge_package::config::update_mod_config_revision(root, id, Some(revision), |config| {
+            config["enabled"] = enabled.into();
+            Ok(())
+        })
     }
 
     fn find_mod_package(root: &Path, id: &str) -> Option<PathBuf> {
@@ -1526,80 +1511,8 @@ mod windows {
             })
     }
 
-    fn validate_setting_value(
-        definition: &serde_json::Value,
-        value: &serde_json::Value,
-    ) -> Result<(), String> {
-        let key = definition
-            .get("key")
-            .and_then(|value| value.as_str())
-            .unwrap_or("unknown");
-        let kind = definition
-            .get("type")
-            .and_then(|value| value.as_str())
-            .unwrap_or("string");
-        let type_ok = match kind {
-            "boolean" => value.is_boolean(),
-            "string" => value.is_string(),
-            "integer" => value.as_i64().is_some(),
-            "number" => value.is_number(),
-            "array" => value.is_array(),
-            _ => false,
-        };
-        if !type_ok {
-            return Err(format!("setting '{key}' has the wrong type"));
-        }
-        if let Some(number) = value.as_f64() {
-            if definition
-                .get("minimum")
-                .and_then(|value| value.as_f64())
-                .is_some_and(|minimum| number < minimum)
-            {
-                return Err(format!("setting '{key}' is below its minimum"));
-            }
-            if definition
-                .get("maximum")
-                .and_then(|value| value.as_f64())
-                .is_some_and(|maximum| number > maximum)
-            {
-                return Err(format!("setting '{key}' is above its maximum"));
-            }
-        }
-        if let Some(text) = value.as_str() {
-            if definition
-                .get("minimumLength")
-                .and_then(|value| value.as_u64())
-                .is_some_and(|minimum| text.chars().count() < minimum as usize)
-            {
-                return Err(format!("setting '{key}' is too short"));
-            }
-            if definition
-                .get("maximumLength")
-                .and_then(|value| value.as_u64())
-                .is_some_and(|maximum| text.chars().count() > maximum as usize)
-            {
-                return Err(format!("setting '{key}' is too long"));
-            }
-        }
-        if let Some(options) = definition.get("options").and_then(|value| value.as_array()) {
-            let valid = if value.is_array() {
-                value.as_array().is_some_and(|selected| {
-                    selected.iter().all(|item| {
-                        options
-                            .iter()
-                            .any(|option| option.get("value") == Some(item))
-                    })
-                })
-            } else {
-                options
-                    .iter()
-                    .any(|option| option.get("value") == Some(value))
-            };
-            if !valid {
-                return Err(format!("setting '{key}' contains an unknown option"));
-            }
-        }
-        Ok(())
+    fn config_revision(value: &serde_json::Value) -> String {
+        shroudforge_package::config::revision(&serde_json::to_vec(value).expect("JSON value is serializable"))
     }
 
     fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), String> {
@@ -1614,12 +1527,15 @@ mod windows {
         if provider.base_url.is_empty() || provider.project_id.is_empty() {
             return Err("update provider fields must not be empty".into());
         }
-        let path = central_config_path(root);
-        let mut value = read_central_config(root);
+        shroudforge_package::config::update_loader(root, |value| {
+        if settings.config_revision != config_revision(value) {
+            return Err("Configuration changed since it was loaded. Reload settings and apply your changes again.".into());
+        }
+        if let Some(preferences) = &settings.module_preferences { value["modules"] = preferences.clone(); }
         let object = value
             .as_object_mut()
             .ok_or("config/shroudforge.json must contain an object")?;
-        object.insert("logging".into(), serde_json::json!({ "enabled": settings.logging_enabled, "level": &settings.log_level }));
+        object.insert("logging".into(), serde_json::json!({ "enabled": settings.logging_enabled, "minimumLevel": &settings.log_level }));
         object.insert(
             "catalog".into(),
             serde_json::json!({ "provider": provider }),
@@ -1632,14 +1548,15 @@ mod windows {
             .ok_or("general config must be an object")?;
         general.insert("compactMode".into(), settings.compact_mode.into());
         general.insert("reducedMotion".into(), settings.reduced_motion.into());
-        write_json(&path, &value)
+        Ok(())
+        })
     }
 
     fn save_language(root: &Path, locale: &str) -> Result<(), String> {
         if !is_valid_locale(locale) {
             return Err("invalid locale".into());
         }
-        let mut value = read_central_config(root);
+        shroudforge_package::config::update_loader(root, |value| {
         let object = value
             .as_object_mut()
             .ok_or("central config must be an object")?;
@@ -1653,7 +1570,8 @@ mod windows {
             "locale".into(),
             serde_json::Value::String(locale.to_owned()),
         );
-        write_json(&central_config_path(root), &value)
+        Ok(())
+        })
     }
 
     fn is_valid_locale(locale: &str) -> bool {
@@ -1667,25 +1585,8 @@ mod windows {
     }
 
     fn write_json(path: &Path, value: &impl Serialize) -> Result<(), String> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-        }
-        let temporary = path.with_extension("tmp");
-        let backup = path.with_extension("bak");
-        let bytes = serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?;
-        fs::write(&temporary, bytes).map_err(|error| error.to_string())?;
-        let _ = fs::remove_file(&backup);
-        if path.exists() {
-            fs::rename(path, &backup).map_err(|error| error.to_string())?;
-        }
-        if let Err(error) = fs::rename(&temporary, path) {
-            if backup.exists() {
-                let _ = fs::rename(&backup, path);
-            }
-            return Err(error.to_string());
-        }
-        let _ = fs::remove_file(backup);
-        Ok(())
+        let value = serde_json::to_value(value).map_err(|error| error.to_string())?;
+        shroudforge_package::config::write_json(path, &value)
     }
 
     fn start_catalog_search(
@@ -1700,7 +1601,7 @@ mod windows {
             value.message = None;
             if !provider.enabled {
                 value.state = "idle".into();
-                value.message = Some("ShroudEdit-Zugriff ist deaktiviert.".into());
+                value.message = Some("ShroudEdit access is disabled.".into());
                 return;
             }
             value.state = "loading".into();
@@ -1712,7 +1613,7 @@ mod windows {
                     Ok(items) => {
                         value.state = "ready".into();
                         value.message = if items.is_empty() {
-                            Some("Keine passenden ShroudForge-Mods gefunden.".into())
+                            Some("No matching ShroudForge mods found.".into())
                         } else {
                             None
                         };
@@ -1746,22 +1647,22 @@ mod windows {
             ))
             .query(&[("query", query), ("limit", "30"), ("loader", "shroudforge")])
             .send()
-            .map_err(|error| format!("ShroudEdit ist nicht erreichbar: {error}"))?;
+            .map_err(|error| format!("ShroudEdit is unreachable: {error}"))?;
         if !response.status().is_success() {
             return Err(format!(
-                "ShroudEdit antwortete mit HTTP {}",
+                "ShroudEdit returned HTTP {}",
                 response.status()
             ));
         }
         let payload: serde_json::Value = response
             .json()
-            .map_err(|error| format!("Ungültige ShroudEdit-Antwort: {error}"))?;
+            .map_err(|error| format!("Invalid ShroudEdit response: {error}"))?;
         let values = payload
             .as_array()
             .or_else(|| payload.get("hits").and_then(|value| value.as_array()))
             .or_else(|| payload.get("projects").and_then(|value| value.as_array()))
             .or_else(|| payload.get("data").and_then(|value| value.as_array()))
-            .ok_or("ShroudEdit-Suche enthält keine Ergebnisliste")?;
+            .ok_or("ShroudEdit search response contains no result list")?;
         let mut items = Vec::new();
         for value in values {
             let loaders = value
@@ -1816,9 +1717,9 @@ mod windows {
             write_activity(
                 &root,
                 "ShroudEdit",
-                "Mod installieren",
-                "Fehlgeschlagen",
-                Some("Ungültige Projekt-ID"),
+                "Install mod",
+                "Failed",
+                Some("Invalid project ID"),
                 "error",
             );
             return;
@@ -1826,28 +1727,28 @@ mod windows {
         write_activity(
             &root,
             "ShroudEdit",
-            "Mod installieren",
-            "Gestartet",
+            "Install mod",
+            "Started",
             Some(&project_id),
             "info",
         );
         thread::spawn(move || {
             let result = match INSTALL_LOCK.try_lock() {
                 Ok(_guard) => install_mod_from_catalog(&root, &provider, &project_id),
-                Err(_) => Err("Eine Mod-Installation läuft bereits".to_owned()),
+                Err(_) => Err("A mod installation is already in progress".to_owned()),
             };
             let (result_label, details, level) = match &result {
                 Ok(installed) => (
-                    "Erfolgreich",
-                    Some(format!("{} Paket(e) installiert", installed.len())),
+                    "Succeeded",
+                    Some(format!("Installed {} package(s)", installed.len())),
                     "success",
                 ),
-                Err(error) => ("Fehlgeschlagen", Some(error.clone()), "error"),
+                Err(error) => ("Failed", Some(error.clone()), "error"),
             };
             write_activity(
                 &root,
                 "ShroudEdit",
-                "Mod installieren",
+                "Install mod",
                 result_label,
                 details.as_deref(),
                 level,
@@ -1861,7 +1762,7 @@ mod windows {
         project_id: &str,
     ) -> Result<Vec<String>, String> {
         if !provider.enabled || provider.kind != "shroudedit" {
-            return Err("ShroudEdit-Zugriff ist deaktiviert".into());
+            return Err("ShroudEdit access is disabled".into());
         }
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(60))
@@ -1891,16 +1792,16 @@ mod windows {
                 "existing_project_ids": existing_project_ids
             }))
             .send()
-            .map_err(|error| format!("ShroudEdit ist nicht erreichbar: {error}"))?;
+            .map_err(|error| format!("ShroudEdit is unreachable: {error}"))?;
         if !response.status().is_success() {
             return Err(format!(
-                "ShroudEdit-Auflösung antwortete mit HTTP {}",
+                "ShroudEdit resolution returned HTTP {}",
                 response.status()
             ));
         }
         let plan: ResolveContentPlan = response
             .json()
-            .map_err(|error| format!("Ungültiger Installationsplan: {error}"))?;
+            .map_err(|error| format!("Invalid installation plan: {error}"))?;
         let mut resolved = plan.dependencies;
         resolved.push(plan.primary);
         let mut installed_paths = Vec::new();
@@ -1922,7 +1823,13 @@ mod windows {
         })();
         if let Err(error) = result {
             for path in installed_paths {
-                let _ = fs::remove_file(path);
+                // Failed multi-package installs remain recoverable in the loader trash.
+                let trash = root.join("Shroudforge_UI/trash");
+                let _ = fs::create_dir_all(&trash);
+                if let Some(name) = path.file_name() {
+                    let destination = trash.join(format!("failed-{}-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos(), name.to_string_lossy()));
+                    let _ = fs::rename(&path, destination);
+                }
             }
             for mod_id in &installed {
                 let _ = forget_catalog_install(root, mod_id);
@@ -1945,38 +1852,38 @@ mod windows {
                 resolved.version_id
             ))
             .send()
-            .map_err(|error| format!("Versionsdaten konnten nicht geladen werden: {error}"))?;
+            .map_err(|error| format!("Could not load version metadata: {error}"))?;
         if !response.status().is_success() {
             return Err(format!(
-                "Versionsdaten antworteten mit HTTP {}",
+                "Version metadata endpoint returned HTTP {}",
                 response.status()
             ));
         }
         let version: ApiVersion = response
             .json()
-            .map_err(|error| format!("Ungültige Versionsdaten: {error}"))?;
+            .map_err(|error| format!("Invalid version metadata: {error}"))?;
         if version.id != resolved.version_id || version.project_id != resolved.project_id {
-            return Err("Versionsdaten gehören nicht zum aufgelösten Projekt".into());
+            return Err("Version metadata does not belong to the resolved project".into());
         }
         let file = version
             .files
             .iter()
             .find(|file| file.primary)
             .or_else(|| version.files.first())
-            .ok_or("Version enthält kein Mod-Paket")?;
+            .ok_or("Version contains no mod package")?;
         if !file.filename.to_ascii_lowercase().ends_with(".zip")
             || !file.url.starts_with("https://")
             || file.size > MAX_MOD_BYTES
         {
-            return Err("Mod-Paket ist kein zulässiges ZIP-Archiv".into());
+            return Err("Mod package is not a valid ZIP archive".into());
         }
         let response = client
             .get(&file.url)
             .send()
-            .map_err(|error| format!("Mod-Paket konnte nicht geladen werden: {error}"))?;
+            .map_err(|error| format!("Could not read mod package: {error}"))?;
         if !response.status().is_success() {
             return Err(format!(
-                "Mod-Download antwortete mit HTTP {}",
+                "Mod download returned HTTP {}",
                 response.status()
             ));
         }
@@ -1984,7 +1891,7 @@ mod windows {
             .content_length()
             .is_some_and(|length| length > MAX_MOD_BYTES)
         {
-            return Err("Mod-Paket ist größer als 512 MiB".into());
+            return Err("Mod package exceeds 512 MiB".into());
         }
         let mut bytes = Vec::new();
         response
@@ -1992,7 +1899,7 @@ mod windows {
             .read_to_end(&mut bytes)
             .map_err(|error| error.to_string())?;
         if bytes.len() as u64 > MAX_MOD_BYTES {
-            return Err("Mod-Paket ist größer als 512 MiB".into());
+            return Err("Mod package exceeds 512 MiB".into());
         }
         verify_mod_hash(&bytes, &file.hashes)?;
 
@@ -2005,29 +1912,34 @@ mod windows {
             std::process::id()
         ));
         fs::write(&temporary, &bytes).map_err(|error| error.to_string())?;
-        let manifest = read_package_file(&temporary, "mod.json").and_then(|bytes| {
-            serde_json::from_slice::<shroudforge_package::ModManifest>(&bytes)
-                .map_err(|error| error.to_string())
-        });
+        let manifest = shroudforge_package::config::read_manifest_path(root, &temporary);
         let manifest = match manifest {
             Ok(manifest) => manifest,
             Err(error) => {
                 let _ = fs::remove_file(&temporary);
-                return Err(format!("Ungültiges mod.json: {error}"));
+                return Err(format!("Invalid mod.json: {error}"));
             }
         };
         if let Err(error) = shroudforge_package::validate_manifest(&manifest) {
             let _ = fs::remove_file(&temporary);
-            return Err(format!("Ungültiges Mod-Manifest: {error}"));
+            return Err(format!("Invalid mod manifest: {error}"));
         }
         if find_mod_package(root, &manifest.id).is_some() {
             let _ = fs::remove_file(&temporary);
-            return Err(format!("Mod '{}' ist bereits installiert", manifest.name));
+            return Err(format!("Mod '{}' is already installed", manifest.name));
         }
         let mods = root.join("mods");
         fs::create_dir_all(&mods).map_err(|error| error.to_string())?;
-        let destination = mods.join(format!("{}.zip", manifest.id));
-        fs::rename(&temporary, &destination).map_err(|error| error.to_string())?;
+        let staging = downloads.join(format!("{}-{}-extract", manifest.id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()));
+        fs::create_dir(&staging).map_err(|error| error.to_string())?;
+        extract_zip(&temporary, &staging)?;
+        let extracted = shroudforge_package::config::read_manifest_path(root, &staging)?;
+        if extracted.id != manifest.id || !staging.join("src/mod.lua").is_file() {
+            return Err("extracted mod must have the same id and a src/mod.lua entrypoint".into());
+        }
+        let destination = mods.join(&manifest.id);
+        if destination.exists() { return Err("mod destination already exists".into()); }
+        fs::rename(&staging, &destination).map_err(|error| error.to_string())?;
         Ok((manifest.id, destination))
     }
 
@@ -2039,27 +1951,20 @@ mod windows {
             .get("sha512")
             .map(|value| ("sha512", value))
             .or_else(|| hashes.get("sha256").map(|value| ("sha256", value)))
-            .ok_or("Mod-Paket besitzt keine SHA-512- oder SHA-256-Prüfsumme")?;
+            .ok_or("Mod package has no SHA-512 or SHA-256 checksum")?;
         let actual = match expected.0 {
             "sha512" => format!("{:x}", Sha512::digest(bytes)),
             _ => format!("{:x}", Sha256::digest(bytes)),
         };
         if !actual.eq_ignore_ascii_case(expected.1) {
-            return Err("Prüfsumme des Mod-Pakets stimmt nicht".into());
+            return Err("Mod package checksum does not match".into());
         }
         Ok(())
     }
 
-    fn catalog_install_registry_path(root: &Path) -> PathBuf {
-        root.join("Shroudforge_UI/catalog-installs.json")
-    }
-
     fn read_catalog_install_registry(root: &Path) -> serde_json::Value {
-        fs::read(catalog_install_registry_path(root))
-            .ok()
-            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-            .filter(|value: &serde_json::Value| value.get("projects").is_some())
-            .unwrap_or_else(|| serde_json::json!({ "schemaVersion": 1, "projects": {} }))
+        shroudforge_package::config::read_document(root,"catalog-state")
+            .unwrap_or_else(|_|serde_json::json!({ "schemaVersion": 1, "projects": {} }))
     }
 
     fn catalog_installed_mod_ids(root: &Path) -> std::collections::HashSet<String> {
@@ -2080,31 +1985,21 @@ mod windows {
         mod_id: &str,
         package: &Path,
     ) -> Result<(), String> {
-        let mut registry = read_catalog_install_registry(root);
-        let projects = registry
-            .get_mut("projects")
-            .and_then(|value| value.as_object_mut())
-            .ok_or("invalid catalog install registry")?;
-        projects.insert(
-            project_id.to_owned(),
-            serde_json::json!({
-                "modId": mod_id,
-                "versionId": version_id,
-                "file": package.file_name().and_then(|value| value.to_str()).unwrap_or_default()
-            }),
-        );
-        write_json(&catalog_install_registry_path(root), &registry)
+        shroudforge_package::config::update_state_section(root,"catalog",|stored| {
+            let mut registry=stored.cloned().unwrap_or_else(||serde_json::json!({"schemaVersion":1,"projects":{}}));
+            registry["projects"][project_id]=serde_json::json!({"modId":mod_id,"versionId":version_id,"file":package.file_name().and_then(|value|value.to_str()).unwrap_or_default()});
+            shroudforge_package::config::validate_document(root,"catalog-state",&registry)?;
+            Ok(registry)
+        })
     }
 
     fn forget_catalog_install(root: &Path, mod_id: &str) -> Result<(), String> {
-        let mut registry = read_catalog_install_registry(root);
-        let projects = registry
-            .get_mut("projects")
-            .and_then(|value| value.as_object_mut())
-            .ok_or("invalid catalog install registry")?;
-        projects
-            .retain(|_, value| value.get("modId").and_then(|value| value.as_str()) != Some(mod_id));
-        write_json(&catalog_install_registry_path(root), &registry)
+        shroudforge_package::config::update_state_section(root,"catalog",|stored| {
+            let mut registry=stored.cloned().unwrap_or_else(||serde_json::json!({"schemaVersion":1,"projects":{}}));
+            registry["projects"].as_object_mut().ok_or("invalid catalog install registry")?.retain(|_,value|value.get("modId").and_then(|value|value.as_str())!=Some(mod_id));
+            shroudforge_package::config::validate_document(root,"catalog-state",&registry)?;
+            Ok(registry)
+        })
     }
 
     fn string_field(value: &serde_json::Value, names: &[&str]) -> String {
@@ -2127,11 +2022,11 @@ mod windows {
             }
             if !provider.enabled {
                 value.state = "idle".into();
-                value.message = Some("GitHub-Systemupdates sind deaktiviert.".into());
+                value.message = Some("GitHub system updates are disabled.".into());
                 return;
             }
             value.state = "checking".into();
-            value.message = Some("Veröffentlichungen werden geprüft …".into());
+            value.message = Some("Checking releases…".into());
         }
         thread::spawn(move || {
             let (current, current_build) = state
@@ -2153,7 +2048,7 @@ mod windows {
                         value.message = Some(if value.update_available {
                             release.message.clone()
                         } else {
-                            "ShroudForge ist auf dem aktuellen Stand.".into()
+                            "ShroudForge is up to date.".into()
                         });
                         value.release = Some(release);
                         value.state = "ready".into();
@@ -2165,7 +2060,7 @@ mod windows {
                         value.release = None;
                         value.state = "ready".into();
                         value.message =
-                            Some("Noch kein ShroudForge-Release auf GitHub veröffentlicht.".into());
+                            Some("No ShroudForge release has been published on GitHub yet.".into());
                     }
                     Err(error) => {
                         value.state = "error".into();
@@ -2202,47 +2097,47 @@ mod windows {
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
             .send()
-            .map_err(|error| format!("GitHub ist nicht erreichbar: {error}"))?;
+            .map_err(|error| format!("GitHub is unreachable: {error}"))?;
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Ok(None);
         }
         if !response.status().is_success() {
-            return Err(format!("GitHub antwortete mit HTTP {}", response.status()));
+            return Err(format!("GitHub returned HTTP {}", response.status()));
         }
         let release: GithubRelease = response
             .json()
-            .map_err(|error| format!("Ungültige GitHub-Antwort: {error}"))?;
+            .map_err(|error| format!("Invalid GitHub response: {error}"))?;
         let archive = release
             .assets
             .iter()
             .find(|asset| asset.name.starts_with("shroudforge-") && asset.name.ends_with(".zip"))
-            .ok_or("GitHub-Release enthält kein ShroudForge-ZIP")?;
+            .ok_or("GitHub release does not contain a ShroudForge ZIP")?;
         let checksum_name = format!("{}.sha256", archive.name);
         let checksum_asset = release
             .assets
             .iter()
             .find(|asset| asset.name == checksum_name)
-            .ok_or("GitHub-Release enthält keine passende .zip.sha256-Datei")?;
+            .ok_or("GitHub release does not contain a matching .zip.sha256 file")?;
         let checksum_response = client
             .get(&checksum_asset.browser_download_url)
             .send()
-            .map_err(|error| format!("GitHub-Prüfsumme konnte nicht geladen werden: {error}"))?;
+            .map_err(|error| format!("Could not download GitHub checksum: {error}"))?;
         if !checksum_response.status().is_success() {
             return Err(format!(
-                "GitHub-Prüfsumme antwortete mit HTTP {}",
+                "GitHub checksum endpoint returned HTTP {}",
                 checksum_response.status()
             ));
         }
         let checksum_text = checksum_response
             .text()
-            .map_err(|error| format!("GitHub-Prüfsumme konnte nicht gelesen werden: {error}"))?;
+            .map_err(|error| format!("Could not read GitHub checksum: {error}"))?;
         let checksum = checksum_text
             .split_whitespace()
             .next()
             .unwrap_or_default()
             .to_ascii_lowercase();
         if checksum.len() != 64 || !checksum.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return Err("GitHub-Release enthält keine gültige SHA-256-Prüfsumme".into());
+            return Err("GitHub release does not contain a valid SHA-256 checksum".into());
         }
         let version = release.tag_name.trim_start_matches('v').to_owned();
         let (base_version, build) = parse_release_tag(&version)?;
@@ -2254,7 +2149,7 @@ mod windows {
             checksum,
             release_url: Some(release.html_url),
             message: if release.body.trim().is_empty() {
-                "Eine neue ShroudForge-Version ist auf GitHub verfügbar.".into()
+                "A new ShroudForge version is available on GitHub.".into()
             } else {
                 release.body
             },
@@ -2265,12 +2160,12 @@ mod windows {
         let tag = tag.trim_start_matches('v');
         let (version, build) = tag
             .rsplit_once("-build.")
-            .ok_or_else(|| format!("Ungültiger ShroudForge-Release-Tag: {tag}"))?;
+            .ok_or_else(|| format!("Invalid ShroudForge release tag: {tag}"))?;
         Version::parse(version)
-            .map_err(|error| format!("Ungültige ShroudForge-Version '{version}': {error}"))?;
+            .map_err(|error| format!("Invalid ShroudForge version '{version}': {error}"))?;
         let build = build
             .parse::<u64>()
-            .map_err(|_| format!("Ungültige ShroudForge-Build-ID: {build}"))?;
+            .map_err(|_| format!("Invalid ShroudForge build ID: {build}"))?;
         Ok((version.to_owned(), build))
     }
 
@@ -2297,11 +2192,11 @@ mod windows {
             }
             let Some(release) = value.release.clone() else {
                 value.state = "error".into();
-                value.message = Some("Vor dem Download muss nach Updates gesucht werden.".into());
+                value.message = Some("Check for updates before downloading.".into());
                 return;
             };
             value.state = "downloading".into();
-            value.message = Some("Update wird heruntergeladen und geprüft …".into());
+            value.message = Some("Downloading and verifying update…".into());
             release
         };
         thread::spawn(move || {
@@ -2312,7 +2207,7 @@ mod windows {
                         value.state = "staged".into();
                         value.staged = true;
                         value.message = Some(
-                            "Update geprüft und für das Beenden des Spiels vorgemerkt.".into(),
+                            "Update verified and staged for installation after the game exits.".into(),
                         );
                     }
                     Err(error) => {
@@ -2344,10 +2239,10 @@ mod windows {
         let mut response = client
             .get(&release.download_url)
             .send()
-            .map_err(|error| format!("Download fehlgeschlagen: {error}"))?;
+            .map_err(|error| format!("Download failed: {error}"))?;
         if !response.status().is_success() {
             return Err(format!(
-                "Download antwortete mit HTTP {}",
+                "Download endpoint returned HTTP {}",
                 response.status()
             ));
         }
@@ -2355,7 +2250,7 @@ mod windows {
             .content_length()
             .is_some_and(|length| length > MAX_UPDATE_BYTES)
         {
-            return Err("Updatepaket ist größer als 2 GiB".into());
+            return Err("Update package exceeds 2 GiB".into());
         }
         let mut file = File::create(&archive_path).map_err(|error| error.to_string())?;
         let mut hasher = Sha256::new();
@@ -2370,7 +2265,7 @@ mod windows {
             }
             total += count as u64;
             if total > MAX_UPDATE_BYTES {
-                return Err("Updatepaket ist größer als 2 GiB".into());
+                return Err("Update package exceeds 2 GiB".into());
             }
             file.write_all(&buffer[..count])
                 .map_err(|error| error.to_string())?;
@@ -2379,15 +2274,20 @@ mod windows {
         file.flush().map_err(|error| error.to_string())?;
         let actual = format!("{:x}", hasher.finalize());
         if actual != release.checksum {
-            return Err("SHA-256-Prüfsumme des Updatepakets stimmt nicht".into());
+            return Err("Update package SHA-256 checksum does not match".into());
         }
         extract_zip(&archive_path, &pending)?;
+        let package = if pending.join("version.json").is_file() {
+            pending.clone()
+        } else {
+            pending.join("game")
+        };
         for required in [
-            "game/version.json",
-            "game/Shroudforge_Updater/shroudforge-updater.exe",
+            "version.json",
+            "Shroudforge_Updater/shroudforge-updater.exe",
         ] {
-            if !pending.join(required).is_file() {
-                return Err(format!("Updatepaket enthält {required} nicht"));
+            if !package.join(required).is_file() {
+                return Err(format!("Update package is missing {required}"));
             }
         }
         let marker = serde_json::json!({
@@ -2405,7 +2305,7 @@ mod windows {
         let file = File::open(archive_path).map_err(|error| error.to_string())?;
         let mut archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
         if archive.len() > MAX_ARCHIVE_ENTRIES {
-            return Err("Updatearchiv enthält zu viele Einträge".into());
+            return Err("Update archive contains too many entries".into());
         }
         let mut expanded = 0_u64;
         for index in 0..archive.len() {
@@ -2426,13 +2326,13 @@ mod windows {
                 .is_some_and(|mode| mode & 0o170000 == 0o120000)
             {
                 return Err(format!(
-                    "Symlink im Updatearchiv ist nicht erlaubt: {}",
+                    "Update archive contains a disallowed symbolic link: {}",
                     entry.name()
                 ));
             }
             expanded = expanded.saturating_add(entry.size());
             if expanded > MAX_UPDATE_BYTES {
-                return Err("Entpacktes Update ist größer als 2 GiB".into());
+                return Err("Extracted update exceeds 2 GiB".into());
             }
             let output = target.join(relative);
             ensure_child(target, &output)?;
@@ -2453,7 +2353,7 @@ mod windows {
         let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
         let candidate = child.canonicalize().unwrap_or_else(|_| child.to_path_buf());
         if !candidate.starts_with(&root) {
-            return Err(format!("Pfad liegt außerhalb von {}", root.display()));
+            return Err(format!("Path resolves outside {}", root.display()));
         }
         Ok(())
     }

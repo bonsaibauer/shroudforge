@@ -2,39 +2,52 @@
   "id": "mod.unlock-blueprints",
   "name": "ShroudForge Unlock Blueprints",
   "version": "1.0.0",
-  "api": "^1.0.0",
-  "capabilities": ["assets-write"],
+  "capabilities": [
+    "patch"
+  ],
   "dependencies": [],
-  "target": "both",
   "description": "Unlocks crafting recipes through the native keen::RecipeRegistryResource type.",
-  "release": {
-    "changelog": [
-      "Added a declarative overview page for the Modloader UI."
-    ]
-  },
-  "ui": {
-    "sections": [
-      {
-        "title": "Unlock Blueprints",
-        "description": "Pregame asset transformation",
-        "components": [
-          {
-            "type": "status",
-            "label": "Pregame transformation",
-            "text": "When enabled, the mod edits recipe registry resources before gameplay."
-          },
-          {
-            "type": "text",
-            "text": "Supported recipes receive the configured always-available knowledge requirement for the current session."
-          },
-          {
-            "type": "notice",
-            "level": "warning",
-            "label": "Restart required",
-            "text": "Install or remove this mod before launching the game so the recipe resources are rebuilt cleanly."
-          }
-        ]
-      }
-    ]
+  "enabled": true,
+  "settings": {},
+  "shroudforge": {
+    "schemaVersion": 1,
+    "api": "^1.0.0",
+    "target": "both",
+    "release": {
+      "changelog": [
+        "Added a declarative overview page for the Modloader UI."
+      ]
+    },
+    "settingsSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "settingGroups": [],
+    "ui": {
+      "sections": [
+        {
+          "title": "Unlock Blueprints",
+          "description": "Pregame asset transformation",
+          "components": [
+            {
+              "type": "status",
+              "label": "Pregame transformation",
+              "text": "When enabled, the mod edits recipe registry resources before gameplay."
+            },
+            {
+              "type": "text",
+              "text": "Supported recipes receive the configured always-available knowledge requirement for the current session."
+            },
+            {
+              "type": "notice",
+              "level": "warning",
+              "label": "Restart required",
+              "text": "Install or remove this mod before launching the game so the recipe resources are rebuilt cleanly."
+            }
+          ]
+        }
+      ]
+    }
   }
 }

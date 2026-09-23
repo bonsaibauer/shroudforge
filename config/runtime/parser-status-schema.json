@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["status", "target", "completedAt", "gameFileSize", "gameFileModified"],
+  "properties": {
+    "status": { "enum": ["parsed", "failed"] },
+    "target": { "enum": ["enshrouded", "enshrouded_server"] },
+    "completedAt": { "type": "integer", "minimum": 0 },
+    "gameFileSize": { "type": "integer", "minimum": 0 },
+    "gameFileModified": { "type": "integer", "minimum": 0 },
+    "error": { "type": "string" }
+  },
+  "additionalProperties": false
+}

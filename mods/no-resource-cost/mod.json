@@ -2,82 +2,127 @@
   "id": "mod.no-resource-cost",
   "name": "ShroudForge No Resource Cost",
   "version": "1.0.0",
-  "api": "^1.0.0",
-  "capabilities": ["assets-write"],
+  "capabilities": [
+    "patch"
+  ],
   "dependencies": [],
-  "target": "both",
   "description": "Removes recipe resource costs through keen::RecipeRegistryResource.",
-  "release": {
-    "changelog": [
-      "Added a declarative overview page for the Modloader UI.",
-      "Added independent item, energy, and water cost controls."
-    ]
+  "enabled": true,
+  "settings": {
+    "removeItemCosts": true,
+    "removeEnergyCosts": true,
+    "removeWaterCosts": true
   },
-  "settingGroups": [
-    {
-      "id": "recipe-costs",
-      "label": "Recipe costs",
-      "description": "Choose which supported recipe costs are set to zero during the pregame phase."
-    }
-  ],
-  "settings": [
-    {
-      "key": "removeItemCosts",
-      "type": "boolean",
-      "control": "checkbox",
-      "label": "Remove item costs",
-      "description": "Sets supported recipe input stack counts to zero.",
-      "default": true,
-      "group": "recipe-costs",
-      "restartRequired": true
+  "shroudforge": {
+    "schemaVersion": 1,
+    "api": "^1.0.0",
+    "target": "both",
+    "release": {
+      "changelog": [
+        "Added a declarative overview page for the Modloader UI.",
+        "Added independent item, energy, and water cost controls."
+      ]
     },
-    {
-      "key": "removeEnergyCosts",
-      "type": "boolean",
-      "control": "checkbox",
-      "label": "Remove energy costs",
-      "description": "Sets supported requiredEnergy fields to zero.",
-      "default": true,
-      "group": "recipe-costs",
-      "restartRequired": true
+    "settingsSchema": {
+      "type": "object",
+      "properties": {
+        "removeItemCosts": {
+          "type": "boolean",
+          "title": "Remove item costs",
+          "default": true,
+          "x-apply": "prepare",
+          "x-ui": {
+            "key": "removeItemCosts",
+            "type": "boolean",
+            "control": "checkbox",
+            "label": "Remove item costs",
+            "description": "Sets supported recipe input stack counts to zero.",
+            "default": true,
+            "group": "recipe-costs",
+            "restartRequired": true
+          },
+          "description": "Sets supported recipe input stack counts to zero."
+        },
+        "removeEnergyCosts": {
+          "type": "boolean",
+          "title": "Remove energy costs",
+          "default": true,
+          "x-apply": "prepare",
+          "x-ui": {
+            "key": "removeEnergyCosts",
+            "type": "boolean",
+            "control": "checkbox",
+            "label": "Remove energy costs",
+            "description": "Sets supported requiredEnergy fields to zero.",
+            "default": true,
+            "group": "recipe-costs",
+            "restartRequired": true
+          },
+          "description": "Sets supported requiredEnergy fields to zero."
+        },
+        "removeWaterCosts": {
+          "type": "boolean",
+          "title": "Remove water costs",
+          "default": true,
+          "x-apply": "prepare",
+          "x-ui": {
+            "key": "removeWaterCosts",
+            "type": "boolean",
+            "control": "checkbox",
+            "label": "Remove water costs",
+            "description": "Sets supported waterAmount and waterCharges fields to zero.",
+            "default": true,
+            "group": "recipe-costs",
+            "restartRequired": true
+          },
+          "description": "Sets supported waterAmount and waterCharges fields to zero."
+        }
+      },
+      "additionalProperties": false
     },
-    {
-      "key": "removeWaterCosts",
-      "type": "boolean",
-      "control": "checkbox",
-      "label": "Remove water costs",
-      "description": "Sets supported waterAmount and waterCharges fields to zero.",
-      "default": true,
-      "group": "recipe-costs",
-      "restartRequired": true
-    }
-  ],
-  "ui": {
-    "sections": [
+    "settingGroups": [
       {
-        "title": "No Resource Cost",
-        "description": "Pregame asset transformation",
-        "components": [
-          {
-            "type": "status",
-            "label": "Pregame transformation",
-            "text": "The mod edits the selected recipe registry fields before gameplay."
-          },
-          {
-            "type": "text",
-            "text": "Selected recipe input counts, energy requirements, water amounts, and water charges are set to zero for the current session."
-          },
-          { "type": "setting", "key": "removeItemCosts" },
-          { "type": "setting", "key": "removeEnergyCosts" },
-          { "type": "setting", "key": "removeWaterCosts" },
-          {
-            "type": "notice",
-            "level": "warning",
-            "label": "Restart required",
-            "text": "Install or remove this mod before launching the game so the recipe resources are rebuilt cleanly."
-          }
-        ]
+        "id": "recipe-costs",
+        "label": "Recipe costs",
+        "description": "Choose which supported recipe costs are set to zero during the pregame phase."
       }
-    ]
+    ],
+    "ui": {
+      "sections": [
+        {
+          "title": "No Resource Cost",
+          "description": "Pregame asset transformation",
+          "components": [
+            {
+              "type": "status",
+              "label": "Pregame transformation",
+              "text": "The mod edits the selected recipe registry fields before gameplay."
+            },
+            {
+              "type": "text",
+              "text": "Selected recipe input counts, energy requirements, water amounts, and water charges are set to zero for the current session."
+            },
+            {
+              "type": "setting",
+              "key": "removeItemCosts"
+            },
+            {
+              "type": "setting",
+              "key": "removeEnergyCosts"
+            },
+            {
+              "type": "setting",
+              "key": "removeWaterCosts"
+            },
+            {
+              "type": "notice",
+              "level": "warning",
+              "label": "Restart required",
+              "text": "Install or remove this mod before launching the game so the recipe resources are rebuilt cleanly."
+            }
+          ]
+        }
+      ]
+    }
   }
 }

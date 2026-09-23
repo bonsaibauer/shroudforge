@@ -42,8 +42,7 @@
   <ItemGroup>
     <ClCompile Include="bootstrap.cpp" />
     <ClCompile Include="winmm_proxy.cpp" />
-    <ClCompile Include="..\..\kfc-runtime\src\windows\ecs_runtime.cpp" />
-    <ClCompile Include="..\..\kfc-runtime\src\windows\game_thread_dispatcher.cpp" />
+    <ClCompile Include="runtime_bridge.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\kfc-runtime\src\windows\ecs_runtime.h" />

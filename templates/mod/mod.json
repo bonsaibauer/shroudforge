@@ -1,0 +1,23 @@
+{
+  "$schema": "../../config/mods/mod-schema.json",
+  "id": "mod.example",
+  "name": "Example",
+  "version": "1.0.0",
+  "capabilities": [
+    "patch",
+    "runtime"
+  ],
+  "dependencies": [],
+  "enabled": false,
+  "settings": {},
+  "shroudforge": {
+    "schemaVersion": 1,
+    "api": "^1.0.0",
+    "target": "both",
+    "settingsSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  }
+}

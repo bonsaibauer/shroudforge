@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "apiVersion",
+    "runtimeProviderAbi",
+    "runtimeOperations",
+    "modManifest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "apiVersion": {
+      "type": "string"
+    },
+    "runtimeProviderAbi": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "runtimeOperations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "modManifest": {
+      "const": "../mods/mod-schema.json"
+    }
+  }
+}

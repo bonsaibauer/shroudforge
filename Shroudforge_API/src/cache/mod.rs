@@ -35,7 +35,7 @@ impl FileStateCache {
         let timestamp = path.metadata().map_or(0, |m| {
             m.modified().map_or(0, |t| {
                 t.duration_since(std::time::UNIX_EPOCH)
-                    .map_or(0, |d| d.as_secs())
+                    .map_or(0, |d| u64::try_from(d.as_nanos()).unwrap_or(u64::MAX))
             })
         });
 

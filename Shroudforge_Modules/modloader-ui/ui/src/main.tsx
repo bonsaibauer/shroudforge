@@ -5,19 +5,20 @@ import flagSvgs from './generated-flags'
 import './styles.css'
 
 type SettingOption = { value:string|number|boolean; label:string }
-type SettingDefinition = { key:string; label:string; description?:string; type:'boolean'|'number'|'integer'|'string'|'array'; control?:'toggle'|'checkbox'|'text'|'textarea'|'number'|'slider'|'select'|'radio'|'segmented'|'multiselect'|'keybind'|'color'; default:unknown; group?:string; minimum?:number; maximum?:number; step?:number; minimumLength?:number; maximumLength?:number; options?:SettingOption[]; restartRequired?:boolean }
+type SettingDefinition = { key:string; label:string; description?:string; type:'boolean'|'number'|'integer'|'string'|'array'; control?:'toggle'|'checkbox'|'text'|'textarea'|'number'|'slider'|'select'|'radio'|'segmented'|'multiselect'|'keybind'|'color'; default:unknown; group?:string; minimum?:number; maximum?:number; step?:number; minimumLength?:number; maximumLength?:number; options?:SettingOption[]; restartRequired?:boolean; applyAt?:'live'|'restart'|'prepare' }
 type SettingGroup = { id:string; label:string; description?:string }
 type UiComponent = { type:'setting'|'text'|'notice'|'status'|'button'|'link'|'separator'|'image'; key?:string; text?:string; label?:string; level?:string; binding?:string; action?:string; style?:string; confirmation?:string; url?:string; src?:string; alt?:string }
 type UiSection = { title?:string; description?:string; components:UiComponent[] }
 type ModUi = { sections?:UiSection[]; tabs?:Array<{id:string;label:string;sections:UiSection[]}> }
-type ModInfo = { id:string; name:string; version:string; target:string; description?:string; source:string; enabled:boolean; settings:SettingDefinition[]; settingGroups:SettingGroup[]; ui:ModUi; changelog:string[]; assets:Record<string,string>; settingValues:Record<string,unknown> }
+type ModInfo = { revision:string; id:string; name:string; version:string; target:string; description?:string; source:string; enabled:boolean; settings:SettingDefinition[]; settingGroups:SettingGroup[]; ui:ModUi; changelog:string[]; assets:Record<string,string>; settingValues:Record<string,unknown> }
 type Activity = { id:string; time:number; source:string; action:string; result:string; details?:string; level:string }
 type Notice = { id:string; modId:string; title:string; message:string; level:string; actionUrl?:string; updatedAt:number; kind?:string; values?:Record<string,string>; changelog?:string[] }
 type Release = { currentVersion:string; latestVersion?:string; updateAvailable:boolean; state:string; message?:string; releaseUrl?:string; staged:boolean }
-type Settings = { compactMode:boolean; reducedMotion:boolean; loggingEnabled:boolean; logLevel:string; updateEnabled:boolean; baseUrl:string; projectId:string; checkMinutes:number }
+type ModulePreferences = Record<string,Record<string,any>>
+type Settings = { configRevision?:string; modulePreferences?:ModulePreferences; compactMode:boolean; reducedMotion:boolean; loggingEnabled:boolean; logLevel:string; updateEnabled:boolean; baseUrl:string; projectId:string; checkMinutes:number }
 type CatalogItem = { id:string; slug:string; name:string; summary:string; iconUrl?:string; author?:string; downloads?:number; version?:string }
 type Catalog = { state:string; query:string; message?:string; items:CatalogItem[] }
-type Snapshot = { connected:boolean; mode:string; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
+type Snapshot = { diagnostics?:{active:boolean;fresh:boolean;reason:string;remainingSeconds?:number;lastSampleAt?:number;loggingEnabled?:boolean;minimumLevel?:string;detail?:string}; configuration?:{modStates?:Record<string,{state:string;detail:string}>;errors:string[];checks:Array<{id:string;group:string;state:"ok"|"warning"|"neutral";detail:string}>;assets:{state:string;detail:string};lastUpdate?:{version:string;build:string;installedAt:number}}; connected:boolean; mode:string; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; newsTemplates?:Record<string,{title:string;message:string}>; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
 type PageId = 'activity'|'news'|'discover'|'installed'|'updates'|'compatibility'|'settings'
 type NewsItem = { id:string; level:string; title:string; message:string; actionUrl?:string; updatedAt:number; changelog?:string[] }
 
@@ -28,7 +29,7 @@ const empty:Snapshot = {
   catalog:{state:'idle',query:'',items:[]},
 }
 const post=(command:string,payload:Record<string,unknown>={})=>window.ipc?.postMessage(JSON.stringify({command,...payload}))
-const formatTime=(value:number,locale:Locale)=>value?new Intl.DateTimeFormat(locale,{dateStyle:'short',timeStyle:'short'}).format(new Date(value*1000)):'–'
+const formatTime=(value:number,locale:Locale)=>value<1000000000?new Date(value*1000).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}):new Intl.DateTimeFormat(locale,{dateStyle:'short',timeStyle:'short'}).format(new Date(value*1000))
 
 function App(){
   const {t,setLocale}=useI18n()
@@ -39,24 +40,39 @@ function App(){
   const [settings,setSettings]=useState<Settings>(empty.settings)
   const [read,setRead]=useState<string[]>([])
   const localeHydrated=useRef(false)
+  const dataRef=useRef(data)
+  useEffect(()=>{dataRef.current=data},[data])
 
   useEffect(()=>{
-    window.__shroudforgeUpdate=(next)=>{const snapshot=next as Snapshot;setData(snapshot);setSettings(snapshot.settings);setRead(snapshot.readNoticeIds||[]);if(!localeHydrated.current&&snapshot.locale){localeHydrated.current=true;setLocale(snapshot.locale)}}
+    window.__shroudforgeUpdate=(next)=>{const snapshot=next as Snapshot;setData(snapshot);setSettings(current=>JSON.stringify(current)===JSON.stringify(dataRef.current.settings)?snapshot.settings:current);setRead(snapshot.readNoticeIds||[]);if(!localeHydrated.current&&snapshot.locale){localeHydrated.current=true;setLocale(snapshot.locale);const start=snapshot.settings.modulePreferences?.modloaderUi?.startPage;if(["activity","news","discover","installed","updates","compatibility","settings"].includes(start))setPage(start)}}
     post('refresh')
     const drag=(event:MouseEvent)=>{const target=event.target as HTMLElement;if(!target.closest('button,input,select,a')&&target.closest('[data-drag-region]'))post('drag')}
     document.addEventListener('mousedown',drag)
-    return()=>document.removeEventListener('mousedown',drag)
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')post('hide')}
+    document.addEventListener('keydown',escape)
+    return()=>{document.removeEventListener('mousedown',drag);document.removeEventListener('keydown',escape)}
   },[])
   useEffect(()=>{document.body.classList.toggle('compact',settings.compactMode);document.body.classList.toggle('reduced-motion',settings.reducedMotion)},[settings.compactMode,settings.reducedMotion])
 
   const news=useMemo<NewsItem[]>(()=>{
     const items:NewsItem[]=[]
+    const configured=(kind:string,values:Record<string,string>={})=>{
+      const template=data.newsTemplates?.[kind]
+      if(!template)return {}
+      const render=(text:string)=>text.replace(/\{(\w+)\}/g,(match,key)=>values[key]??match)
+      return {title:render(template.title),message:render(template.message)}
+    }
     if(data.release.updateAvailable)items.push({id:`system-${data.release.latestVersion}`,level:'update',title:t('news.system.update.title',{version:data.release.latestVersion||''}),message:data.release.message||t('news.system.update.message'),actionUrl:data.release.releaseUrl,updatedAt:0})
     if(data.release.state==='error')items.push({id:'system-update-error',level:'warning',title:t('news.system.error.title'),message:data.release.message||t('news.system.error.message'),updatedAt:0})
     if(data.release.staged)items.push({id:`system-staged-${data.release.latestVersion}`,level:'success',title:t('news.system.staged.title'),message:t('news.system.staged.message'),updatedAt:0})
+    for(const item of items){
+      const kind=item.id.startsWith('system-staged-')?'system.staged':item.id==='system-update-error'?'system.error':'system.update'
+      Object.assign(item,configured(kind,{version:data.release.latestVersion||''}))
+    }
     items.push(...data.notices.map(item=>{
       if(!item.kind)return {...item}
       const values=item.values||{}
+      if(data.newsTemplates?.[item.kind])return {...item,...configured(item.kind,values)}
       if(item.kind==='mod.install.success')return {...item,title:t('news.mod.install.success.title',values),message:t('news.mod.install.success.message',values),changelog:item.changelog}
       if(item.kind==='mod.update.success')return {...item,title:t('news.mod.update.success.title',values),message:t('news.mod.update.success.message',values),changelog:item.changelog}
       if(item.kind==='mod.remove.success')return {...item,title:t('news.mod.remove.success.title',values),message:t('news.mod.remove.success.message',values),changelog:item.changelog}
@@ -70,6 +86,7 @@ function App(){
   const markRead=(ids:string[])=>{const next=Array.from(new Set([...read,...ids]));setRead(next);post('mark-news-read',{ids})}
 
   return <main className="shell">
+    {Boolean(data.configuration?.errors.length)&&<div role="alert" className="notice error"><div>{data.configuration?.errors.map((error,index)=><p key={index}>{error}</p>)}</div></div>}
     <TopBar data={data} unread={unread.length} onChirper={()=>setChirper(true)}/>
     <div className="workspace">
       <aside className="sidebar">
@@ -89,7 +106,7 @@ function App(){
         </NavGroup>
         <div className="sidebar-fill"/>
       </aside>
-      <section className="content">{activeMod?<ModPage mod={activeMod}/>:<Page id={page} data={data} settings={settings} setSettings={setSettings} news={news} unread={unread} read={read} markRead={markRead} selectMod={setSelectedMod}/>}</section>
+      <section className="content">{activeMod?<ModPage mod={activeMod} status={data.configuration?.modStates?.[activeMod.id]}/>:<Page id={page} data={data} settings={settings} setSettings={setSettings} news={news} unread={unread} read={read} markRead={markRead} selectMod={setSelectedMod}/>}</section>
     </div>
     {chirper&&<Chirper items={unread} close={()=>setChirper(false)} all={()=>{setChirper(false);navigate('news')}} markRead={markRead}/>} 
   </main>
@@ -167,8 +184,10 @@ function SystemUpdate({release}:{release:Release}){
 function Compatibility({data}:{data:Snapshot}){
   const {t}=useI18n()
   const [tab,setTab]=useState('game')
-  const gameMissing=data.gameVersion==='Unbekannt'
-  return <><PageHeader eyebrow={t('nav.modloader')} title={t('compatibility.title')} subtitle={t('compatibility.subtitle')}/><Segmented value={tab} onChange={setTab} items={[["game",t('compatibility.tab.game')],["api",t('compatibility.tab.api')],["parser",t('compatibility.tab.parser')],["mods",t('compatibility.tab.mods')]]}/><div className="compat-grid">{tab==='game'&&<><CompatibilityCard title={t('compatibility.game.title')} status={gameMissing?'warning':'ok'} text={gameMissing?t('compatibility.game.missing'):t('compatibility.game.detected')}/><CompatibilityCard title={t('compatibility.runtime.title')} status={data.connected?'ok':'neutral'} text={data.connected?t('compatibility.runtime.connected'):t('compatibility.runtime.standalone')}/></>}{tab==='api'&&<CompatibilityCard title={t('compatibility.api.title')} status="ok" text={t('compatibility.api.text')}/>} {tab==='parser'&&<CompatibilityCard title={t('compatibility.parser.title')} status="ok" text={t('compatibility.parser.text')}/>} {tab==='mods'&&(data.mods.length?<CompatibilityCard title={t('compatibility.manifest.title')} status="ok" text={t('compatibility.manifest.text',{count:data.mods.length})}/>:<CompatibilityCard title={t('compatibility.conflicts.none.title')} status="neutral" text={t('compatibility.conflicts.none.text')}/>)}</div></>
+  return <><PageHeader eyebrow={t('nav.modloader')} title={t('compatibility.title')} subtitle={t('compatibility.subtitle')}/><Segmented value={tab} onChange={setTab} items={[["game",t('compatibility.tab.game')],["api",t('compatibility.tab.api')],["parser",t('compatibility.tab.parser')],["mods",t('compatibility.tab.mods')]]}/><div className="compat-grid">{(data.configuration?.checks||[]).filter(check=>check.group===tab).map(check=><CompatibilityCard key={check.id} title={check.id} status={check.state} text={check.detail}/>)}</div>
+    {data.configuration?.assets&&<Card title="Asset-Status"><p>{data.configuration.assets.detail}</p></Card>}
+    {data.configuration?.lastUpdate&&<Card title="Letzte Installation"><p>{data.configuration.lastUpdate.version} · {data.configuration.lastUpdate.build}</p></Card>}
+  </>
 }
 
 function SettingsPage({data,settings,setSettings}:{data:Snapshot;settings:Settings;setSettings(v:Settings):void}){
@@ -177,24 +196,71 @@ function SettingsPage({data,settings,setSettings}:{data:Snapshot;settings:Settin
   const save=()=>post('save-settings',{settings})
   const chooseLocale=(next:Locale)=>{setLocale(next);post('save-language',{locale:next})}
   const currentLocale=locales.find(option=>option.locale===locale)!
-  return <><PageHeader eyebrow={t('nav.modloader')} title={t('settings.title')} subtitle={t('settings.subtitle')} actions={<button className="button" onClick={save}>{t('common.save')}</button>}/><Segmented value={tab} onChange={setTab} items={[["general",t('settings.general')],["logging",t('settings.logging')],["modules",t('settings.modules')]]}/>{tab==='general'&&<Card title={t('settings.presentation')}><Field label={t('settings.language')}><span className="language-select"><Flag value={currentLocale.flag}/><select value={locale} onChange={event=>chooseLocale(event.target.value)}>{locales.map(option=><option key={option.locale} value={option.locale}>{option.name} ({option.code})</option>)}</select></span></Field><p className="hint">{t('settings.language.hint')}</p><Toggle label={t('settings.compact')} checked={settings.compactMode} onChange={value=>setSettings({...settings,compactMode:value})}/><Toggle label={t('settings.motion')} checked={settings.reducedMotion} onChange={value=>setSettings({...settings,reducedMotion:value})}/></Card>}{tab==='logging'&&<Card title={t('settings.logging')}><Toggle label={t('settings.logging.enabled')} checked={settings.loggingEnabled} onChange={value=>setSettings({...settings,loggingEnabled:value})}/><Field label={t('settings.logging.level')}><select value={settings.logLevel} onChange={e=>setSettings({...settings,logLevel:e.target.value})}>{['TRACE','DEBUG','INFO','WARN','ERROR'].map(level=><option key={level}>{level}</option>)}</select></Field><p className="hint">{t('settings.logging.hint')}</p></Card>}{tab==='modules'&&<Card title={t('settings.modules.firstParty')}><ModuleRow name="Debug Console" detail={t('settings.modules.debug')} enabled/><ModuleRow name="Modloader UI" detail={t('settings.modules.ui')} enabled/><ModuleRow name="Commands" detail={t('settings.modules.commands')} enabled/><ModuleRow name="Updater" detail={t('settings.modules.updater')} enabled={data.release.staged}/></Card>}</>
+  return <><PageHeader eyebrow={t('nav.modloader')} title={t('settings.title')} subtitle={t('settings.subtitle')} actions={<><button className="button secondary" onClick={()=>setSettings(data.settings)}>Reload</button><button className="button" onClick={save}>{t('common.save')}</button></>}/><Segmented value={tab} onChange={setTab} items={[["general",t('settings.general')],["logging",t('settings.logging')],["modules",t('settings.modules')]]}/>{tab==='general'&&<Card title={t('settings.presentation')}><Field label={t('settings.language')}><span className="language-select"><Flag value={currentLocale.flag}/><select value={locale} onChange={event=>chooseLocale(event.target.value)}>{locales.map(option=><option key={option.locale} value={option.locale}>{option.name} ({option.code})</option>)}</select></span></Field><p className="hint">{t('settings.language.hint')}</p><Toggle label={t('settings.compact')} checked={settings.compactMode} onChange={value=>setSettings({...settings,compactMode:value})}/><Toggle label={t('settings.motion')} checked={settings.reducedMotion} onChange={value=>setSettings({...settings,reducedMotion:value})}/></Card>}{tab==='logging'&&<Card title={t('settings.logging')}><Toggle label={t('settings.logging.enabled')} checked={settings.loggingEnabled} onChange={value=>setSettings({...settings,loggingEnabled:value})}/><Field label={t('settings.logging.level')}><select value={settings.logLevel} onChange={e=>setSettings({...settings,logLevel:e.target.value})}>{['TRACE','DEBUG','INFO','WARN','ERROR'].map(level=><option key={level}>{level}</option>)}</select></Field><p className="hint">{t('settings.logging.hint')}</p></Card>}{tab==='modules'&&<ModulePreferencesEditor data={data} settings={settings} setSettings={setSettings}/>}</>
 }
 
-function ModPage({mod}:{mod:ModInfo}){
+
+function ModulePreferencesEditor({data,settings,setSettings}:{data:Snapshot;settings:Settings;setSettings(v:Settings):void}){
+  const prefs=settings.modulePreferences||{}
+  const system=prefs.updates?.system||{enabled:true,checkMinutes:60,channel:'stable'}
+  const changeSystem=(key:string,value:unknown)=>setSettings({...settings,modulePreferences:{...prefs,updates:{...prefs.updates,system:{...system,[key]:value}}}})
+  const change=(module:string,key:string,value:unknown)=>setSettings({...settings,modulePreferences:{...prefs,[module]:{...prefs[module],[key]:value}}})
+  const fields:Array<[string,string,string,string[]?]>=[
+    ['debugConsole','enabled','Enabled (restart to activate)'],
+    ['modloaderUi','enabled','Enable at next startup'],
+    ['runtimeDiagnostics','enabled','Diagnostics enabled'],
+    ['runtimeDiagnostics','continuous','Repeat until time limit'],
+    ['runtimeDiagnostics','intervalMilliseconds','Sampling interval (ms)'],
+    ['runtimeDiagnostics','maximumDurationSeconds','Maximum duration (seconds)'],
+    ['runtimeDiagnostics','slowCallbackMilliseconds','Slow callback threshold (ms)'],
+    ['runtimeDiagnostics','onlyChanges','Log changes only'],
+    ['debugConsole','defaultSource','Log source',['game','loader','diagnostics']],
+    ['debugConsole','levelFilter','Display filter',['ALL','TRACE','DEBUG','INFO','WARN','ERROR']],
+    ['debugConsole','autoScroll','Auto-scroll'],
+    ['debugConsole','toggleKey','Hotkey (Windows key code)'],
+    ['debugConsole','refreshMilliseconds','Refresh (ms)'],
+    ['debugConsole','tailBytes','Log tail (bytes)'],
+    ['modloaderUi','startPage','Start page',['activity','news','installed','discover','updates','compatibility','settings']],
+    ['modloaderUi','toggleKey','Hotkey (Windows key code)'],
+    ['modloaderUi','refreshMilliseconds','Refresh (ms)']
+  ]
+  return <>{['debugConsole','modloaderUi','runtimeDiagnostics'].map(module=><Card key={module} title={module==='debugConsole'?'Debug Console':module==='modloaderUi'?'Modloader UI':'Runtime Diagnostics'}>
+    <p className="hint">{module==='debugConsole'?'The window starts hidden. F10 opens it. Enabling takes effect after restart; filters, source, and hotkey apply by the next refresh.':
+      module==='modloaderUi'?'The window starts hidden. F9 opens it. Enabling and the start page apply after restart; the hotkey and refresh rate apply at the next UI refresh.':
+      'Diagnostics is off by default. Changes apply within 500 ms; diagnostics records runtime and world state, not compatibility.'}</p>
+    {fields.filter(field=>field[0]===module).map(([,key,label,options])=><Field key={key} label={label}>
+      {options?<select value={prefs[module]?.[key]??options[0]} onChange={e=>change(module,key,e.target.value)}>{options.map(option=><option key={option}>{option}</option>)}</select>
+        :typeof prefs[module]?.[key]==='boolean'?<input type="checkbox" checked={prefs[module][key]} onChange={e=>change(module,key,e.target.checked)}/>
+        :<input type="number" value={prefs[module]?.[key]??0} onChange={e=>change(module,key,Number(e.target.value))}/>}
+    </Field>)}
+    {module!=='runtimeDiagnostics'&&<button onClick={()=>change(module,'window',{position:null})}>Reset window position</button>}
+    {module==='runtimeDiagnostics'&&<>
+      {['runtime','queue','mods'].map(area=><Toggle key={area} label={area} checked={(prefs.runtimeDiagnostics?.areas||[]).includes(area)} onChange={checked=>change(module,'areas',checked?[...(prefs.runtimeDiagnostics?.areas||[]),area]:(prefs.runtimeDiagnostics?.areas||[]).filter((value:string)=>value!==area))}/>)}
+      <p>{data.diagnostics?.fresh?(data.diagnostics.active?('Active — '+data.diagnostics.remainingSeconds+'s'):data.diagnostics.reason):'No current report from the game process'}</p>
+      <p>{'Last sample: '}{data.diagnostics?.lastSampleAt?new Date(data.diagnostics.lastSampleAt*1000).toLocaleString():'—'}</p>
+      {(!settings.loggingEnabled||['WARN','ERROR'].includes(settings.logLevel))&&<p className="hint">Logging is disabled or the minimum level excludes INFO measurements.</p>}
+      <p className="hint">Save edited settings first. Without a running loader, the request is processed at the next game start.</p>
+      {['start','stop','snapshot'].map(action=><button key={action} onClick={()=>post('diagnostics',{action})}>{action}</button>)}
+    </>}
+  </Card>)}<Card title="System updates"><Toggle label="Check for updates automatically" checked={system.enabled} onChange={value=>changeSystem('enabled',value)}/><Field label="Check interval (minutes)"><input type="number" min={5} max={1440} value={system.checkMinutes} onChange={event=>changeSystem('checkMinutes',Number(event.target.value))}/></Field><p className="hint">Checks for updates; does not install them automatically.</p></Card></>
+}
+
+function ModPage({mod,status}:{mod:ModInfo;status?:{state:string;detail:string}}){
   const {t}=useI18n()
   const [tab,setTab]=useState(mod.ui.tabs?.[0]?.id||'')
   const initial=()=>Object.fromEntries(mod.settings.filter(item=>item.key).map(item=>[item.key,mod.settingValues[item.key]??item.default??(item.type==='boolean'?false:'')]))
   const [values,setValues]=useState<Record<string,unknown>>(initial)
-  useEffect(()=>{setValues(initial());setTab(mod.ui.tabs?.[0]?.id||'')},[mod.id])
+  const [revision,setRevision]=useState(mod.revision)
+  useEffect(()=>{setValues(initial());setRevision(mod.revision);setTab(mod.ui.tabs?.[0]?.id||'')},[mod.id])
   const automaticSections=()=>{
     if(mod.settingGroups.length)return mod.settingGroups.map(group=>({title:group.label,description:group.description,components:mod.settings.filter(item=>item.group===group.id).map(item=>({type:'setting' as const,key:item.key}))})).filter(section=>section.components.length)
     return mod.settings.length?[{title:t('mod.settings'),components:mod.settings.map(item=>({type:'setting' as const,key:item.key}))}]:[]
   }
   const sections=mod.ui.tabs?.length?(mod.ui.tabs.find(item=>item.id===tab)?.sections||[]):mod.ui.sections?.length?mod.ui.sections:automaticSections()
-  const save=()=>post('save-mod-settings',{modId:mod.id,values})
-  const setEnabled=(enabled:boolean)=>post('set-mod-enabled',{modId:mod.id,enabled})
+  const save=()=>post('save-mod-settings',{modId:mod.id,values,revision})
+  const setEnabled=(enabled:boolean)=>post('set-mod-enabled',{modId:mod.id,enabled,revision:mod.revision})
   const remove=()=>{if(window.confirm(t('mod.remove.confirm',{name:mod.name})))post('remove-mod',{modId:mod.id})}
-  return <><PageHeader eyebrow="MOD" title={mod.name} subtitle={mod.description||mod.id} actions={<><button className="button danger" onClick={remove}>{t('mod.remove')}</button>{mod.settings.length>0&&<button className="button" onClick={save}>{t('common.save')}</button>}</>}/><Card title={t('mod.activation')}><Toggle label={mod.enabled?t('mod.enabled'):t('mod.disabled')} checked={mod.enabled} onChange={setEnabled}/><p className="hint">{t('mod.activation.hint')}</p></Card>{mod.ui.tabs?.length?<Segmented value={tab} onChange={setTab} items={mod.ui.tabs.map(item=>[item.id,item.label])}/>:null}<div className="mod-builder">{sections.map((section,index)=><ModSection key={`${section.title||'section'}-${index}`} mod={mod} section={section} values={values} setValue={(key,value)=>setValues({...values,[key]:value})}/>)}</div>{sections.length===0&&<Card title={t('mod.installation')}><Rows rows={[[t('mod.version'),mod.version],[t('mod.target'),mod.target],[t('mod.source'),mod.source],[t('mod.status'),t('mod.installed')]]}/></Card>}<footer className="mod-footer"><span>{mod.enabled?t('mod.enabled'):t('mod.disabled')}</span><span>{mod.version}</span><span>{mod.target}</span><span>{mod.source}</span></footer></>
+  return <><PageHeader eyebrow="MOD" title={mod.name} subtitle={mod.description||mod.id} actions={<><button className="button danger" onClick={remove}>{t('mod.remove')}</button>{mod.settings.length>0&&<><button className="button" onClick={()=>{setValues(initial());setRevision(mod.revision)}}>{t('common.refresh')}</button><button className="button" onClick={save}>{t('common.save')}</button></>}</>}/><Card title={t('mod.activation')}><Toggle label={mod.enabled?t('mod.enabled'):t('mod.disabled')} checked={mod.enabled} onChange={setEnabled}/><p className="hint">{status?.detail||t('mod.activation.hint')}</p></Card>{mod.ui.tabs?.length?<Segmented value={tab} onChange={setTab} items={mod.ui.tabs.map(item=>[item.id,item.label])}/>:null}<div className="mod-builder">{sections.map((section,index)=><ModSection key={`${section.title||'section'}-${index}`} mod={mod} section={section} values={values} setValue={(key,value)=>setValues({...values,[key]:value})}/>)}</div>{sections.length===0&&<Card title={t('mod.installation')}><Rows rows={[[t('mod.version'),mod.version],[t('mod.target'),mod.target],[t('mod.source'),mod.source],[t('mod.status'),t('mod.installed')]]}/></Card>}<footer className="mod-footer"><span>{mod.enabled?t('mod.enabled'):t('mod.disabled')}</span><span>{mod.version}</span><span>{mod.target}</span><span>{mod.source}</span></footer></>
 }
 
 function ModSection({mod,section,values,setValue}:{mod:ModInfo;section:UiSection;values:Record<string,unknown>;setValue(key:string,value:unknown):void}){return <Card title={section.title}><>{section.description&&<p className="hint section-description">{section.description}</p>}{section.components.map((component,index)=><ModComponent key={`${component.type}-${component.key||component.action||index}`} mod={mod} component={component} values={values} setValue={setValue}/>)}</></Card>}
@@ -212,7 +278,9 @@ function ModComponent({mod,component,values,setValue}:{mod:ModInfo;component:UiC
 function ModSetting({definition,value,onChange}:{definition:SettingDefinition;value:unknown;onChange(value:unknown):void}){
   const {t}=useI18n()
   const control=definition.control||(definition.type==='boolean'?'toggle':definition.type==='number'||definition.type==='integer'?'number':'text')
-  const help=definition.description&&<p className="hint">{definition.description}{definition.restartRequired?` · ${t('mod.restartRequired')}`:''}</p>
+  const applyAt=definition.applyAt||'restart'
+  const applyMessage=applyAt==='live'?'Immediately':applyAt==='prepare'?'After asset preparation, then restart':'After restart'
+  const help=<p className="hint">{definition.description}{` · Applies: ${applyMessage}`}</p>
   if(control==='toggle')return <div><Toggle label={definition.label} checked={Boolean(value)} onChange={onChange}/>{help}</div>
   if(control==='checkbox')return <label className="builder-checkbox"><input type="checkbox" checked={Boolean(value)} onChange={event=>onChange(event.target.checked)}/><span>{definition.label}</span>{help}</label>
   if(control==='slider')return <Field label={definition.label}><div className="slider-control"><input type="range" value={Number(value??definition.default)} min={definition.minimum} max={definition.maximum} step={definition.step} onChange={event=>onChange(Number(event.target.value))}/><output>{String(value??definition.default)}</output></div>{help}</Field>

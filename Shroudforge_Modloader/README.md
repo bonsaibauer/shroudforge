@@ -12,9 +12,9 @@ Native code is reserved for first-party ShroudForge components. User mod package
 
 ## Activation
 
-Every installed mod has one loader-managed activation switch. Its state is stored at `mods.<id>.enabled` in `config/shroudforge.json` and defaults to `true`.
+Each installed mod stores its activation switch and setting values in `mods/<id>/mod.json`. The Modloader UI edits these fields in place. Missing `enabled` values in third-party packages remain disabled. Bundled ShroudForge mods ship with `enabled: true`.
 
-Disabled packages remain installed and visible in the Modloader UI. They are excluded from both pregame and runtime execution after the next game restart. Behavior-specific settings remain in the package manifest and must not duplicate this activation switch.
+Disabled packages remain installed and visible in the Modloader UI. They are excluded from external preparation and runtime execution. Settings and activation are read from the same `mod.json` the UI displays. Asset changes require `shroudforge prepare` or `launch` while the game is stopped.
 
 Before applying enabled pregame asset mods, the loader restores the clean KFC backup. This removes persistent asset changes from mods that have since been disabled, then reapplies only the currently enabled transformations.
 
@@ -24,8 +24,8 @@ Before applying enabled pregame asset mods, the loader restores the clean KFC ba
 | --- | --- |
 | `src/` | Launcher, package discovery, dependency ordering, and runtime loading |
 | `package/` | Reusable package registry and manifest validation crate |
-| `schemas/mod.schema.json` | Public JSON Schema for `mod.json` |
-| `templates/lua-mod/` | Minimal Lua mod template |
+| `../config/mods/mod-schema.json` | Manifest schema consumed by package discovery and validation |
+| `../templates/mod/` | Minimal Lua mod template |
 | `bootstrap/windows/` | Windows `winmm.dll` bootstrap |
 | `kfc-runtime/` | Native runtime bridge for supported Windows builds |
 

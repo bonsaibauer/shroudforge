@@ -1,3 +1,7 @@
 [submodule "Shroudforge_Parser/kfc-parser"]
 	path = Shroudforge_Parser/kfc-parser
 	url = https://github.com/Brabb3l/kfc-parser.git
+[submodule "Shroudforge_Modloader/kfc-runtime"]
+	path = Shroudforge_Modloader/kfc-runtime
+	url = https://github.com/bonsaibauer/kfc-runtime.git
+	branch = 1.0.0

@@ -2,69 +2,103 @@
   "id": "mod.flight",
   "name": "ShroudForge Flight",
   "version": "1.0.0",
-  "api": "^1.0.0",
-  "capabilities": ["runtime"],
+  "capabilities": [
+    "runtime"
+  ],
   "dependencies": [],
-  "target": "client",
   "description": "Keeps the local player's typed DynamicLocomotion state in Flying mode.",
-  "release": {
-    "changelog": [
-      "Added the declarative ShroudForge settings page.",
-      "Added a safe action to reset the current flight state.",
-      "Added control over downward flight movement."
-    ]
+  "enabled": true,
+  "settings": {
+    "preventFallDamage": true,
+    "allowDescent": false
   },
-  "settingGroups": [
-    {
-      "id": "general",
-      "label": "General",
-      "description": "Core flight behavior. Changes apply after the runtime restarts."
-    }
-  ],
-  "settings": [
-    {
-      "key": "preventFallDamage",
-      "type": "boolean",
-      "control": "checkbox",
-      "label": "Prevent fall damage",
-      "description": "Clears the local fall-damage state while flight is active.",
-      "default": true,
-      "group": "general",
-      "restartRequired": true
+  "shroudforge": {
+    "schemaVersion": 1,
+    "api": "^1.0.0",
+    "target": "client",
+    "release": {
+      "changelog": [
+        "Added the declarative ShroudForge settings page.",
+        "Added a safe action to reset the current flight state.",
+        "Added control over downward flight movement."
+      ]
     },
-    {
-      "key": "allowDescent",
-      "type": "boolean",
-      "control": "checkbox",
-      "label": "Allow downward movement",
-      "description": "Preserves negative vertical input instead of clamping it to zero.",
-      "default": false,
-      "group": "general",
-      "restartRequired": true
-    }
-  ],
-  "ui": {
-    "sections": [
-      {
-        "title": "Flight",
-        "description": "Configure the local flight runtime.",
-        "components": [
-          { "type": "setting", "key": "preventFallDamage" },
-          { "type": "setting", "key": "allowDescent" }
-        ]
+    "settingsSchema": {
+      "type": "object",
+      "properties": {
+        "preventFallDamage": {
+          "type": "boolean",
+          "title": "Prevent fall damage",
+          "default": true,
+          "x-apply": "restart",
+          "x-ui": {
+            "key": "preventFallDamage",
+            "type": "boolean",
+            "control": "checkbox",
+            "label": "Prevent fall damage",
+            "description": "Clears the local fall-damage state while flight is active.",
+            "default": true,
+            "group": "general",
+            "restartRequired": true
+          },
+          "description": "Clears the local fall-damage state while flight is active."
+        },
+        "allowDescent": {
+          "type": "boolean",
+          "title": "Allow downward movement",
+          "default": false,
+          "x-apply": "restart",
+          "x-ui": {
+            "key": "allowDescent",
+            "type": "boolean",
+            "control": "checkbox",
+            "label": "Allow downward movement",
+            "description": "Preserves negative vertical input instead of clamping it to zero.",
+            "default": false,
+            "group": "general",
+            "restartRequired": true
+          },
+          "description": "Preserves negative vertical input instead of clamping it to zero."
+        }
       },
+      "additionalProperties": false
+    },
+    "settingGroups": [
       {
-        "title": "Runtime action",
-        "components": [
-          {
-            "type": "button",
-            "label": "Reset flight state",
-            "action": "resetFlight",
-            "style": "secondary",
-            "confirmation": "Reset the current flight state?"
-          }
-        ]
+        "id": "general",
+        "label": "General",
+        "description": "Core flight behavior. Changes apply after the runtime restarts."
       }
-    ]
+    ],
+    "ui": {
+      "sections": [
+        {
+          "title": "Flight",
+          "description": "Configure the local flight runtime.",
+          "components": [
+            {
+              "type": "setting",
+              "key": "preventFallDamage"
+            },
+            {
+              "type": "setting",
+              "key": "allowDescent"
+            }
+          ]
+        },
+        {
+          "title": "Runtime action",
+          "components": [
+            {
+              "type": "button",
+              "label": "Reset flight state",
+              "action": "resetFlight",
+              "style": "secondary",
+              "confirmation": "Reset the current flight state?"
+            }
+          ]
+        }
+      ]
+    }
   }
 }

@@ -1,4 +1,6 @@
-use std::{collections::HashSet, fs, sync::Arc};
+#[cfg(test)]
+use std::fs;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::{
     ModEnvironmentErrorReport, ModRegistry,
@@ -24,9 +26,17 @@ impl ModEnvironment {
         let game_dir = game_dir.as_ref().to_path_buf();
         let cache_dir = game_dir.join(".cache");
         let mods_dir = game_dir.join("mods");
-
-        let registry = ModRegistry::load(&mods_dir)?;
-        let disabled_mods = read_disabled_mods(&game_dir);
+        let registry = match ModRegistry::load(&mods_dir) {
+            Ok(registry) => registry,
+            Err(report) if report.error.is_none() => {
+                for error in &report.mods {
+                    tracing::error!(path = %error.path, error = %error.error, "Mod rejected");
+                }
+                report.mod_registry
+            }
+            Err(report) => return Err(report),
+        };
+        let disabled_mods = registry.values().filter(|item| !item.info().enabled).map(|item| item.info().id.clone()).collect();
 
         Ok(Self {
             inner: Arc::new(ModEnvironmentInner {
@@ -56,7 +66,7 @@ impl ModEnvironment {
     }
 
     pub fn is_mod_enabled(&self, id: &str) -> bool {
-        !self.inner.disabled_mods.contains(id)
+        self.inner.registry.contains_key(id) && !self.inner.disabled_mods.contains(id)
     }
 
     pub fn enabled_mods(&self) -> impl Iterator<Item = &crate::Mod> {
@@ -65,27 +75,104 @@ impl ModEnvironment {
             .values()
             .filter(|r#mod| self.is_mod_enabled(&r#mod.info().id))
     }
-}
 
-fn read_disabled_mods(game_dir: &Path) -> HashSet<String> {
-    fs::read(game_dir.join("config").join("shroudforge.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|config| {
-            config
-                .get("mods")
-                .and_then(|mods| mods.as_object())
-                .cloned()
-        })
-        .map(|mods| {
-            mods.into_iter()
-                .filter_map(|(id, config)| {
-                    (config.get("enabled").and_then(|value| value.as_bool()) == Some(false))
-                        .then_some(id)
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+    /// Shared dependency and target plan for asset execution and live mods.
+    pub fn plan(&self, is_server: bool, api_version: &str) -> Vec<&crate::Mod> {
+        self.plan_report(is_server, api_version).0
+    }
+
+    pub fn plan_report(&self, is_server: bool, api_version: &str) -> (Vec<&crate::Mod>, Vec<String>) {
+        let blocked = match crate::compatibility::conflicts(self) {
+            Ok(blocked) => blocked,
+            Err(error) => return (Vec::new(), vec![format!("compatibility rules: {error}")]),
+        };
+        fn visit<'a>(
+            env: &'a ModEnvironment,
+            blocked: &std::collections::HashMap<String,String>,
+            id: &str,
+            server: bool,
+            version: &semver::Version,
+            visiting: &mut HashSet<String>,
+            done: &mut HashSet<String>,
+            order: &mut Vec<&'a crate::Mod>,
+        ) -> Result<(), String> {
+            if let Some(reason) = blocked.get(id) { return Err(format!("{id}: {reason}")); }
+            if done.contains(id) {
+                return Ok(());
+            }
+            if !visiting.insert(id.into()) {
+                return Err(format!("dependency cycle: {id}"));
+            }
+            let item = env
+                .mod_registry()
+                .get(id)
+                .ok_or_else(|| format!("missing dependency: {id}"))?;
+            if !env.is_mod_enabled(id) {
+                return Err(format!("disabled dependency: {id}"));
+            }
+            if matches!(
+                (item.info().target, server),
+                (crate::ModTarget::Client, true) | (crate::ModTarget::Server, false)
+            ) {
+                return Err(format!("{id}: wrong process target"));
+            }
+            if let Some(required) = &item.info().api {
+                let required = semver::VersionReq::parse(required).map_err(|e| e.to_string())?;
+                if !required.matches(version) {
+                    return Err(format!("{id}: API {required} required"));
+                }
+            }
+            for dependency in &item.info().dependencies {
+                if dependency.id == "shroudforge-api" {
+                    if !dependency.version.matches(version) {
+                        return Err(format!("{id}: incompatible API dependency"));
+                    }
+                    continue;
+                }
+                let candidate = env.mod_registry().get(&dependency.id);
+                if dependency.optional.unwrap_or(false)
+                    && (candidate.is_none() || !env.is_mod_enabled(&dependency.id))
+                {
+                    continue;
+                }
+                let candidate =
+                    candidate.ok_or_else(|| format!("{id}: missing {}", dependency.id))?;
+                if !dependency.version.matches(&candidate.info().version) {
+                    return Err(format!("{id}: incompatible {}", dependency.id));
+                }
+                visit(env, blocked, &dependency.id, server, version, visiting, done, order)?;
+            }
+            visiting.remove(id);
+            done.insert(id.into());
+            order.push(item);
+            Ok(())
+        }
+        let version = semver::Version::parse(api_version).expect("API version is semver");
+        let mut ids: Vec<_> = self
+            .enabled_mods()
+            .map(|item| item.info().id.clone())
+            .collect();
+        ids.sort();
+        let mut done = HashSet::new();
+        let mut order = Vec::new();
+        let mut errors = Vec::new();
+        for id in ids {
+            if let Err(error) = visit(
+                self,
+                &blocked,
+                &id,
+                is_server,
+                &version,
+                &mut HashSet::new(),
+                &mut done,
+                &mut order,
+            ) {
+                tracing::error!(mod_id = %id, %error, "Mod excluded from execution plan");
+                errors.push(error);
+            }
+        }
+        (order, errors)
+    }
 }
 
 #[cfg(test)]

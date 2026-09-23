@@ -61,7 +61,6 @@ impl LuaModRunner {
             }
             ids.push(r#mod.info().id.clone());
         }
-        ids.sort();
         ids
     }
 

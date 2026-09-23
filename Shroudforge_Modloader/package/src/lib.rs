@@ -1,4 +1,10 @@
 mod alias;
+pub mod config;
+pub mod compatibility;
+pub mod migration;
+pub mod news;
+pub mod prepared;
+pub mod status;
 mod env;
 mod error;
 mod log;

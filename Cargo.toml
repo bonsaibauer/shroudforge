@@ -10,6 +10,7 @@ members = [
     "Shroudforge_Modules/debug-console",
     "Shroudforge_Modules/modloader-ui",
     "Shroudforge_Modules/updater",
+    "Shroudforge_Modules/runtime-diagnostics",
 ]
 exclude = [
     "Shroudforge_Parser/kfc-parser",

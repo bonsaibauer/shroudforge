@@ -1,0 +1,14 @@
+{
+  "$schema": "api-schema.json",
+  "schemaVersion": 1,
+  "apiVersion": "1.0.0",
+  "runtimeProviderAbi": 1,
+  "runtimeOperations": [
+    "runtime.lifecycle",
+    "runtime.ecs.query",
+    "runtime.ecs.resolve",
+    "runtime.ecs.read",
+    "runtime.ecs.write"
+  ],
+  "modManifest": "../mods/mod-schema.json"
+}

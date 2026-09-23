@@ -8,6 +8,12 @@ pub struct ModManifest {
     pub id: String,
     pub name: String,
     pub version: Version,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "empty_settings", rename = "settingValues")]
+    pub setting_values: serde_json::Value,
+    #[serde(default)]
+    pub settings_schema: Option<serde_json::Value>,
     pub api: Option<String>,
     #[serde(default)]
     pub capabilities: Vec<Capability>,
@@ -33,6 +39,8 @@ pub struct ModManifest {
     #[serde(default)]
     pub ui: ModUi,
 }
+
+fn empty_settings() -> serde_json::Value { serde_json::json!({}) }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -78,7 +86,11 @@ pub struct SettingDefinition {
     pub options: Vec<SettingOption>,
     #[serde(default)]
     pub restart_required: bool,
+    #[serde(default = "default_apply_at")]
+    pub apply_at: String,
 }
+
+fn default_apply_at() -> String { "restart".into() }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -183,6 +195,7 @@ pub struct Dependency {
 #[serde(rename_all = "kebab-case")]
 pub enum Capability {
     Export,
+    #[serde(rename = "patch", alias = "assets-write")]
     AssetsWrite,
     Runtime,
 }

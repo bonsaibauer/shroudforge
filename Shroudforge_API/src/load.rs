@@ -27,11 +27,19 @@ pub fn load_kfc_file(kfc_path: impl AsRef<Path>) -> Result<Rc<KFCFile>, ()> {
 }
 
 pub fn create_reader(dir: &Path, file_name: &str) -> Result<KFCCursor<KFCReader>, ()> {
+    create_reader_with_extension(dir, file_name, "kfc.bak")
+}
+
+pub fn create_reader_with_extension(
+    dir: &Path,
+    file_name: &str,
+    extension: &str,
+) -> Result<KFCCursor<KFCReader>, ()> {
     match KFCReader::new_with_options(
         dir,
         file_name,
         KFCReaderOptions {
-            kfc_extension: "kfc.bak",
+            kfc_extension: extension,
             ..Default::default()
         },
     )
@@ -210,11 +218,26 @@ pub fn load_type_registry(
         return Err(());
     }
 
-    let types_path = cache_dir.join("types.json");
+    let types_path = cache_dir.join(format!("types-{file_name}.json"));
+    let identity_path = cache_dir.join(format!("types-{file_name}.identity.json"));
     let exe_path = game_dir.join(file_name).with_extension("exe");
     let kfc_path = game_dir.join(file_name).with_extension("kfc");
+    let identity = std::fs::metadata(&exe_path).ok().and_then(|metadata| {
+        let modified = metadata.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?;
+        Some(serde_json::json!({"schemaVersion": 1, "length": metadata.len(), "modified": modified.as_nanos().to_string()}))
+    });
+    let cached_identity = std::fs::read(&identity_path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+    let identity_matches = identity.is_some() && identity == cached_identity;
 
-    let type_registry = match File::open(&types_path) {
+    let type_registry = match File::open(&types_path).and_then(|file| {
+        if identity_matches {
+            Ok(file)
+        } else {
+            Err(std::io::Error::other("game executable changed"))
+        }
+    }) {
         Ok(file) => {
             let reader = BufReader::new(file);
 
@@ -284,14 +307,23 @@ pub fn load_type_registry(
                 if let Some(version_tag) = version_tag {
                     registry.version = version_tag;
 
-                    match serde_json::to_string(&registry) {
+                    match serde_json::to_value(&registry) {
                         Ok(json) => {
-                            if let Err(e) = std::fs::write(&types_path, json) {
+                            if let Err(e) =
+                                mod_loader::config::write_json(types_path.as_std_path(), &json)
+                            {
                                 warn!(
                                     error = %e,
                                     path = ?types_path,
                                     "Failed to write type registry to file",
                                 );
+                            } else if let Some(identity) = &identity {
+                                if let Err(error) = mod_loader::config::write_json(
+                                    identity_path.as_std_path(),
+                                    identity,
+                                ) {
+                                    warn!(%error, "Could not save executable identity for type cache");
+                                }
                             }
                         }
                         Err(e) => {

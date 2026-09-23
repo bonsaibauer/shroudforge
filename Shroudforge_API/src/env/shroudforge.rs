@@ -9,11 +9,14 @@ use serde_json::json;
 
 use crate::lua::LuaValue;
 
+pub(crate) fn set_settings(lua: &mlua::Lua, id: &str, values: &serde_json::Value) -> mlua::Result<()> {
+    lua.set_named_registry_value(&format!("shroudforge.settings.{id}"), json_to_lua(lua, values)?)
+}
+
 pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let table = lua.create_table()?;
     table.raw_set("version", env!("CARGO_PKG_VERSION"))?;
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
-    table.raw_set("mod_kind", "lua")?;
 
     let log = lua.create_table()?;
     for level in ["debug", "info", "warn", "error"] {
@@ -21,6 +24,9 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         log.raw_set(
             level,
             lua.create_function(move |_, args: Variadic<LuaValue>| {
+                if level == "debug" && !tracing::enabled!(target: "shroudforge::mod", tracing::Level::DEBUG) {
+                    return Ok(());
+                }
                 let message = args
                     .into_iter()
                     .map(|value| value.to_string())
@@ -53,37 +59,20 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let mod_id = r#mod.info().id.clone();
 
     let settings = lua.create_table()?;
-    let settings_root = game_dir.clone();
-    let settings_mod_id = mod_id.clone();
-    let setting_defaults = r#mod
-        .info()
-        .settings
-        .iter()
-        .map(|setting| (setting.key.clone(), setting.default.clone()))
-        .collect::<std::collections::HashMap<_, _>>();
+    // In-memory values; the runtime refreshes explicitly live settings between updates.
+    let effective = mod_loader::config::effective_settings(&game_dir, r#mod.info())
+        .map_err(mlua::Error::runtime)?;
+    set_settings(lua, &mod_id, &effective)?;
+    let settings_id = mod_id.clone();
     settings.raw_set(
         "get",
         lua.create_function(move |lua, (key, fallback): (String, Option<Value>)| {
-            if !valid_identifier(&settings_mod_id) || !valid_identifier(&key) {
+            if !valid_identifier(&key) {
                 return Err(mlua::Error::runtime("invalid setting key"));
             }
-            let path = settings_root.join("config").join("shroudforge.json");
-            let value = fs::read(path)
-                .ok()
-                .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-                .and_then(|document| {
-                    document
-                        .get("mods")?
-                        .get(&settings_mod_id)?
-                        .get("settings")?
-                        .get(&key)
-                        .cloned()
-                })
-                .or_else(|| setting_defaults.get(&key).cloned());
-            match value {
-                Some(value) => json_to_lua(lua, &value),
-                None => Ok(fallback.unwrap_or(Value::Nil)),
-            }
+            let current: Table = lua.named_registry_value(&format!("shroudforge.settings.{settings_id}"))?;
+            let value: Value = current.raw_get(key)?;
+            Ok(if value.is_nil() { fallback.unwrap_or(Value::Nil) } else { value })
         })?,
     )?;
     table.raw_set("settings", settings)?;
@@ -123,10 +112,6 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             if action_url.as_deref().is_some_and(|url| !url.starts_with("https://")) {
                 return Err(mlua::Error::runtime("notification action_url must use HTTPS"));
             }
-            let directory = game_dir.join("Shroudforge_UI").join("notifications");
-            fs::create_dir_all(&directory).map_err(mlua::Error::external)?;
-            let path = directory.join(format!("{mod_id}-{id}.json"));
-            let temporary = path.with_extension("tmp");
             let namespaced_id = format!("{mod_id}.{id}");
             let payload = json!({
                 "id": namespaced_id,
@@ -137,10 +122,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                 "actionUrl": action_url,
                 "updatedAt": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
             });
-            fs::write(&temporary, serde_json::to_vec_pretty(&payload).map_err(mlua::Error::external)?)
-                .map_err(mlua::Error::external)?;
-            if path.exists() { fs::remove_file(&path).map_err(mlua::Error::external)?; }
-            fs::rename(temporary, path).map_err(mlua::Error::external)?;
+            mod_loader::news::write_event(&game_dir, &format!("{mod_id}-{id}"), &payload).map_err(mlua::Error::external)?;
             Ok(())
         })?,
     )?;
@@ -153,7 +135,7 @@ fn action_registry_key(mod_id: &str, action: &str) -> String {
     format!("shroudforge.ui.action.{mod_id}.{action}")
 }
 
-pub(crate) fn dispatch_ui_actions(lua: &mlua::Lua) {
+pub(crate) fn dispatch_ui_actions(lua: &mlua::Lua, active_mods: &[String]) {
     let Some(game_dir) = lua
         .app_data_ref::<crate::env::AppState>()
         .map(|state| state.env().game_dir().as_std_path().to_path_buf())
@@ -181,6 +163,10 @@ pub(crate) fn dispatch_ui_actions(lua: &mlua::Lua) {
             let _ = fs::remove_file(path);
             continue;
         };
+        if !active_mods.iter().any(|id| id == mod_id) {
+            let _ = fs::remove_file(path);
+            continue;
+        }
         if !valid_identifier(mod_id) || !valid_identifier(action) {
             let _ = fs::remove_file(path);
             continue;

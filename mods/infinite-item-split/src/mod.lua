@@ -12,25 +12,37 @@ for _, split_type in ipairs(configured_split_types) do
     split_types[split_type] = true
 end
 local restored_versions = {}
+local pending = {}
 local warned = false
 
-local function restore_subtracted_amount(action)
+local function restore_subtracted_amount(player, action)
     local entity = action.sourceSlotId.entityId.id
     local slot_index = action.sourceSlotId.slotIndex
     local amount = action.amount
-    if entity == 0 or amount == 0 then return end
+    if entity == 0 or amount == 0 then return false end
 
     local handle = runtime.ecs.resolve(entity)
-    if handle == nil then return end
+    if handle == nil then return false end
     local inventory = runtime.ecs.read(handle, Inventory)
-    if inventory == nil then return end
+    if inventory == nil then return false end
     local slot = inventory.slots[slot_index + 1]
-    if slot == nil then return end
+    if slot == nil then return false end
+
+    local expected = pending[player]
+    if expected == nil or expected.version ~= action.versionData.version then
+        expected = {version = action.versionData.version, id = slot.id, pide = slot.data.pide.id,
+            before = slot.data.count, count = slot.data.count + amount}
+        pending[player] = expected
+    end
+    if slot.id ~= expected.id or slot.data.pide.id ~= expected.pide then return false end
+    if slot.data.count == expected.count then return true end
+    -- Do not overwrite unrelated inventory changes while retrying a timed-out write.
+    if slot.data.count ~= expected.before then return false end
 
     -- Keen already created the right-hand split stack. Restore only the amount
     -- subtracted from the left-hand source stack.
-    slot.data.count = slot.data.count + amount
-    runtime.ecs.write(handle, Inventory, inventory)
+    slot.data.count = expected.count
+    return runtime.ecs.write(handle, Inventory, inventory)
 end
 
 local function update_item_split()
@@ -58,8 +70,10 @@ local function update_item_split()
                 and action_version == consumed_version
                 and restored_versions[player] ~= action_version
             then
-                restore_subtracted_amount(action)
-                restored_versions[player] = action_version
+                if restore_subtracted_amount(player, action) then
+                    restored_versions[player] = action_version
+                    pending[player] = nil
+                end
             end
         end
     end
@@ -71,4 +85,5 @@ return {
         shroudforge.log.info("Infinite item split active")
     end,
     on_update = update_item_split,
+    on_unload = function() pending = {}; restored_versions = {} end,
 }

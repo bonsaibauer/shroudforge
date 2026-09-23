@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::DirEntry, io::BufReader, ops::Deref, sync::Arc};
+use std::{collections::HashMap, fs::DirEntry, ops::Deref, sync::Arc};
 
 mod fs;
 mod manifest;
@@ -62,6 +62,7 @@ impl ModRegistry {
         };
 
         let mut errors = Vec::new();
+        let mut duplicate_ids = std::collections::HashSet::new();
 
         for entry in mod_files {
             let entry = match entry {
@@ -77,10 +78,13 @@ impl ModRegistry {
                 }
             };
 
-            let r#mod = match Self::load_mod(&mods, entry) {
+            let r#mod = match Self::load_mod(&mods, entry, mods_dir.parent().unwrap_or(&mods_dir)) {
                 Ok(Some(m)) => m,
                 Ok(None) => continue,
                 Err(e) => {
+                    if let ModError::DuplicateModId(id) = &e.error {
+                        duplicate_ids.insert(id.clone());
+                    }
                     errors.push(e);
                     continue;
                 }
@@ -91,6 +95,9 @@ impl ModRegistry {
             mods.insert(mod_id, r#mod);
         }
 
+        for id in duplicate_ids {
+            mods.remove(&id);
+        }
         let registry = Self { mods };
 
         if !errors.is_empty() {
@@ -103,6 +110,7 @@ impl ModRegistry {
     fn load_mod(
         mods: &HashMap<String, Mod>,
         entry: DirEntry,
+        root: &Path,
     ) -> Result<Option<Mod>, ModErrorReport> {
         let path = PathBuf::from_path_buf(entry.path()).map_err(|e| {
             ModErrorReport::new(
@@ -164,38 +172,19 @@ impl ModRegistry {
             return Ok(None);
         };
 
-        let manifest_reader = fs.read_file("mod.json").map(BufReader::new).map_err(|e| {
-            ModErrorReport::new(
-                path.clone(),
-                ModError::Io(IoError {
-                    path: path.join("mod.json").to_string(),
-                    source: e,
-                }),
-            )
-        })?;
-
-        let mod_info = serde_json::from_reader::<_, ModManifest>(manifest_reader).map_err(|e| {
-            ModErrorReport::new(
-                path.clone(),
-                ModError::Json {
-                    path: path.join("mod.json").to_string(),
-                    source: e,
-                },
-            )
-        })?;
-
-        validate_manifest(&mod_info).map_err(|message| {
-            ModErrorReport::new(
-                path.clone(),
-                ModError::Json {
-                    path: path.join("mod.json").to_string(),
-                    source: serde_json::Error::io(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        message,
-                    )),
-                },
-            )
-        })?;
+        let mod_info =
+            crate::config::read_manifest(root.as_std_path(), &mut fs).map_err(|message| {
+                ModErrorReport::new(
+                    path.clone(),
+                    ModError::Json {
+                        path: path.join("mod.json").to_string(),
+                        source: serde_json::Error::io(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            message,
+                        )),
+                    },
+                )
+            })?;
 
         let mod_id = mod_info.id.clone();
 
@@ -226,7 +215,7 @@ pub fn validate_manifest(manifest: &ModManifest) -> Result<(), String> {
                 .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
     }
 
-    if !identifier(&manifest.id) {
+    if !crate::config::valid_id(&manifest.id) {
         return Err("mod id is invalid".into());
     }
     let mut setting_keys = std::collections::HashSet::new();

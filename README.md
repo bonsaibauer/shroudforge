@@ -29,7 +29,7 @@ or create your own mods with Lua. Every mod uses the same simple format: a
 1. Close Enshrouded.
 2. Open the [latest ShroudForge release](https://github.com/bonsaibauer/shroudforge/releases/latest).
 3. Download `shroudforge-<version>-<build>.zip`.
-4. Extract the contents of the `game` directory into your Enshrouded installation directory, next to `enshrouded.exe`.
+4. Extract the ZIP contents directly into your Enshrouded installation directory, next to `enshrouded.exe`.
 5. Start the game
 6. Press `F9` in the game to open the modloader.
 7. Press `F10` to open the Debug Console.
@@ -39,6 +39,26 @@ The typical Steam path is:
 ```text
 C:\Program Files (x86)\Steam\steamapps\common\Enshrouded
 ```
+
+For command-line preparation or launch, pass the installation folder explicitly.
+The launcher accepts any client or server installation directory containing the
+corresponding Enshrouded executable:
+
+```powershell
+.\shroudforge.exe launch "C:\Program Files (x86)\Steam\steamapps\common\Enshrouded"
+```
+
+The release includes `config/shroudforge.json`, bundled news content, runtime
+compatibility profiles under `runtime/compatibility/profiles/`, and bundled mods
+under `mods/<id>/`. Runtime state is generated in `config/state.json`. Logs are
+created only when the loader runs. Repository schemas, API sources, templates,
+documentation, and submodules are not included in the player ZIP.
+
+The ZIP installs at its root beside `enshrouded.exe`; it has no extra `game/`
+directory. It includes `winmm.dll`, `shroudforge-runtime.dll`, `kfc-runtime.dll`,
+`shroudforge.exe`, `version.json`, the bundled modules under `Shroudforge_Modules/`,
+and each mod's `mod.json` and Lua files. `shroudforge.log`, `config/state.json`,
+and lock files are generated only while the installation is in use.
 
 Updates are shown in the modloader. A staged update is installed after the game
 exits. Your own mods, settings, and logs are preserved.
@@ -98,7 +118,7 @@ my-first-mod/
 ```
 
 You can also copy the ready-made
-[Lua template](https://github.com/bonsaibauer/shroudforge/tree/main/Shroudforge_Modloader/templates/lua-mod).
+[Lua template](https://github.com/bonsaibauer/shroudforge/tree/main/templates/mod).
 
 ### 2. Create `mod.json`
 
@@ -153,25 +173,39 @@ and functions.
 
 ### 4. Add a setting
 
-For example, add a toggle to `mod.json`:
+Keep the user's setting value in `settings` and its definition in the ShroudForge
+settings schema within the same `mod.json`:
 
 ```json
-"settings": [
-  {
-    "key": "enabled",
-    "type": "boolean",
-    "control": "toggle",
-    "label": "Enable mod",
-    "description": "Enables or disables the mod.",
-    "default": true
+"enabled": true,
+"settings": { "allowDescent": false },
+"shroudforge": {
+  "schemaVersion": 1,
+  "settingsSchema": {
+    "type": "object",
+    "properties": {
+      "allowDescent": {
+        "type": "boolean",
+        "title": "Allow downward movement",
+        "default": false,
+        "x-apply": "restart",
+        "x-ui": {
+          "control": "toggle",
+          "label": "Allow downward movement",
+          "description": "Allow the character to descend during flight."
+        }
+      }
+    },
+    "additionalProperties": false
   }
-]
+}
 ```
 
-The modloader supports toggles, checkboxes, text fields, number fields, sliders,
+The activation field `enabled` and setting values are saved directly in the
+mod's `mod.json`. The modloader supports toggles, checkboxes, text fields, number fields, sliders,
 select controls, key bindings, and colors. A mod can also display custom sections,
 tabs, notices, and safe button actions. The complete structure is documented in
-[`mod.schema.json`](https://github.com/bonsaibauer/shroudforge/blob/main/Shroudforge_Modloader/schemas/mod.schema.json).
+[`mod.schema.json`](config/mods/mod-schema.json).
 
 ### 5. Test the mod
 

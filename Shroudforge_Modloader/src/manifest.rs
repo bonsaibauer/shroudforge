@@ -22,13 +22,7 @@ fn default_target() -> String {
 }
 
 pub fn validate(manifest: &PackageManifest) -> Result<(), String> {
-    if manifest.package.id.is_empty()
-        || !manifest.package.id.bytes().all(|value| {
-            value.is_ascii_lowercase() || value.is_ascii_digit() || matches!(value, b'-' | b'.')
-        })
-    {
-        return Err("id must contain lowercase letters, digits, '-' or '.'".into());
-    }
+    shroudforge_package::validate_manifest(&manifest.package)?;
     if manifest.package.name.trim().is_empty() {
         return Err("name must not be empty".into());
     }
@@ -105,8 +99,12 @@ mod tests {
                 .into_function()
                 .unwrap_or_else(|error| panic!("{}: {error}", source_path.display()));
 
-            let manifest: PackageManifest =
-                serde_json::from_str(&fs::read_to_string(&manifest_path).unwrap()).unwrap();
+            let manifest = PackageManifest {
+                package: shroudforge_package::config::read_manifest_path(root, &directory.path())
+                    .unwrap(),
+                api: None,
+                target: "both".into(),
+            };
             assert!(validate(&manifest).is_ok(), "{}", manifest_path.display());
             if source.contains("runtime.ecs.") {
                 assert!(

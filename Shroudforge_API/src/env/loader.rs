@@ -17,17 +17,25 @@ use crate::{
     lua::{Either, FunctionArgs, LuaError, LuaValue},
 };
 
+pub(crate) fn runtime_provider_report() -> serde_json::Value {
+    runtime_provider::report()
+}
+
 /// Creates the canonical `runtime.*` namespace used in every execution phase.
 pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     let app_state = lua.app_data_ref::<AppState>().unwrap();
-    if app_state.phase() == RuntimePhase::Ingame {
+    if app_state.phase() == RuntimePhase::Ingame && !app_state.runtime_configured.replace(true) {
         let contract: Vec<_> = app_state
             .type_registry()
             .iter()
-            .filter(|metadata| metadata.qualified_name.starts_with("keen::ecs::"))
+            .filter(|metadata| {
+                metadata.size > 0 && metadata.qualified_name.starts_with("keen::ecs::")
+            })
             .map(|metadata| (metadata.qualified_name.clone(), metadata.size))
             .collect();
-        runtime_provider::configure(&contract);
+        if !runtime_provider::configure(&contract) {
+            tracing::warn!("KFC Runtime rejected the component contract");
+        }
     }
     let table = lua.create_table()?;
     table.raw_set("phase", app_state.phase().as_str())?;
@@ -47,6 +55,20 @@ fn has_capability(r#mod: &Mod, capability: Capability) -> bool {
     r#mod.info().capabilities.contains(&capability)
 }
 
+/// EML's original Lua surface is an adapter, not a renamed runtime API.
+pub fn create_eml(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let table = lua.create_table()?;
+    table.raw_set("is_client", state.is_client())?;
+    table.raw_set("is_server", state.is_server())?;
+    add_function(lua, &table, "has_mod", lua_has_mod)?;
+    let features = lua.create_table()?;
+    features.raw_set("patch", available(&state, r#mod, "game.assets.write"))?;
+    features.raw_set("export", available(&state, r#mod, "export"))?;
+    table.raw_set("features", features)?;
+    Ok(table)
+}
+
 fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
     match feature {
         "game.assets.write" => {
@@ -61,7 +83,7 @@ fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && state.api().has_runtime("runtime.lifecycle")
                 && has_capability(r#mod, Capability::Runtime)
         }
-        "runtime.ecs.query" | "runtime.ecs.read" => {
+        "runtime.ecs.query" | "runtime.ecs.resolve" | "runtime.ecs.read" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
@@ -120,7 +142,7 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
         return availability_to_lua(
             lua,
             Availability::Unavailable {
-                reason: "KFC Runtime has not reached the write-safety confidence threshold".into(),
+                reason: "KFC Runtime has no writable live component context".into(),
             },
         );
     }
@@ -230,7 +252,12 @@ fn lua_ecs_query(
         }
         components.push(name);
     }
-    let entities = runtime_provider::query(&components);
+    let Some(entities) = runtime_provider::query(&components) else {
+        return Ok((
+            LuaValue::Nil,
+            Some("live ECS query failed or timed out".into()),
+        ));
+    };
     let result = lua.create_table_with_capacity(entities.len(), 0)?;
     for (index, entity) in entities.into_iter().enumerate() {
         result.raw_set(index + 1, entity)?;
@@ -596,6 +623,8 @@ mod runtime_provider {
         resolve_entity: ResolveEntity,
         read: Read,
         write: Write,
+        abi: u32,
+        status: unsafe extern "C" fn(*mut c_char, usize),
     }
 
     #[link(name = "kernel32")]
@@ -609,7 +638,7 @@ mod runtime_provider {
     fn provider() -> Option<&'static Provider> {
         PROVIDER
             .get_or_init(|| unsafe {
-                let module_name: Vec<u16> = "winmm.dll\0".encode_utf16().collect();
+                let module_name: Vec<u16> = "kfc-runtime.dll\0".encode_utf16().collect();
                 let module = GetModuleHandleW(module_name.as_ptr());
                 if module.is_null() {
                     return None;
@@ -623,6 +652,10 @@ mod runtime_provider {
                         std::mem::transmute::<*const c_void, $kind>(pointer)
                     }};
                 }
+                let abi = symbol!("KfcRuntimeAbi", unsafe extern "C" fn() -> u32);
+                if abi() != 1 {
+                    return None;
+                }
                 Some(Provider {
                     configure: symbol!("ShroudforgeEcsConfigure", Configure),
                     ready: symbol!("ShroudforgeEcsReady", Ready),
@@ -632,9 +665,23 @@ mod runtime_provider {
                     resolve_entity: symbol!("ShroudforgeEcsResolve", ResolveEntity),
                     read: symbol!("ShroudforgeEcsRead", Read),
                     write: symbol!("ShroudforgeEcsWrite", Write),
+                    abi: abi(),
+                    status: symbol!("KfcRuntimeStatus", unsafe extern "C" fn(*mut c_char, usize)),
                 })
             })
             .as_ref()
+    }
+
+    fn observed_abi() -> Option<u32> {
+        unsafe {
+            let module_name: Vec<u16> = "kfc-runtime.dll\0".encode_utf16().collect();
+            let module=GetModuleHandleW(module_name.as_ptr());
+            if module.is_null(){return None;}
+            let pointer=GetProcAddress(module,c"KfcRuntimeAbi".as_ptr());
+            if pointer.is_null(){return None;}
+            let abi:unsafe extern "C" fn()->u32=std::mem::transmute(pointer);
+            Some(abi())
+        }
     }
 
     pub fn configure(types: &[(String, u32)]) -> bool {
@@ -658,37 +705,53 @@ mod runtime_provider {
     pub fn can_write() -> bool {
         provider().is_some_and(|value| unsafe { (value.can_write)() })
     }
+    pub fn report() -> serde_json::Value {
+        let Some(provider) = provider() else { return serde_json::json!({"available":false,"abi":observed_abi(),"reason":"provider-or-ABI-unavailable"}); };
+        let mut buffer = [0i8; 4096];
+        unsafe { (provider.status)(buffer.as_mut_ptr(), buffer.len()); }
+        let bytes: Vec<u8> = buffer.iter().take_while(|byte| **byte != 0).map(|byte| *byte as u8).collect();
+        serde_json::json!({"available":true,"abi":provider.abi,"initialized":true,"ready":unsafe{(provider.ready)()},"writable":unsafe{(provider.can_write)()},"detail":String::from_utf8_lossy(&bytes)})
+    }
     pub fn resolve(name: &str) -> Option<Component> {
         let provider = provider()?;
         let name = CString::new(name).ok()?;
         let mut size = 0;
         unsafe { (provider.describe)(name.as_ptr(), &mut size) }.then_some(Component { size })
     }
-    pub fn query(components: &[String]) -> Vec<u32> {
+    pub fn query(components: &[String]) -> Option<Vec<u32>> {
         let Some(provider) = provider() else {
-            return Vec::new();
+            return None;
         };
         let Ok(names) = components
             .iter()
             .map(|name| CString::new(name.as_str()))
             .collect::<Result<Vec<_>, _>>()
         else {
-            return Vec::new();
+            return None;
         };
         let pointers: Vec<_> = names.iter().map(|name| name.as_ptr()).collect();
-        let count =
-            unsafe { (provider.query)(pointers.as_ptr(), pointers.len(), std::ptr::null_mut(), 0) };
-        let mut entities = vec![0; count];
-        let actual = unsafe {
-            (provider.query)(
-                pointers.as_ptr(),
-                pointers.len(),
-                entities.as_mut_ptr(),
-                count,
-            )
-        };
-        entities.truncate(actual.min(count));
-        entities
+        // Most player queries fit in one call. Do not count then rescan the
+        // whole world on another engine tick for every query.
+        let mut entities = vec![0; 256];
+        for _ in 0..3 {
+            let actual = unsafe {
+                (provider.query)(
+                    pointers.as_ptr(),
+                    pointers.len(),
+                    entities.as_mut_ptr(),
+                    entities.len(),
+                )
+            };
+            if actual <= entities.len() {
+                entities.truncate(actual);
+                return Some(entities);
+            }
+            if actual > 1 << 20 {
+                return None;
+            }
+            entities.resize(actual, 0);
+        }
+        None
     }
     pub fn read(entity: u32, name: &str, size: u32) -> Option<Vec<u8>> {
         let provider = provider()?;
@@ -746,11 +809,12 @@ mod runtime_provider {
     pub fn can_write() -> bool {
         false
     }
+    pub fn report() -> serde_json::Value { serde_json::json!({"available":false,"reason":"windows-runtime-only"}) }
     pub fn resolve(_: &str) -> Option<Component> {
         None
     }
-    pub fn query(_: &[String]) -> Vec<u32> {
-        Vec::new()
+    pub fn query(_: &[String]) -> Option<Vec<u32>> {
+        None
     }
     pub fn read(_: u32, _: &str, _: u32) -> Option<Vec<u8>> {
         None

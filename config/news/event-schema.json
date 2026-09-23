@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object", "required":["id","title","message","level"],
+  "properties":{
+    "id":{"type":"string","minLength":1,"maxLength":200},
+    "title":{"type":"string","maxLength":120},"message":{"type":"string","maxLength":2000},
+    "level":{"enum":["info","warning","error","success","update"]},
+    "modId":{"type":"string"},"updatedAt":{"type":"integer","minimum":0},
+    "actionUrl":{"type":["string","null"],"pattern":"^https://"},
+    "kind":{"type":["string","null"]},"values":{"type":["object","null"]},
+    "changelog":{"type":"array","items":{"type":"string"},"maxItems":50}
+  },"additionalProperties":false
+}

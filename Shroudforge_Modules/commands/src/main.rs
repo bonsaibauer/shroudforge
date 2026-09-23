@@ -1,4 +1,4 @@
-use std::{env, fs::OpenOptions, io::Write, path::PathBuf};
+use std::{env, path::PathBuf};
 
 use serde::Serialize;
 
@@ -27,15 +27,7 @@ fn main() {
     }
 
     if let Some(root) = module_root() {
-        let log_path = root.join("shroudforge.log");
-        if let Ok(mut log) = OpenOptions::new().create(true).append(true).open(log_path) {
-            let line = shroudforge_package::logging::format_line(
-                'I',
-                "commands",
-                "Command gateway module available",
-            );
-            let _ = writeln!(log, "{line}");
-        }
+        let _ = shroudforge_package::logging::append(&root, 'I', "commands", "Command gateway module available");
     }
 }
 

@@ -5,6 +5,10 @@ use walkdir::WalkDir;
 use crate::{cache::FileStateCache, log::warn};
 
 impl FileStateCache {
+    pub fn track_mod_config(&mut self, game_dir: impl AsRef<Path>) {
+        self.track(mod_loader::config::document_path(game_dir.as_ref(), "shroudforge"));
+    }
+
     pub fn track_game_files(&mut self, game_dir: impl AsRef<Path>) {
         let game_dir = game_dir.as_ref();
 

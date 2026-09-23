@@ -15,6 +15,10 @@ mod table;
 mod app_state;
 mod util;
 
+pub(crate) fn runtime_provider_report() -> serde_json::Value {
+    loader::runtime_provider_report()
+}
+
 pub use app_state::*;
 
 use buffer::Buffer;
@@ -30,6 +34,7 @@ pub fn register(lua: &mlua::Lua, env: &Table, r#mod: &Mod) -> mlua::Result<()> {
     let lua_buffer = buffer::create(lua)?;
     let lua_hasher = hasher::create(lua)?;
     let lua_runtime = loader::create(lua, r#mod.clone())?;
+    let lua_loader = loader::create_eml(lua, r#mod)?;
     let lua_shroudforge = shroudforge::create(lua, r#mod)?;
     let lua_image = image::create(lua)?;
 
@@ -39,6 +44,7 @@ pub fn register(lua: &mlua::Lua, env: &Table, r#mod: &Mod) -> mlua::Result<()> {
     lua_builtin.raw_set("buffer", lua_buffer.clone())?;
     lua_builtin.raw_set("hasher", lua_hasher.clone())?;
     lua_builtin.raw_set("runtime", lua_runtime.clone())?;
+    lua_builtin.raw_set("loader", lua_loader.clone())?;
     lua_builtin.raw_set("shroudforge", lua_shroudforge.clone())?;
     lua_builtin.raw_set("image", lua_image.clone())?;
 
@@ -49,6 +55,7 @@ pub fn register(lua: &mlua::Lua, env: &Table, r#mod: &Mod) -> mlua::Result<()> {
     env.raw_set("buffer", lua_buffer)?;
     env.raw_set("hasher", lua_hasher)?;
     env.raw_set("runtime", lua_runtime)?;
+    env.raw_set("loader", lua_loader)?;
     env.raw_set("shroudforge", lua_shroudforge)?;
     env.raw_set("image", lua_image)?;
 

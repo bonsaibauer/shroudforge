@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+shroudforge-runtime-diagnostics = { path = "../Shroudforge_Modules/runtime-diagnostics" }
 shroudforge-parser = { path = "../Shroudforge_Parser/core" }
 shroudforge-compatibility = { path = "../Shroudforge_Compatibility" }
 kfc = { path = "../Shroudforge_Parser/kfc-parser/crates/kfc", features = ["resource", "content"] }

@@ -32,6 +32,12 @@ __pycache__/
 
 # Runtime output
 *.log
+config/state.json
+config/.shroudforge-write.lock
+config/news/events/
+config/news/read-state.json
+config/news/mod-state.json
+mods/**/.mod-json.lock
 
 # Local environment and operating system files
 .env

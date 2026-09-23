@@ -2,46 +2,59 @@
   "id": "mod.no-fall-damage",
   "name": "ShroudForge No Fall Damage",
   "version": "1.0.0",
-  "api": "^1.0.0",
-  "capabilities": ["runtime"],
+  "capabilities": [
+    "runtime"
+  ],
   "dependencies": [],
-  "target": "client",
   "description": "Clears the local player's typed DynamicFallDamage runtime state.",
-  "release": {
-    "changelog": [
-      "Added a declarative overview page for the Modloader UI.",
-      "Added a manual fall-state reset action."
-    ]
-  },
-  "ui": {
-    "sections": [
-      {
-        "title": "No Fall Damage",
-        "description": "Runtime behavior and scope",
-        "components": [
-          {
-            "type": "status",
-            "label": "Local client runtime",
-            "text": "When enabled, the mod clears accumulated fall state during gameplay."
-          },
-          {
-            "type": "text",
-            "text": "The local player's fall start altitude, detected distance, and damage percentage are reset before they can produce fall damage."
-          }
-        ]
-      },
-      {
-        "title": "Runtime action",
-        "components": [
-          {
-            "type": "button",
-            "label": "Clear current fall state",
-            "action": "clearFallState",
-            "style": "secondary",
-            "confirmation": "Clear the current fall state?"
-          }
-        ]
-      }
-    ]
+  "enabled": true,
+  "settings": {},
+  "shroudforge": {
+    "schemaVersion": 1,
+    "api": "^1.0.0",
+    "target": "client",
+    "release": {
+      "changelog": [
+        "Added a declarative overview page for the Modloader UI.",
+        "Added a manual fall-state reset action."
+      ]
+    },
+    "settingsSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "settingGroups": [],
+    "ui": {
+      "sections": [
+        {
+          "title": "No Fall Damage",
+          "description": "Runtime behavior and scope",
+          "components": [
+            {
+              "type": "status",
+              "label": "Local client runtime",
+              "text": "When enabled, the mod clears accumulated fall state during gameplay."
+            },
+            {
+              "type": "text",
+              "text": "The local player's fall start altitude, detected distance, and damage percentage are reset before they can produce fall damage."
+            }
+          ]
+        },
+        {
+          "title": "Runtime action",
+          "components": [
+            {
+              "type": "button",
+              "label": "Clear current fall state",
+              "action": "clearFallState",
+              "style": "secondary",
+              "confirmation": "Clear the current fall state?"
+            }
+          ]
+        }
+      ]
+    }
   }
 }

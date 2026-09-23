@@ -18,7 +18,7 @@ This directory contains the Lua mods shipped with ShroudForge releases. Every ch
 
 ## UI policy
 
-Every installed mod receives one loader-managed activation switch. The switch is stored in `config/shroudforge.json` and controls whether the package participates in pregame or runtime execution after the next game restart.
+Every installed mod receives one activation switch stored in that package's `mod.json`. The switch controls whether the package participates in pregame or runtime execution. Missing `enabled` values in third-party EML packages default to disabled; bundled ShroudForge packages explicitly set it to `true`.
 
 Every bundled mod must also declare a useful `ui` page in its manifest. A page should expose only behavior-specific settings or safe actions. Mods must not duplicate the loader activation switch in their own settings.
 

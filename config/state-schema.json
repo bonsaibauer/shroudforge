@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Generated ShroudForge installation state",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "updates": { "type": "object" },
+    "assets": { "type": "object" },
+    "runtime": { "type": "object" },
+    "diagnostics": { "type": "object" },
+    "news": { "type": "object" },
+    "events": { "type": "object" },
+    "catalog": { "type": "object" },
+    "mods": { "type": "object" },
+    "parser": { "type": "object" }
+  },
+  "additionalProperties": false
+}

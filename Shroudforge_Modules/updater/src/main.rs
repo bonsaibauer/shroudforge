@@ -9,10 +9,8 @@ fn main() {
 mod windows {
     use std::{
         fs,
-        io::Write,
         path::{Path, PathBuf},
-        sync::OnceLock,
-        time::{Instant, SystemTime, UNIX_EPOCH},
+        time::{SystemTime, UNIX_EPOCH},
     };
     use windows_sys::Win32::{
         Foundation::{CloseHandle, WAIT_OBJECT_0},
@@ -20,29 +18,15 @@ mod windows {
     };
 
     const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
-    static STARTED: OnceLock<Instant> = OnceLock::new();
-    const MANAGED_PATHS: &[&str] = &[
-        "winmm.dll",
-        "shroudforge-runtime.dll",
-        "shroudforge.exe",
-        "version.json",
-        "Shroudforge_Modules",
-        "Shroudforge_Updater",
-        "mods/mod.flight",
-        "mods/mod.infinite-item-split",
-        "mods/mod.infinite-item-use",
-        "mods/mod.no-fall-damage",
-        "mods/mod.no-resource-cost",
-        "mods/mod.no-stamina-loss",
-        "mods/mod.unlock-blueprints",
-    ];
-
     pub fn run() -> Result<(), String> {
-        STARTED.get_or_init(Instant::now);
         let arguments = Arguments::read()?;
         wait_for_process(arguments.wait_pid)?;
         validate_roots(&arguments.root, &arguments.staged)?;
-        let source = arguments.staged.join("game");
+        let source = if arguments.staged.join("version.json").is_file() {
+            arguments.staged.clone()
+        } else {
+            arguments.staged.join("game")
+        };
         if !source.join("version.json").is_file() {
             return Err("staged release does not contain game/version.json".into());
         }
@@ -62,9 +46,38 @@ mod windows {
             &format!("Starting update from {}", arguments.staged.display()),
         );
 
-        let result = apply(&source, &arguments.root, &backup);
+        let paths = managed_paths(&source)?;
+        // Complete and verify backup before the first installed file changes.
+        for relative in &paths {
+            validate_file_path(&source, relative)?;
+            validate_file_path(&arguments.root, relative)?;
+            let incoming = source.join(relative);
+            if !incoming.is_file() {
+                return Err(format!("missing release file: {relative}"));
+            }
+            let current = arguments.root.join(relative);
+            if current.exists() {
+                copy_entry(&current, &backup.join(relative))?;
+            }
+        }
+        let result = apply(&source, &arguments.root, &paths);
         match result {
             Ok(()) => {
+                let release: serde_json::Value = serde_json::from_slice(
+                    &fs::read(source.join("version.json")).map_err(|error| error.to_string())?,
+                )
+                .map_err(|error| error.to_string())?;
+                let state = serde_json::json!({
+                    "schemaVersion": 1, "status": "installed", "version": release["version"],
+                    "build": release["build"], "installedAt": stamp, "backup": backup
+                });
+                if let Err(error) = shroudforge_package::config::write_document(&arguments.root, "state", &state) {
+                    append_log(
+                        &arguments.root,
+                        'E',
+                        &format!("Installed files, but could not save update state: {error}"),
+                    );
+                }
                 let _ = fs::remove_file(arguments.root.join("Shroudforge_Updates/pending.ready"));
                 append_log(
                     &arguments.root,
@@ -79,7 +92,7 @@ mod windows {
                     'E',
                     &format!("Update failed: {error}; restoring backup"),
                 );
-                if let Err(rollback_error) = restore(&backup, &arguments.root) {
+                if let Err(rollback_error) = restore(&backup, &arguments.root, &paths) {
                     append_log(
                         &arguments.root,
                         'E',
@@ -148,28 +161,112 @@ mod windows {
         Ok(())
     }
 
-    fn apply(source: &Path, target: &Path, backup: &Path) -> Result<(), String> {
-        for relative in MANAGED_PATHS {
-            let current = target.join(relative);
-            let saved = backup.join(relative);
-            if current.exists() {
-                copy_entry(&current, &saved)?;
+    fn managed_paths(source: &Path) -> Result<Vec<String>, String> {
+        let bytes = fs::read(source.join("version.json")).map_err(|e| e.to_string())?;
+        let release: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let entries = release["managedPaths"]
+            .as_array()
+            .ok_or("release has no managedPaths")?;
+        let mut paths = Vec::new();
+        for entry in entries {
+            let relative = entry.as_str().ok_or("invalid managed path")?;
+            let path = Path::new(relative);
+            let allowed = matches!(
+                relative,
+                "winmm.dll"
+                    | "kfc-runtime.dll"
+                    | "shroudforge-runtime.dll"
+                    | "shroudforge.exe"
+                    | "version.json"
+                    | "config/api/api.json"
+                    | "config/README.md"
+            ) || [
+                "Shroudforge_Modules/",
+                "Shroudforge_Updater/",
+                "config/api/",
+                "config/loader/",
+                "config/news/",
+                "config/compatibility/",
+                "runtime/",
+                "licenses/",
+                "mods/",
+            ]
+            .iter()
+            .any(|prefix| relative.starts_with(prefix));
+            if !allowed
+                || relative.is_empty()
+                || relative.contains('\\')
+                || relative.contains(':')
+                || !path
+                    .components()
+                    .all(|part| matches!(part, std::path::Component::Normal(_)))
+                || matches!(
+                    relative,
+                    "config/shroudforge.json"
+                        | "config/state.json"
+                        | "config/compatibility/rules.json"
+                )
+                || (relative.starts_with("config/mods/") && relative != "config/mods/mod-schema.json")
+            {
+                return Err(format!("unsafe managed path: {relative}"));
+            }
+            // New releases list files, never whole mod/config directories.
+            if !source.join(path).is_file() {
+                return Err(format!("managed path is not a file: {relative}"));
+            }
+            paths.push(relative.to_owned());
+        }
+        paths.sort();
+        paths.dedup();
+        if !paths.iter().any(|p| p == "version.json") {
+            return Err("release must manage version.json".into());
+        }
+        Ok(paths)
+    }
+
+    fn validate_file_path(root: &Path, relative: &str) -> Result<(), String> {
+        use std::os::windows::fs::MetadataExt;
+        let mut path = root.to_path_buf();
+        // Never follow a junction/symlink into another installation or user directory.
+        for component in Path::new(relative).components() {
+            path.push(component);
+            match fs::symlink_metadata(&path) {
+                Ok(metadata) if metadata.file_attributes() & 0x400 != 0 => {
+                    return Err(format!("reparse point in update path: {}", path.display()));
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.to_string()),
             }
         }
-        for relative in MANAGED_PATHS {
+        if path.exists() && !path.is_file() {
+            return Err(format!("update target is not a file: {}", path.display()));
+        }
+        Ok(())
+    }
+
+    fn apply(source: &Path, target: &Path, paths: &[String]) -> Result<(), String> {
+        for relative in paths {
             let incoming = source.join(relative);
             if !incoming.exists() {
                 return Err(format!("release is missing managed path: {relative}"));
             }
             let current = target.join(relative);
-            remove_entry(&current)?;
-            copy_entry(&incoming, &current)?;
+            if relative.starts_with("mods/") && relative.ends_with("/mod.json") && current.is_file() {
+                let previous = serde_json::from_slice(&fs::read(&current).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+                let next = serde_json::from_slice(&fs::read(&incoming).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+                let merged = shroudforge_package::config::merge_mod_update(target, previous, next)?;
+                shroudforge_package::config::write_json(&current, &merged)?;
+            } else {
+                copy_entry(&incoming, &current)?;
+            }
         }
         Ok(())
     }
 
-    fn restore(backup: &Path, target: &Path) -> Result<(), String> {
-        for relative in MANAGED_PATHS {
+    fn restore(backup: &Path, target: &Path, paths: &[String]) -> Result<(), String> {
+        for relative in paths {
             let saved = backup.join(relative);
             let current = target.join(relative);
             remove_entry(&current)?;
@@ -208,23 +305,7 @@ mod windows {
     }
 
     fn append_log(root: &Path, level: char, message: &str) {
-        let path = root.join("Shroudforge_Updates/updater.log");
-        if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(path) {
-            let elapsed = STARTED.get_or_init(Instant::now).elapsed();
-            let total_seconds = elapsed.as_secs();
-            let message = message.replace('\r', "\\r").replace('\n', "\\n");
-            let _ = writeln!(
-                file,
-                "[{level} {:02}:{:02}:{:02},{:03}] [updater] {message}",
-                total_seconds / 3600,
-                total_seconds / 60 % 60,
-                total_seconds % 60,
-                elapsed.subsec_millis(),
-            );
-        }
+        let _ = shroudforge_package::logging::append(root, level, "updater", message);
     }
 }
 

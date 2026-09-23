@@ -26,6 +26,26 @@ mod util;
 
 pub const API_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Deployed contract must describe this binary, not invent native capabilities.
+/// ECS readiness and per-component compatibility are still checked at call time.
+pub fn runtime_operations(root: &std::path::Path) -> anyhow::Result<Vec<String>> {
+    let embedded: serde_json::Value = serde_json::from_str(include_str!("../../config/api/api.json"))?;
+    let path = mod_loader::config::document_path(root, "api");
+    let value = match std::fs::read(&path) {
+        Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => embedded.clone(),
+        Err(error) => return Err(error.into()),
+    };
+    mod_loader::config::validate_document(root, "api", &value).map_err(anyhow::Error::msg)?;
+    if value["apiVersion"] != API_VERSION
+        || value["runtimeProviderAbi"] != embedded["runtimeProviderAbi"]
+        || value["runtimeOperations"] != embedded["runtimeOperations"]
+    {
+        anyhow::bail!("config/api.json does not match the installed API binary");
+    }
+    Ok(serde_json::from_value(value["runtimeOperations"].clone())?)
+}
+
 /// Parsed and compatibility-verified game model used by the Lua API.
 #[derive(Clone)]
 pub struct ShroudForgeApi {
@@ -135,7 +155,7 @@ pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyh
 
         new_cache.track_game_files(env.game_dir());
         new_cache.track_mod_files(env.mods_dir());
-        new_cache.track(env.game_dir().join("config").join("shroudforge.json"));
+        new_cache.track_mod_config(env.game_dir());
 
         let cache_diff = new_cache.diff(&current_cache);
 
@@ -153,7 +173,7 @@ pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyh
 
     // create a new app state
 
-    let app_state = match AppState::new(env.clone(), api, args, &cache_diff) {
+    let app_state = match AppState::new(env.clone(), Some(api), args, &cache_diff) {
         Ok(context) => context,
         Err(_) => anyhow::bail!("Failed to create AppState"),
     };
@@ -162,7 +182,8 @@ pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyh
 
     let runner = LuaModRunner::new(app_state)?;
 
-    match runner.setup(env.enabled_mods()) {
+    let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
+    match runner.setup(env.plan(is_server, API_VERSION)) {
         Ok(_) => {}
         Err(err) => {
             anyhow::bail!("Failed to setup LuaModRunner: {}", err);
@@ -217,14 +238,14 @@ pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyh
 
         new_cache.track_game_files(env.game_dir());
         new_cache.track_mod_files(env.mods_dir());
-        new_cache.track(env.game_dir().join("config").join("shroudforge.json"));
+        new_cache.track_mod_config(env.game_dir());
 
         new_cache.write(env.cache_dir());
     } else {
         let mut new_cache = FileStateCache::read(env.cache_dir());
 
         new_cache.track_game_files(env.game_dir());
-        new_cache.track(env.game_dir().join("config").join("shroudforge.json"));
+        new_cache.track_mod_config(env.game_dir());
         new_cache.write(env.cache_dir());
     }
 
@@ -240,16 +261,44 @@ struct Lifecycle {
 
 /// Long-lived in-game execution of the same ShroudForge Lua API used pregame.
 pub struct IngameRuntime {
+    diagnostics: shroudforge_runtime_diagnostics::Session,
+    root: std::path::PathBuf,
+    loaded: serde_json::Map<String,serde_json::Value>,
+    errors: serde_json::Map<String,serde_json::Value>,
+    next_status: std::time::Instant,
+    configurations: Vec<(String, std::path::PathBuf, serde_json::Value)>,
+    observed: std::collections::HashMap<std::path::PathBuf, String>,
     runner: LuaModRunner,
     lifecycle: Vec<Lifecycle>,
 }
 
 impl IngameRuntime {
+    pub fn active_mod_ids(&self) -> Vec<String> {
+        self.lifecycle
+            .iter()
+            .filter(|item| item.active)
+            .map(|item| item.id.clone())
+            .collect()
+    }
+
     pub fn start(
         env: &ModEnvironment,
         api: ShroudForgeApi,
         file_name: impl Into<String>,
     ) -> anyhow::Result<Self> {
+        Self::start_with_schema(env, Some(api), file_name.into())
+    }
+
+    pub fn start_live(env: &ModEnvironment, file_name: impl Into<String>) -> anyhow::Result<Self> {
+        Self::start_with_schema(env, None, file_name.into())
+    }
+
+    fn start_with_schema(
+        env: &ModEnvironment,
+        api: Option<ShroudForgeApi>,
+        file_name: String,
+    ) -> anyhow::Result<Self> {
+        let mut diagnostics=shroudforge_runtime_diagnostics::Session::new(env.game_dir().as_std_path());
         let state = AppState::new(
             env.clone(),
             api,
@@ -265,15 +314,41 @@ impl IngameRuntime {
                 },
             },
             &CacheDiff::new_dirty(),
-        )
-        .map_err(|_| anyhow::anyhow!("failed to initialize ShroudForge API"))?;
+        );
+        let state=state.map_err(|_| anyhow::anyhow!("failed to initialize ShroudForge API"))?;
         let runner = LuaModRunner::new(state)?;
-        runner.setup(env.enabled_mods())?;
+        let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
+        let root = env.game_dir().as_std_path().to_path_buf();
+        let (mut plan, plan_errors) = env.plan_report(is_server, API_VERSION);
+        let mut errors = serde_json::Map::new();
+        for (index, error) in plan_errors.into_iter().enumerate() { errors.insert(format!("plan-{index}"), error.into()); }
+        let needs_assets = plan.iter().any(|item| item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite));
+        if needs_assets {
+            let ready = mod_loader::prepared::fingerprint(env,is_server,API_VERSION).map(|fingerprint|mod_loader::prepared::matches(&root,&fingerprint)).unwrap_or(false);
+            if !ready {
+                let mut blocked: std::collections::HashSet<String> = plan.iter().filter(|item|item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite)).map(|item|item.info().id.clone()).collect();
+                loop {
+                    let before=blocked.len();
+                    for item in &plan { if item.info().dependencies.iter().any(|dependency|!dependency.optional.unwrap_or(false)&&blocked.contains(&dependency.id)) {blocked.insert(item.info().id.clone());} }
+                    if before==blocked.len(){break;}
+                }
+                plan.retain(|item| {
+                    if blocked.contains(&item.info().id) { errors.insert(item.info().id.clone(), "prepare-required: asset configuration does not match applied state".into()); false } else {true}
+                });
+            }
+        }
+        let loaded=plan.iter().map(|item| {
+            let bytes=serde_json::to_vec(item.info()).unwrap_or_default();
+            (item.info().id.clone(),serde_json::json!(mod_loader::config::revision(&bytes)))
+        }).collect();
+        runner.setup(plan)?;
         let mut lifecycle = Vec::new();
         for id in runner.runtime_mod_ids() {
-            let value = match runner.load_runtime_module(&id) {
+            let module_result=runner.load_runtime_module(&id);
+            let value = match module_result {
                 Ok(value) => value,
                 Err(error) => {
+                    errors.insert(id.clone(),format!("module initialization failed: {error}").into());
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
                         "module initialization failed; scope discarded: {error}");
                     continue;
@@ -285,6 +360,7 @@ impl IngameRuntime {
                 _ => {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
                         "entrypoint must return a lifecycle table or nil");
+                    errors.insert(id.clone(),"entrypoint must return a lifecycle table or nil".into());
                     continue;
                 }
             };
@@ -297,13 +373,18 @@ impl IngameRuntime {
                 _ => {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
                         "invalid lifecycle; scope discarded");
+                    errors.insert(id.clone(),"invalid lifecycle".into());
                     continue;
                 }
             };
             if let Some(key) = load {
-                if let Err(error) = runner.lua.registry_value::<Function>(&key)?.call::<()>(()) {
+                let started=std::time::Instant::now();
+                let result=runner.lua.registry_value::<Function>(&key)?.call::<()>(());
+                diagnostics.measure("mods",&id,"on_load",started.elapsed(),result.is_err());
+                if let Err(error) = result {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
                         "on_load failed; rolling back scope: {error}");
+                    errors.insert(id.clone(),format!("on_load failed: {error}").into());
                     if let Some(key) = &unload {
                         if let Err(cleanup) = runner
                             .lua
@@ -324,24 +405,47 @@ impl IngameRuntime {
                 active: true,
             });
         }
-        Ok(Self { runner, lifecycle })
+        let configurations = env.mod_registry().values().map(|item| (item.info().id.clone(), item.fs().root().as_std_path().to_path_buf(), serde_json::to_value(item.info()).expect("manifest is serializable"))).collect();
+        let runtime=Self { diagnostics, runner, lifecycle, root, loaded, errors, configurations, observed: Default::default(), next_status:std::time::Instant::now() };
+        runtime.publish_status(true);
+        Ok(runtime)
+    }
+
+    fn publish_status(&self, running: bool) {
+        let value=serde_json::json!({
+            "schemaVersion":1,"pid":std::process::id(),"apiVersion":API_VERSION,
+            "updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+            "running":running,"active":if running {self.active_mod_ids()}else{Vec::new()},
+            "loaded":self.loaded,"errors":self.errors,
+            "runtimeProvider":crate::env::runtime_provider_report()
+        });
+        if let Err(error)=mod_loader::config::write_document(&self.root,"mod-status",&value){tracing::error!(target:"shroudforge::runtime","status publication failed: {error}");}
     }
 
     pub fn update(&mut self, delta_seconds: f64) {
-        crate::env::shroudforge::dispatch_ui_actions(&self.runner.lua);
+        self.diagnostics.tick();
+        if std::time::Instant::now() >= self.next_status {
+            self.refresh_configuration();
+            self.publish_status(true);
+            self.next_status=std::time::Instant::now()+std::time::Duration::from_secs(1);
+        }
+        crate::env::shroudforge::dispatch_ui_actions(&self.runner.lua, &self.active_mod_ids());
         for item in &mut self.lifecycle {
             if !item.active {
                 continue;
             }
             if let Some(key) = &item.update {
-                if let Err(error) = self
+                let started=self.diagnostics.enabled("mods").then(std::time::Instant::now);
+                let result = self
                     .runner
                     .lua
                     .registry_value::<Function>(key)
-                    .and_then(|callback| callback.call::<()>(delta_seconds))
-                {
+                    .and_then(|callback| callback.call::<()>(delta_seconds));
+                if let Some(started)=started {self.diagnostics.measure("mods",&item.id,"on_update",started.elapsed(),result.is_err());}
+                if let Err(error) = result {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %item.id,
                         "on_update failed: {error}");
+                    self.errors.insert(item.id.clone(),format!("on_update failed: {error}").into());
                     if let Some(unload) = &item.unload {
                         if let Err(cleanup) = self
                             .runner
@@ -358,6 +462,68 @@ impl IngameRuntime {
             }
         }
     }
+
+    fn refresh_configuration(&mut self) {
+        for (id, package, applied) in &mut self.configurations {
+            // Legacy ZIP packages remain supported at startup but are not mutable live.
+            if !package.is_dir() { continue; }
+            let path = package.join("mod.json");
+            let bytes = match std::fs::read(&path) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    let signature = format!("read-error:{error}");
+                    if self.observed.get(&path) != Some(&signature) {
+                        tracing::error!(target:"shroudforge::runtime", mod_id=%id, "Configuration read failed; keeping applied values: {error}");
+                        self.observed.insert(path, signature);
+                    }
+                    continue;
+                }
+            };
+            let signature = mod_loader::config::revision(&bytes);
+            if self.observed.get(&path) == Some(&signature) { continue; }
+            self.observed.insert(path, signature);
+            let parsed = serde_json::from_slice(&bytes).map_err(|e|e.to_string()).and_then(|value|mod_loader::config::parse_manifest(&self.root,value));
+            let manifest = match parsed {
+                Ok(manifest) if manifest.id == *id => manifest,
+                Ok(_) => { tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Mod identity changed; restart required, retaining applied configuration"); continue; }
+                Err(error) => { tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration rejected; keeping applied values: {error}"); continue; }
+            };
+            let desired = serde_json::to_value(&manifest).expect("manifest is serializable");
+            if desired == *applied { continue; }
+            let mut metadata = desired.clone();
+            metadata["settingValues"] = applied["settingValues"].clone();
+            let mut effective = applied["settingValues"].clone();
+            let mut live_changed = false;
+            // Definition/identity/activation changes never silently replace an active scope.
+            if metadata == *applied && self.lifecycle.iter().any(|item|item.id == *id && item.active) {
+                if let Some(properties) = manifest.settings_schema.as_ref().and_then(|schema|schema["properties"].as_object()) {
+                    for (key, definition) in properties {
+                        if definition["x-apply"] == "live" && effective.get(key) != manifest.setting_values.get(key) {
+                            if let Some(value) = manifest.setting_values.get(key) { effective[key] = value.clone(); }
+                            else if let Some(object) = effective.as_object_mut() { object.remove(key); }
+                            live_changed = true;
+                        }
+                    }
+                }
+            }
+            if live_changed {
+                match crate::env::shroudforge::set_settings(&self.runner.lua,id,&effective) {
+                    Ok(()) => {
+                        applied["settingValues"] = effective;
+                        let mut active_manifest = manifest.clone();
+                        active_manifest.setting_values = applied["settingValues"].clone();
+                        self.loaded.insert(id.clone(),mod_loader::config::revision(&serde_json::to_vec(&active_manifest).expect("manifest is serializable")).into());
+                        tracing::info!(target:"shroudforge::runtime", mod_id=%id,"Live settings updated; subsequent settings.get calls use the new values");
+                    }
+                    Err(error) => tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Live settings update failed: {error}"),
+                }
+            }
+            if desired != *applied {
+                let preparation = manifest.capabilities.contains(&mod_loader::Capability::AssetsWrite);
+                tracing::info!(target:"shroudforge::runtime", mod_id=%id, preparation_required=preparation,"Configuration saved but not applied; restart required");
+            }
+        }
+    }
 }
 
 impl Drop for IngameRuntime {
@@ -367,17 +533,20 @@ impl Drop for IngameRuntime {
                 continue;
             }
             if let Some(key) = &item.unload {
-                if let Err(error) = self
+                let started=std::time::Instant::now();
+                let result = self
                     .runner
                     .lua
                     .registry_value::<Function>(key)
-                    .and_then(|callback| callback.call::<()>(()))
-                {
+                    .and_then(|callback| callback.call::<()>(()));
+                self.diagnostics.measure("mods",&item.id,"on_unload",started.elapsed(),result.is_err());
+                if let Err(error) = result {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %item.id,
                         "on_unload failed: {error}");
                 }
             }
         }
+        self.publish_status(false);
     }
 }
 

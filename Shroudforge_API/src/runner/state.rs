@@ -32,14 +32,24 @@ impl ModLuaState {
 
 #[derive(Default)]
 pub struct RunnerState {
-    mods: RefCell<HashMap<String, ModLuaState>>,
+    mods: RefCell<indexmap::IndexMap<String, ModLuaState>>,
     loaded: RefCell<HashMap<String, LuaValue>>,
     is_loading: RefCell<HashSet<String>>,
 }
 
+struct LoadingGuard<'a> {
+    entries: &'a RefCell<HashSet<String>>,
+    key: String,
+}
+impl Drop for LoadingGuard<'_> {
+    fn drop(&mut self) {
+        self.entries.borrow_mut().remove(&self.key);
+    }
+}
+
 impl RunnerState {
     #[inline]
-    pub fn mods(&self) -> Ref<'_, HashMap<String, ModLuaState>> {
+    pub fn mods(&self) -> Ref<'_, indexmap::IndexMap<String, ModLuaState>> {
         self.mods.borrow()
     }
 
@@ -63,6 +73,10 @@ impl RunnerState {
         self.is_loading
             .borrow_mut()
             .insert(qualified_id.to_string());
+        let _loading = LoadingGuard {
+            entries: &self.is_loading,
+            key: qualified_id.to_owned(),
+        };
 
         // load the module
         let require_path = RequirePath::parse_qualified(qualified_id)?;
@@ -126,6 +140,10 @@ impl RunnerState {
         if !self.is_loading.borrow_mut().insert(key.clone()) {
             return Err(LuaError::circular_dependency(mod_id));
         }
+        let _loading = LoadingGuard {
+            entries: &self.is_loading,
+            key: key.clone(),
+        };
         let function = {
             let mods = self.mods.borrow();
             let state = mods

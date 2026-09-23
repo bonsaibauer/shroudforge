@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include "../../kfc-runtime/src/windows/ecs_runtime.h"
+#include "../../kfc-runtime/src/windows/logging_config.h"
 
 #include <chrono>
 #include <cstdio>
@@ -22,6 +23,13 @@ HANDLE modloader_ui_stop_event{};
 HANDLE modloader_ui_process{};
 auto session_started = std::chrono::steady_clock::now();
 
+struct LogGuard {
+    HANDLE mutex{CreateMutexW(nullptr, FALSE, L"Local\\ShroudForgeLog")};
+    DWORD wait_result{mutex ? WaitForSingleObject(mutex, INFINITE) : WAIT_FAILED};
+    bool held{wait_result == WAIT_OBJECT_0 || wait_result == WAIT_ABANDONED};
+    ~LogGuard() { if (held) ReleaseMutex(mutex); if (mutex) CloseHandle(mutex); }
+};
+
 std::filesystem::path module_directory() {
     std::wstring path(32768, L'\0');
     const auto length = GetModuleFileNameW(self_module, path.data(), static_cast<DWORD>(path.size()));
@@ -31,6 +39,8 @@ std::filesystem::path module_directory() {
 }
 
 void begin_log_session(const std::filesystem::path& root) {
+    LogGuard guard;
+    if (!guard.held) return;
     try {
         const auto current = root / L"shroudforge.log";
         if (!std::filesystem::is_regular_file(current) || std::filesystem::file_size(current) == 0) return;
@@ -50,6 +60,7 @@ void begin_log_session(const std::filesystem::path& root) {
 }
 
 void log(char level, const std::string& message) {
+    if (!KfcRuntimeConfig::Allows(module_directory(),level)) return;
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - session_started).count();
     char prefix[96]{};
@@ -60,6 +71,8 @@ void log(char level, const std::string& message) {
     OutputDebugStringA(line.c_str());
     const auto root = module_directory();
     if (root.empty()) return;
+    LogGuard guard;
+    if (!guard.held) return;
     std::ofstream stream(root / "shroudforge.log", std::ios::app);
     if (stream) stream << line;
 }
@@ -69,6 +82,7 @@ void log(const std::string& message) {
 }
 
 void start_debug_console(const std::filesystem::path& root) {
+    if (!KfcRuntimeConfig::ModuleEnabled(root,"debugConsole")) return;
     if (!std::filesystem::is_regular_file(root / L"enshrouded.exe")) return;
     const auto executable = root / L"Shroudforge_Modules" / L"debug-console" /
         L"shroudforge-debug-console.exe";
@@ -114,6 +128,7 @@ void stop_debug_console() {
 }
 
 void start_modloader_ui(const std::filesystem::path& root) {
+    if (!KfcRuntimeConfig::ModuleEnabled(root,"modloaderUi")) return;
     const auto executable = root / L"Shroudforge_Modules" / L"modloader-ui" /
         L"shroudforge-modloader-ui.exe";
     if (!std::filesystem::is_regular_file(executable)) {
@@ -160,7 +175,8 @@ void stop_modloader_ui() {
 void start_pending_update(const std::filesystem::path& root) {
     const auto staged = root / L"Shroudforge_Updates" / L"pending";
     const auto marker = root / L"Shroudforge_Updates" / L"pending.ready";
-    const auto executable = staged / L"game" / L"Shroudforge_Updater" /
+    const auto package = std::filesystem::is_regular_file(staged / L"version.json") ? staged : staged / L"game";
+    const auto executable = package / L"Shroudforge_Updater" /
         L"shroudforge-updater.exe";
     if (!std::filesystem::is_regular_file(marker) ||
         !std::filesystem::is_regular_file(executable)) return;
@@ -196,6 +212,7 @@ DWORD WINAPI run(void*) {
     const auto runtime = LoadLibraryW(runtime_path.c_str());
     if (!runtime) {
         log('E', "Bootstrap failed: shroudforge-runtime.dll could not be loaded");
+        EcsRuntime::Shutdown();
         return 1;
     }
     const auto create = reinterpret_cast<CreateRuntime>(GetProcAddress(runtime, "shroudforge_create"));
@@ -203,12 +220,14 @@ DWORD WINAPI run(void*) {
     const auto destroy = reinterpret_cast<DestroyRuntime>(GetProcAddress(runtime, "shroudforge_destroy"));
     if (!create || !update || !destroy) {
         log('E', "Bootstrap failed: runtime exports are incomplete");
+        EcsRuntime::Shutdown();
         FreeLibrary(runtime);
         return 1;
     }
     void* handle = create(root.c_str(), (root / L"mods").c_str());
     if (!handle) {
         log('E', "Runtime initialization failed; no mod was activated");
+        EcsRuntime::Shutdown();
         FreeLibrary(runtime);
         return 1;
     }

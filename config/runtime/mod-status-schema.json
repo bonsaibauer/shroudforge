@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object","required":["schemaVersion","pid","updatedAt","running","active","loaded","errors"],
+  "properties":{
+    "schemaVersion":{"const":1},"pid":{"type":"integer","minimum":1},"updatedAt":{"type":"integer","minimum":0},"apiVersion":{"type":"string"},
+    "running":{"type":"boolean"},"active":{"type":"array","items":{"type":"string"}},
+    "loaded":{"type":"object","additionalProperties":{"type":"string"}},
+    "errors":{"type":"object","additionalProperties":{"type":"string"}},
+    "runtimeProvider":{"type":"object","properties":{"available":{"type":"boolean"},"abi":{"type":"integer"},"initialized":{"type":"boolean"},"ready":{"type":"boolean"},"writable":{"type":"boolean"},"detail":{"type":"string"},"reason":{"type":"string"}}}
+  },"additionalProperties":false
+}

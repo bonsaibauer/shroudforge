@@ -10,6 +10,7 @@ name = "shroudforge-debug-console"
 path = "src/main.rs"
 
 [dependencies]
+shroudforge-package.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 

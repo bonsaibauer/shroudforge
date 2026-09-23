@@ -4,11 +4,23 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+if ($BuildNumber -notmatch '^[A-Za-z0-9._-]+$') { throw 'BuildNumber contains invalid path characters.' }
+function Assert-BuildPath([string]$Path) {
+    $resolved = [IO.Path]::GetFullPath($Path)
+    $boundary = [IO.Path]::GetFullPath((Join-Path $root 'build')) + [IO.Path]::DirectorySeparatorChar
+    if (-not $resolved.StartsWith($boundary, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Build cleanup target escapes build directory: $resolved"
+    }
+    if ((Test-Path -LiteralPath $resolved) -and ((Get-Item -LiteralPath $resolved).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw "Build cleanup target is a reparse point: $resolved"
+    }
+}
 $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw).Trim()
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "VERSION must use MAJOR.MINOR.PATCH: $version" }
 
 $output = Join-Path $root 'build\x64'
 New-Item -ItemType Directory -Force -Path $output | Out-Null
+Assert-BuildPath (Join-Path $output 'licenses')
 Remove-Item -LiteralPath (Join-Path $output 'licenses') -Recurse -Force -ErrorAction SilentlyContinue
 
 $modloaderUiSource = Join-Path $root 'Shroudforge_Modules\modloader-ui\ui'
@@ -28,16 +40,8 @@ try {
 
 & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
 if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release -p shroudforge-modloader
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge build failed.' }
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release -p shroudforge-debug-console
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Debug Console build failed.' }
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release -p shroudforge-commands
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Commands build failed.' }
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release -p shroudforge-modloader-ui
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI build failed.' }
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release -p shroudforge-updater
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Updater build failed.' }
+& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
+if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace build failed.' }
 
 $runtime = Join-Path $root 'target\release\shroudforge_modloader.dll'
 $cli = Join-Path $root 'target\release\shroudforge.exe'
@@ -59,6 +63,16 @@ if (-not (Test-Path -LiteralPath $vswhere)) { throw 'Visual Studio C++ build too
 $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 if (-not $visualStudio) { throw 'Visual Studio C++ build tools were not found.' }
 $msbuild = Join-Path $visualStudio 'MSBuild\Current\Bin\MSBuild.exe'
+$runtimeCmake = Join-Path $visualStudio 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
+& $runtimeCmake -S (Join-Path $root 'Shroudforge_Modloader/kfc-runtime') -B (Join-Path $root 'build/native-runtime') -A x64
+if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime configuration failed.' }
+& $runtimeCmake --build (Join-Path $root 'build/native-runtime') --config Release
+if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime build failed.' }
+& $runtimeCmake -S (Join-Path $root 'Shroudforge_Modules/runtime-diagnostics') -B (Join-Path $root 'build/native-diagnostics') -A x64
+if ($LASTEXITCODE -ne 0) { throw 'Runtime diagnostics configuration failed.' }
+& $runtimeCmake --build (Join-Path $root 'build/native-diagnostics') --config Release
+if ($LASTEXITCODE -ne 0) { throw 'Runtime diagnostics build failed.' }
+Copy-Item -LiteralPath (Join-Path $root 'build/native-runtime/Release/kfc-runtime.dll') -Destination $output -Force
 $bootstrap = Join-Path $root 'Shroudforge_Modloader\bootstrap\windows\ShroudForge.Bootstrap.vcxproj'
 & $msbuild $bootstrap /m /t:Build /p:Configuration=Release /p:Platform=x64 /p:OutDir="$output\"
 if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Windows bootstrap build failed.' }
@@ -92,60 +106,71 @@ function Copy-ShroudForgeMods([string]$Destination) {
             }
         }
         $target = Join-Path $Destination ([string]$manifest.id)
-        Copy-Item -LiteralPath $directory.FullName -Destination $target -Recurse -Force
+        foreach ($file in Get-ChildItem -LiteralPath $directory.FullName -Recurse -File) {
+            $relative = [IO.Path]::GetRelativePath($directory.FullName, $file.FullName)
+            if ($relative -match '(^|[\\/])\.[^\\/]+([\\/]|$)' -or $file.Name -eq '.mod-json.lock') { continue }
+            $destinationFile = Join-Path $target $relative
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationFile) | Out-Null
+            Copy-Item -LiteralPath $file.FullName -Destination $destinationFile -Force
+        }
     }
 }
 
 $package = Join-Path $root 'build\package'
 $archive = Join-Path $root "build\shroudforge-$version-$BuildNumber.zip"
 $checksum = "$archive.sha256"
+Assert-BuildPath $package
+Assert-BuildPath $archive
 Remove-Item -LiteralPath $package -Recurse -Force -ErrorAction SilentlyContinue
-Get-ChildItem -LiteralPath (Join-Path $root 'build') -Filter "shroudforge-$version-*" -File -ErrorAction SilentlyContinue |
-    Remove-Item -Force
-New-Item -ItemType Directory -Force -Path (Join-Path $package 'game') | Out-Null
-Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe') -Destination (Join-Path $package 'game')
-Copy-ShroudForgeMods (Join-Path $package 'game\mods')
-$debugConsolePackage = Join-Path $package 'game\Shroudforge_Modules\debug-console'
+New-Item -ItemType Directory -Force -Path $package | Out-Null
+Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe') -Destination $package
+& $runtimeCmake --install (Join-Path $root 'build/native-runtime') --config Release --prefix $package
+if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime packaging failed.' }
+Copy-ShroudForgeMods (Join-Path $package 'mods')
+$debugConsolePackage = Join-Path $package 'Shroudforge_Modules\debug-console'
 New-Item -ItemType Directory -Force -Path $debugConsolePackage | Out-Null
 Copy-Item -LiteralPath $debugConsole -Destination $debugConsolePackage
 Copy-Item -LiteralPath (Join-Path $root 'Shroudforge_Modules\debug-console\module.json') -Destination $debugConsolePackage
-$commandsPackage = Join-Path $package 'game\Shroudforge_Modules\commands'
+$commandsPackage = Join-Path $package 'Shroudforge_Modules\commands'
 New-Item -ItemType Directory -Force -Path $commandsPackage | Out-Null
 Copy-Item -LiteralPath $commands -Destination $commandsPackage
 Copy-Item -LiteralPath (Join-Path $root 'Shroudforge_Modules\commands\module.json') -Destination $commandsPackage
-$modloaderUiPackage = Join-Path $package 'game\Shroudforge_Modules\modloader-ui'
+$modloaderUiPackage = Join-Path $package 'Shroudforge_Modules\modloader-ui'
 New-Item -ItemType Directory -Force -Path $modloaderUiPackage | Out-Null
 Copy-Item -LiteralPath $modloaderUi -Destination $modloaderUiPackage
 Copy-Item -LiteralPath (Join-Path $root 'Shroudforge_Modules\modloader-ui\module.json') -Destination $modloaderUiPackage
-$updaterPackage = Join-Path $package 'game\Shroudforge_Updater'
+$updaterPackage = Join-Path $package 'Shroudforge_Updater'
 New-Item -ItemType Directory -Force -Path $updaterPackage | Out-Null
 Copy-Item -LiteralPath $updater -Destination $updaterPackage
+$diagnosticsPackage = Join-Path $package 'Shroudforge_Modules/runtime-diagnostics'
+New-Item -ItemType Directory -Force -Path $diagnosticsPackage | Out-Null
+Copy-Item -LiteralPath (Join-Path $root 'target/release/shroudforge-runtime-diagnostics.exe') -Destination $diagnosticsPackage
+Copy-Item -LiteralPath (Join-Path $root 'Shroudforge_Modules/runtime-diagnostics/module.json') -Destination $diagnosticsPackage
+& $runtimeCmake --install (Join-Path $root 'build/native-diagnostics') --config Release --prefix $diagnosticsPackage
+if ($LASTEXITCODE -ne 0) { throw 'Runtime diagnostics packaging failed.' }
+# Explicit release inputs: never ship an installation's generated state, events or locks.
+$configSource = Join-Path $root 'config'
+$configPackage = Join-Path $package 'config'
+New-Item -ItemType Directory -Force -Path $configPackage | Out-Null
+Copy-Item -LiteralPath (Join-Path $configSource 'shroudforge.json') -Destination $configPackage -Force
+$newsPackage = Join-Path $configPackage 'news'
+New-Item -ItemType Directory -Force -Path $newsPackage | Out-Null
+Copy-Item -LiteralPath (Join-Path $configSource 'news/news.json') -Destination $newsPackage -Force
 $versionManifest = [ordered]@{
     version = $version
     build = $BuildNumber
     builtAt = [DateTime]::UtcNow.ToString('o')
     updateKind = 'system'
     requiredAction = 'game_restart'
-    managedPaths = @(
-        'winmm.dll',
-        'shroudforge-runtime.dll',
-        'shroudforge.exe',
-        'version.json',
-        'Shroudforge_Modules',
-        'Shroudforge_Updater',
-        'mods/mod.flight',
-        'mods/mod.infinite-item-split',
-        'mods/mod.infinite-item-use',
-        'mods/mod.no-fall-damage',
-        'mods/mod.no-resource-cost',
-        'mods/mod.no-stamina-loss',
-        'mods/mod.unlock-blueprints'
-    )
+    managedPaths = @(Get-ChildItem -LiteralPath $package -File -Recurse |
+        ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName).Replace('\', '/') } |
+        Where-Object { $_ -notin @('config/shroudforge.json', 'config/state.json') }) + @('version.json')
 }
-$versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $package 'game\version.json') -Encoding utf8
-Compress-Archive -Path "$package\*" -DestinationPath $archive
+$versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $package 'version.json') -Encoding utf8
+Compress-Archive -Path "$package\*" -DestinationPath $archive -Force
 $archiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
 Set-Content -LiteralPath $checksum -Value "$archiveHash  $([IO.Path]::GetFileName($archive))" -Encoding ascii
+Assert-BuildPath $package
 Remove-Item -LiteralPath $package -Recurse -Force
 
 Write-Host "ShroudForge $version-$BuildNumber built and packaged: $archive ($checksum)"

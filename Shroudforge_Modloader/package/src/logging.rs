@@ -2,9 +2,9 @@
 
 use std::{
     fmt,
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     io::{self, Write},
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -14,33 +14,49 @@ use tracing_subscriber::{
     filter::LevelFilter,
     fmt::{FmtContext, FormatEvent, FormatFields, format::Writer},
     registry::LookupSpan,
+    layer::SubscriberExt,
+    Layer,
     util::SubscriberInitExt,
 };
 
 #[derive(Clone)]
-struct LogWriter(Arc<Mutex<File>>);
+struct LogWriter(Arc<PathBuf>);
 
-struct Output(LogWriter);
+struct Output { writer: LogWriter, buffer: Vec<u8> }
+
+impl Output {
+    fn commit(&mut self) -> io::Result<()> {
+        if self.buffer.is_empty() { return Ok(()); }
+        let bytes = std::mem::take(&mut self.buffer);
+        with_log_lock(&self.writer.0, || {
+            let mut file = OpenOptions::new().create(true).append(true).open(&*self.writer.0)?;
+            file.write_all(&bytes)?;
+            file.flush()
+        })
+    }
+}
+
+impl Drop for Output {
+    fn drop(&mut self) { let _ = self.commit(); }
+}
 
 impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for LogWriter {
     type Writer = Output;
 
     fn make_writer(&'a self) -> Self::Writer {
-        Output(self.clone())
+        Output { writer: self.clone(), buffer: Vec::new() }
     }
 }
 
 impl Write for Output {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        if let Ok(mut file) = self.0.0.lock() {
-            file.write_all(bytes)?;
-            file.flush()?;
-        }
+        self.buffer.extend_from_slice(bytes);
         io::stdout().write_all(bytes)?;
         Ok(bytes.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        self.commit()?;
         io::stdout().flush()
     }
 }
@@ -142,53 +158,95 @@ pub fn initialize(root: impl AsRef<Path>, archive_existing: bool) -> io::Result<
     let root = root.as_ref();
     fs::create_dir_all(root)?;
     let current = root.join("shroudforge.log");
-    if archive_existing && current.is_file() && current.metadata()?.len() > 0 {
-        let archive = root.join("logs");
-        fs::create_dir_all(&archive)?;
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::ZERO)
-            .as_secs();
-        let mut destination = archive.join(format!("shroudforge-{timestamp}.log"));
-        for suffix in 2.. {
-            if !destination.exists() {
-                break;
+    with_log_lock(root, || {
+        if archive_existing && current.is_file() && current.metadata()?.len() > 0 {
+            let archive = root.join("logs");
+            fs::create_dir_all(&archive)?;
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or(Duration::ZERO)
+                .as_secs();
+            let mut destination = archive.join(format!("shroudforge-{timestamp}.log"));
+            for suffix in 2.. {
+                if !destination.exists() {
+                    break;
+                }
+                destination = archive.join(format!("shroudforge-{timestamp}-{suffix}.log"));
             }
-            destination = archive.join(format!("shroudforge-{timestamp}-{suffix}.log"));
+            fs::rename(&current, destination)?;
         }
-        fs::rename(&current, destination)?;
-    }
-    let file = OpenOptions::new().create(true).append(true).open(current)?;
-    let level = configured_level(root);
-    let subscriber = tracing_subscriber::fmt()
+        let _ = OpenOptions::new().create(true).append(true).open(&current)?;
+        Ok(())
+    })?;
+    let config_root = root.to_path_buf();
+    let cached = Mutex::new((Instant::now(), configured_level(root)));
+    let filter = tracing_subscriber::filter::filter_fn(move |metadata| {
+        let Ok(mut cached) = cached.lock() else { return false };
+        if cached.0.elapsed() >= Duration::from_millis(500) {
+            *cached = (Instant::now(), configured_level(&config_root));
+        }
+        *metadata.level() <= cached.1
+    });
+    let layer = tracing_subscriber::fmt::layer()
         .event_format(LineFormat)
-        .with_writer(LogWriter(Arc::new(Mutex::new(file))))
-        .with_max_level(level)
-        .finish();
+        .with_writer(LogWriter(Arc::new(current)))
+        .with_filter(filter);
+    let subscriber = tracing_subscriber::registry().with(layer);
     let _ = subscriber.try_init();
     Ok(())
 }
 
+/// Append one canonical ShroudForge log entry, honoring the shared loader settings.
+pub fn append(root: impl AsRef<Path>, level: char, source: &str, message: &str) -> io::Result<bool> {
+    let root = root.as_ref();
+    if !allows(root, level) { return Ok(false); }
+    let line = format!("{}\n", format_line(level, source, message));
+    with_log_lock(root, || {
+        let mut file = OpenOptions::new().create(true).append(true).open(root.join("shroudforge.log"))?;
+        file.write_all(line.as_bytes())?;
+        file.flush()
+    })?;
+    Ok(true)
+}
+
+#[cfg(windows)]
+fn with_log_lock<T>(_root: &Path, operation: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
+    use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
+    use windows_sys::Win32::{Foundation::{CloseHandle, WAIT_OBJECT_0, WAIT_ABANDONED}, System::Threading::{CreateMutexW, ReleaseMutex, WaitForSingleObject}};
+    let name = "Local\\ShroudForgeLog";
+    let wide: Vec<u16> = OsStr::new(&name).encode_wide().chain(Some(0)).collect();
+    let handle = unsafe { CreateMutexW(std::ptr::null(), 0, wide.as_ptr()) };
+    if handle.is_null() { return Err(io::Error::last_os_error()); }
+    let wait = unsafe { WaitForSingleObject(handle, u32::MAX) };
+    if wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED {
+        unsafe { CloseHandle(handle); }
+        return Err(io::Error::last_os_error());
+    }
+    let result = operation();
+    unsafe { ReleaseMutex(handle); CloseHandle(handle); }
+    result
+}
+
+#[cfg(not(windows))]
+fn with_log_lock<T>(_root: &Path, operation: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    let _guard = LOCK.get_or_init(|| Mutex::new(())).lock().map_err(|_| io::Error::other("logging lock poisoned"))?;
+    operation()
+}
+
 fn configured_level(root: &Path) -> LevelFilter {
-    let bytes = fs::read(root.join("config").join("shroudforge.json"))
-        .or_else(|_| fs::read(root.join("shroudforge.json")));
-    let Ok(bytes) = bytes else {
-        return LevelFilter::INFO;
-    };
-    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+    let Ok(value) = crate::config::read_loader(root) else {
         return LevelFilter::INFO;
     };
     let enabled = value
         .pointer("/logging/enabled")
-        .or_else(|| value.get("enableLogging"))
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(true);
     if !enabled {
         return LevelFilter::OFF;
     }
     match value
-        .pointer("/logging/level")
-        .or_else(|| value.get("logLevel"))
+        .pointer("/logging/minimumLevel")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("INFO")
         .to_ascii_uppercase()
@@ -200,4 +258,9 @@ fn configured_level(root: &Path) -> LevelFilter {
         "ERROR" => LevelFilter::ERROR,
         _ => LevelFilter::INFO,
     }
+}
+
+pub fn allows(root: &Path, level: char) -> bool {
+    let level = match level { 'T' => LevelFilter::TRACE, 'D' => LevelFilter::DEBUG, 'W' => LevelFilter::WARN, 'E' => LevelFilter::ERROR, _ => LevelFilter::INFO };
+    level <= configured_level(root)
 }
