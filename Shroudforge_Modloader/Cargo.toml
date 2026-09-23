@@ -17,6 +17,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 semver.workspace = true
+tracing = "0.1"
 shroudforge-parser = { path = "../Shroudforge_Parser/core" }
 shroudforge-compatibility = { path = "../Shroudforge_Compatibility" }
 shroudforge-api = { path = "../Shroudforge_API" }
