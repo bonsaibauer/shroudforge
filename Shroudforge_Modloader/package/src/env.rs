@@ -211,6 +211,9 @@ mod tests {
         )
         .unwrap();
 
+        let migration_errors = crate::migration::migrate_installation(&root).unwrap();
+        assert!(migration_errors.is_empty(), "{migration_errors:?}");
+
         let environment = ModEnvironment::load(root.to_str().unwrap()).unwrap();
         assert!(environment.mod_registry().contains_key("mod.example"));
         assert!(!environment.is_mod_enabled("mod.example"));
