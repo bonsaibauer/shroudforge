@@ -6,12 +6,17 @@
 [![Visitors](https://visitor-badge.laobi.icu/badge?page_id=bonsaibauer.shroudforge)](https://github.com/bonsaibauer/shroudforge)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat&logo=windows&logoColor=white)](https://github.com/bonsaibauer/shroudforge)
 
-[![Latest Release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest)
+
 [![Report Bug](https://img.shields.io/badge/Report-Bug-critical?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml)
 [![Request Feature](https://img.shields.io/badge/Request-Feature-green?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=feature_request.yml)
 [![Compatibility Problem](https://img.shields.io/badge/Report-Compatibility_Problem-important?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml)
+
 ![GitHub Stars](https://img.shields.io/github/stars/bonsaibauer/shroudforge?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/bonsaibauer/shroudforge?style=social)
+
+## Download latest Release
+
+[![Latest Release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest)
 
 ShroudForge is a modding platform for **Enshrouded**. You can use ready-made mods
 or create your own mods with Lua. Every mod uses the same simple format: a
@@ -25,12 +30,7 @@ or create your own mods with Lua. Every mod uses the same simple format: a
 2. Open the [latest ShroudForge release](https://github.com/bonsaibauer/shroudforge/releases/latest).
 3. Download `shroudforge-<version>-<build>.zip`.
 4. Extract the contents of the `game` directory into your Enshrouded installation directory, next to `enshrouded.exe`.
-5. Start the game with:
-
-   ```powershell
-   .\shroudforge.exe launch "."
-   ```
-
+5. Start the game
 6. Press `F9` in the game to open the modloader.
 7. Press `F10` to open the Debug Console.
 
