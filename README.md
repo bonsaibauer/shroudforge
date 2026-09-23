@@ -1,90 +1,94 @@
 # ShroudForge
 
+[![Made With Love](https://img.shields.io/badge/Made%20with%20%E2%9D%A4%EF%B8%8F-by%20bonsaibauer-green)](https://github.com/bonsaibauer)
 [![Repository](https://img.shields.io/badge/Repository-shroudforge-blue?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge)
 [![License](https://img.shields.io/badge/License-MIT-blue)](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE)
 [![Visitors](https://visitor-badge.laobi.icu/badge?page_id=bonsaibauer.shroudforge)](https://github.com/bonsaibauer/shroudforge)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat&logo=windows&logoColor=white)](https://github.com/bonsaibauer/shroudforge)
+
 [![Latest Release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest)
-[![Report Problem](https://img.shields.io/badge/Report-new%20Problem%20or%20Issue-critical?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new)
+[![Report Bug](https://img.shields.io/badge/Report-Bug-critical?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml)
+[![Request Feature](https://img.shields.io/badge/Request-Feature-green?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=feature_request.yml)
+[![Compatibility Problem](https://img.shields.io/badge/Report-Compatibility_Problem-important?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml)
 ![GitHub Stars](https://img.shields.io/github/stars/bonsaibauer/shroudforge?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/bonsaibauer/shroudforge?style=social)
 
-ShroudForge ist eine Modding-Plattform für **Enshrouded**. Du kannst fertige Mods
-verwenden oder mit Lua eigene Mods erstellen. Alle Mods benutzen dasselbe einfache
-Format: eine `mod.json` und eine `src/mod.lua`.
+ShroudForge is a modding platform for **Enshrouded**. You can use ready-made mods
+or create your own mods with Lua. Every mod uses the same simple format: a
+`mod.json` file and a `src/mod.lua` file.
 
 ![ShroudForge Modloader UI](images/modloader-ui.png)
 
 ## Quickstart
 
-1. Schließe Enshrouded.
-2. Öffne die [neueste ShroudForge-Version](https://github.com/bonsaibauer/shroudforge/releases/latest).
-3. Lade `shroudforge-<version>-<build>.zip` herunter.
-4. Entpacke den Inhalt des Ordners `game` in deinen Enshrouded-Ordner. Dort liegt auch `enshrouded.exe`.
-5. Starte das Spiel mit:
+1. Close Enshrouded.
+2. Open the [latest ShroudForge release](https://github.com/bonsaibauer/shroudforge/releases/latest).
+3. Download `shroudforge-<version>-<build>.zip`.
+4. Extract the contents of the `game` directory into your Enshrouded installation directory, next to `enshrouded.exe`.
+5. Start the game with:
 
    ```powershell
    .\shroudforge.exe launch "."
    ```
 
-6. Drücke im Spiel `F9`, um den Modloader zu öffnen.
-7. Drücke `F10`, um die Debug Console zu öffnen.
+6. Press `F9` in the game to open the modloader.
+7. Press `F10` to open the Debug Console.
 
-Der typische Steam-Pfad ist:
+The typical Steam path is:
 
 ```text
 C:\Program Files (x86)\Steam\steamapps\common\Enshrouded
 ```
 
-Updates werden im Modloader angezeigt. Ein vorbereitetes Update wird nach dem
-Beenden des Spiels installiert. Eigene Mods, Einstellungen und Logs bleiben erhalten.
+Updates are shown in the modloader. A staged update is installed after the game
+exits. Your own mods, settings, and logs are preserved.
 
-## Enthaltene Mods
+## Bundled mods
 
-| Mod | Was macht die Mod? | Läuft auf |
+| Mod | What does it do? | Target |
 | --- | --- | --- |
-| **Flight** | Du kannst dauerhaft fliegen. Auf Wunsch wird beim Fliegen auch Fallschaden verhindert. | Client |
-| **Infinite Item Split** | Beim Teilen eines Stapels bleibt die Menge im ursprünglichen Stapel erhalten. | Client |
-| **Infinite Item Use** | Benutzte Gegenstände werden wiederhergestellt und gehen nicht dauerhaft verloren. | Client |
-| **No Fall Damage** | Deine Spielfigur bekommt keinen Fallschaden. | Client |
-| **No Resource Cost** | Rezepte verbrauchen keine eingetragenen Ressourcen. | Client und Server |
-| **No Stamina Loss** | Die Ausdauer deiner Spielfigur wird nicht weniger. | Client |
-| **Unlock Blueprints** | Schaltet die unterstützten Herstellungsrezepte frei. | Client und Server |
+| **Flight** | Lets you fly continuously. It can also prevent fall damage while flying. | Client |
+| **Infinite Item Split** | Preserves the quantity in the original stack when splitting it. | Client |
+| **Infinite Item Use** | Restores used items so they are not permanently consumed. | Client |
+| **No Fall Damage** | Prevents your character from taking fall damage. | Client |
+| **No Resource Cost** | Prevents recipes from consuming their listed resources. | Client and server |
+| **No Stamina Loss** | Prevents your character's stamina from decreasing. | Client |
+| **Unlock Blueprints** | Unlocks the supported crafting recipes. | Client and server |
 
-Mods liegen im Ordner `mods`. Jede Mod kann als Ordner oder als ZIP-Datei
-installiert werden. In beiden Fällen müssen `mod.json` und `src/mod.lua` direkt
-im Hauptverzeichnis des Pakets liegen.
+Mods are stored in the `mods` directory. Each mod can be installed as a directory
+or a ZIP file. In both cases, `mod.json` and `src/mod.lua` must be located directly
+at the package root.
 
-## Enthaltene Module
+## Bundled modules
 
-Module gehören direkt zu ShroudForge und sind keine Community-Mods.
+Modules are first-party ShroudForge components, not community mods.
 
-| Modul | Aufgabe |
+| Module | Purpose |
 | --- | --- |
-| **Modloader UI** | Zeigt Mods, Einstellungen, Meldungen und Updates. Öffnen mit `F9`. |
-| **Debug Console** | Zeigt `enshrouded.log` und `shroudforge.log` mit Suche und Filtern. Öffnen mit `F10`. |
-| **Commands** | Stellt den zentralen Befehlszugang für ShroudForge bereit. |
-| **Updater** | Prüft und installiert vorbereitete ShroudForge-Updates nach dem Spielende. |
+| **Modloader UI** | Displays mods, settings, messages, and updates. Open it with `F9`. |
+| **Debug Console** | Displays `enshrouded.log` and `shroudforge.log` with search and filters. Open it with `F10`. |
+| **Commands** | Provides the central command interface for ShroudForge. |
+| **Updater** | Checks for and installs staged ShroudForge updates after the game exits. |
 
-## API-Dokumentation
+## API documentation
 
-Du möchtest wissen, welche Funktionen, Spieltypen, Felder und Ressourcen du in
-einer Mod verwenden kannst?
+Want to know which functions, game types, fields, and resources you can use in a
+mod?
 
-**[ShroudForge API öffnen](https://bonsaibauer.github.io/shroudforge/)**
+**[Open the ShroudForge API documentation](https://bonsaibauer.github.io/shroudforge/)**
 
-| Bereich | Wofür ist er da? |
+| Namespace | Purpose |
 | --- | --- |
-| `game.*` | Spieltypen, Ressourcen und Spieldaten lesen oder bearbeiten. |
-| `runtime.*` | Mit der laufenden Spielwelt und ihren Komponenten arbeiten. |
-| `shroudforge.*` | Logging, Einstellungen, Mod-UI und Benachrichtigungen verwenden. |
+| `game.*` | Read or modify game types, resources, and game data. |
+| `runtime.*` | Work with the running game world and its components. |
+| `shroudforge.*` | Use logging, settings, mod UI, and notifications. |
 
-Die API-Seite enthält den aktuellen Katalog für Enshrouded-Build `1076226` mit
-14.398 Typen, 42.729 Feldern und 131 Ressourcentypen.
+The API site contains the current catalog for Enshrouded build `1076226`, with
+14,398 types, 42,729 fields, and 131 resource types.
 
-## Deine erste Mod bauen
+## Build your first mod
 
-### 1. Ordner anlegen
+### 1. Create the directory structure
 
 ```text
 my-first-mod/
@@ -93,64 +97,63 @@ my-first-mod/
     └── mod.lua
 ```
 
-Du kannst auch die fertige
-[Lua-Vorlage](https://github.com/bonsaibauer/shroudforge/tree/main/Shroudforge_Modloader/templates/lua-mod)
-kopieren.
+You can also copy the ready-made
+[Lua template](https://github.com/bonsaibauer/shroudforge/tree/main/Shroudforge_Modloader/templates/lua-mod).
 
-### 2. `mod.json` erstellen
+### 2. Create `mod.json`
 
 ```json
 {
-  "id": "deinname.my-first-mod",
+  "id": "yourname.my-first-mod",
   "name": "My First Mod",
   "version": "1.0.0",
   "api": "^1.0.0",
   "capabilities": ["runtime"],
   "dependencies": [],
   "target": "client",
-  "description": "Meine erste ShroudForge-Mod."
+  "description": "My first ShroudForge mod."
 }
 ```
 
-| Feld | Erklärung |
+| Field | Description |
 | --- | --- |
-| `id` | Eindeutiger Name. Erlaubt sind Kleinbuchstaben, Zahlen, Punkte und Bindestriche. |
-| `name` | Name, den Spieler im Modloader sehen. |
-| `version` | Version deiner Mod im Format `MAJOR.MINOR.PATCH`. |
-| `api` | Benötigte ShroudForge-API-Version. |
-| `capabilities` | Funktionen, welche die Mod benötigt. |
-| `dependencies` | Andere Mods, die zuerst installiert sein müssen. |
-| `target` | `client`, `server` oder `both`. |
-| `description` | Kurze und einfache Beschreibung. |
+| `id` | Unique identifier. Lowercase letters, numbers, periods, and hyphens are allowed. |
+| `name` | Name shown to players in the modloader. |
+| `version` | Your mod's version in `MAJOR.MINOR.PATCH` format. |
+| `api` | Required ShroudForge API version. |
+| `capabilities` | Features required by the mod. |
+| `dependencies` | Other mods that must be installed first. |
+| `target` | `client`, `server`, or `both`. |
+| `description` | A short, simple description. |
 
-| Capability | Verwendung |
+| Capability | Purpose |
 | --- | --- |
-| `runtime` | Mit der laufenden Spielwelt arbeiten. |
-| `assets-write` | Spielressourcen vor dem Spielstart verändern. |
-| `export` | Daten aus Spielressourcen exportieren. |
+| `runtime` | Work with the running game world. |
+| `assets-write` | Modify game resources before the game starts. |
+| `export` | Export data from game resources. |
 
-### 3. Lua-Code schreiben
+### 3. Write Lua code
 
-Speichere deinen Code in `src/mod.lua`:
+Save your code in `src/mod.lua`:
 
 ```lua
-shroudforge.log.info("My First Mod wurde geladen")
+shroudforge.log.info("My First Mod was loaded")
 
 local enabled = shroudforge.settings.get("enabled")
 
 if enabled then
-    shroudforge.log.info("Die Mod ist aktiviert")
+    shroudforge.log.info("The mod is enabled")
 end
 ```
 
-Eine Mod mit `runtime` läuft während des Spiels. Eine Mod mit `assets-write`
-verändert Ressourcen vor dem Spielstart. Nutze die
-[API-Suche](https://bonsaibauer.github.io/shroudforge/), um passende Typen und
-Funktionen zu finden.
+A mod with `runtime` runs while the game is running. A mod with `assets-write`
+changes resources before the game starts. Use the
+[API search](https://bonsaibauer.github.io/shroudforge/) to find suitable types
+and functions.
 
-### 4. Einstellung hinzufügen
+### 4. Add a setting
 
-Ergänze in `mod.json` zum Beispiel einen Schalter:
+For example, add a toggle to `mod.json`:
 
 ```json
 "settings": [
@@ -158,30 +161,29 @@ Ergänze in `mod.json` zum Beispiel einen Schalter:
     "key": "enabled",
     "type": "boolean",
     "control": "toggle",
-    "label": "Mod aktivieren",
-    "description": "Schaltet die Mod ein oder aus.",
+    "label": "Enable mod",
+    "description": "Enables or disables the mod.",
     "default": true
   }
 ]
 ```
 
-Der Modloader unterstützt Schalter, Checkboxen, Textfelder, Zahlenfelder,
-Slider, Auswahllisten, Tastenbelegungen und Farben. Eine Mod kann außerdem
-eigene Abschnitte, Tabs, Hinweise und sichere Button-Aktionen anzeigen. Die
-vollständige Struktur steht im
+The modloader supports toggles, checkboxes, text fields, number fields, sliders,
+select controls, key bindings, and colors. A mod can also display custom sections,
+tabs, notices, and safe button actions. The complete structure is documented in
 [`mod.schema.json`](https://github.com/bonsaibauer/shroudforge/blob/main/Shroudforge_Modloader/schemas/mod.schema.json).
 
-### 5. Mod testen
+### 5. Test the mod
 
-1. Kopiere den Mod-Ordner nach `Enshrouded\mods`.
-2. Starte Enshrouded über `shroudforge.exe launch "."`.
-3. Öffne den Modloader mit `F9`.
-4. Prüfe die Logs mit `F10`, wenn etwas nicht funktioniert.
-5. Sorge dafür, dass deine Mod beim Beenden ihren Zustand sauber zurücksetzt.
+1. Copy the mod directory to `Enshrouded\mods`.
+2. Start Enshrouded with `shroudforge.exe launch "."`.
+3. Open the modloader with `F9`.
+4. Check the logs with `F10` if something does not work.
+5. Make sure your mod cleanly resets its state when it shuts down.
 
-### 6. Mod als ZIP weitergeben
+### 6. Distribute the mod as a ZIP file
 
-Die ZIP-Datei muss so beginnen:
+The ZIP file must have this structure at its root:
 
 ```text
 mod.json
@@ -189,22 +191,22 @@ src/mod.lua
 assets/            optional
 ```
 
-Lege keinen zusätzlichen Oberordner in der ZIP-Datei an. Native DLLs,
-Maschinencode und eigene ausführbare Dateien gehören nicht in eine ShroudForge-Mod.
+Do not add an extra top-level directory to the ZIP file. Native DLLs, machine
+code, and custom executable files do not belong in a ShroudForge mod.
 
-## Projektaufbau für Entwickler
+## Project structure for developers
 
-| Ordner | Inhalt |
+| Directory | Contents |
 | --- | --- |
-| `Shroudforge_Parser` | Liest die aktuellen Enshrouded-Daten. |
-| `Shroudforge_Compatibility` | Prüft die Daten gegen den unterstützten Spiel-Build. |
-| `Shroudforge_API` | Stellt die Lua-API bereit. |
-| `Shroudforge_Modloader` | Lädt, prüft und startet Mods. |
-| `Shroudforge_Modules` | Enthält Modloader UI, Debug Console, Commands und Updater. |
-| `mods` | Enthält die mitgelieferten Lua-Mods. |
-| `site` | Enthält die öffentliche API-Seite. |
+| `Shroudforge_Parser` | Reads the current Enshrouded data. |
+| `Shroudforge_Compatibility` | Checks the data against the supported game build. |
+| `Shroudforge_API` | Provides the Lua API. |
+| `Shroudforge_Modloader` | Loads, validates, and starts mods. |
+| `Shroudforge_Modules` | Contains the Modloader UI, Debug Console, Commands, and Updater. |
+| `mods` | Contains the bundled Lua mods. |
+| `site` | Contains the public API site. |
 
-### Projekt prüfen
+### Check the project
 
 ```powershell
 cargo fmt --check
@@ -213,20 +215,20 @@ cargo test --workspace
 npm run site:check
 ```
 
-Das Modloader-UI wird im Ordner `Shroudforge_Modules/modloader-ui/ui` gebaut.
-Übersetzungen liegen als JSON-Dateien unter `ui/src/locales`; Englisch ist die
-Ausgangssprache. Der vollständige Windows-Release wird mit `build.ps1` erstellt.
+The Modloader UI is built in `Shroudforge_Modules/modloader-ui/ui`. Translations
+are stored as JSON files under `ui/src/locales`; English is the source language.
+The complete Windows release is built with `build.ps1`.
 
-## Hilfe und Fehler melden
+## Getting help and reporting problems
 
-Öffne ein [neues GitHub-Issue](https://github.com/bonsaibauer/shroudforge/issues/new)
-und füge eine kurze Fehlerbeschreibung sowie die relevante Stelle aus
-`shroudforge.log` hinzu.
+Open a [new GitHub issue](https://github.com/bonsaibauer/shroudforge/issues/new)
+and include a short description of the problem and the relevant section of
+`shroudforge.log`.
 
-## Lizenz
+## License
 
-ShroudForge steht unter der
-[MIT-Lizenz](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE).
+ShroudForge is available under the
+[MIT License](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE).
 
 ## Buy Me A Coffee
 

@@ -1,0 +1,105 @@
+name: "Report a compatibility problem"
+description: "Report problems with Enshrouded builds, API versions, or mod dependencies."
+title: "[Compatibility]: "
+labels:
+  - version-mismatch
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for an unsupported Enshrouded build, an incompatible ShroudForge API version, or problems with mod dependencies.
+
+  - type: dropdown
+    id: compatibility
+    attributes:
+      label: Which compatibility check is affected?
+      options:
+        - Enshrouded build is not supported
+        - ShroudForge API version does not match
+        - Required mod is missing
+        - Required mod is disabled
+        - Dependency version does not match
+        - Dependency cycle between mods
+        - Client or server target does not match
+        - Other compatibility problem
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Exact error message
+      description: Copy the complete message from the Debug Console or shroudforge.log.
+      placeholder: Paste the complete error message …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What was detected and what was expected?
+      placeholder: |
+        Detected or reported:
+        Expected:
+    validations:
+      required: true
+
+  - type: textarea
+    id: mod
+    attributes:
+      label: Affected mod
+      description: Optional. For a community mod, also include its download or project link.
+      placeholder: |
+        Name:
+        Version:
+        Source/link:
+
+  - type: textarea
+    id: manifest
+    attributes:
+      label: Relevant section of mod.json
+      description: Optional. For an affected mod, include at least id, version, api, dependencies, and target.
+      placeholder: |
+        {
+          "id": "…",
+          "version": "…",
+          "api": "…",
+          "dependencies": [],
+          "target": "client"
+        }
+      render: json
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Copy logs from the Debug Console
+
+        1. Keep Enshrouded open after the problem occurs.
+        2. Press `F10`.
+        3. Select **ShroudForge Debug Log** at the bottom.
+        4. Clear the search field.
+        5. Set the level to **Level: All**.
+        6. Click **Copy Logs**.
+        7. Paste the copied text into the field below.
+
+        **Important:** Copy Logs only copies the currently visible lines from the selected tab. An active search or level filter changes what is copied.
+
+        If the problem affects Enshrouded itself or the game build, also copy the **Enshrouded Log** tab.
+
+        ### Attach a complete log file
+
+        If ShroudForge or the Debug Console does not start, `shroudforge.log` and `enshrouded.log` are located in the Enshrouded installation directory next to `enshrouded.exe`.
+
+        Typical Steam path: `C:\Program Files (x86)\Steam\steamapps\common\Enshrouded`
+
+        Drag the `.log` file directly into the field below. Older ShroudForge logs may be stored at `Enshrouded\logs\shroudforge-<timestamp>.log`.
+
+        The Debug Console reads at most the final MiB of a log file. If the relevant error is older, attach the complete file or an archived log. Check the log for personal information before submitting it.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and files
+      description: Optional, but very helpful. Paste copied log lines or drag complete log files into this field.
+      placeholder: Paste logs or drag files here …

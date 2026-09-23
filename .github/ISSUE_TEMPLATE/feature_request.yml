@@ -1,0 +1,53 @@
+name: "Request a feature"
+description: "Suggest an improvement for ShroudForge, a module, a mod, or the API."
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your suggestion. Briefly describe what should be improved and which problem the change would solve.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area should be improved?
+      options:
+        - ShroudForge Modloader
+        - Modloader UI
+        - Debug Console
+        - Updater
+        - Commands
+        - Bundled ShroudForge mod
+        - Community mod support
+        - Compatibility checks
+        - ShroudForge API
+        - Mod package format
+        - Documentation
+        - Other area
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should be improved or added?
+      description: Describe the requested feature as specifically as possible.
+      placeholder: I would like …
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefit
+    attributes:
+      label: Which problem would this solve?
+      description: Describe the use case and why this change would be helpful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Suggested workflow or example
+      description: Optional. Describe the workflow from a user's perspective or add screenshots and mock-ups.

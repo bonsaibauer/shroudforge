@@ -1,0 +1,124 @@
+name: "Report a bug"
+description: "Report a problem with the modloader, a module, or a mod."
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your report. First, select which component is affected.
+
+        - **Modloader:** Starts Enshrouded and loads mod packages.
+        - **Modules:** Modloader UI, Debug Console, Commands, and Updater.
+        - **Bundled mod:** A mod shipped directly with ShroudForge.
+        - **Community mod:** A third-party mod installed separately.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What is affected?
+      options:
+        - ShroudForge Modloader
+        - ShroudForge module
+        - Bundled ShroudForge mod
+        - Community or third-party mod
+        - ShroudForge API or mod development
+        - Compatibility or version detection
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: component
+    attributes:
+      label: Which component is affected?
+      description: Optional. Name the module or mod as precisely as possible.
+      placeholder: "For example: Debug Console, Updater, or No Stamina Loss"
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior and what you expected instead.
+      placeholder: What is not working?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can the problem be reproduced?
+      description: Describe the shortest known sequence that triggers the problem.
+      placeholder: |
+        1. Start Enshrouded through ShroudForge
+        2. …
+        3. …
+        4. The problem occurs
+    validations:
+      required: true
+
+  - type: textarea
+    id: mod
+    attributes:
+      label: Affected mod details
+      description: Optional. For a community mod, also include its download or project link. The installed mod version is shown in the modloader.
+      placeholder: |
+        Name:
+        Version:
+        Source/link:
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Does the mod run on the client or server?
+      description: Optional. Only select an option if a mod is affected.
+      options:
+        - Client
+        - Server
+        - Client and server
+        - Unknown
+        - Not applicable
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Copy logs from the Debug Console
+
+        1. Keep Enshrouded open after the problem occurs.
+        2. Press `F10`.
+        3. Select **ShroudForge Debug Log** at the bottom.
+        4. Clear the search field.
+        5. Set the level to **Level: All**.
+        6. Click **Copy Logs**.
+        7. Paste the copied text into the field below.
+
+        **Important:** Copy Logs only copies the currently visible lines from the selected tab. An active search or level filter changes what is copied.
+
+        If the problem affects Enshrouded itself, causes a crash, or changes gameplay, also copy the **Enshrouded Log** tab.
+
+        ### Attach a complete log file
+
+        If ShroudForge or the Debug Console does not start, the files are located in the Enshrouded installation directory next to `enshrouded.exe`:
+
+        - `shroudforge.log` – messages from the modloader, modules, and mods
+        - `enshrouded.log` – messages from Enshrouded
+
+        Typical Steam path: `C:\Program Files (x86)\Steam\steamapps\common\Enshrouded`
+
+        Drag the `.log` file directly into the field below. Older ShroudForge logs may be stored at `Enshrouded\logs\shroudforge-<timestamp>.log`.
+
+        The Debug Console reads at most the final MiB of a log file. If the relevant error is older, attach the complete file or an archived log. Check the log for personal information before submitting it.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and files
+      description: Optional, but very helpful. Paste copied log lines or drag complete log files into this field.
+      placeholder: Paste logs or drag files here …
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Screenshots or additional information
+      description: Optional. Add screenshots, error messages, or other observations.
