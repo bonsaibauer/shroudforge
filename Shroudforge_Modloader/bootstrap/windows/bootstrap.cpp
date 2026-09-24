@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 
 namespace {
 using CreateRuntime = void* (__cdecl*)(const wchar_t*, const wchar_t*);
@@ -265,6 +266,20 @@ DWORD WINAPI run(void*) {
     start_pending_update(root);
     return 0;
 }
+
+bool is_supported_game_process() {
+    wchar_t executable_path[32768]{};
+    const auto length = GetModuleFileNameW(nullptr, executable_path,
+        static_cast<DWORD>(sizeof(executable_path) / sizeof(executable_path[0])));
+    if (length == 0 || length >= sizeof(executable_path) / sizeof(executable_path[0])) return false;
+    const std::wstring_view path(executable_path, length);
+    const auto separator = path.find_last_of(L"\\/");
+    const auto name = separator == std::wstring_view::npos ? path : path.substr(separator + 1);
+    return CompareStringOrdinal(name.data(), static_cast<int>(name.size()),
+        L"enshrouded.exe", -1, TRUE) == CSTR_EQUAL ||
+        CompareStringOrdinal(name.data(), static_cast<int>(name.size()),
+        L"enshrouded_server.exe", -1, TRUE) == CSTR_EQUAL;
+}
 }
 
 extern "C" __declspec(dllexport) BOOL __cdecl ShroudforgeStop(DWORD timeout_milliseconds) {
@@ -277,6 +292,10 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
         self_module = module;
         DisableThreadLibraryCalls(module);
+        // winmm.dll is found beside every executable in the game directory.
+        // The bundled ShroudForge UI also runs there, but must never bootstrap
+        // another runtime or race Enshrouded's asset startup.
+        if (!is_supported_game_process()) return TRUE;
         stop_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         if (!stop_event) return FALSE;
         runtime_thread = CreateThread(nullptr, 0, run, nullptr, 0, nullptr);

@@ -134,6 +134,8 @@ mod windows {
         ids: Option<Vec<String>>,
         #[serde(default)]
         project_id: Option<String>,
+        #[serde(default)]
+        message: Option<String>,
     }
 
     enum Command {
@@ -153,6 +155,8 @@ mod windows {
         RemoveMod(String),
         MarkNewsRead(Vec<String>),
         Diagnostics(String),
+        UiReady,
+        UiError(String),
     }
 
     struct Arguments {
@@ -487,6 +491,8 @@ mod windows {
                     None => return,
                 },
                 "mark-news-read" => Command::MarkNewsRead(value.ids.unwrap_or_default()),
+                "ui-ready" => Command::UiReady,
+                "ui-error" => Command::UiError(value.message.unwrap_or_else(|| "Unknown WebView error".into())),
                 _ => return,
             };
             let _ = sender.send(command);
@@ -655,6 +661,8 @@ mod windows {
                                 }
                                 next_refresh=Instant::now();
                             }
+                            Command::UiReady => write_activity(&arguments.root, "modloader-ui", "WebView rendered", "Ready", None, "info"),
+                            Command::UiError(message) => write_activity(&arguments.root, "modloader-ui", "WebView JavaScript error", "Failed", Some(&message), "error"),
                         }
                     }
 
@@ -1174,12 +1182,8 @@ mod windows {
 
     fn read_notifications(root: &Path) -> Vec<Notice> {
         let events=shroudforge_package::config::read_document(root,"events-state").unwrap_or_default();
-        let news = fs::read(shroudforge_package::config::document_path(root, "news"))
+        let news = shroudforge_package::news::read(root)
             .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-            .filter(|value| {
-                shroudforge_package::config::validate_document(root, "news", value).is_ok()
-            })
             .and_then(|value| value.get("messages").and_then(|v| v.as_array()).cloned())
             .unwrap_or_default();
         let mut notices = events.as_object().into_iter().flat_map(|values|values.values().cloned())

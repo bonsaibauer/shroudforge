@@ -4,13 +4,22 @@
   "required": ["schemaVersion", "status", "target"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "status": { "enum": ["preparing", "applied"] },
+    "status": { "enum": ["preparing", "applied", "failed"] },
     "target": { "enum": ["enshrouded", "enshrouded_server"] },
-    "phase": { "const": "prepare" },
+    "phase": { "enum": ["prepare", "startup"] },
     "completedAt": { "type": "integer", "minimum": 0 },
+    "error": { "type": "string", "minLength": 1 },
     "fingerprint": {"type":"string","pattern":"^[0-9a-f]{64}$"},
     "mods": { "type": "array", "items": { "type": "object", "required": ["id", "version"] } }
   },
-  "if": { "properties": { "status": { "const": "applied" } } },
-  "then": { "required": ["phase", "completedAt", "mods", "fingerprint"] }
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "applied" } } },
+      "then": { "required": ["phase", "completedAt", "mods", "fingerprint"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } } },
+      "then": { "required": ["phase", "completedAt", "error"] }
+    }
+  ]
 }

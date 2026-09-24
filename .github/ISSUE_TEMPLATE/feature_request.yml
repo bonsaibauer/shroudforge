@@ -2,7 +2,7 @@ name: "Request a feature"
 description: "Suggest an improvement for ShroudForge, a module, a mod, or the API."
 title: "[Feature]: "
 labels:
-  - enhancement
+  - feature
 body:
   - type: markdown
     attributes:

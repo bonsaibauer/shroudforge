@@ -1,7 +1,7 @@
 const levels = ["All", "Trace", "Debug", "Info", "Warning", "Error"];
 const emptyTail = () => ({ text: "", state: "missing" });
-const data = { game: emptyTail(), loader: emptyTail(), diagnostics: emptyTail() };
-const paths = { game: "enshrouded.log", loader: "shroudforge.log", diagnostics: "shroudforge.log [diagnostics]" };
+const data = { game: emptyTail(), loader: emptyTail() };
+const paths = { game: "enshrouded.log", loader: "shroudforge.log" };
 let activeSource = "game";
 let levelIndex = 0;
 let paused = false;
@@ -57,7 +57,6 @@ function render() {
   byId("stats").textContent = `${visible.length.toLocaleString()} of ${lines.length.toLocaleString()} lines`;
   byId("game-count").textContent = count(data.game.text);
   byId("loader-count").textContent = count(data.loader.text);
-  byId("diagnostics-count").textContent = count(data.diagnostics.text);
   if (follow) log.scrollTop = log.scrollHeight;
 }
 
@@ -67,7 +66,7 @@ function count(value) {
 
 window.__shroudforgeUpdate = (next) => {
   if (next.preferences) {
-    activeSource = next.preferences.defaultSource;
+    activeSource = next.preferences.defaultSource === "loader" ? "loader" : "game";
     levelIndex = Math.max(0,["ALL","TRACE","DEBUG","INFO","WARN","ERROR"].indexOf(next.preferences.levelFilter));
     follow = next.preferences.autoScroll;
     document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active",item.dataset.tab===activeSource));
@@ -77,7 +76,6 @@ window.__shroudforgeUpdate = (next) => {
   }
   data.game = next.game || emptyTail();
   data.loader = next.loader || emptyTail();
-  data.diagnostics = {state:data.loader.state,text:data.loader.text.split(/\r?\n/).filter(line=>line.includes('[diagnostics]')).join('\n')};
   paths.game = next.paths?.game || paths.game;
   paths.loader = next.paths?.loader || paths.loader;
   document.querySelector('[data-tab="game"]').title = paths.game;

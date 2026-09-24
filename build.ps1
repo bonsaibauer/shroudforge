@@ -1,6 +1,8 @@
 param(
     [string]$BuildNumber = $(if ($env:SHROUDFORGE_BUILD_NUMBER) { $env:SHROUDFORGE_BUILD_NUMBER } else { 'dev' }),
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$UseInstalledDependencies,
+    [switch]$SkipUiBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,18 +25,28 @@ $output = Join-Path $root 'build\x64'
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 
 $modloaderUiSource = Join-Path $root 'Shroudforge_Modules\modloader-ui\ui'
-Push-Location $modloaderUiSource
-try {
-    if (Test-Path -LiteralPath (Join-Path $modloaderUiSource 'package-lock.json')) {
-        & npm ci
-    } else {
-        & npm install
+if ($SkipUiBuild) {
+    if (-not (Test-Path -LiteralPath (Join-Path $modloaderUiSource 'dist\index.html'))) {
+        throw 'The built Modloader UI is missing; remove -SkipUiBuild.'
     }
-    if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI dependencies failed to install.' }
-    & npm run build
-    if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI frontend build failed.' }
-} finally {
-    Pop-Location
+} else {
+    Push-Location $modloaderUiSource
+    try {
+        if ($UseInstalledDependencies) {
+            if (-not (Test-Path -LiteralPath (Join-Path $modloaderUiSource 'node_modules\.bin\vite.cmd'))) {
+                throw 'Installed Modloader UI dependencies are missing; remove -UseInstalledDependencies.'
+            }
+        } elseif (Test-Path -LiteralPath (Join-Path $modloaderUiSource 'package-lock.json')) {
+            & npm ci
+        } else {
+            & npm install
+        }
+        if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI dependencies failed to install.' }
+        & npm run build
+        if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI frontend build failed.' }
+    } finally {
+        Pop-Location
+    }
 }
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'

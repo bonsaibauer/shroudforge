@@ -36,9 +36,10 @@ is not reconstructed. Parser/API startup checks, build/profile validation and
 compatibility decisions are not part of this module.
 
 English output uses the existing `shroudforge.log` format and the `diagnostics`
-source. The debug window's Diagnostics tab filters that same file, not a second
-log. `logging.enabled` and `minimumLevel` still apply. INFO summaries may be
-filtered at WARN/ERROR; slow callbacks and measurement failures use WARN.
+source. Diagnostic entries appear in the ShroudForge Debug Log tab alongside
+other loader messages. `logging.enabled` and `minimumLevel` still apply. INFO
+summaries may be filtered at WARN/ERROR; slow callbacks and measurement failures
+use WARN.
 
 ## Explicit native tools
 

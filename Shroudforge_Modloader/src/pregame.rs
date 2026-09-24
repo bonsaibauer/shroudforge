@@ -36,42 +36,93 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
     }
 
     let game_utf8 = game_directory.to_str().ok_or_else(|| {
-        LoaderError::Environment(format!("game directory is not valid UTF-8: {}", game_directory.display()))
+        LoaderError::Environment(format!(
+            "game directory is not valid UTF-8: {}",
+            game_directory.display()
+        ))
     })?;
     let environment = shroudforge_package::ModEnvironment::load(game_utf8)
         .map_err(|report| LoaderError::Environment(format_report(&report)))?;
-    let has_startup_mods = environment.plan(file_name == "enshrouded_server", shroudforge_api::API_VERSION)
-        .iter().any(|item| item.info().capabilities.iter().any(|capability|
-            matches!(capability, shroudforge_package::Capability::AssetsWrite | shroudforge_package::Capability::Export)));
+    let has_startup_mods = environment
+        .plan(
+            file_name == "enshrouded_server",
+            shroudforge_api::API_VERSION,
+        )
+        .iter()
+        .any(|item| {
+            item.info().capabilities.iter().any(|capability| {
+                matches!(
+                    capability,
+                    shroudforge_package::Capability::AssetsWrite
+                        | shroudforge_package::Capability::Export
+                )
+            })
+        });
     let has_previous_apply = shroudforge_package::config::read_document(game_directory, "applied")
-        .ok().is_some_and(|value| matches!(value["status"].as_str(), Some("applied" | "preparing")));
-    if !has_startup_mods && !has_previous_apply { return Ok(()); }
+        .ok()
+        .is_some_and(|value| {
+            matches!(
+                value["status"].as_str(),
+                Some("applied" | "preparing" | "failed")
+            )
+        });
+    if !has_startup_mods && !has_previous_apply {
+        return Ok(());
+    }
 
     tracing::info!(target: "shroudforge::startup", "Applying asset mods during early process startup");
     run_inner(game_directory, file_name, "startup")
 }
 
 fn already_applied(game_directory: &Path, file_name: &str) -> Result<bool, LoaderError> {
-    let game_utf8 = game_directory.to_str().ok_or_else(|| LoaderError::Environment(
-        format!("game directory is not valid UTF-8: {}", game_directory.display())
-    ))?;
+    let game_utf8 = game_directory.to_str().ok_or_else(|| {
+        LoaderError::Environment(format!(
+            "game directory is not valid UTF-8: {}",
+            game_directory.display()
+        ))
+    })?;
     let environment = shroudforge_package::ModEnvironment::load(game_utf8)
         .map_err(|report| LoaderError::Environment(format_report(&report)))?;
     let server = file_name == "enshrouded_server";
-    let has_startup_mods = environment.plan(server, shroudforge_api::API_VERSION)
-        .iter().any(|item| item.info().capabilities.iter().any(|capability|
-            matches!(capability, shroudforge_package::Capability::AssetsWrite | shroudforge_package::Capability::Export)));
+    let has_startup_mods = environment
+        .plan(server, shroudforge_api::API_VERSION)
+        .iter()
+        .any(|item| {
+            item.info().capabilities.iter().any(|capability| {
+                matches!(
+                    capability,
+                    shroudforge_package::Capability::AssetsWrite
+                        | shroudforge_package::Capability::Export
+                )
+            })
+        });
     let has_previous_apply = shroudforge_package::config::read_document(game_directory, "applied")
-        .ok().is_some_and(|value| matches!(value["status"].as_str(), Some("applied" | "preparing")));
-    if !has_startup_mods && !has_previous_apply { return Ok(true); }
+        .ok()
+        .is_some_and(|value| {
+            matches!(
+                value["status"].as_str(),
+                Some("applied" | "preparing" | "failed")
+            )
+        });
+    if !has_startup_mods && !has_previous_apply {
+        return Ok(true);
+    }
     let fingerprint = shroudforge_package::prepared::fingerprint(
-        &environment, server, shroudforge_api::API_VERSION,
-    ).map_err(LoaderError::Pregame)?;
-    Ok(shroudforge_package::prepared::matches(game_directory, &fingerprint))
+        &environment,
+        server,
+        shroudforge_api::API_VERSION,
+    )
+    .map_err(LoaderError::Pregame)?;
+    Ok(shroudforge_package::prepared::matches(
+        game_directory,
+        &fingerprint,
+    ))
 }
 
 fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), LoaderError> {
-    for error in shroudforge_package::migration::migrate_installation(game_directory).map_err(LoaderError::Pregame)? {
+    for error in shroudforge_package::migration::migrate_installation(game_directory)
+        .map_err(LoaderError::Pregame)?
+    {
         tracing::warn!(%error,"Installation migration failed");
     }
     let game_utf8 = game_directory.to_str().ok_or_else(|| {
@@ -83,7 +134,12 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
     let environment = shroudforge_package::ModEnvironment::load(game_utf8)
         .map_err(|report| LoaderError::Environment(format_report(&report)))?;
     let backup = game_directory.join(format!("{file_name}.kfc.bak"));
-    let fingerprint = shroudforge_package::prepared::fingerprint(&environment, file_name == "enshrouded_server", shroudforge_api::API_VERSION).map_err(LoaderError::Pregame)?;
+    let fingerprint = shroudforge_package::prepared::fingerprint(
+        &environment,
+        file_name == "enshrouded_server",
+        shroudforge_api::API_VERSION,
+    )
+    .map_err(LoaderError::Pregame)?;
     shroudforge_package::config::write_document(
         game_directory,
         "applied",
@@ -92,76 +148,125 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
         }),
     )
     .map_err(LoaderError::Pregame)?;
-    shroudforge_parser::transaction::recover(game_directory, file_name)
-        .map_err(|error| LoaderError::Pregame(error.to_string()))?;
-    if backup.is_file() && !shroudforge_api::restore(game_utf8, file_name) {
-        return Err(LoaderError::Pregame(format!(
-            "failed to restore the clean {file_name}.kfc baseline"
-        )));
-    }
-    if phase == "startup" {
-        shroudforge_api::run_with_local_schema(
-            &environment,
-            shroudforge_api::RunArgs {
-                file_name: file_name.into(),
-                options: shroudforge_api::RunOptions {
-                    force_assets: true,
-                    assets_write: true,
-                    export: true,
-                    phase: shroudforge_api::RuntimePhase::Pregame,
-                    ..Default::default()
+    let apply_result = (|| -> Result<Vec<serde_json::Value>, LoaderError> {
+        shroudforge_parser::transaction::recover(game_directory, file_name)
+            .map_err(|error| LoaderError::Pregame(error.to_string()))?;
+        if backup.is_file() && !shroudforge_api::restore(game_utf8, file_name) {
+            return Err(LoaderError::Pregame(format!(
+                "failed to restore the clean {file_name}.kfc baseline"
+            )));
+        }
+        if phase == "startup" {
+            shroudforge_api::run_with_local_schema(
+                &environment,
+                shroudforge_api::RunArgs {
+                    file_name: file_name.into(),
+                    options: shroudforge_api::RunOptions {
+                        force_assets: true,
+                        assets_write: true,
+                        export: true,
+                        phase: shroudforge_api::RuntimePhase::Pregame,
+                        ..Default::default()
+                    },
                 },
-            },
-        )
-        .map_err(|error| LoaderError::Pregame(error.to_string()))?;
-    } else {
-        let files = if file_name == "enshrouded" {
-            GameFiles::client(game_directory)
+            )
+            .map_err(|error| LoaderError::Pregame(error.to_string()))?;
         } else {
-            GameFiles::server(game_directory)
-        };
-        let game_file=game_directory.join(if file_name=="enshrouded"{"enshrouded.exe"}else{"enshrouded_server.exe"});
-        let metadata=std::fs::metadata(&game_file).map_err(|error|LoaderError::Pregame(error.to_string()))?;
-        let modified=metadata.modified().map_err(|error|LoaderError::Pregame(error.to_string()))?.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-        let completed=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-        let schema = match KfcParser.parse(&files) {
-            Ok(schema)=>{
-                shroudforge_package::config::write_document(game_directory,"parser-status",&serde_json::json!({
+            let files = if file_name == "enshrouded" {
+                GameFiles::client(game_directory)
+            } else {
+                GameFiles::server(game_directory)
+            };
+            let game_file = game_directory.join(if file_name == "enshrouded" {
+                "enshrouded.exe"
+            } else {
+                "enshrouded_server.exe"
+            });
+            let metadata = std::fs::metadata(&game_file)
+                .map_err(|error| LoaderError::Pregame(error.to_string()))?;
+            let modified = metadata
+                .modified()
+                .map_err(|error| LoaderError::Pregame(error.to_string()))?
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let completed = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let schema = match KfcParser.parse(&files) {
+                Ok(schema) => {
+                    shroudforge_package::config::write_document(game_directory,"parser-status",&serde_json::json!({
                     "status":"parsed","target":file_name,"completedAt":completed,"gameFileSize":metadata.len(),"gameFileModified":modified
                 })).map_err(LoaderError::Pregame)?;
-                schema
-            }
-            Err(error)=>{
-                let detail=error.to_string();
-                let _=shroudforge_package::config::write_document(game_directory,"parser-status",&serde_json::json!({
-                    "status":"failed","target":file_name,"completedAt":completed,"gameFileSize":metadata.len(),"gameFileModified":modified,"error":detail
-                }));
-                return Err(LoaderError::Pregame(detail));
-            }
-        };
-        let api = ShroudForgeApi::new(Compatibility::default().resolve(schema));
-        shroudforge_api::run(
-            &environment,
-            api,
-            shroudforge_api::RunArgs {
-                file_name: file_name.into(),
-                options: shroudforge_api::RunOptions {
-                    skip_cache: true,
-                    force_assets: true,
-                    assets_write: true,
-                    export: true,
-                    ..Default::default()
+                    schema
+                }
+                Err(error) => {
+                    let detail = error.to_string();
+                    let _ = shroudforge_package::config::write_document(
+                        game_directory,
+                        "parser-status",
+                        &serde_json::json!({
+                            "status":"failed","target":file_name,"completedAt":completed,"gameFileSize":metadata.len(),"gameFileModified":modified,"error":detail
+                        }),
+                    );
+                    return Err(LoaderError::Pregame(detail));
+                }
+            };
+            let api = ShroudForgeApi::new(Compatibility::default().resolve(schema));
+            shroudforge_api::run(
+                &environment,
+                api,
+                shroudforge_api::RunArgs {
+                    file_name: file_name.into(),
+                    options: shroudforge_api::RunOptions {
+                        skip_cache: true,
+                        force_assets: true,
+                        assets_write: true,
+                        export: true,
+                        ..Default::default()
+                    },
                 },
-            },
-        )
-        .map_err(|error| LoaderError::Pregame(error.to_string()))?;
-    }
-    let mods = environment.plan(file_name == "enshrouded_server", shroudforge_api::API_VERSION)
-        .into_iter().filter(|item| item.info().capabilities.iter().any(|capability|
-            matches!(capability, shroudforge_package::Capability::AssetsWrite | shroudforge_package::Capability::Export)
-        )).map(|item| {
-            Ok(serde_json::json!({"id": item.info().id, "version": item.info().version}))
-        }).collect::<Result<Vec<_>, String>>().map_err(LoaderError::Pregame)?;
+            )
+            .map_err(|error| LoaderError::Pregame(error.to_string()))?;
+        }
+        let mods = environment
+            .plan(
+                file_name == "enshrouded_server",
+                shroudforge_api::API_VERSION,
+            )
+            .into_iter()
+            .filter(|item| {
+                item.info().capabilities.iter().any(|capability| {
+                    matches!(
+                        capability,
+                        shroudforge_package::Capability::AssetsWrite
+                            | shroudforge_package::Capability::Export
+                    )
+                })
+            })
+            .map(|item| {
+                Ok(serde_json::json!({"id": item.info().id, "version": item.info().version}))
+            })
+            .collect::<Result<Vec<_>, String>>()
+            .map_err(LoaderError::Pregame)?;
+        Ok(mods)
+    })();
+    let mods = match apply_result {
+        Ok(mods) => mods,
+        Err(error) => {
+            let _ = shroudforge_package::config::write_document(
+                game_directory,
+                "applied",
+                &serde_json::json!({
+                    "schemaVersion": 1, "status": "failed", "phase": phase, "target": file_name,
+                    "completedAt": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                    "error": error.to_string()
+                }),
+            );
+            return Err(error);
+        }
+    };
     shroudforge_package::config::write_document(game_directory, "applied", &serde_json::json!({
         "schemaVersion": 1, "status": "applied", "phase": phase, "target": file_name,
         "fingerprint": fingerprint,
@@ -186,7 +291,9 @@ fn target_name(game_directory: &Path) -> Result<&'static str, LoaderError> {
 
 fn process_target_name(game_directory: &Path) -> Result<&'static str, LoaderError> {
     if let Ok(executable) = std::env::current_exe() {
-        if executable.file_name().and_then(|name| name.to_str())
+        if executable
+            .file_name()
+            .and_then(|name| name.to_str())
             .is_some_and(|name| name.eq_ignore_ascii_case("enshrouded_server.exe"))
         {
             return Ok("enshrouded_server");
@@ -198,15 +305,29 @@ fn process_target_name(game_directory: &Path) -> Result<&'static str, LoaderErro
 #[cfg(windows)]
 fn startup_asset_lease(path: &Path) -> Result<std::fs::File, LoaderError> {
     use std::os::windows::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new().create(true).truncate(false).read(true).write(true)
-        .share_mode(0).open(path)
-        .map_err(|error| LoaderError::Pregame(format!("asset startup is already active or locked: {error}")))
+    std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .share_mode(0)
+        .open(path)
+        .map_err(|error| {
+            LoaderError::Pregame(format!(
+                "asset startup is already active or locked: {error}"
+            ))
+        })
 }
 
 #[cfg(not(windows))]
 fn startup_asset_lease(path: &Path) -> Result<std::fs::File, LoaderError> {
-    std::fs::OpenOptions::new().create(true).truncate(false).read(true).write(true)
-        .open(path).map_err(|error| LoaderError::Pregame(error.to_string()))
+    std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(path)
+        .map_err(|error| LoaderError::Pregame(error.to_string()))
 }
 
 #[cfg(windows)]
