@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Runtime window visibility and commands",
+  "type": "object",
+  "properties": {
+    "modloaderUi": { "$ref": "#/$defs/window" },
+    "debugConsole": { "$ref": "#/$defs/window" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "window": {
+      "type": "object",
+      "required": ["visible", "requestedVisible", "requestId"],
+      "properties": {
+        "visible": { "type": "boolean" },
+        "requestedVisible": { "type": "boolean" },
+        "requestId": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

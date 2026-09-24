@@ -112,7 +112,11 @@ mod windows {
             .build(&window)?;
 
         let mut shown = arguments.standalone;
+        let initial_window_state = shroudforge_package::config::window_state(&arguments.root);
+        let mut visibility_request_id = initial_window_state["debugConsole"]["requestId"].as_u64().unwrap_or(0);
+        let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
         let mut key_down = false;
+        let mut next_visibility_poll = Instant::now();
         let mut next_refresh = Instant::now();
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
@@ -122,6 +126,7 @@ mod windows {
                     if !stop_event.is_null()
                         && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0
                     {
+                        let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false);
                         unsafe { CloseHandle(stop_event) };
                         *control_flow = ControlFlow::Exit;
                         return;
@@ -131,6 +136,7 @@ mod windows {
                             Command::Hide => {
                                 shown = false;
                                 window.set_visible(false);
+                                let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
                             }
                             Command::Drag => {
                                 let _ = window.drag_window();
@@ -147,6 +153,18 @@ mod windows {
                             }
                         }
                     }
+                    if Instant::now() >= next_visibility_poll {
+                        let window_state = shroudforge_package::config::window_state(&arguments.root);
+                        let requested_id = window_state["debugConsole"]["requestId"].as_u64().unwrap_or(0);
+                        if requested_id != visibility_request_id {
+                            visibility_request_id = requested_id;
+                            shown = window_state["debugConsole"]["requestedVisible"].as_bool().unwrap_or(shown);
+                            window.set_visible(shown);
+                            if shown { window.set_focus(); }
+                            let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
+                        }
+                        next_visibility_poll = Instant::now() + Duration::from_millis(100);
+                    }
                     let foreground = foreground_process();
                     let game_focused = arguments.standalone || foreground == arguments.game_pid;
                     let console_focused = foreground == unsafe { GetCurrentProcessId() };
@@ -154,6 +172,7 @@ mod windows {
                     if (game_focused || console_focused) && down && !key_down {
                         shown = !shown;
                         window.set_visible(shown);
+                        let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
                         if shown {
                             window.set_focus();
                         }
@@ -173,7 +192,7 @@ mod windows {
                                 }
                                 preferences = next_preferences;
                                 if let Ok(next) = serde_json::from_value(preferences.clone()) { config = next; }
-                                if preferences["enabled"] == false { *control_flow = ControlFlow::Exit; return; }
+                                if preferences["enabled"] == false { let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false); *control_flow = ControlFlow::Exit; return; }
                             }
                             Err(error) => eprintln!("debug configuration: {error}"),
                         }
@@ -208,6 +227,7 @@ mod windows {
                 } => {
                     shown = false;
                     window.set_visible(false);
+                    let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
                 }
                 _ => {}
             }

@@ -14,9 +14,14 @@ files.
 
 The loader generates `config/state.json` as needed. It combines update results,
 asset preparation, runtime and parser status, diagnostic reports, news and mod
-history, and catalog records. It is not a default configuration and is not
-included in the player ZIP. `config/news/news.json` is embedded into the loader
-binary at build time and is not shipped as a separate player file.
+history, catalog records, and the current visibility/request state for runtime
+windows. It is not a default configuration and is not included in the player
+ZIP. `config/news/news.json` is embedded into the loader binary at build time
+and is not shipped as a separate player file.
+
+Module `enabled` values control startup behavior. Window visibility is runtime
+state and is changed through the window controls or F9/F10; it is not saved as
+a module preference.
 
 Schemas, API contracts, news sources, templates, and documentation stay in the
 repository. Runtime profiles are maintained in the

@@ -19,7 +19,7 @@ type ModulePreferences = Record<string,Record<string,any>>
 type Settings = { configRevision?:string; modulePreferences?:ModulePreferences; compactMode:boolean; reducedMotion:boolean; loggingEnabled:boolean; logLevel:string; updateEnabled:boolean; baseUrl:string; projectId:string; checkMinutes:number }
 type CatalogItem = { id:string; slug:string; name:string; summary:string; iconUrl?:string; author?:string; downloads?:number; version?:string }
 type Catalog = { state:string; query:string; message?:string; items:CatalogItem[] }
-type Snapshot = { diagnostics?:{active:boolean;fresh:boolean;reason:string;remainingSeconds?:number;lastSampleAt?:number;loggingEnabled?:boolean;minimumLevel?:string;detail?:string}; configuration?:{modStates?:Record<string,{state:string;detail:string}>;errors:string[];checks:Array<{id:string;group:string;state:"ok"|"warning"|"neutral";detail:string}>;assets:{state:string;detail:string};lastUpdate?:{version:string;build:string;installedAt:number}}; connected:boolean; mode:string; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; newsTemplates?:Record<string,{title:string;message:string}>; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
+type Snapshot = { diagnostics?:{active:boolean;fresh:boolean;reason:string;remainingSeconds?:number;lastSampleAt?:number;loggingEnabled?:boolean;minimumLevel?:string;detail?:string}; windows?:Record<string,{visible:boolean;requestedVisible?:boolean}>; configuration?:{modStates?:Record<string,{state:string;detail:string}>;errors:string[];checks:Array<{id:string;group:string;state:"ok"|"warning"|"neutral";detail:string}>;assets:{state:string;detail:string};lastUpdate?:{version:string;build:string;installedAt:number}}; connected:boolean; mode:string; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; newsTemplates?:Record<string,{title:string;message:string}>; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
 type PageId = 'activity'|'news'|'discover'|'installed'|'updates'|'compatibility'|'settings'
 type NewsItem = { id:string; level:string; title:string; message:string; actionUrl?:string; updatedAt:number; changelog?:string[] }
 
@@ -30,6 +30,8 @@ const empty:Snapshot = {
   catalog:{state:'idle',query:'',items:[]},
 }
 const post=(command:string,payload:Record<string,unknown>={})=>window.ipc?.postMessage(JSON.stringify({command,...payload}))
+let requestSequence=0
+const postRequest=(command:string,payload:Record<string,unknown>={})=>{const requestId=`${Date.now()}-${++requestSequence}`;post(command,{...payload,requestId});return requestId}
 const formatTime=(value:number,locale:Locale)=>value<1000000000?new Date(value*1000).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}):new Intl.DateTimeFormat(locale,{dateStyle:'short',timeStyle:'short'}).format(new Date(value*1000))
 
 class UiErrorBoundary extends Component<{children:React.ReactNode},{hasError:boolean}>{
@@ -50,13 +52,40 @@ function App(){
   const [chirper,setChirper]=useState(false)
   const [settings,setSettings]=useState<Settings>(empty.settings)
   const [read,setRead]=useState<string[]>([])
+  const [saveMessage,setSaveMessage]=useState<{success:boolean;message:string}|null>(null)
+  const tRef=useRef(t)
+  tRef.current=t
+  const saveToastTimer=useRef<number|undefined>(undefined)
+  const settingsBatchTimer=useRef<number|undefined>(undefined)
+  const settingsBatchCount=useRef(0)
+  const previousStartPage=useRef<string|undefined>(undefined)
+  const pendingStartPage=useRef<string|undefined>(undefined)
+  const previousWindowVisible=useRef<boolean|undefined>(undefined)
   const localeHydrated=useRef(false)
   const dataRef=useRef(data)
   useEffect(()=>{dataRef.current=data},[data])
 
   useEffect(()=>{
     post('ui-ready')
-    window.__shroudforgeUpdate=(next)=>{const snapshot=next as Snapshot;setData(snapshot);setSettings(current=>JSON.stringify(current)===JSON.stringify(dataRef.current.settings)?snapshot.settings:current);setRead(snapshot.readNoticeIds||[]);if(!localeHydrated.current&&snapshot.locale){localeHydrated.current=true;setLocale(snapshot.locale);const start=snapshot.settings.modulePreferences?.modloaderUi?.startPage;if(["activity","news","discover","installed","updates","compatibility","settings"].includes(start))setPage(start)}}
+    window.__shroudforgeUpdate=(next)=>{const snapshot=next as Snapshot;const start=snapshot.settings.modulePreferences?.modloaderUi?.startPage;const validStart=["activity","news","discover","installed","updates","compatibility","settings"].includes(start);const visible=Boolean(snapshot.windows?.modloaderUi?.visible);if(!localeHydrated.current&&snapshot.locale){localeHydrated.current=true;setLocale(snapshot.locale);if(validStart)setPage(start)}else if(start&&previousStartPage.current&&start!==previousStartPage.current&&visible){pendingStartPage.current=start}if(previousWindowVisible.current===false&&visible){const nextPage=pendingStartPage.current||start;if(nextPage&&["activity","news","discover","installed","updates","compatibility","settings"].includes(nextPage))setPage(nextPage);pendingStartPage.current=undefined}if(start)previousStartPage.current=start;previousWindowVisible.current=visible;setData(snapshot);setSettings(current=>JSON.stringify(current)===JSON.stringify(dataRef.current.settings)?snapshot.settings:current);setRead(snapshot.readNoticeIds||[])}
+    window.__shroudforgeWindowState=(state)=>setData(current=>({...current,windows:state as Snapshot['windows']}))
+    window.__shroudforgeCommandResult=(result)=>{
+      if(!result.success&&result.restoreSettings)setSettings(dataRef.current.settings)
+      let message=result.message
+      if(result.success&&result.batchKey==='settings'){
+        settingsBatchCount.current+=1
+        message=settingsBatchCount.current===1?tRef.current('settings.settingSaved'):tRef.current('settings.settingsSaved',{count:settingsBatchCount.current})
+        if(settingsBatchTimer.current!==undefined)window.clearTimeout(settingsBatchTimer.current)
+        settingsBatchTimer.current=window.setTimeout(()=>{settingsBatchCount.current=0;settingsBatchTimer.current=undefined},900)
+      }else{
+        settingsBatchCount.current=0
+        if(settingsBatchTimer.current!==undefined){window.clearTimeout(settingsBatchTimer.current);settingsBatchTimer.current=undefined}
+        if(result.success)message=tRef.current(result.message)
+      }
+      setSaveMessage({success:result.success,message})
+      if(saveToastTimer.current!==undefined)window.clearTimeout(saveToastTimer.current)
+      saveToastTimer.current=window.setTimeout(()=>{setSaveMessage(null);saveToastTimer.current=undefined},result.success?4500:8000)
+    }
     post('refresh')
     const drag=(event:MouseEvent)=>{const target=event.target as HTMLElement;if(!target.closest('button,input,select,a')&&target.closest('[data-drag-region]'))post('drag')}
     document.addEventListener('mousedown',drag)
@@ -99,6 +128,7 @@ function App(){
 
   return <main className="shell">
     {Boolean(data.configuration?.errors.length)&&<div role="alert" className="notice error"><div>{data.configuration?.errors.map((error,index)=><p key={index}>{error}</p>)}</div></div>}
+    {saveMessage&&<div role={saveMessage.success?'status':'alert'} className={`settings-save-message ${saveMessage.success?'success':'error'}`}>{saveMessage.message}</div>}
     <TopBar data={data} unread={unread.length} attention={unread.some(item=>item.level==='warning'||item.level==='error')} onChirper={()=>setChirper(true)}/>
     <div className="workspace">
       <aside className="sidebar">
@@ -203,10 +233,12 @@ function Compatibility({data}:{data:Snapshot}){
 function SettingsPage({data,settings,setSettings}:{data:Snapshot;settings:Settings;setSettings(v:Settings):void}){
   const {t,locale,locales,setLocale}=useI18n()
   const [tab,setTab]=useState('general')
-  const save=()=>post('save-settings',{settings})
-  const chooseLocale=(next:Locale)=>{setLocale(next);post('save-language',{locale:next})}
+  const save=()=>postRequest('save-settings',{settings})
+  const reload=()=>{setSettings(data.settings);if(data.locale)setLocale(data.locale as Locale);postRequest('reload-settings')}
+  const chooseLocale=(next:Locale)=>{setLocale(next);postRequest('save-language',{locale:next})}
+  const changeGeneral=(key:'compactMode'|'reducedMotion',value:boolean)=>{setSettings({...settings,[key]:value});postRequest('save-setting',{scope:'general',key,value})}
   const currentLocale=locales.find(option=>option.locale===locale)!
-  return <><PageHeader eyebrow={t('nav.modloader')} title={t('settings.title')} subtitle={t('settings.subtitle')} actions={<><button className="button secondary" onClick={()=>setSettings(data.settings)}>Reload</button><button className="button" onClick={save}>{t('common.save')}</button></>}/><Segmented value={tab} onChange={setTab} items={[["general",t('settings.general')],["modules",t('settings.modules')]]}/>{tab==='general'&&<Card title={t('settings.presentation')}><Field label={t('settings.language')}><span className="language-select"><Flag value={currentLocale.flag}/><select value={locale} onChange={event=>chooseLocale(event.target.value)}>{locales.map(option=><option key={option.locale} value={option.locale}>{option.name} ({option.code})</option>)}</select></span></Field><p className="hint">{t('settings.language.hint')}</p><Toggle label={t('settings.compact')} checked={settings.compactMode} onChange={value=>setSettings({...settings,compactMode:value})}/><Toggle label={t('settings.motion')} checked={settings.reducedMotion} onChange={value=>setSettings({...settings,reducedMotion:value})}/></Card>}{tab==='modules'&&<ModulePreferencesEditor data={data} settings={settings} setSettings={setSettings}/>}</>
+  return <><PageHeader eyebrow={t('nav.modloader')} title={t('settings.title')} subtitle={t('settings.subtitle')} actions={<><button className="button secondary" onClick={reload}>Reload</button><button className="button" onClick={save}>{t('common.save')}</button></>}/><Segmented value={tab} onChange={setTab} items={[["general",t('settings.general')],["modules",t('settings.modules')]]}/>{tab==='general'&&<Card title={t('settings.presentation')}><Field label={t('settings.language')}><span className="language-select"><Flag value={currentLocale.flag}/><select value={locale} onChange={event=>chooseLocale(event.target.value)}>{locales.map(option=><option key={option.locale} value={option.locale}>{option.name} ({option.code})</option>)}</select></span></Field><p className="hint">{t('settings.language.hint')}</p><Toggle label={t('settings.compact')} checked={settings.compactMode} onChange={value=>changeGeneral('compactMode',value)}/><Toggle label={t('settings.motion')} checked={settings.reducedMotion} onChange={value=>changeGeneral('reducedMotion',value)}/></Card>}{tab==='modules'&&<ModulePreferencesEditor data={data} settings={settings} setSettings={setSettings}/>}</>
 }
 
 
@@ -214,28 +246,35 @@ function ModulePreferencesEditor({data,settings,setSettings}:{data:Snapshot;sett
   const {t}=useI18n()
   const prefs=settings.modulePreferences||{}
   const system=prefs.updates?.system||{enabled:true,checkMinutes:60,channel:'stable'}
-  const changeSystem=(key:string,value:unknown)=>setSettings({...settings,modulePreferences:{...prefs,updates:{...prefs.updates,system:{...system,[key]:value}}}})
-  const change=(module:string,key:string,value:unknown)=>setSettings({...settings,modulePreferences:{...prefs,[module]:{...prefs[module],[key]:value}}})
+  const saveModule=(module:string,key:string,value:unknown)=>postRequest('save-setting',{scope:'module',module,key,value})
+  const changeSystem=(key:string,value:unknown)=>{setSettings({...settings,modulePreferences:{...prefs,updates:{...prefs.updates,system:{...system,[key]:value}}}});saveModule('updates.system',key,value)}
+  const change=(module:string,key:string,value:unknown)=>{const nextModule=key==='window.position'?{...prefs[module],window:{...prefs[module]?.window,position:value}}:{...prefs[module],[key]:value};setSettings({...settings,modulePreferences:{...prefs,[module]:nextModule}});saveModule(module,key,value)}
   const fields:Array<[string,string,string,string[]?]>=[
-    ['debugConsole','enabled','Enabled (restart to activate)'],
-    ['modloaderUi','enabled','Enable at next startup'],
-    ['runtimeDiagnostics','enabled','Diagnostics enabled'],
-    ['runtimeDiagnostics','continuous','Repeat until time limit'],
-    ['runtimeDiagnostics','intervalMilliseconds','Sampling interval (ms)'],
-    ['runtimeDiagnostics','maximumDurationSeconds','Maximum duration (seconds)'],
-    ['runtimeDiagnostics','slowCallbackMilliseconds','Slow callback threshold (ms)'],
-    ['runtimeDiagnostics','onlyChanges','Log changes only'],
-    ['debugConsole','defaultSource','Log source',['game','loader']],
-    ['debugConsole','levelFilter','Display filter',['ALL','TRACE','DEBUG','INFO','WARN','ERROR']],
-    ['debugConsole','autoScroll','Auto-scroll'],
-    ['debugConsole','toggleKey','Hotkey (Windows key code)'],
-    ['debugConsole','refreshMilliseconds','Refresh (ms)'],
-    ['debugConsole','tailBytes','Log tail (bytes)'],
-    ['modloaderUi','startPage','Start page',['activity','news','installed','discover','updates','compatibility','settings']],
-    ['modloaderUi','toggleKey','Hotkey (Windows key code)'],
-    ['modloaderUi','refreshMilliseconds','Refresh (ms)']
+    ['runtimeDiagnostics','intervalMilliseconds','settings.modules.field.interval'],
+    ['runtimeDiagnostics','maximumDurationSeconds','settings.modules.field.duration'],
+    ['runtimeDiagnostics','slowCallbackMilliseconds','settings.modules.field.threshold'],
+    ['runtimeDiagnostics','onlyChanges','settings.modules.field.onlyChanges'],
+    ['debugConsole','defaultSource','settings.modules.field.source',['game','loader']],
+    ['debugConsole','levelFilter','settings.modules.field.filter',['ALL','TRACE','DEBUG','INFO','WARN','ERROR']],
+    ['debugConsole','autoScroll','settings.modules.field.autoScroll'],
+    ['debugConsole','toggleKey','settings.modules.field.hotkey'],
+    ['debugConsole','refreshMilliseconds','settings.modules.field.refresh'],
+    ['debugConsole','tailBytes','settings.modules.field.tail'],
+    ['modloaderUi','startPage','settings.modules.field.startPage',['activity','news','installed','discover','updates','compatibility','settings']],
+    ['modloaderUi','toggleKey','settings.modules.field.hotkey'],
+    ['modloaderUi','refreshMilliseconds','settings.modules.field.refresh']
   ]
-  return <Card title={t('settings.modules')}><div className="settings-module-list">{['debugConsole','modloaderUi','runtimeDiagnostics'].map(module=><section className="settings-module" key={module}><header><div><h3>{t(`settings.modules.${module}.title`)}</h3><p className="hint">{t(`settings.modules.${module}.description`)}</p></div></header><div className="settings-options">{fields.filter(field=>field[0]===module).map(([,key,label,options])=><label className="settings-option" key={key}><span>{label}</span>{options?<select value={prefs[module]?.[key]??options[0]} onChange={e=>change(module,key,e.target.value)}>{options.map(option=><option key={option}>{option}</option>)}</select>:typeof prefs[module]?.[key]==='boolean'?<input className="settings-checkbox" type="checkbox" checked={prefs[module][key]} onChange={e=>change(module,key,e.target.checked)}/>:<input className="settings-number" type="number" value={prefs[module]?.[key]??0} onChange={e=>change(module,key,Number(e.target.value))}/>}</label>)}</div>{module!=='runtimeDiagnostics'&&<button className="button ghost settings-module-action" onClick={()=>change(module,'window',{position:null})}>{t('settings.modules.resetPosition')}</button>}{module==='runtimeDiagnostics'&&<div className="settings-diagnostics"><p className="hint">{t('settings.modules.diagnosticAreas')}</p><div className="settings-area-list">{['runtime','queue','mods'].map(area=><label key={area}><input className="settings-checkbox" type="checkbox" checked={(prefs.runtimeDiagnostics?.areas||[]).includes(area)} onChange={e=>change(module,'areas',e.target.checked?[...(prefs.runtimeDiagnostics?.areas||[]),area]:(prefs.runtimeDiagnostics?.areas||[]).filter((value:string)=>value!==area))}/>{area}</label>)}</div><p className="hint">{data.diagnostics?.fresh?(data.diagnostics.active?(`${t('settings.modules.diagnosticActive')} · ${data.diagnostics.remainingSeconds}s`):data.diagnostics.reason):t('settings.modules.diagnosticUnavailable')}{' · '}{t('settings.modules.lastSample')}{': '}{data.diagnostics?.lastSampleAt?new Date(data.diagnostics.lastSampleAt*1000).toLocaleString():'—'}</p><p className="hint">{t('settings.modules.saveHint')}</p><div className="settings-diagnostic-actions">{['start','stop','snapshot'].map(action=><button className="button ghost" key={action} onClick={()=>post('diagnostics',{action})}>{t(`settings.modules.${action}`)}</button>)}</div></div>}</section>)}<section className="settings-module"><header><div><h3>{t('settings.modules.updates.title')}</h3><p className="hint">{t('settings.modules.updates.description')}</p></div></header><div className="settings-options"><label className="settings-option"><span>{t('settings.modules.updates.auto')}</span><input className="settings-checkbox" type="checkbox" checked={system.enabled} onChange={event=>changeSystem('enabled',event.target.checked)}/></label><label className="settings-option"><span>{t('settings.modules.updates.interval')}</span><input className="settings-number" type="number" min={5} max={1440} value={system.checkMinutes} onChange={event=>changeSystem('checkMinutes',Number(event.target.value))}/></label></div></section></div></Card>
+  const diagnosticAreas=Array.isArray(prefs.runtimeDiagnostics?.areas)?prefs.runtimeDiagnostics.areas:[]
+  const statusText=data.diagnostics?.fresh?(data.diagnostics.active?`${t('settings.modules.diagnosticActive')} · ${data.diagnostics.remainingSeconds}s`:data.diagnostics.reason):t('settings.modules.diagnosticUnavailable')
+  const controlVisibility=(module:'debugConsole'|'modloaderUi',visible:boolean)=>postRequest('set-window-visibility',{module,visible})
+  const ranges:Record<string,[number,number]>={intervalMilliseconds:[500,60000],maximumDurationSeconds:[1,3600],slowCallbackMilliseconds:[0.1,60000],toggleKey:[1,255],refreshMilliseconds:[100,10000],tailBytes:[1024,1048576]}
+  return <Card title={t('settings.modules')}><div className="settings-module-list">{['debugConsole','modloaderUi','runtimeDiagnostics'].map(module=><section className="settings-module" key={module}><header><div><h3>{t(`settings.modules.${module}.title`)}</h3><p className="hint">{t(`settings.modules.${module}.description`)}</p></div></header>{(module==='debugConsole'||module==='modloaderUi')&&<div className="settings-window-control"><Toggle label={t('settings.modules.windowVisible')} checked={Boolean(data.windows?.[module]?.visible)} onChange={visible=>controlVisibility(module,visible)}/><span className={`state-pill ${data.windows?.[module]?.visible?'ok':'neutral'}`}>{data.windows?.[module]?.visible?t('settings.modules.windowOpen'):t('settings.modules.windowClosed')}</span></div>}<div className="settings-options">{fields.filter(field=>field[0]===module).map(([,key,label,options])=><label className="settings-option" key={key}><span>{t(label)}</span>{options?<select value={prefs[module]?.[key]??options[0]} onChange={e=>change(module,key,e.target.value)}>{options.map(option=><option key={option}>{option}</option>)}</select>:typeof prefs[module]?.[key]==='boolean'?<input className="settings-checkbox" type="checkbox" checked={prefs[module][key]} onChange={e=>change(module,key,e.target.checked)}/>:<SettingsNumber value={prefs[module]?.[key]??0} minimum={ranges[key]?.[0]} maximum={ranges[key]?.[1]} onCommit={value=>change(module,key,value)}/>}</label>)}</div>{module!=='runtimeDiagnostics'&&<button className="button ghost settings-module-action" onClick={()=>change(module,'window.position',null)}>{t('settings.modules.resetPosition')}</button>}{module==='runtimeDiagnostics'&&<div className="settings-diagnostics"><p className="hint">{t('settings.modules.diagnosticAreas')}</p><div className="settings-area-list">{['runtime','queue','mods'].map(area=><label key={area}><input className="settings-checkbox" type="checkbox" checked={diagnosticAreas.includes(area)} onChange={e=>change(module,'areas',e.target.checked?[...diagnosticAreas,area]:diagnosticAreas.filter((value:string)=>value!==area))}/>{area}</label>)}</div><p className="hint">{statusText}{' · '}{t('settings.modules.lastSample')}{': '}{data.diagnostics?.lastSampleAt?new Date(data.diagnostics.lastSampleAt*1000).toLocaleString():'—'}</p><p className="hint">{t('settings.modules.saveHint')}</p><div className="settings-diagnostic-actions">{['start','stop','snapshot'].map(action=><button className="button ghost" key={action} onClick={()=>postRequest('diagnostics',{action})}>{t(`settings.modules.${action}`)}</button>)}</div></div>}</section>)}<section className="settings-module"><header><div><h3>{t('settings.modules.updates.title')}</h3><p className="hint">{t('settings.modules.updates.description')}</p></div></header><div className="settings-options"><label className="settings-option"><span>{t('settings.modules.updates.auto')}</span><input className="settings-checkbox" type="checkbox" checked={system.enabled} onChange={event=>changeSystem('enabled',event.target.checked)}/></label><label className="settings-option"><span>{t('settings.modules.updates.interval')}</span><SettingsNumber value={system.checkMinutes} minimum={5} maximum={1440} onCommit={value=>changeSystem('checkMinutes',value)}/></label></div></section></div></Card>
+}
+
+function SettingsNumber({value,minimum,maximum,onCommit}:{value:number;minimum?:number;maximum?:number;onCommit(value:number):void}){
+  const [draft,setDraft]=useState(String(value))
+  useEffect(()=>setDraft(String(value)),[value])
+  return <input className="settings-number" type="number" min={minimum} max={maximum} value={draft} onChange={event=>setDraft(event.target.value)} onBlur={()=>{const parsed=Number(draft);if(draft.trim()!==''&&Number.isFinite(parsed)){const next=Math.min(maximum??Number.MAX_SAFE_INTEGER,Math.max(minimum??Number.MIN_SAFE_INTEGER,parsed));setDraft(String(next));if(next!==value)onCommit(next)}else setDraft(String(value))}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur()}}/>
 }
 
 function ModPage({mod,status}:{mod:ModInfo;status?:{state:string;detail:string}}){

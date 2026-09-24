@@ -66,3 +66,5 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 @media (min-width: 761px) {
   .header-link span { display: inline !important; }
 }
+
+.settings-save-message{position:fixed;z-index:30;right:24px;bottom:56px;max-width:min(520px,calc(100vw - 48px));padding:11px 15px;border:1px solid var(--sf-line-strong);border-radius:9px;background:#101c20;box-shadow:var(--sf-shadow);font-size:12px}.settings-save-message.success{color:var(--sf-green)}.settings-save-message.error{color:var(--sf-red)}.settings-window-control{display:flex;align-items:center;gap:12px;margin:0 0 8px}.settings-window-control .toggle-row{flex:1;border-bottom:0}

@@ -17,6 +17,7 @@ pub fn validate_document(root: &Path, name: &str, value: &Value) -> Result<(), S
         "catalog-state" => include_str!("../../../config/catalog/state-schema.json"),
         "mod-state" => include_str!("../../../config/mods/state-schema.json"),
         "parser-status" => include_str!("../../../config/runtime/parser-status-schema.json"),
+        "window-state" => include_str!("../../../config/window-state-schema.json"),
         "api" => include_str!("../../../config/api/api-schema.json"),
         "state" => include_str!("../../../config/updates/state-schema.json"),
         "applied" => include_str!("../../../config/assets/applied-schema.json"),
@@ -179,7 +180,7 @@ pub fn write_document(root: &Path, name: &str, value: &Value) -> Result<(), Stri
 }
 
 fn state_section(name: &str) -> Option<&'static str> {
-    match name { "state" => Some("updates"), "applied" => Some("assets"), "mod-status" => Some("runtime"), "diagnostics-status" => Some("diagnostics"), "news-state" => Some("news"), "events-state" => Some("events"), "catalog-state" => Some("catalog"), "mod-state" => Some("mods"), "parser-status" => Some("parser"), _ => None }
+    match name { "state" => Some("updates"), "applied" => Some("assets"), "mod-status" => Some("runtime"), "diagnostics-status" => Some("diagnostics"), "window-state" => Some("windows"), "news-state" => Some("news"), "events-state" => Some("events"), "catalog-state" => Some("catalog"), "mod-state" => Some("mods"), "parser-status" => Some("parser"), _ => None }
 }
 
 fn read_state_file(root: &Path) -> Result<Value, String> {
@@ -219,6 +220,34 @@ pub fn update_state_section(root: &Path, section: &str, update: impl FnOnce(Opti
     let value = update(state.get(section))?;
     state[section] = value;
     write_json(&root.join("config/state.json"), &state)
+}
+
+pub fn window_state(root: &Path) -> Value {
+    read_state_file(root).ok().and_then(|state| state.get("windows").cloned()).unwrap_or_else(|| json!({}))
+}
+
+pub fn request_window_visibility(root: &Path, module: &str, visible: bool) -> Result<(), String> {
+    if !matches!(module, "modloaderUi" | "debugConsole") { return Err("unknown window module".into()); }
+    update_state_section(root, "windows", |existing| {
+        let mut state = existing.cloned().unwrap_or_else(|| json!({}));
+        let current = state.get(module).cloned().unwrap_or_else(|| json!({}));
+        let request_id = current.get("requestId").and_then(Value::as_u64).unwrap_or(0).saturating_add(1);
+        state[module] = json!({"visible":current.get("visible").and_then(Value::as_bool).unwrap_or(false),
+            "requestedVisible":visible,"requestId":request_id});
+        Ok(state)
+    })
+}
+
+pub fn publish_window_visibility(root: &Path, module: &str, visible: bool) -> Result<(), String> {
+    if !matches!(module, "modloaderUi" | "debugConsole") { return Err("unknown window module".into()); }
+    update_state_section(root, "windows", |existing| {
+        let mut state = existing.cloned().unwrap_or_else(|| json!({}));
+        let current = state.get(module).cloned().unwrap_or_else(|| json!({}));
+        state[module] = json!({"visible":visible,
+            "requestedVisible":current.get("requestedVisible").and_then(Value::as_bool).unwrap_or(visible),
+            "requestId":current.get("requestId").and_then(Value::as_u64).unwrap_or(0)});
+        Ok(state)
+    })
 }
 
 /// Import prior per-feature state files once, under the same installation-wide lock.
@@ -296,10 +325,11 @@ pub fn migrate_state(root: &Path) -> Result<(), String> {
 pub fn document_path(root: &Path, name: &str) -> std::path::PathBuf {
     match name {
         "shroudforge" => root.join("config/shroudforge.json"),
-        "state" | "applied" | "mod-status" | "diagnostics-status" | "news-state" | "events-state" | "catalog-state" | "mod-state" | "parser-status" => root.join("config/state.json"),
+        "state" | "applied" | "mod-status" | "diagnostics-status" | "window-state" | "news-state" | "events-state" | "catalog-state" | "mod-state" | "parser-status" => root.join("config/state.json"),
         "news" => root.join("config/news/news.json"),
         other => root.join("config").join(match other {
             "diagnostics-status" => "diagnostics",
+            "window-state" => "windows",
             "mod" => "mods",
             "mod-status" => "runtime",
             "rules" => "compatibility",

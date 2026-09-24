@@ -9,6 +9,7 @@
     "assets": { "type": "object" },
     "runtime": { "type": "object" },
     "diagnostics": { "type": "object" },
+    "windows": { "type": "object" },
     "news": { "type": "object" },
     "events": { "type": "object" },
     "catalog": { "type": "object" },
