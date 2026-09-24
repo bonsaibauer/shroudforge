@@ -7,7 +7,7 @@ if ClientPlayerInput == nil or ServerConsumedPlayerInput == nil or Inventory == 
 end
 
 local split_types = {}
-local configured_signature = ""
+local configured_split_key = ""
 local restored_versions = {}
 local pending = {}
 local warned = false
@@ -44,13 +44,13 @@ end
 
 local function update_item_split()
     local configured_split_types = shroudforge.settings.get("splitTypes") or {}
-    local signature_parts = {}
-    for index, split_type in ipairs(configured_split_types) do signature_parts[index] = tostring(split_type) end
-    local next_signature = table.concat(signature_parts, ",")
-    if next_signature ~= configured_signature then
+    local split_key_parts = {}
+    for index, split_type in ipairs(configured_split_types) do split_key_parts[index] = tostring(split_type) end
+    local next_split_key = table.concat(split_key_parts, ",")
+    if next_split_key ~= configured_split_key then
         split_types = {}
         for _, split_type in ipairs(configured_split_types) do split_types[split_type] = true end
-        configured_signature = next_signature
+        configured_split_key = next_split_key
     end
 
     local players, reason = runtime.ecs.query(ClientPlayerInput, ServerConsumedPlayerInput)
