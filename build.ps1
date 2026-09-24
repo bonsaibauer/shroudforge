@@ -41,7 +41,7 @@ if ($SkipUiBuild) {
         } else {
             & npm install
         }
-        if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI dependencies failed to install.' }
+        if (-not $UseInstalledDependencies -and $LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI dependencies failed to install.' }
         & npm run build
         if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI frontend build failed.' }
     } finally {

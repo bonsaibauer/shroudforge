@@ -211,6 +211,7 @@ function SettingsPage({data,settings,setSettings}:{data:Snapshot;settings:Settin
 
 
 function ModulePreferencesEditor({data,settings,setSettings}:{data:Snapshot;settings:Settings;setSettings(v:Settings):void}){
+  const {t}=useI18n()
   const prefs=settings.modulePreferences||{}
   const system=prefs.updates?.system||{enabled:true,checkMinutes:60,channel:'stable'}
   const changeSystem=(key:string,value:unknown)=>setSettings({...settings,modulePreferences:{...prefs,updates:{...prefs.updates,system:{...system,[key]:value}}}})
