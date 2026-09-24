@@ -12,7 +12,7 @@ type UiComponent = { type:'setting'|'text'|'notice'|'status'|'button'|'link'|'se
 type UiSection = { title?:string; description?:string; components:UiComponent[] }
 type ModUi = { sections?:UiSection[]; tabs?:Array<{id:string;label:string;sections:UiSection[]}> }
 type ModInfo = { revision:string; id:string; name:string; version:string; target:string; runtime:boolean; description?:string; source:string; enabled:boolean; settings:SettingDefinition[]; settingGroups:SettingGroup[]; ui:ModUi; changelog:string[]; assets:Record<string,string>; settingValues:Record<string,unknown> }
-type Activity = { id:string; time:number; source:string; action:string; result:string; details?:string; level:string }
+type Activity = { id:string; time:string; source:string; action:string; result:string; details?:string; level:string }
 type Notice = { id:string; modId:string; title:string; message:string; level:string; actionUrl?:string; updatedAt:number; kind?:string; values?:Record<string,string>; changelog?:string[] }
 type Release = { currentVersion:string; latestVersion?:string; updateAvailable:boolean; state:string; message?:string; releaseUrl?:string; staged:boolean }
 type ModulePreferences = Record<string,Record<string,any>>
@@ -184,10 +184,10 @@ function Page({id,data,settings,setSettings,news,unread,read,markRead,selectMod}
 }
 
 function ActivityPage({activity}:{activity:Activity[]}){
-  const {t,locale}=useI18n()
+  const {t}=useI18n()
   const [filter,setFilter]=useState('all')
   const items=activity.filter(item=>filter==='all'||item.level===filter)
-  return <><PageHeader eyebrow={t('nav.modloader')} title={t('activity.title')} subtitle={t('activity.subtitle')} actions={<button className="button ghost" onClick={()=>post('refresh')}><Icon name="refresh"/>{t('common.refresh')}</button>}/><Segmented value={filter} onChange={setFilter} items={[["all",t('activity.all')],["info",t('activity.info')],["success",t('activity.success')],["warn",t('activity.warnings')],["error",t('activity.errors')]]}/><Card flush>{items.length?<div className="activity-table"><div className="table-head"><span>{t('activity.time')}</span><span>{t('activity.source')}</span><span>{t('activity.action')}</span><span>{t('activity.result')}</span></div>{items.map(item=><div className="table-row" key={item.id}><time>{formatTime(item.time,locale)}</time><span>{item.source}</span><span title={item.details||item.action}><strong>{item.action}</strong>{item.details&&<small>{item.details}</small>}</span><span className={`result ${item.level}`} title={item.result}><i/>{item.result}</span></div>)}</div>:<Empty title={t('activity.empty.title')} text={t('activity.empty.text')} icon="activity"/>}</Card></>
+  return <><PageHeader eyebrow={t('nav.modloader')} title={t('activity.title')} subtitle={t('activity.subtitle')} actions={<button className="button ghost" onClick={()=>post('refresh')}><Icon name="refresh"/>{t('common.refresh')}</button>}/><Segmented value={filter} onChange={setFilter} items={[["all",t('activity.all')],["info",t('activity.info')],["success",t('activity.success')],["warn",t('activity.warnings')],["error",t('activity.errors')]]}/><Card flush>{items.length?<div className="activity-table"><div className="table-head"><span>{t('activity.time')}</span><span>{t('activity.source')}</span><span>{t('activity.action')}</span><span>{t('activity.result')}</span></div>{items.map(item=><div className="table-row" key={item.id}><time>{item.time}</time><span>{item.source}</span><span title={item.details||item.action}><strong>{item.action}</strong>{item.details&&<small>{item.details}</small>}</span><span className={`result ${item.level}`} title={item.result}><i/>{item.result}</span></div>)}</div>:<Empty title={t('activity.empty.title')} text={t('activity.empty.text')} icon="activity"/>}</Card></>
 }
 
 function NewsPage({items,unread,read,markRead}:{items:NewsItem[];unread:NewsItem[];read:string[];markRead(ids:string[]):void}){

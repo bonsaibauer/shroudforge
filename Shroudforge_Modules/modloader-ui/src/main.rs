@@ -213,7 +213,7 @@ mod windows {
     #[serde(rename_all = "camelCase")]
     struct Activity {
         id: String,
-        time: u64,
+        time: String,
         source: String,
         action: String,
         result: String,
@@ -795,9 +795,14 @@ mod windows {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
-                    shown = false;
-                    window.set_visible(false);
-                    let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", shown);
+                    if arguments.standalone {
+                        let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", false);
+                        *control_flow = ControlFlow::Exit;
+                    } else {
+                        shown = false;
+                        window.set_visible(false);
+                        let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", shown);
+                    }
                 }
                 _ => {}
             }
@@ -1214,10 +1219,6 @@ mod windows {
             if !shroudforge_package::logging::allows(root, severity) { return None; }
             let level = match severity { 'T' | 'D' | 'I' => "info", 'W' => "warn", 'E' => "error", _ => return None };
             let time_text = line.get(3..close)?;
-            let mut parts = time_text.split([':', ',']);
-            let hours = parts.next()?.parse::<u64>().ok()?;
-            let minutes = parts.next()?.parse::<u64>().ok()?;
-            let seconds = parts.next()?.parse::<u64>().ok()?;
             let source_end = line.get(close + 3..)?.find("] ")? + close + 3;
             let source = line.get(close + 3..source_end)?.to_owned();
             if source != "activity" { return None; }
@@ -1227,7 +1228,7 @@ mod windows {
             let action = event.get("action")?.as_str()?.to_owned();
             let result = event.get("result")?.as_str()?.to_owned();
             let details = event.get("details").and_then(serde_json::Value::as_str).map(str::to_owned);
-            Some(Activity { id: format!("{}-{}-{}-{}", index, time_text, source, action), time: hours * 3600 + minutes * 60 + seconds, source, action, result, details, level: level.to_owned() })
+            Some(Activity { id: format!("{}-{}-{}-{}", index, time_text, source, action), time: time_text.to_owned(), source, action, result, details, level: level.to_owned() })
         }).collect::<Vec<_>>();
         items.reverse();
         items.truncate(100);
