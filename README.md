@@ -17,6 +17,7 @@
 ## Download latest Release
 
 [![Latest Release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/bonsaibauer/shroudforge/total)](https://github.com/bonsaibauer/shroudforge/releases)
 
 ShroudForge is a modding platform for **Enshrouded**. You can use ready-made mods
 or create your own mods with Lua. Every mod uses the same simple format: a
