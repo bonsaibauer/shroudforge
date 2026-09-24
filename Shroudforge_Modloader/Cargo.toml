@@ -22,6 +22,11 @@ shroudforge-parser = { path = "../Shroudforge_Parser/core" }
 shroudforge-compatibility = { path = "../Shroudforge_Compatibility" }
 shroudforge-api = { path = "../Shroudforge_API" }
 shroudforge-package.workspace = true
+shroudforge-commands = { path = "../Shroudforge_Modules/commands" }
+shroudforge-debug-console = { path = "../Shroudforge_Modules/debug-console" }
+shroudforge-modloader-ui = { path = "../Shroudforge_Modules/modloader-ui" }
+shroudforge-runtime-diagnostics = { path = "../Shroudforge_Modules/runtime-diagnostics" }
+shroudforge-updater = { path = "../Shroudforge_Modules/updater" }
 mlua = { version = "0.11.2", features = ["lua54", "vendored"] }
 
 [target.'cfg(windows)'.dependencies]

@@ -6,6 +6,23 @@ use std::{env, path::PathBuf, process::Command};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args_os().collect();
+    match args.get(1).and_then(|value| value.to_str()) {
+        Some("--module-ui") => return shroudforge_modloader_ui::run_module(),
+        Some("--debug-console") => return shroudforge_debug_console::run_module(),
+        Some("--commands") => {
+            shroudforge_commands::run_module();
+            return Ok(());
+        }
+        Some("--runtime-diagnostics") => {
+            return shroudforge_runtime_diagnostics::run_module()
+                .map_err(|error| std::io::Error::other(error).into());
+        }
+        Some("--update-worker") => {
+            return shroudforge_updater::run_module()
+                .map_err(|error| std::io::Error::other(error).into());
+        }
+        _ => {}
+    }
     if let Some(game) = args.get(2) {
         let _ = shroudforge_package::logging::initialize(PathBuf::from(game), true);
     }

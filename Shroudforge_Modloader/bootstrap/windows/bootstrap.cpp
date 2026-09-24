@@ -11,6 +11,7 @@
 
 namespace {
 using CreateRuntime = void* (__cdecl*)(const wchar_t*, const wchar_t*);
+using PrepareStartup = bool (__cdecl*)(const wchar_t*);
 using UpdateRuntime = bool (__cdecl*)(void*, double);
 using DestroyRuntime = void (__cdecl*)(void*);
 
@@ -84,8 +85,7 @@ void log(const std::string& message) {
 void start_debug_console(const std::filesystem::path& root) {
     if (!KfcRuntimeConfig::ModuleEnabled(root,"debugConsole")) return;
     if (!std::filesystem::is_regular_file(root / L"enshrouded.exe")) return;
-    const auto executable = root / L"Shroudforge_Modules" / L"debug-console" /
-        L"shroudforge-debug-console.exe";
+    const auto executable = root / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(executable)) {
         log('W', "Debug Console module is not installed");
         return;
@@ -97,13 +97,13 @@ void start_debug_console(const std::filesystem::path& root) {
         log('E', "Debug Console stop event could not be created");
         return;
     }
-    std::wstring command = L"\"" + executable.wstring() + L"\" --root \"" +
+    std::wstring command = L"\"" + executable.wstring() + L"\" --debug-console --root \"" +
         root.wstring() + L"\" --game-pid " + std::to_wstring(pid) +
         L" --stop-event \"" + event_name + L"\"";
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION process{};
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
-            CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(), &startup, &process)) {
+            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(), &startup, &process)) {
         log('E', "Debug Console process could not be started");
         CloseHandle(console_stop_event);
         console_stop_event = nullptr;
@@ -129,8 +129,7 @@ void stop_debug_console() {
 
 void start_modloader_ui(const std::filesystem::path& root) {
     if (!KfcRuntimeConfig::ModuleEnabled(root,"modloaderUi")) return;
-    const auto executable = root / L"Shroudforge_Modules" / L"modloader-ui" /
-        L"shroudforge-modloader-ui.exe";
+    const auto executable = root / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(executable)) {
         log('W', "Modloader UI module is not installed");
         return;
@@ -142,13 +141,13 @@ void start_modloader_ui(const std::filesystem::path& root) {
         log('E', "Modloader UI stop event could not be created");
         return;
     }
-    std::wstring command = L"\"" + executable.wstring() + L"\" --root \"" +
+    std::wstring command = L"\"" + executable.wstring() + L"\" --module-ui --root \"" +
         root.wstring() + L"\" --game-pid " + std::to_wstring(pid) +
         L" --stop-event \"" + event_name + L"\"";
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION process{};
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
-            CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(), &startup, &process)) {
+            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(), &startup, &process)) {
         log('E', "Modloader UI process could not be started");
         CloseHandle(modloader_ui_stop_event);
         modloader_ui_stop_event = nullptr;
@@ -175,13 +174,11 @@ void stop_modloader_ui() {
 void start_pending_update(const std::filesystem::path& root) {
     const auto staged = root / L"Shroudforge_Updates" / L"pending";
     const auto marker = root / L"Shroudforge_Updates" / L"pending.ready";
-    const auto package = std::filesystem::is_regular_file(staged / L"version.json") ? staged : staged / L"game";
-    const auto executable = package / L"Shroudforge_Updater" /
-        L"shroudforge-updater.exe";
+    const auto executable = staged / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(marker) ||
         !std::filesystem::is_regular_file(executable)) return;
 
-    std::wstring command = L"\"" + executable.wstring() + L"\" --root \"" +
+    std::wstring command = L"\"" + executable.wstring() + L"\" --update-worker --root \"" +
         root.wstring() + L"\" --staged \"" + staged.wstring() +
         L"\" --wait-pid " + std::to_wstring(GetCurrentProcessId());
     STARTUPINFOW startup{sizeof(startup)};
@@ -205,9 +202,6 @@ DWORD WINAPI run(void*) {
     }
     begin_log_session(root);
     session_started = std::chrono::steady_clock::now();
-    if (!EcsRuntime::Initialize()) {
-        log('W', "KFC Runtime unavailable for this game build; non-runtime mods remain available");
-    }
     const auto runtime_path = root / L"shroudforge-runtime.dll";
     const auto runtime = LoadLibraryW(runtime_path.c_str());
     if (!runtime) {
@@ -215,14 +209,21 @@ DWORD WINAPI run(void*) {
         EcsRuntime::Shutdown();
         return 1;
     }
+    const auto prepare_startup = reinterpret_cast<PrepareStartup>(
+        GetProcAddress(runtime, "shroudforge_prepare_startup"));
     const auto create = reinterpret_cast<CreateRuntime>(GetProcAddress(runtime, "shroudforge_create"));
     const auto update = reinterpret_cast<UpdateRuntime>(GetProcAddress(runtime, "shroudforge_update"));
     const auto destroy = reinterpret_cast<DestroyRuntime>(GetProcAddress(runtime, "shroudforge_destroy"));
-    if (!create || !update || !destroy) {
+    if (!prepare_startup || !create || !update || !destroy) {
         log('E', "Bootstrap failed: runtime exports are incomplete");
-        EcsRuntime::Shutdown();
         FreeLibrary(runtime);
         return 1;
+    }
+    if (!prepare_startup(root.c_str())) {
+        log('W', "Automatic startup asset application did not complete; runtime mods will still start");
+    }
+    if (!EcsRuntime::Initialize()) {
+        log('W', "KFC Runtime unavailable for this game build; non-runtime mods remain available");
     }
     void* handle = create(root.c_str(), (root / L"mods").c_str());
     if (!handle) {

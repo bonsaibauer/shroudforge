@@ -31,21 +31,31 @@ local function apply_flight()
                     previousState = locomotion.previousState,
                 }
             end
+            local changed = locomotion.previousState ~= locomotion.state
+                or locomotion.state ~= "Flying"
             locomotion.previousState = locomotion.state
             locomotion.state = "Flying"
             if not allow_descent and locomotion.inputVelocity.z < 0 then
                 locomotion.inputVelocity.z = 0
+                changed = true
             end
-            runtime.ecs.write(entity, DynamicLocomotion, locomotion)
+            if changed then
+                runtime.ecs.write(entity, DynamicLocomotion, locomotion)
+            end
         end
 
         if prevent_fall_damage and DynamicFallDamage ~= nil then
             local fall = runtime.ecs.read(entity, DynamicFallDamage)
             if fall then
-                fall.wasFalling = false
-                fall.detectedFallDistance = 0
-                fall.detectedFallDamagePercentage = 0
-                runtime.ecs.write(entity, DynamicFallDamage, fall)
+                local changed = fall.wasFalling
+                    or fall.detectedFallDistance ~= 0
+                    or fall.detectedFallDamagePercentage ~= 0
+                if changed then
+                    fall.wasFalling = false
+                    fall.detectedFallDistance = 0
+                    fall.detectedFallDamagePercentage = 0
+                    runtime.ecs.write(entity, DynamicFallDamage, fall)
+                end
             end
         end
     end
@@ -66,6 +76,7 @@ end
 shroudforge.ui.on_action("resetFlight", restore_states)
 
 return {
+    update_interval_ms = 33,
     on_load = function()
         runtime.require("runtime.lifecycle")
         shroudforge.log.info("Flight active through keen::ecs::DynamicLocomotion")

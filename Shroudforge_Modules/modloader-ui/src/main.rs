@@ -1,10 +1,3 @@
-#![cfg_attr(windows, windows_subsystem = "windows")]
-
-#[cfg(not(windows))]
-fn main() {
-    eprintln!("ShroudForge Modloader UI is available on Windows only");
-}
-
 #[cfg(windows)]
 mod windows {
     use std::{
@@ -852,7 +845,7 @@ mod windows {
     }
 
     fn installed_release(root: &Path) -> InstalledRelease {
-        let value = fs::read(root.join("version.json"))
+        let value = fs::read(root.join("config/version.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
         let version = value
@@ -940,7 +933,7 @@ mod windows {
     }
 
     fn read_game_version(root: &Path) -> String {
-        fs::read(root.join("version.json"))
+        fs::read(root.join("config/version.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
             .and_then(|value| {
@@ -2277,15 +2270,8 @@ mod windows {
             return Err("Update package SHA-256 checksum does not match".into());
         }
         extract_zip(&archive_path, &pending)?;
-        let package = if pending.join("version.json").is_file() {
-            pending.clone()
-        } else {
-            pending.join("game")
-        };
-        for required in [
-            "version.json",
-            "Shroudforge_Updater/shroudforge-updater.exe",
-        ] {
+        let package = pending.clone();
+        for required in ["config/version.json", "shroudforge.exe"] {
             if !package.join(required).is_file() {
                 return Err(format!("Update package is missing {required}"));
             }
@@ -2396,9 +2382,11 @@ mod windows {
 }
 
 #[cfg(windows)]
-fn main() {
-    if let Err(error) = windows::run() {
-        eprintln!("ShroudForge Modloader UI failed: {error}");
-        std::process::exit(1);
-    }
+pub fn run_module() -> Result<(), Box<dyn std::error::Error>> {
+    windows::run()
+}
+
+#[cfg(not(windows))]
+pub fn run_module() -> Result<(), Box<dyn std::error::Error>> {
+    Err(std::io::Error::other("ShroudForge Modloader UI is available on Windows only").into())
 }

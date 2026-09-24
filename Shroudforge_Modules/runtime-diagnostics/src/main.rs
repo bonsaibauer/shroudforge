@@ -1,6 +1,18 @@
-use std::{env, io::{BufRead, BufReader, Read}, path::{Path, PathBuf}, process::{Command, Stdio}, thread, time::{Duration, Instant}};
+use std::{env, fs, io::{BufRead, BufReader, Read, Write}, path::{Path, PathBuf}, process::{Command, Stdio}, thread, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
+
+mod embedded_tools {
+    include!(concat!(env!("OUT_DIR"), "/embedded_tools.rs"));
+}
 
 const TOOLS: &[&str] = &["dump-live-components", "inspect-component-metadata", "live-entity-manager-sample", "live-entity-managers", "live-type-references"];
+
+struct TemporaryDirectory(PathBuf);
+
+impl Drop for TemporaryDirectory {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
 
 fn capture(stream: impl Read + Send + 'static, tool: String) -> thread::JoinHandle<()> {
     thread::spawn(move || {
@@ -14,8 +26,25 @@ fn capture(stream: impl Read + Send + 'static, tool: String) -> thread::JoinHand
 }
 
 fn run_tool(root: &Path, tool: &str, pid: u32, address: Option<&str>, timeout: Duration) -> Result<(), String> {
-    let directory = env::current_exe().map_err(|e| e.to_string())?.parent().ok_or("missing executable directory")?.to_path_buf();
-    let mut command = Command::new(directory.join("tools").join(format!("{tool}.exe")));
+    let image = match tool {
+        "dump-live-components" => embedded_tools::DUMP_LIVE_COMPONENTS,
+        "inspect-component-metadata" => embedded_tools::INSPECT_COMPONENT_METADATA,
+        "live-entity-manager-sample" => embedded_tools::LIVE_ENTITY_MANAGER_SAMPLE,
+        "live-entity-managers" => embedded_tools::LIVE_ENTITY_MANAGERS,
+        "live-type-references" => embedded_tools::LIVE_TYPE_REFERENCES,
+        _ => return Err(format!("unsupported diagnostic tool: {tool}")),
+    };
+    let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let directory = env::temp_dir().join("ShroudForge").join("diagnostics")
+        .join(format!("{}-{unique}", std::process::id()));
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let _temporary_directory = TemporaryDirectory(directory.clone());
+    let executable = directory.join(format!("{tool}.exe"));
+    let mut extracted = fs::OpenOptions::new().write(true).create_new(true).open(&executable)
+        .map_err(|error| error.to_string())?;
+    extracted.write_all(image).map_err(|error| error.to_string())?;
+    drop(extracted);
+    let mut command = Command::new(&executable);
     command.arg(pid.to_string()).current_dir(root).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     if let Some(address) = address { command.arg(address); }
     #[cfg(windows)] {
@@ -42,15 +71,15 @@ fn run_tool(root: &Path, tool: &str, pid: u32, address: Option<&str>, timeout: D
     result
 }
 
-fn run() -> Result<(), String> {
+fn run_from_args() -> Result<(), String> {
     let args: Vec<_> = env::args().collect();
     if args.iter().any(|arg| arg == "--list") { println!("{}", TOOLS.join("\n")); return Ok(()); }
     let arg = |name: &str| args.windows(2).find(|pair| pair[0] == name).map(|pair| pair[1].as_str());
     let root = PathBuf::from(arg("--root").ok_or("missing --root installation directory")?);
-    if args.iter().any(|value|value=="--status") {println!("{}",shroudforge_runtime_diagnostics::status(&root));return Ok(());}
+    if args.iter().any(|value|value=="--status") {println!("{}",crate::status(&root));return Ok(());}
     for action in ["start","stop","snapshot"] {
         if args.iter().any(|value|value==&format!("--{action}")) {
-            shroudforge_runtime_diagnostics::request(&root,action)?;
+            crate::request(&root,action)?;
             println!("Diagnostic {action} requested; the loader processes it when running");
             return Ok(());
         }
@@ -89,10 +118,6 @@ fn run() -> Result<(), String> {
     }
 }
 
-fn main() {
-    if let Err(error) = run() {
-        tracing::error!(target: "shroudforge::diagnostics", "{error}");
-        eprintln!("{error}");
-        std::process::exit(1);
-    }
+pub fn run_module() -> Result<(), String> {
+    run_from_args()
 }

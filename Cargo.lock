@@ -3532,10 +3532,16 @@ dependencies = [
  "serde",
  "serde_json",
  "shroudforge-api",
+ "shroudforge-commands",
  "shroudforge-compatibility",
+ "shroudforge-debug-console",
+ "shroudforge-modloader-ui",
  "shroudforge-package",
  "shroudforge-parser",
+ "shroudforge-runtime-diagnostics",
+ "shroudforge-updater",
  "thiserror 2.0.20",
+ "tracing",
  "windows-sys 0.61.2",
 ]
 
@@ -3575,6 +3581,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "windows-sys 0.61.2",
  "zip",
 ]
 

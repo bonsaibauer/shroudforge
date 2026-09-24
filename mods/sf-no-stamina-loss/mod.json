@@ -1,6 +1,6 @@
 {
-  "id": "mod.no-stamina-loss",
-  "name": "ShroudForge No Stamina Loss",
+  "id": "sf-no-stamina-loss",
+  "name": "SF No Stamina Loss",
   "version": "1.0.0",
   "capabilities": [
     "runtime"

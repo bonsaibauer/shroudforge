@@ -1,6 +1,6 @@
 {
-  "id": "mod.infinite-item-split",
-  "name": "ShroudForge Infinite Item Split",
+  "id": "sf-infinite-item-split",
+  "name": "SF Infinite Item Split",
   "version": "1.0.0",
   "capabilities": [
     "runtime"

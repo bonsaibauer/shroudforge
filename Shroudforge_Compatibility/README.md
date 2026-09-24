@@ -15,7 +15,7 @@ An explicitly opted-in profile may undergo structural revalidation after a game 
 | Path | Responsibility |
 | --- | --- |
 | `src/lib.rs` | Compatibility contract, availability states, and validation |
-| `../Shroudforge_Modloader/kfc-runtime/compatibility/profiles/` | Authoritative native build profiles; installed by the runtime submodule under `runtime/compatibility/profiles/` |
+| `../Shroudforge_Modloader/kfc-runtime/compatibility/profiles/` | Authoritative native build profiles; embedded into `kfc-runtime.dll` during its CMake build |
 
 ## Development
 

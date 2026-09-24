@@ -1,10 +1,3 @@
-#![cfg_attr(windows, windows_subsystem = "windows")]
-
-#[cfg(not(windows))]
-fn main() {
-    eprintln!("ShroudForge Debug Console is available on Windows only");
-}
-
 #[cfg(windows)]
 mod windows {
     use std::{
@@ -332,9 +325,11 @@ mod windows {
 }
 
 #[cfg(windows)]
-fn main() {
-    if let Err(error) = windows::run() {
-        eprintln!("ShroudForge Debug Console failed: {error}");
-        std::process::exit(1);
-    }
+pub fn run_module() -> Result<(), Box<dyn std::error::Error>> {
+    windows::run()
+}
+
+#[cfg(not(windows))]
+pub fn run_module() -> Result<(), Box<dyn std::error::Error>> {
+    Err(std::io::Error::other("ShroudForge Debug Console is available on Windows only").into())
 }

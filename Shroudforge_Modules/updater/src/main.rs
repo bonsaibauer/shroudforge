@@ -1,10 +1,3 @@
-#![cfg_attr(windows, windows_subsystem = "windows")]
-
-#[cfg(not(windows))]
-fn main() {
-    eprintln!("ShroudForge Updater is available on Windows only");
-}
-
 #[cfg(windows)]
 mod windows {
     use std::{
@@ -22,13 +15,9 @@ mod windows {
         let arguments = Arguments::read()?;
         wait_for_process(arguments.wait_pid)?;
         validate_roots(&arguments.root, &arguments.staged)?;
-        let source = if arguments.staged.join("version.json").is_file() {
-            arguments.staged.clone()
-        } else {
-            arguments.staged.join("game")
-        };
-        if !source.join("version.json").is_file() {
-            return Err("staged release does not contain game/version.json".into());
+        let source = arguments.staged.clone();
+        if !source.join("config/version.json").is_file() {
+            return Err("staged release does not contain config/version.json".into());
         }
 
         let stamp = SystemTime::now()
@@ -64,7 +53,7 @@ mod windows {
         match result {
             Ok(()) => {
                 let release: serde_json::Value = serde_json::from_slice(
-                    &fs::read(source.join("version.json")).map_err(|error| error.to_string())?,
+                    &fs::read(source.join("config/version.json")).map_err(|error| error.to_string())?,
                 )
                 .map_err(|error| error.to_string())?;
                 let state = serde_json::json!({
@@ -162,7 +151,7 @@ mod windows {
     }
 
     fn managed_paths(source: &Path) -> Result<Vec<String>, String> {
-        let bytes = fs::read(source.join("version.json")).map_err(|e| e.to_string())?;
+        let bytes = fs::read(source.join("config/version.json")).map_err(|e| e.to_string())?;
         let release: serde_json::Value =
             serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
         let entries = release["managedPaths"]
@@ -178,18 +167,13 @@ mod windows {
                     | "kfc-runtime.dll"
                     | "shroudforge-runtime.dll"
                     | "shroudforge.exe"
-                    | "version.json"
+                    | "config/version.json"
                     | "config/api/api.json"
                     | "config/README.md"
             ) || [
-                "Shroudforge_Modules/",
-                "Shroudforge_Updater/",
                 "config/api/",
                 "config/loader/",
-                "config/news/",
                 "config/compatibility/",
-                "runtime/",
-                "licenses/",
                 "mods/",
             ]
             .iter()
@@ -219,8 +203,8 @@ mod windows {
         }
         paths.sort();
         paths.dedup();
-        if !paths.iter().any(|p| p == "version.json") {
-            return Err("release must manage version.json".into());
+        if !paths.iter().any(|p| p == "config/version.json") {
+            return Err("release must manage config/version.json".into());
         }
         Ok(paths)
     }
@@ -310,9 +294,11 @@ mod windows {
 }
 
 #[cfg(windows)]
-fn main() {
-    if let Err(error) = windows::run() {
-        eprintln!("ShroudForge update failed: {error}");
-        std::process::exit(1);
-    }
+pub fn run_module() -> Result<(), String> {
+    windows::run()
+}
+
+#[cfg(not(windows))]
+pub fn run_module() -> Result<(), String> {
+    Err("ShroudForge updater is available on Windows only".into())
 }

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This component discovers, validates, orders, and runs ShroudForge mod packages. It also contains the Windows bootstrap and the command-line launcher distributed as `shroudforge.exe`.
+This component discovers, validates, orders, and runs ShroudForge mod packages. It also contains the Windows bootstrap and the multi-mode `shroudforge.exe` distributed to players.
 
 ## Current status
 
@@ -14,19 +14,19 @@ Native code is reserved for first-party ShroudForge components. User mod package
 
 Each installed mod stores its activation switch and setting values in `mods/<id>/mod.json`. The Modloader UI edits these fields in place. Missing `enabled` values in third-party packages remain disabled. Bundled ShroudForge mods ship with `enabled: true`.
 
-Disabled packages remain installed and visible in the Modloader UI. They are excluded from external preparation and runtime execution. Settings and activation are read from the same `mod.json` the UI displays. Asset changes require `shroudforge prepare` or `launch` while the game is stopped.
+Disabled packages remain installed and visible in the Modloader UI. They are excluded from startup asset application and runtime execution. Settings and activation are read from the same `mod.json` the UI displays. Enabled asset mods are applied by the bootstrap during early process startup before ShroudForge initializes its live ECS runtime. Direct game starts use this Shroudtopia-style early activation path, but Windows does not pause Enshrouded while the bootstrap worker runs. `shroudforge launch` remains deterministic because it publishes asset changes before creating the game process.
 
-Before applying enabled pregame asset mods, the loader restores the clean KFC backup. This removes persistent asset changes from mods that have since been disabled, then reapplies only the currently enabled transformations.
+Before applying enabled startup asset mods, the loader restores the clean KFC backup. This removes persistent asset changes from mods that have since been disabled, then reapplies only the currently enabled transformations.
 
 ## Layout
 
 | Path | Responsibility |
 | --- | --- |
-| `src/` | Launcher, package discovery, dependency ordering, and runtime loading |
+| `src/` | CLI launcher, module-mode dispatch, package discovery, dependency ordering, and runtime loading |
 | `package/` | Reusable package registry and manifest validation crate |
 | `../config/mods/mod-schema.json` | Manifest schema consumed by package discovery and validation |
 | `../templates/mod/` | Minimal Lua mod template |
-| `bootstrap/windows/` | Windows `winmm.dll` bootstrap |
+| `bootstrap/windows/` | Windows `winmm.dll` bootstrap; starts module modes from `shroudforge.exe` |
 | `kfc-runtime/` | Native runtime bridge for supported Windows builds |
 
 ## Package contract

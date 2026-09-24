@@ -22,10 +22,10 @@ rejected by the loader schema.
 Use Settings / Modules / Runtime Diagnostics, or:
 
 ```powershell
-shroudforge-runtime-diagnostics.exe --root "C:\Games\Enshrouded" --start
-shroudforge-runtime-diagnostics.exe --root "C:\Games\Enshrouded" --snapshot
-shroudforge-runtime-diagnostics.exe --root "C:\Games\Enshrouded" --stop
-shroudforge-runtime-diagnostics.exe --root "C:\Games\Enshrouded" --status
+shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" --start
+shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" --snapshot
+shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" --stop
+shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" --status
 ```
 
 Commands are requests, not fabricated success reports. A running loader consumes
@@ -46,7 +46,7 @@ The five native inspection tools remain available in this module and release.
 They never run automatically:
 
 ```powershell
-shroudforge-runtime-diagnostics.exe --root "C:\Games\Enshrouded" --pid 1234 --tool live-entity-managers --timeout-seconds 10
+shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" --pid 1234 --tool live-entity-managers --timeout-seconds 10
 ```
 
 `--list` lists tools. `inspect-component-metadata` requires `--address` in hex.

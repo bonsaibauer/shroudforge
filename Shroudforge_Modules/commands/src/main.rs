@@ -10,7 +10,7 @@ struct ModuleStatus<'a> {
     status: &'a str,
 }
 
-fn main() {
+pub fn run_module() {
     let status = ModuleStatus {
         id: "shroudforge.commands",
         name: "ShroudForge Commands",

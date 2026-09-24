@@ -7,5 +7,4 @@ foreach(tool dump-live-components inspect-component-metadata live-entity-manager
     add_executable(${tool} native-tools/${tool}.cpp)
     target_compile_features(${tool} PRIVATE cxx_std_20)
     set_property(TARGET ${tool} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    install(TARGETS ${tool} RUNTIME DESTINATION tools)
 endforeach()

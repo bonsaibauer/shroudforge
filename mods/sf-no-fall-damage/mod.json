@@ -1,6 +1,6 @@
 {
-  "id": "mod.no-fall-damage",
-  "name": "ShroudForge No Fall Damage",
+  "id": "sf-no-fall-damage",
+  "name": "SF No Fall Damage",
   "version": "1.0.0",
   "capabilities": [
     "runtime"

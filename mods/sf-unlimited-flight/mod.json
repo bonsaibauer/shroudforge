@@ -1,6 +1,6 @@
 {
-  "id": "mod.flight",
-  "name": "ShroudForge Flight",
+  "id": "sf-unlimited-flight",
+  "name": "SF Unlimited Flight",
   "version": "1.0.0",
   "capabilities": [
     "runtime"

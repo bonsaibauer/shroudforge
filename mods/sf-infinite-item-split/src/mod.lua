@@ -80,6 +80,7 @@ local function update_item_split()
 end
 
 return {
+    update_interval_ms = 16,
     on_load = function()
         runtime.require("runtime.lifecycle")
         shroudforge.log.info("Infinite item split active")

@@ -2,6 +2,7 @@
   "id": "shroudforge.commands",
   "name": "ShroudForge Commands",
   "version": "1.0.0",
-  "entrypoint": "shroudforge-commands.exe",
+  "entrypoint": "shroudforge.exe",
+  "mode": "--commands",
   "description": "First-party command gateway for ShroudForge modules and runtime mods."
 }

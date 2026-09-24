@@ -6,6 +6,12 @@
 --- @field phase "pregame"|"ingame"
 --- @field is_client boolean
 --- @field is_server boolean
+
+--- @class RuntimeLifecycle
+--- @field on_load fun()?
+--- @field on_update fun(delta_seconds:number)?
+--- @field on_unload fun()?
+--- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
 
 --- @param mod_id string

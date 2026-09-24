@@ -1,6 +1,7 @@
 # News
 
-`news.json` is shipped loader content, not player configuration. `messages`
+`news.json` is loader content, not player configuration. It is embedded into
+the loader binary at build time; edits take effect in the next build. `messages`
 contains the bundled notices; `templates` contains copy for mod and system
 update events that actually occur. Placeholders are `{name}`, `{version}`, and
 `{previousVersion}`. The UI reads changes in its next snapshot and validates
@@ -20,8 +21,8 @@ Migration retains old files as recovery copies and does not overwrite existing
 destination files. After migration, the UI reads only the new paths. System
 update notices use the current updater status and copy from `templates`.
 
-The system updater refreshes `news.json` as loader content and protects
-`config/state.json`. Player ZIPs do not contain news schemas.
+The system updater installs the binary that contains the bundled news. It does
+not manage a separate `news.json` file. Player ZIPs do not contain news schemas.
 
 With `repeatEveryDays: 90`, a notice becomes unread again 90 days after it was
 last marked as read. Without this field, a notice appears only once. Legacy read

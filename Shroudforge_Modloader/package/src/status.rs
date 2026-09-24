@@ -54,7 +54,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 assets=match crate::prepared::fingerprint(&env,server,api) {
                     Ok(fingerprint)=> if crate::prepared::matches(root,&fingerprint) {
                         json!({"state":"applied","detail":"Preparation record matches the game and current mod configuration."})
-                    }else{json!({"state":"prepare-required","detail":"Prepare assets externally while the game is closed."})},
+                    }else{json!({"state":"prepare-required","detail":"The startup asset pass will apply this configuration on the next game start. Use `shroudforge launch` if the game has already passed its early asset-loading window."})},
                     Err(error)=>json!({"state":"unknown","detail":error}),
                 };
             } else { assets=json!({"state":"not-required","detail":"No enabled asset mods and no previous preparation record."}); }

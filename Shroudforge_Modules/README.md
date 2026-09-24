@@ -2,19 +2,19 @@
 
 ## Purpose
 
-Modules are first-party companion processes shipped with ShroudForge. They are trusted platform components, not user mods.
+Modules are first-party companion processes built into `shroudforge.exe`. They are trusted platform components, not user mods. Their UI and helper modes still run in separate processes when needed.
 
 ## Current modules
 
 | Directory | Executable | Responsibility | Status |
 | --- | --- | --- | --- |
-| `commands/` | `shroudforge-commands.exe` | Central command endpoint | Included in releases |
-| `debug-console/` | `shroudforge-debug-console.exe` | Searchable view of Enshrouded and ShroudForge logs | Included in releases |
-| `modloader-ui/` | `shroudforge-modloader-ui.exe` | Mod management, settings, news, compatibility, and updates | Included in releases |
-| `updater/` | `shroudforge-updater.exe` | Applies staged updates after Enshrouded exits and rolls back failed installs | Included in releases |
-| `runtime-diagnostics/` | `shroudforge-runtime-diagnostics.exe` | Explicit, bounded native inspection with shared logging | Included in releases |
+| `commands/` | `shroudforge.exe --commands` | Central command endpoint | Linked into launcher |
+| `debug-console/` | `shroudforge.exe --debug-console` | Searchable view of Enshrouded and ShroudForge logs | Linked into launcher |
+| `modloader-ui/` | `shroudforge.exe --module-ui` | Mod management, settings, news, compatibility, and updates | Linked into launcher |
+| `updater/` | `shroudforge.exe --update-worker` | Applies staged updates after Enshrouded exits and rolls back failed installs | Linked into launcher |
+| `runtime-diagnostics/` | `shroudforge.exe --runtime-diagnostics` | Explicit, bounded native inspection with shared logging | Linked into launcher; native probes embedded |
 
-Each packaged module except the updater has a `module.json` beside its executable. The updater is launched from the dedicated `Shroudforge_Updater` release directory.
+Module sources and their descriptors remain in this repository. The player ZIP contains no `Shroudforge_Modules` or `Shroudforge_Updater` folder.
 
 ## Modloader UI frontend
 

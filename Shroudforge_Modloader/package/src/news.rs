@@ -104,9 +104,8 @@ pub fn migrate(root: &Path) -> Result<(), String> {
 }
 
 pub fn read(root: &Path) -> Result<serde_json::Value, String> {
-    let path = crate::config::document_path(root, "news");
-    let value = serde_json::from_slice(&fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?)
-        .map_err(|e| format!("{}: {e}", path.display()))?;
+    let value: serde_json::Value = serde_json::from_str(include_str!("../../../config/news/news.json"))
+        .map_err(|e| format!("embedded news.json: {e}"))?;
     crate::config::validate_document(root, "news", &value)?;
     Ok(value)
 }
@@ -118,16 +117,13 @@ mod tests {
     #[test]
     fn recurring_news_becomes_unread_and_can_be_acknowledged_again() {
         let root=tempfile::tempdir().unwrap(); let root=root.path();
-        crate::config::write_document(root,"news",&serde_json::json!({"schemaVersion":1,"messages":[
-            {"id":"support","title":"Support","message":"Optional","repeatEveryDays":90},
-            {"id":"welcome","title":"Welcome","message":"Once"}
-        ]})).unwrap();
         crate::config::write_document(root,"news-state",&serde_json::json!({
-            "read":["support","welcome"],"readAt":{"support":now()-91*86400,"welcome":now()-91*86400}
+            "read":["shroudforge-support-1","shroudforge-welcome-1.0.0"],
+            "readAt":{"shroudforge-support-1":now()-91*86400,"shroudforge-welcome-1.0.0":now()-91*86400}
         })).unwrap();
-        assert_eq!(read_ids(root).unwrap(),vec!["welcome"]);
-        mark_read(root,&["support".into()]).unwrap();
-        assert_eq!(read_ids(root).unwrap(),vec!["support","welcome"]);
+        assert_eq!(read_ids(root).unwrap(),vec!["shroudforge-welcome-1.0.0"]);
+        mark_read(root,&["shroudforge-support-1".into()]).unwrap();
+        assert_eq!(read_ids(root).unwrap(),vec!["shroudforge-support-1","shroudforge-welcome-1.0.0"]);
     }
 
     #[test]

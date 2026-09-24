@@ -125,6 +125,9 @@ impl RuntimePhase {
 pub struct RunOptions {
     /// If true, it will ignore the cache and re-apply all mods.
     pub skip_cache: bool,
+    /// If true, keep the asset writer enabled even when input fingerprints match.
+    /// Used when a caller has explicitly restored the clean KFC baseline.
+    pub force_assets: bool,
     /// If None, it will auto-detect based on the files within the game directory.
     pub is_server: Option<bool>,
     /// If true, mods may write typed resources back to the game asset container.
@@ -144,7 +147,17 @@ pub struct RunArgs {
     pub options: RunOptions,
 }
 
-pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyhow::Result<()> {
+pub fn run(env: &ModEnvironment, api: ShroudForgeApi, args: RunArgs) -> anyhow::Result<()> {
+    run_with_api(env, Some(api), args)
+}
+
+/// Run a bounded startup/pregame asset pass using the installed runtime
+/// compatibility profile and schema inferred from the local game files.
+pub fn run_with_local_schema(env: &ModEnvironment, args: RunArgs) -> anyhow::Result<()> {
+    run_with_api(env, None, args)
+}
+
+fn run_with_api(env: &ModEnvironment, api: Option<ShroudForgeApi>, mut args: RunArgs) -> anyhow::Result<()> {
     info!("Running lua with options: {:?}", args);
 
     // check cache if files have changed
@@ -159,7 +172,7 @@ pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyh
 
         let cache_diff = new_cache.diff(&current_cache);
 
-        if cache_diff.is_none() && args.options.assets_write {
+        if cache_diff.is_none() && args.options.assets_write && !args.options.force_assets {
             args.options.assets_write = false;
 
             info!("No changes detected, skipping asset writes");
@@ -173,7 +186,7 @@ pub fn run(env: &ModEnvironment, api: ShroudForgeApi, mut args: RunArgs) -> anyh
 
     // create a new app state
 
-    let app_state = match AppState::new(env.clone(), Some(api), args, &cache_diff) {
+    let app_state = match AppState::new(env.clone(), api, args, &cache_diff) {
         Ok(context) => context,
         Err(_) => anyhow::bail!("Failed to create AppState"),
     };
@@ -256,6 +269,8 @@ struct Lifecycle {
     id: String,
     update: Option<RegistryKey>,
     unload: Option<RegistryKey>,
+    update_interval: std::time::Duration,
+    next_update: std::time::Instant,
     active: bool,
 }
 
@@ -306,6 +321,7 @@ impl IngameRuntime {
                 file_name: file_name.into(),
                 options: RunOptions {
                     skip_cache: false,
+                    force_assets: false,
                     is_server: None,
                     assets_write: false,
                     export: true,
@@ -333,7 +349,7 @@ impl IngameRuntime {
                     if before==blocked.len(){break;}
                 }
                 plan.retain(|item| {
-                    if blocked.contains(&item.info().id) { errors.insert(item.info().id.clone(), "prepare-required: asset configuration does not match applied state".into()); false } else {true}
+                    if blocked.contains(&item.info().id) { errors.insert(item.info().id.clone(), "startup-asset-apply-required: the early startup transaction did not publish this asset configuration".into()); false } else {true}
                 });
             }
         }
@@ -361,6 +377,18 @@ impl IngameRuntime {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
                         "entrypoint must return a lifecycle table or nil");
                     errors.insert(id.clone(),"entrypoint must return a lifecycle table or nil".into());
+                    continue;
+                }
+            };
+            let update_interval_ms = match table.as_ref() {
+                Some(table) => table.get::<Option<u64>>("update_interval_ms"),
+                None => Ok(None),
+            };
+            let update_interval_ms = match update_interval_ms {
+                Ok(Some(value)) if (8..=1000).contains(&value) => value,
+                Ok(None) => 50,
+                Ok(Some(_)) | Err(_) => {
+                    errors.insert(id.clone(), "update_interval_ms must be an integer from 8 to 1000".into());
                     continue;
                 }
             };
@@ -402,6 +430,8 @@ impl IngameRuntime {
                 id,
                 update,
                 unload,
+                update_interval: std::time::Duration::from_millis(update_interval_ms),
+                next_update: std::time::Instant::now(),
                 active: true,
             });
         }
@@ -435,6 +465,7 @@ impl IngameRuntime {
                 continue;
             }
             if let Some(key) = &item.update {
+                if std::time::Instant::now() < item.next_update { continue; }
                 let started=self.diagnostics.enabled("mods").then(std::time::Instant::now);
                 let result = self
                     .runner
@@ -442,6 +473,7 @@ impl IngameRuntime {
                     .registry_value::<Function>(key)
                     .and_then(|callback| callback.call::<()>(delta_seconds));
                 if let Some(started)=started {self.diagnostics.measure("mods",&item.id,"on_update",started.elapsed(),result.is_err());}
+                item.next_update = std::time::Instant::now() + item.update_interval;
                 if let Err(error) = result {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %item.id,
                         "on_update failed: {error}");

@@ -255,7 +255,7 @@ fn lua_ecs_query(
     let Some(entities) = runtime_provider::query(&components) else {
         return Ok((
             LuaValue::Nil,
-            Some("live ECS query failed or timed out".into()),
+            Some("live ECS query is still scanning or failed".into()),
         ));
     };
     let result = lua.create_table_with_capacity(entities.len(), 0)?;

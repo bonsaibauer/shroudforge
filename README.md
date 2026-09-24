@@ -40,7 +40,10 @@ The typical Steam path is:
 C:\Program Files (x86)\Steam\steamapps\common\Enshrouded
 ```
 
-For command-line preparation or launch, pass the installation folder explicitly.
+The installed bootstrap applies changed asset mods automatically during its early
+startup pass. For a fully serialized start that finishes asset publication before
+creating the game process, use the integrated launch command with the installation
+folder explicitly:
 The launcher accepts any client or server installation directory containing the
 corresponding Enshrouded executable:
 
@@ -48,17 +51,20 @@ corresponding Enshrouded executable:
 .\shroudforge.exe launch "C:\Program Files (x86)\Steam\steamapps\common\Enshrouded"
 ```
 
-The release includes `config/shroudforge.json`, bundled news content, runtime
-compatibility profiles under `runtime/compatibility/profiles/`, and bundled mods
-under `mods/<id>/`. Runtime state is generated in `config/state.json`. Logs are
-created only when the loader runs. Repository schemas, API sources, templates,
-documentation, and submodules are not included in the player ZIP.
+The release includes `config/shroudforge.json`, news embedded in the loader
+binary, compatibility profiles embedded in `kfc-runtime.dll`, and bundled mods
+under `mods/<id>/`. Runtime state is generated in
+`config/state.json`. Logs are created only when the loader runs. Repository
+schemas, API sources, templates, documentation, and submodules are not included
+in the player ZIP.
 
 The ZIP installs at its root beside `enshrouded.exe`; it has no extra `game/`
 directory. It includes `winmm.dll`, `shroudforge-runtime.dll`, `kfc-runtime.dll`,
-`shroudforge.exe`, `version.json`, the bundled modules under `Shroudforge_Modules/`,
-and each mod's `mod.json` and Lua files. `shroudforge.log`, `config/state.json`,
-and lock files are generated only while the installation is in use.
+`shroudforge.exe`, `config/version.json`, and mod packages. The
+`shroudforge.exe` contains the CLI, Modloader UI, Debug Console, Commands,
+runtime diagnostics, and updater; helper binaries are not distributed separately.
+`shroudforge.log`, `config/state.json`, and lock files are generated only while
+the installation is in use.
 
 Updates are shown in the modloader. A staged update is installed after the game
 exits. Your own mods, settings, and logs are preserved.
@@ -236,7 +242,7 @@ code, and custom executable files do not belong in a ShroudForge mod.
 | `Shroudforge_Compatibility` | Checks the data against the supported game build. |
 | `Shroudforge_API` | Provides the Lua API. |
 | `Shroudforge_Modloader` | Loads, validates, and starts mods. |
-| `Shroudforge_Modules` | Contains the Modloader UI, Debug Console, Commands, and Updater. |
+| `Shroudforge_Modules` | Source crates for modules linked into `shroudforge.exe`; not copied into the player ZIP. |
 | `mods` | Contains the bundled Lua mods. |
 | `site` | Contains the public API site. |
 

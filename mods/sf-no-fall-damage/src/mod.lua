@@ -21,12 +21,19 @@ local function clear_fall_damage()
     for _, entity in ipairs(entities) do
         local fall = runtime.ecs.read(entity, DynamicFallDamage)
         if fall then
-            fall.wasFalling = false
-            fall.resetFallAltitudeOnApex = true
-            fall.fallStartAltitude = 0
-            fall.detectedFallDistance = 0
-            fall.detectedFallDamagePercentage = 0
-            runtime.ecs.write(entity, DynamicFallDamage, fall)
+            local changed = fall.wasFalling
+                or not fall.resetFallAltitudeOnApex
+                or fall.fallStartAltitude ~= 0
+                or fall.detectedFallDistance ~= 0
+                or fall.detectedFallDamagePercentage ~= 0
+            if changed then
+                fall.wasFalling = false
+                fall.resetFallAltitudeOnApex = true
+                fall.fallStartAltitude = 0
+                fall.detectedFallDistance = 0
+                fall.detectedFallDamagePercentage = 0
+                runtime.ecs.write(entity, DynamicFallDamage, fall)
+            end
         end
     end
 end
@@ -34,6 +41,7 @@ end
 shroudforge.ui.on_action("clearFallState", clear_fall_damage)
 
 return {
+    update_interval_ms = 50,
     on_load = function()
         runtime.require("runtime.lifecycle")
         shroudforge.log.info("No fall damage active")

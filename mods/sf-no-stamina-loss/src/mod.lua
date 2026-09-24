@@ -52,6 +52,7 @@ local function update_stamina()
 end
 
 return {
+    update_interval_ms = 50,
     on_load = function()
         runtime.require("runtime.lifecycle")
         shroudforge.log.info("No stamina loss active")

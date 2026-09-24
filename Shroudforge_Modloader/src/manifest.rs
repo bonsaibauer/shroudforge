@@ -55,7 +55,7 @@ mod tests {
     fn every_package_uses_the_fixed_lua_entrypoint() {
         let manifest = parse(
             r#"{
-            "id":"mod.flight", "name":"Flight", "version":"1.0.0",
+            "id":"sf-unlimited-flight", "name":"SF Unlimited Flight", "version":"1.0.0",
             "capabilities":["runtime"]
         }"#,
         );

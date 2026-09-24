@@ -1,4 +1,9 @@
 //! Bounded, opt-in instrumentation hosted by the loader. No scans or game writes.
+#[path = "main.rs"]
+mod application;
+
+pub use application::run_module;
+
 use std::{collections::BTreeMap, path::{Path,PathBuf}, time::{Duration,Instant,SystemTime,UNIX_EPOCH}};
 use serde_json::{Value,json};
 

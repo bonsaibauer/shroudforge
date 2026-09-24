@@ -1,6 +1,6 @@
 {
-  "id": "mod.infinite-item-use",
-  "name": "ShroudForge Infinite Item Use",
+  "id": "sf-infinite-item-use",
+  "name": "SF Infinite Item Use",
   "version": "1.0.0",
   "capabilities": [
     "runtime"

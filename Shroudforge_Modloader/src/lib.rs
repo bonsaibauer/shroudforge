@@ -74,6 +74,39 @@ impl ModLoader {
 #[repr(C)]
 pub struct RuntimeHandle(ModLoader);
 
+/// Applies stale pregame asset mods from the bootstrap thread before the live
+/// ECS runtime is created. This lets a normal game start use the bundled
+/// loader instead of requiring a separate `prepare` command.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
+    fn path(value: *const u16) -> Option<PathBuf> {
+        if value.is_null() { return None; }
+        let mut length = 0;
+        unsafe { while *value.add(length) != 0 { length += 1; } }
+        Some(PathBuf::from(String::from_utf16_lossy(unsafe {
+            std::slice::from_raw_parts(value, length)
+        })))
+    }
+    std::panic::catch_unwind(|| {
+        let Some(game) = path(game) else { return false; };
+        let _ = shroudforge_package::logging::initialize(&game, false);
+        let started = std::time::Instant::now();
+        match pregame::run_startup(&game) {
+            Ok(()) => {
+                let message = format!("Early startup asset pass completed in {} ms", started.elapsed().as_millis());
+                let _ = shroudforge_package::logging::append(&game, 'I', "startup-assets", &message);
+                true
+            }
+            Err(error) => {
+                let _ = shroudforge_package::logging::append(
+                    &game, 'W', "startup-assets", &error.to_string(),
+                );
+                false
+            }
+        }
+    }).unwrap_or(false)
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn shroudforge_create(
     game: *const u16,
