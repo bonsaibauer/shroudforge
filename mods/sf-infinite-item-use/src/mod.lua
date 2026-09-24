@@ -11,17 +11,17 @@ local pending = {}
 local restored_versions = {}
 local warned = false
 local excluded_item_ids = {}
-local excluded_signature = nil
+local excluded_items_key = nil
 
 local function refresh_excluded_item_ids()
     local configured = shroudforge.settings.get("excludedItemIds") or ""
-    if configured == excluded_signature then return end
+    if configured == excluded_items_key then return end
     excluded_item_ids = {}
     for value in string.gmatch(configured, "[^,%s]+") do
         local item_id = tonumber(value)
         if item_id ~= nil then excluded_item_ids[item_id] = true end
     end
-    excluded_signature = configured
+    excluded_items_key = configured
 end
 
 local function snapshot_action(player, action, consumed_version)
