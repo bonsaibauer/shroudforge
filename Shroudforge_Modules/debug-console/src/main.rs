@@ -22,7 +22,7 @@ mod windows {
             WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
         },
     };
-    use wry::WebViewBuilder;
+    use wry::{WebContext, WebViewBuilder};
 
     const MAX_TAIL: u64 = 1024 * 1024;
     const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
@@ -106,7 +106,10 @@ mod windows {
         let html = include_str!("../ui/index.html")
             .replace("__SHROUDFORGE_STYLES__", &styles)
             .replace("__SHROUDFORGE_SCRIPT__", include_str!("../ui/app.ts"));
-        let webview = WebViewBuilder::new()
+        let profile = shroudforge_package::paths::webview_profile(&arguments.root);
+        std::fs::create_dir_all(&profile)?;
+        let mut web_context = WebContext::new(Some(profile));
+        let webview = WebViewBuilder::new_with_web_context(&mut web_context)
             .with_html(html)
             .with_ipc_handler(handler)
             .build(&window)?;
@@ -184,8 +187,13 @@ mod windows {
                         window.set_visible(true);
                     }
                     if Instant::now() >= next_refresh {
+                        let mut minimum_level = "INFO".to_owned();
                         match shroudforge_package::config::read_loader(&arguments.root) {
                             Ok(value) => {
+                                minimum_level = value.pointer("/logging/minimumLevel")
+                                    .and_then(serde_json::Value::as_str)
+                                    .unwrap_or("INFO")
+                                    .to_owned();
                                 let next_preferences = value["modules"]["debugConsole"].clone();
                                 if next_preferences["window"]["position"] != preferences["window"]["position"] {
                                     position_window(&window, &next_preferences["window"]["position"], true);
@@ -200,12 +208,13 @@ mod windows {
                             Instant::now() + Duration::from_millis(config.refresh_milliseconds);
                         let payload = serde_json::json!({
                             "game": read_tail(&arguments.root.join("enshrouded.log"), config.tail_bytes),
-                            "loader": read_tail(&arguments.root.join("shroudforge.log"), config.tail_bytes),
+                            "loader": read_tail(&shroudforge_package::paths::current_log(&arguments.root), config.tail_bytes),
                             "paths": {
                                 "game": arguments.root.join("enshrouded.log").display().to_string(),
-                                "loader": arguments.root.join("shroudforge.log").display().to_string(),
+                                "loader": shroudforge_package::paths::current_log(&arguments.root).display().to_string(),
                             },
                             "connected": !arguments.standalone,
+                            "minimumLevel": minimum_level,
                             "preferences": preferences,
                         });
                         let _ = webview

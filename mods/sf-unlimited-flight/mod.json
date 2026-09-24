@@ -2,9 +2,6 @@
   "id": "sf-unlimited-flight",
   "name": "SF Unlimited Flight",
   "version": "1.0.0",
-  "capabilities": [
-    "runtime"
-  ],
   "dependencies": [],
   "description": "Keeps the local player's typed DynamicLocomotion state in Flying mode.",
   "enabled": true,
@@ -14,8 +11,6 @@
   },
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "client",
     "release": {
       "changelog": [
         "Added the declarative ShroudForge settings page.",
@@ -30,7 +25,6 @@
           "type": "boolean",
           "title": "Prevent fall damage",
           "default": true,
-          "x-apply": "restart",
           "x-ui": {
             "key": "preventFallDamage",
             "type": "boolean",
@@ -38,8 +32,7 @@
             "label": "Prevent fall damage",
             "description": "Clears the local fall-damage state while flight is active.",
             "default": true,
-            "group": "general",
-            "restartRequired": true
+            "group": "general"
           },
           "description": "Clears the local fall-damage state while flight is active."
         },
@@ -47,7 +40,6 @@
           "type": "boolean",
           "title": "Allow downward movement",
           "default": false,
-          "x-apply": "restart",
           "x-ui": {
             "key": "allowDescent",
             "type": "boolean",
@@ -55,8 +47,7 @@
             "label": "Allow downward movement",
             "description": "Preserves negative vertical input instead of clamping it to zero.",
             "default": false,
-            "group": "general",
-            "restartRequired": true
+            "group": "general"
           },
           "description": "Preserves negative vertical input instead of clamping it to zero."
         }

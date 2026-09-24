@@ -11,12 +11,17 @@ local pending = {}
 local restored_versions = {}
 local warned = false
 local excluded_item_ids = {}
+local excluded_signature = nil
 
-for value in string.gmatch(shroudforge.settings.get("excludedItemIds"), "[^,%s]+") do
-    local item_id = tonumber(value)
-    if item_id ~= nil then
-        excluded_item_ids[item_id] = true
+local function refresh_excluded_item_ids()
+    local configured = shroudforge.settings.get("excludedItemIds") or ""
+    if configured == excluded_signature then return end
+    excluded_item_ids = {}
+    for value in string.gmatch(configured, "[^,%s]+") do
+        local item_id = tonumber(value)
+        if item_id ~= nil then excluded_item_ids[item_id] = true end
     end
+    excluded_signature = configured
 end
 
 local function snapshot_action(player, action, consumed_version)
@@ -72,6 +77,7 @@ local function restore_consumed_item(item)
 end
 
 local function update_item_use()
+    refresh_excluded_item_ids()
     local players, reason = runtime.ecs.query(ClientPlayerInput, ServerConsumedPlayerInput)
     if players == nil then
         if not warned then

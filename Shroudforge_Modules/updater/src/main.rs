@@ -16,8 +16,8 @@ mod windows {
         wait_for_process(arguments.wait_pid)?;
         validate_roots(&arguments.root, &arguments.staged)?;
         let source = arguments.staged.clone();
-        if !source.join("config/version.json").is_file() {
-            return Err("staged release does not contain config/version.json".into());
+        if !source.join("shroudforge/version.json").is_file() {
+            return Err("staged release does not contain shroudforge/version.json".into());
         }
 
         let stamp = SystemTime::now()
@@ -26,7 +26,7 @@ mod windows {
             .as_secs();
         let backup = arguments
             .root
-            .join("Shroudforge_Updates/backups")
+            .join("shroudforge/updates/backups")
             .join(stamp.to_string());
         fs::create_dir_all(&backup).map_err(|error| error.to_string())?;
         append_log(
@@ -53,7 +53,7 @@ mod windows {
         match result {
             Ok(()) => {
                 let release: serde_json::Value = serde_json::from_slice(
-                    &fs::read(source.join("config/version.json")).map_err(|error| error.to_string())?,
+                    &fs::read(source.join("shroudforge/version.json")).map_err(|error| error.to_string())?,
                 )
                 .map_err(|error| error.to_string())?;
                 let state = serde_json::json!({
@@ -67,7 +67,7 @@ mod windows {
                         &format!("Installed files, but could not save update state: {error}"),
                     );
                 }
-                let _ = fs::remove_file(arguments.root.join("Shroudforge_Updates/pending.ready"));
+                let _ = fs::remove_file(arguments.root.join("shroudforge/updates/pending.ready"));
                 append_log(
                     &arguments.root,
                     'I',
@@ -140,9 +140,9 @@ mod windows {
         let staged = staged
             .canonicalize()
             .map_err(|error| format!("invalid staged root: {error}"))?;
-        let updates = root.join("Shroudforge_Updates");
+        let updates = root.join("shroudforge/updates");
         if !staged.starts_with(&updates) {
-            return Err("staged update is outside Shroudforge_Updates".into());
+            return Err("staged update is outside shroudforge/updates".into());
         }
         if root == staged {
             return Err("staged update must not equal install root".into());
@@ -151,7 +151,7 @@ mod windows {
     }
 
     fn managed_paths(source: &Path) -> Result<Vec<String>, String> {
-        let bytes = fs::read(source.join("config/version.json")).map_err(|e| e.to_string())?;
+        let bytes = fs::read(source.join("shroudforge/version.json")).map_err(|e| e.to_string())?;
         let release: serde_json::Value =
             serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
         let entries = release["managedPaths"]
@@ -167,17 +167,8 @@ mod windows {
                     | "kfc-runtime.dll"
                     | "shroudforge-runtime.dll"
                     | "shroudforge.exe"
-                    | "config/version.json"
-                    | "config/api/api.json"
-                    | "config/README.md"
-            ) || [
-                "config/api/",
-                "config/loader/",
-                "config/compatibility/",
-                "mods/",
-            ]
-            .iter()
-            .any(|prefix| relative.starts_with(prefix));
+                    | "shroudforge/version.json"
+            ) || relative.starts_with("mods/");
             if !allowed
                 || relative.is_empty()
                 || relative.contains('\\')
@@ -187,11 +178,10 @@ mod windows {
                     .all(|part| matches!(part, std::path::Component::Normal(_)))
                 || matches!(
                     relative,
-                    "config/shroudforge.json"
-                        | "config/state.json"
-                        | "config/compatibility/rules.json"
+                    "shroudforge/config/shroudforge.json"
+                        | "shroudforge/config/state.json"
+                        | "shroudforge/config/.shroudforge-write.lock"
                 )
-                || (relative.starts_with("config/mods/") && relative != "config/mods/mod-schema.json")
             {
                 return Err(format!("unsafe managed path: {relative}"));
             }
@@ -203,8 +193,8 @@ mod windows {
         }
         paths.sort();
         paths.dedup();
-        if !paths.iter().any(|p| p == "config/version.json") {
-            return Err("release must manage config/version.json".into());
+        if !paths.iter().any(|p| p == "shroudforge/version.json") {
+            return Err("release must manage shroudforge/version.json".into());
         }
         Ok(paths)
     }

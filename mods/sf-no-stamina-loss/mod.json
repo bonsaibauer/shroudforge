@@ -2,9 +2,6 @@
   "id": "sf-no-stamina-loss",
   "name": "SF No Stamina Loss",
   "version": "1.0.0",
-  "capabilities": [
-    "runtime"
-  ],
   "dependencies": [],
   "description": "Keeps the local player's typed stamina runtime components from depleting.",
   "enabled": true,
@@ -14,8 +11,6 @@
   },
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "client",
     "release": {
       "changelog": [
         "Added a declarative overview page for the Modloader UI.",
@@ -29,7 +24,6 @@
           "type": "boolean",
           "title": "Prevent stamina depletion",
           "default": true,
-          "x-apply": "restart",
           "x-ui": {
             "key": "preventDepletion",
             "type": "boolean",
@@ -37,8 +31,7 @@
             "label": "Prevent stamina depletion",
             "description": "Clears accumulated stamina depletion during gameplay.",
             "default": true,
-            "group": "stamina",
-            "restartRequired": true
+            "group": "stamina"
           },
           "description": "Clears accumulated stamina depletion during gameplay."
         },
@@ -46,7 +39,6 @@
           "type": "boolean",
           "title": "Refill stamina to maximum",
           "default": true,
-          "x-apply": "restart",
           "x-ui": {
             "key": "refillToMaximum",
             "type": "boolean",
@@ -54,8 +46,7 @@
             "label": "Refill stamina to maximum",
             "description": "Restores current stamina to the typed maximum value.",
             "default": true,
-            "group": "stamina",
-            "restartRequired": true
+            "group": "stamina"
           },
           "description": "Restores current stamina to the typed maximum value."
         }
@@ -77,7 +68,7 @@
           "components": [
             {
               "type": "status",
-              "label": "Local client runtime",
+              "label": "Client runtime",
               "text": "The mod applies the selected stamina operations during gameplay."
             },
             {

@@ -82,6 +82,16 @@ impl ModEnvironment {
     }
 
     pub fn plan_report(&self, is_server: bool, api_version: &str) -> (Vec<&crate::Mod>, Vec<String>) {
+        self.plan_report_inner(is_server, api_version, false)
+    }
+
+    /// Build the live runtime's candidate plan, including disabled mods so their
+    /// callbacks can be activated later without restarting the game.
+    pub fn runtime_plan_report(&self, is_server: bool, api_version: &str) -> (Vec<&crate::Mod>, Vec<String>) {
+        self.plan_report_inner(is_server, api_version, true)
+    }
+
+    fn plan_report_inner(&self, is_server: bool, api_version: &str, include_disabled: bool) -> (Vec<&crate::Mod>, Vec<String>) {
         let blocked = match crate::compatibility::conflicts(self) {
             Ok(blocked) => blocked,
             Err(error) => return (Vec::new(), vec![format!("compatibility rules: {error}")]),
@@ -91,6 +101,7 @@ impl ModEnvironment {
             blocked: &std::collections::HashMap<String,String>,
             id: &str,
             server: bool,
+            include_disabled: bool,
             version: &semver::Version,
             visiting: &mut HashSet<String>,
             done: &mut HashSet<String>,
@@ -107,7 +118,7 @@ impl ModEnvironment {
                 .mod_registry()
                 .get(id)
                 .ok_or_else(|| format!("missing dependency: {id}"))?;
-            if !env.is_mod_enabled(id) {
+            if !include_disabled && !env.is_mod_enabled(id) {
                 return Err(format!("disabled dependency: {id}"));
             }
             if matches!(
@@ -131,7 +142,7 @@ impl ModEnvironment {
                 }
                 let candidate = env.mod_registry().get(&dependency.id);
                 if dependency.optional.unwrap_or(false)
-                    && (candidate.is_none() || !env.is_mod_enabled(&dependency.id))
+                    && (candidate.is_none() || (!include_disabled && !env.is_mod_enabled(&dependency.id)))
                 {
                     continue;
                 }
@@ -140,7 +151,7 @@ impl ModEnvironment {
                 if !dependency.version.matches(&candidate.info().version) {
                     return Err(format!("{id}: incompatible {}", dependency.id));
                 }
-                visit(env, blocked, &dependency.id, server, version, visiting, done, order)?;
+                visit(env, blocked, &dependency.id, server, include_disabled, version, visiting, done, order)?;
             }
             visiting.remove(id);
             done.insert(id.into());
@@ -148,10 +159,11 @@ impl ModEnvironment {
             Ok(())
         }
         let version = semver::Version::parse(api_version).expect("API version is semver");
-        let mut ids: Vec<_> = self
-            .enabled_mods()
-            .map(|item| item.info().id.clone())
-            .collect();
+        let mut ids: Vec<_> = if include_disabled {
+            self.mod_registry().values().map(|item| item.info().id.clone()).collect()
+        } else {
+            self.enabled_mods().map(|item| item.info().id.clone()).collect()
+        };
         ids.sort();
         let mut done = HashSet::new();
         let mut order = Vec::new();
@@ -162,6 +174,7 @@ impl ModEnvironment {
                 &blocked,
                 &id,
                 is_server,
+                include_disabled,
                 &version,
                 &mut HashSet::new(),
                 &mut done,
@@ -190,24 +203,23 @@ mod tests {
         let root = std::env::temp_dir().join(format!("shroudforge-enabled-mods-{suffix}"));
         let package = root.join("mods").join("example");
         fs::create_dir_all(&package).unwrap();
-        fs::create_dir_all(root.join("config")).unwrap();
+        fs::create_dir_all(crate::paths::config_dir(&root)).unwrap();
         fs::write(
             package.join("mod.json"),
             serde_json::to_vec(&serde_json::json!({
                 "id": "mod.example",
                 "name": "Example",
                 "version": "1.0.0",
-                "api": "^1.0.0",
-                "capabilities": ["runtime"],
                 "dependencies": [],
-                "target": "client"
             }))
             .unwrap(),
         )
         .unwrap();
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
         fs::write(
-            root.join("config").join("shroudforge.json"),
-            br#"{"schemaVersion":1,"logging":{"enabled":true,"minimumLevel":"INFO"},"modules":{},"mods":{"mod.example":{"enabled":false,"settings":{}}}}"#,
+            crate::paths::config_dir(&root).join("shroudforge.json"),
+            br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{},"mods":{"mod.example":{"enabled":false,"settings":{}}}}"#,
         )
         .unwrap();
 

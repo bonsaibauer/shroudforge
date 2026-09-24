@@ -2,9 +2,6 @@
   "id": "sf-infinite-item-split",
   "name": "SF Infinite Item Split",
   "version": "1.0.0",
-  "capabilities": [
-    "runtime"
-  ],
   "dependencies": [],
   "description": "Preserves the typed source inventory slot during local stack-split actions.",
   "enabled": true,
@@ -17,8 +14,6 @@
   },
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "client",
     "release": {
       "changelog": [
         "Added a declarative overview page for the Modloader UI.",
@@ -36,7 +31,6 @@
             "Half",
             "CustomAmount"
           ],
-          "x-apply": "restart",
           "x-ui": {
             "key": "splitTypes",
             "type": "array",
@@ -62,8 +56,7 @@
                 "value": "CustomAmount",
                 "label": "Custom amount"
               }
-            ],
-            "restartRequired": true
+            ]
           },
           "description": "Select the split operations that should preserve the source stack.",
           "items": {
@@ -92,7 +85,7 @@
           "components": [
             {
               "type": "status",
-              "label": "Local client runtime",
+              "label": "Client runtime",
               "text": "The mod watches the selected completed stack-split actions."
             },
             {

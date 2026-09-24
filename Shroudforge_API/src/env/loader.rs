@@ -588,6 +588,9 @@ fn runtime_denial_reason(state: &AppState, r#mod: &Mod, feature: &str) -> Option
             r#mod.info().id
         ));
     }
+    if !state.runtime_mod_is_active(&r#mod.info().id) {
+        return Some("runtime API access is available only while this mod's lifecycle is active".into());
+    }
     match state.api().runtime(feature) {
         Availability::Available => None,
         Availability::Unavailable { reason } => Some(reason),

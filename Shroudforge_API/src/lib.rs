@@ -267,6 +267,7 @@ fn run_with_api(env: &ModEnvironment, api: Option<ShroudForgeApi>, mut args: Run
 
 struct Lifecycle {
     id: String,
+    load: Option<RegistryKey>,
     update: Option<RegistryKey>,
     unload: Option<RegistryKey>,
     update_interval: std::time::Duration,
@@ -335,14 +336,14 @@ impl IngameRuntime {
         let runner = LuaModRunner::new(state)?;
         let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
         let root = env.game_dir().as_std_path().to_path_buf();
-        let (mut plan, plan_errors) = env.plan_report(is_server, API_VERSION);
+        let (mut plan, plan_errors) = env.runtime_plan_report(is_server, API_VERSION);
         let mut errors = serde_json::Map::new();
         for (index, error) in plan_errors.into_iter().enumerate() { errors.insert(format!("plan-{index}"), error.into()); }
-        let needs_assets = plan.iter().any(|item| item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite));
+        let needs_assets = plan.iter().any(|item| item.info().enabled && item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite));
         if needs_assets {
             let ready = mod_loader::prepared::fingerprint(env,is_server,API_VERSION).map(|fingerprint|mod_loader::prepared::matches(&root,&fingerprint)).unwrap_or(false);
             if !ready {
-                let mut blocked: std::collections::HashSet<String> = plan.iter().filter(|item|item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite)).map(|item|item.info().id.clone()).collect();
+                let mut blocked: std::collections::HashSet<String> = plan.iter().filter(|item|item.info().enabled && item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite)).map(|item|item.info().id.clone()).collect();
                 loop {
                     let before=blocked.len();
                     for item in &plan { if item.info().dependencies.iter().any(|dependency|!dependency.optional.unwrap_or(false)&&blocked.contains(&dependency.id)) {blocked.insert(item.info().id.clone());} }
@@ -405,7 +406,11 @@ impl IngameRuntime {
                     continue;
                 }
             };
-            if let Some(key) = load {
+            let enabled = env.mod_registry().get(&id).is_some_and(|item| item.info().enabled);
+            if enabled {
+                runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&id, true);
+            }
+            if enabled && let Some(key) = load.as_ref() {
                 let started=std::time::Instant::now();
                 let result=runner.lua.registry_value::<Function>(&key)?.call::<()>(());
                 diagnostics.measure("mods",&id,"on_load",started.elapsed(),result.is_err());
@@ -423,16 +428,18 @@ impl IngameRuntime {
                                 "rollback failed; recovery required: {cleanup}");
                         }
                     }
+                    runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&id, false);
                     continue;
                 }
             }
             lifecycle.push(Lifecycle {
                 id,
+                load,
                 update,
                 unload,
                 update_interval: std::time::Duration::from_millis(update_interval_ms),
                 next_update: std::time::Instant::now(),
-                active: true,
+                active: enabled,
             });
         }
         let configurations = env.mod_registry().values().map(|item| (item.info().id.clone(), item.fs().root().as_std_path().to_path_buf(), serde_json::to_value(item.info()).expect("manifest is serializable"))).collect();
@@ -489,6 +496,7 @@ impl IngameRuntime {
                                 "update rollback failed; recovery required: {cleanup}");
                         }
                     }
+                    self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&item.id, false);
                     item.active = false;
                 }
             }
@@ -496,6 +504,9 @@ impl IngameRuntime {
     }
 
     fn refresh_configuration(&mut self) {
+        let configured_enabled: std::collections::HashMap<String, bool> = self.configurations.iter()
+            .map(|(id, _, configuration)| (id.clone(), configuration["enabled"].as_bool().unwrap_or(false)))
+            .collect();
         for (id, package, applied) in &mut self.configurations {
             // Legacy ZIP packages remain supported at startup but are not mutable live.
             if !package.is_dir() { continue; }
@@ -514,7 +525,7 @@ impl IngameRuntime {
             let signature = mod_loader::config::revision(&bytes);
             if self.observed.get(&path) == Some(&signature) { continue; }
             self.observed.insert(path, signature);
-            let parsed = serde_json::from_slice(&bytes).map_err(|e|e.to_string()).and_then(|value|mod_loader::config::parse_manifest(&self.root,value));
+            let parsed = mod_loader::config::read_manifest_path(&self.root, package);
             let manifest = match parsed {
                 Ok(manifest) if manifest.id == *id => manifest,
                 Ok(_) => { tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Mod identity changed; restart required, retaining applied configuration"); continue; }
@@ -524,35 +535,92 @@ impl IngameRuntime {
             if desired == *applied { continue; }
             let mut metadata = desired.clone();
             metadata["settingValues"] = applied["settingValues"].clone();
-            let mut effective = applied["settingValues"].clone();
-            let mut live_changed = false;
-            // Definition/identity/activation changes never silently replace an active scope.
-            if metadata == *applied && self.lifecycle.iter().any(|item|item.id == *id && item.active) {
-                if let Some(properties) = manifest.settings_schema.as_ref().and_then(|schema|schema["properties"].as_object()) {
-                    for (key, definition) in properties {
-                        if definition["x-apply"] == "live" && effective.get(key) != manifest.setting_values.get(key) {
-                            if let Some(value) = manifest.setting_values.get(key) { effective[key] = value.clone(); }
-                            else if let Some(object) = effective.as_object_mut() { object.remove(key); }
-                            live_changed = true;
+            metadata["enabled"] = applied["enabled"].clone();
+            let runtime_mod = manifest.capabilities.contains(&mod_loader::Capability::Runtime);
+            let live_mod = runtime_mod && !manifest.capabilities.contains(&mod_loader::Capability::AssetsWrite);
+            let metadata_unchanged = metadata == *applied;
+            let wanted_enabled = manifest.enabled;
+            let was_enabled = applied["enabled"].as_bool().unwrap_or(false);
+            if metadata_unchanged && live_mod && wanted_enabled != was_enabled {
+                let missing_dependency = wanted_enabled.then(|| manifest.dependencies.iter().find(|dependency| {
+                    if dependency.optional.unwrap_or(false) { return false; }
+                    let config_disabled=configured_enabled.get(&dependency.id).is_some_and(|enabled| !enabled);
+                    let runtime_disabled=self.lifecycle.iter().any(|candidate|candidate.id==dependency.id && !candidate.active);
+                    config_disabled || runtime_disabled
+                }).map(|dependency| dependency.id.clone())).flatten();
+                if let Some(dependency) = missing_dependency {
+                    let error = format!("required dependency is not active: {dependency}");
+                    self.errors.insert(id.clone(), error.clone().into());
+                    tracing::error!(target:"shroudforge::runtime", mod_id=%id, "Live activation transition failed: {error}");
+                } else if let Some(item) = self.lifecycle.iter_mut().find(|item| item.id == *id) {
+                    let transition = if wanted_enabled {
+                        self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(id, true);
+                        if let Some(key) = &item.load {
+                            self.runner.lua.registry_value::<Function>(key).and_then(|callback| callback.call::<()>(())).map_err(|error| error.to_string())
+                        } else { Ok(()) }
+                    } else if let Some(key) = &item.unload {
+                        self.runner.lua.registry_value::<Function>(key).and_then(|callback| callback.call::<()>(())).map_err(|error| error.to_string())
+                    } else { Ok(()) };
+                    match transition {
+                        Ok(()) => {
+                            item.active = wanted_enabled;
+                            if !wanted_enabled {
+                                self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(id, false);
+                            }
+                            applied["enabled"] = serde_json::json!(wanted_enabled);
+                            self.errors.remove(id);
+                            tracing::info!(target:"shroudforge::runtime", mod_id=%id, enabled=wanted_enabled, "Runtime mod activation changed live");
+                        }
+                        Err(error) => {
+                            if wanted_enabled {
+                                if let Some(key) = &item.unload {
+                                    if let Err(rollback) = self.runner.lua.registry_value::<Function>(key)
+                                        .and_then(|callback| callback.call::<()>(())) {
+                                        tracing::error!(target:"shroudforge::runtime", mod_id=%id, "Failed live activation rollback: {rollback}");
+                                    }
+                                }
+                                self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(id, false);
+                            }
+                            self.errors.insert(id.clone(), format!("live activation failed: {error}").into());
+                            tracing::error!(target:"shroudforge::runtime", mod_id=%id, "Live activation transition failed: {error}");
                         }
                     }
+                } else {
+                    self.errors.insert(id.clone(), "runtime module was not present in the startup plan; restart required".into());
                 }
             }
-            if live_changed {
-                match crate::env::shroudforge::set_settings(&self.runner.lua,id,&effective) {
+            let desired_settings = manifest.setting_values.clone();
+            let settings_changed = desired_settings != applied["settingValues"];
+            if metadata_unchanged && live_mod && settings_changed {
+                match crate::env::shroudforge::set_settings(&self.runner.lua,id,&desired_settings) {
                     Ok(()) => {
-                        applied["settingValues"] = effective;
-                        let mut active_manifest = manifest.clone();
-                        active_manifest.setting_values = applied["settingValues"].clone();
-                        self.loaded.insert(id.clone(),mod_loader::config::revision(&serde_json::to_vec(&active_manifest).expect("manifest is serializable")).into());
-                        tracing::info!(target:"shroudforge::runtime", mod_id=%id,"Live settings updated; subsequent settings.get calls use the new values");
+                        applied["settingValues"] = desired_settings;
+                        tracing::info!(target:"shroudforge::runtime", mod_id=%id,"Runtime settings applied live");
                     }
-                    Err(error) => tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Live settings update failed: {error}"),
+                    Err(error) => {
+                        self.errors.insert(id.clone(), format!("live settings update failed: {error}").into());
+                        tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Live settings update failed: {error}");
+                    }
                 }
             }
-            if desired != *applied {
-                let preparation = manifest.capabilities.contains(&mod_loader::Capability::AssetsWrite);
-                tracing::info!(target:"shroudforge::runtime", mod_id=%id, preparation_required=preparation,"Configuration saved but not applied; restart required");
+            let now_applied = serde_json::to_value(&manifest).expect("manifest is serializable");
+            let changed_but_deferred = now_applied != *applied;
+            let deferred_is_only_enable_or_settings = {
+                let mut comparable = now_applied.clone();
+                comparable["enabled"] = applied["enabled"].clone();
+                comparable["settingValues"] = applied["settingValues"].clone();
+                comparable == *applied
+            };
+            if changed_but_deferred && !deferred_is_only_enable_or_settings {
+                tracing::info!(target:"shroudforge::runtime", mod_id=%id, "Mod changes require the next game start");
+            } else if changed_but_deferred && !runtime_mod {
+                tracing::info!(target:"shroudforge::runtime", mod_id=%id, "Mod changes require the next game start");
+            }
+            if metadata_unchanged && applied["enabled"] == desired["enabled"] && applied["settingValues"] == desired["settingValues"] {
+                let mut active_manifest = manifest.clone();
+                active_manifest.enabled = applied["enabled"].as_bool().unwrap_or(false);
+                active_manifest.setting_values = applied["settingValues"].clone();
+                self.loaded.insert(id.clone(),mod_loader::config::revision(&serde_json::to_vec(&active_manifest).expect("manifest is serializable")).into());
             }
         }
     }

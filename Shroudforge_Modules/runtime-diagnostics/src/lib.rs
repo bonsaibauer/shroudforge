@@ -106,11 +106,9 @@ impl Session {
         self.last_sample=seconds();
     }
     fn publish(&self) {
-        let logging=shroudforge_package::config::read_loader(&self.root).ok();
         let value=json!({"schemaVersion":1,"pid":std::process::id(),"updatedAt":seconds(),"active":self.active,
             "reason":self.reason,"remainingSeconds":if self.active {self.limit().saturating_sub(self.started.elapsed().as_secs())}else{0},
-            "lastSampleAt":self.last_sample,"loggingEnabled":logging.as_ref().is_some_and(|v|v["logging"]["enabled"]==true),
-            "minimumLevel":logging.as_ref().and_then(|v|v["logging"]["minimumLevel"].as_str()).unwrap_or("INFO")});
+            "lastSampleAt":self.last_sample});
         if let Err(error)=shroudforge_package::config::write_document(&self.root,"diagnostics-status",&value) {
             tracing::error!(target:"shroudforge::diagnostics","Status publication failed: {error}");
         }

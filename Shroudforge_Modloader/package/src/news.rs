@@ -1,7 +1,7 @@
 //! Shared locations for configured news and installation-specific notification state.
 use std::{fs, path::{Path, PathBuf}};
 
-pub fn directory(root: &Path) -> PathBuf { root.join("config/news") }
+pub fn directory(root: &Path) -> PathBuf { crate::paths::config_dir(root).join("news") }
 pub fn events_directory(root: &Path) -> PathBuf { directory(root).join("events") }
 
 pub fn validate_event(root: &Path, value: &serde_json::Value) -> Result<(), String> {
@@ -83,7 +83,7 @@ pub fn mark_read(root: &Path, ids: &[String]) -> Result<(), String> {
 /// Existing destination files always win, including events published during migration.
 pub fn migrate(root: &Path) -> Result<(), String> {
     crate::config::migrate_state(root)?;
-    let legacy = root.join("Shroudforge_UI/notifications");
+    let legacy = crate::paths::ui_data_dir(root).join("notifications");
     if legacy.is_dir() {
         for entry in fs::read_dir(legacy).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn invalid_state_is_reported_and_preserved() {
         let root=tempfile::tempdir().unwrap(); let root=root.path();
-        crate::config::write_json(&root.join("config/state.json"),&serde_json::json!({"schemaVersion":1,"news":{"read":[],"readAt":false}})).unwrap();
+        crate::config::write_json(&crate::paths::config_dir(root).join("state.json"),&serde_json::json!({"schemaVersion":1,"news":{"read":[],"readAt":false}})).unwrap();
         assert!(read_ids(root).is_err());
     }
 
@@ -137,9 +137,9 @@ mod tests {
     fn migration_preserves_read_state_and_newer_events() {
         let root = tempfile::tempdir().unwrap();
         let root = root.path();
-        let old = root.join("Shroudforge_UI/notifications/event-one.json");
+        let old = crate::paths::ui_data_dir(root).join("notifications/event-one.json");
         crate::config::write_json(&old, &serde_json::json!({"id":"one","message":"old","title":"T","level":"info"})).unwrap();
-        crate::config::write_json(&root.join("Shroudforge_UI/news-state.json"), &serde_json::json!({"read":["one"]})).unwrap();
+        crate::config::write_json(&crate::paths::ui_data_dir(root).join("news-state.json"), &serde_json::json!({"read":["one"]})).unwrap();
         let new = serde_json::json!({"id":"one","message":"new","title":"T","level":"info"});
         write_event(root,"event-one",&new).unwrap();
         migrate(root).unwrap();

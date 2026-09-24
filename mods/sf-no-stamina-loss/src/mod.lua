@@ -7,10 +7,10 @@ if PlayerInput == nil or StaminaDepletion == nil or NetworkStamina == nil then
 end
 
 local warned = false
-local prevent_depletion = shroudforge.settings.get("preventDepletion")
-local refill_to_maximum = shroudforge.settings.get("refillToMaximum")
 
 local function update_stamina()
+    local prevent_depletion = shroudforge.settings.get("preventDepletion")
+    local refill_to_maximum = shroudforge.settings.get("refillToMaximum")
     if not prevent_depletion and not refill_to_maximum then
         return
     end

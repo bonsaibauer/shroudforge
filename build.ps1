@@ -134,7 +134,8 @@ if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime packaging failed.' }
 Copy-ShroudForgeMods (Join-Path $package 'mods')
 # Explicit release inputs: never ship an installation's generated state, events or locks.
 $configSource = Join-Path $root 'config'
-$configPackage = Join-Path $package 'config'
+$dataPackage = Join-Path $package 'shroudforge'
+$configPackage = Join-Path $dataPackage 'config'
 New-Item -ItemType Directory -Force -Path $configPackage | Out-Null
 Copy-Item -LiteralPath (Join-Path $configSource 'shroudforge.json') -Destination $configPackage -Force
 if (-not (Test-Path -LiteralPath (Join-Path $configPackage 'shroudforge.json'))) { throw 'Release configuration was not staged.' }
@@ -150,15 +151,15 @@ $versionManifest = [ordered]@{
     requiredAction = 'game_restart'
     managedPaths = @(Get-ChildItem -LiteralPath $package -File -Recurse |
         ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName).Replace('\', '/') } |
-        Where-Object { $_ -notin @('config/shroudforge.json', 'config/state.json') }) + @('version.json')
+        Where-Object { $_ -notin @('shroudforge/config/shroudforge.json', 'shroudforge/config/state.json', 'shroudforge/config/.shroudforge-write.lock') }) + @('shroudforge/version.json')
 }
-$versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $package 'version.json') -Encoding utf8
+$versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dataPackage 'version.json') -Encoding utf8
 Compress-Archive -Path "$package\*" -DestinationPath $archive -Force
 $releaseZip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $entryNames = @($releaseZip.Entries | ForEach-Object { $_.FullName })
-    if ($entryNames -notcontains 'shroudforge.exe' -or $entryNames -notcontains 'config/shroudforge.json' -or
-        $entryNames -notcontains 'version.json') {
+    if ($entryNames -notcontains 'shroudforge.exe' -or $entryNames -notcontains 'shroudforge/config/shroudforge.json' -or
+        $entryNames -notcontains 'shroudforge/version.json') {
         throw 'Release archive is missing the launcher, loader configuration, or version file.'
     }
     if ($entryNames | Where-Object { $_ -like 'Shroudforge_Modules/*' -or $_ -like 'Shroudforge_Updater/*' }) {

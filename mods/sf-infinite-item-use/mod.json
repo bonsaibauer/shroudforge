@@ -2,9 +2,6 @@
   "id": "sf-infinite-item-use",
   "name": "SF Infinite Item Use",
   "version": "1.0.0",
-  "capabilities": [
-    "runtime"
-  ],
   "dependencies": [],
   "description": "Restores the typed inventory slot addressed by a Consume item action.",
   "enabled": true,
@@ -13,8 +10,6 @@
   },
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "client",
     "release": {
       "changelog": [
         "Added a declarative overview page for the Modloader UI.",
@@ -28,7 +23,6 @@
           "type": "string",
           "title": "Excluded item IDs",
           "default": "",
-          "x-apply": "restart",
           "x-ui": {
             "key": "excludedItemIds",
             "type": "string",
@@ -37,8 +31,7 @@
             "description": "Comma-separated or whitespace-separated numeric item IDs that may still be consumed.",
             "default": "",
             "group": "restoration",
-            "maximumLength": 2000,
-            "restartRequired": true
+            "maximumLength": 2000
           },
           "description": "Comma-separated or whitespace-separated numeric item IDs that may still be consumed.",
           "maxLength": 2000
@@ -61,7 +54,7 @@
           "components": [
             {
               "type": "status",
-              "label": "Local client runtime",
+              "label": "Client runtime",
               "text": "When enabled, the mod watches completed consume actions."
             },
             {

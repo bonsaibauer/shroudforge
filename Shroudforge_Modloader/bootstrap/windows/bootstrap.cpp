@@ -44,12 +44,13 @@ void begin_log_session(const std::filesystem::path& root) {
     LogGuard guard;
     if (!guard.held) return;
     try {
-        const auto current = root / L"shroudforge.log";
-        if (!std::filesystem::is_regular_file(current) || std::filesystem::file_size(current) == 0) return;
-        const auto archive = root / L"logs";
+        const auto data = root / L"shroudforge";
+        const auto archive = data / L"logs";
         std::filesystem::create_directories(archive);
         const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
+        const auto current = data / L"shroudforge.log";
+        if (!std::filesystem::is_regular_file(current) || std::filesystem::file_size(current) == 0) return;
         auto destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L".log");
         for (unsigned suffix = 2; std::filesystem::exists(destination); ++suffix) {
             destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L"-" +
@@ -75,7 +76,8 @@ void log(char level, const std::string& message) {
     if (root.empty()) return;
     LogGuard guard;
     if (!guard.held) return;
-    std::ofstream stream(root / "shroudforge.log", std::ios::app);
+    std::filesystem::create_directories(root / L"shroudforge");
+    std::ofstream stream(root / L"shroudforge" / L"shroudforge.log", std::ios::app);
     if (stream) stream << line;
 }
 
@@ -173,8 +175,9 @@ void stop_modloader_ui() {
 }
 
 void start_pending_update(const std::filesystem::path& root) {
-    const auto staged = root / L"Shroudforge_Updates" / L"pending";
-    const auto marker = root / L"Shroudforge_Updates" / L"pending.ready";
+    const auto updates = root / L"shroudforge" / L"updates";
+    const auto staged = updates / L"pending";
+    const auto marker = updates / L"pending.ready";
     const auto executable = staged / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(marker) ||
         !std::filesystem::is_regular_file(executable)) return;

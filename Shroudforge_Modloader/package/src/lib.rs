@@ -9,6 +9,7 @@ mod env;
 mod error;
 mod log;
 pub mod logging;
+pub mod paths;
 mod registry;
 
 pub use env::*;

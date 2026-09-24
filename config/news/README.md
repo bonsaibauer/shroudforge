@@ -11,7 +11,7 @@ Notices explain configuration, changes, and optional project support. They are
 adapted for ShroudForge and do not claim that an installation succeeded or an
 update is available unless that result is known.
 
-The loader stores generated state together in `config/state.json`:
+The loader stores generated state together in `shroudforge/config/state.json`:
 
 - `events` contains notices from mods and mod installation events.
 - `news` contains read notice IDs and Unix timestamps.

@@ -4,7 +4,6 @@
     "locale": "de"
   },
   "logging": {
-    "enabled": true,
     "minimumLevel": "INFO"
   },
   "catalog": {

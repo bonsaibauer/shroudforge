@@ -149,7 +149,7 @@ pub(crate) fn dispatch_ui_actions(lua: &mlua::Lua, active_mods: &[String]) {
     else {
         return;
     };
-    let directory = game_dir.join("Shroudforge_UI").join("actions");
+    let directory = mod_loader::paths::ui_data_dir(&game_dir).join("actions");
     let Ok(entries) = fs::read_dir(directory) else {
         return;
     };

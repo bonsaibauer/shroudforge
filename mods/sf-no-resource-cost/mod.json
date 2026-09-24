@@ -2,9 +2,6 @@
   "id": "sf-no-resource-cost",
   "name": "SF No Resource Cost",
   "version": "1.0.0",
-  "capabilities": [
-    "patch"
-  ],
   "dependencies": [],
   "description": "Removes recipe resource costs through keen::RecipeRegistryResource.",
   "enabled": true,
@@ -15,8 +12,6 @@
   },
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "both",
     "release": {
       "changelog": [
         "Added a declarative overview page for the Modloader UI.",
@@ -30,7 +25,6 @@
           "type": "boolean",
           "title": "Remove item costs",
           "default": true,
-          "x-apply": "prepare",
           "x-ui": {
             "key": "removeItemCosts",
             "type": "boolean",
@@ -38,8 +32,7 @@
             "label": "Remove item costs",
             "description": "Sets supported recipe input stack counts to zero.",
             "default": true,
-            "group": "recipe-costs",
-            "restartRequired": true
+            "group": "recipe-costs"
           },
           "description": "Sets supported recipe input stack counts to zero."
         },
@@ -47,7 +40,6 @@
           "type": "boolean",
           "title": "Remove energy costs",
           "default": true,
-          "x-apply": "prepare",
           "x-ui": {
             "key": "removeEnergyCosts",
             "type": "boolean",
@@ -55,8 +47,7 @@
             "label": "Remove energy costs",
             "description": "Sets supported requiredEnergy fields to zero.",
             "default": true,
-            "group": "recipe-costs",
-            "restartRequired": true
+            "group": "recipe-costs"
           },
           "description": "Sets supported requiredEnergy fields to zero."
         },
@@ -64,7 +55,6 @@
           "type": "boolean",
           "title": "Remove water costs",
           "default": true,
-          "x-apply": "prepare",
           "x-ui": {
             "key": "removeWaterCosts",
             "type": "boolean",
@@ -72,8 +62,7 @@
             "label": "Remove water costs",
             "description": "Sets supported waterAmount and waterCharges fields to zero.",
             "default": true,
-            "group": "recipe-costs",
-            "restartRequired": true
+            "group": "recipe-costs"
           },
           "description": "Sets supported waterAmount and waterCharges fields to zero."
         }
@@ -84,19 +73,19 @@
       {
         "id": "recipe-costs",
         "label": "Recipe costs",
-        "description": "Choose which supported recipe costs are set to zero during early startup."
+        "description": "Choose which supported recipe costs are set to zero for the next game start."
       }
     ],
     "ui": {
       "sections": [
         {
           "title": "No Resource Cost",
-          "description": "Early startup asset transformation",
+          "description": "Recipe asset changes",
           "components": [
             {
               "type": "status",
-              "label": "Startup transformation",
-              "text": "The loader applies selected recipe registry changes during early game startup."
+              "label": "Asset preparation",
+              "text": "The loader applies selected recipe registry changes for the next game start."
             },
             {
               "type": "text",
@@ -117,8 +106,8 @@
             {
               "type": "notice",
               "level": "warning",
-              "label": "Restart required",
-              "text": "The asset change takes effect on the next game start."
+              "label": "Next game start",
+              "text": "The asset change takes effect when the game starts again."
             }
           ]
         }

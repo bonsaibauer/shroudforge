@@ -2,7 +2,7 @@
 use crate::{FileSystem, ModManifest, SettingDefinition, validate_manifest};
 use fs2::FileExt;
 use serde_json::{Value, json};
-use std::{fs, io::Write, path::Path};
+use std::{fs, io::{Read, Write}, path::Path};
 
 pub fn validate_document(root: &Path, name: &str, value: &Value) -> Result<(), String> {
     let embedded = match name {
@@ -45,8 +45,96 @@ fn read_package_json(fs: &mut FileSystem, name: &str) -> Result<Value, String> {
 
 /// The same package reader is used by discovery and the UI, for directories and ZIPs.
 pub fn read_manifest(root: &Path, fs: &mut FileSystem) -> Result<ModManifest, String> {
-    let _ = root;
-    parse_manifest(root, read_package_json(fs, "mod.json")?)
+    let mut manifest = parse_manifest(root, read_package_json(fs, "mod.json")?)?;
+    let mut source = String::new();
+    collect_lua_sources(fs, camino::Utf8Path::new("src"), &mut source)?;
+    infer_api_contract(&mut manifest, &source);
+    Ok(manifest)
+}
+
+fn collect_lua_sources(fs: &mut FileSystem, directory: &camino::Utf8Path, output: &mut String) -> Result<(), String> {
+    let entries = match fs.read_directory(directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.to_string()),
+    };
+    for entry in entries.into_iter().flatten() {
+        if fs.is_directory(&entry) {
+            collect_lua_sources(fs, &entry, output)?;
+        } else if entry.extension() == Some("lua") {
+            let Ok(mut file) = fs.read_file(&entry) else { continue; };
+            file.read_to_string(output).map_err(|error| error.to_string())?;
+            output.push('\n');
+        }
+    }
+    Ok(())
+}
+
+/// Derive execution phase and process scope from the Lua entrypoint's API usage.
+/// These values are runtime metadata and are not author-maintained manifest flags.
+pub fn infer_api_contract(manifest: &mut ModManifest, source: &str) {
+    let normalized: String = strip_lua_comments(source).chars().filter(|character| !character.is_whitespace()).collect();
+    let assets = normalized.contains("runtime.require(\"game.assets.write\")")
+        || normalized.contains("runtime.require('game.assets.write')")
+        || normalized.contains("game.assets.");
+    let runtime = normalized.contains("runtime.require(\"runtime.lifecycle\")")
+        || normalized.contains("runtime.require('runtime.lifecycle')")
+        || normalized.contains("runtime.ecs.")
+        || normalized.contains("on_load=")
+        || normalized.contains("on_update=")
+        || normalized.contains("on_unload=");
+    let export = normalized.contains("io.export(") || normalized.contains("io.export");
+    manifest.capabilities.clear();
+    if assets { manifest.capabilities.push(crate::Capability::AssetsWrite); }
+    if runtime { manifest.capabilities.push(crate::Capability::Runtime); }
+    if export { manifest.capabilities.push(crate::Capability::Export); }
+    manifest.target = if runtime && !assets && !export { crate::ModTarget::Client } else { crate::ModTarget::Both };
+    manifest.api = None;
+    let apply_at = if runtime && !assets { "live" } else { "restart" };
+    for setting in &mut manifest.settings {
+        setting.apply_at = apply_at.into();
+        setting.restart_required = apply_at != "live";
+    }
+}
+
+fn strip_lua_comments(source: &str) -> String {
+    let mut output=String::with_capacity(source.len());
+    let mut chars=source.chars().peekable();
+    let mut quote=None;
+    let mut escaped=false;
+    let mut line_comment=false;
+    let mut block_comment=false;
+    while let Some(character)=chars.next() {
+        if line_comment {
+            if character=='\n' { line_comment=false; output.push(character); }
+            continue;
+        }
+        if block_comment {
+            if character==']' && chars.peek()==Some(&']') { chars.next(); block_comment=false; }
+            continue;
+        }
+        if let Some(delimiter)=quote {
+            output.push(character);
+            if escaped { escaped=false; continue; }
+            if character=='\\' { escaped=true; continue; }
+            if character==delimiter { quote=None; }
+            continue;
+        }
+        if character=='\'' || character=='"' { quote=Some(character); output.push(character); continue; }
+        if character=='-' && chars.peek()==Some(&'-') {
+            chars.next();
+            if chars.peek()==Some(&'[') {
+                chars.next();
+                if chars.peek()==Some(&'[') { chars.next(); block_comment=true; continue; }
+                output.push_str("--[");
+                continue;
+            }
+            line_comment=true;
+            continue;
+        }
+        output.push(character);
+    }
+    output
 }
 
 /// Canonical wire manifest -> internal UI/runtime view. Never serialize this view to disk.
@@ -64,13 +152,15 @@ pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, Stri
                     if let Some(default) = property.get("default") { effective[key] = default.clone(); }
                 }
                 let mut definition = property.get("x-ui").cloned().unwrap_or(json!({}));
+                if let Some(definition)=definition.as_object_mut() {
+                    definition.remove("applyAt");
+                    definition.remove("restartRequired");
+                }
                 definition["key"] = json!(key);
                 definition["type"] = property.get("type").cloned().unwrap_or(json!("string"));
                 definition["label"] = property.get("title").cloned().unwrap_or(json!(key));
                 definition["default"] = property.get("default").cloned().unwrap_or(Value::Null);
-                let apply_at=property.get("x-apply").and_then(Value::as_str)
-                    .filter(|value|matches!(*value,"live"|"restart"|"prepare"))
-                    .unwrap_or("restart");
+                let apply_at="restart";
                 definition["applyAt"] = json!(apply_at);
                 for key in ["description", "minimum", "maximum"] {
                     if let Some(entry) = property.get(key) { definition[key] = entry.clone(); }
@@ -78,7 +168,7 @@ pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, Stri
                 for (from, to) in [("minLength", "minimumLength"), ("maxLength", "maximumLength")] {
                     if let Some(entry) = property.get(from) { definition[to] = entry.clone(); }
                 }
-                definition["restartRequired"] = json!(property.get("x-apply").and_then(Value::as_str) != Some("live"));
+                definition["restartRequired"] = json!(true);
                 definitions.push(definition);
             }
         }
@@ -92,7 +182,7 @@ pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, Stri
     object.remove("shroudforge");
     object.insert("settingValues".into(), effective);
     object.insert("settings".into(), json!(definitions));
-    for key in ["api", "target", "release", "settingGroups", "ui"] {
+    for key in ["release", "settingGroups", "ui"] {
         if let Some(entry) = extension.get(key) { object.insert(key.into(), entry.clone()); }
     }
     object.insert("settings_schema".into(), extension.get("settingsSchema").cloned().unwrap_or(Value::Null));
@@ -184,11 +274,11 @@ fn state_section(name: &str) -> Option<&'static str> {
 }
 
 fn read_state_file(root: &Path) -> Result<Value, String> {
-    match fs::read(root.join("config/state.json")) {
+    match fs::read(crate::paths::config_dir(root).join("state.json")) {
         Ok(bytes) => {
-            let value: Value = serde_json::from_slice(&bytes).map_err(|error| format!("config/state.json: {error}"))?;
+            let value: Value = serde_json::from_slice(&bytes).map_err(|error| format!("shroudforge/config/state.json: {error}"))?;
             let schema: Value = serde_json::from_str(include_str!("../../../config/state-schema.json")).map_err(|error| error.to_string())?;
-            jsonschema::validator_for(&schema).map_err(|error| error.to_string())?.validate(&value).map_err(|error| format!("config/state.json: {error}"))?;
+            jsonschema::validator_for(&schema).map_err(|error| error.to_string())?.validate(&value).map_err(|error| format!("shroudforge/config/state.json: {error}"))?;
             Ok(value)
         },
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(json!({"schemaVersion":1})),
@@ -199,7 +289,7 @@ fn read_state_file(root: &Path) -> Result<Value, String> {
 pub fn read_document(root: &Path, name: &str) -> Result<Value, String> {
     if let Some(section) = state_section(name) {
         let state = read_state_file(root)?;
-        let Some(value) = state.get(section) else { return Err(format!("config/state.json has no {section} state")); };
+        let Some(value) = state.get(section) else { return Err(format!("shroudforge/config/state.json has no {section} state")); };
         validate_document(root, name, value)?;
         return Ok(value.clone());
     }
@@ -214,12 +304,12 @@ pub fn update_state_section(root: &Path, section: &str, update: impl FnOnce(Opti
     let _lock = installation_lock(root)?;
     let mut state = read_state_file(root)?;
     if state.get("schemaVersion").and_then(Value::as_u64).is_some_and(|version| version != 1) {
-        return Err("unsupported config/state.json schemaVersion".into());
+        return Err("unsupported shroudforge/config/state.json schemaVersion".into());
     }
     state["schemaVersion"] = json!(1);
     let value = update(state.get(section))?;
     state[section] = value;
-    write_json(&root.join("config/state.json"), &state)
+    write_json(&crate::paths::config_dir(root).join("state.json"), &state)
 }
 
 pub fn window_state(root: &Path) -> Value {
@@ -251,23 +341,26 @@ pub fn publish_window_visibility(root: &Path, module: &str, visible: bool) -> Re
 }
 
 /// Import prior per-feature state files once, under the same installation-wide lock.
-/// Legacy files remain untouched as recovery copies.
 pub fn migrate_state(root: &Path) -> Result<(), String> {
     let _lock = installation_lock(root)?;
     let mut state = read_state_file(root)?;
     let legacy = [
-        ("updates", "config/updates/state.json", "state"),
-        ("assets", "config/assets/applied.json", "applied"),
-        ("runtime", "config/runtime/mod-status.json", "mod-status"),
-        ("diagnostics", "config/diagnostics/diagnostics-status.json", "diagnostics-status"),
-        ("news", "config/news/read-state.json", "news-state"),
-        ("catalog", "Shroudforge_UI/catalog-installs.json", "catalog-state"),
-        ("mods", "config/news/mod-state.json", "mod-state"),
+        ("updates", "updates/state.json", "state"),
+        ("assets", "assets/applied.json", "applied"),
+        ("runtime", "runtime/mod-status.json", "mod-status"),
+        ("diagnostics", "diagnostics/diagnostics-status.json", "diagnostics-status"),
+        ("news", "news/read-state.json", "news-state"),
+        ("catalog", "catalog-installs.json", "catalog-state"),
+        ("mods", "news/mod-state.json", "mod-state"),
     ];
     let mut changed = false;
     for (section, path, schema) in legacy {
         if state.get(section).is_some() { continue; }
-        let path = root.join(path);
+        let path = if section == "catalog" {
+            crate::paths::ui_data_dir(root).join(path)
+        } else {
+            crate::paths::config_dir(root).join(path)
+        };
         let Ok(bytes) = fs::read(&path) else { continue; };
         let mut value: Value = serde_json::from_slice(&bytes).map_err(|error| format!("{}: {error}", path.display()))?;
         if section == "news" && value.get("readAt").is_none() {
@@ -283,7 +376,7 @@ pub fn migrate_state(root: &Path) -> Result<(), String> {
         changed = true;
     }
     if state.get("news").is_none() {
-        let path=root.join("Shroudforge_UI/news-state.json");
+        let path=crate::paths::ui_data_dir(root).join("news-state.json");
         if let Ok(bytes)=fs::read(&path) {
             let mut value:Value=serde_json::from_slice(&bytes).map_err(|error|format!("{}: {error}",path.display()))?;
             if value.get("readAt").is_none() {
@@ -297,7 +390,7 @@ pub fn migrate_state(root: &Path) -> Result<(), String> {
         }
     }
     if state.get("events").is_none() {
-        let directory=root.join("config/news/events");
+        let directory=crate::paths::config_dir(root).join("news/events");
         if let Ok(entries)=fs::read_dir(directory) {
             let mut events=serde_json::Map::new();
             for entry in entries.flatten() {
@@ -312,22 +405,22 @@ pub fn migrate_state(root: &Path) -> Result<(), String> {
         }
     }
     if state.get("mods").is_none() {
-        let path=root.join("Shroudforge_UI/mod-state.json");
+        let path=crate::paths::ui_data_dir(root).join("mod-state.json");
         if let Ok(bytes)=fs::read(&path){let value:Value=serde_json::from_slice(&bytes).map_err(|error|error.to_string())?;validate_document(root,"mod-state",&value)?;state["mods"]=value;changed=true;}
     }
     if changed {
         state["schemaVersion"] = json!(1);
-        write_json(&root.join("config/state.json"), &state)?;
+        write_json(&crate::paths::config_dir(root).join("state.json"), &state)?;
     }
     Ok(())
 }
 
 pub fn document_path(root: &Path, name: &str) -> std::path::PathBuf {
     match name {
-        "shroudforge" => root.join("config/shroudforge.json"),
-        "state" | "applied" | "mod-status" | "diagnostics-status" | "window-state" | "news-state" | "events-state" | "catalog-state" | "mod-state" | "parser-status" => root.join("config/state.json"),
-        "news" => root.join("config/news/news.json"),
-        other => root.join("config").join(match other {
+        "shroudforge" => crate::paths::config_dir(root).join("shroudforge.json"),
+        "state" | "applied" | "mod-status" | "diagnostics-status" | "window-state" | "news-state" | "events-state" | "catalog-state" | "mod-state" | "parser-status" => crate::paths::config_dir(root).join("state.json"),
+        "news" => crate::paths::config_dir(root).join("news/news.json"),
+        other => crate::paths::config_dir(root).join(match other {
             "diagnostics-status" => "diagnostics",
             "window-state" => "windows",
             "mod" => "mods",
@@ -343,8 +436,7 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
     let path = document_path(root, "shroudforge");
     let defaults: Value = serde_json::from_str(include_str!("../../../config/shroudforge.json")).map_err(|error| error.to_string())?;
     let mut result = defaults;
-    let old_path = root.join("config/loader/shroudforge.json");
-    let loaded = match fs::read(if path.exists() { &path } else { &old_path }) {
+    let loaded = match fs::read(&path) {
         Ok(bytes) => Some(serde_json::from_slice::<Value>(&bytes).map_err(|error| error.to_string())?),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(error.to_string()),
@@ -356,14 +448,6 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
         }
     }
     if let Some(mut loaded) = loaded {
-        let old_layout = !path.exists();
-        if old_layout {
-            let object = loaded.as_object_mut().ok_or("legacy loader configuration must be an object")?;
-            object.remove("mods");
-            if let Some(logging) = object.get_mut("logging").and_then(Value::as_object_mut) {
-                if let Some(level) = logging.remove("level") { logging.entry("minimumLevel").or_insert(level); }
-            }
-        }
         if let Some(object) = loaded.as_object_mut() { object.remove("mods"); }
         merge(&mut result, loaded);
     }
@@ -374,9 +458,7 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
 pub fn migrate_loader(root: &Path) -> Result<(), String> {
     let _lock = installation_lock(root)?;
     let path = document_path(root, "shroudforge");
-    let legacy = root.join("config/loader/shroudforge.json");
-    let source = if path.is_file() { &path } else { &legacy };
-    let bytes = match fs::read(source) {
+    let bytes = match fs::read(&path) {
         Ok(bytes) => bytes,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(error.to_string()),
@@ -384,12 +466,9 @@ pub fn migrate_loader(root: &Path) -> Result<(), String> {
     let mut value: Value = serde_json::from_slice(&bytes).map_err(|error|error.to_string())?;
     let object=value.as_object_mut().ok_or("loader configuration must be an object")?;
     object.remove("mods");
-    if let Some(logging)=object.get_mut("logging").and_then(Value::as_object_mut) {
-        if let Some(level)=logging.remove("level") {logging.entry("minimumLevel").or_insert(level);}
-    }
     validate_document(root,"shroudforge",&value)?;
     let normalized=serde_json::to_vec_pretty(&value).map_err(|error|error.to_string())?;
-    if source != &path || bytes!=normalized {write_json(&path,&value)?;}
+    if bytes!=normalized {write_json(&path,&value)?;}
     Ok(())
 }
 
@@ -404,9 +483,9 @@ pub fn update_loader(root: &Path, update: impl FnOnce(&mut Value) -> Result<(), 
 }
 
 pub fn installation_lock(root: &Path) -> Result<fs::File, String> {
-    fs::create_dir_all(root.join("config")).map_err(|error| error.to_string())?;
+    fs::create_dir_all(crate::paths::config_dir(root)).map_err(|error| error.to_string())?;
     let lock = fs::OpenOptions::new().create(true).truncate(false).read(true).write(true)
-        .open(root.join("config/.shroudforge-write.lock")).map_err(|error| error.to_string())?;
+        .open(crate::paths::config_dir(root).join(".shroudforge-write.lock")).map_err(|error| error.to_string())?;
     lock.lock_exclusive().map_err(|error| error.to_string())?;
     Ok(lock)
 }

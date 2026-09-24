@@ -4,6 +4,7 @@ const data = { game: emptyTail(), loader: emptyTail() };
 const paths = { game: "enshrouded.log", loader: "shroudforge.log" };
 let activeSource = "game";
 let levelIndex = 0;
+let minimumLevel = "INFO";
 let paused = false;
 let follow = true;
 let frozen = "";
@@ -24,6 +25,9 @@ function classify(line) {
 function accepted(line) {
   const needle = search.value.trim().toLocaleLowerCase();
   if (needle && !line.toLocaleLowerCase().includes(needle)) return false;
+  const severity = ["trace", "debug", "info", "warn", "error"].indexOf(classify(line));
+  const minimum = Math.max(0, ["TRACE", "DEBUG", "INFO", "WARN", "ERROR"].indexOf(minimumLevel));
+  if (severity < minimum) return false;
   if (levelIndex === 0) return true;
   return classify(line) === ["", "trace", "debug", "info", "warn", "error"][levelIndex];
 }
@@ -65,12 +69,13 @@ function count(value) {
 }
 
 window.__shroudforgeUpdate = (next) => {
+  minimumLevel = next.minimumLevel || "INFO";
   if (next.preferences) {
     activeSource = next.preferences.defaultSource === "loader" ? "loader" : "game";
     levelIndex = Math.max(0,["ALL","TRACE","DEBUG","INFO","WARN","ERROR"].indexOf(next.preferences.levelFilter));
     follow = next.preferences.autoScroll;
     document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active",item.dataset.tab===activeSource));
-    byId("level").textContent = `Level: ${levels[levelIndex]}`;
+    byId("level").textContent = `Display: ${levels[levelIndex]}`;
     byId("follow").textContent = `Auto-Scroll: ${follow ? "On" : "Off"}`;
     byId("follow").classList.toggle("active",follow);
   }
@@ -99,7 +104,7 @@ search.addEventListener("input", render);
 byId("level").addEventListener("click", () => {
   levelIndex = (levelIndex + 1) % levels.length;
   savePreferences();
-  byId("level").textContent = `Level: ${levels[levelIndex]}`;
+  byId("level").textContent = `Display: ${levels[levelIndex]}`;
   byId("level").classList.toggle("active", levelIndex !== 0);
   render();
 });

@@ -156,11 +156,11 @@ where
 pub fn initialize(root: impl AsRef<Path>, archive_existing: bool) -> io::Result<()> {
     STARTED.get_or_init(Instant::now);
     let root = root.as_ref();
-    fs::create_dir_all(root)?;
-    let current = root.join("shroudforge.log");
+    let current = crate::paths::current_log(root);
+    fs::create_dir_all(current.parent().ok_or_else(|| io::Error::other("log path has no parent"))?)?;
     with_log_lock(root, || {
         if archive_existing && current.is_file() && current.metadata()?.len() > 0 {
-            let archive = root.join("logs");
+            let archive = crate::paths::logs_dir(root);
             fs::create_dir_all(&archive)?;
             let timestamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -204,16 +204,19 @@ pub fn append(root: impl AsRef<Path>, level: char, source: &str, message: &str) 
     Ok(true)
 }
 
-/// Append a durable user-facing activity event even when ordinary log output is disabled.
-/// These events back the Activity view and are intentionally independent of the debug log filter.
+/// Append a user-facing activity record to the canonical log, honoring the shared minimum level.
 pub fn append_event(root: impl AsRef<Path>, level: char, source: &str, message: &str) -> io::Result<()> {
-    append_line(root.as_ref(), level, source, message)
+    let root = root.as_ref();
+    if !allows(root, level) { return Ok(()); }
+    append_line(root, level, source, message)
 }
 
 fn append_line(root: &Path, level: char, source: &str, message: &str) -> io::Result<()> {
     let line = format!("{}\n", format_line(level, source, message));
     with_log_lock(root, || {
-        let mut file = OpenOptions::new().create(true).append(true).open(root.join("shroudforge.log"))?;
+        let current = crate::paths::current_log(root);
+        fs::create_dir_all(current.parent().ok_or_else(|| io::Error::other("log path has no parent"))?)?;
+        let mut file = OpenOptions::new().create(true).append(true).open(current)?;
         file.write_all(line.as_bytes())?;
         file.flush()
     })
@@ -248,13 +251,6 @@ fn configured_level(root: &Path) -> LevelFilter {
     let Ok(value) = crate::config::read_loader(root) else {
         return LevelFilter::INFO;
     };
-    let enabled = value
-        .pointer("/logging/enabled")
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(true);
-    if !enabled {
-        return LevelFilter::OFF;
-    }
     match value
         .pointer("/logging/minimumLevel")
         .and_then(serde_json::Value::as_str)

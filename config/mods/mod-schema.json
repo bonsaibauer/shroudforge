@@ -43,18 +43,6 @@
       "type": "string",
       "pattern": "^assets/[A-Za-z0-9._/-]+$"
     },
-    "capabilities": {
-      "type": "array",
-      "items": {
-        "enum": [
-          "export",
-          "patch",
-          "runtime",
-          "assets-write"
-        ]
-      },
-      "uniqueItems": true
-    },
     "dependencies": {
       "type": "array",
       "items": {
@@ -100,18 +88,6 @@
       "properties": {
         "schemaVersion": {
           "const": 1
-        },
-        "api": {
-          "type": "string",
-          "description": "Required ShroudForge API version range."
-        },
-        "target": {
-          "enum": [
-            "client",
-            "server",
-            "both"
-          ],
-          "default": "both"
         },
         "release": {
           "type": "object",
@@ -280,10 +256,6 @@
           "items": {
             "$ref": "#/$defs/option"
           }
-        },
-        "restartRequired": {
-          "type": "boolean",
-          "default": false
         }
       }
     },

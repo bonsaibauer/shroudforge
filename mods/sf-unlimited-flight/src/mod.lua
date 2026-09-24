@@ -8,10 +8,10 @@ end
 
 local original_states = {}
 local warned = false
-local prevent_fall_damage = shroudforge.settings.get("preventFallDamage")
-local allow_descent = shroudforge.settings.get("allowDescent")
 
 local function apply_flight()
+    local prevent_fall_damage = shroudforge.settings.get("preventFallDamage")
+    local allow_descent = shroudforge.settings.get("allowDescent")
     local entities, reason = runtime.ecs.query(PlayerInput, DynamicLocomotion)
     if entities == nil then
         if not warned then

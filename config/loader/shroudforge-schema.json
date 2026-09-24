@@ -13,13 +13,9 @@
     "logging": {
       "type": "object",
       "required": [
-        "enabled",
         "minimumLevel"
       ],
       "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
         "minimumLevel": {
           "enum": [
             "TRACE",

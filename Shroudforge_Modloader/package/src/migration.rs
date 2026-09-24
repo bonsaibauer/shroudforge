@@ -33,9 +33,9 @@ pub fn migrate_package(root: &Path, package: &Path) -> Result<(), String> {
     let extension_file = read(&package.join("shroudforge.json"))?;
     let id = manifest.get("id").and_then(Value::as_str).ok_or("missing mod id")?.to_owned();
     if !crate::config::valid_id(&id) { return Err("invalid mod id".into()); }
-    let config_path = root.join("config/mods").join(format!("{id}.json"));
+    let config_path = crate::paths::config_dir(root).join("mods").join(format!("{id}.json"));
     let override_values = read(&config_path)?;
-    let central = read(&root.join("config/shroudforge.json"))?;
+    let central = read(&crate::paths::config_dir(root).join("shroudforge.json"))?;
     let central_values = central.as_ref().and_then(|value| value.get("mods")).and_then(|mods| mods.get(&id));
     if override_values.as_ref().zip(central_values).is_some_and(|(a,b)| a != b) {
         return Err(format!("{id}: conflicting settings in legacy central and per-mod files"));
@@ -54,7 +54,7 @@ pub fn migrate_package(root: &Path, package: &Path) -> Result<(), String> {
     }
     let legacy = override_values.as_ref().or(central_values);
     let old_inline = manifest.get("settings").is_some_and(Value::is_array)
-        || ["api", "target", "release", "ui", "settingGroups"].iter().any(|key| manifest.get(key).is_some());
+        || ["release", "ui", "settingGroups"].iter().any(|key| manifest.get(key).is_some());
     if sidecar.is_none() && extension_file.is_none() && legacy.is_none() && !old_inline { return Ok(()); }
     let definitions = sidecar.as_ref().and_then(|value| value.get("settings"))
         .or_else(|| manifest.get("settings")).and_then(Value::as_array).cloned().unwrap_or_default();
@@ -63,7 +63,7 @@ pub fn migrate_package(root: &Path, package: &Path) -> Result<(), String> {
         .unwrap_or(json!({}));
     extension.as_object_mut().ok_or("mod extension must be an object")?.remove("$schema");
     extension["schemaVersion"] = json!(1);
-    for key in ["api", "target", "release", "ui", "settingGroups"] {
+    for key in ["release", "ui", "settingGroups"] {
         let inline = manifest.as_object_mut().ok_or("manifest must be an object")?.remove(key);
         if extension.get(key).is_none() {
             if let Some(value) = sidecar.as_ref().and_then(|value| value.get(key)).cloned().or(inline) {
@@ -76,15 +76,12 @@ pub fn migrate_package(root: &Path, package: &Path) -> Result<(), String> {
     for definition in definitions {
         let key = definition.get("key").and_then(Value::as_str).ok_or("setting without key")?;
         let mut property = json!({"type": definition["type"], "title": definition["label"],
-            "default": definition["default"], "x-ui": definition, "x-apply": "restart"});
+            "default": definition["default"], "x-ui": definition});
         for name in ["minimum", "maximum", "description"] {
             if let Some(value) = definition.get(name) { property[name] = value.clone(); }
         }
         for (old, new) in [("minimumLength", "minLength"), ("maximumLength", "maxLength")] {
             if let Some(value) = definition.get(old) { property[new] = value.clone(); }
-        }
-        if manifest.get("capabilities").and_then(Value::as_array).is_some_and(|items| items.iter().any(|item| item == "patch" || item == "assets-write")) {
-            property["x-apply"] = json!("prepare");
         }
         if let Some(options) = definition.get("options").and_then(Value::as_array).filter(|values| !values.is_empty()) {
             let choices: Vec<_> = options.iter().map(|option| option["value"].clone()).collect();

@@ -47,7 +47,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 else{json!({"state":"disabled","detail":"The mod is disabled."})};
                 mod_states.insert(manifest.id.clone(),state);
             }
-            checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, target, API, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.join("; ")}}));
+            checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, inferred process scope, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.join("; ")}}));
             let needs_prepare=plan.iter().any(|item|item.info().capabilities.contains(&crate::Capability::AssetsWrite));
             let existing=crate::config::read_document(root,"applied").is_ok();
             if needs_prepare || existing {
@@ -75,7 +75,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         None => ("neutral","No parser result has been saved by prepare/launch.".into()),
     };
     checks.push(json!({"id":"parser","group":"parser","state":parser_state,"detail":parser_detail}));
-    let runtime_check = runtime.as_ref().filter(|value|runtime_fresh).map(|value|&value["runtimeProvider"]);
+    let runtime_check = runtime.as_ref().filter(|_|runtime_fresh).map(|value|&value["runtimeProvider"]);
     let (runtime_state,runtime_detail)=match runtime_check {
         Some(value) if value["available"]==true => (if value["ready"]==true {"ok"} else {"warning"},format!("KFC Runtime ABI {}; initialized={}; ready={}; writable={}; {}",value["abi"],value["initialized"],value["ready"],value["writable"],value["detail"].as_str().unwrap_or("provider status unavailable"))),
         Some(value) => ("warning",format!("KFC Runtime provider unavailable (reported ABI {}): {}",value["abi"],value["reason"].as_str().unwrap_or("provider or ABI unavailable"))),

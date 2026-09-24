@@ -1,7 +1,8 @@
 --- @meta
 
 --- @class ShroudForgeSettings
---- Reads values declared by the current package in `mod.json`.
+--- Reads the current values declared by the current package in `mod.json`.
+--- Runtime mods should read values in lifecycle callbacks when changes must apply live.
 shroudforge_settings = {}
 
 --- @param key string

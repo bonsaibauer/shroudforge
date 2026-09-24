@@ -2,17 +2,12 @@
   "id": "sf-no-fall-damage",
   "name": "SF No Fall Damage",
   "version": "1.0.0",
-  "capabilities": [
-    "runtime"
-  ],
   "dependencies": [],
   "description": "Clears the local player's typed DynamicFallDamage runtime state.",
   "enabled": true,
   "settings": {},
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "client",
     "release": {
       "changelog": [
         "Added a declarative overview page for the Modloader UI.",
@@ -33,7 +28,7 @@
           "components": [
             {
               "type": "status",
-              "label": "Local client runtime",
+              "label": "Client runtime",
               "text": "When enabled, the mod clears accumulated fall state during gameplay."
             },
             {

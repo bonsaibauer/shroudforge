@@ -51,20 +51,25 @@ corresponding Enshrouded executable:
 .\shroudforge.exe launch "C:\Program Files (x86)\Steam\steamapps\common\Enshrouded"
 ```
 
-The release includes `config/shroudforge.json`, news embedded in the loader
+The release includes `shroudforge/config/shroudforge.json`, news embedded in the loader
 binary, compatibility profiles embedded in `kfc-runtime.dll`, and bundled mods
 under `mods/<id>/`. Runtime state is generated in
-`config/state.json`. Logs are created only when the loader runs. Repository
+`shroudforge/config/state.json`. Logs are created only when the loader runs. Repository
 schemas, API sources, templates, documentation, and submodules are not included
 in the player ZIP.
 
 The ZIP installs at its root beside `enshrouded.exe`; it has no extra `game/`
 directory. It includes `winmm.dll`, `shroudforge-runtime.dll`, `kfc-runtime.dll`,
-`shroudforge.exe`, `config/version.json`, and mod packages. The
+`shroudforge.exe`, `shroudforge/version.json`, and mod packages. Mutable ShroudForge
+data lives under `shroudforge/`: settings, runtime state, and the WebView2 profile
+are under `shroudforge/config/`, the current log is `shroudforge/shroudforge.log`,
+archived logs are in `shroudforge/logs/`, and staged updates and backups are in
+`shroudforge/updates/`. Modloader work files such as downloaded packages,
+queued mod actions, and removed mods are stored in `shroudforge/ui/`. The
 `shroudforge.exe` contains the CLI, Modloader UI, Debug Console, Commands,
 runtime diagnostics, and updater; helper binaries are not distributed separately.
-`shroudforge.log`, `config/state.json`, and lock files are generated only while
-the installation is in use.
+`shroudforge/shroudforge.log`, `shroudforge/config/state.json`, the WebView2 profile,
+and lock files are generated only while the installation is in use.
 
 Updates are shown in the modloader. A staged update is installed after the game
 exits. Your own mods, settings, and logs are preserved.
@@ -92,7 +97,7 @@ Modules are first-party ShroudForge components, not community mods.
 | Module | Purpose |
 | --- | --- |
 | **Modloader UI** | Displays mods, settings, messages, and updates. Open it with `F9`. |
-| **Debug Console** | Displays `enshrouded.log` and `shroudforge.log` with search and filters. Open it with `F10`. |
+| **Debug Console** | Displays `enshrouded.log` and `shroudforge/shroudforge.log` with search and filters. Open it with `F10`. |
 | **Commands** | Provides the central command interface for ShroudForge. |
 | **Updater** | Checks for and installs staged ShroudForge updates after the game exits. |
 
@@ -263,7 +268,7 @@ The complete Windows release is built with `build.ps1`.
 
 Open a [new GitHub issue](https://github.com/bonsaibauer/shroudforge/issues/new)
 and include a short description of the problem and the relevant section of
-`shroudforge.log`.
+`shroudforge/shroudforge.log`.
 
 ## License
 

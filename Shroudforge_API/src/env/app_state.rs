@@ -2,6 +2,7 @@ use std::{
     cell::{Cell, RefCell, RefMut},
     collections::{
         HashMap,
+        HashSet,
         hash_map::{self, Entry},
     },
     rc::Rc,
@@ -33,6 +34,7 @@ use crate::{
 
 pub struct AppState {
     pub(crate) runtime_configured: Cell<bool>,
+    runtime_active_mods: RefCell<HashSet<String>>,
     env: ModEnvironment,
     api: ShroudForgeApi,
     config: AppConfig,
@@ -199,6 +201,7 @@ impl AppState {
 
         Ok(Self {
             runtime_configured: Cell::new(false),
+            runtime_active_mods: RefCell::new(HashSet::new()),
             env,
             api,
             config,
@@ -246,6 +249,15 @@ impl AppState {
     #[inline]
     pub fn phase(&self) -> RuntimePhase {
         self.config.phase
+    }
+
+    pub(crate) fn set_runtime_mod_active(&self, id: &str, active: bool) {
+        let mut active_mods=self.runtime_active_mods.borrow_mut();
+        if active { active_mods.insert(id.to_owned()); } else { active_mods.remove(id); }
+    }
+
+    pub(crate) fn runtime_mod_is_active(&self, id: &str) -> bool {
+        self.runtime_active_mods.borrow().contains(id)
     }
 
     #[inline]

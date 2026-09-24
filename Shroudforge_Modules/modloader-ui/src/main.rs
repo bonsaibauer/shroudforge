@@ -29,7 +29,7 @@ mod windows {
             WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
         },
     };
-    use wry::WebViewBuilder;
+    use wry::{WebContext, WebViewBuilder};
 
     const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
     const DEFAULT_TOGGLE_KEY: u32 = 120; // F9
@@ -99,7 +99,6 @@ mod windows {
         compact_mode: bool,
         #[serde(default)]
         reduced_motion: bool,
-        logging_enabled: bool,
         log_level: String,
         update_enabled: bool,
         base_url: String,
@@ -153,17 +152,18 @@ mod windows {
         Hide,
         Drag,
         Refresh,
+        RefreshMod(String, String),
         ReloadSettings(String),
-        CheckUpdates,
-        StageUpdate,
+        CheckUpdates(String),
+        StageUpdate(String),
         OpenUrl(String),
-        SetModEnabled(String, bool, String),
-        SaveModSettings(String, serde_json::Value, String),
+        SetModEnabled(String, bool, String, String),
+        SaveModSettings(String, serde_json::Value, String, String),
         SaveSettings(UiSettings, String),
         SaveSetting(String, Option<String>, String, serde_json::Value, String),
         SetWindowVisibility(String, bool, String),
-        SearchCatalog(String),
-        InstallMod(String),
+        SearchCatalog(String, String),
+        InstallMod(String, String),
         SaveLanguage(String, String),
         RunModAction(String, String),
         RemoveMod(String),
@@ -171,6 +171,14 @@ mod windows {
         Diagnostics(String, String),
         UiReady,
         UiError(String),
+    }
+
+    struct AsyncUiResult {
+        request_id: String,
+        source: String,
+        action: String,
+        success_message: String,
+        result: Result<String, String>,
     }
 
     struct Arguments {
@@ -189,6 +197,7 @@ mod windows {
         name: String,
         version: String,
         target: String,
+        runtime: bool,
         description: Option<String>,
         source: &'static str,
         enabled: bool,
@@ -322,7 +331,6 @@ mod windows {
         module_preferences: serde_json::Value,
         compact_mode: bool,
         reduced_motion: bool,
-        logging_enabled: bool,
         log_level: String,
         update_enabled: bool,
         base_url: String,
@@ -431,9 +439,8 @@ mod windows {
         let user_config = load_user_config(&arguments.root);
         let provider = effective_provider(&module_config, &user_config);
         let installed = installed_release(&arguments.root);
-        let staged = arguments
-            .root
-            .join("Shroudforge_Updates/pending.ready")
+        let staged = shroudforge_package::paths::updates_dir(&arguments.root)
+            .join("pending.ready")
             .is_file();
         let release_state = Arc::new(Mutex::new(ReleaseState::idle(installed, staged)));
         let catalog_state = Arc::new(Mutex::new(CatalogState {
@@ -458,6 +465,7 @@ mod windows {
         let mut saved_position = read_central_config(&arguments.root)["modules"]["modloaderUi"]["window"]["position"].clone();
         position_window(&window, &saved_position, false);
         let (sender, receiver) = mpsc::channel();
+        let (async_sender, async_receiver) = mpsc::channel::<AsyncUiResult>();
         let handler = move |message: wry::http::Request<String>| {
             let Ok(value) = serde_json::from_str::<UiCommand>(message.body()) else {
                 return;
@@ -467,15 +475,19 @@ mod windows {
                 "hide" => Command::Hide,
                 "drag" => Command::Drag,
                 "refresh" => Command::Refresh,
+                "refresh-mod" => match value.mod_id {
+                    Some(id) => Command::RefreshMod(id, value.request_id.unwrap_or_default()),
+                    None => return,
+                },
                 "reload-settings" => Command::ReloadSettings(value.request_id.unwrap_or_default()),
-                "check-updates" => Command::CheckUpdates,
-                "stage-update" => Command::StageUpdate,
+                "check-updates" => Command::CheckUpdates(value.request_id.unwrap_or_default()),
+                "stage-update" => Command::StageUpdate(value.request_id.unwrap_or_default()),
                 "search-catalog" => match value.query {
-                    Some(query) => Command::SearchCatalog(query),
+                    Some(query) => Command::SearchCatalog(query, value.request_id.unwrap_or_default()),
                     None => return,
                 },
                 "install-mod" => match value.project_id {
-                    Some(project_id) => Command::InstallMod(project_id),
+                    Some(project_id) => Command::InstallMod(project_id, value.request_id.unwrap_or_default()),
                     None => return,
                 },
                 "save-language" => match value.locale {
@@ -487,11 +499,11 @@ mod windows {
                     None => return,
                 },
                 "save-mod-settings" => match (value.mod_id, value.values) {
-                    (Some(id), Some(values)) => Command::SaveModSettings(id, values, value.revision.unwrap_or_default()),
+                    (Some(id), Some(values)) => Command::SaveModSettings(id, values, value.revision.unwrap_or_default(), value.request_id.unwrap_or_default()),
                     _ => return,
                 },
                 "set-mod-enabled" => match (value.mod_id, value.enabled) {
-                    (Some(id), Some(enabled)) => Command::SetModEnabled(id, enabled, value.revision.unwrap_or_default()),
+                    (Some(id), Some(enabled)) => Command::SetModEnabled(id, enabled, value.revision.unwrap_or_default(), value.request_id.unwrap_or_default()),
                     _ => return,
                 },
                 "save-settings" => match value.settings {
@@ -521,12 +533,16 @@ mod windows {
             };
             let _ = sender.send(command);
         };
-        let webview = WebViewBuilder::new()
+        let profile = shroudforge_package::paths::webview_profile(&arguments.root);
+        fs::create_dir_all(&profile)?;
+        let mut web_context = WebContext::new(Some(profile));
+        let webview = WebViewBuilder::new_with_web_context(&mut web_context)
             .with_html(include_str!("../ui/dist/index.html"))
             .with_ipc_handler(handler)
             .build(&window)?;
 
         let mut shown = arguments.standalone;
+        let mut previous_configuration_errors = std::collections::HashSet::<String>::new();
         let initial_window_state = shroudforge_package::config::window_state(&arguments.root);
         let mut visibility_request_id = initial_window_state["modloaderUi"]["requestId"].as_u64().unwrap_or(0);
         let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", shown);
@@ -568,26 +584,40 @@ mod windows {
                                 let _ = window.drag_window();
                             }
                             Command::Refresh => next_refresh = Instant::now(),
+                            Command::RefreshMod(id, request_id) => {
+                                let result = if read_mods(&arguments.root).iter().any(|mod_info| mod_info.id == id) {
+                                    Ok(())
+                                } else {
+                                    Err(format!("Mod '{id}' is no longer installed"))
+                                };
+                                report_command_result(&arguments.root, &webview, &request_id, &id, "Refresh mod", result, "mod.refreshed", None, false);
+                                next_refresh = Instant::now();
+                            }
                             Command::ReloadSettings(request_id) => {
                                 write_activity(&arguments.root, "Settings", "Reload settings", "Succeeded", None, "success");
                                 notify_command_result(&webview, &request_id, Ok(()), "settings.reloaded", None, false);
                                 next_refresh = Instant::now();
                             }
-                            Command::CheckUpdates => {
-                                start_update_check(system_provider.clone(), release_state.clone())
+                            Command::CheckUpdates(request_id) => {
+                                start_update_check(arguments.root.clone(), system_provider.clone(), release_state.clone(), async_sender.clone(), Some(request_id))
                             }
-                            Command::StageUpdate => {
-                                start_staging(arguments.root.clone(), release_state.clone())
+                            Command::StageUpdate(request_id) => {
+                                start_staging(arguments.root.clone(), release_state.clone(), async_sender.clone(), request_id)
                             }
-                            Command::SearchCatalog(query) => start_catalog_search(
+                            Command::SearchCatalog(query, request_id) => start_catalog_search(
+                                arguments.root.clone(),
                                 active_provider.clone(),
                                 query,
                                 catalog_state.clone(),
+                                async_sender.clone(),
+                                request_id,
                             ),
-                            Command::InstallMod(project_id) => start_mod_install(
+                            Command::InstallMod(project_id, request_id) => start_mod_install(
                                 arguments.root.clone(),
                                 active_provider.clone(),
                                 project_id,
+                                async_sender.clone(),
+                                request_id,
                             ),
                             Command::SaveLanguage(locale, request_id) => {
                                 let result = save_language(&arguments.root, &locale);
@@ -595,16 +625,16 @@ mod windows {
                                 next_refresh = Instant::now();
                             }
                             Command::OpenUrl(url) => open_url(&url),
-                            Command::SetModEnabled(id, enabled, revision) => {
+                            Command::SetModEnabled(id, enabled, revision, request_id) => {
                                 let result = set_mod_enabled(&arguments.root, &id, enabled, &revision);
                                 let action = if enabled { "Enable mod" } else { "Disable mod" };
                                 let message = if enabled { "mod.enabledToast" } else { "mod.disabledToast" };
-                                report_command_result(&arguments.root, &webview, "", &id, action, result, message, None, false);
+                                report_command_result(&arguments.root, &webview, &request_id, &id, action, result, message, None, false);
                                 next_refresh = Instant::now();
                             }
-                            Command::SaveModSettings(id, values, revision) => {
+                            Command::SaveModSettings(id, values, revision, request_id) => {
                                 let result = save_mod_settings(&arguments.root, &id, &values, &revision);
-                                report_command_result(&arguments.root, &webview, "", &id, "Save mod settings", result, "settings.saved", None, false);
+                                report_command_result(&arguments.root, &webview, &request_id, &id, "Save mod settings", result, "settings.saved", None, false);
                                 next_refresh = Instant::now();
                             }
                             Command::SaveSettings(settings, request_id) => {
@@ -665,6 +695,10 @@ mod windows {
                             Command::UiError(message) => write_activity(&arguments.root, "modloader-ui", "WebView JavaScript error", "Failed", Some(&message), "error"),
                         }
                     }
+                    while let Ok(result) = async_receiver.try_recv() {
+                        report_async_result(&arguments.root, &webview, result);
+                        next_refresh = Instant::now();
+                    }
 
                     if Instant::now() >= next_visibility_poll {
                         let window_state = shroudforge_package::config::window_state(&arguments.root);
@@ -706,7 +740,7 @@ mod windows {
                     }
 
                     if system_provider.enabled && Instant::now() >= next_update_check {
-                        start_update_check(system_provider.clone(), release_state.clone());
+                        start_update_check(arguments.root.clone(), system_provider.clone(), release_state.clone(), async_sender.clone(), None);
                         next_update_check = Instant::now()
                             + Duration::from_secs(
                                 system_provider.check_minutes.clamp(5, 1440) * 60,
@@ -732,6 +766,14 @@ mod windows {
                             );
                         let snapshot =
                             snapshot(&arguments, &active_provider, &release_state, &catalog_state);
+                        let current_errors: std::collections::HashSet<String> = snapshot.configuration.get("errors").and_then(serde_json::Value::as_array).into_iter().flatten().filter_map(serde_json::Value::as_str).map(str::to_owned).collect();
+                        for error in current_errors.difference(&previous_configuration_errors) {
+                            write_activity(&arguments.root, "Configuration", "Configuration issue", "Failed", Some(error), "error");
+                        }
+                        for error in previous_configuration_errors.difference(&current_errors) {
+                            write_activity(&arguments.root, "Configuration", "Configuration issue resolved", "Succeeded", Some(error), "success");
+                        }
+                        previous_configuration_errors = current_errors;
                         if let Ok(payload) = serde_json::to_string(&snapshot) {
                             let _ = webview.evaluate_script(&format!(
                                 "window.__shroudforgeUpdate({payload});"
@@ -875,7 +917,7 @@ mod windows {
     }
 
     fn installed_release(root: &Path) -> InstalledRelease {
-        let value = fs::read(root.join("config/version.json"))
+        let value = fs::read(shroudforge_package::paths::version_file(root))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
         let version = value
@@ -907,7 +949,7 @@ mod windows {
         catalog: &Arc<Mutex<CatalogState>>,
     ) -> Snapshot {
         let central = read_central_config(&arguments.root);
-        let logging = (central.pointer("/logging/enabled").and_then(|v| v.as_bool()).unwrap_or(true), central.pointer("/logging/minimumLevel").and_then(|v| v.as_str()).unwrap_or("INFO").to_owned());
+        let logging_level = central.pointer("/logging/minimumLevel").and_then(|v| v.as_str()).unwrap_or("INFO").to_owned();
         let mods = read_mods(&arguments.root);
         sync_mod_events(&arguments.root, &mods);
         Snapshot {
@@ -945,8 +987,7 @@ mod windows {
                     .pointer("/general/reducedMotion")
                     .and_then(|value| value.as_bool())
                     .unwrap_or(false),
-                logging_enabled: logging.0,
-                log_level: logging.1,
+                log_level: logging_level,
                 update_enabled: provider.enabled,
                 base_url: provider.base_url.clone(),
                 project_id: provider.project_id.clone(),
@@ -964,7 +1005,7 @@ mod windows {
     }
 
     fn read_game_version(root: &Path) -> String {
-        fs::read(root.join("config/version.json"))
+        fs::read(shroudforge_package::paths::version_file(root))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
             .and_then(|value| {
@@ -986,8 +1027,7 @@ mod windows {
             let package = entry.path();
             let Ok(bytes)=read_package_file(&package,"mod.json") else {continue};
             let revision=shroudforge_package::config::revision(&bytes);
-            let Some(value) = serde_json::from_slice(&bytes).map_err(|e|e.to_string())
-                .and_then(|value|shroudforge_package::config::parse_manifest(root,value))
+            let Some(value) = shroudforge_package::config::read_manifest_path(root, &package)
                 .and_then(|manifest| serde_json::to_value(manifest).map_err(|e| e.to_string()))
                 .ok()
             else {
@@ -1020,6 +1060,10 @@ mod windows {
                     .and_then(|value| value.as_str())
                     .unwrap_or("both")
                     .into(),
+                runtime: value.get("capabilities").and_then(serde_json::Value::as_array)
+                    .is_some_and(|items| items.iter().any(|item| item == "runtime"))
+                    && !value.get("capabilities").and_then(serde_json::Value::as_array)
+                        .is_some_and(|items| items.iter().any(|item| item == "patch" || item == "assets-write")),
                 description: value
                     .get("description")
                     .and_then(|value| value.as_str())
@@ -1161,13 +1205,14 @@ mod windows {
     }
 
     fn read_activity(root: &Path) -> Vec<Activity> {
-        let Ok(file) = File::open(root.join("shroudforge.log")) else {
+        let Ok(file) = File::open(shroudforge_package::paths::current_log(root)) else {
             return Vec::new();
         };
         let mut items = BufReader::new(file).lines().map_while(Result::ok).enumerate().filter_map(|(index, line)| {
             let close = line.find("] [")?;
-            let level = match line.as_bytes().first().copied()? { b'[' => line.chars().nth(1)?, _ => return None };
-            let level = match level { 'T' | 'D' | 'I' => "info", 'W' => "warn", 'E' => "error", _ => return None };
+            let severity = match line.as_bytes().first().copied()? { b'[' => line.chars().nth(1)?, _ => return None };
+            if !shroudforge_package::logging::allows(root, severity) { return None; }
+            let level = match severity { 'T' | 'D' | 'I' => "info", 'W' => "warn", 'E' => "error", _ => return None };
             let time_text = line.get(3..close)?;
             let mut parts = time_text.split([':', ',']);
             let hours = parts.next()?.parse::<u64>().ok()?;
@@ -1175,9 +1220,14 @@ mod windows {
             let seconds = parts.next()?.parse::<u64>().ok()?;
             let source_end = line.get(close + 3..)?.find("] ")? + close + 3;
             let source = line.get(close + 3..source_end)?.to_owned();
+            if source != "activity" { return None; }
             let message = line.get(source_end + 2..)?.to_owned();
-            let level = if level == "info" && message.starts_with("Operation completed successfully") { "success" } else { level };
-            Some(Activity { id: format!("{}-{}-{}-{}", index, time_text, source, message), time: hours * 3600 + minutes * 60 + seconds, source, action: message, result: level.to_owned(), details: None, level: level.to_owned() })
+            let event: serde_json::Value = serde_json::from_str(&message).ok()?;
+            let source = event.get("source")?.as_str()?.to_owned();
+            let action = event.get("action")?.as_str()?.to_owned();
+            let result = event.get("result")?.as_str()?.to_owned();
+            let details = event.get("details").and_then(serde_json::Value::as_str).map(str::to_owned);
+            Some(Activity { id: format!("{}-{}-{}-{}", index, time_text, source, action), time: hours * 3600 + minutes * 60 + seconds, source, action, result, details, level: level.to_owned() })
         }).collect::<Vec<_>>();
         items.reverse();
         items.truncate(100);
@@ -1192,16 +1242,14 @@ mod windows {
         details: Option<&str>,
         level: &str,
     ) {
-        // Activity records are durable user-visible events; debug log filters must not hide them.
         let severity = match level { "warn" => 'W', "error" => 'E', "debug" => 'D', _ => 'I' };
-        let message = if level == "success" {
-            format!("Operation completed successfully: {action}")
-        } else if let Some(details) = details {
-            format!("{action}: {} — {}", match level { "error" => "failed", "warn" => "warning", _ => "in progress" }, details.chars().take(500).collect::<String>())
-        } else {
-            format!("{action}: {result}")
-        };
-        let _ = shroudforge_package::logging::append_event(root, severity, source, &message);
+        let event = serde_json::json!({
+            "source": source,
+            "action": action,
+            "result": result,
+            "details": details.map(|value| value.chars().take(500).collect::<String>())
+        });
+        let _ = shroudforge_package::logging::append_event(root, severity, "activity", &event.to_string());
     }
 
     fn read_notifications(root: &Path) -> Vec<Notice> {
@@ -1424,7 +1472,7 @@ mod windows {
         if !declared {
             return Err("mod action is not declared by the package".into());
         }
-        let actions = root.join("Shroudforge_UI/actions");
+        let actions = shroudforge_package::paths::ui_data_dir(root).join("actions");
         fs::create_dir_all(&actions).map_err(|error| error.to_string())?;
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1485,7 +1533,7 @@ mod windows {
             return Err("invalid mod id".into());
         }
         let source = find_mod_package(root, id).ok_or("mod package not found")?;
-        let trash = root.join("Shroudforge_UI/trash");
+        let trash = shroudforge_package::paths::ui_data_dir(root).join("trash");
         fs::create_dir_all(&trash).map_err(|error| error.to_string())?;
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1566,11 +1614,27 @@ mod windows {
         notify_command_result(webview, request_id, result, success_message, batch_key, restore_settings);
     }
 
+    fn report_async_result(root: &Path, webview: &wry::WebView, command: AsyncUiResult) {
+        let (result, activity_result, details, level) = match command.result {
+            Ok(details) => (Ok(()), "Succeeded", Some(details), "success"),
+            Err(error) => (Err(error.clone()), "Failed", Some(error), "error"),
+        };
+        write_activity(root, &command.source, &command.action, activity_result, details.as_deref(), level);
+        notify_command_result(webview, &command.request_id, result, &command.success_message, None, false);
+    }
+
     fn save_setting(root: &Path, scope: &str, module: Option<&str>, key: &str, setting: &serde_json::Value) -> Result<(), String> {
         if scope == "general" {
             if !matches!(key, "compactMode" | "reducedMotion") { return Err("unsupported general setting".into()); }
             return shroudforge_package::config::update_loader(root, |value| {
                 value["general"][key] = setting.clone();
+                Ok(())
+            });
+        }
+        if scope == "logging" {
+            if key != "minimumLevel" { return Err("unsupported logging setting".into()); }
+            return shroudforge_package::config::update_loader(root, |value| {
+                value["logging"][key] = setting.clone();
                 Ok(())
             });
         }
@@ -1632,8 +1696,8 @@ mod windows {
         }
         let object = value
             .as_object_mut()
-            .ok_or("config/shroudforge.json must contain an object")?;
-        object.insert("logging".into(), serde_json::json!({ "enabled": settings.logging_enabled, "minimumLevel": &settings.log_level }));
+            .ok_or("shroudforge/config/shroudforge.json must contain an object")?;
+        object.insert("logging".into(), serde_json::json!({ "minimumLevel": &settings.log_level }));
         object.insert(
             "catalog".into(),
             serde_json::json!({ "provider": provider }),
@@ -1688,9 +1752,12 @@ mod windows {
     }
 
     fn start_catalog_search(
+        root: PathBuf,
         provider: ProviderConfig,
         query: String,
         state: Arc<Mutex<CatalogState>>,
+        results: mpsc::Sender<AsyncUiResult>,
+        request_id: String,
     ) {
         let query = query.trim().chars().take(100).collect::<String>();
         if let Ok(mut value) = state.lock() {
@@ -1698,17 +1765,22 @@ mod windows {
             value.items.clear();
             value.message = None;
             if !provider.enabled {
-                value.state = "idle".into();
-                value.message = Some("ShroudEdit access is disabled.".into());
+                let error = "ShroudEdit access is disabled.".to_owned();
+                value.state = "error".into();
+                value.message = Some(error.clone());
+                let _ = results.send(AsyncUiResult { request_id, source: "ShroudEdit".into(), action: "Search catalog".into(), success_message: "catalog.searchFailed".into(), result: Err(error) });
                 return;
             }
             value.state = "loading".into();
         }
         thread::spawn(move || {
             let result = fetch_catalog(&provider, &query);
+            let mut failure = None;
+            let mut success_detail = None;
             if let Ok(mut value) = state.lock() {
                 match result {
                     Ok(items) => {
+                        success_detail = Some(format!("Catalog search completed: {} result(s).", items.len()));
                         value.state = "ready".into();
                         value.message = if items.is_empty() {
                             Some("No matching ShroudForge mods found.".into())
@@ -1719,9 +1791,16 @@ mod windows {
                     }
                     Err(error) => {
                         value.state = "error".into();
-                        value.message = Some(error);
+                        value.message = Some(error.clone());
+                        failure = Some(error);
                     }
                 }
+            }
+            if let Some(detail) = success_detail {
+                write_activity(&root, "ShroudEdit", "Search catalog", "Succeeded", Some(&detail), "info");
+            }
+            if let Some(error) = failure {
+                let _ = results.send(AsyncUiResult { request_id, source: "ShroudEdit".into(), action: "Search catalog".into(), success_message: "catalog.searchFailed".into(), result: Err(error) });
             }
         });
     }
@@ -1810,16 +1889,9 @@ mod windows {
         Ok(items)
     }
 
-    fn start_mod_install(root: PathBuf, provider: ProviderConfig, project_id: String) {
+    fn start_mod_install(root: PathBuf, provider: ProviderConfig, project_id: String, results: mpsc::Sender<AsyncUiResult>, request_id: String) {
         if !valid_identifier(&project_id) {
-            write_activity(
-                &root,
-                "ShroudEdit",
-                "Install mod",
-                "Failed",
-                Some("Invalid project ID"),
-                "error",
-            );
+            let _ = results.send(AsyncUiResult { request_id, source: "ShroudEdit".into(), action: "Install mod".into(), success_message: "mod.install.succeeded".into(), result: Err("Invalid project ID".into()) });
             return;
         }
         write_activity(
@@ -1835,22 +1907,11 @@ mod windows {
                 Ok(_guard) => install_mod_from_catalog(&root, &provider, &project_id),
                 Err(_) => Err("A mod installation is already in progress".to_owned()),
             };
-            let (result_label, details, level) = match &result {
-                Ok(installed) => (
-                    "Succeeded",
-                    Some(format!("Installed {} package(s)", installed.len())),
-                    "success",
-                ),
-                Err(error) => ("Failed", Some(error.clone()), "error"),
+            let result = match result {
+                Ok(installed) => Ok(format!("Installed {} package(s)", installed.len())),
+                Err(error) => Err(error),
             };
-            write_activity(
-                &root,
-                "ShroudEdit",
-                "Install mod",
-                result_label,
-                details.as_deref(),
-                level,
-            );
+            let _ = results.send(AsyncUiResult { request_id, source: "ShroudEdit".into(), action: "Install mod".into(), success_message: "mod.install.succeeded".into(), result });
         });
     }
 
@@ -1922,7 +1983,7 @@ mod windows {
         if let Err(error) = result {
             for path in installed_paths {
                 // Failed multi-package installs remain recoverable in the loader trash.
-                let trash = root.join("Shroudforge_UI/trash");
+                let trash = shroudforge_package::paths::ui_data_dir(root).join("trash");
                 let _ = fs::create_dir_all(&trash);
                 if let Some(name) = path.file_name() {
                     let destination = trash.join(format!("failed-{}-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos(), name.to_string_lossy()));
@@ -2001,7 +2062,7 @@ mod windows {
         }
         verify_mod_hash(&bytes, &file.hashes)?;
 
-        let downloads = root.join("Shroudforge_UI/downloads");
+        let downloads = shroudforge_package::paths::ui_data_dir(root).join("downloads");
         fs::create_dir_all(&downloads).map_err(|error| error.to_string())?;
         let temporary = downloads.join(format!(
             "{}-{}-{}.zip",
@@ -2113,18 +2174,29 @@ mod windows {
         })
     }
 
-    fn start_update_check(provider: ProviderConfig, state: Arc<Mutex<ReleaseState>>) {
+    fn start_update_check(root: PathBuf, provider: ProviderConfig, state: Arc<Mutex<ReleaseState>>, results: mpsc::Sender<AsyncUiResult>, request_id: Option<String>) {
         if let Ok(mut value) = state.lock() {
             if value.state == "checking" || value.state == "downloading" {
+                if let Some(request_id) = request_id {
+                    let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Check for updates".into(), success_message: "updates.check.upToDate".into(), result: Err("An update operation is already in progress.".into()) });
+                }
                 return;
             }
             if !provider.enabled {
                 value.state = "idle".into();
                 value.message = Some("GitHub system updates are disabled.".into());
+                if let Some(request_id) = request_id {
+                    let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Check for updates".into(), success_message: "updates.check.upToDate".into(), result: Err("System update checks are disabled in settings.".into()) });
+                }
                 return;
             }
             value.state = "checking".into();
             value.message = Some("Checking releases…".into());
+        } else {
+            if let Some(request_id) = request_id {
+                let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Check for updates".into(), success_message: "updates.check.upToDate".into(), result: Err("Update status is unavailable.".into()) });
+            }
+            return;
         }
         thread::spawn(move || {
             let (current, current_build) = state
@@ -2132,6 +2204,7 @@ mod windows {
                 .map(|value| (value.current_version.clone(), value.current_build))
                 .unwrap_or_default();
             let result = fetch_latest(&provider, &current);
+            let mut outcome = Err("Update status is unavailable.".to_owned());
             if let Ok(mut value) = state.lock() {
                 match result {
                     Ok(Some(release)) => {
@@ -2148,8 +2221,11 @@ mod windows {
                         } else {
                             "ShroudForge is up to date.".into()
                         });
+                        let update_available = value.update_available;
+                        let latest_version = release.version.clone();
                         value.release = Some(release);
                         value.state = "ready".into();
+                        outcome = Ok(if update_available { format!("Update {latest_version} is available.") } else { "ShroudForge is up to date.".into() });
                     }
                     Ok(None) => {
                         value.update_available = false;
@@ -2159,12 +2235,25 @@ mod windows {
                         value.state = "ready".into();
                         value.message =
                             Some("No ShroudForge release has been published on GitHub yet.".into());
+                        outcome = Ok("No ShroudForge release has been published yet.".into());
                     }
                     Err(error) => {
                         value.state = "error".into();
-                        value.message = Some(error);
+                        value.message = Some(error.clone());
+                        outcome = Err(error);
                     }
                 }
+            }
+            if let Some(request_id) = request_id {
+                let success_message = match outcome {
+                    Ok(ref detail) if detail == "ShroudForge is up to date." => "updates.check.upToDate",
+                    Ok(ref detail) if detail == "No ShroudForge release has been published yet." => "updates.check.none",
+                    Ok(_) => "updates.check.available",
+                    Err(_) => "updates.check.upToDate",
+                };
+                let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Check for updates".into(), success_message: success_message.into(), result: outcome });
+            } else if let Err(error) = outcome {
+                let _ = shroudforge_package::logging::append(&root, 'W', "updates", &format!("Automatic update check failed: {error}"));
             }
         });
     }
@@ -2282,26 +2371,37 @@ mod windows {
         latest > current || (latest == current && latest_build > current_build)
     }
 
-    fn start_staging(root: PathBuf, state: Arc<Mutex<ReleaseState>>) {
+    fn start_staging(root: PathBuf, state: Arc<Mutex<ReleaseState>>, results: mpsc::Sender<AsyncUiResult>, request_id: String) {
         let release = {
-            let Ok(mut value) = state.lock() else { return };
+            let Ok(mut value) = state.lock() else {
+                let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Stage update".into(), success_message: "updates.stagedToast".into(), result: Err("Update status is unavailable.".into()) });
+                return;
+            };
             if value.state == "downloading" || value.staged {
+                let error = if value.staged { "An update is already staged." } else { "An update is already downloading." };
+                let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Stage update".into(), success_message: "updates.stagedToast".into(), result: Err(error.into()) });
                 return;
             }
             let Some(release) = value.release.clone() else {
                 value.state = "error".into();
                 value.message = Some("Check for updates before downloading.".into());
+                let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Stage update".into(), success_message: "updates.stagedToast".into(), result: Err("Check for updates before downloading.".into()) });
                 return;
             };
             value.state = "downloading".into();
             value.message = Some("Downloading and verifying update…".into());
             release
         };
+        let version = release.version.clone();
         thread::spawn(move || {
             let result = stage_release(&root, &release);
+            let feedback = match result {
+                Ok(()) => Ok(format!("Verified and staged version {version}.")),
+                Err(error) => Err(error),
+            };
             if let Ok(mut value) = state.lock() {
-                match result {
-                    Ok(()) => {
+                match &feedback {
+                    Ok(_) => {
                         value.state = "staged".into();
                         value.staged = true;
                         value.message = Some(
@@ -2310,15 +2410,16 @@ mod windows {
                     }
                     Err(error) => {
                         value.state = "error".into();
-                        value.message = Some(error);
+                        value.message = Some(error.clone());
                     }
                 }
             }
+            let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Stage update".into(), success_message: "updates.stagedToast".into(), result: feedback });
         });
     }
 
     fn stage_release(root: &Path, release: &Release) -> Result<(), String> {
-        let updates = root.join("Shroudforge_Updates");
+        let updates = shroudforge_package::paths::updates_dir(root);
         let pending = updates.join("pending");
         ensure_child(&updates, &pending)?;
         fs::create_dir_all(&updates).map_err(|error| error.to_string())?;
@@ -2376,7 +2477,7 @@ mod windows {
         }
         extract_zip(&archive_path, &pending)?;
         let package = pending.clone();
-        for required in ["config/version.json", "shroudforge.exe"] {
+        for required in ["shroudforge/version.json", "shroudforge.exe"] {
             if !package.join(required).is_file() {
                 return Err(format!("Update package is missing {required}"));
             }
