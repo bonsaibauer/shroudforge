@@ -593,11 +593,73 @@ pub fn request_mod_install(root: &std::path::Path, project_id: &str, provider: s
         }
         return request_worker(root);
     }
-    let request = serde_json::json!({"schemaVersion":1,"projectId":project_id,"provider":provider});
+    let request = serde_json::json!({"schemaVersion":1,"operation":"install","projectId":project_id,"provider":provider});
     shroudforge_package::config::write_json(&path, &request).map_err(|e| e.to_string())?;
     request_worker(root).map_err(|error| format!("install request was saved but the scheduled updater could not be started: {error}"))?;
     Ok(())
 }
+
+#[cfg(windows)]
+pub fn request_mod_update(root: &std::path::Path, project_id: &str, mod_id: &str, provider: serde_json::Value) -> Result<(), String> {
+    if project_id.is_empty() || project_id.len() > 128 || !project_id.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+        || mod_id.is_empty() || mod_id.len() > 80 || !mod_id.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)) {
+        return Err("invalid mod project or package ID".into());
+    }
+    let path = root.join("shroudforge/updates/mod-install-queue.json");
+    if path.exists() { return Err("another catalog mod operation is already queued or running".into()); }
+    let request = serde_json::json!({"schemaVersion":1,"operation":"update","projectId":project_id,"modId":mod_id,"provider":provider});
+    shroudforge_package::config::write_json(&path, &request).map_err(|error| error.to_string())?;
+    request_worker(root).map_err(|error| format!("mod update was saved but the updater could not be started: {error}"))
+}
+
+#[cfg(not(windows))]
+pub fn request_mod_update(_: &std::path::Path, _: &str, _: &str, _: serde_json::Value) -> Result<(), String> { Err("scheduled updater is available on Windows only".into()) }
+
+#[cfg(windows)]
+pub fn request_runtime_mod_reload(root: &std::path::Path, mod_ids: &[String]) -> Result<(), String> {
+    request_runtime_mod_action(root, "reload", mod_ids)
+}
+
+#[cfg(windows)]
+pub fn request_runtime_mod_unload(root: &std::path::Path, mod_ids: &[String]) -> Result<(), String> {
+    request_runtime_mod_action(root, "unload", mod_ids)
+}
+
+#[cfg(windows)]
+fn request_runtime_mod_action(root: &std::path::Path, operation: &str, mod_ids: &[String]) -> Result<(), String> {
+    let request_id = format!("{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let request_path = root.join("shroudforge/runtime/mod-reload-request.json");
+    let result_path = root.join("shroudforge/runtime/mod-reload-result.json");
+    let request = serde_json::json!({"requestId":request_id,"operation":operation,"modIds":mod_ids});
+    shroudforge_package::config::write_json(&request_path, &request).map_err(|error| format!("could not request live mod reload: {error}"))?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        if let Ok(bytes) = std::fs::read(&result_path) {
+            if let Ok(result) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                if result["requestId"].as_str() == Some(&request_id) {
+                    let _ = std::fs::remove_file(&request_path);
+                    let expected_status = if operation == "unload" { "unloaded" } else { "reloaded" };
+                    return if result["status"] == expected_status {
+                        Ok(())
+                    } else {
+                        Err(result["message"].as_str().unwrap_or("live runtime mod reload failed").to_owned())
+                    };
+                }
+            }
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = std::fs::remove_file(&request_path);
+            return Err("timed out waiting for the running game to reload its mod runtime".into());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+#[cfg(not(windows))]
+pub fn request_runtime_mod_reload(_: &std::path::Path, _: &[String]) -> Result<(), String> { Err("live runtime mod reload is available on Windows only".into()) }
+
+#[cfg(not(windows))]
+pub fn request_runtime_mod_unload(_: &std::path::Path, _: &[String]) -> Result<(), String> { Err("live runtime mod reload is available on Windows only".into()) }
 
 #[cfg(windows)]
 pub fn request_system_stage(root: &std::path::Path, release: serde_json::Value, wait_pid: u32) -> Result<(), String> {
@@ -651,6 +713,22 @@ pub fn run_scheduled_worker() -> Result<(), String> {
         }
         let _ = std::fs::remove_file(&stage_request);
     }
+    // Catalog mod packages are independent of the ShroudForge binary release.
+    // Complete these while the game may still be running, before a full-package
+    // installer can wait for the game to exit and replace the loader executable.
+    let mod_queue = root.join("shroudforge/updates/mod-install-queue.json");
+    if mod_queue.is_file() {
+        let result = std::process::Command::new(root.join("shroudforge.exe"))
+            .args(["--catalog-install-worker", "--root"])
+            .arg(&root)
+            .creation_flags(0x08000000)
+            .status().map_err(|e| format!("could not launch catalog install worker: {e}"))
+            .and_then(|status| if status.success() { Ok(()) } else { Err(format!("catalog install worker returned {status}")) });
+        if let Err(ref error) = result {
+            let _ = shroudforge_package::logging::append(&root, 'E', "updater", &format!("Catalog install failed: {error}"));
+            if first_error.is_none() { first_error = Some(error.clone()); }
+        }
+    }
     if queue_path.is_file() {
         let result = (|| {
             let bytes = std::fs::read(&queue_path).map_err(|e| format!("cannot read updater queue: {e}"))?;
@@ -670,19 +748,6 @@ pub fn run_scheduled_worker() -> Result<(), String> {
             first_error = Some(error.clone());
         }
         let _ = std::fs::remove_file(&queue_path);
-    }
-    let mod_queue = root.join("shroudforge/updates/mod-install-queue.json");
-    if mod_queue.is_file() {
-        let result = std::process::Command::new(root.join("shroudforge.exe"))
-            .args(["--catalog-install-worker", "--root"])
-            .arg(&root)
-            .creation_flags(0x08000000)
-            .status().map_err(|e| format!("could not launch catalog install worker: {e}"))
-            .and_then(|status| if status.success() { Ok(()) } else { Err(format!("catalog install worker returned {status}")) });
-        if let Err(ref error) = result {
-            let _ = shroudforge_package::logging::append(&root, 'E', "updater", &format!("Catalog install failed: {error}"));
-            if first_error.is_none() { first_error = Some(error.clone()); }
-        }
     }
     first_error.map_or(Ok(()), Err)
 }

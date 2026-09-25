@@ -101,6 +101,8 @@
   "mod.installation": "Installation",
   "mod.installed": "Installed",
   "mod.remove": "Remove",
+  "mod.update": "Update mod",
+  "mod.update.queued": "Mod update queued",
   "mod.refreshed": "Mod status refreshed",
   "mod.remove.confirm": "Remove {name}? The package will be moved to the ShroudForge trash.",
   "mod.restartRequired": "Restart required.",

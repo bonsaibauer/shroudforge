@@ -279,6 +279,8 @@ struct Lifecycle {
 pub struct IngameRuntime {
     diagnostics: shroudforge_runtime_diagnostics::Session,
     root: std::path::PathBuf,
+    api: Option<ShroudForgeApi>,
+    file_name: String,
     loaded: serde_json::Map<String,serde_json::Value>,
     errors: serde_json::Map<String,serde_json::Value>,
     next_status: std::time::Instant,
@@ -286,6 +288,8 @@ pub struct IngameRuntime {
     observed: std::collections::HashMap<std::path::PathBuf, String>,
     runner: LuaModRunner,
     lifecycle: Vec<Lifecycle>,
+    processed_reload_request: Option<String>,
+    publish_on_drop: bool,
 }
 
 impl IngameRuntime {
@@ -315,11 +319,12 @@ impl IngameRuntime {
         file_name: String,
     ) -> anyhow::Result<Self> {
         let mut diagnostics=shroudforge_runtime_diagnostics::Session::new(env.game_dir().as_std_path());
+        let file_name: String = file_name.into();
         let state = AppState::new(
             env.clone(),
-            api,
+            api.clone(),
             RunArgs {
-                file_name: file_name.into(),
+                file_name: file_name.clone(),
                 options: RunOptions {
                     skip_cache: false,
                     force_assets: false,
@@ -443,7 +448,7 @@ impl IngameRuntime {
             });
         }
         let configurations = env.mod_registry().values().map(|item| (item.info().id.clone(), item.fs().root().as_std_path().to_path_buf(), serde_json::to_value(item.info()).expect("manifest is serializable"))).collect();
-        let runtime=Self { diagnostics, runner, lifecycle, root, loaded, errors, configurations, observed: Default::default(), next_status:std::time::Instant::now() };
+        let runtime=Self { diagnostics, runner, lifecycle, root, api, file_name, loaded, errors, configurations, observed: Default::default(), next_status:std::time::Instant::now(), processed_reload_request: None, publish_on_drop: true };
         runtime.publish_status(true);
         Ok(runtime)
     }
@@ -462,6 +467,7 @@ impl IngameRuntime {
 
     pub fn update(&mut self, delta_seconds: f64) {
         self.diagnostics.tick();
+        self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
             self.refresh_configuration();
             self.publish_status(true);
@@ -502,6 +508,118 @@ impl IngameRuntime {
                 }
             }
         }
+    }
+
+    fn process_runtime_reload_request(&mut self) {
+        let request_path = self.root.join("shroudforge/runtime/mod-reload-request.json");
+        let Ok(bytes) = std::fs::read(&request_path) else { return; };
+        let Ok(request) = serde_json::from_slice::<serde_json::Value>(&bytes) else { return; };
+        let Some(request_id) = request["requestId"].as_str().map(str::to_owned) else { return; };
+        if self.processed_reload_request.as_deref() == Some(&request_id) { return; }
+        self.processed_reload_request = Some(request_id.clone());
+        let ids = request["modIds"].as_array().into_iter().flatten().filter_map(|value| value.as_str().map(str::to_owned)).collect::<Vec<_>>();
+        let result = match request["operation"].as_str().unwrap_or("reload") {
+            "unload" => self.unload_runtime_packages(&ids),
+            "reload" => self.reload_runtime_packages(&ids),
+            operation => Err(format!("unknown runtime mod operation: {operation}")),
+        };
+        let status_path = self.root.join("shroudforge/runtime/mod-reload-result.json");
+        let value = match result {
+            Ok(()) => {
+                let status = if request["operation"] == "unload" { "unloaded" } else { "reloaded" };
+                serde_json::json!({"requestId":request_id,"status":status,"message":"Runtime mod packages updated"})
+            },
+            Err(error) => serde_json::json!({"requestId":request_id,"status":"error","message":error}),
+        };
+        let _ = mod_loader::config::write_json(&status_path, &value);
+    }
+
+    fn unload_runtime_packages(&mut self, mod_ids: &[String]) -> Result<(), String> {
+        for item in self.lifecycle.iter_mut().rev() {
+            if !mod_ids.iter().any(|id| id == &item.id) || !item.active { continue; }
+            if let Some(key) = &item.unload {
+                self.runner.lua.registry_value::<Function>(key)
+                    .and_then(|callback| callback.call::<()>(()))
+                    .map_err(|error| format!("mod '{}' on_unload failed: {error}", item.id))?;
+            }
+            self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&item.id, false);
+            item.active = false;
+        }
+        self.publish_status(true);
+        Ok(())
+    }
+
+    fn reload_runtime_packages(&mut self, mod_ids: &[String]) -> Result<(), String> {
+        let previously_active = self.lifecycle.iter().filter(|item| item.active).map(|item| item.id.clone()).collect::<Vec<_>>();
+        for item in self.lifecycle.iter_mut().rev() {
+            if !item.active { continue; }
+            if let Some(key) = &item.unload {
+                if let Err(error) = self.runner.lua.registry_value::<Function>(key).and_then(|callback| callback.call::<()>(())) {
+                    tracing::error!(target:"shroudforge::runtime", mod_id=%item.id, "on_unload failed during runtime package refresh: {error}");
+                }
+            }
+            self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&item.id, false);
+            item.active = false;
+        }
+
+        let game_path = self.root.to_str().ok_or_else(|| "game path is not UTF-8".to_owned())?;
+        let environment = match ModEnvironment::load(game_path) {
+            Ok(environment) => environment,
+            Err(error) => {
+                self.restore_previous_runtime(&previously_active);
+                return Err(format!("updated mod package discovery failed: {error:?}"));
+            }
+        };
+        let mut replacement = match Self::start_with_schema(&environment, self.api.clone(), self.file_name.clone()) {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                self.restore_previous_runtime(&previously_active);
+                return Err(format!("updated runtime initialization failed: {error}"));
+            }
+        };
+        for id in mod_ids {
+            let enabled = environment.mod_registry().get(id).is_some_and(|item| item.info().enabled);
+            let runtime_only = environment.mod_registry().get(id).is_some_and(|item| {
+                item.info().capabilities.contains(&mod_loader::Capability::Runtime)
+                    && !item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite)
+            });
+            if enabled && runtime_only && !replacement.active_mod_ids().iter().any(|active| active == id) {
+                let reason = replacement.errors.get(id).and_then(serde_json::Value::as_str).unwrap_or("updated mod did not become active").to_owned();
+                drop(replacement);
+                self.restore_previous_runtime(&previously_active);
+                return Err(format!("updated runtime mod '{id}' failed to activate: {reason}"));
+            }
+        }
+
+        std::mem::swap(&mut self.diagnostics, &mut replacement.diagnostics);
+        std::mem::swap(&mut self.root, &mut replacement.root);
+        std::mem::swap(&mut self.api, &mut replacement.api);
+        std::mem::swap(&mut self.file_name, &mut replacement.file_name);
+        std::mem::swap(&mut self.loaded, &mut replacement.loaded);
+        std::mem::swap(&mut self.errors, &mut replacement.errors);
+        std::mem::swap(&mut self.next_status, &mut replacement.next_status);
+        std::mem::swap(&mut self.configurations, &mut replacement.configurations);
+        std::mem::swap(&mut self.observed, &mut replacement.observed);
+        std::mem::swap(&mut self.runner, &mut replacement.runner);
+        std::mem::swap(&mut self.lifecycle, &mut replacement.lifecycle);
+        replacement.publish_on_drop = false;
+        Ok(())
+    }
+
+    fn restore_previous_runtime(&mut self, active_ids: &[String]) {
+        for item in &mut self.lifecycle {
+            if !active_ids.iter().any(|id| id == &item.id) { continue; }
+            self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&item.id, true);
+            if let Some(key) = &item.load {
+                if let Err(error) = self.runner.lua.registry_value::<Function>(key).and_then(|callback| callback.call::<()>(())) {
+                    self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&item.id, false);
+                    tracing::error!(target:"shroudforge::runtime", mod_id=%item.id, "Could not restore runtime mod after refresh rollback: {error}");
+                    continue;
+                }
+            }
+            item.active = true;
+        }
+        self.publish_status(true);
     }
 
     fn refresh_configuration(&mut self) {
@@ -647,7 +765,7 @@ impl Drop for IngameRuntime {
                 }
             }
         }
-        self.publish_status(false);
+        if self.publish_on_drop { self.publish_status(false); }
     }
 }
 

@@ -164,6 +164,7 @@ mod windows {
         SetWindowVisibility(String, bool, String),
         SearchCatalog(String, String),
         InstallMod(String, String),
+        UpdateMod(String, String),
         SaveLanguage(String, String),
         RunModAction(String, String),
         RemoveMod(String),
@@ -514,6 +515,10 @@ mod windows {
                     Some(project_id) => Command::InstallMod(project_id, value.request_id.unwrap_or_default()),
                     None => return,
                 },
+                "update-mod" => match value.mod_id {
+                    Some(mod_id) => Command::UpdateMod(mod_id, value.request_id.unwrap_or_default()),
+                    None => return,
+                },
                 "save-language" => match value.locale {
                     Some(locale) => Command::SaveLanguage(locale, value.request_id.unwrap_or_default()),
                     None => return,
@@ -668,6 +673,13 @@ mod windows {
                                 arguments.root.clone(),
                                 active_provider.clone(),
                                 project_id,
+                                async_sender.clone(),
+                                request_id,
+                            ),
+                            Command::UpdateMod(mod_id, request_id) => start_mod_update(
+                                arguments.root.clone(),
+                                active_provider.clone(),
+                                mod_id,
                                 async_sender.clone(),
                                 request_id,
                             ),
@@ -2054,6 +2066,24 @@ mod windows {
         });
     }
 
+    fn start_mod_update(root: PathBuf, provider: ProviderConfig, mod_id: String, results: mpsc::Sender<AsyncUiResult>, request_id: String) {
+        if !provider.enabled || provider.kind != "shroudedit" {
+            let _ = results.send(AsyncUiResult { request_id, source: "ShroudEdit".into(), action: "Update mod".into(), success_message: "mod.update.queued".into(), result: Err("ShroudEdit access is disabled".into()) });
+            return;
+        }
+        let project_id = catalog_project_for_mod(&root, &mod_id);
+        let result = match project_id {
+            Some(project_id) => shroudforge_updater::request_mod_update(&root, &project_id, &mod_id, serde_json::to_value(provider).unwrap_or_default())
+                .map(|()| format!("Update queued for {mod_id}.")),
+            None => Err("This mod is not registered as a ShroudEdit installation.".into()),
+        };
+        match &result {
+            Ok(detail) => write_activity(&root, "ShroudEdit", "Queue mod update", "Queued", Some(detail), "info"),
+            Err(error) => write_activity(&root, "ShroudEdit", "Queue mod update", "Failed", Some(error), "error"),
+        }
+        let _ = results.send(AsyncUiResult { request_id, source: "ShroudEdit".into(), action: "Update mod".into(), success_message: "mod.update.queued".into(), result });
+    }
+
     pub fn run_catalog_install_worker() -> Result<(), String> {
         let values: Vec<String> = std::env::args().collect();
         let root = values.windows(2).find(|pair| pair[0] == "--root").map(|pair| PathBuf::from(&pair[1])).ok_or("missing --root")?;
@@ -2064,8 +2094,11 @@ mod windows {
             let project_id = request["projectId"].as_str().ok_or("request has no projectId")?;
             let provider: ProviderConfig = serde_json::from_value(request["provider"].clone()).map_err(|e| format!("invalid provider settings: {e}"))?;
             if !valid_identifier(project_id) { return Err("invalid mod project ID".into()); }
-            let installed = install_mod_from_catalog(&root, &provider, project_id)?;
-            Ok(format!("Installed {} package(s) for {project_id}", installed.len()))
+            let operation = request["operation"].as_str().unwrap_or("install");
+            let update_mod_id = if operation == "update" { Some(request["modId"].as_str().ok_or("update request has no modId")?) } else { None };
+            if operation != "install" && operation != "update" { return Err(format!("unsupported catalog operation: {operation}")); }
+            let installed = install_mod_from_catalog(&root, &provider, project_id, update_mod_id)?;
+            Ok(format!("{} {} package(s) for {project_id}", if update_mod_id.is_some() { "Updated" } else { "Installed" }, installed.len()))
         })();
         match &result {
             Ok(detail) => write_activity(&root, "ShroudEdit", "Install mod", "Succeeded", Some(detail), "success"),
@@ -2079,6 +2112,7 @@ mod windows {
         root: &Path,
         provider: &ProviderConfig,
         project_id: &str,
+        update_mod_id: Option<&str>,
     ) -> Result<Vec<String>, String> {
         if !provider.enabled || provider.kind != "shroudedit" {
             return Err("ShroudEdit access is disabled".into());
@@ -2092,6 +2126,14 @@ mod windows {
             .build()
             .map_err(|error| error.to_string())?;
         let registry = read_catalog_install_registry(root);
+        if let Some(mod_id) = update_mod_id {
+            if catalog_project_for_mod(root, mod_id).as_deref() != Some(project_id) {
+                return Err("catalog update target does not match the installed ShroudEdit project".into());
+            }
+            if find_mod_package(root, mod_id).is_none() {
+                return Err(format!("installed mod package '{mod_id}' could not be found"));
+            }
+        }
         let existing_project_ids = registry
             .get("projects")
             .and_then(|value| value.as_object())
@@ -2125,9 +2167,17 @@ mod windows {
         resolved.push(plan.primary);
         let mut installed_paths = Vec::new();
         let mut installed = Vec::new();
+        let mut staged_update: Option<(String, String, PathBuf)> = None;
         let result = (|| {
             for item in resolved {
-                let installed_mod = download_catalog_version(root, provider, &client, &item)?;
+                let is_primary_update = update_mod_id.is_some() && item.project_id == project_id;
+                if is_primary_update {
+                    let staged = download_catalog_version(root, provider, &client, &item, update_mod_id)?;
+                    staged_update = Some((item.project_id.clone(), item.version_id.clone(), staged.1));
+                    installed.push(staged.0);
+                    continue;
+                }
+                let installed_mod = download_catalog_version(root, provider, &client, &item, None)?;
                 installed_paths.push(installed_mod.1.clone());
                 remember_catalog_install(
                     root,
@@ -2137,6 +2187,12 @@ mod windows {
                     &installed_mod.1,
                 )?;
                 installed.push(installed_mod.0);
+            }
+            if let Some((updated_project_id, version_id, staging)) = staged_update.take() {
+                let mod_id = update_mod_id.expect("staged update has target");
+                let destination = root.join("mods").join(mod_id);
+                replace_catalog_mod(root, mod_id, &staging, &destination)?;
+                remember_catalog_install(root, &updated_project_id, &version_id, mod_id, &destination)?;
             }
             Ok(())
         })();
@@ -2163,6 +2219,7 @@ mod windows {
         provider: &ProviderConfig,
         client: &reqwest::blocking::Client,
         resolved: &ResolvedContent,
+        update_mod_id: Option<&str>,
     ) -> Result<(String, PathBuf), String> {
         let response = client
             .get(format!(
@@ -2243,13 +2300,21 @@ mod windows {
             let _ = fs::remove_file(&temporary);
             return Err(format!("Invalid mod manifest: {error}"));
         }
-        if find_mod_package(root, &manifest.id).is_some() {
+        if update_mod_id.is_none() && find_mod_package(root, &manifest.id).is_some() {
             let _ = fs::remove_file(&temporary);
             return Err(format!("Mod '{}' is already installed", manifest.name));
         }
+        if let Some(expected_id) = update_mod_id {
+            if manifest.id != expected_id {
+                let _ = fs::remove_file(&temporary);
+                return Err(format!("catalog update package ID '{}' does not match installed mod '{expected_id}'", manifest.id));
+            }
+        }
         let mods = root.join("mods");
         fs::create_dir_all(&mods).map_err(|error| error.to_string())?;
-        let staging = downloads.join(format!("{}-{}-extract", manifest.id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()));
+        let staging_root = if update_mod_id.is_some() { root.join("shroudforge/updates/mod-staging") } else { downloads.clone() };
+        fs::create_dir_all(&staging_root).map_err(|error| error.to_string())?;
+        let staging = staging_root.join(format!("{}-{}-extract", manifest.id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()));
         fs::create_dir(&staging).map_err(|error| error.to_string())?;
         extract_zip(&temporary, &staging)?;
         let extracted = shroudforge_package::config::read_manifest_path(root, &staging)?;
@@ -2257,9 +2322,74 @@ mod windows {
             return Err("extracted mod must have the same id and a src/mod.lua entrypoint".into());
         }
         let destination = mods.join(&manifest.id);
-        if destination.exists() { return Err("mod destination already exists".into()); }
-        fs::rename(&staging, &destination).map_err(|error| error.to_string())?;
-        Ok((manifest.id, destination))
+        if let Some(expected_id) = update_mod_id {
+            let previous = shroudforge_package::config::read_manifest_path(root, &destination)
+                .map_err(|error| format!("could not read installed mod before update: {error}"))?;
+            let incoming: serde_json::Value = serde_json::from_slice(&fs::read(staging.join("mod.json")).map_err(|error| error.to_string())?)
+                .map_err(|error| format!("could not parse updated mod.json: {error}"))?;
+            let previous = serde_json::to_value(previous).map_err(|error| error.to_string())?;
+            let merged = shroudforge_package::config::merge_mod_update(root, previous, incoming)?;
+            shroudforge_package::config::write_json(&staging.join("mod.json"), &merged)?;
+            if manifest.id != expected_id { return Err("updated mod identity changed".into()); }
+            Ok((manifest.id, staging))
+        } else {
+            if destination.exists() { return Err("mod destination already exists".into()); }
+            fs::rename(&staging, &destination).map_err(|error| error.to_string())?;
+            Ok((manifest.id, destination))
+        }
+    }
+
+    fn replace_catalog_mod(root: &Path, mod_id: &str, staging: &Path, destination: &Path) -> Result<(), String> {
+        let old_manifest = shroudforge_package::config::read_manifest_path(root, destination)
+            .map_err(|error| format!("could not inspect installed package before update: {error}"))?;
+        let new_manifest = shroudforge_package::config::read_manifest_path(root, staging)
+            .map_err(|error| format!("could not inspect downloaded package: {error}"))?;
+        if old_manifest.id != mod_id || new_manifest.id != mod_id {
+            return Err("mod package identity changed during update".into());
+        }
+        let runtime_only = old_manifest.capabilities.contains(&shroudforge_package::Capability::Runtime)
+            && !old_manifest.capabilities.contains(&shroudforge_package::Capability::AssetsWrite)
+            && new_manifest.capabilities.contains(&shroudforge_package::Capability::Runtime)
+            && !new_manifest.capabilities.contains(&shroudforge_package::Capability::AssetsWrite);
+        let status_path = root.join("shroudforge/runtime/mod-status.json");
+        let active = fs::read(&status_path).ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|value| value["active"].as_array().cloned())
+            .is_some_and(|ids| ids.iter().any(|value| value.as_str() == Some(mod_id)));
+        let live_reload = active && runtime_only && runtime_is_active(root);
+        let mod_ids = vec![mod_id.to_owned()];
+        if live_reload {
+            shroudforge_updater::request_runtime_mod_unload(root, &mod_ids)
+                .map_err(|error| format!("could not safely unload '{mod_id}' before package replacement: {error}"))?;
+        }
+
+        let transaction = format!("{}-{}", mod_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos());
+        let backup_root = root.join("shroudforge/updates/mod-backups");
+        fs::create_dir_all(&backup_root).map_err(|error| error.to_string())?;
+        let backup = backup_root.join(transaction);
+        fs::rename(destination, &backup).map_err(|error| format!("could not move old mod package into rollback storage: {error}"))?;
+        if let Err(error) = fs::rename(staging, destination) {
+            let rollback = fs::rename(&backup, destination);
+            if let Err(rollback_error) = rollback {
+                return Err(format!("could not install updated package: {error}; rollback also failed: {rollback_error}"));
+            }
+            if live_reload { let _ = shroudforge_updater::request_runtime_mod_reload(root, &mod_ids); }
+            return Err(format!("could not install updated package: {error}"));
+        }
+
+        if live_reload {
+            if let Err(error) = shroudforge_updater::request_runtime_mod_reload(root, &mod_ids) {
+                let failed_new = backup_root.join(format!("{}-failed", transaction));
+                let _ = fs::rename(destination, &failed_new);
+                fs::rename(&backup, destination).map_err(|rollback_error| format!("live reload failed ({error}) and package rollback failed: {rollback_error}"))?;
+                let restore = shroudforge_updater::request_runtime_mod_reload(root, &mod_ids);
+                return Err(match restore {
+                    Ok(()) => format!("updated runtime mod failed to load; previous package restored: {error}"),
+                    Err(restore_error) => format!("updated runtime mod failed to load ({error}); previous package restored but runtime recovery also failed: {restore_error}"),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn verify_mod_hash(
@@ -2295,6 +2425,14 @@ mod windows {
             .filter_map(|value| value.get("modId").and_then(|value| value.as_str()))
             .map(str::to_owned)
             .collect()
+    }
+
+    fn catalog_project_for_mod(root: &Path, mod_id: &str) -> Option<String> {
+        read_catalog_install_registry(root)
+            .get("projects")?
+            .as_object()?
+            .iter()
+            .find_map(|(project_id, value)| (value.get("modId").and_then(|value| value.as_str()) == Some(mod_id)).then(|| project_id.clone()))
     }
 
     fn remember_catalog_install(

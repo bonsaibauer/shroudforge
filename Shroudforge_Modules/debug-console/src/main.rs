@@ -12,10 +12,12 @@ mod windows {
         dpi::LogicalSize,
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
+        platform::windows::WindowExtWindows,
         window::WindowBuilder,
     };
     use windows_sys::Win32::{
-        Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0},
+        Foundation::{CloseHandle, HANDLE, HWND, WAIT_OBJECT_0},
+        Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE},
         System::Threading::{GetCurrentProcessId, OpenEventW, OpenProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION},
         UI::{
             Input::KeyboardAndMouse::{GetAsyncKeyState, VK_F10},
@@ -89,6 +91,15 @@ mod windows {
             .with_resizable(false)
             .with_maximizable(false)
             .build(&event_loop)?;
+        let border_color = DWMWA_COLOR_NONE;
+        let _ = unsafe {
+            DwmSetWindowAttribute(
+                window.hwnd() as HWND,
+                DWMWA_BORDER_COLOR as u32,
+                (&border_color as *const u32).cast(),
+                std::mem::size_of::<u32>() as u32,
+            )
+        };
         position_window(&window, &preferences["window"]["position"], true);
 
         let (sender, receiver) = mpsc::channel();
