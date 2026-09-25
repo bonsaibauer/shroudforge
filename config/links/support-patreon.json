@@ -1,0 +1,7 @@
+{
+  "id": "support-patreon",
+  "labelKey": "mod.link.badge.supportPatreon",
+  "descriptionKey": "mod.link.badge.supportPatreon.description",
+  "icon": "support-patreon",
+  "appearance": "support-patreon"
+}

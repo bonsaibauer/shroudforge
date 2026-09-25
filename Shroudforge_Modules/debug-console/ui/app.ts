@@ -85,9 +85,9 @@ window.__shroudforgeUpdate = (next) => {
   paths.loader = next.paths?.loader || paths.loader;
   document.querySelector('[data-tab="game"]').title = paths.game;
   document.querySelector('[data-tab="loader"]').title = paths.loader;
-  byId("session").textContent = next.connected ? "CLIENT" : "STANDALONE";
+  byId("session").textContent = next.connected ? "CLIENT" : "DESKTOP";
   byId("mode").classList.toggle("online", Boolean(next.connected));
-  byId("mode").classList.toggle("standalone", !next.connected);
+  byId("mode").classList.toggle("desktop", !next.connected);
   if (!paused) render();
 };
 

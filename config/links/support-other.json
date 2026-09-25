@@ -1,0 +1,7 @@
+{
+  "id": "support-other",
+  "labelKey": "mod.link.badge.supportOther",
+  "descriptionKey": "mod.link.badge.supportOther.description",
+  "icon": "support-other",
+  "appearance": "support-other"
+}

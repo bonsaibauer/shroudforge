@@ -218,6 +218,16 @@ pub fn validate_manifest(manifest: &ModManifest) -> Result<(), String> {
     if !crate::config::valid_id(&manifest.id) {
         return Err("mod id is invalid".into());
     }
+    let configured_link_ids: Vec<String> = serde_json::from_str(include_str!("../../../../config/links/order.json"))
+        .map_err(|error| format!("invalid configured mod link registry: {error}"))?;
+    for (name, url) in &manifest.links.0 {
+        if !configured_link_ids.iter().any(|id| id == name) {
+            return Err(format!("unsupported mod link '{name}'"));
+        }
+        if !url.starts_with("https://") {
+            return Err(format!("mod link '{name}' must use HTTPS"));
+        }
+    }
     let mut setting_keys = std::collections::HashSet::new();
     for setting in &manifest.settings {
         if !identifier(&setting.key) || !setting_keys.insert(setting.key.as_str()) {

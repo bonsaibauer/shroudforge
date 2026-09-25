@@ -8,6 +8,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args_os().collect();
     match args.get(1).and_then(|value| value.to_str()) {
         Some("--module-ui") => return shroudforge_modloader_ui::run_module(),
+        Some("--catalog-install-worker") => {
+            return shroudforge_modloader_ui::run_catalog_install_worker()
+                .map_err(|error| std::io::Error::other(error).into());
+        }
         Some("--debug-console") => return shroudforge_debug_console::run_module(),
         Some("--commands") => {
             shroudforge_commands::run_module();

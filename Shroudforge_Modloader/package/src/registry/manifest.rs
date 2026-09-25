@@ -32,6 +32,8 @@ pub struct ModManifest {
     pub target: ModTarget,
     #[serde(default)]
     pub release: ReleaseMetadata,
+    #[serde(default)]
+    pub links: ModLinks,
     #[serde(default, rename = "settingGroups")]
     pub setting_groups: Vec<SettingGroup>,
     #[serde(default)]
@@ -57,6 +59,10 @@ pub struct ReleaseMetadata {
     #[serde(default)]
     pub changelog: Vec<String>,
 }
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ModLinks(pub std::collections::BTreeMap<String, String>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

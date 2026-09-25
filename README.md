@@ -139,11 +139,27 @@ You can also copy the ready-made
   "id": "yourname.my-first-mod",
   "name": "My First Mod",
   "version": "1.0.0",
+  "authors": ["Your Name", "Another Author"],
   "api": "^1.0.0",
   "capabilities": ["runtime"],
   "dependencies": [],
   "target": "client",
-  "description": "My first ShroudForge mod."
+  "description": "My first ShroudForge mod.",
+  "shroudforge": {
+    "schemaVersion": 1,
+    "links": {
+      "source": "https://github.com/yourname/my-first-mod",
+      "issues": "https://github.com/yourname/my-first-mod/issues/new?template=bug_report.yml",
+      "wiki": "https://github.com/yourname/my-first-mod/wiki",
+      "discord": "https://discord.gg/example",
+      "website": "https://example.com",
+      "store": "https://example.com/store",
+      "support": [
+        { "platform": "bmac", "url": "https://buymeacoffee.com/yourname" },
+        { "platform": "patreon", "url": "https://patreon.com/yourname" }
+      ]
+    }
+  }
 }
 ```
 
@@ -157,6 +173,8 @@ You can also copy the ready-made
 | `dependencies` | Other mods that must be installed first. |
 | `target` | `client`, `server`, or `both`. |
 | `description` | A short, simple description. |
+| `authors` | One or more author names, shown beside the mod title. Keep the spelling and capitalization you want players to see. |
+| `shroudforge.links` | Optional HTTPS links shown as buttons in the mod information card. Direct project links: `source`, `source-github`, `source-gitlab`, `source-codeberg`, `issues`, `wiki`, `discord`, `website`, and `store`. Generic `source` stays platform-neutral; provider-specific source keys use the provider badge. `support` is a list of `{ "platform", "url" }` entries. Supported platform IDs: `bmac`, `patreon`, `paypal`, `github`, `ko-fi`, `open-collective`, and `other`. |
 
 | Capability | Purpose |
 | --- | --- |

@@ -26,6 +26,7 @@ local function apply_flight()
     local allow_descent = shroudforge.settings.get("allowDescent")
     local entities, reason = runtime.ecs.query(PlayerInput, DynamicLocomotion)
     if entities == nil then
+        runtime.report_effect("waiting", reason or "ECS query did not complete")
         if not warned then
             shroudforge.log.warn("Flight unavailable: " .. (reason or "ECS query failed"))
             warned = true
@@ -33,6 +34,8 @@ local function apply_flight()
         return
     end
     warned = false
+    local writes = 0
+    local failures = 0
 
     for _, entity in ipairs(entities) do
         local locomotion = runtime.ecs.read(entity, DynamicLocomotion)
@@ -52,7 +55,7 @@ local function apply_flight()
                 changed = true
             end
             if changed then
-                write_component(entity, DynamicLocomotion, locomotion)
+                if write_component(entity, DynamicLocomotion, locomotion) then writes = writes + 1 else failures = failures + 1 end
             end
         end
 
@@ -66,10 +69,19 @@ local function apply_flight()
                     fall.wasFalling = false
                     fall.detectedFallDistance = 0
                     fall.detectedFallDamagePercentage = 0
-                    write_component(entity, DynamicFallDamage, fall)
+                    if write_component(entity, DynamicFallDamage, fall) then writes = writes + 1 else failures = failures + 1 end
                 end
             end
         end
+    end
+    if failures > 0 then
+        runtime.report_effect("write-failed", failures .. " flight ECS write(s) failed")
+    elseif writes > 0 then
+        runtime.report_effect("write-confirmed", writes .. " movement/fall-state ECS write(s) succeeded; flight behavior is not independently observed")
+    elseif #entities == 0 then
+        runtime.report_effect("no-target", "No entity matched PlayerInput and DynamicLocomotion")
+    else
+        runtime.report_effect("no-change", #entities .. " matching entity/entities; no movement field needed a change")
     end
 end
 
@@ -88,7 +100,7 @@ end
 shroudforge.ui.on_action("resetFlight", restore_states)
 
 return {
-    update_interval_ms = 33,
+    update_interval_ms = 16,
     on_load = function()
         runtime.require("runtime.lifecycle")
         shroudforge.log.info("Flight active through keen::ecs::DynamicLocomotion")

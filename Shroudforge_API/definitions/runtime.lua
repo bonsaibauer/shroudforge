@@ -6,6 +6,8 @@
 --- @field phase "pregame"|"ingame"
 --- @field is_client boolean
 --- @field is_server boolean
+--- Report observed status from a runtime mod's ECS work. A confirmed write reports a typed-memory write, not an independently verified gameplay effect.
+--- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string?
 
 --- @class RuntimeLifecycle
 --- @field on_load fun()?

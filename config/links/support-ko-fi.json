@@ -1,0 +1,7 @@
+{
+  "id": "support-ko-fi",
+  "labelKey": "mod.link.badge.supportKofi",
+  "descriptionKey": "mod.link.badge.supportKofi.description",
+  "icon": "support-ko-fi",
+  "appearance": "support-ko-fi"
+}

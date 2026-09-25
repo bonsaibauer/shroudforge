@@ -45,6 +45,7 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &table, "has", &r#mod, lua_has)?;
     add_function_with_mod(lua, &table, "require", &r#mod, lua_require)?;
     add_function_with_mod(lua, &table, "status", &r#mod, lua_status)?;
+    add_function_with_mod(lua, &table, "report_effect", &r#mod, lua_report_effect)?;
 
     table.raw_set("ecs", create_ecs(lua, &r#mod)?)?;
 
@@ -161,6 +162,27 @@ fn lua_require(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result
     }
 }
 
+fn lua_report_effect(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if state.phase() != RuntimePhase::Ingame || !has_capability(r#mod, Capability::Runtime) {
+        return Ok((false, Some("runtime effect reporting requires an active ingame runtime mod".into())));
+    }
+    if !state.runtime_mod_is_active(&r#mod.info().id) {
+        return Ok((false, Some("runtime mod is not active".into())));
+    }
+    let status = args.get::<String>(0)?;
+    if !["waiting", "no-target", "no-change", "write-confirmed", "write-failed"].contains(&status.as_str()) {
+        return Err(LuaError::generic("runtime.report_effect state must be waiting, no-target, no-change, write-confirmed, or write-failed"));
+    }
+    let detail = args.get::<Option<String>>(1)?.unwrap_or_default();
+    state.report_runtime_effect(&r#mod.info().id, &status, &detail);
+    Ok((true, None))
+}
+
 fn create_ecs(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     let table = lua.create_table()?;
 
@@ -252,11 +274,9 @@ fn lua_ecs_query(
         }
         components.push(name);
     }
-    let Some(entities) = runtime_provider::query(&components) else {
-        return Ok((
-            LuaValue::Nil,
-            Some("live ECS query is still scanning or failed".into()),
-        ));
+    let entities = match runtime_provider::query(&components) {
+        Ok(entities) => entities,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason.into()))),
     };
     let result = lua.create_table_with_capacity(entities.len(), 0)?;
     for (index, entity) in entities.into_iter().enumerate() {
@@ -713,16 +733,16 @@ mod runtime_provider {
         let mut size = 0;
         unsafe { (provider.describe)(name.as_ptr(), &mut size) }.then_some(Component { size })
     }
-    pub fn query(components: &[String]) -> Option<Vec<u32>> {
+    pub fn query(components: &[String]) -> Result<Vec<u32>, &'static str> {
         let Some(provider) = provider() else {
-            return None;
+            return Err("native ECS provider unavailable");
         };
         let Ok(names) = components
             .iter()
             .map(|name| CString::new(name.as_str()))
             .collect::<Result<Vec<_>, _>>()
         else {
-            return None;
+            return Err("invalid ECS component name");
         };
         let pointers: Vec<_> = names.iter().map(|name| name.as_ptr()).collect();
         // Most player queries fit in one call. Do not count then rescan the
@@ -737,16 +757,22 @@ mod runtime_provider {
                     entities.len(),
                 )
             };
+            if actual == usize::MAX {
+                return Err("native ECS query failed or timed out");
+            }
+            if actual == usize::MAX - 1 {
+                return Err("live ECS query is still scanning; retry on the next update");
+            }
             if actual <= entities.len() {
                 entities.truncate(actual);
-                return Some(entities);
+                return Ok(entities);
             }
             if actual > 1 << 20 {
-                return None;
+                return Err("live ECS query returned an invalid entity count");
             }
             entities.resize(actual, 0);
         }
-        None
+        Err("live ECS query buffer did not stabilize")
     }
     pub fn read(entity: u32, name: &str, size: u32) -> Option<Vec<u8>> {
         let provider = provider()?;
@@ -808,8 +834,8 @@ mod runtime_provider {
     pub fn resolve(_: &str) -> Option<Component> {
         None
     }
-    pub fn query(_: &[String]) -> Option<Vec<u32>> {
-        None
+    pub fn query(_: &[String]) -> Result<Vec<u32>, &'static str> {
+        Err("native ECS runtime is available on Windows only")
     }
     pub fn read(_: u32, _: &str, _: u32) -> Option<Vec<u8>> {
         None

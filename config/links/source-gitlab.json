@@ -1,0 +1,7 @@
+{
+  "id": "source-gitlab",
+  "labelKey": "mod.link.badge.sourceGitlab",
+  "descriptionKey": "mod.link.badge.sourceGitlab.description",
+  "icon": "gitlab",
+  "appearance": "gitlab"
+}

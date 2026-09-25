@@ -81,7 +81,10 @@ impl Session {
         let mut report=json!({});
         if self.enabled("runtime") || self.enabled("queue") {
             let observed=native_snapshot();
-            let mut native=json!({"layoutReady":observed["layoutReady"],"layoutEpoch":observed["layoutEpoch"],"dispatcher":observed["dispatcher"],"error":observed["error"]});
+            // Preserve the provider's ECS operation counters and incremental
+            // query cursors. Filtering these out made a stuck scan look like
+            // a healthy dispatcher with no explanation for mods waiting.
+            let mut native=json!({"layoutReady":observed["layoutReady"],"layoutEpoch":observed["layoutEpoch"],"operations":observed["operations"],"activeQueryScan":observed["activeQueryScan"],"dispatcher":observed["dispatcher"],"error":observed["error"]});
             if let Some(age)=native.pointer("/dispatcher/lastDrainAgeMs").and_then(Value::as_u64) {
                 native["dispatcher"]["drainObservedWithinFiveSeconds"]=json!(age<=5000);
             }

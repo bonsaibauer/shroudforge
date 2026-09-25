@@ -204,13 +204,6 @@ pub fn append(root: impl AsRef<Path>, level: char, source: &str, message: &str) 
     Ok(true)
 }
 
-/// Append a user-facing activity record to the canonical log, honoring the shared minimum level.
-pub fn append_event(root: impl AsRef<Path>, level: char, source: &str, message: &str) -> io::Result<()> {
-    let root = root.as_ref();
-    if !allows(root, level) { return Ok(()); }
-    append_line(root, level, source, message)
-}
-
 fn append_line(root: &Path, level: char, source: &str, message: &str) -> io::Result<()> {
     let line = format!("{}\n", format_line(level, source, message));
     with_log_lock(root, || {

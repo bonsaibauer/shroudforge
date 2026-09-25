@@ -9,7 +9,9 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     ensure_game_stopped()?;
     let file_name = target_name(game_directory)?;
     if already_applied(game_directory, file_name)? {
-        tracing::info!("Asset fingerprint matches; skipping KFC rewrite");
+        // The prepared KFC files remain in place. A match means the requested
+        // asset mods are already applied, not that they were skipped.
+        tracing::info!("Prepared KFC assets match the current game and mod configuration; keeping the existing applied data");
         return Ok(());
     }
     run_inner(game_directory, file_name, "prepare")
@@ -31,7 +33,8 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
 
     let file_name = process_target_name(game_directory)?;
     if already_applied(game_directory, file_name)? {
-        tracing::info!("Startup asset fingerprint matches; skipping KFC rewrite");
+        // Enshrouded will load the already-prepared KFC data during startup.
+        tracing::info!("Startup KFC assets are already prepared for this game and mod configuration; no rewrite is needed");
         return Ok(());
     }
 

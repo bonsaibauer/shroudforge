@@ -2,6 +2,9 @@
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
   "version": "1.0.0",
+  "authors": [
+    "bonsaibauer"
+  ],
   "dependencies": [],
   "description": "Unlocks crafting recipes through the native keen::RecipeRegistryResource type.",
   "enabled": true,
@@ -24,25 +27,14 @@
         {
           "title": "Unlock Blueprints",
           "description": "Recipe asset changes",
-          "components": [
-            {
-              "type": "status",
-              "label": "Asset preparation",
-              "text": "When enabled, the loader applies recipe registry changes for the next game start."
-            },
-            {
-              "type": "text",
-              "text": "Supported recipes receive the configured always-available knowledge requirement for the current session."
-            },
-            {
-              "type": "notice",
-              "level": "warning",
-              "label": "Next game start",
-              "text": "The asset change takes effect when the game starts again."
-            }
-          ]
+          "components": []
         }
       ]
+    },
+    "links": {
+      "source-github": "https://github.com/bonsaibauer/shroudforge",
+      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
+      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
     }
   }
 }

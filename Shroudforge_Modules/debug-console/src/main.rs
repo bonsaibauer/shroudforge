@@ -47,9 +47,10 @@ mod windows {
     struct Arguments {
         root: PathBuf,
         game_pid: u32,
+        owner_process: HANDLE,
         game_process: HANDLE,
         stop_name: Option<String>,
-        standalone: bool,
+        desktop: bool,
     }
 
     #[derive(serde::Serialize)]
@@ -83,7 +84,7 @@ mod windows {
             .with_title("ShroudForge | Debug Console")
             .with_decorations(false)
             .with_always_on_top(true)
-            .with_visible(arguments.standalone)
+            .with_visible(arguments.desktop)
             .with_inner_size(LogicalSize::new(960.0, 580.0))
             .with_resizable(false)
             .with_maximizable(false)
@@ -115,7 +116,7 @@ mod windows {
             .with_ipc_handler(handler)
             .build(&window)?;
 
-        let mut shown = arguments.standalone;
+        let mut shown = arguments.desktop;
         let initial_window_state = shroudforge_package::config::window_state(&arguments.root);
         let mut visibility_request_id = initial_window_state["debugConsole"]["requestId"].as_u64().unwrap_or(0);
         let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
@@ -129,11 +130,14 @@ mod windows {
                 | Event::NewEvents(StartCause::Init) => {
                     if (!stop_event.is_null()
                         && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0)
+                        || (!arguments.owner_process.is_null()
+                            && unsafe { WaitForSingleObject(arguments.owner_process, 0) } == WAIT_OBJECT_0)
                         || (!arguments.game_process.is_null()
                             && unsafe { WaitForSingleObject(arguments.game_process, 0) } == WAIT_OBJECT_0)
                     {
                         let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false);
                         if !stop_event.is_null() { unsafe { CloseHandle(stop_event) }; }
+                        if !arguments.owner_process.is_null() { unsafe { CloseHandle(arguments.owner_process) }; }
                         if !arguments.game_process.is_null() { unsafe { CloseHandle(arguments.game_process) }; }
                         *control_flow = ControlFlow::Exit;
                         return;
@@ -173,7 +177,7 @@ mod windows {
                         next_visibility_poll = Instant::now() + Duration::from_millis(100);
                     }
                     let foreground = foreground_process();
-                    let game_focused = arguments.standalone || foreground == arguments.game_pid;
+                    let game_focused = arguments.desktop || foreground == arguments.game_pid;
                     let console_focused = foreground == unsafe { GetCurrentProcessId() };
                     let down = unsafe { GetAsyncKeyState(config.toggle_key as i32) } < 0;
                     if (game_focused || console_focused) && down && !key_down {
@@ -185,7 +189,7 @@ mod windows {
                         }
                     }
                     key_down = down;
-                    if !arguments.standalone && shown && !game_focused && !console_focused {
+                    if !arguments.desktop && shown && !game_focused && !console_focused {
                         window.set_visible(false);
                     } else if shown && (game_focused || console_focused) && !window.is_visible() {
                         window.set_visible(true);
@@ -217,7 +221,7 @@ mod windows {
                                 "game": arguments.root.join("enshrouded.log").display().to_string(),
                                 "loader": shroudforge_package::paths::current_log(&arguments.root).display().to_string(),
                             },
-                            "connected": !arguments.standalone,
+                            "connected": !arguments.desktop,
                             "minimumLevel": minimum_level,
                             "preferences": preferences,
                         });
@@ -271,17 +275,25 @@ mod windows {
                 .map(|pair| pair[1].clone())
         };
         let root = PathBuf::from(value("--root").ok_or("missing --root")?);
-        let standalone = values.iter().any(|value| value == "--standalone");
-        let game_pid = if standalone { unsafe { GetCurrentProcessId() } }
+        let desktop = values
+            .iter()
+            .any(|value| value == "--desktop" || value == "--standalone");
+        let owner_pid = value("--owner-pid").and_then(|pid| pid.parse::<u32>().ok());
+        let game_pid = if desktop { owner_pid.unwrap_or_else(|| unsafe { GetCurrentProcessId() }) }
             else { value("--game-pid").ok_or("missing --game-pid")?.parse()? };
-        let game_process = if standalone {
+        let owner_process = if desktop && owner_pid.is_some() {
+            let process = unsafe { OpenProcess(SYNCHRONIZE_ACCESS, 0, game_pid) };
+            if process.is_null() { return Err(std::io::Error::last_os_error().into()); }
+            process
+        } else { std::ptr::null_mut() };
+        let game_process = if desktop {
             std::ptr::null_mut()
         } else {
             let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE_ACCESS, 0, game_pid) };
             if process.is_null() { return Err(std::io::Error::last_os_error().into()); }
             process
         };
-        let stop_name = if standalone {
+        let stop_name = if desktop {
             None
         } else {
             Some(value("--stop-event").ok_or("missing --stop-event")?)
@@ -289,9 +301,10 @@ mod windows {
         Ok(Arguments {
             root,
             game_pid,
+            owner_process,
             game_process,
             stop_name,
-            standalone,
+            desktop,
         })
     }
 

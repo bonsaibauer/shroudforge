@@ -44,14 +44,15 @@ local function restore_subtracted_amount(player, action)
         pending[player] = expected
     end
     if slot.id ~= expected.id or slot.data.pide.id ~= expected.pide then return false end
-    if slot.data.count == expected.count then return true end
+    if slot.data.count == expected.count then return true, false end
     -- Do not overwrite unrelated inventory changes while retrying a timed-out write.
     if slot.data.count ~= expected.before then return false end
 
     -- Keen already created the right-hand split stack. Restore only the amount
     -- subtracted from the left-hand source stack.
     slot.data.count = expected.count
-    return write_component(handle, Inventory, inventory)
+    local ok = write_component(handle, Inventory, inventory)
+    return ok, ok
 end
 
 local function update_item_split()
@@ -67,6 +68,7 @@ local function update_item_split()
 
     local players, reason = runtime.ecs.query(ClientPlayerInput, ServerConsumedPlayerInput)
     if players == nil then
+        runtime.report_effect("waiting", reason or "ECS query did not complete")
         if not warned then
             shroudforge.log.warn("Infinite item split waiting: " .. (reason or "ECS query failed"))
             warned = true
@@ -74,6 +76,8 @@ local function update_item_split()
         return
     end
     warned = false
+    local writes = 0
+    local failures = 0
 
     for _, player in ipairs(players) do
         local input = runtime.ecs.read(player, ClientPlayerInput)
@@ -89,12 +93,24 @@ local function update_item_split()
                 and action_version == consumed_version
                 and restored_versions[player] ~= action_version
             then
-                if restore_subtracted_amount(player, action) then
+                local restored, wrote = restore_subtracted_amount(player, action)
+                if wrote then writes = writes + 1 end
+                if not restored and pending[player] ~= nil then failures = failures + 1 end
+                if restored then
                     restored_versions[player] = action_version
                     pending[player] = nil
                 end
             end
         end
+    end
+    if failures > 0 then
+        runtime.report_effect("write-failed", failures .. " split inventory update(s) could not be reconciled")
+    elseif writes > 0 then
+        runtime.report_effect("write-confirmed", writes .. " split inventory ECS write(s) succeeded; split preservation is not independently observed")
+    elseif #players == 0 then
+        runtime.report_effect("no-target", "No entity matched ClientPlayerInput and ServerConsumedPlayerInput")
+    else
+        runtime.report_effect("no-change", #players .. " player input entity/entities; no eligible confirmed split needed restoration")
     end
 end
 

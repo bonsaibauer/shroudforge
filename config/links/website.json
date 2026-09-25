@@ -1,0 +1,7 @@
+{
+  "id": "website",
+  "labelKey": "mod.link.badge.website",
+  "descriptionKey": "mod.link.badge.website.description",
+  "icon": "website",
+  "appearance": ""
+}

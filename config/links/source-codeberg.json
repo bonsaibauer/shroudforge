@@ -1,0 +1,7 @@
+{
+  "id": "source-codeberg",
+  "labelKey": "mod.link.badge.sourceCodeberg",
+  "descriptionKey": "mod.link.badge.sourceCodeberg.description",
+  "icon": "codeberg",
+  "appearance": "codeberg"
+}

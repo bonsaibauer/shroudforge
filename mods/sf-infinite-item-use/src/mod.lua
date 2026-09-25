@@ -79,19 +79,21 @@ local function restore_consumed_item(item)
         item.restoreCount = item.alreadyConsumed and (slot.data.count + 1) or item.count
     end
     -- Reconcile an earlier timed-out write before retrying. Never increment twice.
-    if slot.id == item.id and slot.data.count == item.restoreCount then return true end
-    if slot.data.count ~= item.beforeRestore then return false end
+    if slot.id == item.id and slot.data.count == item.restoreCount then return true, false end
+    if slot.data.count ~= item.beforeRestore then return false, false end
 
     slot.data.count = item.restoreCount
     if slot.id == 0 and item.id ~= 0 then slot.id = item.id end
     if slot.data.pide.id == 0 and item.pide ~= 0 then slot.data.pide.id = item.pide end
-    return write_component(handle, Inventory, inventory)
+    local ok = write_component(handle, Inventory, inventory)
+    return ok, ok
 end
 
 local function update_item_use()
     refresh_excluded_item_ids()
     local players, reason = runtime.ecs.query(ClientPlayerInput, ServerConsumedPlayerInput)
     if players == nil then
+        runtime.report_effect("waiting", reason or "ECS query did not complete")
         if not warned then
             shroudforge.log.warn("Infinite item use waiting: " .. (reason or "ECS query failed"))
             warned = true
@@ -99,6 +101,8 @@ local function update_item_use()
         return
     end
     warned = false
+    local writes = 0
+    local failures = 0
 
     for _, player in ipairs(players) do
         local input = runtime.ecs.read(player, ClientPlayerInput)
@@ -120,12 +124,24 @@ local function update_item_use()
 
             local item = pending[player]
             if item and item.version == consumed_version then
-                if restore_consumed_item(item) then
+                local restored, wrote = restore_consumed_item(item)
+                if wrote then writes = writes + 1 end
+                if not restored and item.restoreCount ~= nil then failures = failures + 1 end
+                if restored then
                     restored_versions[player] = item.version
                     pending[player] = nil
                 end
             end
         end
+    end
+    if failures > 0 then
+        runtime.report_effect("write-failed", failures .. " item-use restoration(s) could not be reconciled")
+    elseif writes > 0 then
+        runtime.report_effect("write-confirmed", writes .. " inventory ECS write(s) succeeded; item use is not independently observed")
+    elseif #players == 0 then
+        runtime.report_effect("no-target", "No entity matched ClientPlayerInput and ServerConsumedPlayerInput")
+    else
+        runtime.report_effect("no-change", #players .. " player input entity/entities; no confirmed consumable action needed restoration")
     end
 end
 

@@ -139,6 +139,7 @@ fn strip_lua_comments(source: &str) -> String {
 
 /// Canonical wire manifest -> internal UI/runtime view. Never serialize this view to disk.
 pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, String> {
+    normalize_legacy_support_links(&mut value)?;
     validate_document(root, "mod", &value)?;
     let extension = value.get("shroudforge").cloned().unwrap_or(json!({}));
     let values = value.get("settings").cloned().unwrap_or(json!({}));
@@ -182,13 +183,37 @@ pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, Stri
     object.remove("shroudforge");
     object.insert("settingValues".into(), effective);
     object.insert("settings".into(), json!(definitions));
-    for key in ["release", "settingGroups", "ui"] {
+    for key in ["release", "links", "settingGroups", "ui"] {
         if let Some(entry) = extension.get(key) { object.insert(key.into(), entry.clone()); }
     }
     object.insert("settings_schema".into(), extension.get("settingsSchema").cloned().unwrap_or(Value::Null));
     let manifest: ModManifest = serde_json::from_value(value).map_err(|error| error.to_string())?;
     validate_manifest(&manifest)?;
     Ok(manifest)
+}
+
+/// Older bundled manifests stored support links as `{ platform, url }` entries.
+/// Normalize that shape before current-schema validation so existing installations
+/// remain readable and their user settings can survive an update.
+fn normalize_legacy_support_links(value: &mut Value) -> Result<(), String> {
+    let Some(links) = value.pointer_mut("/shroudforge/links").and_then(Value::as_object_mut) else {
+        return Ok(());
+    };
+    let Some(support) = links.remove("support") else { return Ok(()); };
+    let Some(entries) = support.as_array() else { return Err("legacy support links must be an array".into()); };
+    for entry in entries {
+        let platform = entry.get("platform").and_then(Value::as_str).ok_or("legacy support link has no platform")?;
+        let url = entry.get("url").and_then(Value::as_str).ok_or("legacy support link has no URL")?;
+        let normalized = platform.trim().to_ascii_lowercase();
+        if normalized.is_empty() || !normalized.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-') {
+            return Err(format!("invalid legacy support platform: {platform}"));
+        }
+        let key = format!("support-{normalized}");
+        if links.insert(key.clone(), Value::String(url.to_owned())).is_some() {
+            return Err(format!("duplicate support link: {key}"));
+        }
+    }
+    Ok(())
 }
 
 pub fn read_manifest_path(root: &Path, package: &Path) -> Result<ModManifest, String> {
@@ -257,8 +282,18 @@ pub fn write_json(path: &Path, value: &Value) -> Result<(), String> {
         .write_all(&serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
     temporary.as_file().sync_all().map_err(|e| e.to_string())?;
-    temporary.persist(path).map_err(|e| e.to_string())?;
-    Ok(())
+    let mut temporary = temporary;
+    for attempt in 0..5 {
+        match temporary.persist(path) {
+            Ok(_) => return Ok(()),
+            Err(error) if error.error.kind() == std::io::ErrorKind::PermissionDenied && attempt < 4 => {
+                temporary = error.file;
+                std::thread::sleep(std::time::Duration::from_millis(10 << attempt));
+            }
+            Err(error) => return Err(error.to_string()),
+        }
+    }
+    Err("state file replacement retries exhausted".into())
 }
 
 pub fn write_document(root: &Path, name: &str, value: &Value) -> Result<(), String> {

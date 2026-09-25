@@ -454,6 +454,7 @@ impl IngameRuntime {
             "updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
             "running":running,"active":if running {self.active_mod_ids()}else{Vec::new()},
             "loaded":self.loaded,"errors":self.errors,
+            "effects":self.runner.lua.app_data_ref::<AppState>().unwrap().runtime_effects(),
             "runtimeProvider":crate::env::runtime_provider_report()
         });
         if let Err(error)=mod_loader::config::write_document(&self.root,"mod-status",&value){tracing::error!(target:"shroudforge::runtime","status publication failed: {error}");}

@@ -2,6 +2,9 @@
   "id": "sf-no-fall-damage",
   "name": "SF No Fall Damage",
   "version": "1.0.0",
+  "authors": [
+    "bonsaibauer"
+  ],
   "dependencies": [],
   "description": "Clears the local player's typed DynamicFallDamage runtime state.",
   "enabled": true,
@@ -25,17 +28,7 @@
         {
           "title": "No Fall Damage",
           "description": "Runtime behavior and scope",
-          "components": [
-            {
-              "type": "status",
-              "label": "Client runtime",
-              "text": "When enabled, the mod clears accumulated fall state during gameplay."
-            },
-            {
-              "type": "text",
-              "text": "The local player's fall start altitude, detected distance, and damage percentage are reset before they can produce fall damage."
-            }
-          ]
+          "components": []
         },
         {
           "title": "Runtime action",
@@ -50,6 +43,11 @@
           ]
         }
       ]
+    },
+    "links": {
+      "source-github": "https://github.com/bonsaibauer/shroudforge",
+      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
+      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
     }
   }
 }

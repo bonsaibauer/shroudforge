@@ -1,0 +1,7 @@
+{
+  "id": "support-open-collective",
+  "labelKey": "mod.link.badge.supportOpenCollective",
+  "descriptionKey": "mod.link.badge.supportOpenCollective.description",
+  "icon": "support-open-collective",
+  "appearance": "support-open-collective"
+}

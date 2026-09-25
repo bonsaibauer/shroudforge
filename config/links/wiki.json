@@ -1,0 +1,7 @@
+{
+  "id": "wiki",
+  "labelKey": "mod.link.badge.wiki",
+  "descriptionKey": "mod.link.badge.wiki.description",
+  "icon": "wiki",
+  "appearance": ""
+}

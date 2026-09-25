@@ -51,7 +51,15 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     }else if runtime["runtimeProvider"]["ready"]!=true {
                         json!({"state":"waiting","detail":"The mod runtime is waiting for the game provider to become ready."})
                     }else if runtime["active"].as_array().is_some_and(|active|active.iter().any(|id|id==&manifest.id)) {
-                        json!({"state":"active","detail":"The mod loaded into the game runtime. This confirms initialization, not that every in-game effect has been observed."})
+                        let effect=runtime["effects"].get(&manifest.id);
+                        match effect.and_then(|value|value["state"].as_str()) {
+                            Some("write-confirmed") => json!({"state":"write-confirmed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("A typed ECS write was confirmed in memory. The gameplay effect still requires in-game confirmation.")} ),
+                            Some("write-failed") => json!({"state":"failed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The mod could not write its target component.")} ),
+                            Some("waiting") => json!({"state":"waiting","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The mod is waiting for its ECS operation.")} ),
+                            Some("no-target") => json!({"state":"no-target","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The mod query found no target entity.")} ),
+                            Some("no-change") => json!({"state":"no-change","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("No component value required a change in this update.")} ),
+                            _ => json!({"state":"active","detail":"The mod loaded into the game runtime. Its gameplay effect has not been confirmed."})
+                        }
                     }else if manifest.enabled {json!({"state":"not-running","detail":"Activation is saved; the mod is not active in the running process."})}
                     else {json!({"state":"disabled","detail":"The mod is disabled."})}
                 }else if manifest.enabled {json!({"state":"unconfirmed","detail":"Activation is saved; no current runtime report is available."})}

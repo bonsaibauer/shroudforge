@@ -1,0 +1,7 @@
+{
+  "id": "store",
+  "labelKey": "mod.link.badge.store",
+  "descriptionKey": "mod.link.badge.store.description",
+  "icon": "store",
+  "appearance": ""
+}

@@ -33,6 +33,8 @@ pub fn fingerprint(env: &ModEnvironment, server: bool, api: &str) -> Result<Stri
 }
 
 pub fn matches(root: &Path, fingerprint: &str) -> bool {
+    // The KFC rewrite is persistent. A matching record confirms that the
+    // installed asset data already reflects this game and enabled mod plan.
     crate::config::read_document(root, "applied").ok()
         .is_some_and(|value| value["status"] == "applied" && value["fingerprint"] == fingerprint)
 }

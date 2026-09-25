@@ -1,0 +1,7 @@
+{
+  "id": "support-paypal",
+  "labelKey": "mod.link.badge.supportPaypal",
+  "descriptionKey": "mod.link.badge.supportPaypal.description",
+  "icon": "support-paypal",
+  "appearance": "support-paypal"
+}

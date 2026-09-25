@@ -2,11 +2,13 @@ param(
     [string]$BuildNumber = $(if ($env:SHROUDFORGE_BUILD_NUMBER) { $env:SHROUDFORGE_BUILD_NUMBER } else { 'dev' }),
     [switch]$SkipTests,
     [switch]$UseInstalledDependencies,
-    [switch]$SkipUiBuild
+    [switch]$SkipUiBuild,
+    [string]$CargoTargetDir = 'target'
 )
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+$cargoTargetPath = if ([IO.Path]::IsPathRooted($CargoTargetDir)) { [IO.Path]::GetFullPath($CargoTargetDir) } else { [IO.Path]::GetFullPath((Join-Path $root $CargoTargetDir)) }
 if ($BuildNumber -notmatch '^[A-Za-z0-9._-]+$') { throw 'BuildNumber contains invalid path characters.' }
 function Assert-BuildPath([string]$Path) {
     $resolved = [IO.Path]::GetFullPath($Path)
@@ -68,15 +70,18 @@ if (-not $SkipTests) {
     & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
     if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }
 }
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
+& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace --target-dir $cargoTargetPath
 if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace build failed.' }
 
-$runtime = Join-Path $root 'target\release\shroudforge_modloader.dll'
-$cli = Join-Path $root 'target\release\shroudforge.exe'
+$runtime = Join-Path $cargoTargetPath 'release\shroudforge_modloader.dll'
+$cli = Join-Path $cargoTargetPath 'release\shroudforge.exe'
+$updater = Join-Path $cargoTargetPath 'release\shroudforge-updater.exe'
 if (-not (Test-Path -LiteralPath $runtime)) { throw "Runtime missing: $runtime" }
 if (-not (Test-Path -LiteralPath $cli)) { throw "Launcher missing: $cli" }
+if (-not (Test-Path -LiteralPath $updater)) { throw "Standalone updater missing: $updater" }
 Copy-Item -LiteralPath $runtime -Destination (Join-Path $output 'shroudforge-runtime.dll') -Force
 Copy-Item -LiteralPath $cli -Destination (Join-Path $output 'shroudforge.exe') -Force
+Copy-Item -LiteralPath $updater -Destination (Join-Path $output 'shroudforge-updater.exe') -Force
 Copy-Item -LiteralPath (Join-Path $root 'build/native-runtime/Release/kfc-runtime.dll') -Destination $output -Force
 $bootstrap = Join-Path $root 'Shroudforge_Modloader\bootstrap\windows\ShroudForge.Bootstrap.vcxproj'
 & $msbuild $bootstrap /m /t:Build /p:Configuration=Release /p:Platform=x64 /p:OutDir="$output\"
@@ -128,7 +133,7 @@ Assert-BuildPath $package
 Assert-BuildPath $archive
 Remove-Item -LiteralPath $package -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $package | Out-Null
-Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe') -Destination $package
+Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe'),(Join-Path $output 'shroudforge-updater.exe') -Destination $package
 & $runtimeCmake --install (Join-Path $root 'build/native-runtime') --config Release --prefix $package
 if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime packaging failed.' }
 Copy-ShroudForgeMods (Join-Path $package 'mods')
@@ -158,7 +163,7 @@ Compress-Archive -Path "$package\*" -DestinationPath $archive -Force
 $releaseZip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $entryNames = @($releaseZip.Entries | ForEach-Object { $_.FullName })
-    if ($entryNames -notcontains 'shroudforge.exe' -or $entryNames -notcontains 'shroudforge/config/shroudforge.json' -or
+    if ($entryNames -notcontains 'shroudforge.exe' -or $entryNames -notcontains 'shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/config/shroudforge.json' -or
         $entryNames -notcontains 'shroudforge/version.json') {
         throw 'Release archive is missing the launcher, loader configuration, or version file.'
     }

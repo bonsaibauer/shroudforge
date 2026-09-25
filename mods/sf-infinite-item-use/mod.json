@@ -2,6 +2,9 @@
   "id": "sf-infinite-item-use",
   "name": "SF Infinite Item Use",
   "version": "1.0.0",
+  "authors": [
+    "bonsaibauer"
+  ],
   "dependencies": [],
   "description": "Restores the typed inventory slot addressed by a Consume item action.",
   "enabled": true,
@@ -53,21 +56,17 @@
           "description": "Runtime behavior and scope",
           "components": [
             {
-              "type": "status",
-              "label": "Client runtime",
-              "text": "When enabled, the mod watches completed consume actions."
-            },
-            {
-              "type": "text",
-              "text": "The mod records the addressed inventory slot before an item is consumed, then restores its count and identity after the server acknowledges the action."
-            },
-            {
               "type": "setting",
               "key": "excludedItemIds"
             }
           ]
         }
       ]
+    },
+    "links": {
+      "source-github": "https://github.com/bonsaibauer/shroudforge",
+      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
+      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
     }
   }
 }

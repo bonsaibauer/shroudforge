@@ -35,6 +35,7 @@ use crate::{
 pub struct AppState {
     pub(crate) runtime_configured: Cell<bool>,
     runtime_active_mods: RefCell<HashSet<String>>,
+    runtime_effects: RefCell<HashMap<String, serde_json::Value>>,
     env: ModEnvironment,
     api: ShroudForgeApi,
     config: AppConfig,
@@ -202,6 +203,7 @@ impl AppState {
         Ok(Self {
             runtime_configured: Cell::new(false),
             runtime_active_mods: RefCell::new(HashSet::new()),
+            runtime_effects: RefCell::new(HashMap::new()),
             env,
             api,
             config,
@@ -253,11 +255,39 @@ impl AppState {
 
     pub(crate) fn set_runtime_mod_active(&self, id: &str, active: bool) {
         let mut active_mods=self.runtime_active_mods.borrow_mut();
-        if active { active_mods.insert(id.to_owned()); } else { active_mods.remove(id); }
+        if active {
+            active_mods.insert(id.to_owned());
+            self.runtime_effects.borrow_mut().remove(id);
+        } else {
+            active_mods.remove(id);
+            self.runtime_effects.borrow_mut().remove(id);
+        }
     }
 
     pub(crate) fn runtime_mod_is_active(&self, id: &str) -> bool {
         self.runtime_active_mods.borrow().contains(id)
+    }
+
+    pub(crate) fn report_runtime_effect(&self, id: &str, state: &str, detail: &str) {
+        let value = serde_json::json!({
+            "state": state,
+            "detail": detail.chars().take(240).collect::<String>(),
+            "updatedAt": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        });
+        let mut effects = self.runtime_effects.borrow_mut();
+        if effects.get(id).is_some_and(|previous| previous["state"] == value["state"] && previous["detail"] == value["detail"]) {
+            return;
+        }
+        effects.insert(id.to_owned(), value);
+    }
+
+    pub(crate) fn runtime_effects(&self) -> serde_json::Value {
+        serde_json::Value::Object(self.runtime_effects.borrow().iter()
+            .map(|(id, value)| (id.clone(), value.clone()))
+            .collect())
     }
 
     #[inline]

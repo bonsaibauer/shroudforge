@@ -1,0 +1,7 @@
+{
+  "id": "issues",
+  "labelKey": "mod.link.badge.issues",
+  "descriptionKey": "mod.link.badge.issues.description",
+  "icon": "issues",
+  "appearance": "danger"
+}

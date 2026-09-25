@@ -3557,6 +3557,7 @@ dependencies = [
  "sha2",
  "shroudforge-package",
  "shroudforge-runtime-diagnostics",
+ "shroudforge-updater",
  "tao",
  "windows-sys 0.61.2",
  "wry",
@@ -3611,10 +3612,13 @@ dependencies = [
 name = "shroudforge-updater"
 version = "1.0.0"
 dependencies = [
+ "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "shroudforge-package",
  "windows-sys 0.61.2",
+ "zip",
 ]
 
 [[package]]

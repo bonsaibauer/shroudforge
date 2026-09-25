@@ -104,6 +104,9 @@
             }
           }
         },
+        "links": {
+          "$ref": "#/$defs/modLinks"
+        },
         "settingsSchema": {
           "type": "object",
           "properties": {
@@ -132,6 +135,16 @@
     }
   },
   "$defs": {
+    "modLinks": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "$ref": "#/$defs/httpsUrl" }
+    },
+    "httpsUrl": {
+      "type": "string",
+      "pattern": "^https://",
+      "maxLength": 2048
+    },
     "identifier": {
       "type": "string",
       "pattern": "^[A-Za-z0-9._-]+$",

@@ -1,0 +1,7 @@
+{
+  "id": "support-github",
+  "labelKey": "mod.link.badge.supportGithub",
+  "descriptionKey": "mod.link.badge.supportGithub.description",
+  "icon": "support-github",
+  "appearance": "support-github"
+}

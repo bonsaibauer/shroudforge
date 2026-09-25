@@ -1,0 +1,7 @@
+{
+  "id": "source",
+  "labelKey": "mod.link.badge.source",
+  "descriptionKey": "mod.link.badge.source.description",
+  "icon": "source",
+  "appearance": "source"
+}

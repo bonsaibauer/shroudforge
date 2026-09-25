@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <ctime>
 
 namespace {
 using CreateRuntime = void* (__cdecl*)(const wchar_t*, const wchar_t*);
@@ -85,6 +86,29 @@ void log(const std::string& message) {
     log('I', message);
 }
 
+void write_runtime_heartbeat(const std::filesystem::path& root) {
+    const auto directory = root / L"shroudforge" / L"runtime";
+    std::error_code error;
+    std::filesystem::create_directories(directory, error);
+    if (error) return;
+    const auto path = directory / L"heartbeat.json";
+    const auto temporary = directory / L"heartbeat.json.tmp";
+    const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    std::ofstream stream(temporary, std::ios::trunc);
+    if (!stream) return;
+    stream << "{\"schemaVersion\":1,\"pid\":" << GetCurrentProcessId()
+        << ",\"mode\":\"" << (std::filesystem::is_regular_file(root / L"enshrouded.exe") ? "CLIENT" : "SERVER")
+        << "\",\"updatedAt\":" << now << "}";
+    stream.close();
+    if (stream) MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+}
+
+void clear_runtime_heartbeat(const std::filesystem::path& root) {
+    std::error_code ignored;
+    std::filesystem::remove(root / L"shroudforge" / L"runtime" / L"heartbeat.json", ignored);
+}
+
 void start_debug_console(const std::filesystem::path& root) {
     if (!KfcRuntimeConfig::ModuleEnabled(root,"debugConsole")) return;
     if (!std::filesystem::is_regular_file(root / L"enshrouded.exe")) return;
@@ -120,7 +144,11 @@ void start_debug_console(const std::filesystem::path& root) {
 void stop_debug_console() {
     if (console_stop_event) SetEvent(console_stop_event);
     if (console_process) {
-        WaitForSingleObject(console_process, 3000);
+        if (WaitForSingleObject(console_process, 3000) != WAIT_OBJECT_0) {
+            log('W', "Debug Console did not stop after its stop event; terminating owned process");
+            if (TerminateProcess(console_process, 1)) WaitForSingleObject(console_process, 1000);
+            else log('E', "Could not terminate the owned Debug Console process");
+        }
         CloseHandle(console_process);
         console_process = nullptr;
     }
@@ -164,7 +192,11 @@ void start_modloader_ui(const std::filesystem::path& root) {
 void stop_modloader_ui() {
     if (modloader_ui_stop_event) SetEvent(modloader_ui_stop_event);
     if (modloader_ui_process) {
-        WaitForSingleObject(modloader_ui_process, 3000);
+        if (WaitForSingleObject(modloader_ui_process, 3000) != WAIT_OBJECT_0) {
+            log('W', "Modloader UI did not stop after its stop event; terminating owned process");
+            if (TerminateProcess(modloader_ui_process, 1)) WaitForSingleObject(modloader_ui_process, 1000);
+            else log('E', "Could not terminate the owned Modloader UI process");
+        }
         CloseHandle(modloader_ui_process);
         modloader_ui_process = nullptr;
     }
@@ -178,24 +210,32 @@ void start_pending_update(const std::filesystem::path& root) {
     const auto updates = root / L"shroudforge" / L"updates";
     const auto staged = updates / L"pending";
     const auto marker = updates / L"pending.ready";
-    const auto executable = staged / L"shroudforge.exe";
+    const auto executable = root / L"shroudforge-updater.exe";
     if (!std::filesystem::is_regular_file(marker) ||
+        !std::filesystem::is_regular_file(staged / L"shroudforge.exe") ||
         !std::filesystem::is_regular_file(executable)) return;
 
-    std::wstring command = L"\"" + executable.wstring() + L"\" --update-worker --root \"" +
-        root.wstring() + L"\" --staged \"" + staged.wstring() +
-        L"\" --wait-pid " + std::to_wstring(GetCurrentProcessId());
+    std::wstring command = L"\"" + executable.wstring() + L"\" --queue-install --root \"" +
+        root.wstring() + L"\" --wait-pid " + std::to_wstring(GetCurrentProcessId());
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION process{};
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
             CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(),
             &startup, &process)) {
-        log('E', "Pending updater could not be started");
+        log('E', "Independent updater request could not be started");
         return;
     }
     CloseHandle(process.hThread);
+    const auto result = WaitForSingleObject(process.hProcess, 5000);
+    if (result == WAIT_OBJECT_0) {
+        DWORD exit_code = 1;
+        GetExitCodeProcess(process.hProcess, &exit_code);
+        if (exit_code == 0) log("Pending update queued for independent installation after game exit");
+        else log('E', "Independent updater rejected pending update request");
+    } else {
+        log('W', "Independent updater request is still starting; check updater log");
+    }
     CloseHandle(process.hProcess);
-    log("Pending update will be installed after the game exits");
 }
 
 DWORD WINAPI run(void*) {
@@ -248,6 +288,7 @@ DWORD WINAPI run(void*) {
         previous = now;
         EcsRuntime::Tick();
         if (now >= next_runtime_status) {
+            write_runtime_heartbeat(root);
             const auto status = EcsRuntime::Status();
             if (status != previous_runtime_status) {
                 log("KFC Runtime " + status);
@@ -264,6 +305,7 @@ DWORD WINAPI run(void*) {
     EcsRuntime::Shutdown();
     stop_modloader_ui();
     stop_debug_console();
+    clear_runtime_heartbeat(root);
     FreeLibrary(runtime);
     log("Runtime stopped");
     start_pending_update(root);

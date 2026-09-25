@@ -3,6 +3,9 @@
   "id": "mod.example",
   "name": "Example",
   "version": "1.0.0",
+  "authors": [
+    "Your name"
+  ],
   "capabilities": [
     "patch",
     "runtime"
@@ -12,8 +15,15 @@
   "settings": {},
   "shroudforge": {
     "schemaVersion": 1,
-    "api": "^1.0.0",
-    "target": "both",
+    "links": {
+      "source": "https://github.com/yourname/mod.example",
+      "issues": "https://github.com/yourname/mod.example/issues/new?template=bug_report.yml",
+      "wiki": "https://github.com/yourname/mod.example/wiki",
+      "website": "https://example.com",
+      "store": "https://example.com/store",
+      "support-bmac": "https://buymeacoffee.com/yourname",
+      "support-patreon": "https://patreon.com/yourname"
+    },
     "settingsSchema": {
       "type": "object",
       "properties": {},
