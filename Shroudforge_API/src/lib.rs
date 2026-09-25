@@ -535,15 +535,21 @@ impl IngameRuntime {
     }
 
     fn unload_runtime_packages(&mut self, mod_ids: &[String]) -> Result<(), String> {
+        let mut unloaded_ids = Vec::new();
         for item in self.lifecycle.iter_mut().rev() {
             if !mod_ids.iter().any(|id| id == &item.id) || !item.active { continue; }
             if let Some(key) = &item.unload {
-                self.runner.lua.registry_value::<Function>(key)
+                if let Err(error) = self.runner.lua.registry_value::<Function>(key)
                     .and_then(|callback| callback.call::<()>(()))
-                    .map_err(|error| format!("mod '{}' on_unload failed: {error}", item.id))?;
+                {
+                    let mod_id = item.id.clone();
+                    self.restore_previous_runtime(&unloaded_ids);
+                    return Err(format!("mod '{mod_id}' on_unload failed: {error}"));
+                }
             }
             self.runner.lua.app_data_ref::<AppState>().unwrap().set_runtime_mod_active(&item.id, false);
             item.active = false;
+            unloaded_ids.push(item.id.clone());
         }
         self.publish_status(true);
         Ok(())
@@ -579,11 +585,10 @@ impl IngameRuntime {
         };
         for id in mod_ids {
             let enabled = environment.mod_registry().get(id).is_some_and(|item| item.info().enabled);
-            let runtime_only = environment.mod_registry().get(id).is_some_and(|item| {
+            let has_runtime = environment.mod_registry().get(id).is_some_and(|item| {
                 item.info().capabilities.contains(&mod_loader::Capability::Runtime)
-                    && !item.info().capabilities.contains(&mod_loader::Capability::AssetsWrite)
             });
-            if enabled && runtime_only && !replacement.active_mod_ids().iter().any(|active| active == id) {
+            if enabled && has_runtime && !replacement.active_mod_ids().iter().any(|active| active == id) {
                 let reason = replacement.errors.get(id).and_then(serde_json::Value::as_str).unwrap_or("updated mod did not become active").to_owned();
                 drop(replacement);
                 self.restore_previous_runtime(&previously_active);

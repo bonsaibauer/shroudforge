@@ -2188,11 +2188,25 @@ mod windows {
                 )?;
                 installed.push(installed_mod.0);
             }
+            if update_mod_id.is_none() && runtime_is_active(root) {
+                let runtime_ids = installed.iter().filter_map(|id| {
+                    let package = root.join("mods").join(id);
+                    shroudforge_package::config::read_manifest_path(root, &package).ok()
+                        .filter(|manifest| manifest.capabilities.contains(&shroudforge_package::Capability::Runtime))
+                        .map(|manifest| manifest.id)
+                }).collect::<Vec<_>>();
+                if !runtime_ids.is_empty() {
+                    shroudforge_updater::request_runtime_mod_reload(root, &runtime_ids)
+                        .map_err(|error| format!("catalog package installed, but its runtime modules could not be loaded in the running game: {error}"))?;
+                }
+            }
             if let Some((updated_project_id, version_id, staging)) = staged_update.take() {
                 let mod_id = update_mod_id.expect("staged update has target");
                 let destination = root.join("mods").join(mod_id);
-                replace_catalog_mod(root, mod_id, &staging, &destination)?;
-                remember_catalog_install(root, &updated_project_id, &version_id, mod_id, &destination)?;
+                if let Err(error) = replace_catalog_mod(root, mod_id, &staging, &destination, &updated_project_id, &version_id) {
+                    let _ = fs::remove_dir_all(&staging);
+                    return Err(error);
+                }
             }
             Ok(())
         })();
@@ -2206,8 +2220,13 @@ mod windows {
                     let _ = fs::rename(&path, destination);
                 }
             }
+            if let Some((_, _, staging)) = staged_update {
+                let _ = fs::remove_dir_all(staging);
+            }
             for mod_id in &installed {
-                let _ = forget_catalog_install(root, mod_id);
+                if Some(mod_id.as_str()) != update_mod_id {
+                    let _ = forget_catalog_install(root, mod_id);
+                }
             }
             return Err(error);
         }
@@ -2339,7 +2358,7 @@ mod windows {
         }
     }
 
-    fn replace_catalog_mod(root: &Path, mod_id: &str, staging: &Path, destination: &Path) -> Result<(), String> {
+    fn replace_catalog_mod(root: &Path, mod_id: &str, staging: &Path, destination: &Path, project_id: &str, version_id: &str) -> Result<(), String> {
         let old_manifest = shroudforge_package::config::read_manifest_path(root, destination)
             .map_err(|error| format!("could not inspect installed package before update: {error}"))?;
         let new_manifest = shroudforge_package::config::read_manifest_path(root, staging)
@@ -2347,18 +2366,16 @@ mod windows {
         if old_manifest.id != mod_id || new_manifest.id != mod_id {
             return Err("mod package identity changed during update".into());
         }
-        let runtime_only = old_manifest.capabilities.contains(&shroudforge_package::Capability::Runtime)
-            && !old_manifest.capabilities.contains(&shroudforge_package::Capability::AssetsWrite)
-            && new_manifest.capabilities.contains(&shroudforge_package::Capability::Runtime)
-            && !new_manifest.capabilities.contains(&shroudforge_package::Capability::AssetsWrite);
+        let has_runtime = old_manifest.capabilities.contains(&shroudforge_package::Capability::Runtime)
+            && new_manifest.capabilities.contains(&shroudforge_package::Capability::Runtime);
         let status_path = root.join("shroudforge/runtime/mod-status.json");
         let active = fs::read(&status_path).ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
             .and_then(|value| value["active"].as_array().cloned())
             .is_some_and(|ids| ids.iter().any(|value| value.as_str() == Some(mod_id)));
-        let live_reload = active && runtime_only && runtime_is_active(root);
+        let live_reload = has_runtime && runtime_is_active(root);
         let mod_ids = vec![mod_id.to_owned()];
-        if live_reload {
+        if live_reload && active {
             shroudforge_updater::request_runtime_mod_unload(root, &mod_ids)
                 .map_err(|error| format!("could not safely unload '{mod_id}' before package replacement: {error}"))?;
         }
@@ -2366,7 +2383,7 @@ mod windows {
         let transaction = format!("{}-{}", mod_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos());
         let backup_root = root.join("shroudforge/updates/mod-backups");
         fs::create_dir_all(&backup_root).map_err(|error| error.to_string())?;
-        let backup = backup_root.join(transaction);
+        let backup = backup_root.join(&transaction);
         fs::rename(destination, &backup).map_err(|error| format!("could not move old mod package into rollback storage: {error}"))?;
         if let Err(error) = fs::rename(staging, destination) {
             let rollback = fs::rename(&backup, destination);
@@ -2388,6 +2405,16 @@ mod windows {
                     Err(restore_error) => format!("updated runtime mod failed to load ({error}); previous package restored but runtime recovery also failed: {restore_error}"),
                 });
             }
+        }
+        if let Err(error) = remember_catalog_install(root, project_id, version_id, mod_id, destination) {
+            let failed_new = backup_root.join(format!("{}-registry-failed", transaction));
+            let _ = fs::rename(destination, &failed_new);
+            fs::rename(&backup, destination).map_err(|rollback_error| format!("catalog registry update failed ({error}) and package rollback failed: {rollback_error}"))?;
+            let restore = if live_reload { shroudforge_updater::request_runtime_mod_reload(root, &mod_ids) } else { Ok(()) };
+            return Err(match restore {
+                Ok(()) => format!("could not update catalog registry; previous package restored: {error}"),
+                Err(restore_error) => format!("catalog registry update failed ({error}); previous package restored but runtime recovery failed: {restore_error}"),
+            });
         }
         Ok(())
     }
