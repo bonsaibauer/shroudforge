@@ -16,7 +16,7 @@ mod windows {
     };
     use windows_sys::Win32::{
         Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0},
-        System::Threading::{GetCurrentProcessId, OpenEventW, WaitForSingleObject},
+        System::Threading::{GetCurrentProcessId, OpenEventW, OpenProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION},
         UI::{
             Input::KeyboardAndMouse::{GetAsyncKeyState, VK_F10},
             WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
@@ -47,6 +47,7 @@ mod windows {
     struct Arguments {
         root: PathBuf,
         game_pid: u32,
+        game_process: HANDLE,
         stop_name: Option<String>,
         standalone: bool,
     }
@@ -126,11 +127,14 @@ mod windows {
             match event {
                 Event::NewEvents(StartCause::ResumeTimeReached { .. })
                 | Event::NewEvents(StartCause::Init) => {
-                    if !stop_event.is_null()
-                        && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0
+                    if (!stop_event.is_null()
+                        && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0)
+                        || (!arguments.game_process.is_null()
+                            && unsafe { WaitForSingleObject(arguments.game_process, 0) } == WAIT_OBJECT_0)
                     {
                         let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false);
-                        unsafe { CloseHandle(stop_event) };
+                        if !stop_event.is_null() { unsafe { CloseHandle(stop_event) }; }
+                        if !arguments.game_process.is_null() { unsafe { CloseHandle(arguments.game_process) }; }
                         *control_flow = ControlFlow::Exit;
                         return;
                     }
@@ -268,10 +272,14 @@ mod windows {
         };
         let root = PathBuf::from(value("--root").ok_or("missing --root")?);
         let standalone = values.iter().any(|value| value == "--standalone");
-        let game_pid = if standalone {
-            unsafe { GetCurrentProcessId() }
+        let game_pid = if standalone { unsafe { GetCurrentProcessId() } }
+            else { value("--game-pid").ok_or("missing --game-pid")?.parse()? };
+        let game_process = if standalone {
+            std::ptr::null_mut()
         } else {
-            value("--game-pid").ok_or("missing --game-pid")?.parse()?
+            let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE_ACCESS, 0, game_pid) };
+            if process.is_null() { return Err(std::io::Error::last_os_error().into()); }
+            process
         };
         let stop_name = if standalone {
             None
@@ -281,6 +289,7 @@ mod windows {
         Ok(Arguments {
             root,
             game_pid,
+            game_process,
             stop_name,
             standalone,
         })

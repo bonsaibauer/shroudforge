@@ -390,25 +390,17 @@ fn lua_ecs_write(
             )),
         ));
     }
-    let Some(fresh) = runtime_provider::read(entity_id, &component_name, component.size) else {
-        return Ok((
-            false,
-            Some(format!(
-                "component changed or disappeared: {component_name}"
-            )),
-        ));
-    };
     let mut ranges = Vec::new();
     collect_changed_ranges(registry, metadata, 0, &source, &bytes, &mut ranges)
         .map_err(LuaError::generic)?;
     if ranges.is_empty() {
         return Ok((true, None));
     }
-    let mut merged = fresh.clone();
+    let mut mask = vec![0u8; component.size as usize];
     for (start, end) in ranges {
-        merged[start..end].copy_from_slice(&bytes[start..end]);
+        mask[start..end].fill(1);
     }
-    if runtime_provider::write(entity_id, &component_name, &fresh, &merged) {
+    if runtime_provider::write(entity_id, &component_name, &mask, &bytes) {
         Ok((true, None))
     } else {
         Ok((
@@ -775,21 +767,21 @@ mod runtime_provider {
         let handle = unsafe { (provider.resolve_entity)(entity_id) };
         (handle != 0).then_some(handle)
     }
-    pub fn write(entity: u32, name: &str, expected: &[u8], bytes: &[u8]) -> bool {
+    pub fn write(entity: u32, name: &str, mask: &[u8], bytes: &[u8]) -> bool {
         let Some(provider) = provider() else {
             return false;
         };
         let Ok(name) = CString::new(name) else {
             return false;
         };
-        if expected.len() != bytes.len() {
+        if mask.len() != bytes.len() {
             return false;
         }
         unsafe {
             (provider.write)(
                 entity,
                 name.as_ptr(),
-                expected.as_ptr().cast(),
+                mask.as_ptr().cast(),
                 bytes.as_ptr().cast(),
                 bytes.len(),
             )

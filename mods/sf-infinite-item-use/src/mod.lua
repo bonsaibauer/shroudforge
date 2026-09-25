@@ -10,6 +10,18 @@ end
 local pending = {}
 local restored_versions = {}
 local warned = false
+local warned_write = false
+
+local function write_component(entity, component, value)
+    local ok, reason = runtime.ecs.write(entity, component, value)
+    if not ok and not warned_write then
+        shroudforge.log.warn("Infinite item use write failed: " .. (reason or "ECS write failed"))
+        warned_write = true
+    elseif ok then
+        warned_write = false
+    end
+    return ok
+end
 local excluded_item_ids = {}
 local excluded_items_key = nil
 
@@ -73,7 +85,7 @@ local function restore_consumed_item(item)
     slot.data.count = item.restoreCount
     if slot.id == 0 and item.id ~= 0 then slot.id = item.id end
     if slot.data.pide.id == 0 and item.pide ~= 0 then slot.data.pide.id = item.pide end
-    return runtime.ecs.write(handle, Inventory, inventory)
+    return write_component(handle, Inventory, inventory)
 end
 
 local function update_item_use()

@@ -6,6 +6,7 @@ if PlayerInput == nil or DynamicFallDamage == nil then
 end
 
 local warned = false
+local warned_write = false
 
 local function clear_fall_damage()
     local entities, reason = runtime.ecs.query(PlayerInput, DynamicFallDamage)
@@ -32,7 +33,13 @@ local function clear_fall_damage()
                 fall.fallStartAltitude = 0
                 fall.detectedFallDistance = 0
                 fall.detectedFallDamagePercentage = 0
-                runtime.ecs.write(entity, DynamicFallDamage, fall)
+                local ok, write_reason = runtime.ecs.write(entity, DynamicFallDamage, fall)
+                if not ok and not warned_write then
+                    shroudforge.log.warn("No fall damage write failed: " .. (write_reason or "ECS write failed"))
+                    warned_write = true
+                elseif ok then
+                    warned_write = false
+                end
             end
         end
     end

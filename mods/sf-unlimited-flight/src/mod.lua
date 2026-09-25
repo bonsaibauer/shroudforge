@@ -8,6 +8,18 @@ end
 
 local original_states = {}
 local warned = false
+local warned_write = false
+
+local function write_component(entity, component, value)
+    local ok, reason = runtime.ecs.write(entity, component, value)
+    if not ok and not warned_write then
+        shroudforge.log.warn("Flight write failed: " .. (reason or tostring(component)))
+        warned_write = true
+    elseif ok then
+        warned_write = false
+    end
+    return ok
+end
 
 local function apply_flight()
     local prevent_fall_damage = shroudforge.settings.get("preventFallDamage")
@@ -40,7 +52,7 @@ local function apply_flight()
                 changed = true
             end
             if changed then
-                runtime.ecs.write(entity, DynamicLocomotion, locomotion)
+                write_component(entity, DynamicLocomotion, locomotion)
             end
         end
 
@@ -54,7 +66,7 @@ local function apply_flight()
                     fall.wasFalling = false
                     fall.detectedFallDistance = 0
                     fall.detectedFallDamagePercentage = 0
-                    runtime.ecs.write(entity, DynamicFallDamage, fall)
+                    write_component(entity, DynamicFallDamage, fall)
                 end
             end
         end
@@ -67,7 +79,7 @@ local function restore_states()
         if locomotion then
             locomotion.state = original.state
             locomotion.previousState = original.previousState
-            runtime.ecs.write(entity, DynamicLocomotion, locomotion)
+            write_component(entity, DynamicLocomotion, locomotion)
         end
     end
     original_states = {}

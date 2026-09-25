@@ -184,6 +184,7 @@ mod windows {
     struct Arguments {
         root: PathBuf,
         game_pid: u32,
+        game_process: HANDLE,
         stop_name: Option<String>,
         standalone: bool,
         server: bool,
@@ -565,11 +566,14 @@ mod windows {
             match event {
                 Event::NewEvents(StartCause::ResumeTimeReached { .. })
                 | Event::NewEvents(StartCause::Init) => {
-                    if !stop_event.is_null()
-                        && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0
+                    if (!stop_event.is_null()
+                        && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0)
+                        || (!arguments.game_process.is_null()
+                            && unsafe { WaitForSingleObject(arguments.game_process, 0) } == WAIT_OBJECT_0)
                     {
                         let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", false);
-                        unsafe { CloseHandle(stop_event) };
+                        if !stop_event.is_null() { unsafe { CloseHandle(stop_event) }; }
+                        if !arguments.game_process.is_null() { unsafe { CloseHandle(arguments.game_process) }; }
                         *control_flow = ControlFlow::Exit;
                         return;
                     }
@@ -834,11 +838,9 @@ mod windows {
         };
         let root = PathBuf::from(value("--root").ok_or("missing --root")?);
         let standalone = values.iter().any(|value| value == "--standalone");
-        let game_pid = if standalone {
-            unsafe { GetCurrentProcessId() }
-        } else {
-            value("--game-pid").ok_or("missing --game-pid")?.parse()?
-        };
+        let game_pid = if standalone { unsafe { GetCurrentProcessId() } }
+            else { value("--game-pid").ok_or("missing --game-pid")?.parse()? };
+        let mut game_process: HANDLE = std::ptr::null_mut();
         let stop_name = if standalone {
             None
         } else {
@@ -857,27 +859,30 @@ mod windows {
             }
         } else {
             use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
-            let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, game_pid) };
+            let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE_ACCESS, 0, game_pid) };
             if process.is_null() { return Err(std::io::Error::last_os_error().into()); }
             let mut buffer = vec![0u16; 32768];
             let mut length = buffer.len() as u32;
             let success = unsafe { QueryFullProcessImageNameW(process, 0, buffer.as_mut_ptr(), &mut length) };
             let error = std::io::Error::last_os_error();
-            unsafe { CloseHandle(process); }
-            if success == 0 { return Err(error.into()); }
+            if success == 0 { unsafe { CloseHandle(process); } return Err(error.into()); }
             let executable = PathBuf::from(String::from_utf16(&buffer[..length as usize])?);
             if executable.parent().ok_or("target has no installation directory")?.canonicalize()? != root.canonicalize()? {
+                unsafe { CloseHandle(process); }
                 return Err("Target process does not belong to the selected installation".into());
             }
-            match executable.file_name().and_then(|name| name.to_str()).map(str::to_ascii_lowercase).as_deref() {
+            let server = match executable.file_name().and_then(|name| name.to_str()).map(str::to_ascii_lowercase).as_deref() {
                 Some("enshrouded_server.exe") => true,
                 Some("enshrouded.exe") => false,
-                _ => return Err("Target process is not an Enshrouded client or dedicated server".into()),
-            }
+                _ => { unsafe { CloseHandle(process); } return Err("Target process is not an Enshrouded client or dedicated server".into()); },
+            };
+            game_process = process;
+            server
         };
         Ok(Arguments {
             root,
             game_pid,
+            game_process,
             stop_name,
             standalone,
             server,

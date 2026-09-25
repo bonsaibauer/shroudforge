@@ -7,6 +7,18 @@ if PlayerInput == nil or StaminaDepletion == nil or NetworkStamina == nil then
 end
 
 local warned = false
+local warned_write = false
+
+local function write_component(entity, component, value)
+    local ok, reason = runtime.ecs.write(entity, component, value)
+    if not ok and not warned_write then
+        shroudforge.log.warn("No stamina loss write failed: " .. (reason or tostring(component)))
+        warned_write = true
+    elseif ok then
+        warned_write = false
+    end
+    return ok
+end
 
 local function update_stamina()
     local prevent_depletion = shroudforge.settings.get("preventDepletion")
@@ -37,7 +49,7 @@ local function update_stamina()
             local depletion = runtime.ecs.read(entity, StaminaDepletion)
             if depletion and depletion.accumulatedValue ~= 0 then
                 depletion.accumulatedValue = 0
-                runtime.ecs.write(entity, StaminaDepletion, depletion)
+                write_component(entity, StaminaDepletion, depletion)
             end
         end
 
@@ -45,7 +57,7 @@ local function update_stamina()
             local stamina = runtime.ecs.read(entity, NetworkStamina)
             if stamina and stamina.stamina < stamina.staminaMax then
                 stamina.stamina = stamina.staminaMax
-                runtime.ecs.write(entity, NetworkStamina, stamina)
+                write_component(entity, NetworkStamina, stamina)
             end
         end
     end

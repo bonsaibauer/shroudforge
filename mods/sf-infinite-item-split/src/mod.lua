@@ -11,6 +11,18 @@ local configured_split_key = ""
 local restored_versions = {}
 local pending = {}
 local warned = false
+local warned_write = false
+
+local function write_component(entity, component, value)
+    local ok, reason = runtime.ecs.write(entity, component, value)
+    if not ok and not warned_write then
+        shroudforge.log.warn("Infinite item split write failed: " .. (reason or "ECS write failed"))
+        warned_write = true
+    elseif ok then
+        warned_write = false
+    end
+    return ok
+end
 
 local function restore_subtracted_amount(player, action)
     local entity = action.sourceSlotId.entityId.id
@@ -39,7 +51,7 @@ local function restore_subtracted_amount(player, action)
     -- Keen already created the right-hand split stack. Restore only the amount
     -- subtracted from the left-hand source stack.
     slot.data.count = expected.count
-    return runtime.ecs.write(handle, Inventory, inventory)
+    return write_component(handle, Inventory, inventory)
 end
 
 local function update_item_split()

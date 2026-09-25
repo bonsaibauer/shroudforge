@@ -31,16 +31,27 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
     match root.to_str().ok_or("installation path is not UTF-8").and_then(|path|crate::ModEnvironment::load(path).map_err(|_|"mod discovery failed")) {
         Ok(env)=> {
             let (plan,failures)=env.plan_report(server,api);
+            let applied_assets=crate::prepared::fingerprint(&env,server,api).ok()
+                .is_some_and(|fingerprint|crate::prepared::matches(root,&fingerprint));
             for item in env.mod_registry().values() {
                 let manifest=item.info();
                 let fingerprint=crate::config::revision(&serde_json::to_vec(manifest).unwrap_or_default());
-                let state=if runtime_fresh {
+                let asset_mod=manifest.capabilities.contains(&crate::Capability::AssetsWrite);
+                let state=if !manifest.enabled {
+                    json!({"state":"disabled","detail":"The mod is disabled."})
+                }else if asset_mod && applied_assets {
+                    json!({"state":"applied","detail":"This asset mod was included in the startup pass for the current game and configuration."})
+                }else if asset_mod {
+                    json!({"state":"restart-required","detail":"This asset mod has not been applied to the current game files. The startup asset pass will run before the next game start."})
+                }else if runtime_fresh {
                     let runtime=runtime.as_ref().unwrap();
                     if let Some(reason)=runtime["errors"].get(&manifest.id) {json!({"state":"failed","detail":reason})}
                     else if runtime["loaded"].get(&manifest.id).is_some_and(|loaded| loaded!=&fingerprint) {
                         json!({"state":"restart-required","detail":"Configuration saved; the running process still uses the previous settings."})
+                    }else if runtime["runtimeProvider"]["ready"]!=true {
+                        json!({"state":"waiting","detail":"The mod runtime is waiting for the game provider to become ready."})
                     }else if runtime["active"].as_array().is_some_and(|active|active.iter().any(|id|id==&manifest.id)) {
-                        json!({"state":"active","detail":"Lua lifecycle is active in the target process and the applied settings match."})
+                        json!({"state":"active","detail":"The mod loaded into the game runtime. This confirms initialization, not that every in-game effect has been observed."})
                     }else if manifest.enabled {json!({"state":"not-running","detail":"Activation is saved; the mod is not active in the running process."})}
                     else {json!({"state":"disabled","detail":"The mod is disabled."})}
                 }else if manifest.enabled {json!({"state":"unconfirmed","detail":"Activation is saved; no current runtime report is available."})}
