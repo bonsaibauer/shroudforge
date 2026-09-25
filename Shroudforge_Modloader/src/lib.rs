@@ -131,9 +131,6 @@ pub unsafe extern "C" fn shroudforge_create(
     }
     fn create_runtime(game: PathBuf, mods: PathBuf) -> Result<RuntimeHandle, String> {
         let _ = shroudforge_package::logging::initialize(&game, false);
-        for error in shroudforge_package::migration::migrate_installation(&game)? {
-            let _ = shroudforge_package::logging::append(&game, 'W', "migration", &error);
-        }
         let executable = std::env::current_exe().map_err(|error| error.to_string())?;
         let name = executable
             .file_name()

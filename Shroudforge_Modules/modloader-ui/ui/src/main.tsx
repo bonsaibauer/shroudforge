@@ -15,12 +15,12 @@ type ModUi = { sections?:UiSection[]; tabs?:Array<{id:string;label:string;sectio
 type ModInfo = { revision:string; id:string; name:string; version:string; target:string; runtime:boolean; description?:string; authors:string[]; license?:string; links:Record<string,string|undefined>; source:string; enabled:boolean; settings:SettingDefinition[]; settingGroups:SettingGroup[]; ui:ModUi; changelog:string[]; assets:Record<string,string>; settingValues:Record<string,unknown> }
 type Activity = { id:string; time:string; source:string; action:string; result:string; level:string }
 type Notice = { id:string; modId:string; title:string; message:string; level:string; actionUrl?:string; updatedAt:number; kind?:string; values?:Record<string,string>; changelog?:string[] }
-type Release = { currentVersion:string; latestVersion?:string; updateAvailable:boolean; state:string; message?:string; releaseUrl?:string; staged:boolean }
+type Release = { currentVersion:string; latestVersion?:string; updateAvailable:boolean; state:string; message?:string; releaseUrl?:string; staged:boolean; downloadedBytes?:number; totalBytes?:number; bytesPerSecond?:number }
 type ModulePreferences = Record<string,Record<string,any>>
 type Settings = { configRevision?:string; modulePreferences?:ModulePreferences; compactMode:boolean; reducedMotion:boolean; logLevel:string; updateEnabled:boolean; baseUrl:string; projectId:string; checkMinutes:number }
 type CatalogItem = { id:string; slug:string; name:string; summary:string; iconUrl?:string; author?:string; downloads?:number; version?:string }
 type Catalog = { state:string; query:string; message?:string; items:CatalogItem[] }
-type Snapshot = { diagnostics?:{active:boolean;fresh:boolean;reason:string;remainingSeconds?:number;lastSampleAt?:number;detail?:string;report?:Record<string,unknown>}; windows?:Record<string,{visible:boolean;requestedVisible?:boolean}>; configuration?:{modStates?:Record<string,{state:string;detail:string}>;errors:string[];checks:Array<{id:string;group:string;state:"ok"|"warning"|"neutral";detail:string}>;assets:{state:string;detail:string};lastUpdate?:{version:string;build:string;installedAt:number}}; connected:boolean; mode:string; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; newsTemplates?:Record<string,{title:string;message:string}>; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
+type Snapshot = { diagnostics?:{active:boolean;fresh:boolean;reason:string;remainingSeconds?:number;lastSampleAt?:number;detail?:string;report?:Record<string,unknown>}; windows?:Record<string,{visible:boolean;requestedVisible?:boolean}>; configuration?:{modStates?:Record<string,{state:string;detail:string}>;errors:string[];checks:Array<{id:string;group:string;state:"ok"|"warning"|"neutral";detail:string}>;assets:{state:string;detail:string};lastUpdate?:{version:string;build:string;installedAt:number}}; connected:boolean; mode:string; updaterWindow?:boolean; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; newsTemplates?:Record<string,{title:string;message:string}>; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
 type PageId = 'activity'|'news'|'discover'|'installed'|'updates'|'compatibility'|'settings'
 type NewsItem = { id:string; level:string; title:string; message:string; actionUrl?:string; updatedAt:number; changelog?:string[] }
 
@@ -29,7 +29,7 @@ const linkDefinitions=Object.fromEntries(Object.entries(import.meta.glob('../../
 const linkAssetIcons=Object.fromEntries(Object.entries(import.meta.glob('../../../../config/links/assets/*.svg',{eager:true,import:'default',query:'?url'})).map(([path,value])=>[path.split('/').pop()?.replace('.svg',''),value as string])) as Record<string,string>
 
 const empty:Snapshot = {
-  connected:false, mode:'DESKTOP', gameVersion:'', version:'1.0.0', mods:[], activity:[], notices:[], readNoticeIds:[], locale:'de',
+  connected:false, mode:(window as any).__shroudforgeLaunchMode==='updater'?'UPDATER':'DESKTOP', updaterWindow:(window as any).__shroudforgeLaunchMode==='updater', gameVersion:'', version:'1.0.0', mods:[], activity:[], notices:[], readNoticeIds:[], locale:'de',
   release:{currentVersion:'1.0.0',updateAvailable:false,state:'idle',staged:false},
   settings:{compactMode:false,reducedMotion:false,logLevel:'INFO',updateEnabled:false,baseUrl:'https://api.shroudedit.com',projectId:'shroudforge',checkMinutes:30},
   catalog:{state:'idle',query:'',items:[]},
@@ -131,6 +131,8 @@ function App(){
   const navigate=(next:PageId)=>{setSelectedMod(null);setPage(next)}
   const markRead=(ids:string[])=>{const next=Array.from(new Set([...read,...ids]));setRead(next);post('mark-news-read',{ids})}
 
+  if(data.updaterWindow)return <UpdaterWindow release={data.release} version={data.version}/>
+
   return <main className="shell">
     {(Boolean(data.configuration?.errors.length)||Boolean(saveMessage))&&<div className="toast-stack" aria-live="polite">
       {Boolean(data.configuration?.errors.length)&&<div role="alert" className="settings-save-message persistent error"><strong>{t('settings.configuration.title')}</strong>{data.configuration?.errors.map((error,index)=><p key={error||index}>{error}</p>)}</div>}
@@ -227,9 +229,43 @@ function Updates({data,settings,setSettings}:{data:Snapshot;settings:Settings;se
 
 function SystemUpdate({release}:{release:Release}){
   const {t}=useI18n()
-  if(release.updateAvailable)return <Card title={`ShroudForge ${release.latestVersion}`} tone="update"><p>{release.message||t('updates.version.available')}</p><div className="inline-actions"><button className="button" onClick={()=>postRequest('stage-update')} disabled={release.state==='downloading'||release.staged}>{release.staged?t('updates.staged'):release.state==='downloading'?t('updates.downloading'):t('updates.download')}</button>{release.releaseUrl&&<button className="button ghost" onClick={()=>postRequest('open-url',{url:release.releaseUrl})}>{t('updates.release')}</button>}</div><p className="hint">{t('updates.safety')}</p></Card>
+  if(release.updateAvailable)return <Card title={`ShroudForge ${release.latestVersion}`} tone="update"><p>{release.message||t('updates.version.available')}</p>{['queued','downloading','verifying','extracting','staged','waitingForGame','installing'].includes(release.state)&&<UpdateProgress release={release}/>}<div className="inline-actions"><button className="button" onClick={()=>postRequest('stage-update')} disabled={['queued','downloading','verifying','extracting','staged','waitingForGame','installing'].includes(release.state)}>{release.staged?t('updates.staged'):release.state==='downloading'?t('updates.downloading'):t('updates.download')}</button>{release.releaseUrl&&<button className="button ghost" onClick={()=>postRequest('open-url',{url:release.releaseUrl})}>{t('updates.release')}</button>}</div><p className="hint">{t('updates.safety')}</p></Card>
   const message=release.state==='ready'&&!release.latestVersion?t('updates.none.notPublished'):release.state==='ready'?t('updates.none.message'):release.state==='checking'?t('updates.checking'):release.state==='idle'?t('updates.none.notChecked'):release.message||t('updates.none.message')
   return <Empty title={t('updates.none.title')} text={message} icon="check"/>
+}
+
+function UpdaterWindow({release,version}:{release:Release;version:string}){
+  const {t}=useI18n()
+  const active=['queued','downloading','verifying','extracting','staged','waitingForGame','installing'].includes(release.state)
+  const complete=release.state==='installed'
+  const failed=release.state==='error'
+  const subtitle=complete?t('updater.complete'):failed?(release.message||t('updater.failed')):release.state==='waitingForGame'?t('updater.waiting'):release.state==='installing'?t('updater.installing'):release.state==='verifying'?t('updater.verifying'):release.state==='extracting'?t('updater.extracting'):release.state==='staged'?t('updater.staged'):release.state==='downloading'?t('updater.downloading'):release.state==='queued'?t('updater.queued'):release.state==='checking'?t('updater.checking'):release.updateAvailable?t('updater.available'):release.state==='ready'?t('updater.current'):t('updater.starting')
+  return <main className="updater-shell">
+    <header className="updater-topbar" data-drag-region><div className="updater-brand"><span className="brand-mark">SF</span><span><strong>SHROUDFORGE</strong><small>UPDATER</small></span></div><button className="window-close" onClick={()=>post('hide')} aria-label={t('common.close')}>×</button></header>
+    <section className="updater-content">
+      <div className="updater-heading"><div><small>{t('updater.system')}</small><h1>{release.latestVersion?`ShroudForge ${release.latestVersion}`:t('updater.title')}</h1></div><span className={`updater-state ${complete?'success':failed?'error':active?'working':''}`}><i/>{subtitle}</span></div>
+      <p className="updater-message">{complete?t('updater.completeDetail'):failed?(release.message||t('updater.failedDetail')):release.message||subtitle}</p>
+      {active&&<UpdateProgress release={release}/>}
+      {!active&&!complete&&!failed&&release.state==='ready'&&!release.updateAvailable&&<div className="updater-result success"><i>✓</i><span>{t('updater.current')}</span></div>}
+      {complete&&<div className="updater-result success"><i>✓</i><span>{t('updater.completeDetail')}</span></div>}
+      {failed&&<div className="updater-result error"><i>!</i><span>{t('updater.failedDetail')}</span></div>}
+      <footer className="updater-footer"><span>{t('updater.installedVersion',{version})}</span>{failed&&<button className="button ghost" onClick={()=>postRequest('check-updates')}>{t('updater.retry')}</button>}{release.state==='ready'&&!release.updateAvailable&&<button className="button ghost" onClick={()=>postRequest('check-updates')}>{t('updater.checkAgain')}</button>}</footer>
+    </section>
+  </main>
+}
+
+function UpdateProgress({release}:{release:Release}){
+  const {t}=useI18n()
+  const total=release.totalBytes||0
+  const downloaded=release.downloadedBytes||0
+  const progress=total?Math.max(0,Math.min(100,downloaded/total*100)):undefined
+  const speed=release.bytesPerSecond?`${(release.bytesPerSecond/1024/1024).toFixed(1)} MB/s`:''
+  const stepKeys:Record<string,TranslationKey>={queued:'updater.step.queued',downloading:'updater.step.downloading',verifying:'updater.step.verifying',extracting:'updater.step.extracting',staged:'updater.step.staged',waitingForGame:'updater.step.waitingForGame',installing:'updater.step.installing'}
+  return <div className="updater-progress-card">
+    <div className="updater-progress-label"><strong>{progress===undefined?t('updater.preparing'):t('updater.progress',{percent:Math.floor(progress)})}</strong><span>{speed}</span></div>
+    <div className={`updater-progress-track ${progress===undefined?'indeterminate':''}`}><i style={progress===undefined?undefined:{width:`${progress}%`}}/></div>
+    <div className="updater-progress-meta"><span>{total?`${(downloaded/1024/1024).toFixed(1)} / ${(total/1024/1024).toFixed(1)} MB`:downloaded?`${(downloaded/1024/1024).toFixed(1)} MB`:t('updater.preparing')}</span><span>{t(stepKeys[release.state]||'updater.preparing')}</span></div>
+  </div>
 }
 
 function Compatibility({data}:{data:Snapshot}){
@@ -304,7 +340,7 @@ function ModPage({mod,status}:{mod:ModInfo;status?:{state:string;detail:string}}
    const stateCode=!enabled?'disabled':status?.state==='failed'?'error':enabled!==mod.enabled||status?.state==='restart-required'||status?.state==='not-running'||status?.state==='unconfirmed'||!status?'restart': 'running'
   const stateLabel=t(stateCode==='restart'?'mod.mode.nextStart':`mod.mode.${stateCode}`)
   const target=mod.target==='client'?'Client':mod.target==='server'?'Server':'Client + Server'
-   const visibleLinks=linkOrder.flatMap(key=>{const definition=linkDefinitions[key],url=mod.links?.[key];return definition&&url?[{key,url,label:t(definition.labelKey as TranslationKey),description:t(definition.descriptionKey as TranslationKey),icon:definition.icon,tone:definition.appearance}]:[]})
+   const visibleLinks=linkOrder.flatMap(key=>{const definition=linkDefinitions[key],url=mod.links?.[key];const appearance=definition?.appearance||'';const tone=appearance.startsWith('support-')?`support ${appearance}`:appearance;return definition&&url?[{key,url,label:t(definition.labelKey as TranslationKey),description:t(definition.descriptionKey as TranslationKey),icon:definition.icon,tone}]:[]})
     const title=<span className="mod-title-lockup"><span>{mod.name}</span>{mod.authors.length>0&&<span className="mod-author-byline"><em>by</em><span>{formatAuthors(mod.authors)}</span></span>}</span>
     return <><PageHeader eyebrow="MOD" title={title} subtitle={mod.description||mod.id} actions={<><button className="button danger" onClick={remove}>{t('mod.remove')}</button><button className="button" onClick={()=>{postRequest('refresh-mod',{modId:mod.id});setValues(initial());setRevision(mod.revision);setLocalEnabled(mod.enabled)}}>{t('common.refresh')}</button><button className="button" onClick={save}>{t('common.save')}</button></>}/><section className="mod-status-row"><strong className={'mod-state-chip '+stateCode} title={status?.detail}>{stateLabel}</strong><div className="mod-enable-group"><span>{t('common.active')}</span><SettingSwitch label={enabled?t('mod.disable'):t('mod.enable')} checked={enabled} onChange={setEnabled}/></div></section><Card title={t('mod.settings')}><div className="settings-module-list"><section className="settings-module mod-settings-section"><div className="settings-options">{settings.map(definition=><ModSetting key={definition.key} definition={definition} value={values[definition.key]} onChange={value=>setValues({...values,[definition.key]:value})}/>)}</div>{actions.length>0&&<div className="mod-actions">{actions.map((component,index)=><ModActionButton key={`${component.action}-${index}`} mod={mod} component={component}/>)}</div>}{settings.length===0&&actions.length===0&&<p className="hint">{t('mod.settings.empty')}</p>}</section></div></Card><Card title={t('mod.details')}><div className="mod-meta"><span className="mod-info-badge version"><Icon name="version"/>{mod.version}</span><span className="mod-info-badge target"><Icon name={mod.target==='server'?'server':'client'}/>{target}</span><span className={`mod-info-badge ${mod.runtime?'runtime':'asset'}`}><Icon name={mod.runtime?'bolt':'blueprint'}/>{mod.runtime?t('mod.type.runtime'):t('mod.type.asset')}</span>{mod.license&&<span className="mod-info-badge license">{mod.license}</span>}</div>{visibleLinks.length>0&&<nav className="mod-links" aria-label={t('mod.links')}>{visibleLinks.map(link=><HeaderLink key={link.key} label={link.label} icon={link.icon} tone={link.tone} title={link.description} onClick={()=>postRequest('open-url',{url:link.url})}/>)}</nav>}{mod.changelog.length>0&&<div className="mod-changelog"><h4>{t('mod.versions')}</h4><ul>{mod.changelog.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}</Card></>
 }

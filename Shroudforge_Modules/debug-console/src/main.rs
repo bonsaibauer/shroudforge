@@ -277,7 +277,7 @@ mod windows {
         let root = PathBuf::from(value("--root").ok_or("missing --root")?);
         let desktop = values
             .iter()
-            .any(|value| value == "--desktop" || value == "--standalone");
+            .any(|value| value == "--desktop");
         let owner_pid = value("--owner-pid").and_then(|pid| pid.parse::<u32>().ok());
         let game_pid = if desktop { owner_pid.unwrap_or_else(|| unsafe { GetCurrentProcessId() }) }
             else { value("--game-pid").ok_or("missing --game-pid")?.parse()? };

@@ -6,13 +6,14 @@ mod windows {
         time::{SystemTime, UNIX_EPOCH},
     };
     use windows_sys::Win32::{
-        Foundation::{CloseHandle, GetLastError, ERROR_INVALID_PARAMETER, WAIT_OBJECT_0},
+        Foundation::{CloseHandle, GetLastError, ERROR_INVALID_PARAMETER, WAIT_OBJECT_0, WAIT_TIMEOUT},
         System::Threading::{OpenProcess, WaitForSingleObject},
     };
 
     const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
     pub fn run() -> Result<(), String> {
         let arguments = Arguments::read()?;
+        super::scheduled::write_status(&arguments.root, "waitingForGame", "Update is verified; waiting for Enshrouded to exit");
         append_log(
             &arguments.root,
             'I',
@@ -26,6 +27,7 @@ mod windows {
             append_log(&arguments.root, 'E', &format!("Game process scan failed; update was not installed: {error}"));
             return Err(error);
         }
+        super::scheduled::write_status(&arguments.root, "installing", "Installing the verified ShroudForge update");
         validate_roots(&arguments.root, &arguments.staged)?;
         let source = arguments.staged.clone();
         if !source.join("shroudforge/version.json").is_file() {
@@ -80,7 +82,7 @@ mod windows {
                     );
                 }
                 let _ = fs::remove_file(arguments.root.join("shroudforge/updates/pending.ready"));
-                let status = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"installed","message":"System update installed successfully"});
+                let status = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"installed","step":"complete","message":"System update installed successfully","version":release["version"],"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
                 let _ = shroudforge_package::config::write_json(&arguments.root.join("shroudforge/updates/updater-status.json"), &status);
                 append_log(
                     &arguments.root,
@@ -135,6 +137,7 @@ mod windows {
     }
 
     fn wait_for_process(pid: u32) -> Result<(), String> {
+        if pid == 0 { return Ok(()); }
         let process = unsafe { OpenProcess(SYNCHRONIZE_ACCESS, 0, pid) };
         if process.is_null() {
             let error = unsafe { GetLastError() };
@@ -144,10 +147,14 @@ mod windows {
                 Err(format!("cannot confirm game process {pid} has exited (Windows error {error})"))
             };
         }
-        let result = unsafe { WaitForSingleObject(process, 120_000) };
+        let result = loop {
+            let result = unsafe { WaitForSingleObject(process, 1_000) };
+            if result == WAIT_TIMEOUT { continue; }
+            break result;
+        };
         unsafe { CloseHandle(process) };
         if result != WAIT_OBJECT_0 {
-            return Err("timed out waiting for Enshrouded to exit".into());
+            return Err("could not confirm Enshrouded process exit".into());
         }
         Ok(())
     }
@@ -324,7 +331,23 @@ mod scheduled {
     const MAX_ARCHIVE_ENTRIES: usize = 4096;
 
     pub(super) fn write_status(root: &Path, status: &str, message: &str) {
-        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":status,"message":message,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
+        write_status_with_version(root, status, message, None);
+    }
+
+    pub(super) fn write_status_with_version(root: &Path, status: &str, message: &str, version: Option<&str>) {
+        let previous_path = root.join("shroudforge/updates/updater-status.json");
+        let previous = fs::read(&previous_path).ok().and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+        let keep_progress = status != "queued";
+        let version = version.map(str::to_owned).or_else(|| previous.as_ref().and_then(|value| value["version"].as_str()).map(str::to_owned));
+        let downloaded = if keep_progress { previous.as_ref().and_then(|value| value["downloadedBytes"].as_u64()).unwrap_or(0) } else { 0 };
+        let total = if keep_progress { previous.as_ref().and_then(|value| value.get("totalBytes")).cloned().unwrap_or(serde_json::Value::Null) } else { serde_json::Value::Null };
+        let speed = if keep_progress { previous.as_ref().and_then(|value| value.get("bytesPerSecond")).cloned().unwrap_or(serde_json::Value::Null) } else { serde_json::Value::Null };
+        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":status,"step":status,"message":message,"version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
+        let _ = shroudforge_package::config::write_json(&root.join("shroudforge/updates/updater-status.json"), &value);
+    }
+
+    fn write_download_progress(root: &Path, version: &str, downloaded: u64, total: Option<u64>, speed: Option<u64>) {
+        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"downloading","step":"download","message":"Downloading ShroudForge update","version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
         let _ = shroudforge_package::config::write_json(&root.join("shroudforge/updates/updater-status.json"), &value);
     }
 
@@ -332,7 +355,7 @@ mod scheduled {
         let version = request["version"].as_str().ok_or("stage request has no version")?;
         let url = request["downloadUrl"].as_str().ok_or("stage request has no download URL")?;
         let checksum = request["checksum"].as_str().ok_or("stage request has no checksum")?.to_ascii_lowercase();
-        let wait_pid = request["waitPid"].as_u64().ok_or("stage request has no game PID")? as u32;
+        let wait_pid = request["waitPid"].as_u64().unwrap_or(0) as u32;
         if !url.starts_with("https://") || checksum.len() != 64 || !checksum.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err("stage request URL or SHA-256 checksum is invalid".into());
         }
@@ -346,11 +369,15 @@ mod scheduled {
         let client = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(120)).user_agent(format!("ShroudForge/{version} updater")).build().map_err(|e| e.to_string())?;
         let mut response = client.get(url).send().map_err(|e| format!("download failed: {e}"))?;
         if !response.status().is_success() { return Err(format!("release download returned HTTP {}", response.status())); }
-        if response.content_length().is_some_and(|length| length > MAX_UPDATE_BYTES) { return Err("update package exceeds 2 GiB".into()); }
+        let content_length = response.content_length();
+        if content_length.is_some_and(|length| length > MAX_UPDATE_BYTES) { return Err("update package exceeds 2 GiB".into()); }
         let mut file = fs::File::create(&download).map_err(|e| e.to_string())?;
         let mut hasher = sha2::Sha256::new();
         use sha2::Digest;
         let mut total = 0u64;
+        let mut last_progress = std::time::Instant::now();
+        let mut last_bytes = 0u64;
+        write_download_progress(root, version, 0, content_length, Some(0));
         let mut buffer = [0u8; 1024 * 1024];
         loop {
             let count = response.read(&mut buffer).map_err(|e| e.to_string())?;
@@ -359,9 +386,19 @@ mod scheduled {
             if total > MAX_UPDATE_BYTES { return Err("update package exceeds 2 GiB".into()); }
             file.write_all(&buffer[..count]).map_err(|e| e.to_string())?;
             hasher.update(&buffer[..count]);
+            if last_progress.elapsed() >= std::time::Duration::from_millis(300) {
+                let elapsed = last_progress.elapsed().as_secs_f64().max(0.001);
+                let speed = ((total - last_bytes) as f64 / elapsed) as u64;
+                write_download_progress(root, version, total, content_length, Some(speed));
+                last_progress = std::time::Instant::now();
+                last_bytes = total;
+            }
         }
         file.flush().map_err(|e| e.to_string())?;
+        write_download_progress(root, version, total, content_length, Some(0));
+        write_status(root, "verifying", "Verifying the downloaded package checksum");
         if format!("{:x}", hasher.finalize()) != checksum { return Err("update package SHA-256 checksum does not match".into()); }
+        write_status(root, "extracting", "Extracting and validating update files");
         let source = fs::File::open(&download).map_err(|e| e.to_string())?;
         let mut archive = zip::ZipArchive::new(source).map_err(|e| e.to_string())?;
         if archive.len() > MAX_ARCHIVE_ENTRIES { return Err("update archive contains too many entries".into()); }
@@ -396,10 +433,9 @@ mod scheduled {
     }
 
     pub(super) fn wait_for_game_processes(root: &Path) -> Result<(), String> {
-        use std::{mem::size_of, time::{Duration, Instant}};
+        use std::{mem::size_of, time::Duration};
         let root = root.canonicalize().map_err(|e| format!("invalid install root for process scan: {e}"))?;
         let prefix = format!("{}\\", root.to_string_lossy().trim_end_matches(['\\', '/']).to_lowercase());
-        let deadline = Instant::now() + Duration::from_secs(120);
         loop {
             let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
             if snapshot == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE { return Err(format!("could not enumerate game processes (Windows error {})", unsafe { GetLastError() })); }
@@ -428,8 +464,7 @@ mod scheduled {
             }
             unsafe { CloseHandle(snapshot) };
             if !running { return Ok(()); }
-            if Instant::now() >= deadline { return Err("timed out waiting for all Enshrouded processes in this installation to exit".into()); }
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_secs(1));
         }
     }
 
@@ -454,6 +489,61 @@ mod scheduled {
         Ok(destination)
     }
 
+    fn update_window_task_id(root: &Path) -> Result<String, String> {
+        Ok(format!("{}_Window", task_id(root)?))
+    }
+
+    fn ensure_update_window_task(root: &Path) -> Result<String, String> {
+        let executable = task_executable(root)?;
+        let name = update_window_task_id(root)?;
+        let canonical_root = root.canonicalize().map_err(|error| error.to_string())?;
+        let action = format!("\"{}\" --open-window --root \"{}\"", executable.display(), canonical_root.display());
+        let output = Command::new("schtasks.exe")
+            .args(["/Create", "/SC", "ONCE", "/ST", "23:59", "/TN", &name, "/TR", &action, "/F", "/RL", "LIMITED", "/IT"])
+            .output().map_err(|error| format!("could not register update window: {error}"))?;
+        if !output.status.success() {
+            return Err(format!("could not register update window: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        }
+        Ok(name)
+    }
+
+    pub fn request_update_window(root: &Path) -> Result<(), String> {
+        let name = ensure_update_window_task(root)?;
+        let output = Command::new("schtasks.exe").args(["/Run", "/TN", &name]).output()
+            .map_err(|error| format!("could not open update window: {error}"))?;
+        if !output.status.success() {
+            let _ = Command::new("schtasks.exe").args(["/Delete", "/TN", &name, "/F"]).output();
+            return Err(format!("could not open update window: {}", String::from_utf8_lossy(&output.stderr).trim()));
+        }
+        Ok(())
+    }
+
+    pub fn open_update_window(root: &Path) -> Result<(), String> {
+        use std::os::windows::process::CommandExt;
+        let source = root.join("shroudforge.exe");
+        if !source.is_file() {
+            return Err(format!("ShroudForge UI executable is missing: {}", source.display()));
+        }
+        let updater = task_executable(root)?;
+        let directory = updater.parent().ok_or("updater cache has no parent directory")?;
+        let metadata = fs::metadata(&source).map_err(|error| error.to_string())?;
+        let changed = metadata.modified().map_err(|error| error.to_string())?.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
+        let ui = directory.join(format!("shroudforge-ui-{changed}.exe"));
+        if !ui.is_file() { fs::copy(&source, &ui).map_err(|error| format!("could not prepare independent update window: {error}"))?; }
+        let target = if root.join("enshrouded.exe").is_file() { "client" } else { "server" };
+        Command::new(&ui)
+            .args(["--module-ui", "--desktop", "--updater-window", "--root"])
+            .arg(root)
+            .args(["--target", target])
+            .creation_flags(0x0800_0000)
+            .spawn()
+            .map_err(|error| format!("could not launch independent update window: {error}"))?;
+        if let Ok(name) = update_window_task_id(root) {
+            let _ = Command::new("schtasks.exe").args(["/Delete", "/TN", &name, "/F"]).output();
+        }
+        Ok(())
+    }
+
     fn ensure_task(root: &Path) -> Result<String, String> {
         let executable = task_executable(root)?;
         let name = task_id(root)?;
@@ -476,6 +566,12 @@ pub fn request_worker(root: &std::path::Path) -> Result<(), String> { scheduled:
 
 #[cfg(not(windows))]
 pub fn request_worker(_: &std::path::Path) -> Result<(), String> { Err("scheduled updater is available on Windows only".into()) }
+
+#[cfg(windows)]
+pub fn request_update_window(root: &std::path::Path) -> Result<(), String> { scheduled::request_update_window(root) }
+
+#[cfg(not(windows))]
+pub fn request_update_window(_: &std::path::Path) -> Result<(), String> { Err("scheduled updater is available on Windows only".into()) }
 
 #[cfg(windows)]
 pub fn request_install_after_game(root: &std::path::Path, pid: u32) -> Result<(), String> {
@@ -515,7 +611,7 @@ pub fn request_system_stage(root: &std::path::Path, release: serde_json::Value, 
     }
     let request = serde_json::json!({"schemaVersion":1,"version":release["version"],"downloadUrl":release["downloadUrl"],"checksum":release["checksum"],"waitPid":wait_pid});
     shroudforge_package::config::write_json(&path, &request).map_err(|e| e.to_string())?;
-    scheduled::write_status(root, "queued", "System update download queued in independent updater");
+    scheduled::write_status_with_version(root, "queued", "System update download queued in independent updater", release["version"].as_str());
     request_worker(root).map_err(|error| format!("download request was saved but the scheduled updater could not be started: {error}"))?;
     Ok(())
 }
@@ -569,6 +665,7 @@ pub fn run_scheduled_worker() -> Result<(), String> {
             if status.success() { Ok(()) } else { Err(format!("installer returned {status}")) }
         })();
         if let Err(ref error) = result {
+            scheduled::write_status(&root, "error", error);
             let _ = shroudforge_package::logging::append(&root, 'E', "updater", &format!("Scheduled system updater failed: {error}"));
             first_error = Some(error.clone());
         }
@@ -594,6 +691,20 @@ pub fn run_scheduled_worker() -> Result<(), String> {
 pub fn run_module() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--run-queue") { return run_scheduled_worker(); }
+    if args.iter().any(|a| a == "--open-window") {
+        let root = args.windows(2).find(|pair| pair[0] == "--root").map(|pair| std::path::PathBuf::from(&pair[1])).ok_or("missing --root")?;
+        return scheduled::open_update_window(&root).map_err(|error| {
+            let _ = shroudforge_package::logging::append(&root, 'E', "updater-window", &error);
+            error
+        });
+    }
+    if args.len() == 1 {
+        let root = std::env::current_exe().map_err(|error| error.to_string())?.parent().ok_or("updater executable has no installation directory")?.to_path_buf();
+        return scheduled::request_update_window(&root).map_err(|error| {
+            let _ = shroudforge_package::logging::append(&root, 'E', "updater-window", &error);
+            error
+        });
+    }
     windows::run()
 }
 

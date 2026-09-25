@@ -6,6 +6,9 @@ use std::{env, path::PathBuf, process::Command};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args_os().collect();
+    if args.len() == 1 {
+        return launch_desktop();
+    }
     match args.get(1).and_then(|value| value.to_str()) {
         Some("--module-ui") => return shroudforge_modloader_ui::run_module(),
         Some("--catalog-install-worker") => {
@@ -89,6 +92,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
+}
+
+fn launch_desktop() -> Result<(), Box<dyn std::error::Error>> {
+    let executable = env::current_exe()?;
+    let root = executable
+        .parent()
+        .ok_or("ShroudForge executable has no installation directory")?;
+    let target = if root.join("enshrouded.exe").is_file() {
+        "client"
+    } else if root.join("enshrouded_server.exe").is_file() {
+        "server"
+    } else {
+        // Open the desktop UI so it can report the missing game path clearly.
+        "client"
+    };
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        std::process::Command::new(&executable)
+            .args(["--module-ui", "--desktop", "--root"])
+            .arg(root)
+            .args(["--target", target])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()?;
+        return Ok(());
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = (executable, target);
+        Err("Explorer desktop launch is available on Windows only".into())
+    }
 }
 
 fn game_executable(game: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {

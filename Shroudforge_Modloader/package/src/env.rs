@@ -219,12 +219,9 @@ mod tests {
         fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
         fs::write(
             crate::paths::config_dir(&root).join("shroudforge.json"),
-            br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{},"mods":{"mod.example":{"enabled":false,"settings":{}}}}"#,
+            br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{}}"#,
         )
         .unwrap();
-
-        let migration_errors = crate::migration::migrate_installation(&root).unwrap();
-        assert!(migration_errors.is_empty(), "{migration_errors:?}");
 
         let environment = ModEnvironment::load(root.to_str().unwrap()).unwrap();
         assert!(environment.mod_registry().contains_key("mod.example"));

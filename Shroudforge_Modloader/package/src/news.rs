@@ -79,30 +79,6 @@ pub fn mark_read(root: &Path, ids: &[String]) -> Result<(), String> {
     })
 }
 
-/// Copy legacy state once, preserving the original files as a recovery copy.
-/// Existing destination files always win, including events published during migration.
-pub fn migrate(root: &Path) -> Result<(), String> {
-    crate::config::migrate_state(root)?;
-    let legacy = crate::paths::ui_data_dir(root).join("notifications");
-    if legacy.is_dir() {
-        for entry in fs::read_dir(legacy).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            if entry.path().extension().is_some_and(|extension| extension == "json") {
-                let bytes=fs::read(entry.path()).map_err(|e|e.to_string())?;
-                let value:serde_json::Value=serde_json::from_slice(&bytes).map_err(|e|e.to_string())?;
-                let filename=entry.file_name().to_string_lossy().trim_end_matches(".json").to_owned();
-                validate_event(root,&value)?;
-                crate::config::update_state_section(root,"events",|stored| {
-                    let mut events=stored.cloned().unwrap_or_else(||serde_json::json!({}));
-                    events.as_object_mut().ok_or("notification state must be an object")?.entry(format!("{filename}.json")).or_insert(value.clone());
-                    Ok(events)
-                })?;
-            }
-        }
-    }
-    Ok(())
-}
-
 pub fn read(root: &Path) -> Result<serde_json::Value, String> {
     let value: serde_json::Value = serde_json::from_str(include_str!("../../../config/news/news.json"))
         .map_err(|e| format!("embedded news.json: {e}"))?;
@@ -133,24 +109,4 @@ mod tests {
         assert!(read_ids(root).is_err());
     }
 
-    #[test]
-    fn migration_preserves_read_state_and_newer_events() {
-        let root = tempfile::tempdir().unwrap();
-        let root = root.path();
-        let old = crate::paths::ui_data_dir(root).join("notifications/event-one.json");
-        crate::config::write_json(&old, &serde_json::json!({"id":"one","message":"old","title":"T","level":"info"})).unwrap();
-        crate::config::write_json(&crate::paths::ui_data_dir(root).join("news-state.json"), &serde_json::json!({"read":["one"]})).unwrap();
-        let new = serde_json::json!({"id":"one","message":"new","title":"T","level":"info"});
-        write_event(root,"event-one",&new).unwrap();
-        migrate(root).unwrap();
-        assert!(old.is_file());
-        let value = crate::config::read_document(root,"events-state").unwrap();
-        assert_eq!(value["event-one.json"]["message"], "new");
-        let value = crate::config::read_document(root,"news-state").unwrap();
-        assert_eq!(value["read"][0], "one");
-        crate::config::write_document(root,"news-state", &serde_json::json!({"read":[],"readAt":{}})).unwrap();
-        migrate(root).unwrap();
-        let value = crate::config::read_document(root,"news-state").unwrap();
-        assert_eq!(value["read"], serde_json::json!([]));
-    }
 }

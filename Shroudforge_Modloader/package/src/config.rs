@@ -139,7 +139,6 @@ fn strip_lua_comments(source: &str) -> String {
 
 /// Canonical wire manifest -> internal UI/runtime view. Never serialize this view to disk.
 pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, String> {
-    normalize_legacy_support_links(&mut value)?;
     validate_document(root, "mod", &value)?;
     let extension = value.get("shroudforge").cloned().unwrap_or(json!({}));
     let values = value.get("settings").cloned().unwrap_or(json!({}));
@@ -190,30 +189,6 @@ pub fn parse_manifest(root: &Path, mut value: Value) -> Result<ModManifest, Stri
     let manifest: ModManifest = serde_json::from_value(value).map_err(|error| error.to_string())?;
     validate_manifest(&manifest)?;
     Ok(manifest)
-}
-
-/// Older bundled manifests stored support links as `{ platform, url }` entries.
-/// Normalize that shape before current-schema validation so existing installations
-/// remain readable and their user settings can survive an update.
-fn normalize_legacy_support_links(value: &mut Value) -> Result<(), String> {
-    let Some(links) = value.pointer_mut("/shroudforge/links").and_then(Value::as_object_mut) else {
-        return Ok(());
-    };
-    let Some(support) = links.remove("support") else { return Ok(()); };
-    let Some(entries) = support.as_array() else { return Err("legacy support links must be an array".into()); };
-    for entry in entries {
-        let platform = entry.get("platform").and_then(Value::as_str).ok_or("legacy support link has no platform")?;
-        let url = entry.get("url").and_then(Value::as_str).ok_or("legacy support link has no URL")?;
-        let normalized = platform.trim().to_ascii_lowercase();
-        if normalized.is_empty() || !normalized.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-') {
-            return Err(format!("invalid legacy support platform: {platform}"));
-        }
-        let key = format!("support-{normalized}");
-        if links.insert(key.clone(), Value::String(url.to_owned())).is_some() {
-            return Err(format!("duplicate support link: {key}"));
-        }
-    }
-    Ok(())
 }
 
 pub fn read_manifest_path(root: &Path, package: &Path) -> Result<ModManifest, String> {
@@ -269,7 +244,7 @@ pub fn merge_mod_update(root: &Path, previous: Value, mut incoming: Value) -> Re
         settings[key] = value.clone();
     }
     incoming["settings"] = settings;
-    parse_manifest(root, incoming.clone()).map_err(|error| format!("mod settings require migration: {error}"))?;
+    parse_manifest(root, incoming.clone()).map_err(|error| format!("updated mod manifest is incompatible with the current schema: {error}"))?;
     Ok(incoming)
 }
 
@@ -375,81 +350,6 @@ pub fn publish_window_visibility(root: &Path, module: &str, visible: bool) -> Re
     })
 }
 
-/// Import prior per-feature state files once, under the same installation-wide lock.
-pub fn migrate_state(root: &Path) -> Result<(), String> {
-    let _lock = installation_lock(root)?;
-    let mut state = read_state_file(root)?;
-    let legacy = [
-        ("updates", "updates/state.json", "state"),
-        ("assets", "assets/applied.json", "applied"),
-        ("runtime", "runtime/mod-status.json", "mod-status"),
-        ("diagnostics", "diagnostics/diagnostics-status.json", "diagnostics-status"),
-        ("news", "news/read-state.json", "news-state"),
-        ("catalog", "catalog-installs.json", "catalog-state"),
-        ("mods", "news/mod-state.json", "mod-state"),
-    ];
-    let mut changed = false;
-    for (section, path, schema) in legacy {
-        if state.get(section).is_some() { continue; }
-        let path = if section == "catalog" {
-            crate::paths::ui_data_dir(root).join(path)
-        } else {
-            crate::paths::config_dir(root).join(path)
-        };
-        let Ok(bytes) = fs::read(&path) else { continue; };
-        let mut value: Value = serde_json::from_slice(&bytes).map_err(|error| format!("{}: {error}", path.display()))?;
-        if section == "news" && value.get("readAt").is_none() {
-            let mut read_at = serde_json::Map::new();
-            let timestamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-            if let Some(ids) = value.get("read").and_then(Value::as_array) {
-                for id in ids.iter().filter_map(Value::as_str) { read_at.insert(id.into(), json!(timestamp)); }
-            }
-            value["readAt"] = Value::Object(read_at);
-        }
-        validate_document(root, schema, &value).map_err(|error| format!("{}: {error}", path.display()))?;
-        state[section] = value;
-        changed = true;
-    }
-    if state.get("news").is_none() {
-        let path=crate::paths::ui_data_dir(root).join("news-state.json");
-        if let Ok(bytes)=fs::read(&path) {
-            let mut value:Value=serde_json::from_slice(&bytes).map_err(|error|format!("{}: {error}",path.display()))?;
-            if value.get("readAt").is_none() {
-                let timestamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-                let mut read_at=serde_json::Map::new();
-                if let Some(ids)=value.get("read").and_then(Value::as_array){for id in ids.iter().filter_map(Value::as_str){read_at.insert(id.into(),json!(timestamp));}}
-                value["readAt"]=Value::Object(read_at);
-            }
-            validate_document(root,"news-state",&value)?;
-            state["news"]=value;changed=true;
-        }
-    }
-    if state.get("events").is_none() {
-        let directory=crate::paths::config_dir(root).join("news/events");
-        if let Ok(entries)=fs::read_dir(directory) {
-            let mut events=serde_json::Map::new();
-            for entry in entries.flatten() {
-                let path=entry.path();
-                if path.extension().is_none_or(|ext|ext!="json"){continue;}
-                let bytes=fs::read(&path).map_err(|error|error.to_string())?;
-                let value:Value=serde_json::from_slice(&bytes).map_err(|error|format!("{}: {error}",path.display()))?;
-                validate_document(root,"event",&value)?;
-                events.insert(entry.file_name().to_string_lossy().into_owned(),value);
-            }
-            if !events.is_empty(){state["events"]=Value::Object(events);changed=true;}
-        }
-    }
-    if state.get("mods").is_none() {
-        let path=crate::paths::ui_data_dir(root).join("mod-state.json");
-        if let Ok(bytes)=fs::read(&path){let value:Value=serde_json::from_slice(&bytes).map_err(|error|error.to_string())?;validate_document(root,"mod-state",&value)?;state["mods"]=value;changed=true;}
-    }
-    if changed {
-        state["schemaVersion"] = json!(1);
-        write_json(&crate::paths::config_dir(root).join("state.json"), &state)?;
-    }
-    Ok(())
-}
-
 pub fn document_path(root: &Path, name: &str) -> std::path::PathBuf {
     match name {
         "shroudforge" => crate::paths::config_dir(root).join("shroudforge.json"),
@@ -482,29 +382,11 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
             (target, source) => *target = source,
         }
     }
-    if let Some(mut loaded) = loaded {
-        if let Some(object) = loaded.as_object_mut() { object.remove("mods"); }
+    if let Some(loaded) = loaded {
         merge(&mut result, loaded);
     }
     validate_document(root, "shroudforge", &result)?;
     Ok(result)
-}
-
-pub fn migrate_loader(root: &Path) -> Result<(), String> {
-    let _lock = installation_lock(root)?;
-    let path = document_path(root, "shroudforge");
-    let bytes = match fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error.to_string()),
-    };
-    let mut value: Value = serde_json::from_slice(&bytes).map_err(|error|error.to_string())?;
-    let object=value.as_object_mut().ok_or("loader configuration must be an object")?;
-    object.remove("mods");
-    validate_document(root,"shroudforge",&value)?;
-    let normalized=serde_json::to_vec_pretty(&value).map_err(|error|error.to_string())?;
-    if bytes!=normalized {write_json(&path,&value)?;}
-    Ok(())
 }
 
 pub fn update_loader(root: &Path, update: impl FnOnce(&mut Value) -> Result<(), String>) -> Result<(), String> {

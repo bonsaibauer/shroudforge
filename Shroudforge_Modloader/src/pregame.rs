@@ -25,12 +25,6 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
     let game_directory = game_directory.as_ref();
     let lock_path = game_directory.join(".shroudforge-startup-assets.lock");
     let _lease = startup_asset_lease(&lock_path)?;
-    for error in shroudforge_package::migration::migrate_installation(game_directory)
-        .map_err(LoaderError::Pregame)?
-    {
-        tracing::warn!(%error, "Installation migration failed during bootstrap startup");
-    }
-
     let file_name = process_target_name(game_directory)?;
     if already_applied(game_directory, file_name)? {
         // Enshrouded will load the already-prepared KFC data during startup.
@@ -123,11 +117,6 @@ fn already_applied(game_directory: &Path, file_name: &str) -> Result<bool, Loade
 }
 
 fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), LoaderError> {
-    for error in shroudforge_package::migration::migrate_installation(game_directory)
-        .map_err(LoaderError::Pregame)?
-    {
-        tracing::warn!(%error,"Installation migration failed");
-    }
     let game_utf8 = game_directory.to_str().ok_or_else(|| {
         LoaderError::Environment(format!(
             "game directory is not valid UTF-8: {}",

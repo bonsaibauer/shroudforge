@@ -22,8 +22,8 @@ mod windows {
         window::WindowBuilder,
     };
     use windows_sys::Win32::{
-        Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0},
-        System::Threading::{GetCurrentProcessId, OpenEventW, WaitForSingleObject},
+        Foundation::{CloseHandle, GetLastError, SetLastError, HANDLE, ERROR_ALREADY_EXISTS, WAIT_OBJECT_0},
+        System::Threading::{CreateMutexW, GetCurrentProcessId, OpenEventW, WaitForSingleObject},
         UI::{
             Input::KeyboardAndMouse::GetAsyncKeyState,
             Shell::ShellExecuteW,
@@ -187,6 +187,7 @@ mod windows {
         game_process: HANDLE,
         stop_name: Option<String>,
         desktop: bool,
+        updater_window: bool,
         server: bool,
     }
 
@@ -254,6 +255,9 @@ mod windows {
         message: Option<String>,
         release_url: Option<String>,
         staged: bool,
+        downloaded_bytes: u64,
+        total_bytes: Option<u64>,
+        bytes_per_second: Option<u64>,
         #[serde(skip)]
         release: Option<Release>,
     }
@@ -269,6 +273,9 @@ mod windows {
                 message: None,
                 release_url: None,
                 staged,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                bytes_per_second: None,
                 release: None,
             }
         }
@@ -314,6 +321,7 @@ mod windows {
         configuration: serde_json::Value,
         connected: bool,
         mode: &'static str,
+        updater_window: bool,
         game_version: String,
         version: String,
         mods: Vec<ModInfo>,
@@ -432,13 +440,26 @@ mod windows {
 
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let arguments = arguments()?;
-        match shroudforge_package::migration::migrate_installation(&arguments.root) {
-            Ok(errors)=>for error in errors {write_activity(&arguments.root,"mods","Migration","Failed",Some(&error),"error");},
-            Err(error)=>write_activity(&arguments.root,"state","Migration","Failed",Some(&error),"error"),
-        }
-        if let Err(error)=shroudforge_package::news::migrate(&arguments.root) { write_activity(&arguments.root,"news","Migration","Failed",Some(&error),"error"); }
+        run_with_arguments(arguments)
+    }
+
+    fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
+        let _updater_window_mutex = if arguments.updater_window {
+            let root = arguments.root.canonicalize().unwrap_or_else(|_| arguments.root.clone());
+            let name = format!("Local\\ShroudForgeUpdaterWindow_{:x}", Sha256::digest(root.to_string_lossy().to_ascii_lowercase().as_bytes()));
+            let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+            unsafe { SetLastError(0); }
+            let mutex = unsafe { CreateMutexW(std::ptr::null_mut(), 0, wide.as_ptr()) };
+            if mutex.is_null() { return Err(std::io::Error::last_os_error().into()); }
+            if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+                unsafe { CloseHandle(mutex); }
+                return Ok(());
+            }
+            Some(mutex)
+        } else { None };
         let mut module_config = load_module_config(&arguments.root).unwrap_or_else(|_| ModuleConfig { toggle_key:default_toggle_key(),refresh_milliseconds:default_refresh(),update_provider:ProviderConfig::default(),system_update_provider:default_system_provider() });
-        if shroudforge_package::config::read_loader(&arguments.root).is_ok_and(|value|value["modules"]["modloaderUi"]["enabled"] == false) { return Ok(()); }
+        if !arguments.desktop && shroudforge_package::config::read_loader(&arguments.root).is_ok_and(|value|value["modules"]["modloaderUi"]["enabled"] == false) { return Ok(()); }
+        if arguments.updater_window { module_config.system_update_provider.enabled = true; }
         let user_config = load_user_config(&arguments.root);
         let provider = effective_provider(&module_config, &user_config);
         let installed = installed_release(&arguments.root);
@@ -457,12 +478,12 @@ mod windows {
             .unwrap_or(std::ptr::null_mut());
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
-            .with_title("ShroudForge | Modloader")
+            .with_title(if arguments.updater_window { "ShroudForge | Update" } else { "ShroudForge | Modloader" })
             .with_decorations(false)
             .with_always_on_top(true)
             .with_visible(arguments.desktop)
-            .with_inner_size(LogicalSize::new(1180.0, 760.0))
-            .with_min_inner_size(LogicalSize::new(860.0, 560.0))
+            .with_inner_size(if arguments.updater_window { LogicalSize::new(560.0, 430.0) } else { LogicalSize::new(1180.0, 760.0) })
+            .with_min_inner_size(if arguments.updater_window { LogicalSize::new(500.0, 380.0) } else { LogicalSize::new(860.0, 560.0) })
             .build(&event_loop)?;
 
         let mut saved_position = read_central_config(&arguments.root)["modules"]["modloaderUi"]["window"]["position"].clone();
@@ -539,8 +560,13 @@ mod windows {
         let profile = shroudforge_package::paths::webview_profile(&arguments.root);
         fs::create_dir_all(&profile)?;
         let mut web_context = WebContext::new(Some(profile));
+        let html = if arguments.updater_window {
+            include_str!("../ui/dist/index.html").replace("<head>", "<head><script>window.__shroudforgeLaunchMode='updater';</script>")
+        } else {
+            include_str!("../ui/dist/index.html").to_owned()
+        };
         let webview = WebViewBuilder::new_with_web_context(&mut web_context)
-            .with_html(include_str!("../ui/dist/index.html"))
+            .with_html(html)
             .with_ipc_handler(handler)
             .build(&window)?;
 
@@ -556,6 +582,7 @@ mod windows {
         let mut next_refresh = Instant::now();
         let mut next_visibility_poll = Instant::now();
         let mut next_window_state_refresh = Instant::now();
+        let mut auto_stage_requested = false;
         let mut next_update_check = if module_config.system_update_provider.enabled {
             Instant::now()
         } else {
@@ -586,9 +613,13 @@ mod windows {
                     while let Ok(command) = receiver.try_recv() {
                         match command {
                             Command::Hide => {
-                                shown = false;
-                                window.set_visible(false);
-                                let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", shown);
+                                let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "modloaderUi", false);
+                                if arguments.desktop {
+                                    *control_flow = ControlFlow::Exit;
+                                } else {
+                                    shown = false;
+                                    window.set_visible(false);
+                                }
                             }
                             Command::Drag => {
                                 let _ = window.drag_window();
@@ -619,9 +650,11 @@ mod windows {
                             }
                             Command::StageUpdate(request_id) => {
                                 let wait_pid = runtime_pid(&arguments.root).unwrap_or_else(|| {
-                                    if arguments.desktop { unsafe { GetCurrentProcessId() } } else { arguments.game_pid }
+                                    if arguments.updater_window { 0 }
+                                    else if arguments.desktop { unsafe { GetCurrentProcessId() } }
+                                    else { arguments.game_pid }
                                 });
-                                start_staging(arguments.root.clone(), release_state.clone(), async_sender.clone(), request_id, wait_pid)
+                                start_staging(arguments.root.clone(), release_state.clone(), async_sender.clone(), request_id, wait_pid, !arguments.updater_window)
                             }
                             Command::SearchCatalog(query, request_id) => start_catalog_search(
                                 arguments.root.clone(),
@@ -788,13 +821,26 @@ mod windows {
                                 system_provider.check_minutes.clamp(5, 1440) * 60,
                             );
                     }
+                    if arguments.updater_window && !auto_stage_requested {
+                        let ready = release_state.lock().ok().is_some_and(|release| release.state == "ready" && release.update_available);
+                        let has_pending = shroudforge_package::paths::updates_dir(&arguments.root).join("pending.ready").is_file();
+                        let operation_running = fs::read(arguments.root.join("shroudforge/updates/updater-status.json"))
+                            .ok().and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+                            .and_then(|value| value.get("status").and_then(serde_json::Value::as_str).map(str::to_owned))
+                            .is_some_and(|status| matches!(status.as_str(), "queued" | "downloading" | "verifying" | "extracting" | "staged" | "waitingForGame" | "installing"));
+                        if ready && !has_pending && !operation_running {
+                            auto_stage_requested = true;
+                            start_staging(arguments.root.clone(), release_state.clone(), async_sender.clone(), "updater-window-auto".into(), 0, false);
+                        }
+                    }
                     if Instant::now() >= next_refresh {
                         let next_position = read_central_config(&arguments.root)["modules"]["modloaderUi"]["window"]["position"].clone();
                         if next_position != saved_position {
                             position_window(&window, &next_position, false);
                             saved_position = next_position;
                         }
-                        if let Ok(next) = load_module_config(&arguments.root) {
+                        if let Ok(mut next) = load_module_config(&arguments.root) {
+                            if arguments.updater_window { next.system_update_provider.enabled = true; }
                             if next.system_update_provider.enabled != system_provider.enabled || next.system_update_provider.check_minutes != system_provider.check_minutes {
                                 next_update_check = Instant::now();
                             }
@@ -803,9 +849,7 @@ mod windows {
                             module_config = next;
                         }
                         next_refresh = Instant::now()
-                            + Duration::from_millis(
-                                module_config.refresh_milliseconds.clamp(250, 10_000),
-                            );
+                            + Duration::from_millis(if arguments.updater_window { 350 } else { module_config.refresh_milliseconds.clamp(250, 10_000) });
                         let snapshot =
                             snapshot(&arguments, &active_provider, &release_state, &catalog_state);
                         let current_errors: std::collections::HashSet<String> = snapshot.configuration.get("errors").and_then(serde_json::Value::as_array).into_iter().flatten().filter_map(serde_json::Value::as_str).map(str::to_owned).collect();
@@ -877,7 +921,8 @@ mod windows {
         let root = PathBuf::from(value("--root").ok_or("missing --root")?);
         let desktop = values
             .iter()
-            .any(|value| value == "--desktop" || value == "--standalone");
+            .any(|value| value == "--desktop");
+        let updater_window = values.iter().any(|value| value == "--updater-window");
         let game_pid = if desktop { unsafe { GetCurrentProcessId() } }
             else { value("--game-pid").ok_or("missing --game-pid")?.parse()? };
         let mut game_process: HANDLE = std::ptr::null_mut();
@@ -925,6 +970,7 @@ mod windows {
             game_process,
             stop_name,
             desktop,
+            updater_window,
             server,
         })
     }
@@ -1029,9 +1075,13 @@ mod windows {
                 if status["operation"] == "systemStage" {
                     if let Some(state) = status["status"].as_str() {
                         let staged = shroudforge_package::paths::updates_dir(&arguments.root).join("pending.ready").is_file();
-                        release_snapshot.state = if state == "installed" || (state == "staged" && !staged) { "idle".into() } else { state.to_owned() };
+                        release_snapshot.state = if state == "installed" && !arguments.updater_window || (state == "staged" && !staged) { "idle".into() } else { state.to_owned() };
                         release_snapshot.message = status["message"].as_str().map(str::to_owned);
                         release_snapshot.staged = state == "staged" && staged;
+                        release_snapshot.latest_version = status["version"].as_str().map(str::to_owned).or(release_snapshot.latest_version);
+                        release_snapshot.downloaded_bytes = status["downloadedBytes"].as_u64().unwrap_or(0);
+                        release_snapshot.total_bytes = status["totalBytes"].as_u64();
+                        release_snapshot.bytes_per_second = status["bytesPerSecond"].as_u64();
                         if state == "installed" { release_snapshot.current_version = installed_version(&arguments.root); }
                     }
                 }
@@ -1043,12 +1093,13 @@ mod windows {
             configuration: shroudforge_package::status::configuration(&arguments.root, arguments.server, env!("CARGO_PKG_VERSION")),
             connected: !arguments.desktop && runtime_is_active(&arguments.root),
             mode: if arguments.desktop {
-                "DESKTOP"
+                if arguments.updater_window { "UPDATER" } else { "DESKTOP" }
             } else if !arguments.server {
                 "CLIENT"
             } else {
                 "SERVER"
             },
+            updater_window: arguments.updater_window,
             game_version: read_game_version(&arguments.root),
             version: installed_version(&arguments.root),
             mods,
@@ -2284,7 +2335,15 @@ mod windows {
     }
 
     fn start_update_check(root: PathBuf, provider: ProviderConfig, state: Arc<Mutex<ReleaseState>>, results: mpsc::Sender<AsyncUiResult>, request_id: Option<String>) {
+        let updater_status_path = root.join("shroudforge/updates/updater-status.json");
+        let updater_status = std::fs::read(&updater_status_path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|value| value["status"].as_str().map(str::to_owned));
         if let Ok(mut value) = state.lock() {
+            if value.state == "queued" && matches!(updater_status.as_deref(), Some("error" | "installed")) {
+                value.state = "ready".into();
+            }
             if value.state == "checking" || value.state == "downloading" || value.state == "queued" {
                 if let Some(request_id) = request_id {
                     let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Check for updates".into(), success_message: "updates.check.upToDate".into(), result: Err("An update operation is already in progress.".into()) });
@@ -2480,7 +2539,7 @@ mod windows {
         latest > current || (latest == current && latest_build > current_build)
     }
 
-    fn start_staging(root: PathBuf, state: Arc<Mutex<ReleaseState>>, results: mpsc::Sender<AsyncUiResult>, request_id: String, wait_pid: u32) {
+    fn start_staging(root: PathBuf, state: Arc<Mutex<ReleaseState>>, results: mpsc::Sender<AsyncUiResult>, request_id: String, wait_pid: u32, open_progress_window: bool) {
         let release = {
             let Ok(mut value) = state.lock() else {
                 let _ = results.send(AsyncUiResult { request_id, source: "Updates".into(), action: "Stage update".into(), success_message: "updates.stagedToast".into(), result: Err("Update status is unavailable.".into()) });
@@ -2505,6 +2564,12 @@ mod windows {
         thread::spawn(move || {
             let request = serde_json::json!({"version":release.version,"downloadUrl":release.download_url,"checksum":release.checksum});
             let result = shroudforge_updater::request_system_stage(&root, request, wait_pid);
+            let result = result.and_then(|()| {
+                if open_progress_window {
+                    shroudforge_updater::request_update_window(&root).map_err(|error| format!("Update was queued, but its progress window could not be opened: {error}"))?;
+                }
+                Ok(())
+            });
             let feedback = match result {
                 Ok(()) => Ok(format!("Download of version {version} queued in the independent updater.")),
                 Err(error) => Err(error),
