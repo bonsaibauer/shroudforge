@@ -160,8 +160,8 @@ local function resolve_placeable_items()
             local feedback
             for _, collider in ipairs(equipment.placementColliders or {}) do
                 for _, entry in ipairs(collider.dataArray or {}) do
-                    local payload = entry["$value"] or entry.value or entry
-                    local candidate = payload.materialFeedbackId
+                    local entry_value = entry["$value"] or entry.value or entry
+                    local candidate = entry_value.materialFeedbackId
                     feedback = item_id(candidate)
                     if feedback and feedback ~= 0 then break end
                 end
