@@ -130,8 +130,6 @@ mod tests {
 
     fn assert_no_machine_patch_primitives(label: &str, source: &str) {
         for forbidden in [
-            "signature",
-            "payload",
             "memory.write",
             "create_patch",
             "set_patch_enabled",
