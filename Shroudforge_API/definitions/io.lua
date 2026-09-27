@@ -202,3 +202,9 @@ function io.join(...) end
 --- @param bytes string|Buffer
 --- @return Buffer
 function io.export(path, bytes) end
+
+--- Reads UTF-8 text from a file beneath the configured export directory.
+--- `export` must be enabled. Absolute paths and paths escaping the export directory are rejected.
+--- @param path string
+--- @return string
+function io.read_export_to_string(path) end

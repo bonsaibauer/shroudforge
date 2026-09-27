@@ -8,3 +8,9 @@ foreach(tool dump-live-components inspect-component-metadata live-entity-manager
     target_compile_features(${tool} PRIVATE cxx_std_20)
     set_property(TARGET ${tool} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endforeach()
+add_executable(audit-live-component-registry native-tools/audit-live-component-registry.cpp)
+target_compile_features(audit-live-component-registry PRIVATE cxx_std_20)
+target_include_directories(audit-live-component-registry PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../Shroudforge_Modloader/kfc-runtime/third_party")
+set_property(TARGET audit-live-component-registry PROPERTY MSVC_RUNTIME_LIBRARY
+    "MultiThreaded$<$<CONFIG:Debug>:Debug>")

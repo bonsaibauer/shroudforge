@@ -1,86 +1,41 @@
-local PlayerInput = game.types.get("keen::ecs::PlayerInput")
-local StaminaDepletion = game.types.get("keen::ecs::StaminaDepletion")
-local NetworkStamina = game.types.get("keen::ecs::NetworkStamina")
+local operation = "runtime.patch.no_stamina_loss"
+local enabled
+local last_error
 
-if PlayerInput == nil or StaminaDepletion == nil or NetworkStamina == nil then
-    error("Required stamina runtime types are unavailable")
+local function set_enabled(value)
+    if enabled == value then return true end
+    local ok, reason = runtime.patch.set_enabled(operation, value)
+    if not ok then
+        reason = reason or "build-specific stamina patch failed"
+        if reason ~= last_error then
+            runtime.report_effect("write-failed", reason)
+            shroudforge.log.error("No Stamina Loss: " .. tostring(reason))
+            last_error = reason
+        end
+        return false
+    end
+    enabled = value
+    last_error = nil
+    runtime.report_effect("write-confirmed", value and "Build-verified native stamina patch enabled" or "Build-verified native stamina patch restored")
+    return true
 end
 
-local warned = false
-local warned_write = false
-
-local function write_component(entity, component, value)
-    local ok, reason = runtime.ecs.write(entity, component, value)
-    if not ok and not warned_write then
-        shroudforge.log.warn("No stamina loss write failed: " .. (reason or tostring(component)))
-        warned_write = true
-    elseif ok then
-        warned_write = false
-    end
-    return ok
-end
-
-local function update_stamina()
-    local prevent_depletion = shroudforge.settings.get("preventDepletion")
-    local refill_to_maximum = shroudforge.settings.get("refillToMaximum")
-    if not prevent_depletion and not refill_to_maximum then
-        runtime.report_effect("no-change", "Both stamina options are disabled in this mod's settings")
-        return
-    end
-
-    local entities, reason
-    if prevent_depletion and refill_to_maximum then
-        entities, reason = runtime.ecs.query(PlayerInput, StaminaDepletion, NetworkStamina)
-    elseif prevent_depletion then
-        entities, reason = runtime.ecs.query(PlayerInput, StaminaDepletion)
-    else
-        entities, reason = runtime.ecs.query(PlayerInput, NetworkStamina)
-    end
-    if entities == nil then
-        runtime.report_effect("waiting", reason or "ECS query did not complete")
-        if not warned then
-            shroudforge.log.warn("No stamina loss unavailable: " .. (reason or "ECS query failed"))
-            warned = true
-        end
-        return
-    end
-    warned = false
-    local writes = 0
-    local failures = 0
-
-    for _, entity in ipairs(entities) do
-        if prevent_depletion then
-            local depletion = runtime.ecs.read(entity, StaminaDepletion)
-            if depletion and depletion.accumulatedValue ~= 0 then
-                depletion.accumulatedValue = 0
-                if write_component(entity, StaminaDepletion, depletion) then writes = writes + 1 else failures = failures + 1 end
-            end
-        end
-
-        if refill_to_maximum then
-            local stamina = runtime.ecs.read(entity, NetworkStamina)
-            if stamina and stamina.stamina < stamina.staminaMax then
-                stamina.stamina = stamina.staminaMax
-                if write_component(entity, NetworkStamina, stamina) then writes = writes + 1 else failures = failures + 1 end
-            end
-        end
-    end
-    if failures > 0 then
-        runtime.report_effect("write-failed", failures .. " ECS write(s) failed")
-    elseif writes > 0 then
-        runtime.report_effect("write-confirmed", writes .. " ECS write(s) succeeded; gameplay effect is not independently observed")
-    elseif #entities == 0 then
-        runtime.report_effect("no-target", "No entity matched PlayerInput and the enabled stamina components")
-    else
-        runtime.report_effect("no-change", #entities .. " matching player entity/entities; no stamina field needed a change")
-    end
+local function apply_setting()
+    local wanted = shroudforge.settings.get("preventDepletion") ~= false
+    set_enabled(wanted)
 end
 
 return {
-    update_interval_ms = 16,
+    update_interval_ms = 500,
     on_load = function()
-        runtime.require("runtime.lifecycle")
-        shroudforge.log.info("No stamina loss active")
+        runtime.require("runtime.gameplay.patch")
+        if not runtime.patch.available(operation) then
+            error("No Stamina Loss patch is not validated for this game build")
+        end
+        if not set_enabled(shroudforge.settings.get("preventDepletion") ~= false) then
+            error("No Stamina Loss could not apply its configured state; see the runtime error log")
+        end
     end,
-    on_update = update_stamina,
+    on_update = apply_setting,
+    on_unload = function() if enabled == true then set_enabled(false) end end,
 }

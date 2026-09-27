@@ -1,103 +1,18 @@
 {
   "id": "sf-unlimited-flight",
   "name": "SF Unlimited Flight",
-  "version": "1.0.0",
-  "authors": [
-    "bonsaibauer"
-  ],
+  "version": "1.1.1",
+  "authors": ["bonsaibauer"],
   "dependencies": [],
-  "description": "Keeps the local player's typed DynamicLocomotion state in Flying mode.",
+  "description": "Applies the build-profile-verified native flight patch.",
   "enabled": true,
-  "settings": {
-    "preventFallDamage": true,
-    "allowDescent": false
-  },
+  "settings": {},
   "shroudforge": {
     "schemaVersion": 1,
-    "release": {
-      "changelog": [
-        "Added the declarative ShroudForge settings page.",
-        "Added a safe action to reset the current flight state.",
-        "Added control over downward flight movement."
-      ]
-    },
-    "settingsSchema": {
-      "type": "object",
-      "properties": {
-        "preventFallDamage": {
-          "type": "boolean",
-          "title": "Prevent fall damage",
-          "default": true,
-          "x-ui": {
-            "key": "preventFallDamage",
-            "type": "boolean",
-            "control": "checkbox",
-            "label": "Prevent fall damage",
-            "description": "Clears the local fall-damage state while flight is active.",
-            "default": true,
-            "group": "general"
-          },
-          "description": "Clears the local fall-damage state while flight is active."
-        },
-        "allowDescent": {
-          "type": "boolean",
-          "title": "Allow downward movement",
-          "default": false,
-          "x-ui": {
-            "key": "allowDescent",
-            "type": "boolean",
-            "control": "checkbox",
-            "label": "Allow downward movement",
-            "description": "Preserves negative vertical input instead of clamping it to zero.",
-            "default": false,
-            "group": "general"
-          },
-          "description": "Preserves negative vertical input instead of clamping it to zero."
-        }
-      },
-      "additionalProperties": false
-    },
-    "settingGroups": [
-      {
-        "id": "general",
-        "label": "General",
-        "description": "Core flight behavior. Changes apply after the runtime restarts."
-      }
-    ],
-    "ui": {
-      "sections": [
-        {
-          "title": "Flight",
-          "description": "Configure the local flight runtime.",
-          "components": [
-            {
-              "type": "setting",
-              "key": "preventFallDamage"
-            },
-            {
-              "type": "setting",
-              "key": "allowDescent"
-            }
-          ]
-        },
-        {
-          "title": "Runtime action",
-          "components": [
-            {
-              "type": "button",
-              "label": "Reset flight state",
-              "action": "resetFlight",
-              "style": "secondary",
-              "confirmation": "Reset the current flight state?"
-            }
-          ]
-        }
-      ]
-    },
-    "links": {
-      "source-github": "https://github.com/bonsaibauer/shroudforge",
-      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
-      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
-    }
+    "release": {"changelog": ["Fails activation when the native flight patch cannot be enabled and reports restoration failures."]},
+    "settingsSchema": {"type": "object", "properties": {}, "additionalProperties": false},
+    "settingGroups": [],
+    "ui": {"sections": [{"title": "Unlimited Flight", "description": "The Shroudtopia-compatible native patch is enabled while this mod is active.", "components": [{"type": "button", "label": "Toggle flight", "action": "toggleFlight", "style": "secondary"}]}]},
+    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
   }
 }

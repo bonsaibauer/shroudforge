@@ -1,103 +1,22 @@
 {
   "id": "sf-infinite-item-split",
   "name": "SF Infinite Item Split",
-  "version": "1.0.0",
-  "authors": [
-    "bonsaibauer"
-  ],
+  "version": "1.3.0",
+  "authors": ["bonsaibauer"],
   "dependencies": [],
-  "description": "Preserves the typed source inventory slot during local stack-split actions.",
+  "description": "Preserves the source stack after the split amount selected in the game is transferred.",
   "enabled": true,
-  "settings": {
-    "splitTypes": [
-      "One",
-      "Half",
-      "CustomAmount"
-    ]
-  },
+  "settings": {},
   "shroudforge": {
     "schemaVersion": 1,
-    "release": {
-      "changelog": [
-        "Added a declarative overview page for the Modloader UI.",
-        "Added separate controls for each supported split action."
-      ]
-    },
+    "release": {"changelog": ["Removes redundant split controls and restores the source stack for the One, Half, or CustomAmount selected in game."]},
     "settingsSchema": {
       "type": "object",
-      "properties": {
-        "splitTypes": {
-          "type": "array",
-          "title": "Restored split types",
-          "default": [
-            "One",
-            "Half",
-            "CustomAmount"
-          ],
-          "x-ui": {
-            "key": "splitTypes",
-            "type": "array",
-            "control": "multiselect",
-            "label": "Restored split types",
-            "description": "Select the split operations that should preserve the source stack.",
-            "default": [
-              "One",
-              "Half",
-              "CustomAmount"
-            ],
-            "group": "split-behavior",
-            "options": [
-              {
-                "value": "One",
-                "label": "One item"
-              },
-              {
-                "value": "Half",
-                "label": "Half stack"
-              },
-              {
-                "value": "CustomAmount",
-                "label": "Custom amount"
-              }
-            ]
-          },
-          "description": "Select the split operations that should preserve the source stack.",
-          "items": {
-            "enum": [
-              "One",
-              "Half",
-              "CustomAmount"
-            ]
-          }
-        }
-      },
+      "properties": {},
       "additionalProperties": false
     },
-    "settingGroups": [
-      {
-        "id": "split-behavior",
-        "label": "Split behavior",
-        "description": "Choose which completed stack-split actions restore the source amount."
-      }
-    ],
-    "ui": {
-      "sections": [
-        {
-          "title": "Infinite Item Split",
-          "description": "Runtime behavior and scope",
-          "components": [
-            {
-              "type": "setting",
-              "key": "splitTypes"
-            }
-          ]
-        }
-      ]
-    },
-    "links": {
-      "source-github": "https://github.com/bonsaibauer/shroudforge",
-      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
-      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
-    }
+    "settingGroups": [],
+    "ui": {"sections": [{"title": "Infinite Item Split", "description": "The game chooses the split amount. This mod restores the source stack after the game consumes a One, Half, or CustomAmount split; there are no extra split settings.", "components": []}]},
+    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
   }
 }

@@ -79,17 +79,17 @@ exits. Your own mods, settings, and logs are preserved.
 
 | Mod | What does it do? | Target |
 | --- | --- | --- |
-| **Flight** | Lets you fly continuously. It can also prevent fall damage while flying. | Client |
-| **Infinite Item Split** | Preserves the quantity in the original stack when splitting it. | Client |
-| **Infinite Item Use** | Restores used items so they are not permanently consumed. | Client |
+| **Flight** | Applies the build-verified flight patch while enabled. | Client |
+| **Infinite Item Split** | Restores the source stack after the One, Half, or CustomAmount split selected in game. | Client |
+| **Infinite Item Use** | Applies the build-verified item-use patch to the matched operation for all items. | Client |
 | **No Fall Damage** | Prevents your character from taking fall damage. | Client |
-| **No Resource Cost** | Prevents recipes from consuming their listed resources. | Client and server |
+| **No Resource Cost** | Applies the build-verified recipe-cost patch. | Client |
 | **No Stamina Loss** | Prevents your character's stamina from decreasing. | Client |
 | **Unlock Blueprints** | Unlocks the supported crafting recipes. | Client and server |
 
 Mods are stored in the `mods` directory. Each mod can be installed as a directory
-or a ZIP file. In both cases, `mod.json` and `src/mod.lua` must be located directly
-at the package root.
+or a ZIP file. At the package root, `mod.json` and `src/mod.lua` under `src/` form
+the bundled mod layout.
 
 ## Bundled modules
 
@@ -140,10 +140,7 @@ You can also copy the ready-made
   "name": "My First Mod",
   "version": "1.0.0",
   "authors": ["Your Name", "Another Author"],
-  "api": "^1.0.0",
-  "capabilities": ["runtime"],
   "dependencies": [],
-  "target": "client",
   "description": "My first ShroudForge mod.",
   "shroudforge": {
     "schemaVersion": 1,
@@ -168,19 +165,15 @@ You can also copy the ready-made
 | `id` | Unique identifier. Lowercase letters, numbers, periods, and hyphens are allowed. |
 | `name` | Name shown to players in the modloader. |
 | `version` | Your mod's version in `MAJOR.MINOR.PATCH` format. |
-| `api` | Required ShroudForge API version. |
-| `capabilities` | Features required by the mod. |
 | `dependencies` | Other mods that must be installed first. |
-| `target` | `client`, `server`, or `both`. |
 | `description` | A short, simple description. |
 | `authors` | One or more author names, shown beside the mod title. Keep the spelling and capitalization you want players to see. |
 | `shroudforge.links` | Optional HTTPS links shown as buttons in the mod information card. Direct project links: `source`, `source-github`, `source-gitlab`, `source-codeberg`, `issues`, `wiki`, `discord`, `website`, and `store`. Generic `source` stays platform-neutral; provider-specific source keys use the provider badge. `support` is a list of `{ "platform", "url" }` entries. Supported platform IDs: `bmac`, `patreon`, `paypal`, `github`, `ko-fi`, `open-collective`, and `other`. |
 
-| Capability | Purpose |
-| --- | --- |
-| `runtime` | Work with the running game world. |
-| `assets-write` | Modify game resources before the game starts. |
-| `export` | Export data from game resources. |
+The loader derives runtime, asset-write, export, target process, and setting
+apply phase from the Lua API calls in the package. Do not add `api`,
+`capabilities`, or `target` fields to `mod.json`. Runtime ECS, world, and patch
+APIs target the Client. Asset writes and exports can run in Client or Server.
 
 ### 3. Write Lua code
 

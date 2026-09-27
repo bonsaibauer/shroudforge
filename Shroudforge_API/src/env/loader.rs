@@ -17,6 +17,32 @@ use crate::{
     lua::{Either, FunctionArgs, LuaError, LuaValue},
 };
 
+fn is_component_type(registry: &TypeRegistry, metadata: &TypeMetadata) -> bool {
+    if !metadata.qualified_name.starts_with("keen::ecs::") ||
+        metadata.qualified_name == "keen::ecs::Component" {
+        return false;
+    }
+    let mut current = Some(metadata);
+    for _ in 0..=registry.len() {
+        let Some(ty) = current else { return false; };
+        if ty.qualified_name == "keen::ecs::Component" { return true; }
+        current = registry.get_inner_type(ty);
+    }
+    false
+}
+
+fn is_runtime_component_type(registry: &TypeRegistry, metadata: &TypeMetadata) -> bool {
+    if !metadata.qualified_name.starts_with("keen::ecs::") ||
+        metadata.qualified_name == "keen::ecs::Component" {
+        return false;
+    }
+    // Dynamic ECS columns are serialized as flat runtime structs instead of
+    // deriving from Component. The provider still requires a verified
+    // build-profile mapping or a unique live archetype stride before resolving one.
+    metadata.qualified_name.starts_with("keen::ecs::Dynamic") ||
+        is_component_type(registry, metadata)
+}
+
 pub(crate) fn runtime_provider_report() -> serde_json::Value {
     runtime_provider::report()
 }
@@ -25,14 +51,34 @@ pub(crate) fn runtime_provider_report() -> serde_json::Value {
 pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     let app_state = lua.app_data_ref::<AppState>().unwrap();
     if app_state.phase() == RuntimePhase::Ingame && !app_state.runtime_configured.replace(true) {
-        let contract: Vec<_> = app_state
-            .type_registry()
+        let registry = app_state.type_registry();
+        let ecs_catalog_types = registry.iter()
+            .filter(|metadata| metadata.qualified_name.starts_with("keen::ecs::"))
+            .count();
+        let component_candidates = registry.iter()
+            .filter(|metadata| metadata.size > 0 && is_component_type(registry, metadata))
+            .count();
+        let dynamic_candidates = registry.iter()
+            .filter(|metadata| metadata.size > 0 &&
+                metadata.qualified_name.starts_with("keen::ecs::Dynamic") &&
+                !is_component_type(registry, metadata))
+            .count();
+        let contract: Vec<_> = registry
             .iter()
             .filter(|metadata| {
-                metadata.size > 0 && metadata.qualified_name.starts_with("keen::ecs::")
+                metadata.size > 0 && is_runtime_component_type(registry, metadata)
             })
             .map(|metadata| (metadata.qualified_name.clone(), metadata.size))
             .collect();
+        tracing::info!(
+            target: "shroudforge::runtime",
+            reflection_types = registry.len(),
+            ecs_catalog_types,
+            component_candidates,
+            dynamic_runtime_struct_candidates = dynamic_candidates,
+            index_candidates = contract.len(),
+            "Prepared KFC runtime component index candidates"
+        );
         if !runtime_provider::configure(&contract) {
             tracing::warn!("KFC Runtime rejected the component contract");
         }
@@ -48,6 +94,8 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &table, "report_effect", &r#mod, lua_report_effect)?;
 
     table.raw_set("ecs", create_ecs(lua, &r#mod)?)?;
+    table.raw_set("world", create_world(lua, &r#mod)?)?;
+    table.raw_set("patch", create_patch(lua, &r#mod)?)?;
 
     Ok(table)
 }
@@ -95,6 +143,34 @@ fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
                 && runtime_provider::can_write()
+        }
+        "runtime.gameplay.patch" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::runtime_patch_available("runtime.gameplay.patch")
+        }
+        "runtime.world.context.active" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::world_operation_available(feature)
+                && runtime_provider::world_context_active()
+        }
+        "runtime.world.voxel.read" | "runtime.world.voxel.write" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::world_operation_available(feature)
+                && runtime_provider::world_context_active()
+        }
+        "runtime.world.entity.spawn" | "runtime.world.entity.place" |
+        "runtime.world.entity.destroy" | "runtime.world.entity.finish_building" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::world_operation_available(feature)
+                && runtime_provider::world_entity_context_ready()
         }
         _ => false,
     }
@@ -147,6 +223,19 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
             },
         );
     }
+    let world_ready = if feature.starts_with("runtime.world.entity.") {
+        runtime_provider::world_operation_available(&feature) && runtime_provider::world_entity_context_ready()
+    } else if feature.starts_with("runtime.world.") {
+        runtime_provider::world_operation_available(&feature) && runtime_provider::world_context_active()
+    } else { true };
+    if feature.starts_with("runtime.world.") && matches!(availability, Availability::Available) && !world_ready {
+        return availability_to_lua(
+            lua,
+            Availability::Unavailable {
+                reason: format!("KFC Runtime world operation is not ready: {feature}"),
+            },
+        );
+    }
     availability_to_lua(lua, availability)
 }
 
@@ -193,6 +282,184 @@ fn create_ecs(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &table, "write", r#mod, lua_ecs_write)?;
 
     Ok(table)
+}
+
+fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
+    let world = lua.create_table()?;
+    add_function_with_mod(lua, &world, "operation_available", r#mod, lua_world_operation_available)?;
+    add_function_with_mod(lua, &world, "context_active", r#mod, lua_world_context_active)?;
+    let voxel = lua.create_table()?;
+    add_function_with_mod(lua, &voxel, "read", r#mod, lua_world_voxel_read)?;
+    add_function_with_mod(lua, &voxel, "write", r#mod, lua_world_voxel_write)?;
+    world.raw_set("voxel", voxel)?;
+    let entity = lua.create_table()?;
+    add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
+    add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
+    add_function_with_mod(lua, &entity, "destroy", r#mod, lua_world_entity_destroy)?;
+    add_function_with_mod(lua, &entity, "finish_building", r#mod, lua_world_entity_finish_building)?;
+    world.raw_set("entity", entity)?;
+    Ok(world)
+}
+
+fn create_patch(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
+    let patch = lua.create_table()?;
+    add_function_with_mod(lua, &patch, "available", r#mod, lua_runtime_patch_available)?;
+    add_function_with_mod(lua, &patch, "set_enabled", r#mod, lua_runtime_patch_set_enabled)?;
+    Ok(patch)
+}
+
+fn lua_runtime_patch_available(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<bool> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let name = args.get::<String>(0)?;
+    if runtime_denial_reason(&state, r#mod, "runtime.gameplay.patch").is_some() { return Ok(false); }
+    Ok(runtime_provider::runtime_patch_available(&name))
+}
+
+fn lua_runtime_patch_set_enabled(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.gameplay.patch") { return Ok((false, Some(reason))); }
+    if args.len() != 2 { return Err(LuaError::generic("runtime.patch.set_enabled expects profile patch name and enabled:boolean")); }
+    let name = args.get::<String>(0)?;
+    let enabled = args.get::<bool>(1)?;
+    if !runtime_provider::runtime_patch_available(&name) {
+        return Ok((false, Some(format!("build profile does not resolve {name}"))));
+    }
+    match runtime_provider::runtime_patch_set_enabled(&name, enabled) {
+        Ok(()) => Ok((true, None)),
+        Err(reason) => Ok((false, Some(reason))),
+    }
+}
+
+fn lua_world_entity_spawn(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.spawn") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 6 { return Err(LuaError::generic("runtime.world.entity.spawn expects templateUuidHighHex, templateUuidLowHex, position[3], rotation[4], trackingId, flags")); }
+    let high = u64::from_str_radix(args.get::<String>(0)?.trim_start_matches("0x"), 16)
+        .map_err(|_| LuaError::generic("template UUID high must be a 16-digit hexadecimal string"))?;
+    let low = u64::from_str_radix(args.get::<String>(1)?.trim_start_matches("0x"), 16)
+        .map_err(|_| LuaError::generic("template UUID low must be a 16-digit hexadecimal string"))?;
+    let position = lua_vec::<3>(args.get::<mlua::Table>(2)?.clone(), "position")?;
+    let rotation = lua_vec::<4>(args.get::<mlua::Table>(3)?.clone(), "rotation")?;
+    let tracking = args.get::<u32>(4)?;
+    let flags = args.get::<u32>(5)?;
+    match runtime_provider::world_entity_spawn([high, low], position, rotation, tracking, flags) {
+        Ok(token) => Ok((LuaValue::Integer(i64::from(token)), None)),
+        Err(reason) => Ok((LuaValue::Nil, Some(reason))),
+    }
+}
+
+fn lua_world_entity_place(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(bool, Option<String>)> {
+    lua_world_entity_placement(lua, args, r#mod, false)
+}
+
+fn lua_world_entity_destroy(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(bool, Option<String>)> {
+    lua_world_entity_placement(lua, args, r#mod, true)
+}
+
+fn lua_world_entity_placement(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod, destroy: bool) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let operation = if destroy { "runtime.world.entity.destroy" } else { "runtime.world.entity.place" };
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, operation) { return Ok((false, Some(reason))); }
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.finish_building") { return Ok((false, Some(reason))); }
+    if args.len() != 5 { return Err(LuaError::generic("runtime.world.entity.place/destroy expects position[3], rotation[4], bounds[6], trackingId, feedbackId")); }
+    let position = lua_vec::<3>(args.get::<mlua::Table>(0)?.clone(), "position")?;
+    let rotation = lua_vec::<4>(args.get::<mlua::Table>(1)?.clone(), "rotation")?;
+    let bounds = lua_vec::<6>(args.get::<mlua::Table>(2)?.clone(), "bounds")?.map(|value| value as f32);
+    let tracking = args.get::<u32>(3)?;
+    let feedback = args.get::<u32>(4)?;
+    match runtime_provider::world_entity_placement(destroy, position, rotation, bounds, tracking, feedback) {
+        Ok(()) => Ok((true, None)),
+        Err(reason) => Ok((false, Some(reason))),
+    }
+}
+
+fn lua_world_entity_finish_building(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.finish_building") { return Ok((false, Some(reason))); }
+    if args.len() != 1 { return Err(LuaError::generic("runtime.world.entity.finish_building expects complete:boolean")); }
+    match runtime_provider::world_entity_finish_building(args.get::<bool>(0)?) {
+        Ok(()) => Ok((true, None)),
+        Err(reason) => Ok((false, Some(reason))),
+    }
+}
+
+fn lua_vec<const N: usize>(table: mlua::Table, label: &str) -> mlua::Result<[f64; N]> {
+    if table.raw_len() != N { return Err(LuaError::generic(format!("{label} must contain exactly {N} numbers"))); }
+    let mut values = [0.0; N];
+    for (index, value) in values.iter_mut().enumerate() { *value = table.raw_get(index + 1)?; }
+    Ok(values)
+}
+
+fn lua_world_operation_available(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<bool> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let name = args.get::<String>(0)?;
+    if runtime_denial_reason(&state, r#mod, &name).is_some() { return Ok(false); }
+    Ok(runtime_provider::world_operation_available(&name))
+}
+
+fn lua_world_context_active(lua: &mlua::Lua, _args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.context.active") {
+        return Ok((false, Some(reason)));
+    }
+    let active = runtime_provider::world_context_active();
+    Ok((active, (!active).then(|| "active voxel world context is not available".into())))
+}
+
+fn lua_world_voxel_read(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.voxel.read") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 6 {
+        return Err(LuaError::generic("runtime.world.voxel.read expects x, y, z, sizeX, sizeY, sizeZ"));
+    }
+    let origin = [args.get::<i32>(0)?, args.get::<i32>(1)?, args.get::<i32>(2)?];
+    let dimensions = [args.get::<u32>(3)?, args.get::<u32>(4)?, args.get::<u32>(5)?];
+    let count = dimensions.iter().try_fold(1usize, |total, value| total.checked_mul(*value as usize));
+    let Some(count) = count.filter(|count| *count > 0 && *count <= 65_536) else {
+        return Ok((LuaValue::Nil, Some("voxel read must contain between 1 and 65,536 cells".into())));
+    };
+    let Some(values) = runtime_provider::world_voxel_read(origin, dimensions, count) else {
+        return Ok((LuaValue::Nil, Some("voxel read failed, timed out, or active world context is unavailable".into())));
+    };
+    let result = lua.create_table_with_capacity(values.len(), 0)?;
+    for (index, value) in values.into_iter().enumerate() { result.raw_set(index + 1, value)?; }
+    Ok((LuaValue::Table(result), None))
+}
+
+fn lua_world_voxel_write(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.voxel.write") {
+        return Ok((false, Some(reason)));
+    }
+    if args.len() != 7 {
+        return Err(LuaError::generic("runtime.world.voxel.write expects x, y, z, sizeX, sizeY, sizeZ, cells"));
+    }
+    let origin = [args.get::<i32>(0)?, args.get::<i32>(1)?, args.get::<i32>(2)?];
+    let dimensions = [args.get::<u32>(3)?, args.get::<u32>(4)?, args.get::<u32>(5)?];
+    let values = args.get::<mlua::Table>(6)?;
+    let count = dimensions.iter().try_fold(1usize, |total, value| total.checked_mul(*value as usize));
+    let Some(count) = count.filter(|count| *count > 0 && *count <= 65_536) else {
+        return Ok((false, Some("voxel write must contain between 1 and 65,536 cells".into())));
+    };
+    if values.raw_len() != count {
+        return Ok((false, Some(format!("voxel cell count mismatch: expected {count}, got {}", values.raw_len()))));
+    }
+    let mut cells = Vec::with_capacity(count);
+    for index in 1..=count {
+        let value = values.raw_get::<u32>(index)?;
+        if value > u16::MAX as u32 {
+            return Ok((false, Some(format!("voxel cell {index} exceeds the supported 16-bit format"))));
+        }
+        cells.push(value as u16);
+    }
+    match runtime_provider::world_voxel_write(origin, dimensions, &cells) {
+        Ok(()) => Ok((true, None)),
+        Err(reason) => Ok((false, Some(reason))),
+    }
 }
 
 fn lua_ecs_resolve(
@@ -592,7 +859,7 @@ fn has_capability_for_feature(r#mod: &Mod, feature: &str) -> bool {
 
 fn runtime_denial_reason(state: &AppState, r#mod: &Mod, feature: &str) -> Option<String> {
     if state.phase() != RuntimePhase::Ingame {
-        return Some("runtime ECS is available only during the ingame phase".into());
+        return Some("runtime APIs are available only during the ingame phase".into());
     }
     if !has_capability(r#mod, Capability::Runtime) {
         return Some(format!(
@@ -629,6 +896,16 @@ mod runtime_provider {
     type Read = unsafe extern "C" fn(u32, *const c_char, *mut c_void, usize) -> bool;
     type Write =
         unsafe extern "C" fn(u32, *const c_char, *const c_void, *const c_void, usize) -> bool;
+    type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
+    type WorldContextActive = unsafe extern "C" fn() -> bool;
+    type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
+    type WorldVoxelRead = unsafe extern "C" fn(*const i32, *const u32, *mut u16, usize, *mut usize) -> bool;
+    type WorldVoxelWrite = unsafe extern "C" fn(*const i32, *const u32, *const u16, usize, *mut u32) -> bool;
+    type WorldEntitySpawn = unsafe extern "C" fn(*const u64, *const f64, *const f64, u32, u32, *mut u32, *mut u32) -> bool;
+    type WorldEntityPlacement = unsafe extern "C" fn(*const f64, *const f64, *const f32, u32, u32, *mut u32) -> bool;
+    type WorldEntityFinish = unsafe extern "C" fn(bool, *mut u32) -> bool;
+    type RuntimePatchAvailable = unsafe extern "C" fn(*const c_char) -> bool;
+    type RuntimePatchSetEnabled = unsafe extern "C" fn(*const c_char, bool, *mut u32) -> bool;
     struct Provider {
         configure: Configure,
         ready: Ready,
@@ -638,6 +915,17 @@ mod runtime_provider {
         resolve_entity: ResolveEntity,
         read: Read,
         write: Write,
+        world_operation_available: WorldOperationAvailable,
+        world_context_active: WorldContextActive,
+        world_entity_context_ready: WorldEntityContextReady,
+        world_voxel_read: WorldVoxelRead,
+        world_voxel_write: WorldVoxelWrite,
+        world_entity_spawn: WorldEntitySpawn,
+        world_entity_place: WorldEntityPlacement,
+        world_entity_destroy: WorldEntityPlacement,
+        world_entity_finish: WorldEntityFinish,
+        runtime_patch_available: RuntimePatchAvailable,
+        runtime_patch_set_enabled: RuntimePatchSetEnabled,
         abi: u32,
         status: unsafe extern "C" fn(*mut c_char, usize),
     }
@@ -648,43 +936,69 @@ mod runtime_provider {
         fn GetProcAddress(module: *mut c_void, name: *const c_char) -> *const c_void;
     }
 
-    static PROVIDER: OnceLock<Option<Provider>> = OnceLock::new();
+    static PROVIDER: OnceLock<Provider> = OnceLock::new();
+    static PROVIDER_ERROR: OnceLock<String> = OnceLock::new();
 
     fn provider() -> Option<&'static Provider> {
-        PROVIDER
-            .get_or_init(|| unsafe {
+        if let Some(provider) = PROVIDER.get() {
+            return Some(provider);
+        }
+        let loaded = unsafe { (|| -> Result<Provider, String> {
                 let module_name: Vec<u16> = "kfc-runtime.dll\0".encode_utf16().collect();
                 let module = GetModuleHandleW(module_name.as_ptr());
                 if module.is_null() {
-                    return None;
+                    Err("provider-module-not-loaded".to_string())
+                } else {
+                    macro_rules! symbol {
+                        ($name:literal, $kind:ty) => {{
+                            let pointer = GetProcAddress(module, concat!($name, "\0").as_ptr().cast());
+                            if pointer.is_null() {
+                                return Err(concat!("missing-export:", $name).to_string());
+                            }
+                            std::mem::transmute::<*const c_void, $kind>(pointer)
+                        }};
+                    }
+                    let abi = symbol!("KfcRuntimeAbi", unsafe extern "C" fn() -> u32);
+                    let actual_abi = abi();
+                    if actual_abi != 4 {
+                        Err(format!("provider-abi-mismatch:expected=4,actual={actual_abi}"))
+                    } else {
+                        Ok(Provider {
+                            configure: symbol!("ShroudforgeEcsConfigure", Configure),
+                            ready: symbol!("ShroudforgeEcsReady", Ready),
+                            can_write: symbol!("ShroudforgeEcsCanWrite", Ready),
+                            describe: symbol!("ShroudforgeEcsDescribe", Describe),
+                            query: symbol!("ShroudforgeEcsQuery", Query),
+                            resolve_entity: symbol!("ShroudforgeEcsResolve", ResolveEntity),
+                            read: symbol!("ShroudforgeEcsRead", Read),
+                            write: symbol!("ShroudforgeEcsWrite", Write),
+                            world_operation_available: symbol!("ShroudforgeWorldOperationAvailable", WorldOperationAvailable),
+                            world_context_active: symbol!("ShroudforgeWorldContextActive", WorldContextActive),
+                            world_entity_context_ready: symbol!("ShroudforgeWorldEntityContextReady", WorldEntityContextReady),
+                            world_voxel_read: symbol!("ShroudforgeWorldVoxelRead", WorldVoxelRead),
+                            world_voxel_write: symbol!("ShroudforgeWorldVoxelWrite", WorldVoxelWrite),
+                            world_entity_spawn: symbol!("ShroudforgeWorldEntitySpawn", WorldEntitySpawn),
+                            world_entity_place: symbol!("ShroudforgeWorldEntityPlace", WorldEntityPlacement),
+                            world_entity_destroy: symbol!("ShroudforgeWorldEntityDestroy", WorldEntityPlacement),
+                            world_entity_finish: symbol!("ShroudforgeWorldEntityFinishBuilding", WorldEntityFinish),
+                            runtime_patch_available: symbol!("ShroudforgeRuntimePatchAvailable", RuntimePatchAvailable),
+                            runtime_patch_set_enabled: symbol!("ShroudforgeRuntimePatchSetEnabled", RuntimePatchSetEnabled),
+                            abi: actual_abi,
+                            status: symbol!("KfcRuntimeStatus", unsafe extern "C" fn(*mut c_char, usize)),
+                        })
+                    }
                 }
-                macro_rules! symbol {
-                    ($name:literal, $kind:ty) => {{
-                        let pointer = GetProcAddress(module, concat!($name, "\0").as_ptr().cast());
-                        if pointer.is_null() {
-                            return None;
-                        }
-                        std::mem::transmute::<*const c_void, $kind>(pointer)
-                    }};
-                }
-                let abi = symbol!("KfcRuntimeAbi", unsafe extern "C" fn() -> u32);
-                if abi() != 1 {
-                    return None;
-                }
-                Some(Provider {
-                    configure: symbol!("ShroudforgeEcsConfigure", Configure),
-                    ready: symbol!("ShroudforgeEcsReady", Ready),
-                    can_write: symbol!("ShroudforgeEcsCanWrite", Ready),
-                    describe: symbol!("ShroudforgeEcsDescribe", Describe),
-                    query: symbol!("ShroudforgeEcsQuery", Query),
-                    resolve_entity: symbol!("ShroudforgeEcsResolve", ResolveEntity),
-                    read: symbol!("ShroudforgeEcsRead", Read),
-                    write: symbol!("ShroudforgeEcsWrite", Write),
-                    abi: abi(),
-                    status: symbol!("KfcRuntimeStatus", unsafe extern "C" fn(*mut c_char, usize)),
-                })
-            })
-            .as_ref()
+        })() };
+        match loaded {
+            Ok(provider) => {
+                let _ = PROVIDER.set(provider);
+                PROVIDER.get()
+            }
+            Err(error) => {
+                let _ = PROVIDER_ERROR.set(error);
+                None
+            }
+        }
     }
 
     fn observed_abi() -> Option<u32> {
@@ -720,8 +1034,77 @@ mod runtime_provider {
     pub fn can_write() -> bool {
         provider().is_some_and(|value| unsafe { (value.can_write)() })
     }
+    pub fn world_operation_available(name: &str) -> bool {
+        let Some(provider) = provider() else { return false; };
+        let Ok(name) = CString::new(name) else { return false; };
+        unsafe { (provider.world_operation_available)(name.as_ptr()) }
+    }
+    pub fn world_context_active() -> bool {
+        provider().is_some_and(|value| unsafe { (value.world_context_active)() })
+    }
+    pub fn world_entity_context_ready() -> bool {
+        provider().is_some_and(|value| unsafe { (value.world_entity_context_ready)() })
+    }
+    pub fn world_voxel_read(origin: [i32; 3], dimensions: [u32; 3], count: usize) -> Option<Vec<u16>> {
+        let provider = provider()?;
+        let mut values = vec![0u16; count];
+        let mut actual = 0usize;
+        let ok = unsafe { (provider.world_voxel_read)(origin.as_ptr(), dimensions.as_ptr(), values.as_mut_ptr(), count, &mut actual) };
+        (ok && actual == count).then_some(values)
+    }
+    pub fn world_voxel_write(origin: [i32; 3], dimensions: [u32; 3], values: &[u16]) -> Result<(), String> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable".into()); };
+        let mut outcome = 1u32;
+        let ok = unsafe { (provider.world_voxel_write)(origin.as_ptr(), dimensions.as_ptr(), values.as_ptr(), values.len(), &mut outcome) };
+        if ok { return Ok(()); }
+        Err(match outcome {
+            1 => "voxel write was rejected before changing the world".into(),
+            2 => "voxel write failed; the previous voxel region was restored and read back".into(),
+            _ => "voxel write outcome is uncertain; rollback could not be verified".into(),
+        })
+    }
+    fn operation_error(operation: &str, outcome: u32) -> String {
+        match outcome {
+            1 => format!("{operation} was rejected before dispatch (profile, arguments, or live context unavailable)"),
+            2 => format!("{operation} failed in the engine call"),
+            4 => format!("{operation} was dispatched, but the requested live ECS state change was not observed; the final world state is uncertain"),
+            _ => format!("{operation} timed out; the game thread may still have consumed the request"),
+        }
+    }
+    pub fn world_entity_spawn(uuid: [u64; 2], position: [f64; 3], rotation: [f64; 4], tracking: u32, flags: u32) -> Result<u32, String> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable".into()); };
+        let mut token = 0u32; let mut outcome = 1u32;
+        let ok = unsafe { (provider.world_entity_spawn)(uuid.as_ptr(), position.as_ptr(), rotation.as_ptr(), tracking, flags, &mut token, &mut outcome) };
+        if ok { Ok(token) } else { Err(operation_error("runtime.world.entity.spawn", outcome)) }
+    }
+    pub fn world_entity_placement(destroy: bool, position: [f64; 3], rotation: [f64; 4], bounds: [f32; 6], tracking: u32, feedback: u32) -> Result<(), String> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable".into()); };
+        let mut outcome = 1u32;
+        let function = if destroy { provider.world_entity_destroy } else { provider.world_entity_place };
+        let ok = unsafe { function(position.as_ptr(), rotation.as_ptr(), bounds.as_ptr(), tracking, feedback, &mut outcome) };
+        if ok { Ok(()) } else { Err(operation_error(if destroy { "runtime.world.entity.destroy" } else { "runtime.world.entity.place" }, outcome)) }
+    }
+    pub fn world_entity_finish_building(complete: bool) -> Result<(), String> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable".into()); };
+        let mut outcome = 1u32;
+        let ok = unsafe { (provider.world_entity_finish)(complete, &mut outcome) };
+        if ok { Ok(()) } else { Err(operation_error("runtime.world.entity.finish_building", outcome)) }
+    }
+    pub fn runtime_patch_available(name: &str) -> bool {
+        let Some(provider) = provider() else { return false; };
+        let Ok(name) = CString::new(name) else { return false; };
+        unsafe { (provider.runtime_patch_available)(name.as_ptr()) }
+    }
+    pub fn runtime_patch_set_enabled(name: &str, enabled: bool) -> Result<(), String> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable".into()); };
+        let name = CString::new(name).map_err(|_| "invalid patch name")?;
+        let mut outcome = 1u32;
+        let ok = unsafe { (provider.runtime_patch_set_enabled)(name.as_ptr(), enabled, &mut outcome) };
+        if ok { return Ok(()); }
+        Err(format!("runtime patch '{}' rejected the operation or failed its live-byte safety check (outcome={outcome})", name.to_string_lossy()))
+    }
     pub fn report() -> serde_json::Value {
-        let Some(provider) = provider() else { return serde_json::json!({"available":false,"abi":observed_abi(),"reason":"provider-or-ABI-unavailable"}); };
+        let Some(provider) = provider() else { return serde_json::json!({"available":false,"abi":observed_abi(),"reason":PROVIDER_ERROR.get().map(String::as_str).unwrap_or("provider-unavailable")}); };
         let mut buffer = [0i8; 4096];
         unsafe { (provider.status)(buffer.as_mut_ptr(), buffer.len()); }
         let bytes: Vec<u8> = buffer.iter().take_while(|byte| **byte != 0).map(|byte| *byte as u8).collect();
@@ -830,6 +1213,16 @@ mod runtime_provider {
     pub fn can_write() -> bool {
         false
     }
+    pub fn world_operation_available(_: &str) -> bool { false }
+    pub fn world_context_active() -> bool { false }
+    pub fn world_entity_context_ready() -> bool { false }
+    pub fn world_voxel_read(_: [i32; 3], _: [u32; 3], _: usize) -> Option<Vec<u16>> { None }
+    pub fn world_voxel_write(_: [i32; 3], _: [u32; 3], _: &[u16]) -> Result<(), String> { Err("native world runtime is available on Windows only".into()) }
+    pub fn world_entity_spawn(_: [u64; 2], _: [f64; 3], _: [f64; 4], _: u32, _: u32) -> Result<u32, String> { Err("native world runtime is available on Windows only".into()) }
+    pub fn world_entity_placement(_: bool, _: [f64; 3], _: [f64; 4], _: [f32; 6], _: u32, _: u32) -> Result<(), String> { Err("native world runtime is available on Windows only".into()) }
+    pub fn world_entity_finish_building(_: bool) -> Result<(), String> { Err("native world runtime is available on Windows only".into()) }
+    pub fn runtime_patch_available(_: &str) -> bool { false }
+    pub fn runtime_patch_set_enabled(_: &str, _: bool) -> Result<(), String> { Err("native runtime patches are available on Windows only".into()) }
     pub fn report() -> serde_json::Value { serde_json::json!({"available":false,"reason":"windows-runtime-only"}) }
     pub fn resolve(_: &str) -> Option<Component> {
         None

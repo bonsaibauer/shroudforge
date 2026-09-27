@@ -8,6 +8,7 @@
     "modId":{"type":"string"},"updatedAt":{"type":"integer","minimum":0},
     "actionUrl":{"type":["string","null"],"pattern":"^https://"},
     "kind":{"type":["string","null"]},"values":{"type":["object","null"]},
-    "changelog":{"type":"array","items":{"type":"string"},"maxItems":50}
+    "changelog":{"type":"array","items":{"type":"string"},"maxItems":50},
+    "actions":{"type":"array","maxItems":4,"items":{"type":"object","required":["id","kind"],"properties":{"id":{"type":"string","maxLength":80},"kind":{"enum":["open-mod","open-debug-console"]},"target":{"type":"string","maxLength":80}},"additionalProperties":false}}
   },"additionalProperties":false
 }

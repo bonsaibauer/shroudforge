@@ -1,110 +1,25 @@
-local PlayerInput = game.types.get("keen::ecs::PlayerInput")
-local DynamicLocomotion = game.types.get("keen::ecs::DynamicLocomotion")
-local DynamicFallDamage = game.types.get("keen::ecs::DynamicFallDamage")
+local operation = "runtime.patch.unlimited_flight"
+local enabled = false
 
-if PlayerInput == nil or DynamicLocomotion == nil then
-    error("Required flight runtime types are unavailable")
+local function set_enabled(value)
+    local ok, reason = runtime.patch.set_enabled(operation, value)
+    if not ok then
+        runtime.report_effect("write-failed", reason or "build-specific flight patch failed")
+        shroudforge.log.error("Unlimited Flight: " .. tostring(reason))
+        return false
+    end
+    enabled = value
+    runtime.report_effect("write-confirmed", value and "Build-verified native flight patch enabled" or "Build-verified native patch restored")
+    return true
 end
 
-local original_states = {}
-local warned = false
-local warned_write = false
-
-local function write_component(entity, component, value)
-    local ok, reason = runtime.ecs.write(entity, component, value)
-    if not ok and not warned_write then
-        shroudforge.log.warn("Flight write failed: " .. (reason or tostring(component)))
-        warned_write = true
-    elseif ok then
-        warned_write = false
-    end
-    return ok
-end
-
-local function apply_flight()
-    local prevent_fall_damage = shroudforge.settings.get("preventFallDamage")
-    local allow_descent = shroudforge.settings.get("allowDescent")
-    local entities, reason = runtime.ecs.query(PlayerInput, DynamicLocomotion)
-    if entities == nil then
-        runtime.report_effect("waiting", reason or "ECS query did not complete")
-        if not warned then
-            shroudforge.log.warn("Flight unavailable: " .. (reason or "ECS query failed"))
-            warned = true
-        end
-        return
-    end
-    warned = false
-    local writes = 0
-    local failures = 0
-
-    for _, entity in ipairs(entities) do
-        local locomotion = runtime.ecs.read(entity, DynamicLocomotion)
-        if locomotion then
-            if original_states[entity] == nil then
-                original_states[entity] = {
-                    state = locomotion.state,
-                    previousState = locomotion.previousState,
-                }
-            end
-            local changed = locomotion.previousState ~= locomotion.state
-                or locomotion.state ~= "Flying"
-            locomotion.previousState = locomotion.state
-            locomotion.state = "Flying"
-            if not allow_descent and locomotion.inputVelocity.z < 0 then
-                locomotion.inputVelocity.z = 0
-                changed = true
-            end
-            if changed then
-                if write_component(entity, DynamicLocomotion, locomotion) then writes = writes + 1 else failures = failures + 1 end
-            end
-        end
-
-        if prevent_fall_damage and DynamicFallDamage ~= nil then
-            local fall = runtime.ecs.read(entity, DynamicFallDamage)
-            if fall then
-                local changed = fall.wasFalling
-                    or fall.detectedFallDistance ~= 0
-                    or fall.detectedFallDamagePercentage ~= 0
-                if changed then
-                    fall.wasFalling = false
-                    fall.detectedFallDistance = 0
-                    fall.detectedFallDamagePercentage = 0
-                    if write_component(entity, DynamicFallDamage, fall) then writes = writes + 1 else failures = failures + 1 end
-                end
-            end
-        end
-    end
-    if failures > 0 then
-        runtime.report_effect("write-failed", failures .. " flight ECS write(s) failed")
-    elseif writes > 0 then
-        runtime.report_effect("write-confirmed", writes .. " movement/fall-state ECS write(s) succeeded; flight behavior is not independently observed")
-    elseif #entities == 0 then
-        runtime.report_effect("no-target", "No entity matched PlayerInput and DynamicLocomotion")
-    else
-        runtime.report_effect("no-change", #entities .. " matching entity/entities; no movement field needed a change")
-    end
-end
-
-local function restore_states()
-    for entity, original in pairs(original_states) do
-        local locomotion = runtime.ecs.read(entity, DynamicLocomotion)
-        if locomotion then
-            locomotion.state = original.state
-            locomotion.previousState = original.previousState
-            write_component(entity, DynamicLocomotion, locomotion)
-        end
-    end
-    original_states = {}
-end
-
-shroudforge.ui.on_action("resetFlight", restore_states)
+shroudforge.ui.on_action("toggleFlight", function() set_enabled(not enabled) end)
 
 return {
-    update_interval_ms = 16,
     on_load = function()
-        runtime.require("runtime.lifecycle")
-        shroudforge.log.info("Flight active through keen::ecs::DynamicLocomotion")
+        runtime.require("runtime.gameplay.patch")
+        if not runtime.patch.available(operation) then error("Unlimited Flight patch is not validated for this game build") end
+        if not set_enabled(true) then error("Unlimited Flight could not be enabled; see the runtime error log") end
     end,
-    on_update = apply_flight,
-    on_unload = restore_states,
+    on_unload = function() if enabled then set_enabled(false) end end,
 }

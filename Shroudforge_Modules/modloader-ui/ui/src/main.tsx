@@ -14,7 +14,8 @@ type UiSection = { title?:string; description?:string; components:UiComponent[] 
 type ModUi = { sections?:UiSection[]; tabs?:Array<{id:string;label:string;sections:UiSection[]}> }
 type ModInfo = { revision:string; id:string; name:string; version:string; target:string; runtime:boolean; description?:string; authors:string[]; license?:string; links:Record<string,string|undefined>; source:string; enabled:boolean; settings:SettingDefinition[]; settingGroups:SettingGroup[]; ui:ModUi; changelog:string[]; assets:Record<string,string>; settingValues:Record<string,unknown> }
 type Activity = { id:string; time:string; source:string; action:string; result:string; level:string }
-type Notice = { id:string; modId:string; title:string; message:string; level:string; actionUrl?:string; updatedAt:number; kind?:string; values?:Record<string,string>; changelog?:string[] }
+type NoticeAction = { id:string; kind:string; target?:string }
+type Notice = { id:string; modId:string; title:string; message:string; level:string; actionUrl?:string; actions?:NoticeAction[]; updatedAt:number; kind?:string; values?:Record<string,string|number>; changelog?:string[] }
 type Release = { currentVersion:string; latestVersion?:string; updateAvailable:boolean; state:string; message?:string; releaseUrl?:string; staged:boolean; downloadedBytes?:number; totalBytes?:number; bytesPerSecond?:number }
 type ModulePreferences = Record<string,Record<string,any>>
 type Settings = { configRevision?:string; modulePreferences?:ModulePreferences; compactMode:boolean; reducedMotion:boolean; logLevel:string; updateEnabled:boolean; baseUrl:string; projectId:string; checkMinutes:number }
@@ -22,7 +23,7 @@ type CatalogItem = { id:string; slug:string; name:string; summary:string; iconUr
 type Catalog = { state:string; query:string; message?:string; items:CatalogItem[] }
 type Snapshot = { diagnostics?:{active:boolean;fresh:boolean;reason:string;remainingSeconds?:number;lastSampleAt?:number;detail?:string;report?:Record<string,unknown>}; windows?:Record<string,{visible:boolean;requestedVisible?:boolean}>; configuration?:{modStates?:Record<string,{state:string;detail:string}>;errors:string[];checks:Array<{id:string;group:string;state:"ok"|"warning"|"neutral";detail:string}>;assets:{state:string;detail:string};lastUpdate?:{version:string;build:string;installedAt:number}}; connected:boolean; mode:string; updaterWindow?:boolean; gameVersion:string; version:string; mods:ModInfo[]; activity:Activity[]; notices:Notice[]; newsTemplates?:Record<string,{title:string;message:string}>; readNoticeIds:string[]; release:Release; settings:Settings; catalog?:Catalog; locale:string }
 type PageId = 'activity'|'news'|'discover'|'installed'|'updates'|'compatibility'|'settings'
-type NewsItem = { id:string; level:string; title:string; message:string; actionUrl?:string; updatedAt:number; changelog?:string[] }
+type NewsItem = { id:string; modId?:string; level:string; title:string; message:string; actionUrl?:string; actions?:NoticeAction[]; updatedAt:number; kind?:string; values?:Record<string,string|number>; changelog?:string[] }
 
 type LinkDefinition = { id:string; labelKey:string; descriptionKey:string; icon:string; appearance:string }
 const linkDefinitions=Object.fromEntries(Object.entries(import.meta.glob('../../../../config/links/*.json',{eager:true,import:'default'})).filter(([path])=>!path.endsWith('/order.json')).map(([path,value])=>[(value as LinkDefinition).id,value as LinkDefinition])) as Record<string,LinkDefinition>
@@ -108,8 +109,8 @@ function App(){
       const render=(text:string)=>text.replace(/\{(\w+)\}/g,(match,key)=>values[key]??match)
       return {title:render(template.title),message:render(template.message)}
     }
-    if(data.release.updateAvailable)items.push({id:`system-${data.release.latestVersion}`,level:'update',title:t('news.system.update.title',{version:data.release.latestVersion||''}),message:data.release.message||t('news.system.update.message'),actionUrl:data.release.releaseUrl,updatedAt:0})
-    if(data.release.state==='error')items.push({id:'system-update-error',level:'warning',title:t('news.system.error.title'),message:data.release.message||t('news.system.error.message'),updatedAt:0})
+    if(data.release.updateAvailable)items.push({id:`system-${data.release.latestVersion}`,level:'update',title:t('news.system.update.title',{version:data.release.latestVersion||''}),message:data.release.message||t('news.system.update.message'),actionUrl:data.release.releaseUrl,actions:[{id:'stage-update',kind:'stage-update'}],updatedAt:0})
+    if(data.release.state==='error')items.push({id:'system-update-error',level:'warning',title:t('news.system.error.title'),message:data.release.message||t('news.system.error.message'),actions:[{id:'check-updates',kind:'check-updates'}],updatedAt:0})
     if(data.release.staged)items.push({id:`system-staged-${data.release.latestVersion}`,level:'success',title:t('news.system.staged.title'),message:t('news.system.staged.message'),updatedAt:0})
     for(const item of items){
       const kind=item.id.startsWith('system-staged-')?'system.staged':item.id==='system-update-error'?'system.error':'system.update'
@@ -118,18 +119,35 @@ function App(){
     items.push(...data.notices.map(item=>{
       if(!item.kind)return {...item}
       const values=item.values||{}
-      if(data.newsTemplates?.[item.kind])return {...item,...configured(item.kind,values)}
+      if(item.kind.startsWith('notice.')||item.kind.startsWith('log.'))return {...item,title:t(`news.${item.kind}.title` as TranslationKey,values),message:t(`news.${item.kind}.message` as TranslationKey,values)}
+      if(data.newsTemplates?.[item.kind])return {...item,...configured(item.kind,values as Record<string,string>)}
       if(item.kind==='mod.install.success')return {...item,title:t('news.mod.install.success.title',values),message:t('news.mod.install.success.message',values),changelog:item.changelog}
       if(item.kind==='mod.update.success')return {...item,title:t('news.mod.update.success.title',values),message:t('news.mod.update.success.message',values),changelog:item.changelog}
       if(item.kind==='mod.remove.success')return {...item,title:t('news.mod.remove.success.title',values),message:t('news.mod.remove.success.message',values),changelog:item.changelog}
       return {...item}
     }))
+    for(const [modId,status] of Object.entries(data.configuration?.modStates||{})){
+      if(!['failed','restart-required','not-running','no-target'].includes(status.state))continue
+      const mod=data.mods.find(item=>item.id===modId)
+      const kind=status.state==='failed'?'failed':status.state==='restart-required'?'restart':status.state==='no-target'?'noTarget':'notRunning'
+      items.push({id:`mod-status-${modId}-${kind}`,modId,level:status.state==='failed'?'error':'warning',title:t(`news.modStatus.${kind}.title` as TranslationKey,{name:mod?.name||modId}),message:t(`news.modStatus.${kind}.message` as TranslationKey,{detail:status.detail||''}),actions:[{id:'open-mod',kind:'open-mod',target:modId}],updatedAt:0})
+    }
+    for(const check of data.configuration?.checks||[]){
+      if(check.state!=='warning')continue
+      items.push({id:`check-${check.id}`,level:'warning',title:t('news.check.warning.title' as TranslationKey,{check:t(`news.check.group.${check.group}` as TranslationKey)}),message:t('news.check.warning.message' as TranslationKey,{detail:check.detail}),actions:[{id:'open-debug-console',kind:'open-debug-console'}],updatedAt:0})
+    }
     return items.sort((a,b)=>b.updatedAt-a.updatedAt)
   },[data,t])
   const unread=news.filter(item=>!read.includes(item.id))
   const activeMod=data.mods.find(mod=>mod.id===selectedMod)
   const navigate=(next:PageId)=>{setSelectedMod(null);setPage(next)}
-  const markRead=(ids:string[])=>{const next=Array.from(new Set([...read,...ids]));setRead(next);post('mark-news-read',{ids})}
+  const markRead=(ids:string[],isRead=true)=>{const next=isRead?Array.from(new Set([...read,...ids])):read.filter(id=>!ids.includes(id));setRead(next);post('set-news-read',{ids,read:isRead})}
+  const runNoticeAction=(action:NoticeAction)=>{
+    if(action.kind==='open-mod'&&action.target){if(data.mods.some(mod=>mod.id===action.target)){setPage('installed');setSelectedMod(action.target)}else navigate('installed')}
+    else if(action.kind==='open-debug-console')postRequest('set-window-visibility',{module:'debugConsole',visible:true})
+    else if(action.kind==='check-updates')postRequest('check-updates')
+    else if(action.kind==='stage-update')postRequest('stage-update')
+  }
 
   if(data.updaterWindow)return <UpdaterWindow release={data.release} version={data.version}/>
 
@@ -157,9 +175,9 @@ function App(){
         </NavGroup>
         <div className="sidebar-fill"/>
       </aside>
-      <section className="content">{activeMod?<ModPage mod={activeMod} status={data.configuration?.modStates?.[activeMod.id]}/>:<Page id={page} data={data} settings={settings} setSettings={setSettings} news={news} unread={unread} read={read} markRead={markRead} selectMod={setSelectedMod}/>}</section>
+      <section className="content">{activeMod?<ModPage mod={activeMod} status={data.configuration?.modStates?.[activeMod.id]}/>:<Page id={page} data={data} settings={settings} setSettings={setSettings} news={news} unread={unread} read={read} markRead={markRead} runNoticeAction={runNoticeAction} openNews={()=>navigate('news')} selectMod={setSelectedMod}/>}</section>
     </div>
-    {chirper&&<Chirper items={unread} close={()=>setChirper(false)} all={()=>{setChirper(false);navigate('news')}} markRead={markRead}/>} 
+    {chirper&&<Chirper items={unread} close={()=>setChirper(false)} all={()=>{setChirper(false);navigate('news')}} markRead={markRead} runNoticeAction={runNoticeAction}/>}
   </main>
 }
 
@@ -180,13 +198,13 @@ function TopBar({data,unread,attention,onChirper}:{data:Snapshot;unread:number;a
   </header>
 }
 
-function Page({id,data,settings,setSettings,news,unread,read,markRead,selectMod}:{id:PageId;data:Snapshot;settings:Settings;setSettings(v:Settings):void;news:NewsItem[];unread:NewsItem[];read:string[];markRead(ids:string[]):void;selectMod(id:string):void}){
+function Page({id,data,settings,setSettings,news,unread,read,markRead,runNoticeAction,openNews,selectMod}:{id:PageId;data:Snapshot;settings:Settings;setSettings(v:Settings):void;news:NewsItem[];unread:NewsItem[];read:string[];markRead(ids:string[],isRead?:boolean):void;runNoticeAction(action:NoticeAction):void;openNews():void;selectMod(id:string):void}){
   if(id==='activity')return <ActivityPage activity={data.activity}/>
-  if(id==='news')return <NewsPage items={news} unread={unread} read={read} markRead={markRead}/>
+  if(id==='news')return <NewsPage items={news} unread={unread} read={read} markRead={markRead} runNoticeAction={runNoticeAction}/>
   if(id==='discover')return <Discover data={data}/>
   if(id==='installed')return <Installed mods={data.mods} select={selectMod}/>
   if(id==='updates')return <Updates data={data} settings={settings} setSettings={setSettings}/>
-  if(id==='compatibility')return <Compatibility data={data}/>
+  if(id==='compatibility')return <Compatibility data={data} news={news} openNews={openNews} selectMod={selectMod} openLog={()=>runNoticeAction({id:'open-debug-console',kind:'open-debug-console'})}/>
   return <SettingsPage data={data} settings={settings} setSettings={setSettings}/>
 }
 
@@ -197,11 +215,11 @@ function ActivityPage({activity}:{activity:Activity[]}){
   return <><PageHeader eyebrow={t('nav.modloader')} title={t('activity.title')} subtitle={t('activity.subtitle')} actions={<button className="button ghost" onClick={()=>postRequest('refresh')}><Icon name="refresh"/>{t('common.refresh')}</button>}/><Segmented value={filter} onChange={setFilter} items={[["all",t('activity.all')],["trace",t('activity.trace')],["debug",t('activity.debug')],["info",t('activity.info')],["warn",t('activity.warnings')],["error",t('activity.errors')]]}/><Card flush>{items.length?<div className="activity-table"><div className="table-head"><span>{t('activity.time')}</span><span>{t('activity.source')}</span><span>{t('activity.action')}</span><span>{t('activity.result')}</span></div>{items.map(item=><div className="table-row" key={item.id}><time>{item.time}</time><span>{item.source}</span><span title={item.action}><strong>{item.action}</strong></span><span className={`result ${item.level}`} title={item.result}><i/>{item.result}</span></div>)}</div>:<Empty title={t('activity.empty.title')} text={t('activity.empty.text')} icon="activity"/>}</Card></>
 }
 
-function NewsPage({items,unread,read,markRead}:{items:NewsItem[];unread:NewsItem[];read:string[];markRead(ids:string[]):void}){
+function NewsPage({items,unread,read,markRead,runNoticeAction}:{items:NewsItem[];unread:NewsItem[];read:string[];markRead(ids:string[],isRead?:boolean):void;runNoticeAction(action:NoticeAction):void}){
   const {t}=useI18n()
   const [tab,setTab]=useState('unread')
   const shown=tab==='unread'?unread:tab==='read'?items.filter(item=>read.includes(item.id)):items
-  return <><PageHeader eyebrow={t('nav.modloader')} title={t('news.title')} subtitle={t('news.subtitle')} actions={unread.length?<button className="button ghost" onClick={()=>markRead(unread.map(item=>item.id))}>{t('news.markAllRead')}</button>:undefined}/><Segmented value={tab} onChange={setTab} items={[["unread",t('news.unread',{count:unread.length})],["all",t('news.all')],["read",t('news.read')]]}/><div className="news-list">{shown.length?shown.map(item=><NoticeCard key={item.id} item={item} unread={!read.includes(item.id)} onRead={()=>markRead([item.id])}/>):<Empty title={t('news.empty.title')} text={t('news.empty.text')} icon="chirper"/>}</div></>
+  return <><PageHeader eyebrow={t('nav.modloader')} title={t('news.title')} subtitle={t('news.subtitle')} actions={unread.length?<button className="button ghost" onClick={()=>markRead(unread.map(item=>item.id))}>{t('news.markAllRead')}</button>:undefined}/><Segmented value={tab} onChange={setTab} items={[["unread",t('news.unread',{count:unread.length})],["all",t('news.all')],["read",t('news.read')]]}/><div className="news-list">{shown.length?shown.map(item=><NoticeCard key={item.id} item={item} unread={!read.includes(item.id)} onRead={()=>markRead([item.id],!read.includes(item.id))} onAction={runNoticeAction}/>):<Empty title={t('news.empty.title')} text={t('news.empty.text')} icon="chirper"/>}</div></>
 }
 
 function Discover({data}:{data:Snapshot}){
@@ -268,12 +286,55 @@ function UpdateProgress({release}:{release:Release}){
   </div>
 }
 
-function Compatibility({data}:{data:Snapshot}){
+type CompatibilityStatus = 'ok'|'warning'|'error'|'neutral'
+type CompatibilityRowData = {id:string;title:string;detail:string;status:CompatibilityStatus;technicalDetail?:string;modId?:string;action?:{label:string;run():void}}
+
+function Compatibility({data,news,openNews,selectMod,openLog}:{data:Snapshot;news:NewsItem[];openNews():void;selectMod(id:string):void;openLog():void}){
   const {t}=useI18n()
-  const [tab,setTab]=useState('game')
-  const checks=(data.configuration?.checks||[]).filter(check=>check.group===tab)
-  return <><PageHeader eyebrow={t('nav.modloader')} title={t('compatibility.title')} subtitle={t('compatibility.subtitle')}/><Segmented value={tab} onChange={setTab} items={[["game",t('compatibility.tab.game')],["api",t('compatibility.tab.api')],["parser",t('compatibility.tab.parser')],["mods",t('compatibility.tab.mods')]]}/><div className="compat-content"><div className="compat-grid">{checks.map(check=><CompatibilityCard key={check.id} title={check.id} status={check.state} text={check.detail}/>)}</div>{tab==='game'&&<div className="compat-status">{data.configuration?.assets&&<Card title="Asset-Status"><p>{data.configuration.assets.detail}</p></Card>}{data.configuration?.lastUpdate&&<Card title="Letzte Installation"><p>{data.configuration.lastUpdate.version} · {data.configuration.lastUpdate.build}</p></Card>}</div>}</div></>
+  const checks=data.configuration?.checks||[]
+  const check=(id:string)=>checks.find(item=>item.id===id)
+  const statusOf=(value?:{state:string}):CompatibilityStatus=>value?.state==='ok'?'ok':value?.state==='warning'?'warning':'neutral'
+  const gameCheck=check('game'),runtimeCheck=check('runtime'),apiCheck=check('api'),parserCheck=check('parser'),modsCheck=check('mods')
+  const gameRows:CompatibilityRowData[]=[
+    {id:'game',title:t('compatibility.row.game'),status:statusOf(gameCheck),detail:t(gameCheck?.state==='ok'?'compatibility.detail.game.ok':gameCheck?.state==='warning'?'compatibility.detail.game.warning':'compatibility.detail.game.pending',{version:data.gameVersion}),technicalDetail:gameCheck?.detail},
+    {id:'runtime',title:t('compatibility.row.runtime'),status:statusOf(runtimeCheck),detail:t(runtimeCheck?.state==='ok'?'compatibility.detail.runtime.ok':runtimeCheck?.state==='warning'?'compatibility.detail.runtime.warning':data.mode==='DESKTOP'?'compatibility.detail.runtime.desktop':'compatibility.detail.runtime.pending'),technicalDetail:runtimeCheck?.detail,action:runtimeCheck?.state==='warning'?{label:t('compatibility.action.openLog'),run:openLog}:undefined},
+  ]
+  const assets=data.configuration?.assets
+  if(assets){
+    const assetStatus:CompatibilityStatus=assets.state==='applied'||assets.state==='not-required'?'ok':assets.state==='prepare-required'?'warning':'neutral'
+    gameRows.push({id:'assets',title:t('compatibility.row.assets'),status:assetStatus,detail:t(assets.state==='applied'?'compatibility.detail.assets.applied':assets.state==='not-required'?'compatibility.detail.assets.notRequired':assets.state==='prepare-required'?'compatibility.detail.assets.required':'compatibility.detail.assets.unknown'),technicalDetail:assets.detail})
+  }
+  for(const [index,error] of (data.configuration?.errors||[]).entries())gameRows.push({id:`config-error-${index}`,title:t('compatibility.row.configuration'),status:'error',detail:t('compatibility.detail.configuration.error'),technicalDetail:error,action:{label:t('compatibility.action.openLog'),run:openLog}})
+  const apiRows:CompatibilityRowData[]=[{id:'api',title:t('compatibility.row.api'),status:statusOf(apiCheck),detail:t(apiCheck?.state==='ok'?'compatibility.detail.api.ok':apiCheck?.state==='warning'?'compatibility.detail.api.warning':'compatibility.detail.api.pending'),technicalDetail:apiCheck?.detail,action:apiCheck?.state==='warning'?{label:t('compatibility.action.openLog'),run:openLog}:undefined}]
+  const parserRows:CompatibilityRowData[]=[{id:'parser',title:t('compatibility.row.parser'),status:statusOf(parserCheck),detail:t(parserCheck?.state==='ok'?'compatibility.detail.parser.ok':parserCheck?.state==='warning'?'compatibility.detail.parser.warning':'compatibility.detail.parser.pending'),technicalDetail:parserCheck?.detail,action:parserCheck?.state==='warning'?{label:t('common.refresh'),run:()=>postRequest('refresh')}:undefined}]
+  const modRows:CompatibilityRowData[]=[{id:'mods-summary',title:t('compatibility.row.modCheck'),status:statusOf(modsCheck),detail:t(modsCheck?.state==='warning'?'compatibility.detail.mods.warning':'compatibility.detail.mods.ok',{count:data.mods.length}),technicalDetail:modsCheck?.detail}]
+  const modStateLabels:Record<string,string>={failed:'compatibility.modState.failed', 'restart-required':'compatibility.modState.restart', 'not-running':'compatibility.modState.notRunning', 'no-target':'compatibility.modState.noTarget', waiting:'compatibility.modState.waiting'}
+  for(const [modId,state] of Object.entries(data.configuration?.modStates||{})){
+    const labelKey=modStateLabels[state.state]
+    if(!labelKey)continue
+    const mod=data.mods.find(item=>item.id===modId)
+    const failed=state.state==='failed'
+    modRows.push({id:`mod-${modId}-${state.state}`,title:mod?.name||modId,status:failed?'error':state.state==='waiting'?'neutral':'warning',detail:t(labelKey),technicalDetail:state.detail,modId,action:{label:t('compatibility.action.openMod'),run:()=>selectMod(modId)}})
+  }
+  const allRows=[...gameRows,...apiRows,...parserRows,...modRows]
+  const errorCount=allRows.filter(row=>row.status==='error').length
+  const warningCount=allRows.filter(row=>row.status==='warning').length
+  const pendingCount=allRows.filter(row=>row.status==='neutral').length
+  const overall:CompatibilityStatus=errorCount?'error':warningCount?'warning':pendingCount?'neutral':'ok'
+  const headlineKey=overall==='error'?'compatibility.summary.error':overall==='warning'?'compatibility.summary.warning':overall==='neutral'?'compatibility.summary.pending':'compatibility.summary.ok'
+  const unreadAlerts=news.filter(item=>(item.level==='warning'||item.level==='error')&&!data.readNoticeIds.includes(item.id)).length
+  const groups=[
+    {id:'game',title:t('compatibility.section.game'),description:t('compatibility.section.game.description'),rows:gameRows},
+    {id:'api',title:t('compatibility.section.api'),description:t('compatibility.section.api.description'),rows:apiRows},
+    {id:'parser',title:t('compatibility.section.parser'),description:t('compatibility.section.parser.description'),rows:parserRows},
+    {id:'mods',title:t('compatibility.section.mods'),description:t('compatibility.section.mods.description'),rows:modRows},
+  ]
+  return <><PageHeader eyebrow={t('nav.modloader')} title={t('compatibility.title')} subtitle={t('compatibility.subtitle')} actions={<>{unreadAlerts>0&&<button className="button secondary" onClick={openNews}>{t('compatibility.action.openNews',{count:unreadAlerts})}</button>}<button className="button" onClick={()=>postRequest('refresh')}><Icon name="refresh"/>{t('compatibility.action.refresh')}</button></>}/><section className={`compatibility-summary ${overall}`}><span className={`compatibility-summary-icon ${overall}`}><Icon name={overall==='ok'?'check':overall==='neutral'?'compatibility':'warning'}/></span><div className="compatibility-summary-copy"><strong>{t(`${headlineKey}.title` as TranslationKey)}</strong><p>{t(`${headlineKey}.message` as TranslationKey,{errors:errorCount,warnings:warningCount,pending:pendingCount,mods:data.mods.length})}</p></div><span className="compatibility-summary-count">{t('compatibility.summary.counts',{checks:allRows.length,mods:data.mods.length,attention:errorCount+warningCount})}</span></section><div className="settings-module-list compatibility-sections">{groups.map(group=>{const state=group.rows.some(row=>row.status==='error')?'error':group.rows.some(row=>row.status==='warning')?'warning':group.rows.some(row=>row.status==='neutral')?'neutral':'ok';return <section className="settings-module compatibility-section" key={group.id}><header><div><h3>{group.title}</h3><p className="hint">{group.description}</p></div><CompatibilityStatusBadge status={state}/></header><div className="settings-options">{group.rows.map(row=><CompatibilityRow key={row.id} row={row}/>)}</div></section>})}</div></>
 }
+
+function CompatibilityStatusBadge({status}:{status:CompatibilityStatus}){const {t}=useI18n();return <span className={`compatibility-status ${status}`}><i/>{t(`compatibility.status.${status}` as TranslationKey)}</span>}
+
+function CompatibilityRow({row}:{row:CompatibilityRowData}){const {t}=useI18n();return <div className={`settings-option compatibility-row ${row.status}`}><span className="compatibility-row-copy"><strong>{row.title}</strong><small>{row.detail}</small>{row.technicalDetail&&<details><summary>{t('compatibility.details')}</summary><p>{row.technicalDetail}</p></details>}</span><div className="compatibility-row-control"><CompatibilityStatusBadge status={row.status}/>{row.action&&<button className="button ghost" onClick={row.action.run}>{row.action.label}</button>}</div></div>}
 
 function SettingsPage({data,settings,setSettings}:{data:Snapshot;settings:Settings;setSettings(v:Settings):void}){
   const {t,locale,locales,setLocale}=useI18n()
@@ -380,11 +441,11 @@ function Toggle({label,checked,onChange}:{label:string;checked:boolean;onChange(
 function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="field"><span>{label}</span>{children}</label>}
 function ModuleRow({name,detail,enabled}:{name:string;detail:string;enabled:boolean}){const {t}=useI18n();return <div className="module-row"><span className="module-icon"><Icon name="module"/></span><span><strong>{name}</strong><small>{detail}</small></span><span className={`state-pill ${enabled?'ok':'neutral'}`}>{enabled?t('common.active'):t('common.ready')}</span></div>}
 function CompatibilityCard({title,status,text}:{title:string;status:'ok'|'warning'|'neutral';text:string}){return <article className="compat-card"><span className={`compat-icon ${status}`}><Icon name={status==='ok'?'check':status==='warning'?'warning':'compatibility'}/></span><div><h3>{title}</h3><p>{text}</p></div></article>}
-function NoticeCard({item,compact=false,unread=false,onRead}:{item:NewsItem;compact?:boolean;unread?:boolean;onRead?():void}){const {t,locale}=useI18n();return <article className={`notice ${item.level} ${compact?'compact':''} ${unread?'unread':''}`}><span className="notice-icon"><Icon name={item.level==='update'?'updates':item.level==='success'?'check':item.level==='warning'||item.level==='error'?'warning':'news'}/></span><div><div className="notice-title"><h3>{item.title}</h3>{unread&&<i/>}</div><p>{item.message}</p>{!compact&&item.changelog?.length?<ul className="notice-changelog">{item.changelog.map((entry,index)=><li key={`${index}-${entry}`}>{entry}</li>)}</ul>:null}{!compact&&<footer>{item.updatedAt>0&&<time>{formatTime(item.updatedAt,locale)}</time>}<span/>{item.actionUrl&&<button onClick={()=>postRequest('open-url',{url:item.actionUrl})}>{t('news.more')}</button>}{onRead&&<button onClick={onRead}>{t('news.markRead')}</button>}</footer>}</div></article>}
+function NoticeCard({item,compact=false,unread=false,onRead,onAction}:{item:NewsItem;compact?:boolean;unread?:boolean;onRead?():void;onAction?(action:NoticeAction):void}){const {t,locale}=useI18n();const actions=item.actions||[];return <article className={`notice ${item.level} ${compact?'compact':''} ${unread?'unread':''}`}><span className="notice-icon"><Icon name={item.level==='update'?'updates':item.level==='success'?'check':item.level==='warning'||item.level==='error'?'warning':'news'}/></span><div><div className="notice-title"><h3>{item.title}</h3>{unread&&<i/>}</div><p>{item.message}</p>{!compact&&item.changelog?.length?<ul className="notice-changelog">{item.changelog.map((entry,index)=><li key={`${index}-${entry}`}>{entry}</li>)}</ul>:null}{(!compact||actions.length>0||item.actionUrl||onRead)&&<footer>{item.updatedAt>0&&<time>{formatTime(item.updatedAt,locale)}</time>}<span/>{item.actionUrl&&<button onClick={()=>postRequest('open-url',{url:item.actionUrl})}>{t('news.more')}</button>}{actions.map(action=><button key={action.id} onClick={()=>onAction?.(action)}>{t(`news.action.${action.kind}` as TranslationKey)}</button>)}{onRead&&<button onClick={onRead}>{t(unread?'news.markRead':'news.markUnread')}</button>}</footer>}</div></article>}
 function Empty({title,text,icon}:{title:string;text:string;icon:string}){return <div className="empty"><span><Icon name={icon}/></span><h3>{title}</h3><p>{text}</p></div>}
 function Loading({text}:{text:string}){return <div className="empty"><span className="spinner"/><p>{text}</p></div>}
 function Modal({title,children,close}:{title:string;children:React.ReactNode;close():void}){return <div className="overlay" onMouseDown={e=>e.target===e.currentTarget&&close()}><section className="modal"><header><h2>{title}</h2><button onClick={close}>×</button></header><div className="modal-body">{children}</div></section></div>}
-function Chirper({items,close,all,markRead}:{items:NewsItem[];close():void;all():void;markRead(ids:string[]):void}){const {t}=useI18n();return <div className="overlay" onMouseDown={e=>e.target===e.currentTarget&&close()}><section className="modal chirper-modal"><header><div><small>CHIRPER</small><h2>{t('news.chirper.title')}</h2></div><button onClick={close}>×</button></header><div className="modal-body">{items.length?<div className="compact-news">{items.slice(0,5).map(item=><NoticeCard key={item.id} item={item} compact/>)}</div>:<Empty title={t('news.noneUnread.title')} text={t('news.noneUnread.text')} icon="chirper"/>}</div><footer>{items.length?<button className="button ghost" onClick={()=>markRead(items.map(item=>item.id))}>{t('news.markAllRead')}</button>:<span/>}<button className="button" onClick={all}>{t('news.title')}</button></footer></section></div>}
+function Chirper({items,close,all,markRead,runNoticeAction}:{items:NewsItem[];close():void;all():void;markRead(ids:string[]):void;runNoticeAction(action:NoticeAction):void}){const {t}=useI18n();return <div className="overlay" onMouseDown={e=>e.target===e.currentTarget&&close()}><section className="modal chirper-modal"><header><div><small>CHIRPER</small><h2>{t('news.chirper.title')}</h2></div><button onClick={close}>×</button></header><div className="modal-body">{items.length?<div className="compact-news">{items.slice(0,5).map(item=><NoticeCard key={item.id} item={item} compact unread onAction={runNoticeAction} onRead={()=>markRead([item.id])}/>)}</div>:<Empty title={t('news.noneUnread.title')} text={t('news.noneUnread.text')} icon="chirper"/>}</div><footer>{items.length?<button className="button ghost" onClick={()=>markRead(items.map(item=>item.id))}>{t('news.markAllRead')}</button>:<span/>}<button className="button" onClick={all}>{t('news.title')}</button></footer></section></div>}
 
 const iconPaths:Record<string,React.ReactNode>={
   code:<><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></>,gitlab:<><path d="m12 21 9-7-3-11-3 8H9L6 3 3 14l9 7Z" fill="currentColor" stroke="none"/></>,codeberg:<><path d="M12 3a9 9 0 1 0 9 9h-4a5 5 0 1 1-5-5V3Z"/><path d="M12 3v9h9a9 9 0 0 0-9-9Z"/></>,

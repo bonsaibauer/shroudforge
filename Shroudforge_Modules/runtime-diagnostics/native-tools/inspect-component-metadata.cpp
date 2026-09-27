@@ -34,51 +34,47 @@ int main(int argc, char** argv) {
     const auto process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
     if (!process) return 3;
 
-    constexpr std::size_t sample_count = 256;
+    constexpr std::size_t sample_count = 1024;
     constexpr std::size_t inspect_size = 0x80;
-    std::vector<std::array<std::uint8_t, inspect_size>> samples(sample_count);
-    std::size_t loaded{};
-    for (std::size_t index = 0; index < sample_count; ++index) {
+    struct Sample {
+        std::size_t registry_index{};
+        std::array<std::uint8_t, inspect_size> metadata{};
+    };
+    std::vector<Sample> samples;
+    for (std::size_t index = 0; index < 1024 && samples.size() < sample_count; ++index) {
         std::uintptr_t metadata{};
-        if (!read(process, table + index * sizeof(metadata), metadata) || !metadata) {
-            std::cout << "table read failed at index=" << index
-                      << " error=" << GetLastError() << '\n';
-            break;
-        }
-        if (!read_bytes(process, metadata, samples[index].data(), inspect_size)) {
-            std::cout << "metadata read failed at index=" << index
-                      << " address=0x" << std::hex << metadata << std::dec
-                      << " error=" << GetLastError() << '\n';
-            break;
-        }
-        ++loaded;
+        if (!read(process, table + index * sizeof(metadata), metadata) || !metadata) continue;
+        Sample sample{};
+        sample.registry_index = index;
+        if (!read_bytes(process, metadata, sample.metadata.data(), sample.metadata.size())) continue;
+        samples.push_back(sample);
     }
-    std::cout << "loaded=" << loaded << '\n';
-    if (!loaded) {
+    std::cout << "loaded_non_null_entries=" << samples.size() << '\n';
+    if (samples.empty()) {
         CloseHandle(process);
         return 4;
     }
     for (std::size_t offset = 0; offset + 2 <= inspect_size; offset += 2) {
         std::size_t matches{};
-        for (std::size_t index = 0; index < loaded; ++index) {
+        for (const auto& sample : samples) {
             std::uint16_t value{};
-            std::memcpy(&value, samples[index].data() + offset, sizeof(value));
-            matches += value == index;
+            std::memcpy(&value, sample.metadata.data() + offset, sizeof(value));
+            matches += value == sample.registry_index;
         }
-        if (matches >= loaded * 3 / 4)
+        if (matches >= samples.size() * 3 / 4)
             std::cout << "u16 offset=0x" << std::hex << offset << std::dec
-                      << " matches=" << matches << '/' << loaded << '\n';
+                      << " matches=" << matches << '/' << samples.size() << '\n';
     }
     for (std::size_t offset = 0; offset + 4 <= inspect_size; offset += 4) {
         std::size_t matches{};
-        for (std::size_t index = 0; index < loaded; ++index) {
+        for (const auto& sample : samples) {
             std::uint32_t value{};
-            std::memcpy(&value, samples[index].data() + offset, sizeof(value));
-            matches += value == index;
+            std::memcpy(&value, sample.metadata.data() + offset, sizeof(value));
+            matches += value == sample.registry_index;
         }
-        if (matches >= loaded * 3 / 4)
+        if (matches >= samples.size() * 3 / 4)
             std::cout << "u32 offset=0x" << std::hex << offset << std::dec
-                      << " matches=" << matches << '/' << loaded << '\n';
+                      << " matches=" << matches << '/' << samples.size() << '\n';
     }
     CloseHandle(process);
 }

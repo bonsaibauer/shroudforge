@@ -32,6 +32,7 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     add_function(lua, &table, "parent", lua_parent)?;
     add_function(lua, &table, "join", lua_join)?;
     add_function(lua, &table, "export", lua_export)?;
+    add_function(lua, &table, "read_export_to_string", lua_read_export_to_string)?;
 
     Ok(table)
 }
@@ -217,6 +218,24 @@ fn lua_export(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<()> {
     }
 
     Ok(())
+}
+
+fn lua_read_export_to_string(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<mlua::String> {
+    let app_state = lua.app_data_ref::<AppState>().unwrap();
+    if !app_state.has_feature(AppFeatures::EXPORT) {
+        return Err(LuaError::generic("export access is disabled"));
+    }
+    let relative = sanitize_path(Path::new(&args.get::<String>(0)?))
+        .map_err(|error| LuaError::generic(format!("invalid export path: {error}")))?;
+    let root = std::fs::canonicalize(app_state.export_dir())
+        .map_err(|error| LuaError::generic(format!("export directory is unavailable: {error}")))?;
+    let path = std::fs::canonicalize(root.join(relative))
+        .map_err(|error| LuaError::generic(format!("export file could not be opened: {error}")))?;
+    if !path.starts_with(&root) || !path.is_file() {
+        return Err(LuaError::generic("export path must name a file inside the configured export directory"));
+    }
+    let bytes = std::fs::read(path).map_err(|error| LuaError::generic(format!("export file could not be read: {error}")))?;
+    lua.create_string(&bytes)
 }
 
 fn sanitize_path(path: &Path) -> std::io::Result<PathBuf> {

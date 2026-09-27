@@ -23,6 +23,7 @@
         "required": ["id", "title", "message"],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string" },
           "title": { "type": "string" },
           "message": { "type": "string" },
           "modId": { "type": "string" },

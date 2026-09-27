@@ -7,6 +7,13 @@ update events that actually occur. Placeholders are `{name}`, `{version}`, and
 `{previousVersion}`. The UI reads changes in its next snapshot and validates
 them against `news-schema.json`.
 
+Bundled notices carry a `kind` that resolves their visible copy from the UI
+locale catalog. Add and translate new UI strings in
+`Shroudforge_Modules/modloader-ui/ui/src/locales/en.json` and `de.json`;
+`crowdin.yml` already uses the English catalog as its source and the two-letter
+locale files as targets. Runtime warning and error summaries use the same
+Crowdin-managed catalogs.
+
 Notices explain configuration, changes, and optional project support. They are
 adapted for ShroudForge and do not claim that an installation succeeded or an
 update is available unless that result is known.
@@ -30,3 +37,11 @@ IDs without timestamps receive the current time during migration, so their
 repeat interval starts then. Events are validated against `event-schema.json`
 when written and read. Invalid configuration and state are reported as errors
 instead of being replaced with empty files.
+
+The message feed also summarizes warning and error lines from the most recent
+512 KiB of the loader log. Identical source/message pairs are grouped and
+counted; each summary links to the Debug Console, and known installed mods can
+be opened directly. Current mod runtime failures, missing targets, pending
+restarts, and configuration checks that need attention also appear as notices.
+A new log occurrence changes the summary identity so it can become unread
+again.

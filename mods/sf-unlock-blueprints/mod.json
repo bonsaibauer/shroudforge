@@ -1,7 +1,7 @@
 {
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "authors": [
     "bonsaibauer"
   ],
@@ -13,7 +13,7 @@
     "schemaVersion": 1,
     "release": {
       "changelog": [
-        "Added a declarative overview page for the Modloader UI."
+        "Counts only recipes and registries whose requirement data actually changed."
       ]
     },
     "settingsSchema": {
@@ -26,7 +26,7 @@
       "sections": [
         {
           "title": "Unlock Blueprints",
-          "description": "Recipe asset changes",
+          "description": "Changes recipe assets during startup. Enable or disable this mod, then restart the game to apply the asset changes.",
           "components": []
         }
       ]

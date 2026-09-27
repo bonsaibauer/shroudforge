@@ -76,19 +76,31 @@ pub fn infer_api_contract(manifest: &mut ModManifest, source: &str) {
     let normalized: String = strip_lua_comments(source).chars().filter(|character| !character.is_whitespace()).collect();
     let assets = normalized.contains("runtime.require(\"game.assets.write\")")
         || normalized.contains("runtime.require('game.assets.write')")
-        || normalized.contains("game.assets.");
+        || ["game.assets.update_asset(", "game.assets.save_assets(",
+            "game.assets.reset_assets(", "game.assets.create_resource(",
+            "game.assets.create_content("].iter().any(|method| normalized.contains(method));
     let runtime = normalized.contains("runtime.require(\"runtime.lifecycle\")")
         || normalized.contains("runtime.require('runtime.lifecycle')")
         || normalized.contains("runtime.ecs.")
+        || normalized.contains("runtime.world.")
+        || normalized.contains("runtime.patch.")
+        || normalized.contains("runtime.report_effect")
         || normalized.contains("on_load=")
         || normalized.contains("on_update=")
         || normalized.contains("on_unload=");
-    let export = normalized.contains("io.export(") || normalized.contains("io.export");
+    let client_runtime = normalized.contains("runtime.ecs.")
+        || normalized.contains("runtime.world.")
+        || normalized.contains("runtime.patch.");
+    let export = normalized.contains("io.export") || normalized.contains("io.read_export_");
     manifest.capabilities.clear();
     if assets { manifest.capabilities.push(crate::Capability::AssetsWrite); }
     if runtime { manifest.capabilities.push(crate::Capability::Runtime); }
     if export { manifest.capabilities.push(crate::Capability::Export); }
-    manifest.target = if runtime && !assets && !export { crate::ModTarget::Client } else { crate::ModTarget::Both };
+    manifest.target = if runtime && !assets && (!export || client_runtime) {
+        crate::ModTarget::Client
+    } else {
+        crate::ModTarget::Both
+    };
     manifest.api = None;
     let apply_at = if runtime && !assets { "live" } else { "restart" };
     for setting in &mut manifest.settings {
@@ -232,8 +244,8 @@ pub fn read_mod_config(root: &Path, id: &str) -> Result<Value, String> {
     Ok(json!({"enabled": manifest.enabled, "settings": manifest.setting_values}))
 }
 
-/// Preserve explicit user choices while validating them against the incoming contract.
-/// Incompatible or removed settings abort the update so the old installation can be kept.
+/// Preserve explicit user choices that still exist in the incoming contract.
+/// Removed settings are dropped; retained settings are validated against the new schema.
 pub fn merge_mod_update(root: &Path, previous: Value, mut incoming: Value) -> Result<Value, String> {
     let old = parse_manifest(root, previous)?;
     let new = parse_manifest(root, incoming.clone())?;
@@ -241,7 +253,9 @@ pub fn merge_mod_update(root: &Path, previous: Value, mut incoming: Value) -> Re
     incoming["enabled"] = json!(old.enabled);
     let mut settings = new.setting_values;
     for (key, value) in old.setting_values.as_object().ok_or("settings must be an object")? {
-        settings[key] = value.clone();
+        if new.settings.iter().any(|definition| definition.key == *key) {
+            settings[key] = value.clone();
+        }
     }
     incoming["settings"] = settings;
     parse_manifest(root, incoming.clone()).map_err(|error| format!("updated mod manifest is incompatible with the current schema: {error}"))?;

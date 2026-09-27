@@ -1,110 +1,18 @@
 {
   "id": "sf-no-resource-cost",
   "name": "SF No Resource Cost",
-  "version": "1.0.0",
-  "authors": [
-    "bonsaibauer"
-  ],
+  "version": "1.1.1",
+  "authors": ["bonsaibauer"],
   "dependencies": [],
-  "description": "Removes recipe resource costs through keen::RecipeRegistryResource.",
+  "description": "Uses the build-profile-verified native recipe-cost patch.",
   "enabled": true,
-  "settings": {
-    "removeItemCosts": true,
-    "removeEnergyCosts": true,
-    "removeWaterCosts": true
-  },
+  "settings": {},
   "shroudforge": {
     "schemaVersion": 1,
-    "release": {
-      "changelog": [
-        "Added a declarative overview page for the Modloader UI.",
-        "Added independent item, energy, and water cost controls."
-      ]
-    },
-    "settingsSchema": {
-      "type": "object",
-      "properties": {
-        "removeItemCosts": {
-          "type": "boolean",
-          "title": "Remove item costs",
-          "default": true,
-          "x-ui": {
-            "key": "removeItemCosts",
-            "type": "boolean",
-            "control": "checkbox",
-            "label": "Remove item costs",
-            "description": "Sets supported recipe input stack counts to zero.",
-            "default": true,
-            "group": "recipe-costs"
-          },
-          "description": "Sets supported recipe input stack counts to zero."
-        },
-        "removeEnergyCosts": {
-          "type": "boolean",
-          "title": "Remove energy costs",
-          "default": true,
-          "x-ui": {
-            "key": "removeEnergyCosts",
-            "type": "boolean",
-            "control": "checkbox",
-            "label": "Remove energy costs",
-            "description": "Sets supported requiredEnergy fields to zero.",
-            "default": true,
-            "group": "recipe-costs"
-          },
-          "description": "Sets supported requiredEnergy fields to zero."
-        },
-        "removeWaterCosts": {
-          "type": "boolean",
-          "title": "Remove water costs",
-          "default": true,
-          "x-ui": {
-            "key": "removeWaterCosts",
-            "type": "boolean",
-            "control": "checkbox",
-            "label": "Remove water costs",
-            "description": "Sets supported waterAmount and waterCharges fields to zero.",
-            "default": true,
-            "group": "recipe-costs"
-          },
-          "description": "Sets supported waterAmount and waterCharges fields to zero."
-        }
-      },
-      "additionalProperties": false
-    },
-    "settingGroups": [
-      {
-        "id": "recipe-costs",
-        "label": "Recipe costs",
-        "description": "Choose which supported recipe costs are set to zero in the prepared KFC data. Restart the game to load changed settings."
-      }
-    ],
-    "ui": {
-      "sections": [
-        {
-          "title": "No Resource Cost",
-          "description": "Recipe asset changes",
-          "components": [
-            {
-              "type": "setting",
-              "key": "removeItemCosts"
-            },
-            {
-              "type": "setting",
-              "key": "removeEnergyCosts"
-            },
-            {
-              "type": "setting",
-              "key": "removeWaterCosts"
-            }
-          ]
-        }
-      ]
-    },
-    "links": {
-      "source-github": "https://github.com/bonsaibauer/shroudforge",
-      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
-      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
-    }
+    "release": {"changelog": ["Reports native patch activation and restoration failures consistently."]},
+    "settingsSchema": {"type": "object", "properties": {}, "additionalProperties": false},
+    "settingGroups": [],
+    "ui": {"sections": [{"title": "No Resource Cost", "description": "The build-specific patch is enabled while this mod is active.", "components": []}]},
+    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
   }
 }

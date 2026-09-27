@@ -26,7 +26,7 @@ bool Initialize() {
     tick = reinterpret_cast<VoidFunction>(GetProcAddress(provider, "KfcRuntimeTick"));
     shutdown = reinterpret_cast<VoidFunction>(GetProcAddress(provider, "KfcRuntimeShutdown"));
     status = reinterpret_cast<StatusFunction>(GetProcAddress(provider, "KfcRuntimeStatus"));
-    if (!abi || abi() != 1 || !initialize || !tick || !shutdown || !status) {
+    if (!abi || abi() != 4 || !initialize || !tick || !shutdown || !status) {
         error = "incompatible-runtime-provider-ABI";
         tick = nullptr; shutdown = nullptr; status = nullptr;
         FreeLibrary(provider); provider = nullptr; return false;

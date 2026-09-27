@@ -2,7 +2,7 @@
 mod windows {
     use std::{
         fs::{self, File},
-        io::{BufRead, BufReader, Read},
+        io::{BufRead, BufReader, Read, Seek, SeekFrom},
         os::windows::ffi::OsStrExt,
         path::{Component, Path, PathBuf},
         process::Child,
@@ -131,6 +131,8 @@ mod windows {
         #[serde(default)]
         ids: Option<Vec<String>>,
         #[serde(default)]
+        read: Option<bool>,
+        #[serde(default)]
         project_id: Option<String>,
         #[serde(default)]
         message: Option<String>,
@@ -168,7 +170,7 @@ mod windows {
         SaveLanguage(String, String),
         RunModAction(String, String),
         RemoveMod(String),
-        MarkNewsRead(Vec<String>),
+        SetNewsRead(Vec<String>, bool),
         Diagnostics(String, String),
         UiReady,
         UiError(String),
@@ -235,6 +237,8 @@ mod windows {
         message: String,
         level: String,
         action_url: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        actions: Vec<NoticeAction>,
         updated_at: u64,
         #[serde(skip_serializing_if = "Option::is_none")]
         kind: Option<String>,
@@ -242,6 +246,15 @@ mod windows {
         values: Option<serde_json::Value>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         changelog: Vec<String>,
+    }
+
+    #[derive(Clone, Deserialize, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct NoticeAction {
+        id: String,
+        kind: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        target: Option<String>,
     }
 
     #[derive(Clone, Serialize)]
@@ -555,7 +568,7 @@ mod windows {
                     Some(id) => Command::RemoveMod(id),
                     None => return,
                 },
-                "mark-news-read" => Command::MarkNewsRead(value.ids.unwrap_or_default()),
+                "set-news-read" => Command::SetNewsRead(value.ids.unwrap_or_default(), value.read.unwrap_or(true)),
                 "ui-ready" => Command::UiReady,
                 "ui-error" => Command::UiError(value.message.unwrap_or_else(|| "Unknown WebView error".into())),
                 _ => return,
@@ -766,9 +779,9 @@ mod windows {
                                 report_command_result(&arguments.root, &webview, "", &id, "Remove mod", result, "mod.removedToast", None, false);
                                 next_refresh = Instant::now();
                             }
-                            Command::MarkNewsRead(ids) => {
-                                let result = mark_news_read(&arguments.root, &ids);
-                                report_command_result(&arguments.root, &webview, "", "Modloader", "Mark notices as read", result, "news.markedReadToast", None, false);
+                            Command::SetNewsRead(ids, read) => {
+                                let result = if read { mark_news_read(&arguments.root, &ids) } else { mark_news_unread(&arguments.root, &ids) };
+                                report_command_result(&arguments.root, &webview, "", "Modloader", if read { "Mark notices as read" } else { "Mark notices as unread" }, result, if read { "news.markedReadToast" } else { "news.markedUnreadToast" }, None, false);
                                 next_refresh = Instant::now();
                             }
                             Command::Diagnostics(action, request_id) => {
@@ -1114,9 +1127,9 @@ mod windows {
             updater_window: arguments.updater_window,
             game_version: read_game_version(&arguments.root),
             version: installed_version(&arguments.root),
+            notices: read_notifications(&arguments.root, &mods),
             mods,
             activity: read_activity(&arguments.root).unwrap_or_default(),
-            notices: read_notifications(&arguments.root),
             news_templates: shroudforge_package::news::read(&arguments.root)
                 .ok().and_then(|value| value.get("templates").cloned()).unwrap_or_else(|| serde_json::json!({})),
             read_notice_ids: read_news_state(&arguments.root),
@@ -1402,7 +1415,7 @@ mod windows {
         let _ = shroudforge_package::logging::append(root, severity, source, &message);
     }
 
-    fn read_notifications(root: &Path) -> Vec<Notice> {
+    fn read_notifications(root: &Path, mods: &[ModInfo]) -> Vec<Notice> {
         let events=shroudforge_package::config::read_document(root,"events-state").unwrap_or_default();
         let news = shroudforge_package::news::read(root)
             .ok()
@@ -1436,6 +1449,15 @@ mod windows {
                         .and_then(|value| value.as_str())
                         .filter(|url| url.starts_with("https://"))
                         .map(str::to_owned),
+                    actions: value.get("actions").and_then(|value| value.as_array()).into_iter().flatten().filter_map(|action| {
+                        let kind = action.get("kind")?.as_str()?;
+                        if !["open-mod", "open-debug-console"].contains(&kind) { return None; }
+                        Some(NoticeAction {
+                            id: action.get("id").and_then(|value| value.as_str()).unwrap_or(kind).to_owned(),
+                            kind: kind.to_owned(),
+                            target: action.get("target").and_then(|value| value.as_str()).map(str::to_owned),
+                        })
+                    }).take(4).collect(),
                     updated_at: value
                         .get("updatedAt")
                         .and_then(|value| value.as_u64())
@@ -1459,6 +1481,7 @@ mod windows {
                 })
             })
             .collect::<Vec<_>>();
+        notices.extend(read_log_notices(root, mods));
         notices.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         notices.truncate(100);
         notices
@@ -1491,6 +1514,66 @@ mod windows {
     fn mark_news_read(root: &Path, ids: &[String]) -> Result<(), String> {
         let ids = ids.iter().filter(|id| valid_news_id(id)).cloned().collect::<Vec<_>>();
         shroudforge_package::news::mark_read(root, &ids)
+    }
+
+    fn mark_news_unread(root: &Path, ids: &[String]) -> Result<(), String> {
+        let ids = ids.iter().filter(|id| valid_news_id(id)).cloned().collect::<Vec<_>>();
+        shroudforge_package::news::mark_unread(root, &ids)
+    }
+
+    fn read_log_notices(root: &Path, mods: &[ModInfo]) -> Vec<Notice> {
+        const MAX_LOG_TAIL: u64 = 512 * 1024;
+        let path = shroudforge_package::paths::current_log(root);
+        let Ok(mut file) = File::open(&path) else { return Vec::new(); };
+        let Ok(length) = file.metadata().map(|metadata| metadata.len()) else { return Vec::new(); };
+        let start = length.saturating_sub(MAX_LOG_TAIL);
+        if file.seek(SeekFrom::Start(start)).is_err() { return Vec::new(); }
+        let mut bytes = Vec::with_capacity(length.saturating_sub(start) as usize);
+        if file.read_to_end(&mut bytes).is_err() { return Vec::new(); }
+        let Ok(modified) = file.metadata().and_then(|metadata| metadata.modified()) else { return Vec::new(); };
+        let updated_at = modified.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        let text = String::from_utf8_lossy(&bytes);
+        let mut grouped = std::collections::BTreeMap::<(char, String, String), (usize, String)>::new();
+        for line in text.lines().filter(|line| !line.is_empty()) {
+            let Some(close) = line.find("] [") else { continue; };
+            let Some(level) = line.chars().nth(1).filter(|level| matches!(level, 'W' | 'E')) else { continue; };
+            let Some(source_end) = line.get(close + 3..).and_then(|rest| rest.find("] ")).map(|offset| offset + close + 3) else { continue; };
+            let Some(source) = line.get(close + 3..source_end) else { continue; };
+            let Some(message) = line.get(source_end + 2..) else { continue; };
+            let message = message.chars().take(700).collect::<String>();
+            let clock = line.get(3..close).unwrap_or_default().to_owned();
+            let aggregate = grouped.entry((level, source.to_owned(), message)).or_default();
+            aggregate.0 += 1;
+            aggregate.1 = clock;
+        }
+        grouped.into_iter().map(|((level, source, message), (count, latest))| {
+            let error = level == 'E';
+            let mut hasher = Sha256::new();
+            hasher.update(level.to_string());
+            hasher.update(&source);
+            hasher.update(&message);
+            hasher.update(&latest);
+            hasher.update(count.to_string());
+            let digest = hasher.finalize();
+            let id = format!("log-{}", digest[..10].iter().map(|byte| format!("{byte:02x}")).collect::<String>());
+            let mut actions = vec![NoticeAction { id: "open-debug-console".into(), kind: "open-debug-console".into(), target: None }];
+            if mods.iter().any(|item| item.id == source) {
+                actions.insert(0, NoticeAction { id: "open-mod".into(), kind: "open-mod".into(), target: Some(source.clone()) });
+            }
+            Notice {
+                id,
+                mod_id: source.clone(),
+                title: String::new(),
+                message: String::new(),
+                level: if error { "error" } else { "warning" }.into(),
+                action_url: None,
+                actions,
+                updated_at,
+                kind: Some(if error { "log.error" } else { "log.warning" }.into()),
+                values: Some(serde_json::json!({ "source": source, "count": count, "excerpt": message })),
+                changelog: Vec::new(),
+            }
+        }).collect()
     }
 
     fn sync_mod_events(root: &Path, mods: &[ModInfo]) {
@@ -1526,6 +1609,7 @@ mod windows {
                 None => write_event_notice(
                     root,
                     &format!("mod-install-{id}-{version}"),
+                    id,
                     "mod.install.success",
                     "success",
                     name,
@@ -1541,6 +1625,7 @@ mod windows {
                     write_event_notice(
                         root,
                         &format!("mod-update-{id}-{version}"),
+                        id,
                         "mod.update.success",
                         "update",
                         name,
@@ -1565,6 +1650,7 @@ mod windows {
                 write_event_notice(
                     root,
                     &format!("mod-remove-{id}-{version}"),
+                    id,
                     "mod.remove.success",
                     "info",
                     name,
@@ -1580,6 +1666,7 @@ mod windows {
     fn write_event_notice(
         root: &Path,
         id: &str,
+        mod_id: &str,
         kind: &str,
         level: &str,
         name: &str,
@@ -1594,13 +1681,14 @@ mod windows {
         });
         let payload = serde_json::json!({
             "id": id,
-            "modId": "shroudforge.modloader",
+            "modId": mod_id,
             "title": "",
             "message": "",
             "level": level,
             "kind": kind,
             "values": values,
             "changelog": changelog.cloned().unwrap_or_else(|| serde_json::json!([])),
+            "actions": [{"id": "open-mod", "kind": "open-mod", "target": mod_id}],
             "updatedAt": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
         });
         if let Err(error) = shroudforge_package::news::write_event(root, &format!("event-{id}"), &payload) {

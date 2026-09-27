@@ -84,12 +84,12 @@ impl Session {
             // Preserve the provider's ECS operation counters and incremental
             // query cursors. Filtering these out made a stuck scan look like
             // a healthy dispatcher with no explanation for mods waiting.
-            let mut native=json!({"layoutReady":observed["layoutReady"],"layoutEpoch":observed["layoutEpoch"],"operations":observed["operations"],"activeQueryScan":observed["activeQueryScan"],"dispatcher":observed["dispatcher"],"error":observed["error"]});
+            let mut native=json!({"layoutReady":observed["layoutReady"],"layoutEpoch":observed["layoutEpoch"],"candidateTypeBreakdown":observed["candidateTypeBreakdown"],"componentDiscovery":observed["componentDiscovery"],"operations":observed["operations"],"worldOperations":observed["worldOperations"],"voxelContextActive":observed["voxelContextActive"],"activeQueryScan":observed["activeQueryScan"],"dispatcher":observed["dispatcher"],"error":observed["error"]});
             if let Some(age)=native.pointer("/dispatcher/lastDrainAgeMs").and_then(Value::as_u64) {
                 native["dispatcher"]["drainObservedWithinFiveSeconds"]=json!(age<=5000);
             }
             if !self.enabled("queue") {native.as_object_mut().map(|object|object.remove("dispatcher"));}
-            if !self.enabled("runtime") {native=json!({"dispatcher":native["dispatcher"],"error":native["error"]});}
+            if !self.enabled("runtime") {native=json!({"dispatcher":native["dispatcher"],"worldOperations":native["worldOperations"],"voxelContextActive":native["voxelContextActive"],"error":native["error"]});}
             report["native"]=native;
         }
         for (key,entry) in &self.measurements {
@@ -149,7 +149,7 @@ fn native_snapshot()->Value {
         if module.is_null(){return json!({"error":"runtime-provider-not-loaded"});}
         let Some(symbol)=GetProcAddress(module,c"KfcRuntimeDiagnostics".as_ptr().cast()) else {return json!({"error":"runtime-provider-missing-diagnostics-export"});};
         let function:unsafe extern "C" fn(*mut u8,usize)=std::mem::transmute(symbol);
-        let mut buffer=vec![0u8;16384];function(buffer.as_mut_ptr(),buffer.len());
+        let mut buffer=vec![0u8;8<<20];function(buffer.as_mut_ptr(),buffer.len());
         let length=buffer.iter().position(|byte|*byte==0).unwrap_or(buffer.len());
         serde_json::from_slice(&buffer[..length]).unwrap_or_else(|error|json!({"error":format!("invalid-provider-report: {error}")}))
     }

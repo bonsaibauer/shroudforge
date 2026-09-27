@@ -81,6 +81,7 @@ int main(int argc, char** argv) {
     if (!first || !current) return 5;
 
     std::vector<std::uint8_t> bytes(16 * 1024 * 1024);
+    std::size_t verified_tables{};
     std::uintptr_t cursor{};
     MEMORY_BASIC_INFORMATION memory{};
     while (VirtualQueryEx(process, reinterpret_cast<const void*>(cursor), &memory, sizeof(memory)) == sizeof(memory)) {
@@ -117,6 +118,7 @@ int main(int argc, char** argv) {
                         rows.push_back(std::to_string(index) + "\t" + std::to_string(size) + "\t" + name);
                     }
                     if (rows.size() <= 400) continue;
+                    ++verified_tables;
                     std::cout << "table=0x" << std::hex << table
                               << " region=0x" << region
                               << " region_size=0x" << memory.RegionSize
@@ -157,14 +159,13 @@ int main(int argc, char** argv) {
                     }
                     std::cout << "component_id\tsize\tqualified_name\n";
                     for (const auto& row : rows) std::cout << row << '\n';
-                    CloseHandle(process);
-                    return 0;
                 }
             }
         }
         if (region_end <= cursor) break;
         cursor = region_end;
     }
+    std::cout << "verified_registry_tables=" << verified_tables << '\n';
     CloseHandle(process);
-    return 6;
+    return verified_tables ? 0 : 6;
 }

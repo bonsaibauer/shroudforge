@@ -1,101 +1,104 @@
-local ClientPlayerInput = game.types.get("keen::ecs::ClientPlayerInput")
-local ServerConsumedPlayerInput = game.types.get("keen::ecs::ServerConsumedPlayerInput")
-local Inventory = game.types.get("keen::ecs::Inventory")
+runtime.require("runtime.lifecycle")
 
-if ClientPlayerInput == nil or ServerConsumedPlayerInput == nil or Inventory == nil then
-    error("Required item-split runtime types are unavailable")
-end
-
-local split_types = {}
-local configured_split_key = ""
+local ClientPlayerInput
+local ServerConsumedPlayerInput
+local Inventory
 local restored_versions = {}
 local pending = {}
-local warned = false
+local split_types = {One = true, Half = true, CustomAmount = true}
+local warned_query = false
 local warned_write = false
+local last_effect = nil
 
-local function write_component(entity, component, value)
-    local ok, reason = runtime.ecs.write(entity, component, value)
-    if not ok and not warned_write then
-        shroudforge.log.warn("Infinite item split write failed: " .. (reason or "ECS write failed"))
-        warned_write = true
-    elseif ok then
-        warned_write = false
-    end
-    return ok
+local function report_once(state, detail)
+    local key = state .. "\0" .. tostring(detail or "")
+    if key == last_effect then return end
+    last_effect = key
+    runtime.report_effect(state, detail or "")
 end
 
-local function restore_subtracted_amount(player, action)
-    local entity = action.sourceSlotId.entityId.id
-    local slot_index = action.sourceSlotId.slotIndex
-    local amount = action.amount
-    if entity == 0 or amount == 0 then return false end
-
-    local handle = runtime.ecs.resolve(entity)
-    if handle == nil then return false end
+local function read_source_slot(action)
+    local slot_id = action and action.sourceSlotId
+    local entity_id = slot_id and slot_id.entityId and slot_id.entityId.id
+    local slot_index = slot_id and tonumber(slot_id.slotIndex)
+    if not entity_id or entity_id == 0 or not slot_index or slot_index < 0 or slot_index % 1 ~= 0 then return nil end
+    local handle = runtime.ecs.resolve(entity_id)
+    if not handle then return nil end
     local inventory = runtime.ecs.read(handle, Inventory)
-    if inventory == nil then return false end
-    local slot = inventory.slots[slot_index + 1]
-    if slot == nil then return false end
+    local slot = inventory and inventory.slots[slot_index + 1]
+    if not slot or not slot.data or not slot.data.pide then return nil end
+    return handle, inventory, slot
+end
+
+local function restore_source_amount(player, action)
+    local handle, inventory, slot = read_source_slot(action)
+    if not handle then return false end
+
+    local version = action.versionData.version
+    local amount = tonumber(action.amount)
+    if not amount or amount < 1 or amount % 1 ~= 0 then return false end
 
     local expected = pending[player]
-    if expected == nil or expected.version ~= action.versionData.version then
-        expected = {version = action.versionData.version, id = slot.id, pide = slot.data.pide.id,
-            before = slot.data.count, count = slot.data.count + amount}
+    if expected == nil or expected.version ~= version then
+        local before = tonumber(slot.data.count)
+        if not before or before < 0 or before + amount > 4294967295 then return false end
+        expected = {
+            version = version,
+            id = slot.id,
+            pide = slot.data.pide.id,
+            before = before,
+            count = before + amount,
+        }
         pending[player] = expected
     end
     if slot.id ~= expected.id or slot.data.pide.id ~= expected.pide then return false end
     if slot.data.count == expected.count then return true, false end
-    -- Do not overwrite unrelated inventory changes while retrying a timed-out write.
     if slot.data.count ~= expected.before then return false end
 
-    -- Keen already created the right-hand split stack. Restore only the amount
-    -- subtracted from the left-hand source stack.
     slot.data.count = expected.count
-    local ok = write_component(handle, Inventory, inventory)
-    return ok, ok
+    local ok, reason = runtime.ecs.write(handle, Inventory, inventory)
+    if not ok then
+        if not warned_write then
+            shroudforge.log.warn("Infinite Item Split inventory restore failed: " .. tostring(reason))
+            warned_write = true
+        end
+        return false
+    end
+    warned_write = false
+    return true, true
 end
 
 local function update_item_split()
-    local configured_split_types = shroudforge.settings.get("splitTypes") or {}
-    local split_key_parts = {}
-    for index, split_type in ipairs(configured_split_types) do split_key_parts[index] = tostring(split_type) end
-    local next_split_key = table.concat(split_key_parts, ",")
-    if next_split_key ~= configured_split_key then
-        split_types = {}
-        for _, split_type in ipairs(configured_split_types) do split_types[split_type] = true end
-        configured_split_key = next_split_key
-    end
-
     local players, reason = runtime.ecs.query(ClientPlayerInput, ServerConsumedPlayerInput)
-    if players == nil then
-        runtime.report_effect("waiting", reason or "ECS query did not complete")
-        if not warned then
-            shroudforge.log.warn("Infinite item split waiting: " .. (reason or "ECS query failed"))
-            warned = true
+    if not players then
+        report_once("waiting", reason or "player inventory-transfer query failed")
+        if not warned_query then
+            shroudforge.log.warn("Infinite Item Split waiting for player input: " .. tostring(reason))
+            warned_query = true
         end
         return
     end
-    warned = false
+    warned_query = false
+
     local writes = 0
     local failures = 0
-
     for _, player in ipairs(players) do
         local input = runtime.ecs.read(player, ClientPlayerInput)
         local consumed = runtime.ecs.read(player, ServerConsumedPlayerInput)
-        if input and consumed then
-            local action = input.data.inventoryTransferAction
+        local action = input and input.data and input.data.inventoryTransferAction
+        local consumed_action = consumed and consumed.consumedInventoryTransferAction
+        if action and consumed_action and action.versionData and
+           action.sourceEntityId and action.targetEntityId and
+           action.sourceEntityId.id ~= nil and action.targetEntityId.id ~= nil then
             local action_version = action.versionData.version
-            local consumed_version = consumed.consumedInventoryTransferAction.version
+            local consumed_version = consumed_action.version
             local same_inventory = action.sourceEntityId.id == action.targetEntityId.id
 
-            if same_inventory
-                and split_types[action.type]
-                and action_version == consumed_version
-                and restored_versions[player] ~= action_version
-            then
-                local restored, wrote = restore_subtracted_amount(player, action)
+            if same_inventory and split_types[action.type] and action_version == consumed_version and
+               restored_versions[player] ~= action_version then
+                local restored, wrote = restore_source_amount(player, action)
                 if wrote then writes = writes + 1 end
-                if not restored and pending[player] ~= nil then failures = failures + 1 end
+                if not restored then failures = failures + 1 end
                 if restored then
                     restored_versions[player] = action_version
                     pending[player] = nil
@@ -103,23 +106,32 @@ local function update_item_split()
             end
         end
     end
+
     if failures > 0 then
-        runtime.report_effect("write-failed", failures .. " split inventory update(s) could not be reconciled")
+        report_once("write-failed", failures .. " split inventory update(s) could not be reconciled")
     elseif writes > 0 then
-        runtime.report_effect("write-confirmed", writes .. " split inventory ECS write(s) succeeded; split preservation is not independently observed")
+        report_once("write-confirmed", writes .. " selected split action(s) restored the source stack")
     elseif #players == 0 then
-        runtime.report_effect("no-target", "No entity matched ClientPlayerInput and ServerConsumedPlayerInput")
-    else
-        runtime.report_effect("no-change", #players .. " player input entity/entities; no eligible confirmed split needed restoration")
+        report_once("no-target", "No entity matched ClientPlayerInput and ServerConsumedPlayerInput")
+    elseif failures == 0 then
+        last_effect = nil
     end
 end
 
 return {
     update_interval_ms = 16,
     on_load = function()
-        runtime.require("runtime.lifecycle")
-        shroudforge.log.info("Infinite item split active")
+        ClientPlayerInput = game.types.get("keen::ecs::ClientPlayerInput")
+        ServerConsumedPlayerInput = game.types.get("keen::ecs::ServerConsumedPlayerInput")
+        Inventory = game.types.get("keen::ecs::Inventory")
+        if not ClientPlayerInput or not ServerConsumedPlayerInput or not Inventory then
+            error("Infinite Item Split requires ClientPlayerInput, ServerConsumedPlayerInput, and Inventory")
+        end
+        shroudforge.log.info("Infinite Item Split active for all in-game One, Half, and CustomAmount split actions")
     end,
     on_update = update_item_split,
-    on_unload = function() pending = {}; restored_versions = {} end,
+    on_unload = function()
+        pending = {}
+        restored_versions = {}
+    end,
 }

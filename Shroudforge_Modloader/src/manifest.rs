@@ -113,7 +113,9 @@ mod tests {
                     manifest.package.id
                 );
             }
-            if source.contains("game.assets.") {
+            if ["game.assets.update_asset(", "game.assets.save_assets(",
+                "game.assets.reset_assets(", "game.assets.create_resource(",
+                "game.assets.create_content("].iter().any(|method| source.contains(method)) {
                 assert!(
                     manifest
                         .package

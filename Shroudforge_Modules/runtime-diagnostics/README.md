@@ -55,3 +55,47 @@ Each child has a 1–60 second timeout and captures at most 2 MiB per stream. Ex
 `--continuous` scans also obey the configured session duration and enable flags.
 These exploratory tools have game-specific assumptions; they are not compatibility
 verdicts. A timeout kills only the inspection child, never the game.
+
+### Discovering live ECS component IDs
+
+Load into a world, then run `dump-live-components` against the game process:
+
+```powershell
+shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" --pid 1234 --tool dump-live-components --timeout-seconds 60
+```
+
+The tool locates the executable's metadata for `DynamicActiveNpcState` and
+`CurrentTransform`, finds every live pointer table containing both, and prints
+`component_id`, reflected size, and qualified name. The ID is the entry's table
+slot; it is not inferred from component size. Compare every candidate table and
+cross-check names and sizes against the build's type catalog before copying
+entries into its compatibility profile. A table can contain `Dynamic*` runtime
+structs as well as types catalogued as components. Types absent from all matching
+tables cannot be assigned an ID from this capture. The scan is read-only and its
+result is written to the normal ShroudForge diagnostics log.
+
+For a broader developer audit, run this from the repository while Enshrouded is
+loaded into a world:
+
+```powershell
+.\Shroudforge_Modules\runtime-diagnostics\run-live-component-registry-audit.ps1
+```
+
+The script builds `audit-live-component-registry.exe` when needed, detects the
+game PID (or accepts `-ProcessId`), and saves the full pointer-table audit under
+`build/component-registry-audit`. The native scan is read-only. It searches the
+loaded image for ECS metadata descriptors, finds live references to those
+descriptors, then scores candidate pointer tables against the known build
+profile. `new_mapping` lines are evidence candidates only; inspect the table's
+known-slot matches and conflicts before adding any entry to a profile. The
+script does not edit compatibility profiles automatically. It also emits
+`code_operation` rows for profile-backed world operations and runtime patches,
+including signature match counts, target RVAs, and the containing function RVA.
+
+The parser's full ECS catalog and the runtime's component-index contract are
+different sets. For build 1076226, the catalog contains 1,442 ECS records;
+the Lua loader currently sends 643 `Component` descendants and 63 `Dynamic*`
+runtime structs (706 index candidates). Events and ordinary runtime types or
+structs do not own component indices. Runtime status reports this candidate
+split, and patch diagnostics report the unique signature-match count and target
+RVA for each profile-backed code patch.
