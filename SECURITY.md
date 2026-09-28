@@ -14,4 +14,4 @@ Please include the affected ShroudForge version, the relevant environment and st
 
 ## Automated scans
 
-GitHub Actions runs Trivy filesystem scans and ClamAV scans of repository files. The Windows release workflow also scans the expanded release packages with Microsoft Defender before publishing them. These checks support the release process but do not replace responsible vulnerability reporting.
+GitHub Actions runs Trivy filesystem scans on relevant code changes. Before publishing, the release workflow scans the expanded release packages with ClamAV and Microsoft Defender. A release is published only after both malware scans succeed. These checks support the release process but do not replace responsible vulnerability reporting.

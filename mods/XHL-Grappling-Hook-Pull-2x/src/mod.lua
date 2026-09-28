@@ -2,6 +2,8 @@
 -- Only modifies the Impact config value that determines pull distance.
 -- The separate swing-distance Impact config is located and verified, but never written.
 
+runtime.require("game.assets.write")
+
 local TAG = "[XHL-Grappling-Hook-Pull-2x]"
 
 -- player_update_hookshot_targeting reads the two Impact config IDs below.

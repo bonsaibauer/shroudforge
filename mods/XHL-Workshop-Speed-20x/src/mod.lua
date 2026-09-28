@@ -3,6 +3,8 @@
 -- The game still applies the current world's factoryProductionSpeedFactor,
 -- so crafting remains faster by the configured multiplier than in the same save without this mod.
 
+runtime.require("game.assets.write")
+
 local TAG = "[XHL-Workshop-Speed-20x]"
 
 local defaults = {

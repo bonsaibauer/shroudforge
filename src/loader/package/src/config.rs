@@ -262,6 +262,45 @@ pub fn update_loader(
     write_json(&path, &value)
 }
 
+/// Import EML's proxy configuration once into the ShroudForge loader config.
+/// The old file is left untouched as a reference and is not consulted again
+/// after the import marker has been written.
+pub fn migrate_eml_config_once(root: &Path) -> Result<(), String> {
+    update_loader(root, |loader| {
+        if loader
+            .pointer("/migrations/emlJsonV1")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+
+        let legacy_path = root.join("eml.json");
+        if legacy_path.is_file() {
+            let bytes = fs::read(&legacy_path).map_err(|error| error.to_string())?;
+            let legacy: Value = serde_json::from_slice(&bytes)
+                .map_err(|error| format!("{}: {error}", legacy_path.display()))?;
+
+            if let Some(enabled) = legacy.get("use_export_flag").and_then(Value::as_bool) {
+                loader["exports"]["enabled"] = json!(enabled);
+            }
+            if let Some(directory) = legacy
+                .get("export_directory")
+                .and_then(Value::as_str)
+                .filter(|directory| !directory.trim().is_empty())
+            {
+                loader["exports"]["directory"] = json!(directory);
+            }
+            if let Some(enabled) = legacy.get("enable_console").and_then(Value::as_bool) {
+                loader["logging"]["nativeConsole"] = json!(enabled);
+            }
+        }
+
+        loader["migrations"]["emlJsonV1"] = json!(true);
+        Ok(())
+    })
+}
+
 pub fn installation_lock(root: &Path) -> Result<fs::File, String> {
     fs::create_dir_all(crate::paths::config_dir(root)).map_err(|error| error.to_string())?;
     let lock = fs::OpenOptions::new()

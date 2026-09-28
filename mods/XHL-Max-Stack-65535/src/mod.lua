@@ -2,6 +2,8 @@
 -- Changes the stack size of all vanilla stackable items to the value specified in the config.
 -- The game's maxStackSize data is an unsigned 16-bit integer, so its hard limit is 65535.
 
+runtime.require("game.assets.write")
+
 local LOG_PREFIX = "[XHL-Max-Stack-65535]"
 local U16_MAX = 65535
 

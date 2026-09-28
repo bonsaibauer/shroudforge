@@ -24,8 +24,26 @@
             "WARN",
             "ERROR"
           ]
+        },
+        "nativeConsole": {
+          "type": "boolean"
         }
       }
+    },
+    "exports": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "directory": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "migrations": {
+      "type": "object",
+      "properties": {
+        "emlJsonV1": { "type": "boolean" }
+      },
+      "additionalProperties": false
     },
     "modules": {
       "type": "object",

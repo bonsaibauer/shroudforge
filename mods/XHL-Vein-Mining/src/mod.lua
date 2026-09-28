@@ -3,6 +3,8 @@
 -- This EML patch sets the reach of all seven pickaxes to 10 meters.
 -- The native DLL reads the local ClientCursorInput after the game resolves the terrain material.
 
+runtime.require("game.assets.write")
+
 local TAG = "[XHL-Vein-Mining]"
 local DEFAULT_WHITELIST_COUNT = 34
 local PICKAXE_MAX_DISTANCE = 10.0

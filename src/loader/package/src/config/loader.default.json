@@ -4,7 +4,15 @@
     "locale": "de"
   },
   "logging": {
-    "minimumLevel": "INFO"
+    "minimumLevel": "INFO",
+    "nativeConsole": false
+  },
+  "exports": {
+    "enabled": false,
+    "directory": "shroudforge/exports"
+  },
+  "migrations": {
+    "emlJsonV1": false
   },
   "catalog": {
     "provider": null

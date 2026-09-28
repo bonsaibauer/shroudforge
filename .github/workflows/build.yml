@@ -11,7 +11,11 @@ permissions:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,12 +69,138 @@ jobs:
 
           Write-Host "Microsoft Defender found no malware in $($archives.Count) release ZIP(s)."
 
+      - name: Upload release packages for malware scan
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-release-${{ github.run_id }}
+          path: |
+            build/shroudforge-*.zip
+            build/shroudforge-*.zip.sha256
+          if-no-files-found: error
+
+  clamav:
+    name: Scan built release with Trivy and ClamAV
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Download release packages
+        uses: actions/download-artifact@v7
+        with:
+          name: shroudforge-release-${{ github.run_id }}
+          path: build
+
+      - name: Expand release packages for scanning
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends unzip
+          shopt -s nullglob
+          archives=(build/*.zip)
+          if (( ${#archives[@]} == 0 )); then
+            echo "No release ZIPs were downloaded." >&2
+            exit 1
+          fi
+
+          mkdir -p scanned-release
+          for archive in "${archives[@]}"; do
+            destination="scanned-release/$(basename "${archive%.zip}")"
+            mkdir -p "$destination"
+            unzip -q "$archive" -d "$destination"
+          done
+
+      - name: Scan source and built release with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          vuln-type: os,library
+          severity: MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          skip-dirs: .git,target,build,x64
+          format: sarif
+          output: trivy-release.sarif
+          # Findings are reported to Code Scanning; malware scans below gate publishing.
+          exit-code: "0"
+
+      - name: Upload release Trivy SARIF to GitHub Code Scanning
+        if: always() && hashFiles('trivy-release.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-release.sarif
+          category: trivy-release
+
+      - name: Save release Trivy SARIF report
+        if: always() && hashFiles('trivy-release.sarif') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-release-sarif-${{ github.run_number }}
+          path: trivy-release.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Install ClamAV and update signatures
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clamav clamav-freshclam
+          sudo systemctl stop clamav-freshclam.service 2>/dev/null || true
+          sudo freshclam
+
+      - name: Scan packaged release files for malware
+        run: |
+          shopt -s nullglob
+          archives=(build/*.zip)
+          if (( ${#archives[@]} == 0 )); then
+            echo "No release ZIPs were downloaded." >&2
+            exit 1
+          fi
+
+          clamscan --recursive --infected \
+            --log=clamav.log \
+            build scanned-release
+
+      - name: Save ClamAV scan report
+        if: always() && hashFiles('clamav.log') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: clamav-release-report-${{ github.run_number }}
+          path: clamav.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish:
+    name: Publish scanned release packages
+    needs: [build, clamav]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download scanned release packages
+        uses: actions/download-artifact@v7
+        with:
+          name: shroudforge-release-${{ github.run_id }}
+          path: build
+
       - name: Publish development prerelease
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.value }}-dev.${{ github.run_id }}
-          name: Dev v${{ steps.version.outputs.value }}
+          tag_name: v${{ needs.build.outputs.version }}-dev.${{ github.run_id }}
+          name: Dev v${{ needs.build.outputs.version }}
           target_commitish: ${{ github.sha }}
           files: |
             build/shroudforge-*.zip
@@ -83,8 +213,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.value }}-build.${{ github.run_id }}
-          name: ShroudForge v${{ steps.version.outputs.value }} build ${{ github.run_id }}
+          tag_name: v${{ needs.build.outputs.version }}-build.${{ github.run_id }}
+          name: ShroudForge v${{ needs.build.outputs.version }} build ${{ github.run_id }}
           target_commitish: ${{ github.sha }}
           files: |
             build/shroudforge-*.zip

@@ -5,6 +5,8 @@
 -- The Native Sidecar recognizes the private 200000123-nanosecond marker, skips the vanilla initial random delay,
 -- and limits repeated requests for the same player and drop based on vanilla InventoryFull results.
 
+runtime.require("game.assets.write")
+
 local TAG = "[XHL-Auto-Loot]"
 local VERSION = "1.5.0"
 local PICKUP_UPDATE_MARKER_NS = 200000123

@@ -2,10 +2,11 @@ use crate::LoaderError;
 use shroudforge_api::ShroudForgeApi;
 use shroudforge_compatibility::Compatibility;
 use shroudforge_parser::{GameFiles, GameParser, KfcParser};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
+    migrate_loader_settings(game_directory);
     ensure_game_stopped()?;
     let file_name = target_name(game_directory)?;
     if already_applied(game_directory, file_name)? {
@@ -25,6 +26,7 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
 /// cannot pause the game while this bootstrap worker runs.
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
+    migrate_loader_settings(game_directory);
     let lock_path = shroudforge_package::paths::startup_asset_lock(game_directory);
     let _lease = startup_asset_lease(&lock_path)?;
     let file_name = process_target_name(game_directory)?;
@@ -115,6 +117,16 @@ fn already_applied(game_directory: &Path, file_name: &str) -> Result<bool, Loade
 }
 
 fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), LoaderError> {
+    let loader_config = shroudforge_package::config::read_loader(game_directory)
+        .map_err(LoaderError::Pregame)?;
+    let export_enabled = loader_config
+        .pointer("/exports/enabled")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let export_directory = loader_config
+        .pointer("/exports/directory")
+        .and_then(serde_json::Value::as_str)
+        .map(PathBuf::from);
     let game_utf8 = game_directory.to_str().ok_or_else(|| {
         LoaderError::Environment(format!(
             "game directory is not valid UTF-8: {}",
@@ -154,7 +166,8 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
                     options: shroudforge_api::RunOptions {
                         force_patch: true,
                         patch: true,
-                        export: true,
+                        export: export_enabled,
+                        export_dir: export_directory.clone(),
                         phase: shroudforge_api::RuntimePhase::Pregame,
                         ..Default::default()
                     },
@@ -213,7 +226,8 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
                         skip_cache: true,
                         force_patch: true,
                         patch: true,
-                        export: true,
+                        export: export_enabled,
+                        export_dir: export_directory.clone(),
                         ..Default::default()
                     },
                 },
@@ -261,6 +275,12 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
         "mods": mods
     })).map_err(LoaderError::Pregame)?;
     Ok(())
+}
+
+fn migrate_loader_settings(game_directory: &Path) {
+    if let Err(error) = shroudforge_package::config::migrate_eml_config_once(game_directory) {
+        tracing::warn!(%error, "Could not import EML eml.json settings; continuing with ShroudForge defaults");
+    }
 }
 
 fn target_name(game_directory: &Path) -> Result<&'static str, LoaderError> {

@@ -31,9 +31,6 @@ on:
       - "templates/**"
       - ".github/workflows/security.yml"
       - ".github/workflows/build.yml"
-  release:
-    types: [published]
-
 permissions:
   contents: read
 
@@ -110,37 +107,5 @@ jobs:
         with:
           name: trivy-sarif-${{ github.run_number }}
           path: trivy-results.sarif
-          if-no-files-found: warn
-          retention-days: 14
-
-  clamav:
-    name: ClamAV malware scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Install ClamAV and update signatures
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends clamav clamav-freshclam
-          sudo systemctl stop clamav-freshclam.service 2>/dev/null || true
-          sudo freshclam
-
-      - name: Scan repository files for malware
-        run: |
-          clamscan --recursive --infected \
-            --exclude-dir='^./(\.git|target|build|x64)(/|$)' \
-            --log=clamav.log .
-
-      - name: Save ClamAV scan report
-        if: always() && hashFiles('clamav.log') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: clamav-report-${{ github.run_number }}
-          path: clamav.log
           if-no-files-found: warn
           retention-days: 14

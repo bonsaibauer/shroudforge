@@ -5,6 +5,8 @@
 -- requiresAltarSlot=false on Flame Altar building items. This mod's Native Sidecar handles
 -- PlayerBases dynamic capacity and region queries.
 
+runtime.require("game.assets.write")
+
 local LOG_PREFIX = "[XHL-Unlimited-Flame-Altars]"
 local FLAME_ALTAR_ITEM_GUID = "85ad0843-7f32-4026-95d2-96c8e54e2899"
 local FLAME_ALTAR_PLACED_ENTITY_GUID = "5bcf6d3e-6067-4e25-a0f9-dab49aed4ae3"
