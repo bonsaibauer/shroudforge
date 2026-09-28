@@ -6,10 +6,11 @@ use std::path::{Path, PathBuf};
 
 pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
-    migrate_loader_settings(game_directory);
     ensure_game_stopped()?;
     let file_name = target_name(game_directory)?;
-    if already_applied(game_directory, file_name)? {
+    migrate_loader_settings(game_directory);
+    let export_pass_needed = export_pass_needed(game_directory, file_name)?;
+    if already_applied(game_directory, file_name)? && !export_pass_needed {
         // The prepared KFC files remain in place. A match means the requested
         // asset mods are already applied, not that they were skipped.
         tracing::info!(
@@ -26,11 +27,12 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
 /// cannot pause the game while this bootstrap worker runs.
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
+    let file_name = process_target_name(game_directory)?;
     migrate_loader_settings(game_directory);
     let lock_path = shroudforge_package::paths::startup_asset_lock(game_directory);
     let _lease = startup_asset_lease(&lock_path)?;
-    let file_name = process_target_name(game_directory)?;
-    if already_applied(game_directory, file_name)? {
+    let export_pass_needed = export_pass_needed(game_directory, file_name)?;
+    if already_applied(game_directory, file_name)? && !export_pass_needed {
         // Enshrouded will load the already-prepared KFC data during startup.
         tracing::info!(
             "Startup KFC assets are already prepared for this game and mod configuration; no rewrite is needed"
@@ -72,6 +74,37 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
 
     tracing::info!(target: "shroudforge::startup", "Applying asset mods during early process startup");
     run_inner(game_directory, file_name, "startup")
+}
+
+fn export_pass_needed(game_directory: &Path, file_name: &str) -> Result<bool, LoaderError> {
+    let config =
+        shroudforge_package::config::read_loader(game_directory).map_err(LoaderError::Pregame)?;
+    if !config
+        .pointer("/exports/enabled")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
+    {
+        return Ok(false);
+    }
+    let root = game_directory.to_str().ok_or_else(|| {
+        LoaderError::Environment(format!(
+            "game directory is not valid UTF-8: {}",
+            game_directory.display()
+        ))
+    })?;
+    let environment = shroudforge_package::ModEnvironment::load(root)
+        .map_err(|report| LoaderError::Environment(format_report(&report)))?;
+    Ok(environment
+        .plan(
+            file_name == "enshrouded_server",
+            shroudforge_api::API_VERSION,
+        )
+        .iter()
+        .any(|item| {
+            item.info()
+                .capabilities
+                .contains(&shroudforge_package::Capability::Export)
+        }))
 }
 
 fn already_applied(game_directory: &Path, file_name: &str) -> Result<bool, LoaderError> {
@@ -117,8 +150,8 @@ fn already_applied(game_directory: &Path, file_name: &str) -> Result<bool, Loade
 }
 
 fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), LoaderError> {
-    let loader_config = shroudforge_package::config::read_loader(game_directory)
-        .map_err(LoaderError::Pregame)?;
+    let loader_config =
+        shroudforge_package::config::read_loader(game_directory).map_err(LoaderError::Pregame)?;
     let export_enabled = loader_config
         .pointer("/exports/enabled")
         .and_then(serde_json::Value::as_bool)

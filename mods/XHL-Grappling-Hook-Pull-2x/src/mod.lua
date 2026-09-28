@@ -1,12 +1,10 @@
--- Enshrouded EML mod: XHL 2x Grappling Hook Pull Distance v1.0.0
--- Only modifies the Impact config value that determines pull distance.
--- The separate swing-distance Impact config is located and verified, but never written.
-
-runtime.require("game.assets.write")
+-- 雾锁王国 EML 模组：XHL 2倍抓钩牵引距离 v1.0.0
+-- 只修改实际决定牵引距离的 Impact 配置值。
+-- 独立的摆荡距离 Impact 配置值只会被定位和校验，始终不会写入。
 
 local TAG = "[XHL-Grappling-Hook-Pull-2x]"
 
--- player_update_hookshot_targeting reads the two Impact config IDs below.
+-- player_update_hookshot_targeting 会读取下面两个 Impact 配置 ID。
 local PULL_DISTANCE_CONFIG_ID = 4151084092 -- 0xF76C843C
 local SWING_DISTANCE_CONFIG_ID = 3078764024 -- 0xB78235F8
 
@@ -159,7 +157,7 @@ for _, resource in ipairs(resources) do
                     error(TAG .. " invalid swing distance for " .. actualName)
                 end
 
-                -- Deliberately do not assign to impactConfig.value here.
+                -- 此处特意不对 impactConfig.value 赋值。
                 swingEntriesFound = swingEntriesFound + 1
             end
         end

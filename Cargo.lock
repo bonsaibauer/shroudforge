@@ -3564,6 +3564,7 @@ dependencies = [
  "shroudforge-runtime-diagnostics",
  "shroudforge-updater",
  "tao",
+ "tracing",
  "windows-sys 0.61.2",
  "wry",
  "zip",

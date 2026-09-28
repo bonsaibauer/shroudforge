@@ -89,25 +89,48 @@ impl AppState {
         // prepare configuration
 
         let options = args.options;
-        let export_dir = options
-            .export_dir
-            .map(|d| d.canonicalize())
-            .transpose()
-            .map_err(|e| {
+        let game_root = env.game_dir().as_std_path();
+        let default_export_dir = PathBuf::from_path_buf(mod_loader::paths::export_dir(game_root))
+            .expect("a UTF-8 game path joined with fixed loader paths remains UTF-8");
+        let configured_export_dir = options.export_dir.and_then(|directory| {
+            use std::path::Component;
+            if directory.is_absolute()
+                || directory.components().any(|component| {
+                    !matches!(component, Component::Normal(_) | Component::CurDir)
+                })
+            {
                 warn!(
-                    error = %e,
-                    "Failed to canonicalize export directory, using default instead"
+                    path = %directory.display(),
+                    "Export directory must be a relative path inside the game directory"
                 );
-            })?
-            .map(|d| PathBuf::from_path_buf(d))
-            .transpose()
-            .map_err(|_| {
-                warn!("Export directory is not valid UTF-8, using default instead");
-            })?
-            .unwrap_or_else(|| {
-                PathBuf::from_path_buf(mod_loader::paths::export_dir(env.game_dir().as_std_path()))
-                    .expect("a UTF-8 game path joined with fixed loader paths remains UTF-8")
-            });
+                return None;
+            }
+            let directory = game_root.join(directory);
+            if let Err(error) = std::fs::create_dir_all(&directory) {
+                warn!(error = %error, path = %directory.display(), "Failed to create export directory");
+                return None;
+            }
+            let canonical_root = match std::fs::canonicalize(game_root) {
+                Ok(path) => path,
+                Err(error) => {
+                    warn!(error = %error, "Failed to resolve game directory for export path validation");
+                    return None;
+                }
+            };
+            let canonical_directory = match std::fs::canonicalize(&directory) {
+                Ok(path) => path,
+                Err(error) => {
+                    warn!(error = %error, "Failed to resolve export directory");
+                    return None;
+                }
+            };
+            if !canonical_directory.starts_with(&canonical_root) {
+                warn!(path = %directory.display(), "Export directory resolves outside the game directory");
+                return None;
+            }
+            PathBuf::from_path_buf(canonical_directory).ok()
+        });
+        let export_dir = configured_export_dir.unwrap_or(default_export_dir);
 
         let skip_cache = options.skip_cache;
         let phase = options.phase;

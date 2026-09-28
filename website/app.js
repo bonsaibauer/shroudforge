@@ -3,7 +3,6 @@ import en from "./content.en.js";
 
 const locale = document.documentElement.dataset.locale === "de" ? "de" : "en";
 const copy = locale === "de" ? de : en;
-const otherLocale = locale === "de" ? "en" : "de";
 const siteRoot = new URL("./", import.meta.url);
 const pageIds = ["home", "play", "server", "workings", "first", "manifests", "community", "api"];
 const state = { page: "home", catalog: "api", apiSource: "all", api: [], profile: null, types: {}, resources: {}, manifest: null, extended: null, editor: "mod" };
@@ -18,7 +17,7 @@ document.querySelector('meta[name="description"]')?.setAttribute("content", loca
 localStorage.setItem("sf-language", locale);
 
 document.querySelector("#app").innerHTML = `
-  <header class="topbar"><a href="#home" class="brand" data-view="home" aria-label="ShroudForge home"><img src="../media/shroudforge-mark.svg" alt=""><span><b>SHROUDFORGE</b><small>${copy.brand}</small></span></a><div class="top-actions"><a class="top-link" href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><a class="top-link release-link" href="https://github.com/bonsaibauer/shroudforge/releases/latest" target="_blank" rel="noreferrer">${copy.download} ↗</a><a class="language-switch" href="../${otherLocale}/#${location.hash.slice(1) || "home"}" aria-label="${copy.languageLabel}">${copy.language}<span>⌄</span></a><button class="mobile-menu" id="mobile-menu" aria-label="${copy.menu}">☰</button></div></header>
+  <header class="topbar"><a href="#home" class="brand" data-view="home" aria-label="ShroudForge home"><img src="../media/shroudforge-mark.svg" alt=""><span><b>SHROUDFORGE</b><small>${copy.brand}</small></span></a><div class="top-actions"><a class="top-link" href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><a class="top-link release-link" href="https://github.com/bonsaibauer/shroudforge/releases/latest" target="_blank" rel="noreferrer">${copy.download} ↗</a><nav class="language-switch" aria-label="${locale === "de" ? "Sprache wählen" : "Choose language"}"><a data-language="de" href="../de/#${location.hash.slice(1) || "home"}" lang="de" title="Deutsch" aria-label="Deutsch" ${locale === "de" ? 'aria-current="page"' : ""}><img src="../media/flag-de.svg" alt=""></a><a data-language="en" href="../en/#${location.hash.slice(1) || "home"}" lang="en" title="English" aria-label="English" ${locale === "en" ? 'aria-current="page"' : ""}><img src="../media/flag-en.svg" alt=""></a></nav><button class="mobile-menu" id="mobile-menu" aria-label="${copy.menu}">☰</button></div></header>
   <aside class="sidebar"><div class="sidebar-label">${copy.menu}</div><nav>${copy.nav.map((label, i) => `<button class="nav-item ${i === 0 ? "active" : ""}" data-view="${pageIds[i]}"><span class="nav-index">0${i + 1}</span><span>${label}</span>${i === 0 ? '<i class="nav-glow"></i>' : ""}</button>`).join("")}</nav><div class="sidebar-bottom"><div class="sidebar-mark"><span class="status-dot"></span><span>ENSHROUDED<br><small>MODDING PLATFORM</small></span></div><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a></div></aside>
   <main class="main-content"><div class="content-wrap">${pageIds.map(id => `<section id="view-${id}" class="view ${id === "home" ? "active" : ""}">${copy[id]}</section>`).join("")}<footer class="site-footer"><span>© SHROUDFORGE · ${copy.footer}</span><span><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><b>·</b><a href="#api" data-view="api">${copy.nav[7]}</a></span></footer></div></main>`;
 
@@ -50,7 +49,7 @@ document.addEventListener("click", event => {
   if (editorTab) changeEditor(editorTab.dataset.editorTab);
 });
 $("#mobile-menu").addEventListener("click", () => $(".sidebar").classList.toggle("open"));
-$(".language-switch").addEventListener("click", () => localStorage.setItem("sf-language", otherLocale));
+document.querySelectorAll("[data-language]").forEach(link => link.addEventListener("click", () => localStorage.setItem("sf-language", link.dataset.language)));
 window.addEventListener("hashchange", () => setPage(location.hash.slice(1), false));
 setPage(pageIds.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home", false);
 
@@ -107,23 +106,18 @@ const exampleExtended = {
 state.extended = JSON.stringify(exampleExtended, null, 2);
 
 function changeEditor(mode) {
-  if (state.editor === "mod") state.manifest = $("#manifest-editor").value;
-  else state.extended = $("#manifest-editor").value;
   state.editor = mode;
-  $("#builder-tools").hidden = false;
   setBuilderTab(mode);
-  $$("[data-editor-tab]").forEach(button => button.classList.toggle("active", button.dataset.editorTab === mode));
-  $("#editor-label").textContent = mode === "mod" ? copy.editor.labelMod : copy.editor.labelExtended;
-  $("#manifest-editor").value = mode === "mod" ? state.manifest : state.extended;
-  if (mode === "mod") readManifestIntoBuilder();
-  else $("#extended-enabled").checked = Boolean(parseCurrent()?.enabled);
+  $$('[data-editor-tab]').forEach(button => button.classList.toggle('active', button.dataset.editorTab === mode));
+  if (mode === 'mod') readManifestIntoBuilder();
+  else $('#extended-enabled').checked = Boolean(parseCurrent()?.enabled);
   updatePreview();
 }
 
 function updatePreview() {
   if (!$("#manifest-editor")) return;
-  if (state.editor === "mod") state.manifest = $("#manifest-editor").value;
-  else state.extended = $("#manifest-editor").value;
+  state.manifest = $("#manifest-editor").value;
+  state.extended = $("#extended-editor").value;
   let manifest = {}, extended = {}, errors = [];
   try { manifest = JSON.parse(state.manifest); } catch (error) { errors.push(`${copy.editor.labelMod}: ${locale === "de" ? "Bitte prüfe Kommas, Anführungszeichen und Klammern." : "Check the commas, quotation marks, and brackets."}`); }
   try { extended = JSON.parse(state.extended); } catch (error) { errors.push(`${copy.editor.labelExtended}: ${locale === "de" ? "Bitte prüfe Kommas, Anführungszeichen und Klammern." : "Check the commas, quotation marks, and brackets."}`); }
@@ -194,7 +188,7 @@ function parseCurrent() {
 }
 function syncEditorFromExtended() {
   state.extended = JSON.stringify(parseCurrent(), null, 2);
-  if (state.editor === "extended") $("#manifest-editor").value = state.extended;
+  $("#extended-editor").value = state.extended;
   updatePreview();
   renderBadgeBuilder();
 }
@@ -230,7 +224,7 @@ $("#add-dependency")?.addEventListener("click", () => {
   if ($("#dependency-optional").checked) dependency.optional = true;
   mod.dependencies.push(dependency);
   state.manifest = JSON.stringify(mod, null, 2);
-  if (state.editor === "mod") $("#manifest-editor").value = state.manifest;
+  $("#manifest-editor").value = state.manifest;
   $("#dependency-id").value = ""; $("#dependency-version").value = ""; $("#dependency-optional").checked = false;
   updatePreview();
 });
@@ -248,7 +242,7 @@ $("#apply-mod-info")?.addEventListener("click", () => {
   }
   mod.capabilities = $$(`[data-capability]:checked`).map(input => input.value);
   state.manifest = JSON.stringify(mod, null, 2);
-  if (state.editor === "mod") $("#manifest-editor").value = state.manifest;
+  $("#manifest-editor").value = state.manifest;
   updatePreview();
 });
 function updateExtended(mutator) {
@@ -256,7 +250,7 @@ function updateExtended(mutator) {
   if (!extended) return;
   mutator(extended);
   state.extended = JSON.stringify(extended, null, 2);
-  if (state.editor === "extended") $("#manifest-editor").value = state.extended;
+  $("#extended-editor").value = state.extended;
   updatePreview();
   renderBadgeBuilder();
 }
@@ -331,7 +325,7 @@ $("#apply-extended-core")?.addEventListener("click", () => updateExtended(extend
   targetGroup.settings ||= [];
   if (!targetGroup.settings.includes(key)) targetGroup.settings.push(key);
   state.extended = JSON.stringify(extended, null, 2);
-  if (state.editor === "extended") $("#manifest-editor").value = state.extended;
+  $("#extended-editor").value = state.extended;
   updatePreview();
 });
 $("#badge-builder")?.addEventListener("change", event => {
@@ -351,7 +345,7 @@ $("#badge-builder")?.addEventListener("change", event => {
     else delete extended.links[badgeUrl];
     if (!Object.keys(extended.links).length) delete extended.links;
     state.extended = JSON.stringify(extended, null, 2);
-    if (state.editor === "extended") $("#manifest-editor").value = state.extended;
+    $("#extended-editor").value = state.extended;
     updatePreview();
   }
 });
@@ -401,32 +395,64 @@ function renderSetting(key, setting) {
 }
 
 $("#manifest-editor").value = state.manifest;
+$("#extended-editor").value = state.extended;
 $("#builder-tools").hidden = false;
 setBuilderTab("mod");
 readManifestIntoBuilder();
 renderBadgeBuilder();
-$("#manifest-editor").addEventListener("input", updatePreview);
-$("#copy-json")?.addEventListener("click", async () => {
-  const text = state.editor === "mod" ? state.manifest : state.extended;
-  try { await navigator.clipboard.writeText(text); $("#copy-json").textContent = locale === "de" ? "Kopiert ✓" : "Copied ✓"; setTimeout(() => $("#copy-json").textContent = locale === "de" ? "JSON kopieren" : "Copy JSON", 1400); }
-  catch { $("#manifest-editor").focus(); $("#manifest-editor").select(); document.execCommand("copy"); }
-});
-$("#download-json")?.addEventListener("click", () => {
-  const mode = state.editor;
-  const text = mode === "mod" ? state.manifest : state.extended;
-  const file = new Blob([text], { type: "application/json" });
-  const href = URL.createObjectURL(file);
-  const link = document.createElement("a"); link.href = href; link.download = mode === "mod" ? "mod.json" : "extended.mod.json"; link.click(); URL.revokeObjectURL(href);
-});
-$("#reset-example").addEventListener("click", () => {
-  state.manifest = JSON.stringify(exampleManifest, null, 2);
-  state.extended = JSON.stringify(exampleExtended, null, 2);
-  $("#manifest-editor").value = state.editor === "mod" ? state.manifest : state.extended;
-  updatePreview();
+$("#manifest-editor").addEventListener("input", () => { try { readManifestIntoBuilder(); } catch {} updatePreview(); });
+$("#mod-builder").addEventListener("input", event => { if (event.target.matches("#mod-id, #mod-name, #mod-version, #mod-authors, #mod-description, #mod-license, #mod-icon, [data-capability]")) $("#apply-mod-info").click(); });
+$("#mod-builder").addEventListener("change", event => { if (event.target.matches("[data-capability]")) $("#apply-mod-info").click(); });
+$("#extended-enabled").addEventListener("change", () => $("#apply-extended-core").click());
+$("#extended-editor").addEventListener("input", () => { updatePreview(); try { $("#extended-enabled").checked = Boolean(parseCurrent()?.enabled); renderBadgeBuilder(); } catch {} });
+async function copyText(text, button) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const area = document.createElement('textarea'); area.value = text; document.body.append(area); area.select(); document.execCommand('copy'); area.remove(); }
+  const original = button.textContent; button.textContent = locale === 'de' ? 'Kopiert ✓' : 'Copied ✓';
+  setTimeout(() => button.textContent = original, 1400);
+}
+$('#copy-mod-json')?.addEventListener('click', event => copyText(state.manifest, event.currentTarget));
+$('#copy-extended-json')?.addEventListener('click', event => copyText(state.extended, event.currentTarget));
+function downloadJson(text, filename) {
+  const file = new Blob([text], { type: 'application/json' }); const href = URL.createObjectURL(file);
+  const link = document.createElement('a'); link.href = href; link.download = filename; link.click(); URL.revokeObjectURL(href);
+}
+$('#download-mod-json')?.addEventListener('click', () => downloadJson(state.manifest, 'mod.json'));
+$('#download-extended-json')?.addEventListener('click', () => downloadJson(state.extended, 'extended.mod.json'));
+$('#reset-example').addEventListener('click', () => {
+  state.manifest = JSON.stringify(exampleManifest, null, 2); state.extended = JSON.stringify(exampleExtended, null, 2);
+  $('#manifest-editor').value = state.manifest; $('#extended-editor').value = state.extended;
+  readManifestIntoBuilder(); $('#extended-enabled').checked = Boolean(exampleExtended.enabled); renderBadgeBuilder(); updatePreview();
 });
 $("#api-search").addEventListener("input", event => renderApi(event.target.value));
 $("#type-search").addEventListener("input", event => renderTypes(event.target.value));
 $("#resource-search").addEventListener("input", event => renderResources(event.target.value));
+function addCopyControls() {
+  $$("pre").forEach(block => {
+    if (block.parentElement.classList.contains("code-block")) return;
+    const wrapper = document.createElement("div"); wrapper.className = "code-block";
+    const bar = document.createElement("div"); bar.className = "code-block-bar";
+    const label = document.createElement("span"); label.textContent = block.dataset.label || (locale === "de" ? "CODEBEISPIEL" : "CODE EXAMPLE");
+    const button = document.createElement("button"); button.type = "button"; button.className = "reset-button copy-code"; button.textContent = locale === "de" ? "Kopieren" : "Copy";
+    button.addEventListener("click", () => copyText(block.innerText, button));
+    bar.append(label, button); block.before(wrapper); wrapper.append(bar, block);
+  });
+  $$(".folder-tree").forEach(tree => {
+    if (tree.querySelector(".copy-code")) return;
+    const button = document.createElement("button"); button.type = "button"; button.className = "reset-button copy-code tree-copy";
+    button.textContent = locale === "de" ? "Ordnerstruktur kopieren" : "Copy folder structure";
+    button.addEventListener("click", () => { const copy = tree.cloneNode(true); copy.querySelector(".tree-copy")?.remove(); copyText(copy.innerText.trim(), button); });
+    tree.append(button);
+  });
+  $$(".command").forEach(command => {
+    if (command.parentElement.classList.contains("command-copy")) return;
+    const wrapper = document.createElement("span"); wrapper.className = "command-copy";
+    const button = document.createElement("button"); button.type = "button"; button.className = "reset-button copy-code"; button.textContent = locale === "de" ? "Befehl kopieren" : "Copy command";
+    button.addEventListener("click", () => copyText(command.innerText, button));
+    command.before(wrapper); wrapper.append(command, button);
+  });
+}
+addCopyControls();
 $("#mod-preview").addEventListener("input", event => {
   if (event.target.matches('input[type="range"]')) event.target.nextElementSibling.value = event.target.value;
 });
@@ -473,6 +499,7 @@ function renderApi(query = "") {
     return selected && `${item.name} ${item.signature} ${item.description} ${item.source}`.toLocaleLowerCase().includes(needle);
   }).slice(0, 160);
   $("#api-results").innerHTML = matches.length ? matches.map(item => `<details class="api-result"><summary><code>${esc(item.name)}</code><span>${esc(item.kind === "field" ? (locale === "de" ? "ANGABE" : "VALUE") : (locale === "de" ? "FUNKTION" : "FUNCTION"))}</span><i>⌄</i></summary><div class="api-detail"><pre><code>${esc(item.signature)}</code></pre>${item.description ? `<p>${esc(item.description)}</p>` : ""}${item.params?.length ? `<h4>${esc(copy.editor.params)}</h4><div class="api-mini-table">${item.params.map(param => `<div><code>${esc(param.name)}</code><span>${esc(param.type)}</span><small>${esc(param.description)}</small></div>`).join("")}</div>` : ""}${item.returns?.length ? `<p>${esc(copy.editor.returns)}: <code>${esc(item.returns.join(", "))}</code></p>` : ""}<small>${esc(copy.editor.source)}: <code>${esc(item.source)}</code></small></div></details>`).join("") : `<div class="empty-results">${esc(copy.editor.noSymbols)}</div>`;
+  addCopyControls();
 }
 function renderTypes(query = "") {
   if (!$("#type-results")) return;

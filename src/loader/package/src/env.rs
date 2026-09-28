@@ -246,6 +246,11 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
+        fs::write(
+            package.join("extended.mod.json"),
+            br#"{"schemaVersion":1,"enabled":false}"#,
+        )
+        .unwrap();
         fs::create_dir_all(package.join("src")).unwrap();
         fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
         fs::write(

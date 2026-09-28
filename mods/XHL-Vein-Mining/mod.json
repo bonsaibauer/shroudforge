@@ -5,7 +5,7 @@
   "capabilities": [
     "patch"
   ],
-  "description": "Hold the tilde key to show the terrain material under the crosshair. While held, mining chains to clear matching minerals within a 5-meter sphere of the actual hit point. Configure the material whitelist with materialIds in config.txt; the default keeps the original 33 entries and adds ID 93 for underwater glowing soil. Restart the game after changes. Supports 10-meter pickaxe reach and host/client multiplayer requests; both players should use the same configuration. Compatible with game build 1076226.",
+  "description": "Hold the tilde key to show the terrain material under the crosshair. While holding it, mining also clears matching ore within a 5-meter sphere around the actual hit point. Configure the material whitelist with materialIds in config.txt; the default retains the original 33 entries and adds ID 93, underwater luminous soil. Restart the game for changes to take effect. Supports a 10-meter pickaxe reach and multiplayer requests from both hosts and clients; all players should use the same configuration. Compatible with game build 1076226.",
   "authors": [
     "XHL"
   ],

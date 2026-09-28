@@ -267,6 +267,12 @@ pub fn update_loader(
 /// after the import marker has been written.
 pub fn migrate_eml_config_once(root: &Path) -> Result<(), String> {
     update_loader(root, |loader| {
+        if let Some(logging) = loader
+            .get_mut("logging")
+            .and_then(Value::as_object_mut)
+        {
+            logging.remove("nativeConsole");
+        }
         if loader
             .pointer("/migrations/emlJsonV1")
             .and_then(Value::as_bool)
@@ -287,18 +293,24 @@ pub fn migrate_eml_config_once(root: &Path) -> Result<(), String> {
             if let Some(directory) = legacy
                 .get("export_directory")
                 .and_then(Value::as_str)
-                .filter(|directory| !directory.trim().is_empty())
+                .filter(|directory| valid_export_directory(directory))
             {
                 loader["exports"]["directory"] = json!(directory);
-            }
-            if let Some(enabled) = legacy.get("enable_console").and_then(Value::as_bool) {
-                loader["logging"]["nativeConsole"] = json!(enabled);
             }
         }
 
         loader["migrations"]["emlJsonV1"] = json!(true);
         Ok(())
     })
+}
+
+pub fn valid_export_directory(directory: &str) -> bool {
+    use std::path::Component;
+    !directory.trim().is_empty()
+        && !Path::new(directory).is_absolute()
+        && Path::new(directory)
+            .components()
+            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
 }
 
 pub fn installation_lock(root: &Path) -> Result<fs::File, String> {

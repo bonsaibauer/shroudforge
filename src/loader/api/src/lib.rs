@@ -312,6 +312,21 @@ impl IngameRuntime {
         api: Option<ShroudForgeApi>,
         file_name: String,
     ) -> anyhow::Result<Self> {
+        if let Err(error) =
+            mod_loader::config::migrate_eml_config_once(env.game_dir().as_std_path())
+        {
+            tracing::warn!(%error, "Could not import EML eml.json settings for the game runtime");
+        }
+        let loader_config = mod_loader::config::read_loader(env.game_dir().as_std_path())
+            .map_err(anyhow::Error::msg)?;
+        let export_enabled = loader_config
+            .pointer("/exports/enabled")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        let export_dir = loader_config
+            .pointer("/exports/directory")
+            .and_then(serde_json::Value::as_str)
+            .map(PathBuf::from);
         let mut diagnostics =
             shroudforge_runtime_diagnostics::Session::new(env.game_dir().as_std_path());
         let file_name: String = file_name.into();
@@ -325,8 +340,8 @@ impl IngameRuntime {
                     force_patch: false,
                     is_server: None,
                     patch: false,
-                    export: true,
-                    export_dir: None,
+                    export: export_enabled,
+                    export_dir,
                     phase: RuntimePhase::Ingame,
                 },
             },

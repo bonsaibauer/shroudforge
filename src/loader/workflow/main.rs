@@ -49,6 +49,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             prepare(PathBuf::from(&args[2]))?;
             println!("pregame phase complete");
         }
+        Some("create") if (args.len() == 5 || args.len() == 6) => {
+            let game = PathBuf::from(&args[2]);
+            let id = args[3].to_str().ok_or("mod id must be valid UTF-8")?;
+            let name = args[4].to_str().ok_or("mod name must be valid UTF-8")?;
+            let capabilities = args
+                .get(5)
+                .and_then(|value| value.to_str())
+                .unwrap_or("patch")
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .collect::<Vec<_>>();
+            create_mod(&game, id, name, &capabilities)?;
+        }
+        Some("restore") if args.len() == 3 => {
+            let game = PathBuf::from(&args[2]);
+            let file_name = if game.join("enshrouded.exe").is_file() {
+                "enshrouded"
+            } else {
+                "enshrouded_server"
+            };
+            let game_utf8 = game.to_str().ok_or("game directory must be valid UTF-8")?;
+            if !shroudforge_api::restore(game_utf8, file_name) {
+                return Err(format!("could not restore the original {file_name}.kfc file").into());
+            }
+            println!("original game data restored");
+        }
         Some("launch") if args.len() >= 3 => {
             let game = PathBuf::from(&args[2]);
             prepare(&game)?;
@@ -85,12 +112,110 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => {
             eprintln!("usage: shroudforge types <game-directory> <output-directory>");
+            eprintln!(
+                "       shroudforge create <game-directory> <mod-id> <mod-name> [patch,export,runtime]"
+            );
             eprintln!("       shroudforge prepare <game-directory>");
+            eprintln!("       shroudforge restore <game-directory>");
             eprintln!("       shroudforge launch <game-directory> [-- <game-arguments>]");
             eprintln!("       shroudforge inspect <game-directory>");
             std::process::exit(2);
         }
     }
+    Ok(())
+}
+
+fn create_mod(
+    game: &PathBuf,
+    id: &str,
+    name: &str,
+    capabilities: &[&str],
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !shroudforge_package::valid_id(id) {
+        return Err(format!("invalid mod id: {id}").into());
+    }
+    if name.trim().is_empty() {
+        return Err("mod name cannot be empty".into());
+    }
+    if !game.join("enshrouded.exe").is_file()
+        && !game.join("enshrouded_server.exe").is_file()
+        && !game.join("enshrouded.kfc").is_file()
+        && !game.join("enshrouded_server.kfc").is_file()
+    {
+        return Err(format!("not an Enshrouded game directory: {}", game.display()).into());
+    }
+    let capabilities = if capabilities.is_empty() {
+        vec![]
+    } else {
+        let mut values = Vec::new();
+        for capability in capabilities {
+            if !matches!(*capability, "patch" | "export" | "runtime") {
+                return Err(format!("unsupported EML capability: {capability}").into());
+            }
+            if !values.contains(capability) {
+                values.push(*capability);
+            }
+        }
+        values
+    };
+    let mods = shroudforge_package::paths::mods_dir(game);
+    let destination = mods.join(id);
+    let manifest = serde_json::json!({
+        "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+        "id": id,
+        "name": name,
+        "version": "0.1.0",
+        "authors": [],
+        "dependencies": [],
+        "capabilities": capabilities
+    });
+    let extension = serde_json::json!({
+        "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+        "schemaVersion": 1,
+        "enabled": true,
+        "settings": {}
+    });
+    shroudforge_package::config::validate_document(game, "mod", &manifest)?;
+    shroudforge_package::config::validate_document(game, "extended-mod", &extension)?;
+    std::fs::create_dir_all(&mods)?;
+    std::fs::create_dir(&destination)
+        .map_err(|error| format!("could not create {}: {error}", destination.display()))?;
+    std::fs::create_dir(destination.join("src"))?;
+    let files = [
+        ("mod.json", serde_json::to_vec_pretty(&manifest)?),
+        ("extended.mod.json", serde_json::to_vec_pretty(&extension)?),
+        (
+            "README.md",
+            format!("# {name}\n\nNew ShroudForge mod.\n").into_bytes(),
+        ),
+        (
+            ".luarc.json",
+            br#"{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime": { "version": "Lua 5.4" },
+  "workspace": { "library": ["../../shroudforge/cache/lua/"] }
+}
+"#
+            .to_vec(),
+        ),
+        (
+            "src/mod.lua",
+            b"print(\"Hello from ShroudForge\")\n".to_vec(),
+        ),
+    ];
+    for (relative, contents) in files {
+        std::fs::write(destination.join(relative), contents)?;
+    }
+    let file_name = if game.join("enshrouded.exe").is_file() {
+        "enshrouded"
+    } else {
+        "enshrouded_server"
+    };
+    let game_utf8 = game.to_str().ok_or("game directory must be valid UTF-8")?;
+    if !shroudforge_api::export_lua_definitions(game_utf8, file_name, true) {
+        eprintln!("mod created, but Lua definitions could not be generated from the game files");
+    }
+    println!("created mod at {}", destination.display());
     Ok(())
 }
 

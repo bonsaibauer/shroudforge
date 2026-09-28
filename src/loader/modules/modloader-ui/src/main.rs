@@ -102,6 +102,10 @@ mod windows {
         #[serde(default)]
         reduced_motion: bool,
         log_level: String,
+        #[serde(default)]
+        export_enabled: bool,
+        #[serde(default = "default_export_directory")]
+        export_directory: String,
         update_enabled: bool,
         base_url: String,
         project_id: String,
@@ -362,6 +366,8 @@ mod windows {
         compact_mode: bool,
         reduced_motion: bool,
         log_level: String,
+        export_enabled: bool,
+        export_directory: String,
         update_enabled: bool,
         base_url: String,
         project_id: String,
@@ -457,12 +463,19 @@ mod windows {
         }
     }
 
+    fn default_export_directory() -> String {
+        "shroudforge/exports".to_owned()
+    }
+
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let arguments = arguments()?;
         run_with_arguments(arguments)
     }
 
     fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
+        if let Err(error) = shroudforge_package::config::migrate_eml_config_once(&arguments.root) {
+            tracing::warn!(%error, "Could not import EML eml.json settings");
+        }
         let _updater_window_mutex = if arguments.updater_window {
             let root = arguments
                 .root
@@ -1658,6 +1671,15 @@ mod windows {
             .and_then(|v| v.as_str())
             .unwrap_or("INFO")
             .to_owned();
+        let export_enabled = central
+            .pointer("/exports/enabled")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        let export_directory = central
+            .pointer("/exports/directory")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("shroudforge/exports")
+            .to_owned();
         let mods = read_mods(&arguments.root);
         sync_mod_events(&arguments.root, &mods);
         let mut release_snapshot = release
@@ -1744,6 +1766,8 @@ mod windows {
                     .and_then(|value| value.as_bool())
                     .unwrap_or(false),
                 log_level: logging_level,
+                export_enabled,
+                export_directory,
                 update_enabled: provider.enabled,
                 base_url: provider.base_url.clone(),
                 project_id: provider.project_id.clone(),
@@ -2781,6 +2805,24 @@ mod windows {
                 Ok(())
             });
         }
+        if scope == "exports" {
+            if !matches!(key, "enabled" | "directory") {
+                return Err("unsupported export setting".into());
+            }
+            if key == "directory"
+                && !setting
+                    .as_str()
+                    .is_some_and(shroudforge_package::config::valid_export_directory)
+            {
+                return Err(
+                    "export directory must be a relative path inside the game directory".into(),
+                );
+            }
+            return shroudforge_package::config::update_loader(root, |value| {
+                value["exports"][key] = setting.clone();
+                Ok(())
+            });
+        }
         if scope != "module" {
             return Err("unsupported settings scope".into());
         }
@@ -2888,12 +2930,20 @@ mod windows {
                     }
                 }
             }
+            let logging = value
+                .get_mut("logging")
+                .and_then(serde_json::Value::as_object_mut)
+                .ok_or("logging config must be an object")?;
+            logging.insert("minimumLevel".into(), settings.log_level.clone().into());
             let object = value
                 .as_object_mut()
                 .ok_or("shroudforge/config/loader.json must contain an object")?;
             object.insert(
-                "logging".into(),
-                serde_json::json!({ "minimumLevel": &settings.log_level }),
+                "exports".into(),
+                serde_json::json!({
+                    "enabled": settings.export_enabled,
+                    "directory": settings.export_directory
+                }),
             );
             object.insert(
                 "catalog".into(),
@@ -3380,7 +3430,10 @@ mod windows {
                         shroudforge_package::config::read_manifest_path(root, &package)
                             .ok()
                             .filter(|manifest| {
-                                manifest.capabilities.iter().any(|capability| capability.requires_runtime())
+                                manifest
+                                    .capabilities
+                                    .iter()
+                                    .any(|capability| capability.requires_runtime())
                             })
                             .map(|manifest| manifest.id)
                     })
@@ -3587,8 +3640,14 @@ mod windows {
         if old_manifest.id != mod_id || new_manifest.id != mod_id {
             return Err("mod package identity changed during update".into());
         }
-        let has_runtime = old_manifest.capabilities.iter().any(|capability| capability.requires_runtime())
-            && new_manifest.capabilities.iter().any(|capability| capability.requires_runtime());
+        let has_runtime = old_manifest
+            .capabilities
+            .iter()
+            .any(|capability| capability.requires_runtime())
+            && new_manifest
+                .capabilities
+                .iter()
+                .any(|capability| capability.requires_runtime());
         let status_path = root.join("shroudforge/runtime/mod-status.json");
         let active = fs::read(&status_path)
             .ok()

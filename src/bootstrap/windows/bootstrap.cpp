@@ -26,6 +26,17 @@ HANDLE modloader_ui_stop_event{};
 HANDLE modloader_ui_process{};
 auto session_started = std::chrono::steady_clock::now();
 
+std::string single_line(std::string_view value) {
+    std::string result;
+    result.reserve(value.size());
+    for (const auto character : value) {
+        if (character == '\r') result += "\\r";
+        else if (character == '\n') result += "\\n";
+        else result += character;
+    }
+    return result;
+}
+
 struct LogGuard {
     HANDLE mutex{CreateMutexW(nullptr, FALSE, L"Local\\ShroudForgeLog")};
     DWORD wait_result{mutex ? WaitForSingleObject(mutex, INFINITE) : WAIT_FAILED};
@@ -55,13 +66,25 @@ void begin_log_session(const std::filesystem::path& root) {
         const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         const auto current = data / L"shroudforge.log";
-        if (!std::filesystem::is_regular_file(current) || std::filesystem::file_size(current) == 0) return;
-        auto destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L".log");
-        for (unsigned suffix = 2; std::filesystem::exists(destination); ++suffix) {
-            destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L"-" +
-                std::to_wstring(suffix) + L".log");
+        if (std::filesystem::is_regular_file(current) && std::filesystem::file_size(current) > 0) {
+            auto destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L".log");
+            for (unsigned suffix = 2; std::filesystem::exists(destination); ++suffix) {
+                destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L"-" +
+                    std::to_wstring(suffix) + L".log");
+            }
+            std::filesystem::rename(current, destination);
         }
-        std::filesystem::rename(current, destination);
+
+        const auto pending = data / L"native-proxy.pending";
+        if (std::filesystem::is_regular_file(pending)) {
+            std::ifstream input(pending, std::ios::binary);
+            std::ofstream output(current, std::ios::binary | std::ios::app);
+            if (input && output) {
+                output << input.rdbuf();
+                output.flush();
+                if (output) std::filesystem::remove(pending);
+            }
+        }
     } catch (...) {
         // Logging remains available in append mode if archival is unavailable.
     }
@@ -75,7 +98,7 @@ void log(char level, const std::string& message) {
     std::snprintf(prefix, sizeof(prefix), "[%c %02lld:%02lld:%02lld,%03lld] [bootstrap] ",
         level, elapsed / 3600000, (elapsed / 60000) % 60, (elapsed / 1000) % 60,
         elapsed % 1000);
-    const auto line = std::string(prefix) + message + '\n';
+    const auto line = std::string(prefix) + single_line(message) + '\n';
     OutputDebugStringA(line.c_str());
     const auto root = module_directory();
     if (root.empty()) return;

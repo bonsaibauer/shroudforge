@@ -5,7 +5,7 @@
   "capabilities": [
     "patch"
   ],
-  "description": "By default, automatically collects gathering drops that pass name-whitelist and component checks within 5 meters. Stabilizes gathering-node drops, skips the vanilla initial random delay of 0-5 seconds, and suppresses repeated InventoryFull retries for rejected items without affecting valid stack merges.",
+  "description": "Automatically collects harvest drops within 5 meters by default after checking the name whitelist and components. Stabilizes drops from harvestable nodes, skips the vanilla initial random delay of 0 to 5 seconds, and suppresses rejected InventoryFull retries without affecting valid stack merges.",
   "authors": [
     "XHL"
   ],

@@ -27,8 +27,9 @@ Keep technical descriptions aligned with repository-owned contracts and code:
 
 The manifest studio runs in the browser on the user's device. It starts with
 the `templates/mod/` example. It offers visual fields for manifest details,
-setting controls, groups, action buttons, links, and changelog notes, plus a
-direct JSON editor, copy/download controls, and a Modloader-style preview. The
+setting controls, groups, action buttons, links, and changelog notes, plus two
+always-visible JSON editors with separate copy/download controls and a combined
+Modloader-style preview. Form fields and direct edits stay synchronized. The
 English and German pages show how a declared setting connects to Lua. The
 builder catches JSON syntax errors and common contract mistakes; it is not a
 complete JSON Schema validator. The repository schemas and loader validation

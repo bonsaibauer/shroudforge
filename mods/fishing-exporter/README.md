@@ -27,7 +27,7 @@
 
 ## 🤖 Built with AI Assistance
 
-This mod was created by combining human testing with **Google Gemini** and **GitHub Copilot**. If you want to customize or write your own EML scripts using AI, check out the *Optional AI Prompt Template for Modding* section in the **[EML Beginner's Guide](https://brabb3l.github.io/kfc-parser/eml/index.html)**.
+This mod was created with human testing and AI assistance. The script can be edited with any text editor; LuaLS uses the development configuration in `.luarc.json` for API completion.
 
 ---
 
@@ -41,31 +41,20 @@ This project runs via a single main script:
 
 ## 🎮 Part 1: How to Export Game Files
 
-> **⚡ TL;DR:** Install EML, turn on exports in `eml.json`, run the game, and find your CSV files in `<game_dir>/shroudforge/exports/`.
+> **⚡ TL;DR:** Enable **Mod exports** in ShroudForge settings, start the game, and find the CSV files in `<game_dir>/shroudforge/exports/` (the default export directory).
 
-### 🔹 Step 1: Install EML
+### 🔹 Step 1: Install ShroudForge
 
-To set up the loader and mod files properly, follow the complete step-by-step instructions in the **[Enshrouded Mod Loader (EML) Beginner's Guide: User 1 (Installing & Using Mods)](https://brabb3l.github.io/kfc-parser/eml/index.html)**.
+Install ShroudForge and place this mod in the game's `mods` directory.
 
-### 🔹 Step 2: Turn On the Export Setting
+### 🔹 Step 2: Allow Mod Exports
 
-1. Launch the game once so EML sets itself up, then close the game.
-2. Open `eml.json` inside your main game folder (`<game_dir>`).
-3. Change `"use_export_flag": false` ➔ `"use_export_flag": true`.
-4. Change `"enable_console": false` ➔ `"enable_console": true`.
-    *(This opens a black window that shows your progress count so you know the game isn't stuck on the loading screen).*
+In the ShroudForge Modloader open **Settings → General → Mod exports** and enable **Allow mods to export files**. The mod declares the `export` capability in `mod.json`; ShroudForge only exposes `loader.features.export` and `io.export` when both that capability and this global setting are enabled.
 
 ### 🔹 Step 3: Run the Export
 
-1. Start Enshrouded.
-2. The Lua script will run automatically on startup, generating your CSV files in the export directory.
-3. When finished, exit the game and open **`eml.json`** again.
-4. **Restore settings back to `false**` so the mod doesn't re-run every single time you launch the game normally:
-    * Change `"use_export_flag": true` ➔ `"use_export_flag": false`
-    * Change `"enable_console": true` ➔ `"enable_console": false`
-
-
-5. You will find your exported CSV files inside **`<game_dir>/shroudforge/exports/`**:
+1. Start Enshrouded. The enabled exporter runs during startup and writes its CSV files to the configured export directory.
+2. With the default directory, find them in **`<game_dir>/shroudforge/exports/`**:
     * `1_fish_spawn_tables_final_<version>_<timestamp>.csv`
     * `2_fishing_rods_final_<version>_<timestamp>.csv`
     * `3_fishing_bait_and_trash_final_<version>_<timestamp>.csv`
@@ -76,17 +65,15 @@ To set up the loader and mod files properly, follow the complete step-by-step in
 
 ## 🛠️ Part 2: Customizing the Mod / Data Mining
 
-> **⚡ TL;DR:** Want to edit how data exports? Follow the Data Miner steps in the EML Beginner's Guide to set up VS Code, then edit `mod.lua`.
+> **⚡ TL;DR:** To change what gets exported, edit `src/mod.lua` and use LuaLS completion from `.luarc.json`.
 
 > **💡 A Note on Modding Difficulty:**
 > Even with modern AI tools like Gemini and GitHub Copilot, the barrier to entry for datamining remains moderate to high. AI makes writing code significantly easier, but the tricky part is understanding that not all game information is obvious at first glance. Much of the data is not kept in active memory; finding specific values requires studying the reflection file (`shroudforge/cache/types-enshrouded.json`) and tracing data relationships across files.
 
 ### Steps to Customize:
 
-1. Follow the full setup instructions in the **[Data Miner steps in the EML Beginner's Guide](https://brabb3l.github.io/kfc-parser/eml/index.html)** to set up Visual Studio Code, Lua extensions, and `emm.exe`.
-2. *(Optional)* Use your favorite AI assistant (like ChatGPT, Gemini, or Copilot) along with the *Optional AI Prompt Template for Modding* in the Beginner's Guide to help you write custom export functions.
-3. Open `<game_dir>\mods\FishingExporter\src\mod.lua` in VS Code to modify translation lookups or fishing properties.
-4. Start Enshrouded to test your new settings.
+1. Open this mod's `src/mod.lua` in VS Code with the Lua Language Server extension. The included `.luarc.json` points LuaLS at the ShroudForge API definitions in this repository and at generated game definitions when available.
+2. Edit the export logic, then start Enshrouded to run the mod.
 
 ---
 
@@ -101,7 +88,7 @@ Here is a simple breakdown of the terms used in this mod:
 ### 🔹 Active Memory vs. Disk Files
 
 * **Active Memory (In-Memory / Runtime):** Data that the game currently has loaded while running on your screen. This is what the exporter reads.
-* **Disk Files:** Raw game files stored permanently on your hard drive inside large game archives. Reading disk data requires `emm.exe` to have specific mappings built for those elements. For example, Brabb3l's [`get_translations.lua`](https://github.com/Brabb3l/kfc-parser/blob/main/examples/translations/get_translations.lua) script is a great demonstration of mapping directly to disk translation files.
+* **Disk Files:** Raw game files stored permanently on your hard drive inside large game archives. This mod reads resources exposed to Lua by the loader; it does not parse the archives directly. Archive inspection requires separate parser tooling and game-format mappings.
 
 ### 🔹 Export Outputs
 

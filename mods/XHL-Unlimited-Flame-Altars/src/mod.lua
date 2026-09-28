@@ -1,11 +1,8 @@
--- XHL Unlimited Flame Altars v3.0.1
+-- XHL无限灵火祭坛 v3.0.1
 --
--- The altarsPerFlameLevel resource type is uint8 and can represent at most 255; it remains only
--- for UI and compatibility display. Unlimited placement is implemented by setting
--- requiresAltarSlot=false on Flame Altar building items. This mod's Native Sidecar handles
--- PlayerBases dynamic capacity and region queries.
-
-runtime.require("game.assets.write")
+-- altarsPerFlameLevel 的资源类型是 uint8，最高只能表达 255；它只保留作
+-- 界面/兼容显示。真正的放置破限由灵火建造物品的 requiresAltarSlot=false
+-- 实现，PlayerBases 的动态容量与区域查询由本模组 Native Sidecar 接管。
 
 local LOG_PREFIX = "[XHL-Unlimited-Flame-Altars]"
 local FLAME_ALTAR_ITEM_GUID = "85ad0843-7f32-4026-95d2-96c8e54e2899"

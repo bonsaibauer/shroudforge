@@ -4,8 +4,7 @@
     "locale": "de"
   },
   "logging": {
-    "minimumLevel": "INFO",
-    "nativeConsole": false
+    "minimumLevel": "INFO"
   },
   "exports": {
     "enabled": false,

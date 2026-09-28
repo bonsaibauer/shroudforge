@@ -1,11 +1,11 @@
 {
   "id": "xhl-workshop-speed-20x",
-  "name": "20x Workshop Crafting Speed",
+  "name": "20x Workshop Production Speed",
   "version": "1.0.0",
   "capabilities": [
     "patch"
   ],
-  "description": "Increases the crafting speed of all timed workshop recipes by 20x while preserving the current world workshop speed setting.",
+  "description": "Increases the production speed of all timed workshop recipes by 20x while preserving the current world workshop speed setting.",
   "authors": [
     "XHL"
   ],
