@@ -61,11 +61,6 @@ $runtimeCmake = Join-Path $visualStudio 'Common7/IDE/CommonExtensions/Microsoft/
 if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime configuration failed.' }
 & $runtimeCmake --build (Join-Path $root 'build/native-runtime') --config Release
 if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime build failed.' }
-& $runtimeCmake -S (Join-Path $root 'Shroudforge_Modules/runtime-diagnostics') -B (Join-Path $root 'build/native-diagnostics') -A x64
-if ($LASTEXITCODE -ne 0) { throw 'Runtime diagnostics configuration failed.' }
-& $runtimeCmake --build (Join-Path $root 'build/native-diagnostics') --config Release
-if ($LASTEXITCODE -ne 0) { throw 'Runtime diagnostics build failed.' }
-
 if (-not $SkipTests) {
     & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
     if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }

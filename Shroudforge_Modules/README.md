@@ -12,7 +12,7 @@ Modules are first-party companion processes built into `shroudforge.exe`. They a
 | `debug-console/` | `shroudforge.exe --debug-console` | Searchable view of Enshrouded and ShroudForge logs | Linked into launcher |
 | `modloader-ui/` | `shroudforge.exe --module-ui` | Mod management, settings, news, compatibility, and updates | Linked into launcher |
 | `updater/` | `shroudforge.exe --update-worker` | Applies staged updates after Enshrouded exits and rolls back failed installs | Linked into launcher |
-| `runtime-diagnostics/` | `shroudforge.exe --runtime-diagnostics` | Explicit, bounded native inspection with shared logging | Linked into launcher; native probes embedded |
+| `runtime-diagnostics/` | `shroudforge.exe --runtime-diagnostics` | Bounded loader-health and Lua callback diagnostics | Linked into launcher |
 
 Module sources and their descriptors remain in this repository. The player ZIP contains no `Shroudforge_Modules` or `Shroudforge_Updater` folder.
 
