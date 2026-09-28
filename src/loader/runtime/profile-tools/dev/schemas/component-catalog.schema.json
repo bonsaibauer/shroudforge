@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KFC Runtime build-specific ECS component catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "target", "image", "components"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "target": { "enum": ["enshrouded.exe", "enshrouded_server.exe"] },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "size"],
+      "properties": {
+        "timestamp": { "type": "integer", "minimum": 0 },
+        "size": { "type": "integer", "minimum": 4096 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "index", "size"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^keen::ecs::" },
+          "index": { "type": "integer", "minimum": 0, "maximum": 1023 },
+          "size": { "type": "integer", "minimum": 1, "maximum": 65535 }
+        }
+      }
+    }
+  }
+}

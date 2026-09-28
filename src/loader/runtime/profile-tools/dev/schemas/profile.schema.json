@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "target",
+    "image",
+    "allowStructuralRevalidation",
+    "layout",
+    "entityDefinition",
+    "hooks",
+    "worldContexts"
+  ],
+  "oneOf": [
+    { "required": ["components"] },
+    { "required": ["componentCatalog"] }
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target": {
+      "enum": [
+        "enshrouded.exe",
+        "enshrouded_server.exe"
+      ]
+    },
+    "image": {
+      "type": "object",
+      "required": [
+        "timestamp",
+        "size"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 4096
+        }
+      }
+    },
+    "allowStructuralRevalidation": {
+      "type": "boolean"
+    },
+    "componentCatalog": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+\\.json$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "generator", "executableSha256", "functionScan", "componentCapture", "runtimeLayoutValidated", "componentMappingsValidated", "functionSemanticsValidated", "unresolvedComponentCount"],
+      "properties": {
+        "status": { "enum": ["draft-requires-live-review", "approved"] },
+        "generator": { "type": "string", "minLength": 1 },
+        "executableSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "imageReport": { "type": "string", "minLength": 1 },
+        "functionScan": { "type": "string", "minLength": 1 },
+        "componentCapture": { "type": "string", "minLength": 1 },
+        "reflectionCatalog": { "type": "string" },
+        "allFunctionCandidatesUnique": { "type": "boolean" },
+        "runtimeLayoutValidated": { "type": "boolean" },
+        "componentMappingsValidated": { "type": "boolean" },
+        "functionSemanticsValidated": { "type": "boolean" },
+        "unresolvedComponentCount": { "type": "integer", "minimum": 0 },
+        "reviewer": { "type": "string", "minLength": 1 },
+        "reviewedAtFileTimeUtc": { "type": "integer", "minimum": 0 },
+        "reviewEvidence": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_manager_count",
+        "entity_manager_table",
+        "component_offsets",
+        "component_strides",
+        "entity_id",
+        "entity_generation",
+        "entity_layout",
+        "entity_storage",
+        "entity_definition",
+        "entity_row",
+        "component_bits",
+        "lookup_manager"
+      ],
+      "properties": {
+        "entity_manager_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_manager_table": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "component_offsets": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "component_strides": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_layout": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_storage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_definition": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "entity_row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "component_bits": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "lookup_manager": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "game_thread",
+        "entity_manager",
+        "world_prop_update",
+        "world_actor_placement"
+      ],
+      "properties": {
+        "game_thread": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "signature",
+            "original"
+          ],
+          "properties": {
+            "signature": {
+              "type": "string",
+              "minLength": 14
+            },
+            "original": {
+              "type": "array",
+              "minItems": 5,
+              "maxItems": 32,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            }
+          }
+        },
+        "entity_manager": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "signature",
+            "original"
+          ],
+          "properties": {
+            "signature": {
+              "type": "string",
+              "minLength": 14
+            },
+            "original": {
+              "type": "array",
+              "minItems": 5,
+              "maxItems": 32,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
+            }
+          }
+        },
+        "world_prop_update": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signature", "original"],
+          "properties": {
+            "signature": { "type": "string", "minLength": 14 },
+            "original": { "type": "array", "minItems": 5, "maxItems": 32, "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
+          }
+        },
+        "world_actor_placement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signature", "original"],
+          "properties": {
+            "signature": { "type": "string", "minLength": 14 },
+            "original": { "type": "array", "minItems": 5, "maxItems": 32, "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
+          }
+        }
+      }
+    },
+    "worldOperations": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^runtime\\.world\\.": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["abi", "thread", "context"],
+          "oneOf": [
+            { "required": ["functionRva"] },
+            { "required": ["globalRva"] }
+          ],
+          "properties": {
+            "functionRva": { "type": "integer", "minimum": 1 },
+            "globalRva": { "type": "integer", "minimum": 1 },
+            "guardRva": { "type": "integer", "minimum": 0 },
+            "validationOffset": { "type": "integer", "minimum": 1 },
+            "mode": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "contextPointerOffset": { "type": "integer" },
+            "worldOffset": { "type": "integer" },
+            "eventIdRva": { "type": "integer", "minimum": 1 },
+            "guardBytes": {
+              "type": "array",
+              "maxItems": 64,
+              "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+            },
+            "abi": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "thread": { "const": "game" },
+            "context": { "type": "string", "minLength": 1, "maxLength": 256 }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtimePatches": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^runtime\\.patch\\.": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signature", "kind", "function", "overwriteBytes", "payload"],
+          "properties": {
+            "signature": { "type": "string", "minLength": 5, "maxLength": 256 },
+            "kind": { "enum": ["bytes", "detour"] },
+            "function": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "beginRva", "endRva", "targetOffset"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+                "beginRva": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+                "endRva": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+                "targetOffset": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+              }
+            },
+            "overwriteBytes": { "type": "integer", "minimum": 3, "maximum": 32 },
+            "payload": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
+            "returnRel32Offset": { "type": "integer", "minimum": 1, "maximum": 252 }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "worldContexts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityPlacement"],
+      "properties": {
+        "entityPlacement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["actorFrameServiceViewOffset", "serviceViewWorldOffset", "placementContextOffset", "placeQueueOffset", "removeQueueOffset", "publishStateOffset", "publishCommandsOffset", "ownerOffset"],
+          "properties": {
+            "actorFrameServiceViewOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "serviceViewWorldOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "placementContextOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "placeQueueOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "removeQueueOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "publishStateOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "publishCommandsOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+            "ownerOffset": {"type": "integer", "minimum": 0, "maximum": 65536}
+          }
+        }
+      }
+    },
+    "entityDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "name", "nameSize"],
+      "properties": {
+        "uuid": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "name": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "nameSize": {"type": "integer", "minimum": 0, "maximum": 65536}
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "index",
+          "size"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^keen::ecs::"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1023
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "runtime-operations.schema.json",
+  "schemaVersion": 1,
+  "runtimeOperations": [
+    "runtime.lifecycle",
+    "runtime.ecs.query",
+    "runtime.ecs.resolve",
+    "runtime.ecs.read",
+    "runtime.ecs.write",
+    "runtime.world.context.active",
+    "runtime.world.voxel.read",
+    "runtime.world.voxel.write",
+    "runtime.world.entity.spawn",
+    "runtime.world.entity.place",
+    "runtime.world.entity.destroy",
+    "runtime.world.entity.finish_building",
+    "runtime.gameplay.patch"
+  ]
+}

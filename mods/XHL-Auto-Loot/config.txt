@@ -1,0 +1,30 @@
+# 小狐狸自动拾取 v1.5.0
+# Native Sidecar只对本模组拾取区域跳过原版首次0至5秒随机等待。
+# 范围检测周期约200ms；私有标记多出的123ns仅用于识别本模组。
+# 背包格子占满但目标物品仍可合并堆叠时会继续拾取；只有原版实际判定
+# 该物品无法进入背包并产生 InventoryFull 时，才暂停该玩家对此掉落物的重试。
+enabled=true
+
+# 普通重力掉落：树枝、碎石、木材、矿石碎块等
+collectGravityDrops=true
+
+# 材料堆：原木堆、石料堆、树脂堆等
+collectMaterialPiles=true
+
+# 任务、收藏、剧情拾取物。仍按你原来的设置默认关闭
+collectQuestItems=false
+
+# 自动拾取半径（米），5米可显著减少范围候选数量
+pickupRadiusMeters=5
+
+# 根据采集节点实际组件，把掉落初速度、偏移和散落半径归零
+tuneGatherNodes=true
+
+# 关闭普通白名单掉落物自身的重力，减少四处弹落
+softenGravityDrops=true
+
+# 移除白名单掉落物的生成等待
+removeSpawnDelay=true
+
+# 保留地面拾取物的闪光提示
+keepLootSparks=true

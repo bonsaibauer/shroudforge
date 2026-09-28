@@ -1,0 +1,341 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "schemaVersion": 1,
+  "enabled": true,
+  "links": {
+    "source-github": "https://github.com/bonsaibauer/shroudforge",
+    "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
+    "support-bmac": "https://buymeacoffee.com/bonsaibauer"
+  },
+  "changelog": [
+    "Adds F4-F8 World Editor shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
+  ],
+  "settings": {
+    "queryComponent": {
+      "value": "",
+      "label": "Query component type"
+    },
+    "sourceX": {
+      "value": 0,
+      "label": "Source cell X (manual fallback)"
+    },
+    "sourceY": {
+      "value": 0,
+      "label": "Source cell Y (manual fallback)"
+    },
+    "sourceZ": {
+      "value": 0,
+      "label": "Source cell Z (manual fallback)"
+    },
+    "sizeX": {
+      "value": 8,
+      "min": 1,
+      "max": 256,
+      "label": "Size X (manual fallback)"
+    },
+    "sizeY": {
+      "value": 8,
+      "min": 1,
+      "max": 256,
+      "label": "Size Y (manual fallback)"
+    },
+    "sizeZ": {
+      "value": 8,
+      "min": 1,
+      "max": 256,
+      "label": "Size Z (manual fallback)"
+    },
+    "blueprintName": {
+      "value": "my_blueprint",
+      "minLength": 1,
+      "maxLength": 64,
+      "label": "Persistent blueprint name"
+    },
+    "pasteVoxelMode": {
+      "value": "replace",
+      "options": {
+        "replace": "Replace target voxels",
+        "add": "Add occupied source voxels"
+      },
+      "label": "Voxel mode"
+    },
+    "targetPropMode": {
+      "value": "keep",
+      "options": {
+        "keep": "Keep existing props",
+        "replace": "Replace intersecting props"
+      },
+      "label": "Props at target"
+    },
+    "targetX": {
+      "value": 0,
+      "label": "Target cell X"
+    },
+    "targetY": {
+      "value": 0,
+      "label": "Target cell Y"
+    },
+    "targetZ": {
+      "value": 0,
+      "label": "Target cell Z"
+    },
+    "rotationQuarterTurns": {
+      "value": 0,
+      "min": 0,
+      "max": 3,
+      "label": "Paste rotation (quarter turns around Y, 0–3)"
+    },
+    "entityHandle": {
+      "value": 0,
+      "min": 0,
+      "label": "Opaque entity handle"
+    },
+    "componentType": {
+      "value": "",
+      "label": "Component type"
+    },
+    "fieldPath": {
+      "value": "",
+      "label": "Reflected field path"
+    },
+    "fieldValue": {
+      "value": "",
+      "label": "New primitive value"
+    },
+    "templateUuidHigh": {
+      "value": "0000000000000000",
+      "label": "Template UUID high (hex)"
+    },
+    "templateUuidLow": {
+      "value": "0000000000000000",
+      "label": "Template UUID low (hex)"
+    },
+    "trackingId": {
+      "value": 0,
+      "min": 0,
+      "label": "Tracking ID"
+    },
+    "feedbackId": {
+      "value": 0,
+      "label": "Material feedback ID (placement only)"
+    },
+    "entityX": {
+      "value": 0,
+      "label": "Position X"
+    },
+    "entityY": {
+      "value": 0,
+      "label": "Position Y"
+    },
+    "entityZ": {
+      "value": 0,
+      "label": "Position Z"
+    },
+    "boundsMinX": {
+      "value": 0,
+      "label": "Bounds min X"
+    },
+    "boundsMinY": {
+      "value": 0,
+      "label": "Bounds min Y"
+    },
+    "boundsMinZ": {
+      "value": 0,
+      "label": "Bounds min Z"
+    },
+    "boundsMaxX": {
+      "value": 0,
+      "label": "Bounds max X"
+    },
+    "boundsMaxY": {
+      "value": 0,
+      "label": "Bounds max Y"
+    },
+    "boundsMaxZ": {
+      "value": 0,
+      "label": "Bounds max Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "Keyboard shortcuts",
+      "description": "Shortcuts work while the game window is focused.",
+      "actions": [
+        {
+          "id": "undoVoxels",
+          "label": "F4 — Undo last paste",
+          "style": "secondary"
+        },
+        {
+          "id": "markCursorNext",
+          "label": "F5 — Mark next selection corner",
+          "style": "secondary"
+        },
+        {
+          "id": "resetEditor",
+          "label": "F6 — Reset editor",
+          "style": "secondary",
+          "confirm": "Clear the current selection, active blueprint, and undo history?"
+        },
+        {
+          "id": "pasteAtCursor",
+          "label": "F7 — Paste at cursor",
+          "style": "danger",
+          "confirm": "Write the active blueprint at the current cursor position?"
+        },
+        {
+          "id": "captureAndSave",
+          "label": "F8 — Capture and save blueprint",
+          "style": "secondary"
+        }
+      ]
+    },
+    {
+      "label": "Native entity operations",
+      "description": "Spawn and placement use native game operations.",
+      "settings": [
+        "templateUuidHigh",
+        "templateUuidLow",
+        "trackingId",
+        "entityX",
+        "entityY",
+        "entityZ",
+        "feedbackId",
+        "boundsMinX",
+        "boundsMinY",
+        "boundsMinZ",
+        "boundsMaxX",
+        "boundsMaxY",
+        "boundsMaxZ"
+      ],
+      "actions": [
+        {
+          "id": "spawnEntity",
+          "label": "Queue prop spawn",
+          "style": "danger",
+          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
+        },
+        {
+          "id": "placeEntity",
+          "label": "Place at coordinates",
+          "style": "danger",
+          "confirm": "Dispatch native placement at these coordinates?"
+        },
+        {
+          "id": "destroyEntity",
+          "label": "Destroy at coordinates",
+          "style": "danger",
+          "confirm": "Dispatch native removal at these coordinates?"
+        }
+      ]
+    },
+    {
+      "label": "Live runtime discovery",
+      "description": "Inspect the live ECS, capture regions, and manage blueprints.",
+      "settings": [
+        "sourceX",
+        "sourceY",
+        "sourceZ",
+        "sizeX",
+        "sizeY",
+        "sizeZ",
+        "blueprintName",
+        "rotationQuarterTurns",
+        "pasteVoxelMode",
+        "targetPropMode",
+        "targetX",
+        "targetY",
+        "targetZ",
+        "queryComponent",
+        "entityHandle",
+        "componentType",
+        "fieldPath",
+        "fieldValue"
+      ],
+      "actions": [
+        {
+          "id": "markCursorA",
+          "label": "Mark selection corner A",
+          "style": "secondary"
+        },
+        {
+          "id": "markCursorB",
+          "label": "Mark selection corner B",
+          "style": "secondary"
+        },
+        {
+          "id": "markCursorTarget",
+          "label": "Mark paste target",
+          "style": "secondary"
+        },
+        {
+          "id": "clearCursorSelection",
+          "label": "Clear cursor marks",
+          "style": "secondary"
+        },
+        {
+          "id": "copyVoxels",
+          "label": "Capture voxels and props",
+          "style": "secondary"
+        },
+        {
+          "id": "listProps",
+          "label": "List props in source region",
+          "style": "secondary"
+        },
+        {
+          "id": "resolveRecipes",
+          "label": "Resolve build recipes",
+          "style": "secondary"
+        },
+        {
+          "id": "saveBlueprint",
+          "label": "Save world blueprint",
+          "style": "secondary"
+        },
+        {
+          "id": "loadBlueprint",
+          "label": "Load world blueprint",
+          "style": "secondary"
+        },
+        {
+          "id": "pasteVoxels",
+          "label": "Paste voxel region",
+          "style": "danger",
+          "confirm": "Write the copied voxel region to the target coordinates?"
+        },
+        {
+          "id": "undoVoxels",
+          "label": "Undo last world paste",
+          "style": "secondary"
+        },
+        {
+          "id": "discoverTypes",
+          "label": "Discover live ECS types",
+          "style": "secondary"
+        },
+        {
+          "id": "queryEntities",
+          "label": "List matching entities",
+          "style": "secondary"
+        },
+        {
+          "id": "destroySelectedProp",
+          "label": "Destroy selected listed prop",
+          "style": "secondary"
+        },
+        {
+          "id": "inspectComponent",
+          "label": "Inspect component",
+          "style": "secondary"
+        },
+        {
+          "id": "writeField",
+          "label": "Write field to game",
+          "style": "danger",
+          "confirm": "Write this reflected component field to the live game entity?"
+        }
+      ]
+    }
+  ]
+}

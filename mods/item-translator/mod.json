@@ -1,0 +1,16 @@
+{
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
+  "id": "ItemTranslator",
+  "name": "Item Exporter and English Translator",
+  "version": "0.0.1",
+  "description": "This mod exports core Enshrouded item info and English localization text directly into clean, ready-to-use `.csv` files. It is built as a lightweight tool for wiki editors and community members to inspect and analyze game data.",
+  "authors": [
+    "madduma"
+  ],
+  "license": null,
+  "icon": null,
+  "dependencies": [],
+  "capabilities": [
+    "export"
+  ]
+}

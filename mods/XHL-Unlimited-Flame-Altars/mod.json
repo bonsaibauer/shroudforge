@@ -1,0 +1,13 @@
+{
+  "id": "xhl-unlimited-flame-altars",
+  "name": "无限灵火祭坛",
+  "version": "3.0.1",
+  "capabilities": [
+    "patch"
+  ],
+  "description": "真正取消灵火祭坛数量限制；动态接管 PlayerBases 区域注册表与 32 槽 BuildingZones 接收数组。",
+  "authors": [
+    "XHL"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
+  "id": "KPMimic",
+  "name": "KFC Parser Mimic",
+  "version": "0.0.1",
+  "description": "Extracts the in-memory data from Enshrouded, mimicking the actions of the KFC Parser executable.",
+  "authors": [
+    "madduma"
+  ],
+  "license": null,
+  "icon": null,
+  "dependencies": [],
+  "capabilities": [
+    "export"
+  ]
+}

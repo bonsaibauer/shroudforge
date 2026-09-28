@@ -1832,6 +1832,7 @@ dependencies = [
 [[package]]
 name = "kfc"
 version = "0.1.2"
+source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
 dependencies = [
  "kfc-base",
  "kfc-content",
@@ -1841,6 +1842,7 @@ dependencies = [
 [[package]]
 name = "kfc-base"
 version = "0.1.2"
+source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
 dependencies = [
  "aes",
  "bitflags 2.13.2",
@@ -1853,6 +1855,7 @@ dependencies = [
 [[package]]
 name = "kfc-content"
 version = "0.1.2"
+source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
 dependencies = [
  "anyhow",
  "block_compression",
@@ -1868,6 +1871,7 @@ dependencies = [
 [[package]]
 name = "kfc-resource"
 version = "0.1.2"
+source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
 dependencies = [
  "indexmap",
  "kfc-base",

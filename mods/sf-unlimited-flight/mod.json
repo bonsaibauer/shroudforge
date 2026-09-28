@@ -1,19 +1,16 @@
 {
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
   "id": "sf-unlimited-flight",
   "name": "SF Unlimited Flight",
   "version": "1.1.1",
-  "icon": "icon.svg",
-  "authors": ["bonsaibauer"],
-  "dependencies": [],
   "description": "Applies the build-profile-verified native flight patch.",
-  "enabled": true,
-  "settings": {},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "release": {"changelog": ["Fails activation when the native flight patch cannot be enabled and reports restoration failures."]},
-    "settingsSchema": {"type": "object", "properties": {}, "additionalProperties": false},
-    "settingGroups": [],
-    "ui": {"sections": [{"title": "Unlimited Flight", "description": "The Shroudtopia-compatible native patch is enabled while this mod is active.", "components": [{"type": "button", "label": "Toggle flight", "action": "toggleFlight", "style": "secondary"}]}]},
-    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
-  }
+  "authors": [
+    "bonsaibauer"
+  ],
+  "license": null,
+  "icon": "icon.svg",
+  "dependencies": [],
+  "capabilities": [
+    "runtime"
+  ]
 }

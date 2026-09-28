@@ -474,8 +474,7 @@ local function load_blueprint()
     local lines = {}
     for line in (content .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
     local version, dimensions, encoded = lines[1], lines[2], lines[3]
-    if (version ~= "SHROUDFORGE_WORLD_BLUEPRINT_V3" and version ~= "SHROUDFORGE_WORLD_BLUEPRINT_V2" and
-        version ~= "SHROUDFORGE_VOXEL_BLUEPRINT_V1") or not dimensions or not encoded then
+    if version ~= "SHROUDFORGE_WORLD_BLUEPRINT_V3" or not dimensions or not encoded then
         shroudforge.log.warn("World Editor: blueprint format is invalid")
         return
     end
@@ -499,45 +498,39 @@ local function load_blueprint()
         return
     end
     local props = {}
-    if version == "SHROUDFORGE_WORLD_BLUEPRINT_V2" or version == "SHROUDFORGE_WORLD_BLUEPRINT_V3" then
-        local count = tonumber(lines[4])
-        if not count or count % 1 ~= 0 or count < 0 or count > 100000 or #lines ~= 4 + count then
-            shroudforge.log.warn("World Editor: blueprint prop count is invalid")
+    local count = tonumber(lines[4])
+    if not count or count % 1 ~= 0 or count < 0 or count > 100000 or #lines ~= 4 + count then
+        shroudforge.log.warn("World Editor: blueprint prop count is invalid")
+        return
+    end
+    for index = 1, count do
+        local fields = {}
+        local field_count, invalid_field = 0, false
+        for field in (lines[index + 4] .. ","):gmatch("(.-),") do
+            field_count = field_count + 1
+            fields[field_count] = tonumber(field)
+            if not finite_number(fields[field_count]) then invalid_field = true end
+        end
+        local recipes = resolve_placeable_items()
+        if field_count ~= 11 or invalid_field or not fields[1] or fields[1] < 1 or
+           fields[1] % 1 ~= 0 or not recipes or not recipes[fields[1]] then
+            shroudforge.log.warn("World Editor: blueprint references an item without a current placement recipe")
             return
         end
-        for index = 1, count do
-            local fields = {}
-            local field_count, invalid_field = 0, false
-            for field in (lines[index + 4] .. ","):gmatch("(.-),") do
-                field_count = field_count + 1
-                fields[field_count] = tonumber(field)
-                if not finite_number(fields[field_count]) then invalid_field = true end
-            end
-            local recipes = resolve_placeable_items()
-            local expected_fields = version == "SHROUDFORGE_WORLD_BLUEPRINT_V3" and 11 or 8
-            if field_count ~= expected_fields or invalid_field or not fields[1] or fields[1] < 1 or
-               fields[1] % 1 ~= 0 or not recipes or not recipes[fields[1]] then
-                shroudforge.log.warn("World Editor: blueprint references an item without a current placement recipe")
+        for field = 2, 11 do
+            if not finite_number(fields[field]) then
+                shroudforge.log.warn("World Editor: blueprint has invalid prop transform data")
                 return
             end
-            for field = 2, expected_fields do
-                if not finite_number(fields[field]) then
-                    shroudforge.log.warn("World Editor: blueprint has invalid prop transform data")
-                    return
-                end
-            end
-            local rotation_norm = fields[5]^2 + fields[6]^2 + fields[7]^2 + fields[8]^2
-            if not finite_number(rotation_norm) or rotation_norm < 1e-12 then
-                shroudforge.log.warn("World Editor: blueprint contains a zero-length prop rotation")
-                return
-            end
-            props[#props + 1] = {itemId = fields[1], x = fields[2], y = fields[3], z = fields[4],
-                qx = fields[5], qy = fields[6], qz = fields[7], qw = fields[8],
-                sx = fields[9] or 1, sy = fields[10] or 1, sz = fields[11] or 1}
         end
-    elseif #lines ~= 3 then
-        shroudforge.log.warn("World Editor: legacy voxel blueprint has unexpected trailing data")
-        return
+        local rotation_norm = fields[5]^2 + fields[6]^2 + fields[7]^2 + fields[8]^2
+        if not finite_number(rotation_norm) or rotation_norm < 1e-12 then
+            shroudforge.log.warn("World Editor: blueprint contains a zero-length prop rotation")
+            return
+        end
+        props[#props + 1] = {itemId = fields[1], x = fields[2], y = fields[3], z = fields[4],
+            qx = fields[5], qy = fields[6], qz = fields[7], qw = fields[8],
+            sx = fields[9], sy = fields[10], sz = fields[11]}
     end
     clipboard = {region = {x = 0, y = 0, z = 0, sx = sx, sy = sy, sz = sz}, cells = cells, props = props}
     active_blueprint_name = setting("blueprintName")

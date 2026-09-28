@@ -1,0 +1,381 @@
+{
+  "allowStructuralRevalidation": true,
+  "componentCatalog": "enshrouded-client-1076226.components.json",
+  "entityDefinition": {
+    "name": 16,
+    "nameSize": 24,
+    "uuid": 0
+  },
+  "hooks": {
+    "entity_manager": {
+      "original": [
+        72,
+        129,
+        195,
+        136,
+        0,
+        0,
+        0
+      ],
+      "signature": "48 81 C3 88 00 00 00 48 81 FB 80 08 00 00 0F 82 66 FE FF FF"
+    },
+    "game_thread": {
+      "original": [
+        72,
+        139,
+        69,
+        16,
+        72,
+        139,
+        85,
+        72,
+        72,
+        133,
+        192
+      ],
+      "signature": "48 8B 45 10 48 8B 55 48 48 85 C0 74 03 F0 FF 00 48 8B 4D 08 8B 49 30"
+    },
+    "world_actor_placement": {
+      "original": [
+        72,
+        139,
+        69,
+        16,
+        72,
+        137,
+        133,
+        136,
+        2,
+        0,
+        0
+      ],
+      "signature": "48 8B 45 10 48 89 85 88 02 00 00 48 8B 45 30 48 89 85 70 03 00 00"
+    },
+    "world_prop_update": {
+      "original": [
+        51,
+        210,
+        72,
+        141,
+        76,
+        36,
+        48
+      ],
+      "signature": "33 D2 48 8D 4C 24 30 E8 4E AA 52 00 48 8D 54 24 30 49 8B CF"
+    }
+  },
+  "id": "enshrouded-client-1076226",
+  "image": {
+    "size": 47869952,
+    "timestamp": 1782724296
+  },
+  "layout": {
+    "component_bits": 0,
+    "component_offsets": 132,
+    "component_strides": 2692,
+    "entity_definition": 40,
+    "entity_generation": 20,
+    "entity_id": 16,
+    "entity_layout": 24,
+    "entity_manager_count": 344,
+    "entity_manager_table": 392,
+    "entity_row": 48,
+    "entity_storage": 32,
+    "lookup_manager": 48
+  },
+  "runtimePatches": {
+    "runtime.patch.infinite_item_split": {
+      "function": {
+        "beginRva": 3712372,
+        "endRva": 3712389,
+        "id": "patch_owner.infinite_item_split",
+        "targetOffset": 0
+      },
+      "kind": "bytes",
+      "overwriteBytes": 3,
+      "payload": [
+        144,
+        144,
+        144
+      ],
+      "signature": "29 6E 04 EB C5"
+    },
+    "runtime.patch.infinite_item_use": {
+      "function": {
+        "beginRva": 3692729,
+        "endRva": 3693862,
+        "id": "patch_owner.infinite_item_use",
+        "targetOffset": 881
+      },
+      "kind": "bytes",
+      "overwriteBytes": 7,
+      "payload": [
+        184,
+        0,
+        0,
+        0,
+        0,
+        144,
+        144
+      ],
+      "signature": "0F B6 85 ?? ?? 00 00 48 8D 4C 24 40 88 44 24 30 44 8B CE 8B 85 ?? ?? 00 00 4C 8B C3"
+    },
+    "runtime.patch.no_fall_damage": {
+      "function": {
+        "beginRva": 2302926,
+        "endRva": 2303903,
+        "id": "patch_owner.no_fall_damage",
+        "targetOffset": 468
+      },
+      "kind": "detour",
+      "overwriteBytes": 7,
+      "payload": [
+        69,
+        1,
+        12,
+        136,
+        72,
+        139,
+        203,
+        233,
+        0,
+        0,
+        0,
+        0
+      ],
+      "returnRel32Offset": 8,
+      "signature": "45 89 0C 88 48 8B CB"
+    },
+    "runtime.patch.no_resource_cost": {
+      "function": {
+        "beginRva": 3678896,
+        "endRva": 3679006,
+        "id": "patch_owner.no_resource_cost",
+        "targetOffset": 33
+      },
+      "kind": "detour",
+      "overwriteBytes": 7,
+      "payload": [
+        65,
+        188,
+        0,
+        0,
+        0,
+        0,
+        233,
+        0,
+        0,
+        0,
+        0
+      ],
+      "returnRel32Offset": 7,
+      "signature": "44 8B A5 08 01 00 00 4C 8B F9"
+    },
+    "runtime.patch.no_stamina_loss": {
+      "function": {
+        "beginRva": 2309284,
+        "endRva": 2317879,
+        "id": "patch_owner.no_stamina_loss",
+        "targetOffset": 1450
+      },
+      "kind": "detour",
+      "overwriteBytes": 7,
+      "payload": [
+        83,
+        139,
+        92,
+        145,
+        8,
+        137,
+        28,
+        145,
+        91,
+        139,
+        4,
+        145,
+        137,
+        68,
+        36,
+        64,
+        233,
+        0,
+        0,
+        0,
+        0
+      ],
+      "returnRel32Offset": 17,
+      "signature": "8B 04 91 89 44 24 40"
+    },
+    "runtime.patch.unlimited_flight": {
+      "function": {
+        "beginRva": 2271259,
+        "endRva": 2289472,
+        "id": "patch_owner.unlimited_flight",
+        "targetOffset": 1990
+      },
+      "kind": "detour",
+      "overwriteBytes": 8,
+      "payload": [
+        243,
+        15,
+        16,
+        5,
+        5,
+        0,
+        0,
+        0,
+        233,
+        0,
+        0,
+        0,
+        0,
+        195,
+        245,
+        200,
+        191
+      ],
+      "returnRel32Offset": 9,
+      "signature": "F3 0F 10 05 ?? ?? ?? ?? F2 0F 11 4C"
+    }
+  },
+  "schemaVersion": 1,
+  "target": "enshrouded.exe",
+  "worldContexts": {
+    "entityPlacement": {
+      "actorFrameServiceViewOffset": 32,
+      "ownerOffset": 308,
+      "placeQueueOffset": 176,
+      "placementContextOffset": 608,
+      "publishCommandsOffset": 224,
+      "publishStateOffset": 216,
+      "removeQueueOffset": 192,
+      "serviceViewWorldOffset": 8
+    }
+  },
+  "worldOperations": {
+    "runtime.world.context.active": {
+      "abi": "global-pointer-chain",
+      "context": "active context singleton to voxel world",
+      "contextPointerOffset": 200,
+      "globalRva": 41153928,
+      "guardBytes": [],
+      "thread": "game",
+      "validationOffset": 4624,
+      "worldOffset": -1448
+    },
+    "runtime.world.entity.destroy": {
+      "abi": "void(placementContext, transform, bounds, tracking)",
+      "context": "live actor placement context",
+      "functionRva": 4111536,
+      "guardBytes": [
+        65,
+        139,
+        134,
+        52,
+        1,
+        0,
+        0,
+        137,
+        67,
+        64
+      ],
+      "guardRva": 4111794,
+      "thread": "game"
+    },
+    "runtime.world.entity.finish_building": {
+      "abi": "void(placementContext, reserved, eventId, complete)",
+      "context": "live actor placement context",
+      "eventIdRva": 20980324,
+      "functionRva": 4093936,
+      "guardBytes": [
+        72,
+        137,
+        92,
+        36,
+        16
+      ],
+      "guardRva": 4093936,
+      "thread": "game"
+    },
+    "runtime.world.entity.place": {
+      "abi": "void(placementContext, transform, bounds, tracking, feedback)",
+      "context": "live actor placement context",
+      "functionRva": 4111216,
+      "guardBytes": [
+        65,
+        139,
+        134,
+        52,
+        1,
+        0,
+        0,
+        137,
+        67,
+        68
+      ],
+      "guardRva": 4111490,
+      "thread": "game"
+    },
+    "runtime.world.entity.spawn": {
+      "abi": "uint32(executionView, templateUuid, position, rotation, tracking, flags, auxiliary)",
+      "context": "prop update execution view",
+      "functionRva": 4067616,
+      "guardBytes": [
+        72,
+        137,
+        92,
+        36,
+        32,
+        85,
+        86,
+        87,
+        65,
+        86,
+        65,
+        87
+      ],
+      "guardRva": 4067616,
+      "thread": "game"
+    },
+    "runtime.world.voxel.read": {
+      "abi": "bool(CellSpan*, dimensions, world, mode, origin)",
+      "context": "resolved voxel world",
+      "functionRva": 15210960,
+      "guardBytes": [
+        68,
+        137,
+        76,
+        36,
+        32,
+        76,
+        137,
+        68,
+        36,
+        24
+      ],
+      "guardRva": 15210960,
+      "mode": 6,
+      "thread": "game"
+    },
+    "runtime.world.voxel.write": {
+      "abi": "void(world, CellSpan*, dimensions, origin)",
+      "context": "resolved voxel world",
+      "functionRva": 15256352,
+      "guardBytes": [
+        76,
+        139,
+        220,
+        77,
+        137,
+        75,
+        32,
+        77,
+        137,
+        67,
+        24
+      ],
+      "guardRva": 15256352,
+      "thread": "game"
+    }
+  }
+}

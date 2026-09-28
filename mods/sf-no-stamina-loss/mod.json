@@ -1,19 +1,16 @@
 {
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
   "id": "sf-no-stamina-loss",
   "name": "SF No Stamina Loss",
   "version": "1.1.1",
-  "icon": "icon.svg",
-  "authors": ["bonsaibauer"],
-  "dependencies": [],
   "description": "Prevents stamina depletion with the build-profile-verified native patch.",
-  "enabled": true,
-  "settings": {"preventDepletion": true},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "release": {"changelog": ["Deduplicates repeated patch errors and fails activation if the configured patch state cannot be applied."]},
-    "settingsSchema": {"type": "object", "properties": {"preventDepletion": {"type": "boolean", "title": "Prevent stamina depletion", "default": true, "x-ui": {"key": "preventDepletion", "type": "boolean", "control": "checkbox", "label": "Prevent stamina depletion", "default": true, "group": "stamina"}}}, "additionalProperties": false},
-    "settingGroups": [{"id": "stamina", "label": "Stamina behavior", "description": "Uses the build-specific runtime patch."}],
-    "ui": {"sections": [{"title": "No Stamina Loss", "description": "Applies the guarded build-specific stamina patch.", "components": [{"type": "setting", "key": "preventDepletion"}]}]},
-    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
-  }
+  "authors": [
+    "bonsaibauer"
+  ],
+  "license": null,
+  "icon": "icon.svg",
+  "dependencies": [],
+  "capabilities": [
+    "runtime"
+  ]
 }

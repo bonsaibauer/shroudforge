@@ -1,294 +1,123 @@
 # ShroudForge
 
-[![Made With Love](https://img.shields.io/badge/Made%20with%20%E2%9D%A4%EF%B8%8F-by%20bonsaibauer-green)](https://github.com/bonsaibauer)
+[![Made with love](https://img.shields.io/badge/Made%20with%20%E2%9D%A4%EF%B8%8F-by%20bonsaibauer-green)](https://github.com/bonsaibauer)
 [![Repository](https://img.shields.io/badge/Repository-shroudforge-blue?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge)
 [![License](https://img.shields.io/badge/License-MIT-blue)](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE)
-[![Visitors](https://visitor-badge.laobi.icu/badge?page_id=bonsaibauer.shroudforge)](https://github.com/bonsaibauer/shroudforge)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat&logo=windows&logoColor=white)](https://github.com/bonsaibauer/shroudforge)
 
+## Welcome!
 
-[![Report Bug](https://img.shields.io/badge/Report-Bug-critical?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml)
-[![Request Feature](https://img.shields.io/badge/Request-Feature-green?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=feature_request.yml)
-[![Compatibility Problem](https://img.shields.io/badge/Report-Compatibility_Problem-important?style=flat&logo=github)](https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml)
+ShroudForge helps you install and make mods for **Enshrouded**. A mod is a small add-on that changes or adds something in the game. You can use mods made by other players, or create your own.
 
-![GitHub Stars](https://img.shields.io/github/stars/bonsaibauer/shroudforge?style=social)
-![GitHub Forks](https://img.shields.io/github/forks/bonsaibauer/shroudforge?style=social)
+New to mods? Start with the illustrated guide. It explains everything in simple steps, in English and German:
 
-## Download latest Release
+- [English: install ShroudForge, add mods, and make your first mod](https://bonsaibauer.github.io/shroudforge/en/)
+- [Deutsch: ShroudForge einrichten, Mods hinzufügen und den ersten Mod bauen](https://bonsaibauer.github.io/shroudforge/de/)
 
-[![Latest Release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/bonsaibauer/shroudforge/total)](https://github.com/bonsaibauer/shroudforge/releases)
+The guide includes separate instructions for your PC and game server, pictures of the Modloader, a first-mod lesson, and an interactive preview for mod settings.
 
-ShroudForge is a modding platform for **Enshrouded**. You can use ready-made mods
-or create your own mods with Lua. Every mod uses the same simple format: a
-`mod.json` file and a `src/mod.lua` file.
+![ShroudForge Modloader in Enshrouded](assets/modloader-ui.png)
 
-![ShroudForge Modloader UI](images/modloader-ui.png)
-
-## Quickstart
+## Quickstart: use ShroudForge
 
 1. Close Enshrouded.
-2. Open the [latest ShroudForge release](https://github.com/bonsaibauer/shroudforge/releases/latest).
-3. Download `shroudforge-<version>-<build>.zip`.
-4. Extract the ZIP contents directly into your Enshrouded installation directory, next to `enshrouded.exe`.
-5. Start the game
-6. Press `F9` in the game to open the modloader.
-7. Press `F10` to open the Debug Console.
+2. Download the [latest ShroudForge release](https://github.com/bonsaibauer/shroudforge/releases/latest).
+3. Right-click the downloaded ZIP and choose **Extract All**.
+4. Open the Enshrouded folder that contains **enshrouded.exe**.
+5. Copy the files from the ZIP into that folder, beside **enshrouded.exe**.
+6. Start Enshrouded and press **F9** to open the Modloader.
 
-The typical Steam path is:
+A common Steam folder is:
 
-```text
+~~~text
 C:\Program Files (x86)\Steam\steamapps\common\Enshrouded
-```
+~~~
 
-The installed bootstrap applies changed asset mods automatically during its early
-startup pass. For a fully serialized start that finishes asset publication before
-creating the game process, use the integrated launch command with the installation
-folder explicitly:
-The launcher accepts any client or server installation directory containing the
-corresponding Enshrouded executable:
+The Modloader is the ShroudForge window inside the game. It shows your mods and lets you switch them on or off. Press **F10** to read messages if something does not work.
 
-```powershell
-.\shroudforge.exe launch "C:\Program Files (x86)\Steam\steamapps\common\Enshrouded"
-```
+### Add a mod
 
-The release includes `shroudforge/config/shroudforge.json`, news embedded in the loader
-binary, compatibility profiles embedded in `kfc-runtime.dll`, and bundled mods
-under `mods/<id>/`. Runtime state is generated in
-`shroudforge/config/state.json`. Logs are created only when the loader runs. Repository
-schemas, API sources, templates, documentation, and submodules are not included
-in the player ZIP.
+Follow the mod creator's instructions. Unpack the mod download, then copy the mod's folder into **mods**, beside **enshrouded.exe**. Its **mod.json** file should be directly inside the mod folder:
 
-The ZIP installs at its root beside `enshrouded.exe`; it has no extra `game/`
-directory. It includes `winmm.dll`, `shroudforge-runtime.dll`, `kfc-runtime.dll`,
-`shroudforge.exe`, `shroudforge/version.json`, and mod packages. Mutable ShroudForge
-data lives under `shroudforge/`: settings, runtime state, and the WebView2 profile
-are under `shroudforge/config/`, the current log is `shroudforge/shroudforge.log`,
-archived logs are in `shroudforge/logs/`, and staged updates and backups are in
-`shroudforge/updates/`. Modloader work files such as downloaded packages,
-queued mod actions, and removed mods are stored in `shroudforge/ui/`. The
-`shroudforge.exe` contains the CLI, Modloader UI, Debug Console, Commands,
-runtime diagnostics, and updater; helper binaries are not distributed separately.
-`shroudforge/shroudforge.log`, `shroudforge/config/state.json`, the WebView2 profile,
-and lock files are generated only while the installation is in use.
+~~~text
+Enshrouded/
+├── enshrouded.exe
+└── mods/
+    └── my-mod/
+        ├── mod.json
+        └── src/
+            └── mod.lua
+~~~
 
-Updates are shown in the modloader. A staged update is installed after the game
-exits. Your own mods, settings, and logs are preserved.
+Open the game, press **F9**, find the mod, and switch it on. Some mods need a game restart. Mods that change game files must prepare those changes before the game starts. Start Enshrouded through ShroudForge for those mods:
 
-## Bundled mods
+~~~powershell
+.\shroudforge\shroudforge.exe launch "."
+~~~
 
-| Mod | What does it do? | Target |
-| --- | --- | --- |
-| **Flight** | Applies the build-verified flight patch while enabled. | Client |
-| **Infinite Item Split** | Restores the source stack after the One, Half, or CustomAmount split selected in game. | Client |
-| **Infinite Item Use** | Applies the build-verified item-use patch to the matched operation for all items. | Client |
-| **No Fall Damage** | Prevents your character from taking fall damage. | Client |
-| **No Resource Cost** | Applies the build-verified recipe-cost patch. | Client |
-| **No Stamina Loss** | Prevents your character's stamina from decreasing. | Client |
-| **Unlock Blueprints** | Unlocks the supported crafting recipes. | Client and server |
+Read the full [PC quickstart](https://bonsaibauer.github.io/shroudforge/en/#play) or [server guide](https://bonsaibauer.github.io/shroudforge/en/#server) for screenshots and help with each step.
 
-Mods are stored in the `mods` directory. Each mod can be installed as a directory
-or a ZIP file. At the package root, `mod.json` and `src/mod.lua` under `src/` form
-the bundled mod layout.
+## Make your first mod
 
-## Bundled modules
+Start with the [mod template](templates/mod/README.md). It gives you the files for a small mod and explains what to change.
 
-Modules are first-party ShroudForge components, not community mods.
+The website's [first-mod lesson](https://bonsaibauer.github.io/shroudforge/en/#first) walks through a complete example. When you are ready, try the [mod settings guide](https://bonsaibauer.github.io/shroudforge/en/#manifests): edit an example on the left and see the Modloader-style preview on the right. It also shows how `extended.mod.json` exposes a setting and how Lua reads it with `shroudforge.settings.get`.
 
-| Module | Purpose |
+To look up functions or Enshrouded game information, open the [searchable API reference](https://bonsaibauer.github.io/shroudforge/en/#api).
+
+## Mods included in the release
+
+The build checks mod folders for **mod.json**, a mod ID, and **src/mod.lua**, then checks the Lua files before packaging them. These are the 11 packages included in the release build today:
+
+| Mod | What it does |
 | --- | --- |
-| **Modloader UI** | Displays mods, settings, messages, and updates. Open it with `F9`. |
-| **Debug Console** | Displays `enshrouded.log` and `shroudforge/shroudforge.log` with search and filters. Open it with `F10`. |
-| **Commands** | Provides the central command interface for ShroudForge. |
-| **Updater** | Checks for and installs staged ShroudForge updates after the game exits. |
+| **Fishing Data Exporter** | Saves fishing information in CSV files for community research. |
+| **Item Exporter and English Translator** | Saves item information and English names in CSV files. |
+| **KFC Parser Mimic** | Exports Enshrouded game data in a format similar to the KFC Parser tool. |
+| **SF Infinite Item Split** | Keeps the selected amount from being removed from the original stack when splitting items. |
+| **SF Infinite Item Use** | Prevents item use from consuming the item. |
+| **SF No Fall Damage** | Prevents fall damage. |
+| **SF No Resource Cost** | Removes the supported crafting cost. |
+| **SF No Stamina Loss** | Prevents stamina from running out. |
+| **SF Unlimited Flight** | Applies the supported change to flight. |
+| **SF Unlock Blueprints** | Unlocks supported crafting recipes. |
+| **World Editor** | Adds shortcuts for marking an area, undoing, and saving or placing blueprints. |
 
-## API documentation
+## What is inside the modules folder?
 
-Want to know which functions, game types, fields, and resources you can use in a
-mod?
+The folder **src/loader/modules/** contains five built-in Rust modules. They are parts of ShroudForge; they are not separate mods you need to install.
 
-**[Open the ShroudForge API documentation](https://bonsaibauer.github.io/shroudforge/)**
-
-| Namespace | Purpose |
+| Module | What it does |
 | --- | --- |
-| `game.*` | Read or modify game types, resources, and game data. |
-| `runtime.*` | Work with the running game world and its components. |
-| `shroudforge.*` | Use logging, settings, mod UI, and notifications. |
+| **Commands** | Provides a command-module entry point and reports whether it is available. |
+| **Debug Console** | Shows and filters messages from Enshrouded and ShroudForge. Press **F10** in game. |
+| **Modloader UI** | Lets you find, install, manage, and update mods. It also shows settings, notices, and compatibility details. Press **F9** in game. |
+| **Runtime Diagnostics** | An optional, time-limited view of runtime health and mod activity. |
+| **Updater** | Queues mod install and update work, and applies ShroudForge updates after Enshrouded closes. |
 
-The API site contains the current catalog for Enshrouded build `1076226`, with
-14,398 types, 42,729 fields, and 131 resource types.
+There is also **ui-shared**, a small folder of shared visual styles used by the user interfaces. It is not a separate running module.
 
-## Build your first mod
+The loader also has major parts outside this folder, including its API, mod package handling, compatibility checks, parser, and startup workflow. See the [developer architecture guide](docs/sf/Architecture.md) for the full map.
 
-### 1. Create the directory structure
+## For contributors
 
-```text
-my-first-mod/
-├── mod.json
-└── src/
-    └── mod.lua
-```
+The [developer documentation](docs/sf/README.md) explains how the repository is organized and where to find the mod, runtime, parser, and Modloader content guides.
 
-You can also copy the ready-made
-[Lua template](https://github.com/bonsaibauer/shroudforge/tree/main/templates/mod).
+## Help and community
 
-### 2. Create `mod.json`
+If something goes wrong, check the [guide](https://bonsaibauer.github.io/shroudforge/en/) and the mod creator's instructions first. If you still need help, [open an issue](https://github.com/bonsaibauer/shroudforge/issues/new). Tell us what you expected, what happened, and which game, ShroudForge, and mod versions you use. The **F10** messages can help explain the problem. Please remove private information before sharing them.
 
-```json
-{
-  "id": "yourname.my-first-mod",
-  "name": "My First Mod",
-  "version": "1.0.0",
-  "authors": ["Your Name", "Another Author"],
-  "dependencies": [],
-  "description": "My first ShroudForge mod.",
-  "shroudforge": {
-    "schemaVersion": 1,
-    "links": {
-      "source": "https://github.com/yourname/my-first-mod",
-      "issues": "https://github.com/yourname/my-first-mod/issues/new?template=bug_report.yml",
-      "wiki": "https://github.com/yourname/my-first-mod/wiki",
-      "discord": "https://discord.gg/example",
-      "website": "https://example.com",
-      "store": "https://example.com/store",
-      "support": [
-        { "platform": "bmac", "url": "https://buymeacoffee.com/yourname" },
-        { "platform": "patreon", "url": "https://patreon.com/yourname" }
-      ]
-    }
-  }
-}
-```
+- [Report a bug](https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml)
+- [Suggest a feature](https://github.com/bonsaibauer/shroudforge/issues/new?template=feature_request.yml)
+- [Report a compatibility problem](https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml)
 
-| Field | Description |
-| --- | --- |
-| `id` | Unique identifier. Lowercase letters, numbers, periods, and hyphens are allowed. |
-| `name` | Name shown to players in the modloader. |
-| `version` | Your mod's version in `MAJOR.MINOR.PATCH` format. |
-| `dependencies` | Other mods that must be installed first. |
-| `description` | A short, simple description. |
-| `authors` | One or more author names, shown beside the mod title. Keep the spelling and capitalization you want players to see. |
-| `shroudforge.links` | Optional HTTPS links shown as buttons in the mod information card. Direct project links: `source`, `source-github`, `source-gitlab`, `source-codeberg`, `issues`, `wiki`, `discord`, `website`, and `store`. Generic `source` stays platform-neutral; provider-specific source keys use the provider badge. `support` is a list of `{ "platform", "url" }` entries. Supported platform IDs: `bmac`, `patreon`, `paypal`, `github`, `ko-fi`, `open-collective`, and `other`. |
+## Download
 
-The loader derives runtime, asset-write, export, target process, and setting
-apply phase from the Lua API calls in the package. Do not add `api`,
-`capabilities`, or `target` fields to `mod.json`. Runtime ECS, world, and patch
-APIs target the Client. Asset writes and exports can run in Client or Server.
+[![Latest release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/bonsaibauer/shroudforge/total)](https://github.com/bonsaibauer/shroudforge/releases)
 
-### 3. Write Lua code
+## License and support
 
-Save your code in `src/mod.lua`:
+ShroudForge is shared under the [MIT License](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE).
 
-```lua
-shroudforge.log.info("My First Mod was loaded")
-
-local enabled = shroudforge.settings.get("enabled")
-
-if enabled then
-    shroudforge.log.info("The mod is enabled")
-end
-```
-
-A mod with `runtime` runs while the game is running. A mod with `assets-write`
-changes resources before the game starts. Use the
-[API search](https://bonsaibauer.github.io/shroudforge/) to find suitable types
-and functions.
-
-### 4. Add a setting
-
-Keep the user's setting value in `settings` and its definition in the ShroudForge
-settings schema within the same `mod.json`:
-
-```json
-"enabled": true,
-"settings": { "allowDescent": false },
-"shroudforge": {
-  "schemaVersion": 1,
-  "settingsSchema": {
-    "type": "object",
-    "properties": {
-      "allowDescent": {
-        "type": "boolean",
-        "title": "Allow downward movement",
-        "default": false,
-        "x-apply": "restart",
-        "x-ui": {
-          "control": "toggle",
-          "label": "Allow downward movement",
-          "description": "Allow the character to descend during flight."
-        }
-      }
-    },
-    "additionalProperties": false
-  }
-}
-```
-
-The activation field `enabled` and setting values are saved directly in the
-mod's `mod.json`. The modloader supports toggles, checkboxes, text fields, number fields, sliders,
-select controls, key bindings, and colors. A mod can also display custom sections,
-tabs, notices, and safe button actions. The complete structure is documented in
-[`mod.schema.json`](config/mods/mod-schema.json).
-
-### 5. Test the mod
-
-1. Copy the mod directory to `Enshrouded\mods`.
-2. Start Enshrouded with `shroudforge.exe launch "."`.
-3. Open the modloader with `F9`.
-4. Check the logs with `F10` if something does not work.
-5. Make sure your mod cleanly resets its state when it shuts down.
-
-### 6. Distribute the mod as a ZIP file
-
-The ZIP file must have this structure at its root:
-
-```text
-mod.json
-src/mod.lua
-assets/            optional
-```
-
-Do not add an extra top-level directory to the ZIP file. Native DLLs, machine
-code, and custom executable files do not belong in a ShroudForge mod.
-
-## Project structure for developers
-
-| Directory | Contents |
-| --- | --- |
-| `Shroudforge_Parser` | Reads the current Enshrouded data. |
-| `Shroudforge_Compatibility` | Checks the data against the supported game build. |
-| `Shroudforge_API` | Provides the Lua API. |
-| `Shroudforge_Modloader` | Loads, validates, and starts mods. |
-| `Shroudforge_Modules` | Source crates for modules linked into `shroudforge.exe`; not copied into the player ZIP. |
-| `mods` | Contains the bundled Lua mods. |
-| `site` | Contains the public API site. |
-
-### Check the project
-
-```powershell
-cargo fmt --check
-cargo check --workspace
-cargo test --workspace
-npm run site:check
-```
-
-The Modloader UI is built in `Shroudforge_Modules/modloader-ui/ui`. Translations
-are stored as JSON files under `ui/src/locales`; English is the source language.
-The complete Windows release is built with `build.ps1`.
-
-## Getting help and reporting problems
-
-Open a [new GitHub issue](https://github.com/bonsaibauer/shroudforge/issues/new)
-and include a short description of the problem and the relevant section of
-`shroudforge/shroudforge.log`.
-
-## License
-
-ShroudForge is available under the
-[MIT License](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE).
-
-## Buy Me A Coffee
-
-If this project has helped you in any way, do buy me a coffee so I can continue to build more of such projects in the future and share them with the community!
-
-<a href="https://buymeacoffee.com/bonsaibauer" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+If you enjoy the project, you can [buy the creator a coffee](https://buymeacoffee.com/bonsaibauer). Thank you for being part of the community!

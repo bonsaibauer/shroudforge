@@ -1,19 +1,16 @@
 {
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
   "id": "sf-infinite-item-use",
   "name": "SF Infinite Item Use",
   "version": "1.1.1",
-  "icon": "icon.svg",
-  "authors": ["bonsaibauer"],
-  "dependencies": [],
   "description": "Prevents item-use consumption with a build-profile-verified client patch. The effect applies globally to the patched game operation.",
-  "enabled": true,
-  "settings": {},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "release": {"changelog": ["Documents global patch scope and reports activation and restoration failures consistently."]},
-    "settingsSchema": {"type": "object", "properties": {}, "additionalProperties": false},
-    "settingGroups": [],
-    "ui": {"sections": [{"title": "Infinite Item Use", "description": "The native patch applies to the matched item-use operation for all items. Per-item exclusions and custom consumption amounts are not supported by this build-profile operation.", "components": []}]},
-    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
-  }
+  "authors": [
+    "bonsaibauer"
+  ],
+  "license": null,
+  "icon": "icon.svg",
+  "dependencies": [],
+  "capabilities": [
+    "runtime"
+  ]
 }

@@ -1,19 +1,16 @@
 {
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
   "id": "sf-no-resource-cost",
   "name": "SF No Resource Cost",
   "version": "1.1.1",
-  "icon": "icon.svg",
-  "authors": ["bonsaibauer"],
-  "dependencies": [],
   "description": "Uses the build-profile-verified native recipe-cost patch.",
-  "enabled": true,
-  "settings": {},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "release": {"changelog": ["Reports native patch activation and restoration failures consistently."]},
-    "settingsSchema": {"type": "object", "properties": {}, "additionalProperties": false},
-    "settingGroups": [],
-    "ui": {"sections": [{"title": "No Resource Cost", "description": "The build-specific patch is enabled while this mod is active.", "components": []}]},
-    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
-  }
+  "authors": [
+    "bonsaibauer"
+  ],
+  "license": null,
+  "icon": "icon.svg",
+  "dependencies": [],
+  "capabilities": [
+    "runtime"
+  ]
 }

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "title": "ShroudForge mod extension",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "enabled"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "enabled": { "type": "boolean" },
+    "links": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+      "additionalProperties": { "type": "string", "pattern": "^https://", "maxLength": 2048 }
+    },
+    "changelog": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    },
+    "settings": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+      "additionalProperties": {
+        "oneOf": [
+          { "type": ["boolean", "string", "number", "array"] },
+          { "$ref": "#/$defs/setting" }
+        ]
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/group" }
+    }
+  },
+  "$defs": {
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "type": ["boolean", "string", "number", "array"] },
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 500 },
+        "control": { "enum": ["toggle", "checkbox", "text", "textarea", "number", "slider", "select", "radio", "segmented", "multiselect", "keybind", "color"] },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number", "exclusiveMinimum": 0 },
+        "minLength": { "type": "integer", "minimum": 0 },
+        "maxLength": { "type": "integer", "minimum": 0 },
+        "options": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "style": { "enum": ["primary", "secondary", "danger"] },
+        "confirm": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 500 },
+        "settings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
+        },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
+      }
+    }
+  }
+}

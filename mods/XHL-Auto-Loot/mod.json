@@ -1,0 +1,13 @@
+{
+  "id": "xhl-auto-loot",
+  "name": "自动拾取",
+  "version": "1.5.0",
+  "capabilities": [
+    "patch"
+  ],
+  "description": "默认在5米范围内自动收集通过名称白名单和组件校验的采集掉落物；稳定采集节点掉落，跳过原版首次0至5秒随机等待，并在不影响有效堆叠合并的情况下抑制被拒绝的InventoryFull重复重试。",
+  "authors": [
+    "XHL"
+  ],
+  "license": "MIT"
+}

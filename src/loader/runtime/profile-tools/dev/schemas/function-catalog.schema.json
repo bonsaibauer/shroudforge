@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KFC Runtime build-specific function catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "target", "image", "functions", "globals"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "target": { "enum": ["enshrouded.exe", "enshrouded_server.exe"] },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "size"],
+      "properties": {
+        "timestamp": { "type": "integer", "minimum": 0 },
+        "size": { "type": "integer", "minimum": 4096 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "purpose", "signature", "callingConvention", "thread", "semanticStatus"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_.-]+$" },
+          "purpose": { "type": "string", "minLength": 1 },
+          "signature": { "type": "string", "minLength": 14 },
+          "original": { "type": "array", "minItems": 5, "maxItems": 32, "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
+          "expectedRva": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+          "operationKind": { "type": "string" },
+          "callingConvention": { "type": "string" },
+          "thread": { "type": "string" },
+          "semanticStatus": { "enum": ["unverified", "candidate", "verified"] },
+          "sideEffects": { "type": "array", "items": { "type": "string" } },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "globals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rva", "abi", "thread", "context", "semanticStatus"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_.-]+$" },
+          "rva": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+          "abi": { "type": "string" },
+          "thread": { "type": "string" },
+          "context": { "type": "string" },
+          "semanticStatus": { "enum": ["unverified", "candidate", "verified"] }
+        }
+      }
+    }
+  }
+}

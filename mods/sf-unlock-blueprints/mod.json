@@ -1,41 +1,16 @@
 {
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
   "version": "1.0.1",
-  "icon": "icon.svg",
+  "description": "Unlocks crafting recipes through the native keen::RecipeRegistryResource type.",
   "authors": [
     "bonsaibauer"
   ],
+  "license": null,
+  "icon": "icon.svg",
   "dependencies": [],
-  "description": "Unlocks crafting recipes through the native keen::RecipeRegistryResource type.",
-  "enabled": true,
-  "settings": {},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "release": {
-      "changelog": [
-        "Counts only recipes and registries whose requirement data actually changed."
-      ]
-    },
-    "settingsSchema": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
-    },
-    "settingGroups": [],
-    "ui": {
-      "sections": [
-        {
-          "title": "Unlock Blueprints",
-          "description": "Changes recipe assets during startup. Enable or disable this mod, then restart the game to apply the asset changes.",
-          "components": []
-        }
-      ]
-    },
-    "links": {
-      "source-github": "https://github.com/bonsaibauer/shroudforge",
-      "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
-      "support-bmac": "https://buymeacoffee.com/bonsaibauer"
-    }
-  }
+  "capabilities": [
+    "patch"
+  ]
 }

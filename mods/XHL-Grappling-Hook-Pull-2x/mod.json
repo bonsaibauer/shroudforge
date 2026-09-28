@@ -1,0 +1,13 @@
+{
+  "id": "xhl-grappling-hook-pull-2x",
+  "name": "2倍抓钩牵引距离",
+  "version": "1.0.0",
+  "capabilities": [
+    "patch"
+  ],
+  "description": "将所有抓钩的实际牵引距离提高至2倍，摆荡距离保持不变。",
+  "authors": [
+    "XHL"
+  ],
+  "license": "MIT"
+}

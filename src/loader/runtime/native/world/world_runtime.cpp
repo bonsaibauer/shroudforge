@@ -1,0 +1,586 @@
+#include "world_runtime.h"
+#include "profile.h"
+#include "dispatcher.h"
+#include <windows.h>
+#include <algorithm>
+#include <array>
+#include <cstring>
+#include <memory>
+#include <mutex>
+#include <atomic>
+#include <cmath>
+#include <condition_variable>
+#include <cstdint>
+#include <vector>
+
+namespace WorldRuntime {
+namespace {
+constexpr std::size_t MaximumCells = 65'536;
+constexpr std::uint32_t OperationTimeoutMs = 3000;
+struct Cell { std::uint8_t material{}, density{}; };
+static_assert(sizeof(Cell) == 2);
+struct CellSpan { Cell* data{}; std::uint64_t size{}; };
+using NativeRead = bool (__fastcall*)(CellSpan*, const std::uint32_t*, const void*, std::uint32_t, const std::int32_t*);
+using NativeWrite = void (__fastcall*)(void*, CellSpan*, const std::uint32_t*, const std::int32_t*);
+
+struct Operation {
+    enum class Kind { Read, Write } kind{};
+    std::array<std::int32_t, 3> origin{};
+    std::array<std::uint32_t, 3> dimensions{};
+    std::vector<Cell> cells;
+    bool result{};
+    bool write_attempted{};
+    bool rollback_verified{};
+};
+
+struct EngineTransform {
+    std::int64_t position[3]{};
+    float rotation[4]{};
+    float scale[3]{1,1,1};
+    std::uint32_t padding{};
+};
+static_assert(sizeof(EngineTransform) == 0x38);
+struct alignas(16) PlacementBounds { float minimum[4]{}; float maximum[4]{}; };
+static_assert(sizeof(PlacementBounds) == 32 && offsetof(PlacementBounds, maximum) == 16);
+struct EntityRequest {
+    enum class Kind { Spawn, Place, Destroy, Finish } kind{};
+    std::uint64_t template_uuid[2]{};
+    double position[3]{}, rotation[4]{0,0,0,1};
+    float bounds[6]{};
+    std::uint32_t tracking{}, feedback{}, flags{}, event_id{};
+    bool complete{};
+    HANDLE completed{CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+    std::atomic<bool> done{}, success{};
+    std::atomic<bool> cancelled{};
+    std::uint32_t queue_token{};
+    ~EntityRequest() { if (completed) CloseHandle(completed); }
+};
+std::atomic<std::shared_ptr<EntityRequest>> pending_entity_request;
+
+bool read_memory(std::uintptr_t address, void* output, std::size_t size) {
+    SIZE_T read{};
+    return address && output && size && ReadProcessMemory(GetCurrentProcess(),
+        reinterpret_cast<const void*>(address), output, size, &read) && read == size;
+}
+
+const KfcRuntimeCompatibility::EnshroudedClient::RuntimeOperation* find_operation(const char* name) {
+    if (!name) return nullptr;
+    const auto& operations = KfcRuntimeCompatibility::EnshroudedClient::runtime_operations;
+    const auto found = std::find_if(operations.begin(), operations.end(), [name](const auto& op) {
+        return op.name == name;
+    });
+    return found == operations.end() ? nullptr : &*found;
+}
+
+bool resolve_voxel_world(std::uintptr_t& world) {
+    const auto* profile = find_operation("runtime.world.context.active");
+    const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+    std::uintptr_t singleton{}, context{}, store{};
+    if (!profile || !profile->available || !profile->global_rva || !profile->context_pointer_offset ||
+        !profile->world_offset || !read_memory(base + profile->global_rva, &singleton, sizeof(singleton)) || !singleton)
+        return false;
+    const auto context_slot = static_cast<std::uintptr_t>(static_cast<std::intptr_t>(singleton) + profile->context_pointer_offset);
+    if (!read_memory(context_slot, &context, sizeof(context)) || !context) return false;
+    const auto signed_world = static_cast<std::intptr_t>(context) + profile->world_offset;
+    if (signed_world <= 0) return false;
+    world = static_cast<std::uintptr_t>(signed_world);
+    // Match Shroudtopia's live-world validation before using this context.
+    return profile->validation_offset && read_memory(world + profile->validation_offset, &store, sizeof(store)) && store;
+}
+
+bool actor_frame_matches_active_world(void* actor_frame) {
+    if (!actor_frame) return false;
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    std::uintptr_t service_view{}, actor_world{}, active_world{};
+    const auto frame = reinterpret_cast<std::uintptr_t>(actor_frame);
+    if (!layout.actor_frame_service_view || !layout.service_view_world ||
+        !read_memory(frame + layout.actor_frame_service_view, &service_view, sizeof(service_view)) || !service_view ||
+        !read_memory(service_view + layout.service_view_world, &actor_world, sizeof(actor_world)) || !actor_world ||
+        !resolve_voxel_world(active_world)) return false;
+    return actor_world == active_world;
+}
+
+bool safe_read(NativeRead function, CellSpan* span, const std::uint32_t* dimensions,
+               const void* world, std::uint32_t mode, const std::int32_t* origin) {
+    __try { return function(span, dimensions, world, mode, origin); }
+    __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+bool safe_write(NativeWrite function, void* world, CellSpan* span,
+                const std::uint32_t* dimensions, const std::int32_t* origin) {
+    __try { function(world, span, dimensions, origin); return true; }
+    __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+using NativeCreate = std::uint32_t (__fastcall*)(void*, const std::uint64_t*, const float*, const float*,
+                                                  std::uint32_t, std::uint32_t, const std::uint64_t*);
+using NativePlace = void (__fastcall*)(void*, const EngineTransform*, const float*, std::uint32_t, std::uint32_t);
+using NativeDestroy = void (__fastcall*)(void*, const EngineTransform*, const float*, std::uint32_t);
+using NativeFinish = void (__fastcall*)(void*, void*, std::uint32_t, bool);
+
+bool valid_transform(const EntityRequest& request, EngineTransform& transform) {
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(request.position[axis])) return false;
+        const auto fixed = std::ldexp(request.position[axis], 32);
+        if (!std::isfinite(fixed) || fixed < static_cast<double>(INT64_MIN) || fixed > static_cast<double>(INT64_MAX)) return false;
+        transform.position[axis] = static_cast<std::int64_t>(std::llround(fixed));
+    }
+    long double norm{};
+    for (int index = 0; index < 4; ++index) {
+        if (!std::isfinite(request.rotation[index])) return false;
+        norm += static_cast<long double>(request.rotation[index]) * request.rotation[index];
+    }
+    if (!std::isfinite(norm) || norm < 1e-12L) return false;
+    const auto inverse_norm = 1.0L / std::sqrt(norm);
+    for (int index = 0; index < 4; ++index)
+        transform.rotation[index] = static_cast<float>(request.rotation[index] * inverse_norm);
+    return true;
+}
+
+std::uintptr_t image_base() { return reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr)); }
+
+bool native_finish(void* context, bool complete) {
+    const auto* profile = find_operation("runtime.world.entity.finish_building");
+    const auto event_rva = KfcRuntimeCompatibility::EnshroudedClient::world_finish_event_id_rva;
+    std::uint32_t event_id{};
+    const auto base = image_base();
+    if (!context || !profile || !profile->available || !event_rva ||
+        !read_memory(base + event_rva, &event_id, sizeof(event_id)) || !event_id) return false;
+    auto function = reinterpret_cast<NativeFinish>(base + profile->function_rva);
+    __try { function(context, nullptr, event_id, complete); return true; }
+    __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
+
+void complete_entity_request(const std::shared_ptr<EntityRequest>& request, bool success, std::uint32_t token = 0) {
+    request->queue_token = token;
+    request->success.store(success, std::memory_order_release);
+    request->done.store(true, std::memory_order_release);
+    if (request->completed) SetEvent(request->completed);
+    auto expected = request;
+    pending_entity_request.compare_exchange_strong(expected, {}, std::memory_order_acq_rel);
+}
+
+bool perform_spawn(const std::shared_ptr<EntityRequest>& request, void* execution_view) {
+    const auto* profile = find_operation("runtime.world.entity.spawn");
+    const auto base = image_base();
+    if (!execution_view || !profile || !profile->available ||
+        !(request->template_uuid[0] || request->template_uuid[1])) return false;
+    EngineTransform transform{};
+    if (!valid_transform(*request, transform)) return false;
+    float position[4]{};
+    for (int axis = 0; axis < 3; ++axis) {
+        position[axis] = static_cast<float>(request->position[axis]);
+        if (!std::isfinite(position[axis])) return false;
+    }
+    std::uintptr_t context[1]{reinterpret_cast<std::uintptr_t>(execution_view)};
+    const std::uint64_t auxiliary[2]{};
+    std::uint32_t token{};
+    auto function = reinterpret_cast<NativeCreate>(base + profile->function_rva);
+    __try { token = function(context, request->template_uuid, position, transform.rotation,
+                             request->tracking, request->flags, auxiliary); }
+    __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
+    request->queue_token = token;
+    return token != 0;
+}
+
+void execute_entity_request(const std::shared_ptr<EntityRequest>& request, void* execution_view, void* actor_frame) {
+    if (!request || request->cancelled.load(std::memory_order_acquire) || request->done.load(std::memory_order_acquire)) return;
+    if (request->kind == EntityRequest::Kind::Spawn) {
+        const auto ok = actor_frame_matches_active_world(actor_frame) && perform_spawn(request, execution_view);
+        complete_entity_request(request, ok, request->queue_token);
+        return;
+    }
+    const auto* place_profile = find_operation(request->kind == EntityRequest::Kind::Destroy
+        ? "runtime.world.entity.destroy" : "runtime.world.entity.place");
+    const auto* finish_profile = find_operation("runtime.world.entity.finish_building");
+    const auto base = image_base();
+    if (request->kind != EntityRequest::Kind::Finish && (!place_profile || !place_profile->available)) {
+        complete_entity_request(request, false); return;
+    }
+    if (!finish_profile || !finish_profile->available || !actor_frame) { complete_entity_request(request, false); return; }
+    const auto frame = reinterpret_cast<std::uintptr_t>(actor_frame);
+    if (!actor_frame_matches_active_world(actor_frame)) { complete_entity_request(request, false); return; }
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    const auto native_address = frame + layout.placement_context;
+    std::uintptr_t root{}, place_queue{}, remove_queue{}, publish_state{}, publish_commands{};
+    std::uint32_t owner{};
+    if (!read_memory(native_address, &root, sizeof(root)) || root != reinterpret_cast<std::uintptr_t>(execution_view) ||
+        !read_memory(native_address + layout.place_queue, &place_queue, sizeof(place_queue)) ||
+        !read_memory(native_address + layout.remove_queue, &remove_queue, sizeof(remove_queue)) ||
+        !read_memory(native_address + layout.publish_state, &publish_state, sizeof(publish_state)) ||
+        !read_memory(native_address + layout.publish_commands, &publish_commands, sizeof(publish_commands)) ||
+        !read_memory(native_address + layout.owner, &owner, sizeof(owner)) || !owner || !publish_state || !publish_commands ||
+        (request->kind == EntityRequest::Kind::Destroy ? !remove_queue : request->kind == EntityRequest::Kind::Place && !place_queue)) {
+        complete_entity_request(request, false); return;
+    }
+    bool called = true;
+    if (request->kind == EntityRequest::Kind::Finish) {
+        called = native_finish(reinterpret_cast<void*>(native_address), request->complete);
+    } else {
+        EngineTransform transform{};
+        if (!valid_transform(*request, transform)) { complete_entity_request(request, false); return; }
+        PlacementBounds bounds{};
+        std::copy_n(request->bounds, 3, bounds.minimum);
+        std::copy_n(request->bounds + 3, 3, bounds.maximum);
+        if (request->kind == EntityRequest::Kind::Place) {
+            auto function = reinterpret_cast<NativePlace>(base + place_profile->function_rva);
+            __try { function(reinterpret_cast<void*>(native_address), &transform, bounds.minimum, request->tracking, request->feedback); }
+            __except(EXCEPTION_EXECUTE_HANDLER) { called = false; }
+        } else {
+            auto function = reinterpret_cast<NativeDestroy>(base + place_profile->function_rva);
+            __try { function(reinterpret_cast<void*>(native_address), &transform, bounds.minimum, request->tracking); }
+            __except(EXCEPTION_EXECUTE_HANDLER) { called = false; }
+        }
+        if (called) called = native_finish(reinterpret_cast<void*>(native_address), true);
+    }
+    complete_entity_request(request, called);
+}
+
+bool invoke_entity_request(const std::shared_ptr<EntityRequest>& request, std::uint32_t* outcome) {
+    if (!outcome) return false;
+    *outcome = 1;
+    if (!GameThreadDispatcher::EntityContextReady() || !request->completed) return false;
+    std::shared_ptr<EntityRequest> empty;
+    if (!pending_entity_request.compare_exchange_strong(empty, request, std::memory_order_acq_rel)) return false;
+    if (WaitForSingleObject(request->completed, OperationTimeoutMs) != WAIT_OBJECT_0) {
+        request->cancelled.store(true, std::memory_order_release);
+        auto expected = request;
+        pending_entity_request.compare_exchange_strong(expected, {}, std::memory_order_acq_rel);
+        *outcome = 3;
+        return false;
+    }
+    if (request->success.load(std::memory_order_acquire)) { *outcome = 0; return true; }
+    *outcome = 2;
+    return false;
+}
+
+bool component_address(std::uintptr_t layout, std::uintptr_t storage, std::uint32_t row,
+                       std::uint16_t index, std::uint32_t expected_size, std::uintptr_t& address) {
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    std::uint64_t bits{};
+    std::uint16_t offset{}, stride{};
+    if (!layout || !storage || !component_offsets || !component_strides ||
+        !read_memory(layout + component_bits + (index / 64) * sizeof(std::uint64_t), &bits, sizeof(bits)) ||
+        !(bits & (std::uint64_t{1} << (index % 64))) ||
+        !read_memory(layout + component_offsets + index * sizeof(offset), &offset, sizeof(offset)) ||
+        !read_memory(layout + component_strides + index * sizeof(stride), &stride, sizeof(stride)) ||
+        stride != expected_size) return false;
+    address = storage + offset + static_cast<std::uintptr_t>(row) * stride;
+    return true;
+}
+
+bool count_spawn_matches(const EntityRequest& request, std::size_t& matches) {
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    const auto& components = runtime_components;
+    const auto manager = GameThreadDispatcher::EntityManager();
+    const auto transform_type = std::find_if(components.begin(), components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
+    const auto item_type = std::find_if(components.begin(), components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
+    if (!manager || transform_type == components.end() || item_type == components.end()) return false;
+    std::uint64_t count{};
+    std::uintptr_t table{};
+    if (!read_memory(manager + entity_manager_count, &count, sizeof(count)) || !count || count > (1u << 20) ||
+        !read_memory(manager + entity_manager_table, &table, sizeof(table)) || !table) return false;
+    std::vector<std::uintptr_t> pointers(static_cast<std::size_t>(count));
+    if (!read_memory(table, pointers.data(), pointers.size() * sizeof(pointers[0]))) return false;
+    matches = 0;
+    for (const auto pointer : pointers) {
+        if (!pointer) continue;
+        std::uintptr_t layout{}, storage{};
+        std::uint32_t row{}, id{};
+        if (!read_memory(pointer + entity_id, &id, sizeof(id)) || !id ||
+            !read_memory(pointer + entity_layout, &layout, sizeof(layout)) || !layout ||
+            !read_memory(pointer + entity_storage, &storage, sizeof(storage)) || !storage ||
+            !read_memory(pointer + entity_row, &row, sizeof(row))) continue;
+        std::uintptr_t item_address{};
+        std::uint32_t tracking{};
+        if (!component_address(layout, storage, row, item_type->index, item_type->size, item_address) ||
+            !read_memory(item_address, &tracking, sizeof(tracking)) || tracking != request.tracking) continue;
+        std::uintptr_t transform_address{};
+        EngineTransform transform{};
+        if (!component_address(layout, storage, row, transform_type->index, transform_type->size, transform_address) ||
+            !read_memory(transform_address, &transform, sizeof(transform))) continue;
+        bool position_matches = true;
+        for (int axis = 0; axis < 3; ++axis) {
+            const auto expected = std::ldexp(request.position[axis], 32);
+            if (!std::isfinite(expected) || std::abs(static_cast<long double>(transform.position[axis]) - expected) > (1LL << 24)) {
+                position_matches = false;
+                break;
+            }
+        }
+        if (position_matches) ++matches;
+    }
+    return true;
+}
+
+bool verify_spawn(const EntityRequest& request, std::size_t previous_matches) {
+    const auto deadline = GetTickCount64() + 2000;
+    do {
+        std::size_t current_matches{};
+        if (count_spawn_matches(request, current_matches) && current_matches > previous_matches) return true;
+        if (GetTickCount64() < deadline) Sleep(10);
+    } while (GetTickCount64() < deadline);
+    return false;
+}
+
+bool verify_destroy(const EntityRequest& request, std::size_t previous_matches) {
+    const auto deadline = GetTickCount64() + 2000;
+    do {
+        std::size_t current_matches{};
+        if (count_spawn_matches(request, current_matches) && current_matches < previous_matches) return true;
+        if (GetTickCount64() < deadline) Sleep(10);
+    } while (GetTickCount64() < deadline);
+    return false;
+}
+
+void execute(void* opaque) {
+    auto& op = *static_cast<Operation*>(opaque);
+    std::uintptr_t world{};
+    if (!resolve_voxel_world(world)) return;
+    const auto* read_profile = find_operation("runtime.world.voxel.read");
+    const auto* write_profile = find_operation("runtime.world.voxel.write");
+    const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+    if (!read_profile || !read_profile->available) return;
+    auto read_fn = reinterpret_cast<NativeRead>(base + read_profile->function_rva);
+    CellSpan span{op.cells.data(), op.cells.size()};
+    if (op.kind == Operation::Kind::Read) {
+        op.result = safe_read(read_fn, &span, op.dimensions.data(), reinterpret_cast<void*>(world), read_profile->mode, op.origin.data());
+        return;
+    }
+    if (!write_profile || !write_profile->available) return;
+    auto write_fn = reinterpret_cast<NativeWrite>(base + write_profile->function_rva);
+    std::array<std::int32_t, 3> expanded_origin{};
+    std::array<std::uint32_t, 3> expanded_dimensions{};
+    std::size_t expanded_count = 1;
+    std::array<std::size_t, 3> offset{};
+    for (int axis = 0; axis < 3; ++axis) {
+        const auto low = static_cast<std::int64_t>(op.origin[axis]);
+        const auto high = low + op.dimensions[axis];
+        auto chunk_low = low / 8;
+        if (low < 0 && low % 8) --chunk_low;
+        auto chunk_high = high / 8;
+        if (high > 0 && high % 8) ++chunk_high;
+        const auto aligned_low = chunk_low * 8;
+        const auto aligned_high = chunk_high * 8;
+        if (aligned_low < INT32_MIN || aligned_low > INT32_MAX || aligned_high <= aligned_low ||
+            static_cast<std::uint64_t>(aligned_high - aligned_low) > MaximumCells / expanded_count) return;
+        expanded_origin[axis] = static_cast<std::int32_t>(aligned_low);
+        expanded_dimensions[axis] = static_cast<std::uint32_t>(aligned_high - aligned_low);
+        offset[axis] = static_cast<std::size_t>(low - aligned_low);
+        expanded_count *= expanded_dimensions[axis];
+    }
+    std::vector<Cell> expanded(expanded_count);
+    CellSpan expanded_span{expanded.data(), expanded.size()};
+    if (!safe_read(read_fn, &expanded_span, expanded_dimensions.data(), reinterpret_cast<void*>(world), read_profile->mode, expanded_origin.data())) return;
+    auto original = expanded;
+    for (std::size_t z = 0; z < op.dimensions[2]; ++z)
+        for (std::size_t y = 0; y < op.dimensions[1]; ++y)
+            for (std::size_t x = 0; x < op.dimensions[0]; ++x) {
+                const auto source = (z * op.dimensions[1] + y) * op.dimensions[0] + x;
+                const auto target = ((z + offset[2]) * expanded_dimensions[1] + y + offset[1]) * expanded_dimensions[0] + x + offset[0];
+                expanded[target] = op.cells[source];
+            }
+    const auto restore_original = [&]() {
+        CellSpan restore_span{original.data(), original.size()};
+        if (!safe_write(write_fn, reinterpret_cast<void*>(world), &restore_span, expanded_dimensions.data(), expanded_origin.data())) return;
+        std::vector<Cell> restored(expanded_count);
+        CellSpan restored_span{restored.data(), restored.size()};
+        op.rollback_verified = safe_read(read_fn, &restored_span, expanded_dimensions.data(), reinterpret_cast<void*>(world), read_profile->mode, expanded_origin.data()) &&
+            std::memcmp(restored.data(), original.data(), original.size() * sizeof(Cell)) == 0;
+    };
+    op.result = false;
+    op.write_attempted = true;
+    if (!safe_write(write_fn, reinterpret_cast<void*>(world), &expanded_span, expanded_dimensions.data(), expanded_origin.data())) {
+        restore_original();
+        op.result = false;
+        return;
+    }
+    std::vector<Cell> verify(expanded_count);
+    CellSpan verify_span{verify.data(), verify.size()};
+    if (!safe_read(read_fn, &verify_span, expanded_dimensions.data(), reinterpret_cast<void*>(world), read_profile->mode, expanded_origin.data()) ||
+        std::memcmp(verify.data(), expanded.data(), expanded.size() * sizeof(Cell)) != 0) {
+        restore_original();
+        op.result = false;
+        return;
+    }
+    op.result = true;
+}
+
+bool cell_count(const std::uint32_t dimensions[3], std::size_t& count) {
+    if (!dimensions) return false;
+    count = 1;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!dimensions[axis] || dimensions[axis] > MaximumCells / count) return false;
+        count *= dimensions[axis];
+    }
+    return count <= MaximumCells;
+}
+}
+
+bool OperationAvailable(const char* name) {
+    const auto* operation = find_operation(name);
+    return operation && operation->available;
+}
+
+bool EntityContextReady() { return GameThreadDispatcher::EntityContextReady(); }
+
+void OnPropUpdate(void* execution_view, void* actor_frame) {
+    const auto request = pending_entity_request.load(std::memory_order_acquire);
+    if (!request || request->kind != EntityRequest::Kind::Spawn) return;
+    execute_entity_request(request, execution_view, actor_frame);
+}
+
+void OnActorPlacement(void* execution_view, void* actor_frame) {
+    const auto request = pending_entity_request.load(std::memory_order_acquire);
+    if (!request || request->kind == EntityRequest::Kind::Spawn) return;
+    execute_entity_request(request, execution_view, actor_frame);
+}
+
+bool ActiveContextAvailable() {
+    std::uintptr_t world{};
+    return GameThreadDispatcher::Ready() && resolve_voxel_world(world);
+}
+
+bool ReadVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3],
+                std::uint16_t* values, std::size_t capacity, std::size_t* actual) {
+    std::size_t count{};
+    if (!origin || !values || !actual || !cell_count(dimensions, count) || count > capacity ||
+        !OperationAvailable("runtime.world.voxel.read") || !GameThreadDispatcher::Ready()) return false;
+    auto op = std::make_shared<Operation>();
+    op->kind = Operation::Kind::Read;
+    std::copy_n(origin, 3, op->origin.begin());
+    std::copy_n(dimensions, 3, op->dimensions.begin());
+    op->cells.resize(count);
+    if (!GameThreadDispatcher::Invoke(execute, op, 500) || !op->result) return false;
+    for (std::size_t i = 0; i < count; ++i)
+        values[i] = static_cast<std::uint16_t>(op->cells[i].material | (static_cast<std::uint16_t>(op->cells[i].density) << 8));
+    *actual = count;
+    return true;
+}
+
+bool WriteVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3],
+                 const std::uint16_t* values, std::size_t count, std::uint32_t* outcome) {
+    if (!outcome) return false;
+    *outcome = 1; // rejected before writing
+    std::size_t expected{};
+    if (!origin || !values || !cell_count(dimensions, expected) || count != expected ||
+        !OperationAvailable("runtime.world.voxel.read") ||
+        !OperationAvailable("runtime.world.voxel.write") || !GameThreadDispatcher::Ready()) return false;
+    auto op = std::make_shared<Operation>();
+    op->kind = Operation::Kind::Write;
+    std::copy_n(origin, 3, op->origin.begin());
+    std::copy_n(dimensions, 3, op->dimensions.begin());
+    op->cells.resize(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        op->cells[i].material = static_cast<std::uint8_t>(values[i]);
+        op->cells[i].density = static_cast<std::uint8_t>(values[i] >> 8);
+    }
+    if (!GameThreadDispatcher::Invoke(execute, op, 500)) {
+        *outcome = 3; // the game-thread request may have started before timeout
+        return false;
+    }
+    if (op->result) { *outcome = 0; return true; }
+    *outcome = op->write_attempted ? (op->rollback_verified ? 2u : 3u) : 1u;
+    return false;
+}
+
+bool SpawnEntity(const std::uint64_t template_uuid[2], const double position[3],
+                 const double rotation[4], std::uint32_t tracking, std::uint32_t flags,
+                 std::uint32_t* queue_token, std::uint32_t* outcome) {
+    if (!queue_token || !template_uuid || !position || !rotation || !outcome || !tracking ||
+        !OperationAvailable("runtime.world.entity.spawn")) return false;
+    std::size_t previous_matches{};
+    auto request = std::make_shared<EntityRequest>();
+    request->kind = EntityRequest::Kind::Spawn;
+    std::copy_n(template_uuid, 2, request->template_uuid);
+    std::copy_n(position, 3, request->position);
+    std::copy_n(rotation, 4, request->rotation);
+    request->tracking = tracking;
+    request->flags = flags;
+    if (!count_spawn_matches(*request, previous_matches)) { *outcome = 1; return false; }
+    const auto ok = invoke_entity_request(request, outcome);
+    *queue_token = request->queue_token;
+    if (!ok) return false;
+    if (verify_spawn(*request, previous_matches)) return true;
+    *outcome = 4; // command ran, but no matching live ECS entity was observed
+    return false;
+}
+
+bool PlaceEntity(const double position[3], const double rotation[4], const float bounds[6],
+                 std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
+    if (!position || !rotation || !bounds || !tracking || !feedback || !outcome ||
+        !OperationAvailable("runtime.world.entity.place") ||
+        !OperationAvailable("runtime.world.entity.finish_building")) return false;
+    for (int axis = 0; axis < 3; ++axis)
+        if (!std::isfinite(bounds[axis]) || !std::isfinite(bounds[axis + 3]) || bounds[axis] > bounds[axis + 3]) return false;
+    auto request = std::make_shared<EntityRequest>();
+    request->kind = EntityRequest::Kind::Place;
+    std::copy_n(position, 3, request->position);
+    std::copy_n(rotation, 4, request->rotation);
+    std::copy_n(bounds, 6, request->bounds);
+    request->tracking = tracking;
+    request->feedback = feedback;
+    return invoke_entity_request(request, outcome);
+}
+
+bool DestroyEntity(const double position[3], const double rotation[4], const float bounds[6],
+                   std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
+    if (!position || !rotation || !bounds || !tracking || !outcome ||
+        !OperationAvailable("runtime.world.entity.destroy") ||
+        !OperationAvailable("runtime.world.entity.finish_building")) return false;
+    for (int axis = 0; axis < 3; ++axis)
+        if (!std::isfinite(bounds[axis]) || !std::isfinite(bounds[axis + 3]) || bounds[axis] > bounds[axis + 3]) return false;
+    auto request = std::make_shared<EntityRequest>();
+    request->kind = EntityRequest::Kind::Destroy;
+    std::copy_n(position, 3, request->position);
+    std::copy_n(rotation, 4, request->rotation);
+    std::copy_n(bounds, 6, request->bounds);
+    request->tracking = tracking;
+    request->feedback = feedback;
+    std::size_t previous_matches{};
+    if (!count_spawn_matches(*request, previous_matches) || !previous_matches) { *outcome = 1; return false; }
+    if (!invoke_entity_request(request, outcome)) return false;
+    if (verify_destroy(*request, previous_matches)) return true;
+    *outcome = 4;
+    return false;
+}
+
+bool FinishBuilding(bool complete, std::uint32_t* outcome) {
+    if (!outcome || !OperationAvailable("runtime.world.entity.finish_building")) return false;
+    auto request = std::make_shared<EntityRequest>();
+    request->kind = EntityRequest::Kind::Finish;
+    request->complete = complete;
+    return invoke_entity_request(request, outcome);
+}
+}
+
+extern "C" {
+bool __cdecl KfcRuntimeWorldOperationAvailable(const char* name) { return WorldRuntime::OperationAvailable(name); }
+bool __cdecl KfcRuntimeWorldContextActive() { return WorldRuntime::ActiveContextAvailable(); }
+bool __cdecl KfcRuntimeWorldEntityContextReady() { return WorldRuntime::EntityContextReady(); }
+bool __cdecl KfcRuntimeWorldVoxelRead(const std::int32_t* origin, const std::uint32_t* dimensions,
+    std::uint16_t* values, std::size_t capacity, std::size_t* actual) {
+    return WorldRuntime::ReadVoxels(origin, dimensions, values, capacity, actual);
+}
+bool __cdecl KfcRuntimeWorldVoxelWrite(const std::int32_t* origin, const std::uint32_t* dimensions,
+    const std::uint16_t* values, std::size_t count, std::uint32_t* outcome) {
+    return WorldRuntime::WriteVoxels(origin, dimensions, values, count, outcome);
+}
+bool __cdecl KfcRuntimeWorldEntitySpawn(const std::uint64_t* template_uuid, const double* position,
+    const double* rotation, std::uint32_t tracking, std::uint32_t flags,
+    std::uint32_t* queue_token, std::uint32_t* outcome) {
+    return WorldRuntime::SpawnEntity(template_uuid, position, rotation, tracking, flags, queue_token, outcome);
+}
+bool __cdecl KfcRuntimeWorldEntityPlace(const double* position, const double* rotation,
+    const float* bounds, std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
+    return WorldRuntime::PlaceEntity(position, rotation, bounds, tracking, feedback, outcome);
+}
+bool __cdecl KfcRuntimeWorldEntityDestroy(const double* position, const double* rotation,
+    const float* bounds, std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
+    return WorldRuntime::DestroyEntity(position, rotation, bounds, tracking, feedback, outcome);
+}
+bool __cdecl KfcRuntimeWorldEntityFinishBuilding(bool complete, std::uint32_t* outcome) {
+    return WorldRuntime::FinishBuilding(complete, outcome);
+}
+}

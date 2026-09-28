@@ -1,33 +1,16 @@
 {
-  "$schema": "../../config/mods/mod-schema.json",
-  "id": "mod.example",
-  "name": "Example",
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
+  "id": "example.hello-ember",
+  "name": "Hello Ember",
   "version": "1.0.0",
+  "description": "A small ShroudForge starter mod that demonstrates saved settings, a Modloader action, and runtime logging.",
   "authors": [
-    "Your name"
+    "Your Name"
   ],
-  "capabilities": [
-    "patch",
-    "runtime"
-  ],
+  "license": null,
+  "icon": "icon.svg",
   "dependencies": [],
-  "enabled": false,
-  "settings": {},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "links": {
-      "source": "https://github.com/yourname/mod.example",
-      "issues": "https://github.com/yourname/mod.example/issues/new?template=bug_report.yml",
-      "wiki": "https://github.com/yourname/mod.example/wiki",
-      "website": "https://example.com",
-      "store": "https://example.com/store",
-      "support-bmac": "https://buymeacoffee.com/yourname",
-      "support-patreon": "https://patreon.com/yourname"
-    },
-    "settingsSchema": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
-    }
-  }
+  "capabilities": [
+    "runtime"
+  ]
 }

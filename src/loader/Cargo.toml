@@ -1,0 +1,34 @@
+[package]
+name = "shroudforge-modloader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+path = "workflow/lib.rs"
+
+[[bin]]
+name = "shroudforge"
+path = "workflow/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+semver.workspace = true
+tracing = "0.1"
+shroudforge-parser = { path = "../parser" }
+shroudforge-compatibility = { path = "compatibility" }
+shroudforge-api = { path = "api" }
+shroudforge-package.workspace = true
+shroudforge-commands = { path = "modules/commands" }
+shroudforge-debug-console = { path = "modules/debug-console" }
+shroudforge-modloader-ui = { path = "modules/modloader-ui" }
+shroudforge-runtime-diagnostics = { path = "modules/runtime-diagnostics" }
+shroudforge-updater = { path = "modules/updater" }
+mlua = { version = "0.11.2", features = ["lua54", "vendored"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp"] }

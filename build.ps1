@@ -26,7 +26,7 @@ if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "VERSION must use MAJOR.MINOR.
 $output = Join-Path $root 'build\x64'
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 
-$modloaderUiSource = Join-Path $root 'Shroudforge_Modules\modloader-ui\ui'
+$modloaderUiSource = Join-Path $root 'src\loader\modules\modloader-ui\ui'
 if ($SkipUiBuild) {
     if (-not (Test-Path -LiteralPath (Join-Path $modloaderUiSource 'dist\index.html'))) {
         throw 'The built Modloader UI is missing; remove -SkipUiBuild.'
@@ -57,10 +57,12 @@ $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.
 if (-not $visualStudio) { throw 'Visual Studio C++ build tools were not found.' }
 $msbuild = Join-Path $visualStudio 'MSBuild\Current\Bin\MSBuild.exe'
 $runtimeCmake = Join-Path $visualStudio 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
-& $runtimeCmake -S (Join-Path $root 'Shroudforge_Modloader/kfc-runtime') -B (Join-Path $root 'build/native-runtime') -A x64
+& $runtimeCmake -S $root -B (Join-Path $root 'build/native-runtime') -A x64
 if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime configuration failed.' }
 & $runtimeCmake --build (Join-Path $root 'build/native-runtime') --config Release
 if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime build failed.' }
+& cargo build --manifest-path (Join-Path $root 'src\parser\kfc-parser\Cargo.toml') --release -p dbghelp-proxy -p dinput8-proxy --target-dir $cargoTargetPath
+if ($LASTEXITCODE -ne 0) { throw 'EML-compatible Windows proxy build failed.' }
 if (-not $SkipTests) {
     & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
     if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }
@@ -77,8 +79,9 @@ if (-not (Test-Path -LiteralPath $updater)) { throw "Standalone updater missing:
 Copy-Item -LiteralPath $runtime -Destination (Join-Path $output 'shroudforge-runtime.dll') -Force
 Copy-Item -LiteralPath $cli -Destination (Join-Path $output 'shroudforge.exe') -Force
 Copy-Item -LiteralPath $updater -Destination (Join-Path $output 'shroudforge-updater.exe') -Force
-Copy-Item -LiteralPath (Join-Path $root 'build/native-runtime/Release/kfc-runtime.dll') -Destination $output -Force
-$bootstrap = Join-Path $root 'Shroudforge_Modloader\bootstrap\windows\ShroudForge.Bootstrap.vcxproj'
+Copy-Item -LiteralPath (Join-Path $root 'build/native-runtime/bin/kfc-runtime.dll') -Destination $output -Force
+Copy-Item -LiteralPath (Join-Path $cargoTargetPath 'release\dbghelp.dll'),(Join-Path $cargoTargetPath 'release\dinput8.dll') -Destination $output -Force
+$bootstrap = Join-Path $root 'src\bootstrap\windows\ShroudForge.Bootstrap.vcxproj'
 & $msbuild $bootstrap /m /t:Build /p:Configuration=Release /p:Platform=x64 /p:OutDir="$output\"
 if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Windows bootstrap build failed.' }
 
@@ -128,21 +131,17 @@ Assert-BuildPath $package
 Assert-BuildPath $archive
 Remove-Item -LiteralPath $package -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $package | Out-Null
-Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe'),(Join-Path $output 'shroudforge-updater.exe') -Destination $package
-& $runtimeCmake --install (Join-Path $root 'build/native-runtime') --config Release --prefix $package
-if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime packaging failed.' }
+Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'dbghelp.dll'),(Join-Path $output 'dinput8.dll') -Destination $package
+$dataPackage = Join-Path $package 'shroudforge'
+New-Item -ItemType Directory -Force -Path $dataPackage | Out-Null
+Copy-Item -LiteralPath (Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe'),(Join-Path $output 'shroudforge-updater.exe'),(Join-Path $output 'kfc-runtime.dll') -Destination $dataPackage
 Copy-ShroudForgeMods (Join-Path $package 'mods')
 # Explicit release inputs: never ship an installation's generated state, events or locks.
-$configSource = Join-Path $root 'config'
-$dataPackage = Join-Path $package 'shroudforge'
+$configSource = Join-Path $root 'src\loader\package\src\config'
 $configPackage = Join-Path $dataPackage 'config'
 New-Item -ItemType Directory -Force -Path $configPackage | Out-Null
-Copy-Item -LiteralPath (Join-Path $configSource 'shroudforge.json') -Destination $configPackage -Force
-if (-not (Test-Path -LiteralPath (Join-Path $configPackage 'shroudforge.json'))) { throw 'Release configuration was not staged.' }
-if ((Test-Path -LiteralPath (Join-Path $package 'Shroudforge_Modules')) -or
-    (Test-Path -LiteralPath (Join-Path $package 'Shroudforge_Updater'))) {
-    throw 'Standalone module directories must not be included in the release.'
-}
+Copy-Item -LiteralPath (Join-Path $configSource 'loader.default.json') -Destination (Join-Path $configPackage 'loader.json') -Force
+if (-not (Test-Path -LiteralPath (Join-Path $configPackage 'loader.json'))) { throw 'Release configuration was not staged.' }
 $versionManifest = [ordered]@{
     version = $version
     build = $BuildNumber
@@ -151,19 +150,16 @@ $versionManifest = [ordered]@{
     requiredAction = 'game_restart'
     managedPaths = @(Get-ChildItem -LiteralPath $package -File -Recurse |
         ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName).Replace('\', '/') } |
-        Where-Object { $_ -notin @('shroudforge/config/shroudforge.json', 'shroudforge/config/state.json', 'shroudforge/config/.shroudforge-write.lock') }) + @('shroudforge/version.json')
+        Where-Object { $_ -notin @('shroudforge/config/loader.json', 'shroudforge/state/state.json', 'shroudforge/config/.shroudforge-write.lock') }) + @('shroudforge/version.json')
 }
 $versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dataPackage 'version.json') -Encoding utf8
 Compress-Archive -Path "$package\*" -DestinationPath $archive -Force
 $releaseZip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $entryNames = @($releaseZip.Entries | ForEach-Object { $_.FullName })
-    if ($entryNames -notcontains 'shroudforge.exe' -or $entryNames -notcontains 'shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/config/shroudforge.json' -or
+    if ($entryNames -notcontains 'winmm.dll' -or $entryNames -notcontains 'dbghelp.dll' -or $entryNames -notcontains 'dinput8.dll' -or $entryNames -notcontains 'mods/sf-world-editor/mod.json' -or $entryNames -notcontains 'shroudforge/shroudforge.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-runtime.dll' -or $entryNames -notcontains 'shroudforge/kfc-runtime.dll' -or $entryNames -notcontains 'shroudforge/config/loader.json' -or
         $entryNames -notcontains 'shroudforge/version.json') {
         throw 'Release archive is missing the launcher, loader configuration, or version file.'
-    }
-    if ($entryNames | Where-Object { $_ -like 'Shroudforge_Modules/*' -or $_ -like 'Shroudforge_Updater/*' }) {
-        throw 'Release archive contains a standalone module directory.'
     }
 } finally {
     $releaseZip.Dispose()

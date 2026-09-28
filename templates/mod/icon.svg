@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Hello Ember mod icon</title>
+  <defs>
+    <linearGradient id="background" x1="14" y1="12" x2="112" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1c3638"/>
+      <stop offset="1" stop-color="#10191d"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="64" y1="28" x2="64" y2="101" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f6d98e"/>
+      <stop offset="1" stop-color="#d17b4e"/>
+    </linearGradient>
+  </defs>
+  <rect x="5" y="5" width="118" height="118" rx="30" fill="url(#background)"/>
+  <path d="M64 20c3 17-7 20-3 33 3-5 9-9 14-12 0 13 13 20 13 35 0 17-11 29-26 29S36 94 36 78c0-13 7-22 18-32-1 13 2 19 7 23 1-16 7-24 3-49Z" fill="url(#flame)"/>
+  <path d="M64 66c2 9-5 12-3 19 1-3 4-5 7-6 0 6 6 9 6 16 0 7-4 12-10 12s-11-5-11-12c0-6 3-10 8-14-1 7 1 10 3 12 1-9 3-13 0-27Z" fill="#fff0bf" opacity=".88"/>
+  <path d="m39 105 9-5m41 5-9-5" fill="none" stroke="#c9ad6e" stroke-linecap="round" stroke-width="4"/>
+</svg>

@@ -32,11 +32,11 @@ __pycache__/
 
 # Runtime output
 *.log
-config/state.json
-config/.shroudforge-write.lock
-config/news/events/
-config/news/read-state.json
-config/news/mod-state.json
+/shroudforge/state/state.json
+/shroudforge/config/.shroudforge-write.lock
+/shroudforge/config/loader.json
+/shroudforge/config/mods/*.json
+/shroudforge/config/webview2-profile/
 mods/**/.mod-json.lock
 
 # Local environment and operating system files

@@ -4,6 +4,6 @@ base_path: .
 preserve_hierarchy: true
 
 files:
-  - source: /Shroudforge_Modules/modloader-ui/ui/src/locales/en.json
-    translation: /Shroudforge_Modules/modloader-ui/ui/src/locales/%two_letters_code%.json
+  - source: /src/loader/modules/modloader-ui/ui/src/locales/en.json
+    translation: /src/loader/modules/modloader-ui/ui/src/locales/%two_letters_code%.json
     update_option: update_as_unapproved

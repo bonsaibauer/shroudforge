@@ -26,11 +26,11 @@ jobs:
       - name: Build documentation
         run: npm run site:check
       - name: Verify generated documentation is current
-        run: git diff --exit-code -- site
+        run: git diff --exit-code -- website
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: website
 
   deploy:
     environment:

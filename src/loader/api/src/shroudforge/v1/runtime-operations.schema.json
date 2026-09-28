@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "runtimeOperations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "runtimeOperations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$id": "https://shroudforge.dev/api/shroudforge/v1/runtime-operations.schema.json"
+}

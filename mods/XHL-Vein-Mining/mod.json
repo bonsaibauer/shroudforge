@@ -1,0 +1,13 @@
+{
+  "id": "xhl-vein-mining",
+  "name": "连锁挖矿",
+  "version": "1.0.33",
+  "capabilities": [
+    "patch"
+  ],
+  "description": "按住波浪号键显示准星所指地形材质；按住时挖矿会连锁清除实际命中点5米球形范围内的同类矿物。材质白名单由config.txt的materialIds配置，默认保留原33项并加入ID 93水下幽光土；修改后重启游戏生效。支持10米镐子触及距离及房主/客机联机请求；联机双方应使用相同配置。适配游戏构建1076226。",
+  "authors": [
+    "XHL"
+  ],
+  "license": "MIT"
+}

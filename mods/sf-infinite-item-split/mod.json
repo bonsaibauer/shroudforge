@@ -1,23 +1,16 @@
 {
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
   "id": "sf-infinite-item-split",
   "name": "SF Infinite Item Split",
   "version": "1.4.0",
-  "icon": "icon.svg",
-  "authors": ["bonsaibauer"],
-  "dependencies": [],
   "description": "Prevents the selected split amount from being removed from the source stack with a build-profile-verified, split-specific runtime patch.",
-  "enabled": true,
-  "settings": {},
-  "shroudforge": {
-    "schemaVersion": 1,
-    "release": {"changelog": ["Replaces unreliable ECS inventory writes with the split-specific runtime patch used by Shroudtopia."]},
-    "settingsSchema": {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
-    },
-    "settingGroups": [],
-    "ui": {"sections": [{"title": "Infinite Item Split", "description": "Uses the native split-decrement patch. Other item-use operations are unaffected. No ECS component access or extra split settings are required.", "components": []}]},
-    "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
-  }
+  "authors": [
+    "bonsaibauer"
+  ],
+  "license": null,
+  "icon": "icon.svg",
+  "dependencies": [],
+  "capabilities": [
+    "runtime"
+  ]
 }

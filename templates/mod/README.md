@@ -1,57 +1,67 @@
-# Mod configuration and application phases
+# Hello Ember: your starter mod
 
-`mod.json` is the single source of activation and setting values, both for the
-client and a dedicated server. A missing `enabled` means disabled. A server
-administrator edits the installation's own file; no client synchronization or
-remote administration is involved.
+Welcome! This folder contains a small working ShroudForge mod. It writes messages to the ShroudForge log, shows a few settings in the Modloader, and has a button you can try. It does not change the game world.
 
-Setting values belong in `settings`; definitions belong in
-`shroudforge.settingsSchema.properties`. Keep the EML manifest base intact.
+You do not need to understand every line before you begin. First, follow the [first-mod lesson](https://bonsaibauer.github.io/shroudforge/en/#first). Then come back here to explore the example.
 
-Optional project links belong in `shroudforge.links` in `mod.json`. They are
-shown as one continuous, ordered badge row. `source` is platform-neutral;
-provider-specific source badges use `source-github`, `source-gitlab`, or
-`source-codeberg`. `issues` stays provider-neutral. Support links are direct
-fields such as `support-bmac` and `support-patreon`:
+## What is in this folder?
 
-```json
-"support-bmac": "https://buymeacoffee.com/yourname",
-"support-patreon": "https://patreon.com/yourname"
+~~~text
+mod.json                 The mod's name, version, author, and permission
+extended.mod.json        The switch, settings, and button shown in the Modloader
+icon.svg          The small picture shown with the mod
+src/mod.lua              The instructions the mod runs
+~~~
+
+Think of **mod.json** as the information card for the mod. **extended.mod.json** adds ShroudForge settings and buttons. The Lua file contains the behavior.
+
+## Try the example
+
+1. Copy this folder into the game's **mods** folder.
+2. Start Enshrouded and press **F9** to open the Modloader.
+3. Find **Hello Ember** and switch it on.
+4. Press **F10** to see messages from ShroudForge.
+5. Change the greeting or its message style, then use the button in the Modloader.
+
+The mod is marked as a ShroudForge mod because it includes **extended.mod.json** and uses ShroudForge functions. A mod that contains only **mod.json** can be read as an EML mod. Removing the extension file does not replace ShroudForge functions in the Lua file with EML functions.
+
+## Make it yours
+
+Before sharing your own copy, update these values in **mod.json**:
+
+- **id:** Give your mod a unique folder-friendly name, such as **yourname.hello-ember**. Use letters, numbers, dots, underscores, or hyphens.
+- **name:** Choose the name players will see.
+- **version:** Start with **1.0.0**. Use three numbers separated by dots.
+- **authors:** Add the names you want players to see.
+- **description:** Say in one sentence what your mod does.
+
+In **extended.mod.json**, you can change the greeting, the message style, and the button text. The button's **id** must match the action name used in **src/mod.lua**. This lets the Modloader know which Lua instruction to run when someone presses the button.
+### How the setting reaches the Lua code
+
+The `settings` key in **extended.mod.json** is the name your Lua code asks for. In this example the key is `greeting`; the player-facing label can say “Greeting” because Lua uses the key, not the label.
+
+```lua
+local function setting(name, fallback)
+    return shroudforge.settings.get(name, fallback)
+end
+
+local function log_greeting()
+    local greeting = tostring(setting("greeting", "Hello from the ShroudForge runtime!"))
+    shroudforge.log.info(greeting)
+end
 ```
 
-Badge definitions and their order live in the repository under `config/links/`;
-SVG icons are stored in `config/links/assets/`. Every link must use HTTPS. Only links
-listed in the mod's own manifest are displayed; the modloader does not fetch
-project links from ShroudEdit.
+`value` in **extended.mod.json** is the starting value. When a player changes the text, the Modloader saves it in `settings.greeting.value`. `shroudforge.settings.get` returns the current value; the second argument is used if there is no value for that key. The code reads it again whenever `log_greeting` runs, including when the player presses the `logGreeting` button. A setting only appears in the Modloader when its key is listed in a group's `settings` list.
 
-- `x-apply: live`: validated values refresh in memory between runtime updates,
-  approximately once per second. The mod must call `shroudforge.settings.get`
-  when it uses the value. A value cached in a Lua local at initialization does
-  not become live automatically.
-- `x-apply: restart` (also the default): values take effect at the next process
-  start. Changing `enabled`, dependencies, definitions or code requires restart.
-- `x-apply: prepare`: prepare assets with the target process stopped, then restart.
-  The preparation fingerprint must match the selected installation and mods.
 
-Invalid edits retain the last applied values and produce an error. Pending edits
-do not replace active mod scopes. The UI reports desired versus loaded state;
-the dedicated server uses the same files without requiring a UI.
+The sample project links point to an example address. Replace them with your own links or remove them before sharing the mod.
 
-For the desktop UI, use `--root <installation> --desktop --target client`
-or `--target server`. `--target` selects which game installation the desktop UI
-manages; the UI itself runs in desktop mode. The target can be inferred only if
-exactly one corresponding executable exists. When attached, the UI verifies the
-actual game PID and its installation directory instead of inferring the target
-from directory contents.
+## Permissions
 
-# Optional mod icon
+The **capabilities** list in **mod.json** tells ShroudForge which special actions this mod is allowed to use. This example only writes messages, so it asks for **runtime**. Add **patch** or **export** only when your mod needs those features.
 
-Mods can include a PNG, JPEG, WebP, or SVG icon in their own mod folder. For
-example, put `icon.svg` next to `mod.json` and add this field to `mod.json`:
+## Keep in mind
 
-```json
-"icon": "icon.svg"
-```
+Player setting choices are saved in **extended.mod.json**, beside the rest of the mod. Replacing the mod folder with an updated package can replace those choices too. If you need to keep a particular setting, make a copy of the file before replacing the package.
 
-The Mod Loader displays this image in the installed mods list. If the field or
-image is missing or unsupported, it uses the built-in icon.
+For a friendly explanation of both information files, use the [mod settings guide](https://bonsaibauer.github.io/shroudforge/en/#manifests). The [API reference](https://bonsaibauer.github.io/shroudforge/en/#api) helps when you are ready to explore more functions.

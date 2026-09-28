@@ -1,11 +1,11 @@
 {
-  "name": "shroudforge-site",
+  "name": "shroudforge-website",
   "private": true,
   "scripts": {
-    "site:build": "node site/tools/build.mjs",
-    "site:sanitize": "node site/tools/sanitize-snapshots.mjs",
-    "runtime:types": "node site/tools/build-runtime-ecs-reference.mjs",
-    "site:validate": "node site/tools/validate.mjs",
+    "site:build": "node website/tools/build.mjs",
+    "site:sanitize": "node website/tools/sanitize-snapshots.mjs",
+    "runtime:types": "node website/tools/build-runtime-ecs-reference.mjs",
+    "site:validate": "node website/tools/validate.mjs",
     "site:check": "npm run site:build && npm run site:sanitize && npm run runtime:types && npm run site:validate"
   }
 }

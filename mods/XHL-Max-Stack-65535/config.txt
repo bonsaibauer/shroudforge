@@ -1,0 +1,3 @@
+enabled=true
+maxStackSize=65535
+preserveSingleStackItems=true

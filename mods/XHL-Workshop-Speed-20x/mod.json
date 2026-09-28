@@ -1,0 +1,13 @@
+{
+  "id": "xhl-workshop-speed-20x",
+  "name": "20倍工坊生产速度",
+  "version": "1.0.0",
+  "capabilities": [
+    "patch"
+  ],
+  "description": "在保留当前世界工坊速度设置的基础上，将所有计时型工坊配方的生产速度提高至20倍。",
+  "authors": [
+    "XHL"
+  ],
+  "license": "MIT"
+}

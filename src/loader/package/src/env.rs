@@ -1,0 +1,264 @@
+#[cfg(test)]
+use std::fs;
+use std::{collections::HashSet, sync::Arc};
+
+use crate::{
+    ModEnvironmentErrorReport, ModRegistry,
+    alias::{Path, PathBuf},
+};
+
+struct ModEnvironmentInner {
+    game_dir: PathBuf,
+    cache_dir: PathBuf,
+    mods_dir: PathBuf,
+
+    registry: ModRegistry,
+    disabled_mods: HashSet<String>,
+}
+
+#[derive(Clone)]
+pub struct ModEnvironment {
+    inner: Arc<ModEnvironmentInner>,
+}
+
+impl ModEnvironment {
+    pub fn load(game_dir: impl AsRef<Path>) -> Result<Self, ModEnvironmentErrorReport> {
+        let game_dir = game_dir.as_ref().to_path_buf();
+        let cache_dir = PathBuf::from_path_buf(crate::paths::cache_dir(game_dir.as_std_path()))
+            .expect("a UTF-8 game path joined with fixed loader paths remains UTF-8");
+        let mods_dir = PathBuf::from_path_buf(crate::paths::mods_dir(game_dir.as_std_path()))
+            .expect("a UTF-8 game path joined with fixed loader paths remains UTF-8");
+        let registry = match ModRegistry::load(&mods_dir) {
+            Ok(registry) => registry,
+            Err(report) if report.error.is_none() => {
+                for error in &report.mods {
+                    tracing::error!(path = %error.path, error = %error.error, "Mod rejected");
+                }
+                report.mod_registry
+            }
+            Err(report) => return Err(report),
+        };
+        let disabled_mods = registry
+            .values()
+            .filter(|item| !item.info().enabled)
+            .map(|item| item.info().id.clone())
+            .collect();
+
+        Ok(Self {
+            inner: Arc::new(ModEnvironmentInner {
+                game_dir,
+                cache_dir,
+                mods_dir,
+                registry,
+                disabled_mods,
+            }),
+        })
+    }
+
+    pub fn game_dir(&self) -> &Path {
+        &self.inner.game_dir
+    }
+
+    pub fn cache_dir(&self) -> &Path {
+        &self.inner.cache_dir
+    }
+
+    pub fn mods_dir(&self) -> &Path {
+        &self.inner.mods_dir
+    }
+
+    pub fn mod_registry(&self) -> &ModRegistry {
+        &self.inner.registry
+    }
+
+    pub fn is_mod_enabled(&self, id: &str) -> bool {
+        self.inner.registry.contains_key(id) && !self.inner.disabled_mods.contains(id)
+    }
+
+    pub fn enabled_mods(&self) -> impl Iterator<Item = &crate::Mod> {
+        self.inner
+            .registry
+            .values()
+            .filter(|r#mod| self.is_mod_enabled(&r#mod.info().id))
+    }
+
+    /// Shared dependency and target plan for asset execution and live mods.
+    pub fn plan(&self, is_server: bool, api_version: &str) -> Vec<&crate::Mod> {
+        self.plan_report(is_server, api_version).0
+    }
+
+    pub fn plan_report(
+        &self,
+        is_server: bool,
+        api_version: &str,
+    ) -> (Vec<&crate::Mod>, Vec<String>) {
+        self.plan_report_inner(is_server, api_version, false)
+    }
+
+    /// Build the live runtime's candidate plan, including disabled mods so their
+    /// callbacks can be activated later without restarting the game.
+    pub fn runtime_plan_report(
+        &self,
+        is_server: bool,
+        api_version: &str,
+    ) -> (Vec<&crate::Mod>, Vec<String>) {
+        self.plan_report_inner(is_server, api_version, true)
+    }
+
+    fn plan_report_inner(
+        &self,
+        is_server: bool,
+        api_version: &str,
+        include_disabled: bool,
+    ) -> (Vec<&crate::Mod>, Vec<String>) {
+        let blocked = match crate::compatibility::conflicts(self) {
+            Ok(blocked) => blocked,
+            Err(error) => return (Vec::new(), vec![format!("compatibility rules: {error}")]),
+        };
+        fn visit<'a>(
+            env: &'a ModEnvironment,
+            blocked: &std::collections::HashMap<String, String>,
+            id: &str,
+            server: bool,
+            include_disabled: bool,
+            version: &semver::Version,
+            visiting: &mut HashSet<String>,
+            done: &mut HashSet<String>,
+            order: &mut Vec<&'a crate::Mod>,
+        ) -> Result<(), String> {
+            if let Some(reason) = blocked.get(id) {
+                return Err(format!("{id}: {reason}"));
+            }
+            if done.contains(id) {
+                return Ok(());
+            }
+            if !visiting.insert(id.into()) {
+                return Err(format!("dependency cycle: {id}"));
+            }
+            let item = env
+                .mod_registry()
+                .get(id)
+                .ok_or_else(|| format!("missing dependency: {id}"))?;
+            if !include_disabled && !env.is_mod_enabled(id) {
+                return Err(format!("disabled dependency: {id}"));
+            }
+            if matches!(
+                (item.info().target, server),
+                (crate::ModTarget::Client, true) | (crate::ModTarget::Server, false)
+            ) {
+                return Err(format!("{id}: wrong process target"));
+            }
+            for dependency in &item.info().dependencies {
+                if dependency.id == "shroudforge-api" {
+                    if !dependency.version.matches(version) {
+                        return Err(format!("{id}: incompatible API dependency"));
+                    }
+                    continue;
+                }
+                let candidate = env.mod_registry().get(&dependency.id);
+                if dependency.optional.unwrap_or(false)
+                    && (candidate.is_none()
+                        || (!include_disabled && !env.is_mod_enabled(&dependency.id)))
+                {
+                    continue;
+                }
+                let candidate =
+                    candidate.ok_or_else(|| format!("{id}: missing {}", dependency.id))?;
+                if !dependency.version.matches(&candidate.info().version) {
+                    return Err(format!("{id}: incompatible {}", dependency.id));
+                }
+                visit(
+                    env,
+                    blocked,
+                    &dependency.id,
+                    server,
+                    include_disabled,
+                    version,
+                    visiting,
+                    done,
+                    order,
+                )?;
+            }
+            visiting.remove(id);
+            done.insert(id.into());
+            order.push(item);
+            Ok(())
+        }
+        let version = semver::Version::parse(api_version).expect("API version is semver");
+        let mut ids: Vec<_> = if include_disabled {
+            self.mod_registry()
+                .values()
+                .map(|item| item.info().id.clone())
+                .collect()
+        } else {
+            self.enabled_mods()
+                .map(|item| item.info().id.clone())
+                .collect()
+        };
+        ids.sort();
+        let mut done = HashSet::new();
+        let mut order = Vec::new();
+        let mut errors = Vec::new();
+        for id in ids {
+            if let Err(error) = visit(
+                self,
+                &blocked,
+                &id,
+                is_server,
+                include_disabled,
+                &version,
+                &mut HashSet::new(),
+                &mut done,
+                &mut order,
+            ) {
+                tracing::error!(mod_id = %id, %error, "Mod excluded from execution plan");
+                errors.push(error);
+            }
+        }
+        (order, errors)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+
+    #[test]
+    fn disabled_mods_remain_installed_but_are_not_enabled() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("shroudforge-enabled-mods-{suffix}"));
+        let package = crate::paths::mods_dir(&root).join("example");
+        fs::create_dir_all(&package).unwrap();
+        fs::create_dir_all(crate::paths::config_dir(&root)).unwrap();
+        fs::write(
+            package.join("mod.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "id": "mod.example",
+                "name": "Example",
+                "version": "1.0.0",
+                "dependencies": [],
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
+        fs::write(
+            crate::paths::config_dir(&root).join("loader.json"),
+            br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{}}"#,
+        )
+        .unwrap();
+
+        let environment = ModEnvironment::load(root.to_str().unwrap()).unwrap();
+        assert!(environment.mod_registry().contains_key("mod.example"));
+        assert!(!environment.is_mod_enabled("mod.example"));
+        assert_eq!(environment.enabled_mods().count(), 0);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+}

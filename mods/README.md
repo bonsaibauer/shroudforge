@@ -1,51 +1,63 @@
-# Bundled Mods
+# Bundled mod packages
 
-## Purpose
+The release build checks each direct child folder for a `mod.json` file with a
+mod ID and the Lua entry point at `src/mod.lua`. It also checks the Lua files
+before packaging them. The repository can contain work folders without these
+package files; those folders are not copied into the release.
 
-This directory contains the Lua mods shipped with ShroudForge releases. Every child directory is an independent mod package with a `mod.json` manifest and a `src/mod.lua` entrypoint.
+## One rule for each manifest
 
-## Current mods
+- `mod.json` is the package manifest. It contains the package identity, version,
+  author, dependencies, and explicit `capabilities`. Optional `license` and
+  `icon` fields accept a string or `null`; `null` means no value is declared.
+  Omitting either field is also valid. An icon is a root filename or a path under
+  `assets/`.
+- `capabilities` lists only the permissions the Lua code uses: `patch` for EML
+  asset writes, `export` for `io.export` and export reads, and `runtime` for
+  ShroudForge in-game runtime APIs. EML mods that register a package DLL also
+  use `runtime-register-dll`. API scanning derives execution phase and process
+  scope; it never adds permissions that the manifest omitted.
+- `extended.mod.json` is optional ShroudForge state and metadata. It holds the
+  enabled value, setting values, groups, actions, links, and changelog. The
+  loader writes player changes into this same file. Package updates can reset
+  those choices; there is no settings migration.
+- An EML package without ShroudForge-specific state can omit
+  `extended.mod.json`. The loader creates it when a ShroudForge value is first
+  changed. EML `mod.json` stays in the EML format.
 
-| Mod | Execution | Runtime scope | Behavior | Modloader UI |
-| --- | --- | --- | --- | --- |
-| Flight | Runtime patch | Client | Enables the build-profile-verified native flight operation | Toggle action |
-| Infinite Item Split | Runtime ECS | Client | Restores the source stack after the game-selected One, Half, or CustomAmount split | None; the game controls split mode and amount |
-| Infinite Item Use | Runtime patch | Client | Applies the build-profile-verified native item-use patch to the matched operation for all items | Lifecycle switch; no per-item exclusions |
-| No Fall Damage | Runtime patch | Client | Applies the build-profile-verified native fall-damage patch | Toggle action |
-| No Resource Cost | Runtime patch | Client | Applies the build-profile-verified native recipe-cost patch | Lifecycle switch |
-| No Stamina Loss | Runtime patch | Client | Prevents depletion through the build-profile-verified native patch | Depletion toggle |
-| World Editor | Runtime + export | Client | Copies/pastes bounded voxel regions, captures recipe-resolved placeable props, saves/loads voxel-and-prop blueprints, and exposes profile-backed entity operations | Cursor selection, component discovery/editing, voxel regions, blueprint names, and explicit entity-operation metadata |
-| Unlock Blueprints | Startup assets | Client and server | Replaces supported recipe knowledge requirements | Lifecycle information and restart notice |
+The SF gameplay packages use the same two-file format. EML data tools only need
+`mod.json` until a ShroudForge setting or action is added.
 
-## Execution and API policy
+## Capability assignment
 
-The loader derives execution from the Lua entrypoint's ShroudForge API use. `runtime.require("game.assets.write")` and asset-mutating methods (`update_asset`, `save_assets`, `reset_assets`, `create_resource`, and `create_content`) select startup asset preparation. Read-only asset calls such as `game.assets.get_resources_by_type` do not request write capability. `runtime.require("runtime.lifecycle")`, lifecycle callbacks, `runtime.ecs`, `runtime.world`, and `runtime.patch` select the in-game runtime. `io.export` and `io.read_export_*` select export support. Runtime ECS, world, and patch operations currently target the Client process; asset and export work can run in Client or Server processes. The loader shows only Client, Server, or Client + Server.
+| Packages | Capabilities | Reason |
+| --- | --- | --- |
+| `fishing-exporter`, `item-translator`, `kfc-parser-mimic` | `export` | Write generated reports through `io.export`; asset reads do not need `patch`. |
+| `sf-infinite-item-split`, `sf-infinite-item-use`, `sf-no-fall-damage`, `sf-no-resource-cost`, `sf-no-stamina-loss`, `sf-unlimited-flight` | `runtime` | Use approved in-game runtime patch operations. |
+| `sf-unlock-blueprints` | `patch` | Write EML game assets during startup preparation. |
+| `sf-world-editor` | `runtime`, `export` | Use in-game world/ECS operations and export blueprint files. |
 
-The loader resolves runtime, startup-asset, export, target, and setting apply-phase requirements from the Lua API calls in the mod source. Authors do not add capability or target flags to `mod.json`. Runtime-only mods can be enabled, disabled, and reconfigured live through `on_load`, `on_unload`, and `shroudforge.settings`. Read live settings inside lifecycle callbacks rather than caching them at module initialization. Asset-writing changes take effect on the next game start. A package that uses both runtime and asset APIs is conservatively treated as next-start for activation and settings.
-
-Keep the Lua entrypoint's top level free of gameplay reads and writes. The loader initializes disabled runtime modules so their lifecycle can be activated without restarting, but it denies runtime operations until `on_load` begins. Put gameplay reads and writes inside `on_load`/`on_update`/`on_unload` callbacks. Register UI actions at module initialization and invoke runtime work from their callbacks.
-
-API availability and effect reports show whether a profile operation resolved and whether the runtime observed its immediate effect. They do not prove saved-world persistence or complete parity with native editor transactions. The current World Editor captures only props it can associate with `ItemInfo` placement recipes; entity blueprint paste supports unit-scale props, and its undo is limited to the most recent paste. Treat placement, capture completeness, and persistence as unverified until confirmed in the running game.
-
-Every installed mod receives one activation switch stored in that package's `mod.json`. Missing `enabled` values in third-party EML packages default to disabled; bundled ShroudForge packages explicitly set it to `true`.
-
-Every bundled mod must also declare a useful `ui` page in its manifest. A page should expose only behavior-specific settings or safe actions. Mods must not duplicate the loader activation switch in their own settings. Build-specific patch signatures, bytes, and trampoline data belong in KFC compatibility profiles; Lua contains stable operation names only.
+Inline `shroudforge` data is not part of the current manifest contract and is
+rejected. ShroudForge state belongs in the neighboring `extended.mod.json`.
 
 ## Package layout
 
 ```text
 mod-name/
 ├── mod.json
+├── extended.mod.json   # only when ShroudForge-specific metadata is needed
 └── src/
     └── mod.lua
 ```
 
-Keep user-facing copy in `mod.json` concise and in English. Use commas or full stops instead of semicolons in prose.
+## API details
 
-## Validation
+`runtime.patch.*` names approved native runtime operations. It belongs to the
+`runtime` capability; it does not mean EML asset-writing `patch`. Asset writes
+through `game.assets.write` need the `patch` capability. Keep Lua entrypoints
+free of gameplay reads and writes at module initialization; register actions
+there, then do runtime work from lifecycle or action callbacks.
 
-The release checks parse every bundled manifest and verify the API-derived execution contract. The release build also rejects unsupported low-level tokens in bundled Lua code.
-
-```powershell
-cargo test -p shroudforge-modloader
-```
+For a setting that Lua can read, declare its key, starting `value`, and optional display details in `extended.mod.json`. List the key in one group's `settings` array so the Modloader shows it. Read the current value in Lua with `shroudforge.settings.get("key", fallback)`; use the same key and value type in both places. The [package guide](../docs/sf/mod-packages.md) has a complete JSON/Lua example, and [`templates/mod/`](../templates/mod/) is a working version.
+Build-specific signatures and trampoline data belong in KFC compatibility
+profiles. Lua code uses stable operation names.

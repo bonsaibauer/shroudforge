@@ -1,0 +1,3 @@
+# 抓钩拉拽距离翻倍
+enabled=true
+pullDistanceMultiplier=2
