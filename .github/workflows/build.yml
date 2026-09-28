@@ -32,6 +32,39 @@ jobs:
         shell: pwsh
         run: .\build.ps1 -BuildNumber "${{ github.run_id }}"
 
+      - name: Scan release packages for malware with Microsoft Defender
+        shell: pwsh
+        run: |
+          Update-MpSignature
+
+          $archives = @(Get-ChildItem -LiteralPath 'build' -Filter 'shroudforge-*.zip' -File)
+          if ($archives.Count -eq 0) {
+            throw 'No release ZIPs were found for malware scanning.'
+          }
+
+          $scanRoot = Join-Path $env:RUNNER_TEMP 'shroudforge-release-scan'
+          Remove-Item -LiteralPath $scanRoot -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $scanRoot | Out-Null
+
+          foreach ($archive in $archives) {
+            $destination = Join-Path $scanRoot ([IO.Path]::GetFileNameWithoutExtension($archive.Name))
+            Expand-Archive -LiteralPath $archive.FullName -DestinationPath $destination
+          }
+
+          $scanStartedAt = Get-Date
+          Start-MpScan -ScanType CustomScan -ScanPath $scanRoot
+
+          $detections = @(Get-MpThreatDetection | Where-Object {
+            $_.InitialDetectionTime -ge $scanStartedAt -and
+            (($_.Resources -join "`n") -match [regex]::Escape($scanRoot))
+          })
+          if ($detections.Count -gt 0) {
+            $detections | Format-List * | Out-String | Write-Host
+            throw "Microsoft Defender detected malware in the release payload ($($detections.Count) detection(s))."
+          }
+
+          Write-Host "Microsoft Defender found no malware in $($archives.Count) release ZIP(s)."
+
       - name: Publish development prerelease
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2

@@ -1,11 +1,11 @@
 {
   "id": "xhl-max-stack-65535",
-  "name": "物品堆叠上限65535",
+  "name": "Item Stack Limit 65535",
   "version": "1.0.3",
   "capabilities": [
     "patch"
   ],
-  "description": "将所有原本可堆叠物品的最大堆叠数量设置为游戏上限65535。",
+  "description": "Sets the maximum stack size of all stackable items to the game's limit of 65535.",
   "authors": [
     "XHL"
   ],

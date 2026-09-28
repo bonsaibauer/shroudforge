@@ -1,5 +1,5 @@
-# 小狐狸：工坊生产速度20倍
+# XHL: 20x workshop crafting speed
 enabled=true
 
-# 相对于当前存档设置，将所有有生产时间的配方加速多少倍
+# Speed multiplier for all recipes with a crafting duration, relative to the current world setting
 multiplier=20

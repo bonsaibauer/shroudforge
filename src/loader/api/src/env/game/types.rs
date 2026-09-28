@@ -11,7 +11,7 @@ use once_cell::unsync::OnceCell;
 use crate::{
     alias::TypeHandle,
     env::{AppState, util::add_function, value::type_of},
-    lua::{Either, FunctionArgs, LuaValue},
+    lua::{FunctionArgs, LuaValue},
     util::{ReadOnlyArray, ReadOnlyMap},
 };
 
@@ -19,13 +19,6 @@ pub fn create(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
     let table = lua.create_table()?;
 
     add_function(lua, &table, "get", lua_get)?;
-    add_function(
-        lua,
-        &table,
-        "get_by_qualified_hash",
-        lua_get_by_qualified_hash,
-    )?;
-    add_function(lua, &table, "get_by_impact_hash", lua_get_by_impact_hash)?;
     add_function(
         lua,
         &table,
@@ -40,21 +33,8 @@ pub fn create(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
 }
 
 fn lua_get(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Option<LuaValue>> {
-    match args.get::<Either<u32, String>>(0)? {
-        Either::A(hash) => get_by_hash(lua, LookupKey::Qualified(hash)),
-        Either::B(name) => get_by_name(lua, LookupKey::Qualified(name.as_ref())),
-    }
-}
-
-fn lua_get_by_qualified_hash(
-    lua: &mlua::Lua,
-    args: FunctionArgs,
-) -> mlua::Result<Option<LuaValue>> {
-    get_by_hash(lua, LookupKey::Qualified(args.get::<u32>(0)?))
-}
-
-fn lua_get_by_impact_hash(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Option<LuaValue>> {
-    get_by_hash(lua, LookupKey::Impact(args.get::<u32>(0)?))
+    let name = args.get::<String>(0)?;
+    get_by_name(lua, LookupKey::Qualified(&name))
 }
 
 fn lua_get_by_qualified_name(
@@ -114,18 +94,6 @@ fn get_by_name(lua: &mlua::Lua, name: LookupKey<&str>) -> mlua::Result<Option<Lu
     context.get_type(lua, type_index)
 }
 
-fn get_by_hash(lua: &mlua::Lua, hash: LookupKey<u32>) -> mlua::Result<Option<LuaValue>> {
-    let state = lua.app_data_ref::<AppState>().unwrap();
-    let Some(index) = state
-        .type_registry()
-        .get_by_hash(hash)
-        .map(|metadata| metadata.index)
-    else {
-        return Ok(None);
-    };
-    state.get_type(lua, index)
-}
-
 pub struct Type {
     handle: TypeHandle,
 
@@ -159,11 +127,6 @@ impl UserData for Type {
         fields.add_field_method_get("name", |_, this| Ok(this.name.clone()));
         fields.add_field_method_get("impact_name", |_, this| Ok(this.impact_name.clone()));
         fields.add_field_method_get("qualified_name", |_, this| Ok(this.qualified_name.clone()));
-        fields.add_field_method_get("name_hash", |_, this| Ok(this.name_hash));
-        fields.add_field_method_get("impact_hash", |_, this| Ok(this.impact_hash));
-        fields.add_field_method_get("qualified_hash", |_, this| Ok(this.qualified_hash));
-        fields.add_field_method_get("internal_hash", |_, this| Ok(this.internal_hash));
-
         fields.add_field_method_get("namespace", |_, this| Ok(this.namespace.clone()));
         fields.add_field_method_get("inner_type", |lua, this| {
             this.inner_type

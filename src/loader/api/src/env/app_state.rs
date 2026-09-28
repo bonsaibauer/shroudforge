@@ -624,7 +624,7 @@ impl AppState {
                 target_mod.info().id
             ));
         }
-        let mut loaded = self.native_dlls.borrow_mut();
+        let loaded = self.native_dlls.borrow();
         if loaded.iter().any(|item| {
             item.handle != handle
                 && item
@@ -703,7 +703,7 @@ impl AppState {
             if let Some(stop) = dll.stop_function {
                 stop();
             }
-            windows_sys::Win32::System::LibraryLoader::FreeLibrary(
+            windows_sys::Win32::Foundation::FreeLibrary(
                 dll.handle as windows_sys::Win32::Foundation::HMODULE,
             );
         }
@@ -918,7 +918,7 @@ impl Drop for AppState {
                 if let Some(stop) = dll.stop_function {
                     stop();
                 }
-                windows_sys::Win32::System::LibraryLoader::FreeLibrary(
+                windows_sys::Win32::Foundation::FreeLibrary(
                     dll.handle as windows_sys::Win32::Foundation::HMODULE,
                 );
             }
@@ -952,7 +952,6 @@ const NATIVE_PLUGIN_START_EXPORT: &[u8] = b"XhlNativePluginStart\0";
 const NATIVE_PLUGIN_STOP_EXPORT: &[u8] = b"XhlNativePluginRequestStop\0";
 
 #[repr(C)]
-#[derive(Default)]
 struct NativePluginInfoV1 {
     size: u32,
     abi_version: u32,
@@ -960,6 +959,19 @@ struct NativePluginInfoV1 {
     id: [u8; 64],
     name: [u8; 128],
     version: [u8; 32],
+}
+
+impl Default for NativePluginInfoV1 {
+    fn default() -> Self {
+        Self {
+            size: 0,
+            abi_version: 0,
+            reserved: 0,
+            id: [0; 64],
+            name: [0; 128],
+            version: [0; 32],
+        }
+    }
 }
 
 fn native_plugin_text_field<'a>(field: &'a [u8], name: &str) -> Result<&'a str, String> {

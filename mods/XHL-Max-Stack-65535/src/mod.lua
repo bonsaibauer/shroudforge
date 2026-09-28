@@ -1,6 +1,6 @@
--- 雾锁王国 EML 模组：XHL 物品堆叠上限65535
--- 将所有原版可堆叠物品的堆叠上限修改为配置中指定的数值。
--- 我注意到游戏数据中的 maxStackSize 是无符号16位整数，因此硬性上限为65535。
+-- Enshrouded EML mod: XHL Item Stack Limit 65535
+-- Changes the stack size of all vanilla stackable items to the value specified in the config.
+-- The game's maxStackSize data is an unsigned 16-bit integer, so its hard limit is 65535.
 
 local LOG_PREFIX = "[XHL-Max-Stack-65535]"
 local U16_MAX = 65535

@@ -12952,6 +12952,30 @@
     {
       "kind": "field",
       "namespace": "shroudforge",
+      "name": "shroudforge.loader.features.runtime",
+      "signature": "shroudforge.loader.features.runtime: EmlRuntimeFeatures",
+      "params": [],
+      "returns": [
+        "EmlRuntimeFeatures"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/loader.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "shroudforge",
+      "name": "shroudforge.loader.features.runtime.dll",
+      "signature": "shroudforge.loader.features.runtime.dll: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/loader.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "shroudforge",
       "name": "shroudforge.loader.is_client",
       "signature": "shroudforge.loader.is_client: boolean",
       "params": [],
@@ -12986,6 +13010,18 @@
       "source": "eml/v1/definitions/loader.lua"
     },
     {
+      "kind": "field",
+      "namespace": "shroudforge",
+      "name": "shroudforge.loader.runtime",
+      "signature": "shroudforge.loader.runtime: EmlLoaderRuntime",
+      "params": [],
+      "returns": [
+        "EmlLoaderRuntime"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/loader.lua"
+    },
+    {
       "kind": "function",
       "namespace": "shroudforge",
       "name": "shroudforge.loader.has_mod",
@@ -13001,6 +13037,18 @@
         "boolean"
       ],
       "description": "Returns whether a mod with the given ID is present in the current registry.",
+      "source": "eml/v1/definitions/loader.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "shroudforge",
+      "name": "shroudforge.loader.runtime.register_dll",
+      "signature": "shroudforge.loader.runtime.register_dll: fun(path: string)",
+      "params": [],
+      "returns": [
+        "fun(path: string)"
+      ],
+      "description": "",
       "source": "eml/v1/definitions/loader.lua"
     },
     {
@@ -13427,10 +13475,10 @@
       "kind": "field",
       "namespace": "runtime",
       "name": "runtime.report_effect",
-      "signature": "runtime.report_effect: fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed',",
+      "signature": "runtime.report_effect: fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?)",
       "params": [],
       "returns": [
-        "fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed',"
+        "fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?)"
       ],
       "description": "",
       "source": "shroudforge/v1/definitions/runtime.lua"
@@ -13439,10 +13487,10 @@
       "kind": "field",
       "namespace": "runtime",
       "name": "runtime.lifecycle.on_load",
-      "signature": "runtime.lifecycle.on_load: fun()?",
+      "signature": "runtime.lifecycle.on_load: fun()",
       "params": [],
       "returns": [
-        "fun()?"
+        "fun()"
       ],
       "description": "",
       "source": "shroudforge/v1/definitions/runtime.lua"
@@ -13451,10 +13499,10 @@
       "kind": "field",
       "namespace": "runtime",
       "name": "runtime.lifecycle.on_update",
-      "signature": "runtime.lifecycle.on_update: fun(delta_seconds:number)?",
+      "signature": "runtime.lifecycle.on_update: fun(delta_seconds:number)",
       "params": [],
       "returns": [
-        "fun(delta_seconds:number)?"
+        "fun(delta_seconds:number)"
       ],
       "description": "",
       "source": "shroudforge/v1/definitions/runtime.lua"
@@ -13463,10 +13511,10 @@
       "kind": "field",
       "namespace": "runtime",
       "name": "runtime.lifecycle.on_unload",
-      "signature": "runtime.lifecycle.on_unload: fun()?",
+      "signature": "runtime.lifecycle.on_unload: fun()",
       "params": [],
       "returns": [
-        "fun()?"
+        "fun()"
       ],
       "description": "",
       "source": "shroudforge/v1/definitions/runtime.lua"

@@ -11,14 +11,6 @@ local TypeRegistry = {}
 --- @return Type
 function TypeRegistry.get(qualified_name) end
 
---- @param hash u32
---- @return Type
-function TypeRegistry.get_by_qualified_hash(hash) end
-
---- @param hash u32
---- @return Type
-function TypeRegistry.get_by_impact_hash(hash) end
-
 --- @param qualified_name string
 --- @return Type
 function TypeRegistry.get_by_qualified_name(qualified_name) end
@@ -39,11 +31,6 @@ function TypeRegistry.of(value) end
 --- @field name string
 --- @field impact_name string
 --- @field qualified_name string
---- @field name_hash u32
---- @field impact_hash u32
---- @field qualified_hash u32
---- @field internal_hash u32
----
 --- @field namespace string[]
 --- @field inner_type Type?
 --- @field size u32

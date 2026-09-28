@@ -30,6 +30,8 @@ const classAliases = {
   RuntimeFeatureStatus: "runtime.status",
   EmlLoader: "shroudforge.loader",
   EmlLoaderFeatures: "shroudforge.loader.features",
+  EmlRuntimeFeatures: "shroudforge.loader.features.runtime",
+  EmlLoaderRuntime: "shroudforge.loader.runtime",
   ShroudForgeApi: "shroudforge",
   ShroudForge: "shroudforge",
   ShroudForgeLogApi: "shroudforge.log",
@@ -62,7 +64,7 @@ for (const file of files) {
       const value = doc[1].trim();
       const classMatch = value.match(/^@class\s+(\S+)/);
       if (classMatch) currentClass = classMatch[1];
-      const fieldMatch = value.match(/^@field\s+(\S+)\s+([^\s]+)(?:\s+--\s*(.*))?/);
+      const fieldMatch = value.match(/^@field\s+(\S+)\s+(\S+\([^)]*\)|[^\s]+)(?:\s+--\s*(.*))?/);
       if (fieldMatch && currentClass) {
         const owner = publicClassName(currentClass);
         const name = `${owner}.${fieldMatch[1]}`;

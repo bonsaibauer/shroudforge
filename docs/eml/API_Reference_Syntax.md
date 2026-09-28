@@ -354,13 +354,10 @@ Reflection is one of the most important APIs in EML. It allows scripts to inspec
 The primary access point for reflection data in this runtime build is `game.types`.
 
 ```lua
--- Lookup by qualified name or hash
-game.types.get(qualified_hash: u32) -> Type
+-- Lookup by qualified name
 game.types.get(qualified_name: string) -> Type
 
 -- Specialized lookups
-game.types.get_by_qualified_hash(qualified_hash: u32) -> Type
-game.types.get_by_impact_hash(impact_hash: u32) -> Type
 game.types.get_by_qualified_name(qualified_name: string) -> Type
 game.types.get_by_impact_name(impact_name: string) -> Type
 
@@ -378,11 +375,6 @@ A `Type` object describes an engine type.
     name = string,
     impact_name = string,
     qualified_name = string,
-
-    name_hash = u32,
-    impact_hash = u32,
-    qualified_hash = u32,
-    internal_hash = u32,
 
     namespace = string[],
     inner_type = Type?,

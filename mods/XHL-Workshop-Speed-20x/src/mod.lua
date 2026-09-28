@@ -1,7 +1,7 @@
--- 雾锁王国 EML 模组：XHL 20倍工坊生产速度
--- 将所有大于零的配方制作时长除以配置倍率。
--- 游戏仍会应用当前世界的 factoryProductionSpeedFactor，
--- 因此相对于同一存档未安装本 Mod 时，制作速度仍按配置倍率提高。
+-- Enshrouded EML mod: XHL 20x Workshop Crafting Speed
+-- Divides every positive recipe crafting duration by the configured multiplier.
+-- The game still applies the current world's factoryProductionSpeedFactor,
+-- so crafting remains faster by the configured multiplier than in the same save without this mod.
 
 local TAG = "[XHL-Workshop-Speed-20x]"
 
@@ -84,8 +84,8 @@ for _, resource in ipairs(registries) do
             local duration = field(recipe, "craftingDuration")
             local oldValue = duration and tonumber(field(duration, "value")) or nil
             if oldValue and oldValue > 0 then
-                -- 制作时长以纳秒为单位。四舍五入到最接近的纳秒，
-                -- 可以避免产生零时长条目，同时保持配置的制作倍率。
+                -- Crafting duration is measured in nanoseconds. Round to the nearest nanosecond
+                -- to avoid zero-duration entries while preserving the configured speed multiplier.
                 local newValue = math.max(1, math.floor((oldValue / config.multiplier) + 0.5))
                 duration.value = newValue
                 patchedCount = patchedCount + 1

@@ -1,9 +1,9 @@
--- 《雾锁王国》EML 模组：小狐狸自动拾取
--- v1.5.0 以 XHL 早期白名单版本为基线重做。
--- Lua 只依据掉落物名称和实际 ECS 组件组合工作，不使用外部模组的
--- 排除表、采集节点名称表或配置键。
--- Native Sidecar 识别 200000123 纳秒私有标记，跳过原版首次随机等待，
--- 并根据原版 InventoryFull 结果限制同一玩家与同一掉落物的重复请求。
+-- Enshrouded EML mod: XHL Auto Loot
+-- v1.5.0 rebuilt from the early XHL whitelist version.
+-- Lua relies only on drop names and their actual ECS component combinations; it does not use
+-- other mods' exclusion lists, gathering-node name lists, or configuration keys.
+-- The Native Sidecar recognizes the private 200000123-nanosecond marker, skips the vanilla initial random delay,
+-- and limits repeated requests for the same player and drop based on vanilla InventoryFull results.
 
 local TAG = "[XHL-Auto-Loot]"
 local VERSION = "1.5.0"
