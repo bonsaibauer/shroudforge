@@ -2,6 +2,7 @@
   "id": "sf-no-stamina-loss",
   "name": "SF No Stamina Loss",
   "version": "1.1.1",
+  "icon": "icon.svg",
   "authors": ["bonsaibauer"],
   "dependencies": [],
   "description": "Prevents stamina depletion with the build-profile-verified native patch.",

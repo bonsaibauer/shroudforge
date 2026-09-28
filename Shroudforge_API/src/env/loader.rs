@@ -960,29 +960,29 @@ mod runtime_provider {
                     }
                     let abi = symbol!("KfcRuntimeAbi", unsafe extern "C" fn() -> u32);
                     let actual_abi = abi();
-                    if actual_abi != 4 {
-                        Err(format!("provider-abi-mismatch:expected=4,actual={actual_abi}"))
+                    if actual_abi != 5 {
+                        Err(format!("provider-abi-mismatch:expected=5,actual={actual_abi}"))
                     } else {
                         Ok(Provider {
-                            configure: symbol!("ShroudforgeEcsConfigure", Configure),
-                            ready: symbol!("ShroudforgeEcsReady", Ready),
-                            can_write: symbol!("ShroudforgeEcsCanWrite", Ready),
-                            describe: symbol!("ShroudforgeEcsDescribe", Describe),
-                            query: symbol!("ShroudforgeEcsQuery", Query),
-                            resolve_entity: symbol!("ShroudforgeEcsResolve", ResolveEntity),
-                            read: symbol!("ShroudforgeEcsRead", Read),
-                            write: symbol!("ShroudforgeEcsWrite", Write),
-                            world_operation_available: symbol!("ShroudforgeWorldOperationAvailable", WorldOperationAvailable),
-                            world_context_active: symbol!("ShroudforgeWorldContextActive", WorldContextActive),
-                            world_entity_context_ready: symbol!("ShroudforgeWorldEntityContextReady", WorldEntityContextReady),
-                            world_voxel_read: symbol!("ShroudforgeWorldVoxelRead", WorldVoxelRead),
-                            world_voxel_write: symbol!("ShroudforgeWorldVoxelWrite", WorldVoxelWrite),
-                            world_entity_spawn: symbol!("ShroudforgeWorldEntitySpawn", WorldEntitySpawn),
-                            world_entity_place: symbol!("ShroudforgeWorldEntityPlace", WorldEntityPlacement),
-                            world_entity_destroy: symbol!("ShroudforgeWorldEntityDestroy", WorldEntityPlacement),
-                            world_entity_finish: symbol!("ShroudforgeWorldEntityFinishBuilding", WorldEntityFinish),
-                            runtime_patch_available: symbol!("ShroudforgeRuntimePatchAvailable", RuntimePatchAvailable),
-                            runtime_patch_set_enabled: symbol!("ShroudforgeRuntimePatchSetEnabled", RuntimePatchSetEnabled),
+                            configure: symbol!("KfcRuntimeEcsConfigure", Configure),
+                            ready: symbol!("KfcRuntimeEcsReady", Ready),
+                            can_write: symbol!("KfcRuntimeEcsCanWrite", Ready),
+                            describe: symbol!("KfcRuntimeEcsDescribe", Describe),
+                            query: symbol!("KfcRuntimeEcsQuery", Query),
+                            resolve_entity: symbol!("KfcRuntimeEcsResolve", ResolveEntity),
+                            read: symbol!("KfcRuntimeEcsRead", Read),
+                            write: symbol!("KfcRuntimeEcsWrite", Write),
+                            world_operation_available: symbol!("KfcRuntimeWorldOperationAvailable", WorldOperationAvailable),
+                            world_context_active: symbol!("KfcRuntimeWorldContextActive", WorldContextActive),
+                            world_entity_context_ready: symbol!("KfcRuntimeWorldEntityContextReady", WorldEntityContextReady),
+                            world_voxel_read: symbol!("KfcRuntimeWorldVoxelRead", WorldVoxelRead),
+                            world_voxel_write: symbol!("KfcRuntimeWorldVoxelWrite", WorldVoxelWrite),
+                            world_entity_spawn: symbol!("KfcRuntimeWorldEntitySpawn", WorldEntitySpawn),
+                            world_entity_place: symbol!("KfcRuntimeWorldEntityPlace", WorldEntityPlacement),
+                            world_entity_destroy: symbol!("KfcRuntimeWorldEntityDestroy", WorldEntityPlacement),
+                            world_entity_finish: symbol!("KfcRuntimeWorldEntityFinishBuilding", WorldEntityFinish),
+                            runtime_patch_available: symbol!("KfcRuntimePatchAvailable", RuntimePatchAvailable),
+                            runtime_patch_set_enabled: symbol!("KfcRuntimePatchSetEnabled", RuntimePatchSetEnabled),
                             abi: actual_abi,
                             status: symbol!("KfcRuntimeStatus", unsafe extern "C" fn(*mut c_char, usize)),
                         })

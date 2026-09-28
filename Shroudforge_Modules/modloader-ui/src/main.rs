@@ -206,6 +206,7 @@ mod windows {
         description: Option<String>,
         authors: Vec<String>,
         license: Option<String>,
+        icon: Option<String>,
         links: shroudforge_package::ModLinks,
         source: &'static str,
         enabled: bool,
@@ -1199,7 +1200,8 @@ mod windows {
                 .get("ui")
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({}));
-            let assets = read_mod_assets(&package, &ui);
+            let icon = value.get("icon").and_then(|value| value.as_str()).map(str::to_owned);
+            let assets = read_mod_assets(&package, &ui, icon.as_deref());
             mods.push(ModInfo {
                 revision,
                 id: id.into(),
@@ -1237,6 +1239,7 @@ mod windows {
                     .get("license")
                     .and_then(|value| value.as_str())
                     .map(str::to_owned),
+                icon,
                 links: serde_json::from_value(value.get("links").cloned().unwrap_or_default())
                     .unwrap_or_default(),
                 source: if catalog_mods.contains(id) {
@@ -1285,6 +1288,7 @@ mod windows {
     fn read_mod_assets(
         package: &Path,
         ui: &serde_json::Value,
+        icon: Option<&str>,
     ) -> std::collections::HashMap<String, String> {
         fn collect(value: &serde_json::Value, paths: &mut Vec<String>) {
             match value {
@@ -1312,6 +1316,9 @@ mod windows {
         }
         let mut paths = Vec::new();
         collect(ui, &mut paths);
+        if let Some(icon) = icon {
+            paths.push(icon.to_owned());
+        }
         paths.sort();
         paths.dedup();
         paths

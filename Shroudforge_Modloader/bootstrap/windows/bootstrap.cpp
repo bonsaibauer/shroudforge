@@ -1,7 +1,7 @@
 #include <windows.h>
 
-#include "../../kfc-runtime/src/windows/ecs_runtime.h"
-#include "../../kfc-runtime/src/windows/logging_config.h"
+#include "runtime_bridge.h"
+#include "logging_config.h"
 
 #include <chrono>
 #include <cstdio>
@@ -64,7 +64,7 @@ void begin_log_session(const std::filesystem::path& root) {
 }
 
 void log(char level, const std::string& message) {
-    if (!KfcRuntimeConfig::Allows(module_directory(),level)) return;
+    if (!ShroudforgeConfig::Allows(module_directory(),level)) return;
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - session_started).count();
     char prefix[96]{};
@@ -110,7 +110,7 @@ void clear_runtime_heartbeat(const std::filesystem::path& root) {
 }
 
 void start_debug_console(const std::filesystem::path& root) {
-    if (!KfcRuntimeConfig::ModuleEnabled(root,"debugConsole")) return;
+    if (!ShroudforgeConfig::ModuleEnabled(root,"debugConsole")) return;
     if (!std::filesystem::is_regular_file(root / L"enshrouded.exe")) return;
     const auto executable = root / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(executable)) {
@@ -159,7 +159,7 @@ void stop_debug_console() {
 }
 
 void start_modloader_ui(const std::filesystem::path& root) {
-    if (!KfcRuntimeConfig::ModuleEnabled(root,"modloaderUi")) return;
+    if (!ShroudforgeConfig::ModuleEnabled(root,"modloaderUi")) return;
     const auto executable = root / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(executable)) {
         log('W', "Modloader UI module is not installed");

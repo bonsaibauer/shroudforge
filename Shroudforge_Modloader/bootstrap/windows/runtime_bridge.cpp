@@ -1,12 +1,14 @@
-#include "../../kfc-runtime/src/windows/ecs_runtime.h"
+#include "runtime_bridge.h"
+#include "../../kfc-runtime/include/kfc_runtime/runtime.h"
 #include <windows.h>
 #include <filesystem>
 
 namespace {
 HMODULE provider{};
-using InitializeFunction = bool (__cdecl*)();
-using VoidFunction = void (__cdecl*)();
-using StatusFunction = void (__cdecl*)(char*, std::size_t);
+using AbiFunction = decltype(&KfcRuntimeAbi);
+using InitializeFunction = decltype(&KfcRuntimeInitialize);
+using VoidFunction = decltype(&KfcRuntimeTick);
+using StatusFunction = decltype(&KfcRuntimeStatus);
 VoidFunction tick{}, shutdown{};
 StatusFunction status{};
 std::string error{"provider-not-loaded"};
@@ -21,12 +23,12 @@ bool Initialize() {
     const auto dll = std::filesystem::path(path).parent_path() / L"kfc-runtime.dll";
     provider = LoadLibraryExW(dll.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
     if (!provider) { error = "kfc-runtime.dll-load-failed"; return false; }
-    const auto abi = reinterpret_cast<unsigned (__cdecl*)()>(GetProcAddress(provider, "KfcRuntimeAbi"));
+    const auto abi = reinterpret_cast<AbiFunction>(GetProcAddress(provider, "KfcRuntimeAbi"));
     const auto initialize = reinterpret_cast<InitializeFunction>(GetProcAddress(provider, "KfcRuntimeInitialize"));
     tick = reinterpret_cast<VoidFunction>(GetProcAddress(provider, "KfcRuntimeTick"));
     shutdown = reinterpret_cast<VoidFunction>(GetProcAddress(provider, "KfcRuntimeShutdown"));
     status = reinterpret_cast<StatusFunction>(GetProcAddress(provider, "KfcRuntimeStatus"));
-    if (!abi || abi() != 4 || !initialize || !tick || !shutdown || !status) {
+    if (!abi || abi() != 5 || !initialize || !tick || !shutdown || !status) {
         error = "incompatible-runtime-provider-ABI";
         tick = nullptr; shutdown = nullptr; status = nullptr;
         FreeLibrary(provider); provider = nullptr; return false;

@@ -12,8 +12,18 @@ local feature
 local selection_a = nil
 local selection_b = nil
 local selection_target = nil
+local active_blueprint_name = nil
 local placeable_items = nil
 local maximum_blueprint_bytes = 32 * 1024 * 1024
+local save_blueprint_named
+local previous_key_state = {}
+
+local function key_pressed(key)
+    local down = shroudforge.input.is_key_down(key)
+    local pressed = down and not previous_key_state[key]
+    previous_key_state[key] = down
+    return pressed
+end
 
 local function finite_number(value)
     return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
@@ -33,6 +43,46 @@ local function world_position(position)
     local x, y, z = tonumber(position.x), tonumber(position.y), tonumber(position.z)
     if not finite_number(x) or not finite_number(y) or not finite_number(z) then return nil end
     return {x = x / scale, y = y / scale, z = z / scale}
+end
+
+local function rotated_blueprint(source, quarter_turns)
+    local region = source.region
+    local sx, sy, sz = region.sx, region.sy, region.sz
+    local cells, props = source.cells, {}
+    for index, prop in ipairs(source.props or {}) do
+        props[index] = {
+            itemId = prop.itemId, entityHandle = prop.entityHandle,
+            x = prop.x, y = prop.y, z = prop.z,
+            qx = prop.qx, qy = prop.qy, qz = prop.qz, qw = prop.qw,
+            sx = prop.sx, sy = prop.sy, sz = prop.sz,
+        }
+    end
+    local half_sqrt_two = math.sqrt(0.5)
+    for _ = 1, quarter_turns % 4 do
+        local next_sx, next_sz = sz, sx
+        local next_cells = {}
+        for z = 0, sz - 1 do
+            for y = 0, sy - 1 do
+                for x = 0, sx - 1 do
+                    local source_index = x + sx * (y + sy * z) + 1
+                    local next_x, next_z = z, sx - 1 - x
+                    local target_index = next_x + next_sx * (y + sy * next_z) + 1
+                    next_cells[target_index] = cells[source_index]
+                end
+            end
+        end
+        for _, prop in ipairs(props) do
+            local x, z = prop.x, prop.z
+            prop.x, prop.z = z, sx * 0.5 - x
+            local qx, qy, qz, qw = prop.qx, prop.qy, prop.qz, prop.qw
+            prop.qx = half_sqrt_two * qx + half_sqrt_two * qz
+            prop.qy = half_sqrt_two * qy + half_sqrt_two * qw
+            prop.qz = half_sqrt_two * qz - half_sqrt_two * qx
+            prop.qw = half_sqrt_two * qw - half_sqrt_two * qy
+        end
+        sx, sz, cells = next_sx, next_sz, next_cells
+    end
+    return {sx = sx, sy = sy, sz = sz, cells = cells, props = props}
 end
 
 local function cursor_point()
@@ -183,7 +233,7 @@ local function resolve_placeable_items()
     return resolved
 end
 
-local function voxel_region(source)
+local function voxel_region(source, use_current_cursor)
     local names = source and {"sourceX", "sourceY", "sourceZ"} or {"targetX", "targetY", "targetZ"}
     local x, y, z
     local sx, sy, sz
@@ -197,7 +247,13 @@ local function voxel_region(source)
         sx, sy, sz = math.abs(bx - ax) + 1, math.abs(by - ay) + 1, math.abs(bz - az) + 1
     else
         local point
-        if not source then point = selection_target end
+        if not source then
+            if use_current_cursor then point = cursor_point()
+            else point = selection_target end
+        end
+        if not source and use_current_cursor and not point then
+            return nil, "the live cursor position is unavailable"
+        end
         if point then
             x, y, z = math.floor(point.x * 2 + 0.5), math.floor(point.y * 2 + 0.5), math.floor(point.z * 2 + 0.5)
         else
@@ -205,7 +261,11 @@ local function voxel_region(source)
         end
     end
     if not sx then sx, sy, sz = tonumber(setting("sizeX")), tonumber(setting("sizeY")), tonumber(setting("sizeZ")) end
-    if not source and clipboard then sx, sy, sz = clipboard.region.sx, clipboard.region.sy, clipboard.region.sz end
+    if not source and clipboard then
+        local turns = (tonumber(setting("rotationQuarterTurns")) or 0) % 4
+        sx, sy, sz = clipboard.region.sx, clipboard.region.sy, clipboard.region.sz
+        if turns % 2 == 1 then sx, sz = sz, sx end
+    end
     if not x or not y or not z or not sx or not sy or not sz or
        x % 1 ~= 0 or y % 1 ~= 0 or z % 1 ~= 0 or
        sx % 1 ~= 0 or sy % 1 ~= 0 or sz % 1 ~= 0 or
@@ -303,6 +363,12 @@ local function contains_handle(handles, expected)
     return false
 end
 
+local function same_cells(left, right)
+    if type(left) ~= "table" or type(right) ~= "table" or #left ~= #right then return false end
+    for index = 1, #left do if left[index] ~= right[index] then return false end end
+    return true
+end
+
 local function newly_matching_handles(before, after)
     local result = {}
     if type(before) ~= "table" or type(after) ~= "table" then return result end
@@ -312,7 +378,7 @@ local function newly_matching_handles(before, after)
     return result
 end
 
-local function copy_voxels()
+local function copy_voxels(save_and_select)
     if not feature("runtime.world.voxel.read") then return end
     local region, reason = voxel_region(true)
     if not region then shroudforge.log.warn("World Editor: " .. reason); return end
@@ -333,19 +399,38 @@ local function copy_voxels()
     for _, value in ipairs(cells) do if value ~= 0 then occupied = occupied + 1 end end
     shroudforge.log.info(string.format("World Editor captured %d verified voxel cells (%d occupied) and %d resolved props from %d,%d,%d",
         #cells, occupied, #props, region.x, region.y, region.z))
+    if save_and_select then
+        local name
+        for index = 1, 999999 do
+            local candidate = "capture-" .. tostring(index)
+            local path = "world-editor/blueprints/" .. candidate .. ".sfbp"
+            local ok, exists = pcall(io.export_exists, path)
+            if not ok then
+                shroudforge.log.error("World Editor cannot safely choose a capture name because export storage could not be inspected: " .. tostring(exists))
+                return
+            end
+            if exists == false then name = candidate; break end
+        end
+        if not name or not save_blueprint_named(name) then
+            shroudforge.log.error("World Editor captured the region but could not save a unique persistent blueprint")
+            return
+        end
+        active_blueprint_name = name
+        shroudforge.log.info("World Editor saved and selected blueprint " .. name)
+    end
 end
 
-local function blueprint_path()
-    local name = setting("blueprintName")
+local function blueprint_path(name)
+    name = name or setting("blueprintName")
     if name == "" or not name:match("^[%w_-]+$") then
         return nil, "blueprint name may contain only letters, digits, underscores, and hyphens"
     end
     return "world-editor/blueprints/" .. name .. ".sfbp"
 end
 
-local function save_blueprint()
+save_blueprint_named = function(name)
     if not clipboard then shroudforge.log.warn("World Editor: copy a voxel region before saving a blueprint"); return end
-    local path, reason = blueprint_path()
+    local path, reason = blueprint_path(name)
     if not path then shroudforge.log.warn("World Editor: " .. reason); return end
     local region, values = clipboard.region, clipboard.cells
     local body = {"SHROUDFORGE_WORLD_BLUEPRINT_V3",
@@ -363,13 +448,19 @@ local function save_blueprint()
     local ok, err = pcall(io.export, path, content)
     if not ok then
         shroudforge.log.error("World Editor could not save persistent blueprint (enable export): " .. tostring(err))
-        return
+        return false
     end
     if type(content) ~= "string" or #content > maximum_blueprint_bytes then
         shroudforge.log.warn("World Editor: blueprint is not text or exceeds the 32 MiB file limit")
-        return
+        return false
     end
     shroudforge.log.info("World Editor saved persistent voxel-and-prop blueprint: " .. path)
+    return true
+end
+
+local function save_blueprint()
+    local name = setting("blueprintName")
+    if save_blueprint_named(name) then active_blueprint_name = name end
 end
 
 local function load_blueprint()
@@ -449,20 +540,23 @@ local function load_blueprint()
         return
     end
     clipboard = {region = {x = 0, y = 0, z = 0, sx = sx, sy = sy, sz = sz}, cells = cells, props = props}
-    shroudforge.log.info(string.format("World Editor loaded persistent blueprint '%s' (%d cells, %d props)", setting("blueprintName"), #cells, #props))
+    active_blueprint_name = setting("blueprintName")
+    shroudforge.log.info(string.format("World Editor loaded persistent blueprint '%s' (%d cells, %d props)", active_blueprint_name, #cells, #props))
 end
 
-local function paste_voxels()
+local function paste_voxels(use_current_cursor)
     if not feature("runtime.world.voxel.write") then return end
     if not clipboard then shroudforge.log.warn("World Editor: copy a voxel region before pasting"); return end
-    local target, reason = voxel_region(false)
+    local target, reason = voxel_region(false, use_current_cursor)
     if not target then shroudforge.log.warn("World Editor: " .. reason); return end
-    local source = clipboard.region
+    local turns = (tonumber(setting("rotationQuarterTurns")) or 0) % 4
+    local rotated = rotated_blueprint(clipboard, turns)
+    local source = rotated
     if source.sx ~= target.sx or source.sy ~= target.sy or source.sz ~= target.sz then
         shroudforge.log.warn("World Editor: copied region dimensions changed; copy the region again")
         return
     end
-    for _, prop in ipairs(clipboard.props or {}) do
+    for _, prop in ipairs(rotated.props or {}) do
         if math.abs(prop.sx - 1) > 1e-6 or math.abs(prop.sy - 1) > 1e-6 or math.abs(prop.sz - 1) > 1e-6 then
             shroudforge.log.warn("World Editor: this KFC Runtime build's native spawn operation supports unit scale only; no paste was applied")
             return
@@ -474,27 +568,90 @@ local function paste_voxels()
         shroudforge.log.warn("World Editor could not snapshot the target before paste: " .. tostring(read_reason))
         return
     end
+    local paste_cells = {}
+    local additive = setting("pasteVoxelMode") == "add"
+    for index, value in ipairs(rotated.cells) do
+        paste_cells[index] = additive and value == 0 and previous_cells[index] or value
+    end
+    local removed_props = {}
+    if setting("targetPropMode") == "replace" then
+        if not feature("runtime.world.entity.destroy") then return end
+        local props = capture_region_props(target)
+        if not props then
+            shroudforge.log.error("World Editor refused replace-props paste because target props could not be completely inspected")
+            return
+        end
+        local recipes = resolve_placeable_items()
+        for _, prop in ipairs(props) do
+            if math.abs(prop.sx - 1) > 1e-6 or math.abs(prop.sy - 1) > 1e-6 or math.abs(prop.sz - 1) > 1e-6 then
+                shroudforge.log.warn("World Editor cannot replace target props with non-unit scale because undo cannot restore their scale")
+                return
+            end
+            local recipe = recipes and recipes[prop.itemId]
+            if not recipe then
+                shroudforge.log.warn("World Editor cannot replace a target prop without a current ItemInfo recipe")
+                return
+            end
+            local position = {target.x / 2 + prop.x, target.y / 2 + prop.y, target.z / 2 + prop.z}
+            local rotation = {prop.qx, prop.qy, prop.qz, prop.qw}
+            local count, handles = count_prop_at(prop.itemId, position)
+            if count ~= 1 or not contains_handle(handles, prop.entityHandle) then
+                shroudforge.log.warn("World Editor refused replace-props paste because a target prop is stale or spatially ambiguous")
+                return
+            end
+            removed_props[#removed_props + 1] = {
+                recipe = recipe, position = position, rotation = rotation, entityHandle = prop.entityHandle,
+            }
+        end
+    end
+    undo_state = {
+        region = target, cells = previous_cells, expected_cells = previous_cells,
+        entities = {}, entity_index = 0, removed_props = {}, removed_prop_index = 0,
+        voxel_written = false, recovery_required = true,
+    }
+    for _, prop in ipairs(removed_props) do
+        local removed, remove_reason = runtime.world.entity.destroy(prop.position, prop.rotation,
+            prop.recipe.bounds, prop.recipe.id, prop.recipe.feedback)
+        local count_after, handles_after = count_prop_at(prop.recipe.id, prop.position)
+        local handle_gone = count_after ~= nil and not contains_handle(handles_after, prop.entityHandle)
+        if handle_gone then
+            undo_state.removed_props[#undo_state.removed_props + 1] = prop
+            undo_state.removed_prop_index = #undo_state.removed_props
+        end
+        if count_after == nil or not handle_gone or count_after ~= 0 then
+            runtime.report_effect("write-failed", remove_reason or "target prop removal was not verified")
+            shroudforge.log.error("World Editor stopped before voxel paste because a target prop could not be safely removed")
+            return
+        end
+    end
     local ok, write_reason = runtime.world.voxel.write(target.x, target.y, target.z,
-        target.sx, target.sy, target.sz, clipboard.cells)
+        target.sx, target.sy, target.sz, paste_cells)
     if not ok then
+        local partial_cells = runtime.world.voxel.read(target.x, target.y, target.z, target.sx, target.sy, target.sz)
+        if partial_cells and not same_cells(partial_cells, previous_cells) then
+            undo_state.expected_cells = partial_cells
+            undo_state.voxel_written = true
+        end
         runtime.report_effect("write-failed", write_reason or "voxel write failed")
         shroudforge.log.error("World Editor voxel paste failed: " .. tostring(write_reason))
         return
     end
+    undo_state.expected_cells = paste_cells
+    undo_state.voxel_written = true
     local spawned = {}
     local origin = {target.x / 2, target.y / 2, target.z / 2}
-    for _, prop in ipairs(clipboard.props or {}) do
+    for _, prop in ipairs(rotated.props or {}) do
         local recipe = resolve_placeable_items() and resolve_placeable_items()[prop.itemId]
         if not recipe then
             shroudforge.log.error("World Editor stopped after voxel paste: no current placement recipe for item " .. tostring(prop.itemId))
-            undo_state = {region = target, cells = previous_cells, entities = spawned, entity_index = #spawned}
+            undo_state.entities, undo_state.entity_index = spawned, #spawned
             return
         end
         local position = {origin[1] + prop.x, origin[2] + prop.y, origin[3] + prop.z}
         local rotation = {prop.qx, prop.qy, prop.qz, prop.qw}
         local count_before, before_handles = count_prop_at(recipe.id, position)
         if count_before == nil then
-            undo_state = {region = target, cells = previous_cells, entities = spawned, entity_index = #spawned}
+            undo_state.entities, undo_state.entity_index = spawned, #spawned
             runtime.report_effect("write-failed", before_handles or "could not snapshot the prop count before spawn")
             shroudforge.log.error("World Editor stopped after voxel paste because prop state could not be snapshotted")
             return
@@ -511,7 +668,7 @@ local function paste_voxels()
             runtime.report_effect("write-failed", spawn_reason or "entity spawn was not verified")
             shroudforge.log.error("World Editor stopped after partial paste; entity spawn failed for item " ..
                 tostring(prop.itemId) .. ": " .. tostring(spawn_reason))
-            undo_state = {region = target, cells = previous_cells, entities = spawned, entity_index = #spawned}
+            undo_state.entities, undo_state.entity_index = spawned, #spawned
             return
         end
         local matching_count, after_handles = count_prop_at(recipe.id, position)
@@ -519,7 +676,7 @@ local function paste_voxels()
         if not matching_count or matching_count <= count_before or #new_handles ~= 1 then
             spawned[#spawned + 1] = {recipe = recipe, position = position, rotation = rotation,
                 token = token, entityHandle = #new_handles == 1 and new_handles[1] or nil}
-            undo_state = {region = target, cells = previous_cells, entities = spawned, entity_index = #spawned}
+            undo_state.entities, undo_state.entity_index = spawned, #spawned
             local detail = after_handles or "spawn returned but Lua could not uniquely identify its new live ECS handle"
             runtime.report_effect("write-failed", detail)
             shroudforge.log.error("World Editor stopped after spawn because it could not track the new prop: " .. tostring(detail))
@@ -528,7 +685,8 @@ local function paste_voxels()
         spawned[#spawned + 1] = {recipe = recipe, position = position, rotation = rotation,
             token = token, entityHandle = new_handles[1]}
     end
-    undo_state = {region = target, cells = previous_cells, entities = spawned, entity_index = #spawned}
+    undo_state.entities, undo_state.entity_index = spawned, #spawned
+    undo_state.recovery_required = false
     runtime.report_effect("write-confirmed", string.format("Wrote and read back %d voxel cells and verified %d new props in live ECS; save persistence is not verified",
         #clipboard.cells, #spawned))
     shroudforge.log.info(string.format("World Editor wrote %d voxel cells and verified %d spawned props at %d,%d,%d",
@@ -536,9 +694,20 @@ local function paste_voxels()
 end
 
 local function undo_voxels()
-    if not feature("runtime.world.voxel.write") then return end
+    if not feature("runtime.world.voxel.write") or not feature("runtime.world.voxel.read") then return end
     if not undo_state then shroudforge.log.warn("World Editor: there is no verified world paste to undo"); return end
     local region = undo_state.region
+    local current_cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
+        region.sx, region.sy, region.sz)
+    if not current_cells then
+        shroudforge.log.error("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
+        return
+    end
+    local expected_cells = undo_state.voxel_written and undo_state.expected_cells or undo_state.cells
+    if not same_cells(current_cells, expected_cells) then
+        shroudforge.log.error("World Editor paused undo because the target voxels changed after the paste; no later changes were overwritten")
+        return
+    end
     local entities = undo_state.entities or {}
     local index = undo_state.entity_index or #entities
     while index >= 1 do
@@ -580,12 +749,40 @@ local function undo_voxels()
             end
         end
     end
-    local ok, reason = runtime.world.voxel.write(region.x, region.y, region.z,
-        region.sx, region.sy, region.sz, undo_state.cells)
-    if not ok then
-        runtime.report_effect("write-failed", reason or "voxel undo failed")
-        shroudforge.log.error("World Editor voxel undo failed: " .. tostring(reason))
-        return
+    if undo_state.voxel_written then
+        local ok, reason = runtime.world.voxel.write(region.x, region.y, region.z,
+            region.sx, region.sy, region.sz, undo_state.cells)
+        if not ok then
+            runtime.report_effect("write-failed", reason or "voxel undo failed")
+            shroudforge.log.error("World Editor voxel undo failed: " .. tostring(reason))
+            return
+        end
+        undo_state.voxel_written = false
+        undo_state.expected_cells = undo_state.cells
+    end
+    local removed_index = undo_state.removed_prop_index or 0
+    while removed_index >= 1 do
+        local prop = undo_state.removed_props[removed_index]
+        if not feature("runtime.world.entity.spawn") then return end
+        local before_count, before_reason = count_prop_at(prop.recipe.id, prop.position)
+        if before_count == nil then
+            shroudforge.log.error("World Editor paused undo because replaced target props could not be inspected: " .. tostring(before_reason))
+            return
+        end
+        if before_count ~= 0 then
+            shroudforge.log.error("World Editor paused undo because a prop now occupies a position reserved for a replaced target prop")
+            return
+        end
+        local token, spawn_reason = runtime.world.entity.spawn(prop.recipe.uuidHigh, prop.recipe.uuidLow,
+            prop.position, prop.rotation, prop.recipe.id, 0)
+        local after_count, after_reason = count_prop_at(prop.recipe.id, prop.position)
+        if after_count == nil or after_count ~= 1 then
+            shroudforge.log.error("World Editor paused undo while restoring a replaced target prop: " ..
+                tostring(spawn_reason or after_reason or token or "spawn could not be uniquely verified"))
+            return
+        end
+        removed_index = removed_index - 1
+        undo_state.removed_prop_index = removed_index
     end
     undo_state = nil
     runtime.report_effect("write-confirmed", "Restored the previous voxel region and removed the verified pasted props")
@@ -605,6 +802,30 @@ end
 local function clear_cursor_selection()
     selection_a, selection_b, selection_target = nil, nil, nil
     shroudforge.log.info("World Editor cursor marks cleared; manual coordinates are active")
+end
+
+local function mark_cursor_next()
+    local point = cursor_point()
+    if not point then return end
+    if not selection_a or selection_b then
+        selection_a, selection_b = point, nil
+        shroudforge.log.info(string.format("World Editor selection A = %.3f, %.3f, %.3f; press F5 at the opposite corner for B",
+            point.x, point.y, point.z))
+    else
+        selection_b = point
+        shroudforge.log.info(string.format("World Editor selection B = %.3f, %.3f, %.3f; region is ready for F8 capture",
+            point.x, point.y, point.z))
+    end
+end
+
+local function reset_editor()
+    if undo_state and undo_state.recovery_required then
+        shroudforge.log.warn("World Editor reset refused: undo the incomplete paste with F4 before clearing editor state")
+        return
+    end
+    selection_a, selection_b, selection_target = nil, nil, nil
+    clipboard, undo_state, active_blueprint_name = nil, nil, nil
+    shroudforge.log.info("World Editor reset: selection, active blueprint, and undo history cleared")
 end
 
 local function list_props()
@@ -945,10 +1166,14 @@ end
 
 shroudforge.ui.on_action("discoverTypes", discover_types)
 shroudforge.ui.on_action("copyVoxels", copy_voxels)
+shroudforge.ui.on_action("captureAndSave", function() copy_voxels(true) end)
 shroudforge.ui.on_action("saveBlueprint", save_blueprint)
 shroudforge.ui.on_action("loadBlueprint", load_blueprint)
 shroudforge.ui.on_action("pasteVoxels", paste_voxels)
+shroudforge.ui.on_action("pasteAtCursor", function() paste_voxels(true) end)
 shroudforge.ui.on_action("undoVoxels", undo_voxels)
+shroudforge.ui.on_action("markCursorNext", mark_cursor_next)
+shroudforge.ui.on_action("resetEditor", reset_editor)
 shroudforge.ui.on_action("spawnEntity", spawn_entity)
 shroudforge.ui.on_action("placeEntity", function() placement_operation(false) end)
 shroudforge.ui.on_action("destroyEntity", function() placement_operation(true) end)
@@ -964,10 +1189,22 @@ shroudforge.ui.on_action("inspectComponent", inspect_component)
 shroudforge.ui.on_action("writeField", write_field)
 
 return {
+    update_interval_ms = 30,
     on_load = function()
-        shroudforge.log.info("World Editor Lua runtime loaded; live ECS operations are capability-gated")
+        shroudforge.log.info("World Editor ready: F4 undo, F5 mark A/B, F6 reset, F7 paste at cursor, F8 capture/save/select. F9 is Modloader UI; F10 is Debug Console.")
     end,
-    on_update = function(_delta_seconds) end,
+    on_update = function(_delta_seconds)
+        local undo = key_pressed("F4")
+        local mark = key_pressed("F5")
+        local reset = key_pressed("F6")
+        local paste = key_pressed("F7")
+        local capture = key_pressed("F8")
+        if reset then reset_editor(); return end
+        if undo then undo_voxels() end
+        if mark then mark_cursor_next() end
+        if paste then paste_voxels(true) end
+        if capture then copy_voxels(true) end
+    end,
     on_unload = function()
         shroudforge.log.info("World Editor Lua runtime unloaded")
     end,

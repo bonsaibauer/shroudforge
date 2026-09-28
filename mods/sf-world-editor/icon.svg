@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="globe" x1="37" y1="34" x2="91" y2="91" gradientUnits="userSpaceOnUse"><stop stop-color="#a8f1df"/><stop offset="1" stop-color="#347f88"/></linearGradient>
+    <linearGradient id="land" x1="42" y1="45" x2="83" y2="78" gradientUnits="userSpaceOnUse"><stop stop-color="#e1f5b3"/><stop offset="1" stop-color="#81c69f"/></linearGradient>
+    <linearGradient id="pencil" x1="76" y1="72" x2="104" y2="101" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0b0"/><stop offset="1" stop-color="#ca9147"/></linearGradient>
+  </defs>
+  <rect x="5" y="5" width="118" height="118" rx="29" fill="#101d22" stroke="#38545a" stroke-width="2"/>
+  <circle cx="59" cy="59" r="29" fill="url(#globe)" stroke="#d1fff2" stroke-width="3"/>
+  <path d="M30 59h58M59 30c-9 8-14 18-14 29s5 21 14 29m0-58c9 8 14 18 14 29s-5 21-14 29M37 44h44M37 74h44" stroke="#ddfff4" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+  <path d="m42 48 10-7 8 4 2 8-7 4 2 9-8 7-8-6-2-9 5-4-4-6Zm24 0 9-4 8 6-4 8-7 2-6-5 2-7Zm3 24 7-5 8 5-4 8-8 3-5-5 2-6Z" fill="url(#land)" stroke="#f3ffd9" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="m74 82 23-23a7 7 0 0 1 10 10L84 92l-15 5 5-15Z" fill="url(#pencil)" stroke="#fff3c8" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="m92 64 10 10M74 82l10 10" stroke="#79582e" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="m69 97 5-2-3-3-2 5Z" fill="#fff3c8"/>
+</svg>

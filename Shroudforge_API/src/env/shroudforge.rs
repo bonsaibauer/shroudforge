@@ -84,6 +84,12 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     )?;
     table.raw_set("settings", settings)?;
 
+    let input = lua.create_table()?;
+    input.raw_set("is_key_down", lua.create_function(|_, key: String| {
+        Ok(is_game_key_down(&key))
+    })?)?;
+    table.raw_set("input", input)?;
+
     let ui = lua.create_table()?;
     let ui_mod_id = mod_id.clone();
     ui.raw_set(
@@ -136,6 +142,43 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     table.raw_set("notifications", notifications)?;
 
     Ok(table)
+}
+
+fn is_game_key_down(key: &str) -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::{
+            System::Threading::GetCurrentProcessId,
+            UI::{
+                Input::KeyboardAndMouse::GetAsyncKeyState,
+                WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
+            },
+        };
+
+        let virtual_key = match key {
+            "F4" => 0x73,
+            "F5" => 0x74,
+            "F6" => 0x75,
+            "F7" => 0x76,
+            "F8" => 0x77,
+            _ => return false,
+        };
+        let foreground = unsafe { GetForegroundWindow() };
+        if foreground.is_null() {
+            return false;
+        }
+        let mut process_id = 0;
+        unsafe { GetWindowThreadProcessId(foreground, &mut process_id) };
+        if process_id != unsafe { GetCurrentProcessId() } {
+            return false;
+        }
+        return unsafe { GetAsyncKeyState(virtual_key) } < 0;
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = key;
+        false
+    }
 }
 
 fn action_registry_key(mod_id: &str, action: &str) -> String {

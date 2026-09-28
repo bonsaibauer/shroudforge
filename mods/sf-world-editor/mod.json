@@ -3,8 +3,9 @@
   "id": "sf-world-editor",
   "name": "World Editor",
   "version": "0.2.0",
-  "authors": ["ShroudForge"],
-  "description": "Select areas from the live cursor, capture placeable props and voxel data, resolve placement recipes from game assets, and save reusable blueprints.",
+  "icon": "icon.svg",
+  "authors": ["bonsaibauer"],
+  "description": "World editing shortcuts: F4 undo, F5 mark A/B, F6 reset, F7 paste at the cursor, and F8 capture/save/select. F9 opens the Modloader UI; F10 opens the Debug Console.",
   "dependencies": [],
   "enabled": true,
   "settings": {
@@ -16,9 +17,12 @@
     "sizeY": 8,
     "sizeZ": 8,
     "blueprintName": "my_blueprint",
+    "pasteVoxelMode": "replace",
+    "targetPropMode": "keep",
     "targetX": 0,
     "targetY": 0,
     "targetZ": 0,
+    "rotationQuarterTurns": 0,
     "entityHandle": 0,
     "componentType": "",
     "fieldPath": "",
@@ -39,7 +43,7 @@
   },
   "shroudforge": {
     "schemaVersion": 1,
-    "release": {"changelog": ["Adds two-corner cursor selection, separate paste targeting, live prop-handle selection, guarded undo, and bounded blueprint parsing."]},
+    "release": {"changelog": ["Adds F4-F8 World Editor shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."]},
     "settingsSchema": {
       "type": "object",
       "properties": {
@@ -51,9 +55,12 @@
         "sizeY": {"type": "integer", "default": 8, "minimum": 1, "maximum": 256},
         "sizeZ": {"type": "integer", "default": 8, "minimum": 1, "maximum": 256},
         "blueprintName": {"type": "string", "default": "my_blueprint", "minLength": 1, "maxLength": 64},
+        "pasteVoxelMode": {"type": "string", "default": "replace", "enum": ["replace", "add"]},
+        "targetPropMode": {"type": "string", "default": "keep", "enum": ["keep", "replace"]},
         "targetX": {"type": "integer", "default": 0},
         "targetY": {"type": "integer", "default": 0},
         "targetZ": {"type": "integer", "default": 0},
+        "rotationQuarterTurns": {"type": "integer", "default": 0, "minimum": 0, "maximum": 3},
         "entityHandle": {"type": "integer", "default": 0, "minimum": 0},
         "componentType": {"type": "string", "default": ""},
         "fieldPath": {"type": "string", "default": ""},
@@ -80,6 +87,17 @@
     ],
     "ui": {
       "sections": [
+        {
+          "title": "Keyboard shortcuts",
+          "description": "These shortcuts work while the game window is focused. F9 belongs to the Modloader UI and F10 to the Debug Console.",
+          "components": [
+            {"type": "button", "label": "F4 — Undo last paste", "action": "undoVoxels", "style": "secondary"},
+            {"type": "button", "label": "F5 — Mark next selection corner (A, then B)", "action": "markCursorNext", "style": "secondary"},
+            {"type": "button", "label": "F6 — Reset selection, active blueprint, and undo history", "action": "resetEditor", "style": "secondary", "confirmation": "Clear the current selection, active blueprint, and undo history?"},
+            {"type": "button", "label": "F7 — Paste active blueprint at the live cursor", "action": "pasteAtCursor", "style": "danger", "confirmation": "Write the active blueprint at the current cursor position?"},
+            {"type": "button", "label": "F8 — Capture, save, and select blueprint", "action": "captureAndSave", "style": "secondary"}
+          ]
+        },
         {
           "title": "Native entity operations",
           "description": "The editor resolves placement recipes from game assets. Spawn waits for a matching live ECS record; prop deletion can use a handle from the prop list, although the native game operation remains position-based.",
@@ -122,6 +140,9 @@
             {"type": "setting", "key": "blueprintName", "label": "Persistent blueprint name"},
             {"type": "button", "label": "Save world blueprint", "action": "saveBlueprint", "style": "secondary"},
             {"type": "button", "label": "Load world blueprint", "action": "loadBlueprint", "style": "secondary"},
+            {"type": "setting", "key": "rotationQuarterTurns", "label": "Paste rotation (quarter turns around Y, 0–3)"},
+            {"type": "setting", "key": "pasteVoxelMode", "label": "Voxel mode: replace or add", "control": "select", "options": [{"value": "replace", "label": "Replace target voxels"}, {"value": "add", "label": "Add occupied source voxels"}]},
+            {"type": "setting", "key": "targetPropMode", "label": "Props at target", "control": "select", "options": [{"value": "keep", "label": "Keep existing props"}, {"value": "replace", "label": "Replace intersecting props"}]},
             {"type": "setting", "key": "targetX", "label": "Target cell X"},
             {"type": "setting", "key": "targetY", "label": "Target cell Y"},
             {"type": "setting", "key": "targetZ", "label": "Target cell Z"},

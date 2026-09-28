@@ -2,6 +2,7 @@
   "id": "sf-infinite-item-use",
   "name": "SF Infinite Item Use",
   "version": "1.1.1",
+  "icon": "icon.svg",
   "authors": ["bonsaibauer"],
   "dependencies": [],
   "description": "Prevents item-use consumption with a build-profile-verified client patch. The effect applies globally to the patched game operation.",

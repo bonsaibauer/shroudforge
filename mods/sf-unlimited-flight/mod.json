@@ -2,6 +2,7 @@
   "id": "sf-unlimited-flight",
   "name": "SF Unlimited Flight",
   "version": "1.1.1",
+  "icon": "icon.svg",
   "authors": ["bonsaibauer"],
   "dependencies": [],
   "description": "Applies the build-profile-verified native flight patch.",

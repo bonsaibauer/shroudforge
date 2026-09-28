@@ -1,22 +1,23 @@
 {
   "id": "sf-infinite-item-split",
   "name": "SF Infinite Item Split",
-  "version": "1.3.0",
+  "version": "1.4.0",
+  "icon": "icon.svg",
   "authors": ["bonsaibauer"],
   "dependencies": [],
-  "description": "Preserves the source stack after the split amount selected in the game is transferred.",
+  "description": "Prevents the selected split amount from being removed from the source stack with a build-profile-verified, split-specific runtime patch.",
   "enabled": true,
   "settings": {},
   "shroudforge": {
     "schemaVersion": 1,
-    "release": {"changelog": ["Removes redundant split controls and restores the source stack for the One, Half, or CustomAmount selected in game."]},
+    "release": {"changelog": ["Replaces unreliable ECS inventory writes with the split-specific runtime patch used by Shroudtopia."]},
     "settingsSchema": {
       "type": "object",
       "properties": {},
       "additionalProperties": false
     },
     "settingGroups": [],
-    "ui": {"sections": [{"title": "Infinite Item Split", "description": "The game chooses the split amount. This mod restores the source stack after the game consumes a One, Half, or CustomAmount split; there are no extra split settings.", "components": []}]},
+    "ui": {"sections": [{"title": "Infinite Item Split", "description": "Uses the native split-decrement patch. Other item-use operations are unaffected. No ECS component access or extra split settings are required.", "components": []}]},
     "links": {"source-github": "https://github.com/bonsaibauer/shroudforge", "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml", "support-bmac": "https://buymeacoffee.com/bonsaibauer"}
   }
 }

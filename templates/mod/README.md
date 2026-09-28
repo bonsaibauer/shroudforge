@@ -43,3 +43,15 @@ manages; the UI itself runs in desktop mode. The target can be inferred only if
 exactly one corresponding executable exists. When attached, the UI verifies the
 actual game PID and its installation directory instead of inferring the target
 from directory contents.
+
+# Optional mod icon
+
+Mods can include a PNG, JPEG, WebP, or SVG icon in their own mod folder. For
+example, put `icon.svg` next to `mod.json` and add this field to `mod.json`:
+
+```json
+"icon": "icon.svg"
+```
+
+The Mod Loader displays this image in the installed mods list. If the field or
+image is missing or unsupported, it uses the built-in icon.

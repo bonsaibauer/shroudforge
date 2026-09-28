@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="crystal" x1="43" y1="35" x2="82" y2="88" gradientUnits="userSpaceOnUse"><stop stop-color="#ffe8a6"/><stop offset="1" stop-color="#c48636"/></linearGradient>
+    <linearGradient id="token" x1="72" y1="70" x2="99" y2="98" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0bd"/><stop offset="1" stop-color="#d99d4c"/></linearGradient>
+  </defs>
+  <rect x="5" y="5" width="118" height="118" rx="29" fill="#1c1915" stroke="#62513b" stroke-width="2"/>
+  <path d="m62 34 18 17-7 28-17 10-13-20 5-24 14-11Z" fill="url(#crystal)" stroke="#fff0bf" stroke-width="3" stroke-linejoin="round"/>
+  <path d="m62 34 2 32 17-15M64 66l-8 23m8-23 9 13" stroke="#fff4d3" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="86" cy="84" r="16" fill="url(#token)" stroke="#fff0c6" stroke-width="3"/>
+  <path d="M79 84h14m-7-7v14" stroke="#8b5e2d" stroke-width="3" stroke-linecap="round"/>
+  <path d="m75 100 24-32" stroke="#fff4d7" stroke-width="5" stroke-linecap="round"/>
+  <path d="m75 100 24-32" stroke="#b57c36" stroke-width="2" stroke-linecap="round"/>
+</svg>

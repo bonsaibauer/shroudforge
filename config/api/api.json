@@ -2,7 +2,7 @@
   "$schema": "api-schema.json",
   "schemaVersion": 1,
   "apiVersion": "1.0.0",
-  "runtimeProviderAbi": 4,
+  "runtimeProviderAbi": 5,
   "runtimeOperations": [
     "runtime.lifecycle",
     "runtime.ecs.query",

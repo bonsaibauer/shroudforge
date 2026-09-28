@@ -2,6 +2,7 @@
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
   "version": "1.0.1",
+  "icon": "icon.svg",
   "authors": [
     "bonsaibauer"
   ],

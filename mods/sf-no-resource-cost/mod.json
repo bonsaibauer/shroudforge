@@ -2,6 +2,7 @@
   "id": "sf-no-resource-cost",
   "name": "SF No Resource Cost",
   "version": "1.1.1",
+  "icon": "icon.svg",
   "authors": ["bonsaibauer"],
   "dependencies": [],
   "description": "Uses the build-profile-verified native recipe-cost patch.",

@@ -45,8 +45,9 @@
     <ClCompile Include="runtime_bridge.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\kfc-runtime\src\windows\ecs_runtime.h" />
-    <ClInclude Include="..\..\kfc-runtime\src\windows\game_thread_dispatcher.h" />
+    <ClInclude Include="runtime_bridge.h" />
+    <ClInclude Include="logging_config.h" />
+    <ClInclude Include="..\..\kfc-runtime\include\kfc_runtime\runtime.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

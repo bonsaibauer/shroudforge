@@ -31,11 +31,21 @@ shroudforge_notifications = {}
 --- @param notice ShroudForgeNotification
 function shroudforge_notifications.publish(notice) end
 
+--- @class ShroudForgeInput
+shroudforge_input = {}
+
+--- Returns true while F4 through F8 is held and the game window is focused.
+--- Poll from a runtime `on_update` callback and detect rising edges.
+--- @param key 'F4'|'F5'|'F6'|'F7'|'F8'
+--- @return boolean
+function shroudforge_input.is_key_down(key) end
+
 --- @class ShroudForge
 --- @field version string
 --- @field mod_id string
 --- @field mod_kind 'lua'
 --- @field settings ShroudForgeSettings
 --- @field ui ShroudForgeUi
+--- @field input ShroudForgeInput
 --- @field notifications ShroudForgeNotifications
 shroudforge = {}

@@ -203,6 +203,12 @@ function io.join(...) end
 --- @return Buffer
 function io.export(path, bytes) end
 
+--- Checks whether a file or directory already occupies a path beneath the configured export directory.
+--- `export` must be enabled. Absolute paths and paths escaping the export directory are rejected.
+--- @param path string
+--- @return boolean
+function io.export_exists(path) end
+
 --- Reads UTF-8 text from a file beneath the configured export directory.
 --- `export` must be enabled. Absolute paths and paths escaping the export directory are rejected.
 --- @param path string
