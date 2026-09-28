@@ -184,15 +184,13 @@ pub fn parse_manifest_with_extension(
         }
     }
     validate_document(root, "mod", &value)?;
-    let has_extension = extension.is_some();
     let extension = extension.unwrap_or_else(|| json!({}));
     let enabled = extension
         .get("enabled")
         .and_then(Value::as_bool)
-        // EML manifests have no enabled field: installed mods run by default.
-        // An explicit ShroudForge extension opts into persisted enable state;
-        // older EML packages without one retain the EML default.
-        .unwrap_or(!has_extension);
+        // Mods remain disabled until activation is explicitly persisted. This
+        // also keeps EML packages without an extension safe by default.
+        .unwrap_or(false);
     let settings = extension
         .get("settings")
         .cloned()
