@@ -50,7 +50,6 @@ fn every_mod_has_valid_lua_and_declares_its_used_capabilities() {
 
         for (used, capability, feature) in [
             (uses_runtime, Capability::Runtime, "runtime API"),
-            (uses_patch, Capability::Patch, "asset write API"),
             (uses_export, Capability::Export, "export API"),
         ] {
             assert_eq!(
@@ -60,6 +59,16 @@ fn every_mod_has_valid_lua_and_declares_its_used_capabilities() {
                 manifest.id
             );
         }
+
+        // ShroudForge's explicit asset-write surface must be capability-gated.
+        // EML mods can also mutate the objects returned by get_resources_by_type
+        // directly, so a textual scan cannot require every declared `patch`
+        // capability to match one of the newer explicit write calls above.
+        assert!(
+            !uses_patch || manifest.capabilities.contains(&Capability::Patch),
+            "{} uses the asset write API without declaring the patch capability",
+            manifest.id
+        );
 
         assert_no_machine_patch_primitives(&source_path.display().to_string(), &source);
     }

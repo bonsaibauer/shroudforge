@@ -1,16 +1,109 @@
-name: Build ShroudForge
+name: ShroudForge CI and Release
 
 on:
   push:
     branches:
       - "*.*.*"
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: shroudforge-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  security:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Scan source and dependencies with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          vuln-type: os,library
+          severity: MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          skip-dirs: .git,target,build,x64
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF to GitHub Code Scanning
+        if: >-
+          always() && hashFiles('trivy-results.sarif') != '' &&
+          (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-filesystem
+
+      - name: Summarize Trivy findings
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f trivy-results.sarif ]]; then
+            total=$(jq '[.runs[].results[]?] | length' trivy-results.sarif)
+            errors=$(jq '[.runs[].results[]? | select((.level // "" | ascii_downcase) == "error")] | length' trivy-results.sarif)
+            warnings=$(jq '[.runs[].results[]? | select((.level // "" | ascii_downcase) == "warning")] | length' trivy-results.sarif)
+            notes=$(jq '[.runs[].results[]? | select((.level // "" | ascii_downcase) == "note")] | length' trivy-results.sarif)
+          else
+            total=0
+            errors=0
+            warnings=0
+            notes=0
+          fi
+
+          {
+            echo "## Trivy filesystem scan"
+            echo
+            echo "| Total findings | Errors | Warnings | Notes |"
+            echo "|---:|---:|---:|---:|"
+            echo "| ${total} | ${errors} | ${warnings} | ${notes} |"
+            echo
+            echo "Trivy findings do not block this workflow. SARIF is uploaded to Code Scanning when the event token permits it."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save Trivy SARIF report
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-${{ github.run_number }}
+          path: trivy-results.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+  release-check:
+    name: Check whether this event builds a release
+    runs-on: ubuntu-latest
+    outputs:
+      build_release: ${{ steps.check.outputs.build_release }}
+    steps:
+      - name: Check event and branch name
+        id: check
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || ( "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ) ]]; then
+            echo "build_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    if: needs.release-check.outputs.build_release == 'true'
+    needs: release-check
     permissions:
       contents: read
     runs-on: windows-latest
@@ -117,16 +210,15 @@ jobs:
             unzip -q "$archive" -d "$destination"
           done
 
-      - name: Scan source and built release with Trivy
+      - name: Scan built release packages with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
-          scan-ref: .
+          scan-ref: scanned-release
           scanners: vuln,secret,misconfig
           vuln-type: os,library
           severity: MEDIUM,HIGH,CRITICAL
           ignore-unfixed: true
-          skip-dirs: .git,target,build,x64
           format: sarif
           output: trivy-release.sarif
           # Findings are reported to Code Scanning; malware scans below gate publishing.
@@ -179,7 +271,7 @@ jobs:
 
   publish:
     name: Publish scanned release packages
-    needs: [build, clamav]
+    needs: [build, clamav, security]
     runs-on: ubuntu-latest
     permissions:
       contents: write
