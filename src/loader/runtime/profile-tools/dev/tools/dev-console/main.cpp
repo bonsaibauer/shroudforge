@@ -164,11 +164,10 @@ void usage() {
         "  scan-functions <enshrouded.exe> <function-catalog.json> [--out <scan-report.json>]\n"
         "  capture-process <pid> [--out <process-capture.json>]\n"
         "  import-ecs-capture <capture.log> --image-report <image.json> --reflection <kfc-parser-reflection.json> [--id <profile-id>] [--out <component-catalog.json>]\n"
-        "  externalize-profile-components <profile.json> --catalog-out <catalog.json> --profile-out <compact-profile.json>\n"
         "  inspect-provider <kfc-runtime.dll> [--out <provider-report.json>]\n"
         "  validate-profile <profile.json>\n"
         "  approve-profile <draft.json> --function-scan <scan.json> --components <catalog.json>\n"
-        "  generate-profile <base-profile.json> <image-report.json> <scan-report.json> --components <live-capture.json> --catalog-out <catalog.json> --out <draft.json>\n\n"
+        "  generate-profile <base-profile.json> <image-report.json> <scan-report.json> --components <live-capture.json> --out <draft.json>\n\n"
         "This console is developer-only. It is not run by the game or modloader.\n";
 }
 
@@ -277,21 +276,23 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
         if (target != "enshrouded.exe" && target != "enshrouded_server.exe") throw std::runtime_error("unsupported target");
         const auto& image = profile.at("image");
         if (image.at("size").get<std::uint64_t>() < 4096) throw std::runtime_error("image size is too small");
-        const auto& layout = profile.at("layout");
-        for (const char* key : {"entity_manager_count", "entity_manager_table", "component_offsets", "component_strides",
-             "entity_id", "entity_generation", "entity_layout", "entity_storage", "entity_definition", "entity_row", "component_bits", "lookup_manager"})
+        const auto& layout = profile.at("ecsLayout");
+        for (const char* key : {"entityManagerCount", "entityManagerTable", "componentOffsets", "componentStrides",
+             "entityId", "entityGeneration", "entityLayout", "entityStorage", "entityDefinitionPointer", "entityRow", "componentBits", "lookupManager"})
             if (layout.at(key).get<std::uint64_t>() > 0x10000) throw std::runtime_error(std::string("layout offset out of range: ") + key);
-        const auto& definition = profile.at("entityDefinition");
+        const auto& definition = profile.at("entityDefinitionLayout");
         for (const char* key : {"uuid", "name", "nameSize"})
             if (definition.at(key).get<std::uint64_t>() > 0x10000) throw std::runtime_error(std::string("entity definition offset out of range: ") + key);
         const auto& hooks = profile.at("hooks");
-        for (const char* key : {"game_thread", "entity_manager", "world_prop_update", "world_actor_placement"}) {
+        for (const char* key : {"game_thread", "entity_manager", "world_prop_update", "world_actor_placement", "world_cursor"}) {
             const auto& hook = hooks.at(key);
             if (parse_pattern(hook.at("signature").get<std::string>()).size() < 7) throw std::runtime_error(std::string("invalid hook signature: ") + key);
             const auto bytes = hook.at("original").get<std::vector<unsigned>>();
             if (bytes.size() < 5 || bytes.size() > 32) throw std::runtime_error(std::string("invalid overwritten bytes: ") + key);
             for (const auto byte : bytes) if (byte > 255) throw std::runtime_error(std::string("invalid original byte: ") + key);
         }
+        if (hooks.at("world_cursor").at("captureOffset").get<std::uint64_t>() > 0x10000)
+            throw std::runtime_error("native cursor capture offset out of range");
         const auto& placement = profile.at("worldContexts").at("entityPlacement");
         for (const char* key : {"actorFrameServiceViewOffset", "serviceViewWorldOffset", "placementContextOffset",
              "placeQueueOffset", "removeQueueOffset", "publishStateOffset", "publishCommandsOffset", "ownerOffset"})
@@ -683,23 +684,6 @@ int import_ecs_capture_command(int argc, char** argv) {
     return 0;
 }
 
-int externalize_profile_components_command(int argc, char** argv) {
-    const auto catalog_out = option(argc, argv, "--catalog-out");
-    const auto profile_out = option(argc, argv, "--profile-out");
-    if (!catalog_out || !profile_out) { std::cerr << "externalize-profile-components requires --catalog-out and --profile-out\n"; return 2; }
-    try {
-        auto profile = json::parse(std::ifstream(argv[2]));
-        const json catalog = {{"schemaVersion", 1}, {"id", profile.at("id")}, {"target", profile.at("target")},
-            {"image", profile.at("image")}, {"components", profile.at("components")}};
-        profile.erase("components");
-        profile["componentCatalog"] = catalog_out->filename().string();
-        if (!write_json(*catalog_out, catalog) || !write_json(*profile_out, profile)) return 2;
-        std::cout << "component catalog extracted: " << catalog["components"].size()
-                  << " mappings; compact profile written to " << fs::absolute(*profile_out).string() << '\n';
-        return 0;
-    } catch (const std::exception& exception) { std::cerr << "cannot externalize profile components: " << exception.what() << '\n'; return 2; }
-}
-
 int inspect_provider_command(int argc, char** argv) {
     const fs::path path = fs::absolute(argv[2]);
     HMODULE module = LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
@@ -714,7 +698,8 @@ int inspect_provider_command(int argc, char** argv) {
         "KfcRuntimeEcsQuery", "KfcRuntimeEcsResolve", "KfcRuntimeEcsRead", "KfcRuntimeEcsWrite",
         "KfcRuntimePatchAvailable", "KfcRuntimePatchSetEnabled",
         "KfcRuntimeWorldOperationAvailable", "KfcRuntimeWorldContextActive",
-        "KfcRuntimeWorldEntityContextReady", "KfcRuntimeWorldVoxelRead", "KfcRuntimeWorldVoxelWrite",
+        "KfcRuntimeWorldEntityContextReady", "KfcRuntimeWorldCursorRead",
+        "KfcRuntimeWorldVoxelRead", "KfcRuntimeWorldVoxelWrite",
         "KfcRuntimeWorldEntitySpawn", "KfcRuntimeWorldEntityPlace", "KfcRuntimeWorldEntityDestroy",
         "KfcRuntimeWorldEntityFinishBuilding"
     };
@@ -774,8 +759,7 @@ int approve_profile_command(int argc, char** argv) {
             std::cerr << "original live ECS capture report is missing; regenerate the profile draft\n"; return 2;
         }
         const auto live_capture = json::parse(std::ifstream(capture_path));
-        if (profile.at("componentCatalog").get<std::string>() != components_path->filename().string() ||
-            profile.at("image").at("sha256") != scan.at("sha256") ||
+        if (profile.at("image").at("sha256") != scan.at("sha256") ||
             profile.at("image").at("timestamp") != scan.at("timestamp") ||
             profile.at("image").at("size") != scan.at("imageSize") ||
             profile.at("image").at("sha256") != catalog.at("image").at("sha256") ||
@@ -842,7 +826,7 @@ int generate_command(int argc, char** argv) {
     const auto out_path = option(argc, argv, "--out");
     const auto components_path = option(argc, argv, "--components");
     const auto catalog_out = option(argc, argv, "--catalog-out");
-    if (!out_path || !components_path || !catalog_out) { std::cerr << "generate-profile requires --components, --catalog-out and --out\n"; return 2; }
+    if (!out_path || !components_path) { std::cerr << "generate-profile requires --components and --out\n"; return 2; }
     try {
         auto profile = json::parse(std::ifstream(base_path));
         const auto image = json::parse(std::ifstream(image_path));
@@ -896,8 +880,7 @@ int generate_command(int argc, char** argv) {
                 function["targetOffset"] = rva - containing->at("beginRva").get<std::uint32_t>();
             }
         }
-        if (profile.contains("components")) profile.erase("components");
-        profile["componentCatalog"] = catalog_out->filename().string();
+        profile["components"] = observed_components.at("components");
         const json component_catalog = {{"schemaVersion", 1}, {"id", profile.at("id")}, {"target", profile.at("target")},
             {"image", profile.at("image")}, {"components", observed_components.at("components")}};
         profile["allowStructuralRevalidation"] = false;
@@ -910,7 +893,7 @@ int generate_command(int argc, char** argv) {
             {"functionSemanticsValidated", false},
             {"unresolvedComponentCount", observed_components.value("unresolved", json::array()).size()}};
         profile["provenance"] = std::move(provenance);
-        if (!write_json(*catalog_out, component_catalog)) return 2;
+        if (catalog_out && !write_json(*catalog_out, component_catalog)) return 2;
         if (!write_json(*out_path, profile)) return 2;
         std::cout << "profile draft written (not installable until live layout, component mappings, and function semantics are reviewed): "
                   << fs::absolute(*out_path).string() << '\n';
@@ -930,7 +913,6 @@ int main(int argc, char** argv) {
     if (command == "capture-process" && argc >= 3) return capture_process_command(argc, argv);
     if (command == "import-ecs-capture" && argc >= 3) return import_ecs_capture_command(argc, argv);
     if (command == "inspect-provider" && argc >= 3) return inspect_provider_command(argc, argv);
-    if (command == "externalize-profile-components" && argc >= 3) return externalize_profile_components_command(argc, argv);
     if (command == "validate-profile" && argc >= 3) return validate_command(argv[2], option(argc, argv, "--components"));
     if (command == "approve-profile" && argc >= 3) return approve_profile_command(argc, argv);
     if (command == "generate-profile" && argc >= 5) return generate_command(argc, argv);

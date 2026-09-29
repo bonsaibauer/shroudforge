@@ -23,7 +23,7 @@ Add new text to the English file and provide its German translation. **crowdin.y
 
 ## Saved notices and events
 
-The loader saves its state in **shroudforge/state/state.json**:
+By default, the loader saves its state in **shroudforge/state.json**. The location can be changed in Settings → Storage locations:
 
 - **events** contains notices from mods and mod-related actions.
 - **news** remembers which notice IDs were read and when.

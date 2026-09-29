@@ -9,7 +9,7 @@ pub use manifest_reader::*;
 use crate::{
     IoError, ModEnvironmentErrorReport, ModError, ModErrorReport,
     alias::{Path, PathBuf},
-    log::{info, warn},
+    log::{debug, warn},
 };
 use parking_lot::{Mutex, MutexGuard};
 
@@ -134,13 +134,13 @@ impl ModRegistry {
         let file_name = path.file_name().unwrap_or_default();
 
         if file_name.starts_with('.') {
-            info!(path = path.as_str(), "Skipping hidden file or directory",);
+            debug!(path = path.as_str(), "Skipping hidden file or directory",);
 
             return Ok(None);
         }
 
         if !file_type.is_dir() {
-            info!(path = path.as_str(), "Skipping non-package file");
+            debug!(path = path.as_str(), "Skipping non-package file");
             return Ok(None);
         }
 

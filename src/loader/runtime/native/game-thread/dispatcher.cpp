@@ -261,13 +261,45 @@ std::vector<std::uint8_t> callback_code(void* callback) {
     return code;
 }
 
+std::vector<std::uint8_t> cursor_callback_code(void* callback, std::size_t capture_offset) {
+    // Cursor call site is profile-verified at an instruction that reads [R14+2F8].
+    // The reflected cursor begins at [R14+270]; pass that address while the
+    // owning object is live, then restore every volatile register before replay.
+    std::vector<std::uint8_t> code{0x9c,0x50,0x51,0x52,0x41,0x50,0x41,0x51,0x41,0x52,0x41,0x53,
+        0x48,0x81,0xec,0x80,0,0,0};
+    for (unsigned index = 0; index < 6; ++index) {
+        const std::uint8_t store[]{0xf3,0x0f,0x7f,static_cast<std::uint8_t>(0x44+index*8),0x24,
+            static_cast<std::uint8_t>(0x20+index*16)};
+        code.insert(code.end(), std::begin(store), std::end(store));
+    }
+    code.insert(code.end(), {0xfc,0x49,0x8d,0x8e}); // lea rcx,[r14+disp32]
+    const auto offset = static_cast<std::uint32_t>(capture_offset);
+    for (unsigned index = 0; index < sizeof(offset); ++index)
+        code.push_back(static_cast<std::uint8_t>(offset >> (index * 8)));
+    code.insert(code.end(), {0x31,0xd2,0x48,0xb8});
+    const auto address = reinterpret_cast<std::uintptr_t>(callback);
+    for (unsigned index = 0; index < 8; ++index) code.push_back(static_cast<std::uint8_t>(address >> (index*8)));
+    code.insert(code.end(), {0xff,0xd0});
+    for (unsigned index = 0; index < 6; ++index) {
+        const std::uint8_t restore[]{0xf3,0x0f,0x6f,static_cast<std::uint8_t>(0x44+index*8),0x24,
+            static_cast<std::uint8_t>(0x20+index*16)};
+        code.insert(code.end(), std::begin(restore), std::end(restore));
+    }
+    code.insert(code.end(), {0x48,0x81,0xc4,0x80,0,0,0,0x41,0x5b,0x41,0x5a,0x41,0x59,0x41,0x58,
+        0x5a,0x59,0x58,0x9d});
+    return code;
+}
+
 
 bool install_hook(std::uint8_t* base, std::string_view signature,
-                  const std::uint8_t* original, std::size_t original_size, void* callback) {
+                  const std::uint8_t* original, std::size_t original_size, void* callback,
+                  bool cursor_callback = false) {
     if (!original || original_size < 5) return false;
     const auto target = find_unique_executable_signature(base, signature);
     if (!target || std::memcmp(reinterpret_cast<void*>(target), original, original_size)) return false;
-    auto payload = callback_code(callback);
+    auto payload = cursor_callback
+        ? cursor_callback_code(callback, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_capture_offset)
+        : callback_code(callback);
     payload.insert(payload.end(), original, original + original_size);
     payload.push_back(0xe9);
     const auto return_offset = payload.size();
@@ -332,6 +364,11 @@ bool Initialize() {
         KfcRuntimeCompatibility::EnshroudedClient::world_actor_placement_original.size(),
         reinterpret_cast<void*>(&WorldRuntime::OnActorPlacement));
     entity_context_hooks_ready.store(prop_hook && placement_hook, std::memory_order_release);
+    const bool cursor_hook = install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_signature,
+        KfcRuntimeCompatibility::EnshroudedClient::world_cursor_original.data(),
+        KfcRuntimeCompatibility::EnshroudedClient::world_cursor_original.size(),
+        reinterpret_cast<void*>(&WorldRuntime::OnCursorUpdate), true);
+    WorldRuntime::SetCursorHookReady(cursor_hook);
     accepting.store(true, std::memory_order_release);
     PatchRuntime::Initialize();
     return true;
@@ -341,6 +378,7 @@ void Shutdown() {
     PatchRuntime::Shutdown();
     accepting.store(false, std::memory_order_release);
     entity_context_hooks_ready.store(false, std::memory_order_release);
+    WorldRuntime::SetCursorHookReady(false);
     for (auto iterator = hooks.rbegin(); iterator != hooks.rend(); ++iterator) {
         if (iterator->target && iterator->original.size() &&
             write_code(iterator->target, iterator->original.data(), iterator->original.size()))

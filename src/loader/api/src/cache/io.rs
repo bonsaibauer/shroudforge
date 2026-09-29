@@ -1,6 +1,6 @@
 use std::io::{BufReader, BufWriter};
 
-use crate::{alias::Path, cache::FileStateCache, log::warn};
+use crate::{alias::Path, cache::FileStateCache, log::debug};
 
 impl FileStateCache {
     pub fn read(cache_dir: impl AsRef<Path>) -> Self {
@@ -14,7 +14,7 @@ impl FileStateCache {
                     match serde_json::from_reader::<_, Self>(reader) {
                         Ok(cache) => cache,
                         Err(e) => {
-                            warn!(
+                            debug!(
                                 error = %e,
                                 path = cache_file.as_str(),
                                 "Failed to parse cache file, skipping cache loading"
@@ -24,7 +24,7 @@ impl FileStateCache {
                     }
                 }
                 Err(e) => {
-                    warn!(
+                    debug!(
                         error = %e,
                         path = cache_file.as_str(),
                         "Failed to open cache file, skipping cache loading"
@@ -42,7 +42,7 @@ impl FileStateCache {
         let cache_dir = cache_dir.as_ref();
 
         if let Err(e) = std::fs::create_dir_all(cache_dir) {
-            warn!(
+            debug!(
                 error = %e,
                 path = cache_dir.as_str(),
                 "Failed to create cache directory"
@@ -55,7 +55,7 @@ impl FileStateCache {
                     let writer = BufWriter::new(file);
 
                     if let Err(e) = serde_json::to_writer(writer, self) {
-                        warn!(
+                        debug!(
                             error = %e,
                             path = cache_file.as_str(),
                             "Failed to write cache file"
@@ -63,7 +63,7 @@ impl FileStateCache {
                     }
                 }
                 Err(e) => {
-                    warn!(
+                debug!(
                         error = %e,
                         path = cache_file.as_str(),
                         "Failed to create cache file"

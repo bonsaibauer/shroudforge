@@ -30,15 +30,28 @@
     "exports": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean" },
-        "directory": { "type": "string", "minLength": 1 }
+        "enabled": { "type": "boolean" }
       },
       "additionalProperties": false
     },
-    "migrations": {
+    "runtime": {
       "type": "object",
       "properties": {
-        "emlJsonV1": { "type": "boolean" }
+        "profileId": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "properties": {
+        "mods": { "type": ["string", "null"], "minLength": 1 },
+        "state": { "type": ["string", "null"], "minLength": 1 },
+        "logs": { "type": ["string", "null"], "minLength": 1 },
+        "cache": { "type": ["string", "null"], "minLength": 1 },
+        "exports": { "type": ["string", "null"], "minLength": 1 },
+        "updates": { "type": ["string", "null"], "minLength": 1 },
+        "ui": { "type": ["string", "null"], "minLength": 1 },
+        "runtime": { "type": ["string", "null"], "minLength": 1 }
       },
       "additionalProperties": false
     },

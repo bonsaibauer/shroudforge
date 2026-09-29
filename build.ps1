@@ -135,13 +135,14 @@ Copy-Item -LiteralPath (Join-Path $output 'winmm.dll'),(Join-Path $output 'dbghe
 $dataPackage = Join-Path $package 'shroudforge'
 New-Item -ItemType Directory -Force -Path $dataPackage | Out-Null
 Copy-Item -LiteralPath (Join-Path $output 'shroudforge-runtime.dll'),(Join-Path $output 'shroudforge.exe'),(Join-Path $output 'shroudforge-updater.exe'),(Join-Path $output 'kfc-runtime.dll') -Destination $dataPackage
+Copy-Item -LiteralPath (Join-Path $root 'src\loader\runtime\profiles') -Destination (Join-Path $dataPackage 'runtime\profiles') -Recurse -Force
 Copy-ShroudForgeMods (Join-Path $package 'mods')
 # Explicit release inputs: never ship an installation's generated state, events or locks.
 $configSource = Join-Path $root 'src\loader\package\src\config'
 $configPackage = Join-Path $dataPackage 'config'
 New-Item -ItemType Directory -Force -Path $configPackage | Out-Null
-Copy-Item -LiteralPath (Join-Path $configSource 'loader.default.json') -Destination (Join-Path $configPackage 'loader.json') -Force
-if (-not (Test-Path -LiteralPath (Join-Path $configPackage 'loader.json'))) { throw 'Release configuration was not staged.' }
+Copy-Item -LiteralPath (Join-Path $configSource 'loader.default.json') -Destination (Join-Path $configPackage 'modloader-config.json') -Force
+if (-not (Test-Path -LiteralPath (Join-Path $configPackage 'modloader-config.json'))) { throw 'Release configuration was not staged.' }
 $versionManifest = [ordered]@{
     version = $version
     build = $BuildNumber
@@ -150,15 +151,15 @@ $versionManifest = [ordered]@{
     requiredAction = 'game_restart'
     managedPaths = @(Get-ChildItem -LiteralPath $package -File -Recurse |
         ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName).Replace('\', '/') } |
-        Where-Object { $_ -notin @('shroudforge/config/loader.json', 'shroudforge/state/state.json', 'shroudforge/config/.shroudforge-write.lock') }) + @('shroudforge/version.json')
+        Where-Object { $_ -notin @('shroudforge/config/modloader-config.json', 'shroudforge/state.json', 'shroudforge/config/.shroudforge-write.lock') }) + @('shroudforge/version.json')
 }
 $versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dataPackage 'version.json') -Encoding utf8
 Compress-Archive -Path "$package\*" -DestinationPath $archive -Force
 $releaseZip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $entryNames = @($releaseZip.Entries | ForEach-Object { $_.FullName })
-    if ($entryNames -notcontains 'winmm.dll' -or $entryNames -notcontains 'dbghelp.dll' -or $entryNames -notcontains 'dinput8.dll' -or $entryNames -notcontains 'mods/sf-world-editor/mod.json' -or $entryNames -notcontains 'shroudforge/shroudforge.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-runtime.dll' -or $entryNames -notcontains 'shroudforge/kfc-runtime.dll' -or $entryNames -notcontains 'shroudforge/config/loader.json' -or
-        $entryNames -notcontains 'shroudforge/version.json') {
+    if ($entryNames -notcontains 'winmm.dll' -or $entryNames -notcontains 'dbghelp.dll' -or $entryNames -notcontains 'dinput8.dll' -or $entryNames -notcontains 'mods/sf-world-editor/mod.json' -or $entryNames -notcontains 'shroudforge/shroudforge.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-runtime.dll' -or $entryNames -notcontains 'shroudforge/kfc-runtime.dll' -or $entryNames -notcontains 'shroudforge/config/modloader-config.json' -or
+        $entryNames -notcontains 'shroudforge/version.json' -or $entryNames -notcontains 'shroudforge/runtime/profiles/enshrouded/client/1076226.json') {
         throw 'Release archive is missing the launcher, loader configuration, or version file.'
     }
 } finally {

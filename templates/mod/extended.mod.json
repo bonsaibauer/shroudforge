@@ -2,6 +2,7 @@
   "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
   "schemaVersion": 1,
   "enabled": false,
+  "launcher": "SF",
   "links": {
     "source-github": "https://github.com/your-name/hello-ember",
     "issues": "https://github.com/your-name/hello-ember/issues"

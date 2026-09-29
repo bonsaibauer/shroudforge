@@ -1,7 +1,7 @@
 use kfc::guid::{ContentHash, Guid};
 use mlua::Table;
 use shroudforge_parser::kfc_format;
-use tracing::warn;
+use tracing::debug;
 
 use crate::{
     env::{
@@ -80,7 +80,7 @@ fn lua_get_resource_parts(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<T
         let resource = match app_state.get_resource_info(guid) {
             Some(info) => Resource::new(info),
             None => {
-                warn!("Resource info not found for GUID: {}", guid);
+                debug!("Resource info not found for GUID: {}", guid);
                 continue;
             }
         };
@@ -105,7 +105,7 @@ fn lua_get_resources_by_type(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Resul
         let resource = match app_state.get_resource_info(&guid) {
             Some(info) => Resource::new(info),
             None => {
-                warn!("Resource info not found for GUID: {}", guid);
+                debug!("Resource info not found for GUID: {}", guid);
                 continue;
             }
         };
@@ -126,7 +126,7 @@ fn lua_get_all_resources(lua: &mlua::Lua, _args: FunctionArgs) -> mlua::Result<T
         let resource = match app_state.get_resource_info(guid) {
             Some(info) => Resource::new(info),
             None => {
-                warn!("Resource info not found for GUID: {}", guid);
+                debug!("Resource info not found for GUID: {}", guid);
                 continue;
             }
         };

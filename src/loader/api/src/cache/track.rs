@@ -2,7 +2,7 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-use crate::{cache::FileStateCache, log::warn};
+use crate::{cache::FileStateCache, log::debug};
 
 impl FileStateCache {
     pub fn track_mod_config(&mut self, game_dir: impl AsRef<Path>) {
@@ -18,7 +18,7 @@ impl FileStateCache {
         let game_files = match std::fs::read_dir(game_dir) {
             Ok(entries) => entries,
             Err(e) => {
-                warn!(
+                debug!(
                     error = %e,
                     path = game_dir.display().to_string(),
                     "Failed to read game directory"
@@ -31,7 +31,7 @@ impl FileStateCache {
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
-                    warn!(
+                    debug!(
                         error = %e,
                         path = game_dir.display().to_string(),
                         "Failed to read game directory entry, skipping"
@@ -68,7 +68,7 @@ impl FileStateCache {
                     let path = e.path();
 
                     if let Some(ancestor) = e.loop_ancestor() {
-                        warn!(
+                        debug!(
                             path = path.map_or_else(
                                 || "unknown".into(),
                                 |p| p.display().to_string()
@@ -78,7 +78,7 @@ impl FileStateCache {
                             "Skipping directory loop"
                         );
                     } else {
-                        warn!(
+                        debug!(
                             path = path.map_or_else(
                                 || "unknown".into(),
                                 |p| p.display().to_string()

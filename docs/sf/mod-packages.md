@@ -6,15 +6,15 @@ This page explains the files inside a mod folder. If you are building your first
 
 Every mod has **mod.json**. Think of it as the mod's information card: its name, ID, version, author, dependencies, and permissions.
 
-A ShroudForge mod can also have **extended.mod.json**. This optional file holds the mod's on/off state, player settings, groups, buttons, links, and short update notes.
+A mod can also have **extended.mod.json**. This optional file holds its ShroudForge on/off state, player settings, groups, buttons, links, and short update notes. Its optional `launcher` field records the mod's origin: `EML` preserves the EML badge; `SF` or an omitted value means ShroudForge.
 
 | File | What it contains |
 | --- | --- |
 | **mod.json** | Mod information in the EML format. |
 | **extended.mod.json** | ShroudForge state and optional extra details for one mod. |
-| **shroudforge/config/loader.json** | Settings for the ShroudForge loader and its built-in features. |
+| **shroudforge/config/modloader-config.json** | Settings for the ShroudForge loader, built-in features, and storage locations. |
 | **shroudforge/version.json** | Release version and build details. |
-| **shroudforge/state/state.json** | Status created by the loader, such as mod and update information. |
+| **shroudforge/state.json** | Default status file created by the loader, such as mod and update information. The location is configurable in Settings. |
 
 The placeholder **<id>** means the folder name of a mod, such as **sf-world-editor**.
 
@@ -62,6 +62,7 @@ The optional **extended.mod.json** file can add settings to the Modloader. For e
   "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
   "schemaVersion": 1,
   "enabled": true,
+  "launcher": "SF",
   "settings": {
     "allowDescent": {
       "value": false,
@@ -143,7 +144,7 @@ The [extension schema](../../src/loader/package/src/registry/extended.mod.schema
 
 When someone changes a setting, the Modloader writes that choice into the mod's own **extended.mod.json**. Updating a mod replaces its package and may reset those choices. Settings migration is not supported.
 
-A package that contains only **mod.json** is treated as an EML mod. If a player changes a ShroudForge setting for it, the loader creates **extended.mod.json**. The original **mod.json** stays in the EML format.
+Only an explicit `"launcher": "EML"` in **extended.mod.json** preserves the EML badge. The loader writes that marker when it first adds an extension to an EML package; the original **mod.json** stays untouched. `launcher: "SF"` can be written explicitly, but is optional because missing or other values are treated as SF.
 
 ## Groups, buttons, and links
 

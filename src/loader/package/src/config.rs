@@ -97,17 +97,17 @@ fn state_section(name: &str) -> Option<&'static str> {
 }
 
 fn read_state_file(root: &Path) -> Result<Value, String> {
-    let state_path = root.join("shroudforge/state/state.json");
+    let state_path = crate::paths::state_file(root);
     match fs::read(&state_path) {
         Ok(bytes) => {
             let value: Value = serde_json::from_slice(&bytes)
-                .map_err(|error| format!("shroudforge/state/state.json: {error}"))?;
+                .map_err(|error| format!("{}: {error}", state_path.display()))?;
             let schema: Value = serde_json::from_str(include_str!("status/loader.schema.json"))
                 .map_err(|error| error.to_string())?;
             jsonschema::validator_for(&schema)
                 .map_err(|error| error.to_string())?
                 .validate(&value)
-                .map_err(|error| format!("shroudforge/state/state.json: {error}"))?;
+                .map_err(|error| format!("{}: {error}", state_path.display()))?;
             Ok(value)
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -122,10 +122,11 @@ pub fn read_document(root: &Path, name: &str) -> Result<Value, String> {
         return Err("mod.json is package data; read it from the mod package instead".into());
     }
     if let Some(section) = state_section(name) {
+        let state_path = crate::paths::state_file(root);
         let state = read_state_file(root)?;
         let Some(value) = state.get(section) else {
             return Err(format!(
-                "shroudforge/state/state.json has no {section} state"
+                "{} has no {section} state", state_path.display()
             ));
         };
         validate_document(root, name, value)?;
@@ -152,12 +153,12 @@ pub fn update_state_section(
         .and_then(Value::as_u64)
         .is_some_and(|version| version != 1)
     {
-        return Err("unsupported shroudforge/state/state.json schemaVersion".into());
+        return Err(format!("unsupported schemaVersion in {}", crate::paths::state_file(root).display()));
     }
     state["schemaVersion"] = json!(1);
     let value = update(state.get(section))?;
     state[section] = value;
-    write_json(&root.join("shroudforge/state/state.json"), &state)
+    write_json(&crate::paths::state_file(root), &state)
 }
 
 pub fn window_state(root: &Path) -> Value {
@@ -201,10 +202,10 @@ pub fn publish_window_visibility(root: &Path, module: &str, visible: bool) -> Re
 
 pub fn document_path(root: &Path, name: &str) -> std::path::PathBuf {
     match name {
-        "shroudforge" => crate::paths::config_dir(root).join("loader.json"),
+        "shroudforge" => crate::paths::loader_config(root),
         "state" | "applied" | "mod-status" | "diagnostics-status" | "window-state"
         | "news-state" | "events-state" | "catalog-state" | "mod-state" | "parser-status" => {
-            root.join("shroudforge/state/state.json")
+            crate::paths::state_file(root)
         }
         "news" => crate::paths::config_dir(root).join("news/news.json"),
         other => crate::paths::config_dir(root)
@@ -260,57 +261,6 @@ pub fn update_loader(
     update(&mut value)?;
     validate_document(root, "shroudforge", &value)?;
     write_json(&path, &value)
-}
-
-/// Import EML's proxy configuration once into the ShroudForge loader config.
-/// The old file is left untouched as a reference and is not consulted again
-/// after the import marker has been written.
-pub fn migrate_eml_config_once(root: &Path) -> Result<(), String> {
-    update_loader(root, |loader| {
-        if let Some(logging) = loader
-            .get_mut("logging")
-            .and_then(Value::as_object_mut)
-        {
-            logging.remove("nativeConsole");
-        }
-        if loader
-            .pointer("/migrations/emlJsonV1")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-        {
-            return Ok(());
-        }
-
-        let legacy_path = root.join("eml.json");
-        if legacy_path.is_file() {
-            let bytes = fs::read(&legacy_path).map_err(|error| error.to_string())?;
-            let legacy: Value = serde_json::from_slice(&bytes)
-                .map_err(|error| format!("{}: {error}", legacy_path.display()))?;
-
-            if let Some(enabled) = legacy.get("use_export_flag").and_then(Value::as_bool) {
-                loader["exports"]["enabled"] = json!(enabled);
-            }
-            if let Some(directory) = legacy
-                .get("export_directory")
-                .and_then(Value::as_str)
-                .filter(|directory| valid_export_directory(directory))
-            {
-                loader["exports"]["directory"] = json!(directory);
-            }
-        }
-
-        loader["migrations"]["emlJsonV1"] = json!(true);
-        Ok(())
-    })
-}
-
-pub fn valid_export_directory(directory: &str) -> bool {
-    use std::path::Component;
-    !directory.trim().is_empty()
-        && !Path::new(directory).is_absolute()
-        && Path::new(directory)
-            .components()
-            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
 }
 
 pub fn installation_lock(root: &Path) -> Result<fs::File, String> {

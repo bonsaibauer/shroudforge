@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.5.0",
   "symbols": [
     {
       "kind": "field",
@@ -14016,6 +14016,22 @@
         "string?"
       ],
       "description": "Safely enable or restore a profile-defined runtime patch.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "shroudforge",
+      "name": "shroudforge.log.trace",
+      "signature": "shroudforge.log.trace(...)",
+      "params": [
+        {
+          "name": "...",
+          "type": "unknown",
+          "description": ""
+        }
+      ],
+      "returns": [],
+      "description": "",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {

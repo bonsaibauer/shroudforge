@@ -9,11 +9,18 @@ end
 local clipboard = nil
 local undo_state = nil
 local feature
+local component_type
 local selection_a = nil
 local selection_b = nil
 local selection_target = nil
 local active_blueprint_name = nil
 local placeable_items = nil
+local live_component_types = nil
+local pending_cursor_action = nil
+local pending_prop_capture = nil
+local pending_world_action = nil
+local readiness_logged = false
+local readiness_wait_logged = false
 local maximum_blueprint_bytes = 32 * 1024 * 1024
 local save_blueprint_named
 local previous_key_state = {}
@@ -30,11 +37,17 @@ local function finite_number(value)
 end
 
 local function live_read(entity, component_name)
-    local info = game.types.get_by_qualified_name(component_name)
+    local info = component_type and component_type(component_name)
     if not info then return nil end
     local value, reason = runtime.ecs.read(entity, info)
     if not value then return nil, reason end
     return value
+end
+
+local function unavailable_ecs_reason(operation)
+    if runtime.has(operation) then return nil end
+    local status = runtime.status(operation)
+    return status and status.reason or (operation .. " is unavailable")
 end
 
 local function world_position(position)
@@ -86,22 +99,61 @@ local function rotated_blueprint(source, quarter_turns)
 end
 
 local function cursor_point()
-    if not feature("runtime.ecs.query") or not feature("runtime.ecs.read") then return nil end
-    local cursors, reason = runtime.ecs.query("keen::ecs::ClientCursor")
-    if not cursors then
-        shroudforge.log.warn("World Editor cursor query failed: " .. tostring(reason))
-        return nil
-    end
-    for _, handle in ipairs(cursors) do
-        local value = live_read(handle, "keen::ecs::ClientCursor")
-        local transform = value and value.primaryTransform
-        local position = transform and world_position(transform.position)
-        if position and position.x == position.x and position.y == position.y and position.z == position.z then
-            return position
+    local reason = unavailable_ecs_reason("runtime.world.cursor.get")
+    if reason then return nil, reason end
+    local snapshot, reason = runtime.world.cursor.get()
+    if not snapshot then return nil, reason end
+    local value = snapshot.value
+    local transform = value and value.primaryTransform
+    local position = transform and world_position(transform.position)
+    if position then return position end
+    return nil, "native cursor snapshot has no readable primary transform"
+end
+
+local function query_is_pending(reason)
+    return type(reason) == "string" and (
+        reason:find("still scanning", 1, true) ~= nil or
+        reason:find("has not published a live sample", 1, true) ~= nil or
+        reason:find("waiting for the live Keen ECS world", 1, true) ~= nil or
+        reason:find("KFC Runtime is not ready", 1, true) ~= nil)
+end
+
+local function world_feature_pending(reason)
+    return type(reason) == "string" and (
+        reason:find("world operation is not ready", 1, true) ~= nil or
+        reason:find("active voxel world context is not available", 1, true) ~= nil)
+end
+
+local function require_world_feature(operation, action)
+    if runtime.has(operation) then return true end
+    local status = runtime.status(operation)
+    local reason = status and status.reason or (operation .. " is unavailable")
+    if world_feature_pending(reason) then
+        if pending_world_action then
+            shroudforge.log.warn("World Editor is already waiting for the live world context")
+            return false
         end
+        pending_world_action = {operation = operation, action = action}
+        shroudforge.log.debug("World Editor is waiting for the validated world context; the requested action will continue automatically")
+        return false
     end
-    shroudforge.log.warn("World Editor: no readable live ClientCursor transform")
-    return nil
+    feature(operation)
+    return false
+end
+
+local function request_cursor_action(action)
+    if pending_cursor_action then
+        shroudforge.log.warn("World Editor is already waiting for its live cursor query")
+        return
+    end
+    local point, reason = cursor_point()
+    if point then action(point); return end
+    if query_is_pending(reason) then
+        pending_cursor_action = action
+        shroudforge.log.debug("World Editor is resolving the live cursor; the requested action will continue automatically")
+    else
+        shroudforge.log.warn("World Editor cursor is unavailable: " .. tostring(reason))
+    end
 end
 
 local function guid_halves(reference)
@@ -229,11 +281,11 @@ local function resolve_placeable_items()
     placeable_items = resolved
     local count = 0
     for _ in pairs(resolved) do count = count + 1 end
-    shroudforge.log.info("World Editor resolved " .. count .. " placeable ItemInfo recipes from current game assets")
+    shroudforge.log.debug("World Editor resolved " .. count .. " placeable ItemInfo recipes from current game assets")
     return resolved
 end
 
-local function voxel_region(source, use_current_cursor)
+local function voxel_region(source, use_current_cursor, cursor_override)
     local names = source and {"sourceX", "sourceY", "sourceZ"} or {"targetX", "targetY", "targetZ"}
     local x, y, z
     local sx, sy, sz
@@ -246,13 +298,15 @@ local function voxel_region(source, use_current_cursor)
         x, y, z = math.min(ax, bx), math.min(ay, by), math.min(az, bz)
         sx, sy, sz = math.abs(bx - ax) + 1, math.abs(by - ay) + 1, math.abs(bz - az) + 1
     else
-        local point
+        local point, cursor_reason
         if not source then
-            if use_current_cursor then point = cursor_point()
+            if use_current_cursor then
+                if cursor_override then point = cursor_override
+                else point, cursor_reason = cursor_point() end
             else point = selection_target end
         end
         if not source and use_current_cursor and not point then
-            return nil, "the live cursor position is unavailable"
+            return nil, cursor_reason or "the live cursor position is unavailable"
         end
         if point then
             x, y, z = math.floor(point.x * 2 + 0.5), math.floor(point.y * 2 + 0.5), math.floor(point.z * 2 + 0.5)
@@ -277,13 +331,19 @@ local function voxel_region(source, use_current_cursor)
 end
 
 local function capture_region_props(region)
-    if not feature("runtime.ecs.query") or not feature("runtime.ecs.read") then return nil end
+    local unavailable = unavailable_ecs_reason("runtime.ecs.query") or unavailable_ecs_reason("runtime.ecs.read")
+    if unavailable then return nil, unavailable end
+    if not component_type("keen::ecs::CurrentTransform") or not component_type("keen::ecs::UsedItem") then
+        return nil, "CurrentTransform/UsedItem are not mapped in the live ECS component registry"
+    end
     local recipes = resolve_placeable_items()
     if not recipes then return nil end
     local entities, reason = runtime.ecs.query("keen::ecs::CurrentTransform", "keen::ecs::UsedItem")
     if not entities then
-        shroudforge.log.warn("World Editor prop enumeration failed: " .. tostring(reason))
-        return nil
+        if not query_is_pending(reason) then
+            shroudforge.log.warn("World Editor prop enumeration failed: " .. tostring(reason))
+        end
+        return nil, reason
     end
     if #entities > 100000 then
         shroudforge.log.warn("World Editor refused prop capture: live ECS query exceeded the 100,000-entity safety limit")
@@ -293,8 +353,11 @@ local function capture_region_props(region)
     local maximum = {(region.x + region.sx) / 2, (region.y + region.sy) / 2, (region.z + region.sz) / 2}
     local props = {}
     for _, handle in ipairs(entities) do
-        local transform_component = live_read(handle, "keen::ecs::CurrentTransform")
-        local used_component = live_read(handle, "keen::ecs::UsedItem")
+        local transform_component, transform_reason = live_read(handle, "keen::ecs::CurrentTransform")
+        local used_component, used_reason = live_read(handle, "keen::ecs::UsedItem")
+        if not transform_component or not used_component then
+            return nil, transform_reason or used_reason or "a live prop component could not be read"
+        end
         local transform = transform_component and transform_component.transform
         local position = transform and world_position(transform.position)
         local id = used_component and item_id(used_component.itemId)
@@ -333,17 +396,76 @@ local function capture_region_props(region)
     return props
 end
 
+local function request_prop_capture(region, callback)
+    if pending_prop_capture then
+        shroudforge.log.warn("World Editor is already waiting for a live prop query")
+        return
+    end
+    local props, reason = capture_region_props(region)
+    if props then callback(props); return end
+    if query_is_pending(reason) then
+        pending_prop_capture = {region = region, callback = callback}
+        shroudforge.log.debug("World Editor is scanning live props; the requested action will continue automatically")
+        return
+    end
+    shroudforge.log.warn("World Editor could not capture props: " .. tostring(reason or "live prop query unavailable"))
+end
+
+local function update_pending_queries()
+    if pending_world_action then
+        local pending = pending_world_action
+        if runtime.has(pending.operation) then
+            pending_world_action = nil
+            pending.action()
+        else
+            local status = runtime.status(pending.operation)
+            local reason = status and status.reason
+            if not world_feature_pending(reason) then
+                pending_world_action = nil
+                shroudforge.log.warn("World Editor world query stopped: " .. tostring(reason or "world operation unavailable"))
+            end
+        end
+    end
+    if pending_cursor_action then
+        local point, reason = cursor_point()
+        if point then
+            local action = pending_cursor_action
+            pending_cursor_action = nil
+            action(point)
+        elseif not query_is_pending(reason) then
+            pending_cursor_action = nil
+            shroudforge.log.warn("World Editor cursor query stopped: " .. tostring(reason))
+        end
+    end
+    if pending_prop_capture then
+        local pending = pending_prop_capture
+        local props, reason = capture_region_props(pending.region)
+        if props then
+            pending_prop_capture = nil
+            pending.callback(props)
+        elseif not query_is_pending(reason) then
+            pending_prop_capture = nil
+            shroudforge.log.warn("World Editor prop query stopped: " .. tostring(reason or "live prop query unavailable"))
+        end
+    end
+end
+
 local function count_prop_at(item, position)
-    if not feature("runtime.ecs.query") or not feature("runtime.ecs.read") then
-        return nil, "live ECS read and query are unavailable"
+    local unavailable = unavailable_ecs_reason("runtime.ecs.query") or unavailable_ecs_reason("runtime.ecs.read")
+    if unavailable then return nil, unavailable end
+    if not component_type("keen::ecs::CurrentTransform") or not component_type("keen::ecs::UsedItem") then
+        return nil, "CurrentTransform/UsedItem are not mapped in the live ECS component registry"
     end
     local entities, reason = runtime.ecs.query("keen::ecs::CurrentTransform", "keen::ecs::UsedItem")
     if not entities then return nil, reason end
     if #entities > 100000 then return nil, "live ECS query exceeded the 100,000-entity safety limit" end
     local handles = {}
     for _, handle in ipairs(entities) do
-        local transform_component = live_read(handle, "keen::ecs::CurrentTransform")
-        local used_component = live_read(handle, "keen::ecs::UsedItem")
+        local transform_component, transform_reason = live_read(handle, "keen::ecs::CurrentTransform")
+        local used_component, used_reason = live_read(handle, "keen::ecs::UsedItem")
+        if not transform_component or not used_component then
+            return nil, transform_reason or used_reason or "a live prop component could not be read"
+        end
         local transform = transform_component and transform_component.transform
         local actual_position = transform and world_position(transform.position)
         if actual_position and item_id(used_component and used_component.itemId) == item and
@@ -378,22 +500,7 @@ local function newly_matching_handles(before, after)
     return result
 end
 
-local function copy_voxels(save_and_select)
-    if not feature("runtime.world.voxel.read") then return end
-    local region, reason = voxel_region(true)
-    if not region then shroudforge.log.warn("World Editor: " .. reason); return end
-    local cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
-        region.sx, region.sy, region.sz)
-    if not cells then
-        runtime.report_effect("waiting", read_reason or "voxel read failed")
-        shroudforge.log.warn("World Editor voxel copy failed: " .. tostring(read_reason))
-        return
-    end
-    local props = capture_region_props(region)
-    if not props then
-        shroudforge.log.warn("World Editor voxel copy succeeded, but prop capture failed; no incomplete blueprint was published")
-        return
-    end
+local function finish_copy_voxels(region, cells, props, save_and_select)
     clipboard = {region = region, cells = cells, props = props}
     local occupied = 0
     for _, value in ipairs(cells) do if value ~= 0 then occupied = occupied + 1 end end
@@ -418,6 +525,22 @@ local function copy_voxels(save_and_select)
         active_blueprint_name = name
         shroudforge.log.info("World Editor saved and selected blueprint " .. name)
     end
+end
+
+local function copy_voxels(save_and_select)
+    if not require_world_feature("runtime.world.voxel.read", function() copy_voxels(save_and_select) end) then return end
+    local region, reason = voxel_region(true)
+    if not region then shroudforge.log.warn("World Editor: " .. reason); return end
+    local cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
+        region.sx, region.sy, region.sz)
+    if not cells then
+        runtime.report_effect("waiting", read_reason or "voxel read failed")
+        shroudforge.log.warn("World Editor voxel copy failed: " .. tostring(read_reason))
+        return
+    end
+    request_prop_capture(region, function(props)
+        finish_copy_voxels(region, cells, props, save_and_select)
+    end)
 end
 
 local function blueprint_path(name)
@@ -537,10 +660,20 @@ local function load_blueprint()
     shroudforge.log.info(string.format("World Editor loaded persistent blueprint '%s' (%d cells, %d props)", active_blueprint_name, #cells, #props))
 end
 
-local function paste_voxels(use_current_cursor)
-    if not feature("runtime.world.voxel.write") then return end
+local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
+    if not require_world_feature("runtime.world.voxel.write", function()
+        paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
+    end) then return end
     if not clipboard then shroudforge.log.warn("World Editor: copy a voxel region before pasting"); return end
-    local target, reason = voxel_region(false, use_current_cursor)
+    local target, reason
+    if target_override then target = target_override
+    else target, reason = voxel_region(false, use_current_cursor, cursor_override) end
+    if not target and use_current_cursor and query_is_pending(reason) then
+        request_cursor_action(function(point)
+            paste_voxels(true, point)
+        end)
+        return
+    end
     if not target then shroudforge.log.warn("World Editor: " .. reason); return end
     local turns = (tonumber(setting("rotationQuarterTurns")) or 0) % 4
     local rotated = rotated_blueprint(clipboard, turns)
@@ -569,11 +702,13 @@ local function paste_voxels(use_current_cursor)
     local removed_props = {}
     if setting("targetPropMode") == "replace" then
         if not feature("runtime.world.entity.destroy") then return end
-        local props = capture_region_props(target)
-        if not props then
-            shroudforge.log.error("World Editor refused replace-props paste because target props could not be completely inspected")
+        if not captured_props then
+            request_prop_capture(target, function(props)
+                paste_voxels(false, nil, props, target)
+            end)
             return
         end
+        local props = captured_props
         local recipes = resolve_placeable_items()
         for _, prop in ipairs(props) do
             if math.abs(prop.sx - 1) > 1e-6 or math.abs(prop.sy - 1) > 1e-6 or math.abs(prop.sz - 1) > 1e-6 then
@@ -613,7 +748,7 @@ local function paste_voxels(use_current_cursor)
         end
         if count_after == nil or not handle_gone or count_after ~= 0 then
             runtime.report_effect("write-failed", remove_reason or "target prop removal was not verified")
-            shroudforge.log.error("World Editor stopped before voxel paste because a target prop could not be safely removed")
+            shroudforge.log.warn("World Editor stopped before voxel paste because a target prop could not be safely removed")
             return
         end
     end
@@ -687,18 +822,19 @@ local function paste_voxels(use_current_cursor)
 end
 
 local function undo_voxels()
-    if not feature("runtime.world.voxel.write") or not feature("runtime.world.voxel.read") then return end
     if not undo_state then shroudforge.log.warn("World Editor: there is no verified world paste to undo"); return end
+    if not require_world_feature("runtime.world.voxel.write", undo_voxels) or
+       not require_world_feature("runtime.world.voxel.read", undo_voxels) then return end
     local region = undo_state.region
     local current_cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
         region.sx, region.sy, region.sz)
     if not current_cells then
-        shroudforge.log.error("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
+        shroudforge.log.warn("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
         return
     end
     local expected_cells = undo_state.voxel_written and undo_state.expected_cells or undo_state.cells
     if not same_cells(current_cells, expected_cells) then
-        shroudforge.log.error("World Editor paused undo because the target voxels changed after the paste; no later changes were overwritten")
+        shroudforge.log.warn("World Editor paused undo because the target voxels changed after the paste; no later changes were overwritten")
         return
     end
     local entities = undo_state.entities or {}
@@ -708,7 +844,7 @@ local function undo_voxels()
         local current_count, current_handles = count_prop_at(entity.recipe.id, entity.position)
         if current_count == nil then
             runtime.report_effect("write-failed", current_handles or "could not inspect pasted props before undo")
-            shroudforge.log.error("World Editor paused undo because live prop state could not be inspected")
+            shroudforge.log.warn("World Editor paused undo because live prop state could not be inspected")
             return
         end
         if current_count == 0 or (entity.entityHandle and not contains_handle(current_handles, entity.entityHandle)) then
@@ -718,13 +854,13 @@ local function undo_voxels()
             if not entity.entityHandle then
                 local detail = "the pasted entity has no unique live ECS handle; undo cannot safely target it"
                 runtime.report_effect("write-failed", detail)
-                shroudforge.log.error("World Editor paused undo to avoid deleting an unrelated prop or rolling back only the voxels")
+                shroudforge.log.warn("World Editor paused undo to avoid deleting an unrelated prop or rolling back only the voxels")
                 return
             end
             if current_count ~= 1 then
                 local detail = "multiple matching props share this transform; the spatial native API cannot safely target one for undo"
                 runtime.report_effect("write-failed", detail)
-                shroudforge.log.error("World Editor paused undo because the pasted prop cannot be identified uniquely")
+                shroudforge.log.warn("World Editor paused undo because the pasted prop cannot be identified uniquely")
                 return
             end
             local removed, remove_reason = runtime.world.entity.destroy(entity.position, entity.rotation,
@@ -783,13 +919,13 @@ local function undo_voxels()
 end
 
 local function mark_cursor(which)
-    local point = cursor_point()
-    if not point then return end
-    if which == "a" then selection_a = point
-    elseif which == "b" then selection_b = point
-    else selection_target = point end
-    shroudforge.log.info(string.format("World Editor cursor selection %s = %.3f, %.3f, %.3f",
-        which == "target" and "TARGET" or which:upper(), point.x, point.y, point.z))
+    request_cursor_action(function(point)
+        if which == "a" then selection_a = point
+        elseif which == "b" then selection_b = point
+        else selection_target = point end
+        shroudforge.log.info(string.format("World Editor cursor selection %s = %.3f, %.3f, %.3f",
+            which == "target" and "TARGET" or which:upper(), point.x, point.y, point.z))
+    end)
 end
 
 local function clear_cursor_selection()
@@ -798,17 +934,17 @@ local function clear_cursor_selection()
 end
 
 local function mark_cursor_next()
-    local point = cursor_point()
-    if not point then return end
-    if not selection_a or selection_b then
-        selection_a, selection_b = point, nil
-        shroudforge.log.info(string.format("World Editor selection A = %.3f, %.3f, %.3f; press F5 at the opposite corner for B",
-            point.x, point.y, point.z))
-    else
-        selection_b = point
-        shroudforge.log.info(string.format("World Editor selection B = %.3f, %.3f, %.3f; region is ready for F8 capture",
-            point.x, point.y, point.z))
-    end
+    request_cursor_action(function(point)
+        if not selection_a or selection_b then
+            selection_a, selection_b = point, nil
+            shroudforge.log.info(string.format("World Editor selection A = %.3f, %.3f, %.3f; press F5 at the opposite corner for B",
+                point.x, point.y, point.z))
+        else
+            selection_b = point
+            shroudforge.log.info(string.format("World Editor selection B = %.3f, %.3f, %.3f; region is ready for F8 capture",
+                point.x, point.y, point.z))
+        end
+    end)
 end
 
 local function reset_editor()
@@ -817,6 +953,7 @@ local function reset_editor()
         return
     end
     selection_a, selection_b, selection_target = nil, nil, nil
+    pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
     clipboard, undo_state, active_blueprint_name = nil, nil, nil
     shroudforge.log.info("World Editor reset: selection, active blueprint, and undo history cleared")
 end
@@ -824,16 +961,16 @@ end
 local function list_props()
     local region, reason = voxel_region(true)
     if not region then shroudforge.log.warn("World Editor: " .. tostring(reason)); return end
-    local props = capture_region_props(region)
-    if not props then return end
-    shroudforge.log.info(string.format("World Editor found %d placeable props with known ItemInfo recipes in the selected region", #props))
-    for index = 1, math.min(#props, 100) do
-        local prop = props[index]
-        local recipe = resolve_placeable_items()[prop.itemId]
-        shroudforge.log.info(string.format("World Editor prop %d: handle=%d %s item=%d at local %.3f, %.3f, %.3f",
-            index, prop.entityHandle, recipe.name, prop.itemId, prop.x, prop.y, prop.z))
-    end
-    if #props > 100 then shroudforge.log.info("World Editor prop listing is truncated at 100 entries") end
+    request_prop_capture(region, function(props)
+    shroudforge.log.debug(string.format("World Editor found %d placeable props with known ItemInfo recipes in the selected region", #props))
+        for index = 1, math.min(#props, 100) do
+            local prop = props[index]
+            local recipe = resolve_placeable_items()[prop.itemId]
+        shroudforge.log.trace(string.format("World Editor prop %d: handle=%d %s item=%d at local %.3f, %.3f, %.3f",
+                index, prop.entityHandle, recipe.name, prop.itemId, prop.x, prop.y, prop.z))
+        end
+    if #props > 100 then shroudforge.log.debug("World Editor prop listing is truncated at 100 entries") end
+    end)
 end
 
 local function destroy_selected_prop()
@@ -886,7 +1023,7 @@ local function report_recipe_catalog()
     if not recipes then return end
     local count = 0
     for _ in pairs(recipes) do count = count + 1 end
-    shroudforge.log.info("World Editor recipe catalog is ready from this build's ItemInfo assets: " .. count .. " placeable item recipes")
+    shroudforge.log.debug("World Editor recipe catalog is ready from this build's ItemInfo assets: " .. count .. " placeable item recipes")
 end
 
 local function entity_transform()
@@ -988,9 +1125,17 @@ feature = function(feature_name)
     return false
 end
 
-local function component_type(name)
+component_type = function(name)
     if name == "" then return nil end
-    return game.types.get_by_qualified_name(name)
+    if not live_component_types then
+        local components = runtime.ecs.get_components()
+        if type(components) ~= "table" then return nil end
+        live_component_types = {}
+        for _, info in ipairs(components) do
+            if info.qualified_name then live_component_types[info.qualified_name] = info end
+        end
+    end
+    return live_component_types[name]
 end
 
 local function field_names(type_info)
@@ -1014,9 +1159,9 @@ local function discover_types()
     table.sort(components, function(left, right)
         return left.qualified_name < right.qualified_name
     end)
-    shroudforge.log.info("World Editor discovered " .. #components .. " live ECS component types")
+    shroudforge.log.debug("World Editor discovered " .. #components .. " live ECS component types")
     for index, type_info in ipairs(components) do
-        shroudforge.log.info(string.format("World Editor type %d/%d: %s size=%d fields={%s}",
+        shroudforge.log.trace(string.format("World Editor type %d/%d: %s size=%d fields={%s}",
             index, #components, type_info.qualified_name, type_info.size, field_names(type_info)))
     end
 end
@@ -1033,12 +1178,12 @@ local function query_entities()
         shroudforge.log.warn("World Editor: entity query failed: " .. tostring(reason))
         return
     end
-    shroudforge.log.info("World Editor found " .. #entities .. " matching entities for " .. name)
+    shroudforge.log.debug("World Editor found " .. #entities .. " matching entities for " .. name)
     for index = 1, math.min(#entities, 100) do
-        shroudforge.log.info(string.format("World Editor entity %d: handle=%d", index, entities[index]))
+        shroudforge.log.trace(string.format("World Editor entity %d: handle=%d", index, entities[index]))
     end
     if #entities > 100 then
-        shroudforge.log.info("World Editor: entity list truncated at 100 handles")
+        shroudforge.log.debug("World Editor: entity list truncated at 100 handles")
     end
 end
 
@@ -1066,7 +1211,7 @@ end
 local function inspect_component()
     local handle, name, info = read_selected_component()
     if not handle then return end
-    shroudforge.log.info(string.format("World Editor component: handle=%d type=%s size=%d fields={%s}",
+    shroudforge.log.debug(string.format("World Editor component: handle=%d type=%s size=%d fields={%s}",
         handle, name, info.size, field_names(info)))
 end
 
@@ -1184,21 +1329,42 @@ shroudforge.ui.on_action("writeField", write_field)
 return {
     update_interval_ms = 30,
     on_load = function()
-        shroudforge.log.info("World Editor ready: F4 undo, F5 mark A/B, F6 reset, F7 paste at cursor, F8 capture/save/select. F9 is Modloader UI; F10 is Debug Console.")
+        shroudforge.log.info("World Editor loaded; checking live ECS and world readiness")
     end,
     on_update = function(_delta_seconds)
+        if not readiness_logged then
+            local ecs_ready = runtime.has("runtime.ecs.query") and runtime.has("runtime.ecs.read")
+            local cursor_ready = runtime.has("runtime.world.cursor.get")
+            local world_ready = runtime.has("runtime.world.context.active") and
+                runtime.has("runtime.world.voxel.read") and runtime.has("runtime.world.voxel.write")
+            if ecs_ready and cursor_ready and world_ready then
+                readiness_logged = true
+                shroudforge.log.info("World Editor ready: native cursor hook, live ECS, and validated voxel world are available. F4 undo, F5 mark A/B, F6 reset, F7 paste at cursor, F8 capture/save/select.")
+            elseif not readiness_wait_logged then
+                readiness_wait_logged = true
+                local ecs = runtime.status("runtime.ecs.query")
+                local cursor = runtime.status("runtime.world.cursor.get")
+                local world = runtime.status("runtime.world.context.active")
+                shroudforge.log.info("World Editor waiting for runtime readiness: cursor=" .. tostring(cursor and cursor.reason or "ready") ..
+                    "; ECS=" .. tostring(ecs and ecs.reason or "ready") ..
+                    "; world=" .. tostring(world and world.reason or "ready"))
+            end
+        end
         local undo = key_pressed("F4")
         local mark = key_pressed("F5")
         local reset = key_pressed("F6")
         local paste = key_pressed("F7")
         local capture = key_pressed("F8")
         if reset then reset_editor(); return end
+        update_pending_queries()
         if undo then undo_voxels() end
         if mark then mark_cursor_next() end
         if paste then paste_voxels(true) end
         if capture then copy_voxels(true) end
     end,
     on_unload = function()
-        shroudforge.log.info("World Editor Lua runtime unloaded")
+        pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
+        live_component_types = nil
+    shroudforge.log.debug("World Editor Lua runtime unloaded")
     end,
 }

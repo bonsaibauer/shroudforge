@@ -8,6 +8,7 @@
     "runtime.ecs.read",
     "runtime.ecs.write",
     "runtime.world.context.active",
+    "runtime.world.cursor.get",
     "runtime.world.voxel.read",
     "runtime.world.voxel.write",
     "runtime.world.entity.spawn",

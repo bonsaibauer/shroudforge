@@ -63,14 +63,14 @@ flowchart TD
 
 The manifest access declarations are **patch**, **export**, **runtime**, and **runtime-register-dll**. A mod lists the access it needs in **mod.json**. ShroudForge's in-game runtime APIs use **runtime**. **runtime-register-dll** schedules an EML mod that registers a package-local native DLL for the runtime. The registration API checks the current phase and package path, but does not check this specific capability.
 
-Runtime mods have separate Lua environments. The loader checks the game build and approved profile before providing supported operations. When a mod stops, the loader asks it to clean up and releases its runtime handles.
+Runtime mods have separate Lua environments. The loader selects a matching profile automatically or uses the player's selected profile. When the detected build differs, it reports a warning and enables operations that resolve against the live executable. When a mod stops, the loader asks it to clean up and releases its runtime handles.
 
 ## The two mod information files
 
 - **mod.json** follows the EML format. It contains the mod's identity, version, dependencies, and permissions.
-- **extended.mod.json** is an optional ShroudForge file. It contains the enabled state, setting values, groups, actions, links, and short update notes.
+- **extended.mod.json** is an optional ShroudForge file. It contains the enabled state, setting values, groups, actions, links, short update notes, and optional `launcher` provenance (`EML` or `SF`).
 
-A package with only **mod.json** can be read as an EML mod. Adding **extended.mod.json** makes it a ShroudForge mod. The loader checks the extension against its schema before accepting the package.
+The UI shows EML only when **extended.mod.json** explicitly records `launcher: "EML"`. When ShroudForge adds the extension to an EML package, it writes that marker so the UI keeps the package's original EML identity. A missing or non-EML marker is shown as SF. The loader checks the extension against its schema before accepting the package.
 
 Player changes are saved into the package's **extended.mod.json**. Updating the package can replace those choices. Setting migration is not supported. See [Mod packages](mod-packages.md) for examples and the exact schemas.
 
@@ -116,23 +116,24 @@ The release ZIP contains these main program files:
 | **shroudforge/shroudforge-updater.exe** | Helper that installs a queued ShroudForge update after the game closes. |
 | **shroudforge/kfc-runtime.dll** | Native runtime used for approved in-game operations. |
 | **shroudforge/version.json** | Release version and list of files managed by system updates. |
-| **shroudforge/config/loader.json** | Loader and module settings. |
+| **shroudforge/config/modloader-config.json** | Loader and module settings, including custom storage locations. |
 | **mods/<id>/** | Mod packages included in the release. |
 
 ShroudForge also creates or updates these working files as you use it:
 
 | Installed path | What it is for |
 | --- | --- |
-| **shroudforge/state/state.json** | Saved loader, mod, update, and diagnostic status. |
-| **shroudforge/shroudforge.log** | Latest ShroudForge messages. |
-| **shroudforge/logs/** | Earlier log files. |
+| **shroudforge/state.json** | Saved loader, mod, update, and diagnostic status. |
+| **shroudforge/logs/shroudforge.log** | Current ShroudForge log; rotated logs use timestamped names in this folder. |
 | **shroudforge/ui/** | Mod downloads, queued actions, and removed-mod storage. |
 | **shroudforge/updates/** | Update downloads, queued work, and backups. |
 | **shroudforge/runtime/** | Runtime status and requests shared with the running game. |
 | **shroudforge/cache/** | Saved parser and Lua type information used to speed up work. |
 | **shroudforge/exports/** | Files created by mods that use the export feature. |
 
-System updates keep **loader.json**, **state.json**, and the write lock. Extra mod folders and logs are outside the release's managed file list and stay in place. Mods included in a release are updated with it, so settings stored inside one of those mod packages may change with that package.
+The Settings → Storage locations page can redirect the mods, status, logs, cache, exports, updates, UI-data, and runtime-data folders. Those paths resolve through `src/loader/package/src/paths.rs`; modules should use that resolver instead of constructing paths themselves. The game install root, configuration file, and injected DLL locations stay fixed because the Windows bootstrap needs them before the configurable storage paths can be read. Selecting a folder changes where new files are written; it does not copy existing files. A custom mods folder outside the game directory may not be discovered by EML.
+
+System updates manage the program files and bundled mods. They do not replace **modloader-config.json**, the selected status file, or the write lock. Bundled mod files are installed under the configured mods folder.
 
 ## Main parts and their owners
 

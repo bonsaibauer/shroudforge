@@ -16,6 +16,7 @@
 namespace WorldRuntime {
 namespace {
 constexpr std::size_t MaximumCells = 65'536;
+constexpr std::size_t NativeCursorSize = 0xa0;
 constexpr std::uint32_t OperationTimeoutMs = 3000;
 struct Cell { std::uint8_t material{}, density{}; };
 static_assert(sizeof(Cell) == 2);
@@ -56,11 +57,25 @@ struct EntityRequest {
     ~EntityRequest() { if (completed) CloseHandle(completed); }
 };
 std::atomic<std::shared_ptr<EntityRequest>> pending_entity_request;
+std::atomic<std::uintptr_t> observed_actor_world{};
+struct CursorMailbox {
+    volatile long lock{};
+    volatile long hook_ready{};
+    std::uint64_t sequence{};
+    std::array<std::uint8_t, NativeCursorSize> bytes{};
+};
+CursorMailbox cursor_mailbox;
 
 bool read_memory(std::uintptr_t address, void* output, std::size_t size) {
     SIZE_T read{};
     return address && output && size && ReadProcessMemory(GetCurrentProcess(),
         reinterpret_cast<const void*>(address), output, size, &read) && read == size;
+}
+
+bool copy_cursor_safely(const void* source, std::uint8_t* output) {
+    if (!source || !output) return false;
+    __try { std::memcpy(output, source, NativeCursorSize); return true; }
+    __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
 const KfcRuntimeCompatibility::EnshroudedClient::RuntimeOperation* find_operation(const char* name) {
@@ -72,20 +87,49 @@ const KfcRuntimeCompatibility::EnshroudedClient::RuntimeOperation* find_operatio
     return found == operations.end() ? nullptr : &*found;
 }
 
+bool valid_world_context(std::uintptr_t world) {
+    const auto* profile = find_operation("runtime.world.context.active");
+    std::uintptr_t store{};
+    return world && profile && profile->validation_offset &&
+        read_memory(world + profile->validation_offset, &store, sizeof(store)) && store;
+}
+
 bool resolve_voxel_world(std::uintptr_t& world) {
     const auto* profile = find_operation("runtime.world.context.active");
     const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-    std::uintptr_t singleton{}, context{}, store{};
+    std::uintptr_t singleton{}, context{};
     if (!profile || !profile->available || !profile->global_rva || !profile->context_pointer_offset ||
-        !profile->world_offset || !read_memory(base + profile->global_rva, &singleton, sizeof(singleton)) || !singleton)
-        return false;
-    const auto context_slot = static_cast<std::uintptr_t>(static_cast<std::intptr_t>(singleton) + profile->context_pointer_offset);
-    if (!read_memory(context_slot, &context, sizeof(context)) || !context) return false;
-    const auto signed_world = static_cast<std::intptr_t>(context) + profile->world_offset;
-    if (signed_world <= 0) return false;
-    world = static_cast<std::uintptr_t>(signed_world);
-    // Match Shroudtopia's live-world validation before using this context.
-    return profile->validation_offset && read_memory(world + profile->validation_offset, &store, sizeof(store)) && store;
+        !profile->world_offset) return false;
+
+    // Prefer the validated actor-world context captured from ShroudForge's
+    // build-verified actor hooks. The singleton is the fallback when the
+    // current actor frame has not published a usable world yet.
+    const auto actor_candidate = observed_actor_world.load(std::memory_order_acquire);
+    if (valid_world_context(actor_candidate)) { world = actor_candidate; return true; }
+
+    if (read_memory(base + profile->global_rva, &singleton, sizeof(singleton)) && singleton) {
+        const auto context_slot = static_cast<std::uintptr_t>(static_cast<std::intptr_t>(singleton) + profile->context_pointer_offset);
+        if (read_memory(context_slot, &context, sizeof(context)) && context) {
+            const auto signed_world = static_cast<std::intptr_t>(context) + profile->world_offset;
+            if (signed_world > 0) {
+                const auto candidate = static_cast<std::uintptr_t>(signed_world);
+                if (valid_world_context(candidate)) { world = candidate; return true; }
+            }
+        }
+    }
+    return false;
+}
+
+void observe_actor_world(void* actor_frame) {
+    if (!actor_frame) return;
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    if (!layout.actor_frame_service_view || !layout.service_view_world) return;
+    const auto frame = reinterpret_cast<std::uintptr_t>(actor_frame);
+    std::uintptr_t service_view{}, candidate{};
+    if (!read_memory(frame + layout.actor_frame_service_view, &service_view, sizeof(service_view)) || !service_view ||
+        !read_memory(service_view + layout.service_view_world, &candidate, sizeof(candidate)) ||
+        !valid_world_context(candidate)) return;
+    observed_actor_world.store(candidate, std::memory_order_release);
 }
 
 bool actor_frame_matches_active_world(void* actor_frame) {
@@ -419,6 +463,8 @@ bool cell_count(const std::uint32_t dimensions[3], std::size_t& count) {
 }
 
 bool OperationAvailable(const char* name) {
+    if (name && std::strcmp(name, "runtime.world.cursor.get") == 0)
+        return InterlockedCompareExchange(&cursor_mailbox.hook_ready, 0, 0) != 0;
     const auto* operation = find_operation(name);
     return operation && operation->available;
 }
@@ -426,15 +472,51 @@ bool OperationAvailable(const char* name) {
 bool EntityContextReady() { return GameThreadDispatcher::EntityContextReady(); }
 
 void OnPropUpdate(void* execution_view, void* actor_frame) {
+    observe_actor_world(actor_frame);
     const auto request = pending_entity_request.load(std::memory_order_acquire);
     if (!request || request->kind != EntityRequest::Kind::Spawn) return;
     execute_entity_request(request, execution_view, actor_frame);
 }
 
 void OnActorPlacement(void* execution_view, void* actor_frame) {
+    observe_actor_world(actor_frame);
     const auto request = pending_entity_request.load(std::memory_order_acquire);
     if (!request || request->kind == EntityRequest::Kind::Spawn) return;
     execute_entity_request(request, execution_view, actor_frame);
+}
+
+void SetCursorHookReady(bool ready) {
+    InterlockedExchange(&cursor_mailbox.hook_ready, ready ? 1 : 0);
+}
+
+void OnCursorUpdate(const void* cursor) {
+    std::array<std::uint8_t, NativeCursorSize> sample{};
+    if (!copy_cursor_safely(cursor, sample.data()) || sample[0x98] > 1) return;
+    for (const auto base : {std::size_t{0}, std::size_t{0x38}}) {
+        for (const auto offset : {std::size_t{0x18}, std::size_t{0x1c}, std::size_t{0x20}, std::size_t{0x24},
+                                  std::size_t{0x28}, std::size_t{0x2c}, std::size_t{0x30}}) {
+            float value{};
+            std::memcpy(&value, sample.data() + base + offset, sizeof(value));
+            if (!std::isfinite(value)) return;
+        }
+    }
+    if (InterlockedCompareExchange(&cursor_mailbox.lock, 1, 0) != 0) return;
+    cursor_mailbox.bytes = sample;
+    ++cursor_mailbox.sequence;
+    InterlockedExchange(&cursor_mailbox.lock, 0);
+}
+
+bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t* sequence) {
+    if (!bytes || capacity < NativeCursorSize || !sequence ||
+        !OperationAvailable("runtime.world.cursor.get")) return false;
+    if (InterlockedCompareExchange(&cursor_mailbox.lock, 1, 0) != 0) return false;
+    const auto current_sequence = cursor_mailbox.sequence;
+    const auto sample = cursor_mailbox.bytes;
+    InterlockedExchange(&cursor_mailbox.lock, 0);
+    if (!current_sequence) return false;
+    std::memcpy(bytes, sample.data(), sample.size());
+    *sequence = current_sequence;
+    return true;
 }
 
 bool ActiveContextAvailable() {
@@ -559,6 +641,9 @@ extern "C" {
 bool __cdecl KfcRuntimeWorldOperationAvailable(const char* name) { return WorldRuntime::OperationAvailable(name); }
 bool __cdecl KfcRuntimeWorldContextActive() { return WorldRuntime::ActiveContextAvailable(); }
 bool __cdecl KfcRuntimeWorldEntityContextReady() { return WorldRuntime::EntityContextReady(); }
+bool __cdecl KfcRuntimeWorldCursorRead(std::uint8_t* cursor, std::size_t capacity, std::uint64_t* sequence) {
+    return WorldRuntime::ReadCursorSnapshot(cursor, capacity, sequence);
+}
 bool __cdecl KfcRuntimeWorldVoxelRead(const std::int32_t* origin, const std::uint32_t* dimensions,
     std::uint16_t* values, std::size_t capacity, std::size_t* actual) {
     return WorldRuntime::ReadVoxels(origin, dimensions, values, capacity, actual);

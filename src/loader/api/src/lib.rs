@@ -10,7 +10,7 @@ use crate::{
     alias::{Path, PathBuf as Utf8PathBuf},
     cache::{CacheDiff, FileStateCache},
     env::{AppFeatures, AppState},
-    log::info,
+    log::{debug, info},
     runner::LuaModRunner,
 };
 
@@ -152,7 +152,7 @@ fn run_with_api(
     api: Option<ShroudForgeApi>,
     mut args: RunArgs,
 ) -> anyhow::Result<()> {
-    info!("Running lua with options: {:?}", args);
+    debug!("Running lua with options: {:?}", args);
 
     // check cache if files have changed
 
@@ -169,12 +169,12 @@ fn run_with_api(
         if cache_diff.is_none() && args.options.patch && !args.options.force_patch {
             args.options.patch = false;
 
-            info!("No changes detected, skipping asset writes");
+            debug!("No changes detected, skipping asset writes");
         }
 
         cache_diff
     } else {
-        info!("Skipping cache check");
+        debug!("Skipping cache check");
         CacheDiff::new_dirty()
     };
 
@@ -197,7 +197,7 @@ fn run_with_api(
         }
     }
 
-    info!("Running mods...");
+    debug!("Running mods...");
 
     // TODO: move this somewhere else, maybe to the GameContext?
 
@@ -206,7 +206,7 @@ fn run_with_api(
     let app_state = runner.lua.app_data_ref::<AppState>().unwrap();
 
     if app_state.has_feature(AppFeatures::PATCH) {
-        info!("Committing typed asset changes...");
+        debug!("Committing typed asset changes...");
 
         let mut buf = Vec::new();
         let mut writer = app_state.take_writer()?;
@@ -312,21 +312,12 @@ impl IngameRuntime {
         api: Option<ShroudForgeApi>,
         file_name: String,
     ) -> anyhow::Result<Self> {
-        if let Err(error) =
-            mod_loader::config::migrate_eml_config_once(env.game_dir().as_std_path())
-        {
-            tracing::warn!(%error, "Could not import EML eml.json settings for the game runtime");
-        }
         let loader_config = mod_loader::config::read_loader(env.game_dir().as_std_path())
             .map_err(anyhow::Error::msg)?;
         let export_enabled = loader_config
             .pointer("/exports/enabled")
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
-        let export_dir = loader_config
-            .pointer("/exports/directory")
-            .and_then(serde_json::Value::as_str)
-            .map(PathBuf::from);
         let mut diagnostics =
             shroudforge_runtime_diagnostics::Session::new(env.game_dir().as_std_path());
         let file_name: String = file_name.into();
@@ -341,7 +332,7 @@ impl IngameRuntime {
                     is_server: None,
                     patch: false,
                     export: export_enabled,
-                    export_dir,
+                    export_dir: None,
                     phase: RuntimePhase::Ingame,
                 },
             },
@@ -408,21 +399,21 @@ impl IngameRuntime {
                 )
             })
             .collect();
-        tracing::info!(target: "shroudforge::runtime", "Setting up runtime mod runner");
+        tracing::debug!(target: "shroudforge::runtime", "Setting up runtime mod runner");
         runner.setup(plan)?;
-        tracing::info!(target: "shroudforge::runtime", "Runtime mod runner setup finished");
+        tracing::debug!(target: "shroudforge::runtime", "Runtime mod runner setup finished");
         for target_mod in env.enabled_mods() {
             let app_state = runner.lua.app_data_ref::<AppState>().unwrap();
-            tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+            tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                 "Checking native plugin sidecar");
             match app_state.load_native_plugin(target_mod) {
                 Ok(true) => {
                     tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
-                        "Native plugin sidecar started");
+                        "Native plugin sidecar queued for isolated loading");
                     app_state.report_runtime_effect(
                         &target_mod.info().id,
-                        "loaded",
-                        "native-plugin.ini sidecar started",
+                        "loading",
+                        "native-plugin.ini sidecar queued; Lua runtime continues independently",
                     );
                 }
                 Ok(false) => {}
@@ -439,7 +430,7 @@ impl IngameRuntime {
         }
         let mut lifecycle = Vec::new();
         for id in runner.runtime_mod_ids() {
-            tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+            tracing::debug!(target: "shroudforge::runtime", mod_id = %id,
                 "Loading runtime mod entrypoint");
             let module_result = runner.load_runtime_module(&id);
             let value = match module_result {
@@ -588,6 +579,7 @@ impl IngameRuntime {
 
     pub fn update(&mut self, delta_seconds: f64) {
         self.diagnostics.tick();
+        self.runner.lua.app_data_ref::<AppState>().unwrap().poll_native_dll_loads();
         self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
             self.refresh_configuration();
@@ -650,9 +642,8 @@ impl IngameRuntime {
     }
 
     fn process_runtime_reload_request(&mut self) {
-        let request_path = self
-            .root
-            .join("shroudforge/runtime/mod-reload-request.json");
+        let request_path = mod_loader::paths::runtime_dir(&self.root)
+            .join("mod-reload-request.json");
         let Ok(bytes) = std::fs::read(&request_path) else {
             return;
         };
@@ -677,7 +668,7 @@ impl IngameRuntime {
             "reload" => self.reload_runtime_packages(&ids),
             operation => Err(format!("unknown runtime mod operation: {operation}")),
         };
-        let status_path = self.root.join("shroudforge/runtime/mod-reload-result.json");
+        let status_path = mod_loader::paths::runtime_dir(&self.root).join("mod-reload-result.json");
         let value = match result {
             Ok(()) => {
                 let status = if request["operation"] == "unload" {

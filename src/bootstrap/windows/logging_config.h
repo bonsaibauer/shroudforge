@@ -6,6 +6,19 @@
 #include <nlohmann/json.hpp>
 
 namespace ShroudforgeConfig {
+inline nlohmann::json Read(const std::filesystem::path& root);
+inline std::filesystem::path Directory(const std::filesystem::path& root,
+        const char* name, const char* fallback) {
+    try {
+        const auto paths = Read(root).value("paths", nlohmann::json::object());
+        const auto value = paths.value(name, std::string{});
+        if (!value.empty()) {
+            const auto configured = std::filesystem::path(value);
+            return configured.is_absolute() ? configured : root / configured;
+        }
+    } catch (...) {}
+    return root / fallback;
+}
 inline nlohmann::json Read(const std::filesystem::path& root) {
     static std::mutex mutex;
     static auto next = std::chrono::steady_clock::time_point{};
@@ -15,7 +28,7 @@ inline nlohmann::json Read(const std::filesystem::path& root) {
     if (now >= next) {
         next = now + std::chrono::milliseconds(500);
         try {
-            auto path = root / "shroudforge/config/loader.json";
+            auto path = root / "shroudforge/config/modloader-config.json";
             std::ifstream input(path);
             if (input) {
                 auto value = nlohmann::json::parse(input);

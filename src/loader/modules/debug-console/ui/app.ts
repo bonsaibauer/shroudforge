@@ -1,10 +1,11 @@
 const levels = ["All", "Trace", "Debug", "Info", "Warning", "Error"];
 const emptyTail = () => ({ text: "", state: "missing" });
 const data = { game: emptyTail(), loader: emptyTail() };
-const paths = { game: "enshrouded.log", loader: "shroudforge.log" };
+const paths = { game: "enshrouded.log", loader: "shroudforge/logs/shroudforge.log" };
 let activeSource = "game";
 let levelIndex = 0;
 let minimumLevel = "INFO";
+let alertReview = false;
 let paused = false;
 let follow = true;
 let frozen = "";
@@ -69,16 +70,25 @@ function count(value) {
 }
 
 window.__shroudforgeUpdate = (next) => {
-  minimumLevel = next.minimumLevel || "INFO";
+  minimumLevel = alertReview ? "TRACE" : (next.minimumLevel || "INFO");
   if (next.preferences) {
     activeSource = next.preferences.defaultSource === "loader" ? "loader" : "game";
     levelIndex = Math.max(0,["ALL","TRACE","DEBUG","INFO","WARN","ERROR"].indexOf(next.preferences.levelFilter));
     follow = next.preferences.autoScroll;
-    document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active",item.dataset.tab===activeSource));
-    byId("level").textContent = `Display: ${levels[levelIndex]}`;
-    byId("follow").textContent = `Auto-Scroll: ${follow ? "On" : "Off"}`;
-    byId("follow").classList.toggle("active",follow);
   }
+  if (next.autoOpen) {
+    alertReview = true;
+    activeSource = "loader";
+    levelIndex = 0;
+    paused = false;
+    frozen = "";
+    follow = true;
+  }
+  document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active",item.dataset.tab===activeSource));
+  byId("level").textContent = `Display: ${levels[levelIndex]}`;
+  byId("level").classList.toggle("active",levelIndex!==0);
+  byId("follow").textContent = `Auto-Scroll: ${follow ? "On" : "Off"}`;
+  byId("follow").classList.toggle("active",follow);
   data.game = next.game || emptyTail();
   data.loader = next.loader || emptyTail();
   paths.game = next.paths?.game || paths.game;

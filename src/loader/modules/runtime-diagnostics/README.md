@@ -16,7 +16,7 @@ is reported as a concrete failure. Measurements do not grant compatibility.
 
 ## Configuration and controls
 
-`shroudforge/config/loader.json`, `modules.runtimeDiagnostics`, is the only
+`shroudforge/config/modloader-config.json`, `modules.runtimeDiagnostics`, is the only
 configuration. The loader polls controls every 500 ms; samples use the configured
 interval. Sessions stop at `maximumDurationSeconds` and persist `enabled: false`.
 `continuous: false` captures one snapshot. Start increments `requestId` so an
@@ -34,12 +34,12 @@ shroudforge\shroudforge.exe --runtime-diagnostics --root "C:\Games\Enshrouded" -
 
 Commands are requests, not fabricated success reports. A running loader consumes
 them; otherwise they take effect at its next start. Status is reported through
-the generated `shroudforge/state/state.json` and validated against the module schema.
+the generated `shroudforge/state.json` and validated against the module schema.
 The UI displays remaining duration and last sample time. Previously elapsed work
 is not reconstructed. Parser/API startup checks, build/profile validation and
 compatibility decisions are not part of this module.
 
-English output uses the existing `shroudforge/shroudforge.log` format and the `diagnostics`
+English output uses the existing `shroudforge/logs/shroudforge.log` format and the `diagnostics`
 source. Diagnostic entries appear in the ShroudForge Debug Log tab alongside
 other loader messages. The shared `logging.minimumLevel` setting controls which entries are written and displayed. INFO
 summaries may be filtered at WARN/ERROR; slow callbacks and measurement failures

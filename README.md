@@ -31,7 +31,9 @@ The guide includes separate instructions for your PC and game server, pictures o
 
 1. Close Enshrouded.
 2. Download the Latest release:
+   
    [![Latest release](https://img.shields.io/github/v/release/bonsaibauer/shroudforge?label=Latest%20Release)](https://github.com/bonsaibauer/shroudforge/releases/latest) [![Downloads](https://img.shields.io/github/downloads/bonsaibauer/shroudforge/total)](https://github.com/bonsaibauer/shroudforge/releases)
+   
 3. Right-click the downloaded ZIP and choose **Extract All**.
 4. Open the Enshrouded folder that contains **enshrouded.exe**.
 5. Copy the files from the ZIP into that folder, beside **enshrouded.exe**.

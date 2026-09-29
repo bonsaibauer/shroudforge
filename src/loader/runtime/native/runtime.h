@@ -51,6 +51,8 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsWrite(
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldOperationAvailable(const char* name);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldContextActive(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityContextReady(void);
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldCursorRead(
+    uint8_t* cursor, size_t capacity, uint64_t* sequence);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldVoxelRead(
     const int32_t* origin, const uint32_t* dimensions, uint16_t* values,
     size_t capacity, size_t* actual);

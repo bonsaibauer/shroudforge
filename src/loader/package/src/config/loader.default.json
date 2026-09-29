@@ -7,11 +7,20 @@
     "minimumLevel": "INFO"
   },
   "exports": {
-    "enabled": false,
-    "directory": "shroudforge/exports"
+    "enabled": false
   },
-  "migrations": {
-    "emlJsonV1": false
+  "paths": {
+    "mods": null,
+    "state": null,
+    "logs": null,
+    "cache": null,
+    "exports": null,
+    "updates": null,
+    "ui": null,
+    "runtime": null
+  },
+  "runtime": {
+    "profileId": null
   },
   "catalog": {
     "provider": null

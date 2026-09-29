@@ -3,6 +3,7 @@ mod pregame;
 mod tests;
 
 use shroudforge_api::{IngameRuntime, ShroudForgeApi};
+use std::any::Any;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -72,6 +73,16 @@ impl ModLoader {
 #[repr(C)]
 pub struct RuntimeHandle(ModLoader);
 
+fn panic_detail(payload: &(dyn Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_owned()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "panic payload was not a string".to_owned()
+    }
+}
+
 /// Applies stale pregame asset mods from the bootstrap thread before the live
 /// ECS runtime is created. This lets a normal game start use the bundled
 /// loader instead of requiring a separate `prepare` command.
@@ -91,7 +102,7 @@ pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
             std::slice::from_raw_parts(value, length)
         })))
     }
-    std::panic::catch_unwind(|| {
+    match std::panic::catch_unwind(|| {
         let Some(game) = path(game) else {
             return false;
         };
@@ -117,8 +128,21 @@ pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
                 false
             }
         }
-    })
-    .unwrap_or(false)
+    }) {
+        Ok(result) => result,
+        Err(payload) => {
+            if let Some(game) = path(game) {
+                let _ = shroudforge_package::logging::initialize(&game, false);
+                let _ = shroudforge_package::logging::append(
+                    &game,
+                    'E',
+                    "startup-assets",
+                    &format!("Rust panic during startup asset preparation: {}", panic_detail(&*payload)),
+                );
+            }
+            false
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -164,7 +188,7 @@ pub unsafe extern "C" fn shroudforge_create(game: *const u16) -> *mut RuntimeHan
             .map_err(|error| format!("mod loading failed at {}: {error}", game.display()))?;
         Ok(RuntimeHandle(loader))
     }
-    std::panic::catch_unwind(|| {
+    match std::panic::catch_unwind(|| {
         let Some(game) = path(game) else {
             return std::ptr::null_mut();
         };
@@ -175,8 +199,19 @@ pub unsafe extern "C" fn shroudforge_create(game: *const u16) -> *mut RuntimeHan
                 std::ptr::null_mut()
             }
         }
-    })
-    .unwrap_or(std::ptr::null_mut())
+    }) {
+        Ok(handle) => handle,
+        Err(payload) => {
+            if let Some(game) = path(game) {
+                let _ = shroudforge_package::logging::initialize(&game, false);
+                append_runtime_log(
+                    &game,
+                    &format!("Rust panic during runtime initialization: {}", panic_detail(&*payload)),
+                );
+            }
+            std::ptr::null_mut()
+        }
+    }
 }
 
 #[unsafe(no_mangle)]

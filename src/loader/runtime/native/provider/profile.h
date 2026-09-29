@@ -28,6 +28,7 @@ struct RuntimePatch {
     std::size_t overwrite{}, return_rel32_offset{}, target_offset{};
 };
 inline std::uint32_t image_timestamp{}, image_size{};
+inline bool exact_build_match{};
 inline std::size_t entity_manager_count{}, entity_manager_table{}, component_offsets{}, component_strides{};
 inline std::size_t entity_id{}, entity_generation{}, entity_layout{}, entity_storage{}, entity_definition{}, entity_row{}, component_bits{}, lookup_manager{};
 inline std::size_t definition_uuid{}, definition_name{}, definition_name_size{};
@@ -35,6 +36,9 @@ inline std::string game_thread_signature, entity_manager_signature, status{"not-
 inline std::string world_prop_update_signature, world_actor_placement_signature;
 inline std::vector<std::uint8_t> game_thread_original, entity_manager_original;
 inline std::vector<std::uint8_t> world_prop_update_original, world_actor_placement_original;
+inline std::string world_cursor_signature;
+inline std::vector<std::uint8_t> world_cursor_original;
+inline std::size_t world_cursor_capture_offset{};
 inline std::uintptr_t world_finish_event_id_rva{};
 inline RuntimeWorldContextLayout world_context_layout{};
 inline std::vector<RuntimeComponent> runtime_components;

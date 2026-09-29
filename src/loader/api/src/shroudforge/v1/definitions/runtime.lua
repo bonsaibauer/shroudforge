@@ -80,6 +80,14 @@ function runtime.ecs.write(entity, component, value) end
 
 --- @class RuntimeWorldApi
 runtime.world = {}
+--- @class RuntimeWorldCursorApi
+runtime.world.cursor = {}
+--- Read the most recent live building cursor captured by the current build's verified native hook.
+--- The hook copies the ClientCursor layout before returning to the game and the snapshot is served without an ECS scan.
+--- @return table? snapshot with `sequence` and reflected-layout `value.primaryTransform` fields.
+--- @return string? reason
+function runtime.world.cursor.get() end
+
 --- @class RuntimeWorldVoxelApi
 runtime.world.voxel = {}
 
@@ -175,6 +183,8 @@ function runtime.patch.set_enabled(name, enabled) end
 
 --- @class ShroudForgeLogApi
 local log = {}
+--- @param ... unknown
+function log.trace(...) end
 --- @param ... unknown
 function log.debug(...) end
 --- @param ... unknown

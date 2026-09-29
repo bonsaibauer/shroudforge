@@ -15,7 +15,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return shroudforge_modloader_ui::run_catalog_install_worker()
                 .map_err(|error| std::io::Error::other(error).into());
         }
-        Some("--debug-console") => return shroudforge_debug_console::run_module(),
+        Some("--debug-console") => {
+            return match shroudforge_debug_console::run_module() {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    let detail = format!("Debug Console failed to start: {error}");
+                    let root = args
+                        .windows(2)
+                        .find(|pair| pair[0] == "--root")
+                        .map(|pair| PathBuf::from(&pair[1]));
+                    if let Some(root) = root {
+                        let _ = shroudforge_package::logging::append(
+                            &root,
+                            'E',
+                            "debug-console",
+                            &detail,
+                        );
+                        #[cfg(windows)]
+                        {
+                            use std::os::windows::ffi::OsStrExt;
+                            use windows_sys::Win32::UI::WindowsAndMessaging::{
+                                MB_ICONERROR, MB_OK, MB_SETFOREGROUND, MessageBoxW,
+                            };
+                            let message = format!(
+                                "{detail}\n\nShroudForge log:\n{}",
+                                shroudforge_package::paths::current_log(&root).display()
+                            );
+                            let message: Vec<u16> = std::ffi::OsStr::new(&message)
+                                .encode_wide()
+                                .chain(std::iter::once(0))
+                                .collect();
+                            let title: Vec<u16> = "ShroudForge Debug Console"
+                                .encode_utf16()
+                                .chain(std::iter::once(0))
+                                .collect();
+                            unsafe {
+                                MessageBoxW(
+                                    std::ptr::null_mut(),
+                                    message.as_ptr(),
+                                    title.as_ptr(),
+                                    MB_OK | MB_ICONERROR | MB_SETFOREGROUND,
+                                );
+                            }
+                        }
+                    }
+                    Err(error)
+                }
+            };
+        }
         Some("--commands") => {
             shroudforge_commands::run_module();
             return Ok(());
@@ -175,6 +222,15 @@ fn create_mod(
         "enabled": true,
         "settings": {}
     });
+    let lua_library = shroudforge_package::paths::cache_dir(game)
+        .join("lua")
+        .to_string_lossy()
+        .into_owned();
+    let lua_ls = serde_json::json!({
+        "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+        "runtime": { "version": "Lua 5.4" },
+        "workspace": { "library": [lua_library] }
+    });
     shroudforge_package::config::validate_document(game, "mod", &manifest)?;
     shroudforge_package::config::validate_document(game, "extended-mod", &extension)?;
     std::fs::create_dir_all(&mods)?;
@@ -188,16 +244,7 @@ fn create_mod(
             "README.md",
             format!("# {name}\n\nNew ShroudForge mod.\n").into_bytes(),
         ),
-        (
-            ".luarc.json",
-            br#"{
-  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
-  "runtime": { "version": "Lua 5.4" },
-  "workspace": { "library": ["../../shroudforge/cache/lua/"] }
-}
-"#
-            .to_vec(),
-        ),
+        (".luarc.json", serde_json::to_vec_pretty(&lua_ls)?),
         (
             "src/mod.lua",
             b"print(\"Hello from ShroudForge\")\n".to_vec(),

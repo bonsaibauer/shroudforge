@@ -23,7 +23,7 @@ Think of **mod.json** as the information card for the mod. **extended.mod.json**
 4. Press **F10** to see messages from ShroudForge.
 5. Change the greeting or its message style, then use the button in the Modloader.
 
-The mod is marked as a ShroudForge mod because it includes **extended.mod.json** and uses ShroudForge functions. A mod that contains only **mod.json** can be read as an EML mod. Removing the extension file does not replace ShroudForge functions in the Lua file with EML functions.
+The optional `launcher` value in **extended.mod.json** records the mod's origin: use `"EML"` to keep an EML badge after adding ShroudForge settings, and omit it or use `"SF"` for a ShroudForge mod. This metadata does not convert or rewrite **mod.json**, and it does not determine which runtime APIs the mod uses.
 
 ## Make it yours
 

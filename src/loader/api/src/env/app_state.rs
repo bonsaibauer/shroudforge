@@ -7,6 +7,7 @@ use std::{
     io::Read,
     path::PathBuf as NativePathBuf,
     rc::Rc,
+    sync::mpsc::{self, Receiver, TryRecvError},
 };
 
 use bitflags::bitflags;
@@ -29,7 +30,7 @@ use crate::{
         game::value::is_dirty_lua_value,
         value::{convert_lua_to_value, convert_value_to_lua, validate_and_clone_lua_value},
     },
-    log::warn,
+    log::{error, warn},
     lua::{LuaError, LuaValue},
 };
 
@@ -38,6 +39,7 @@ pub struct AppState {
     runtime_active_mods: RefCell<HashSet<String>>,
     runtime_effects: RefCell<HashMap<String, serde_json::Value>>,
     native_dlls: RefCell<Vec<NativeDll>>,
+    pending_native_dlls: RefCell<Vec<PendingNativeDll>>,
     env: ModEnvironment,
     api: ShroudForgeApi,
     config: AppConfig,
@@ -194,7 +196,7 @@ impl AppState {
             None => {
                 let operations =
                     crate::runtime_operations(game_dir.as_std_path()).map_err(|error| {
-                        warn!(%error, "Invalid installed API contract");
+                        error!(%error, "Invalid installed API contract");
                     })?;
                 let schema = shroudforge_parser::schema_from_registry(&type_registry, &ref_file);
                 ShroudForgeApi::new(
@@ -205,17 +207,17 @@ impl AppState {
         let writer = if options.patch {
             let stage = shroudforge_parser::transaction::begin(game_dir.as_std_path(), file_name)
                 .map_err(|error| {
-                warn!(error = %error, "Failed to begin typed asset transaction");
+                error!(error = %error, "Failed to begin typed asset transaction");
             })?;
             let staged_writer = (|| {
                 for suffix in ["kfc", "kfc_resources"] {
                     let name = format!("{file_name}.{suffix}");
                     std::fs::copy(game_dir.join(&name), stage.join(&name)).map_err(|error| {
-                        warn!(error = %error, file = %name, "Failed to stage game asset container");
+                        error!(error = %error, file = %name, "Failed to stage game asset container");
                     })?;
                 }
                 let stage = PathBuf::from_path_buf(stage.clone()).map_err(|_| {
-                    warn!("Asset staging path is not valid UTF-8");
+                    error!("Asset staging path is not valid UTF-8");
                 })?;
                 crate::load::create_writer(&stage, file_name, &type_registry, &ref_file)
             })();
@@ -239,6 +241,7 @@ impl AppState {
             runtime_active_mods: RefCell::new(HashSet::new()),
             runtime_effects: RefCell::new(HashMap::new()),
             native_dlls: RefCell::new(Vec::new()),
+            pending_native_dlls: RefCell::new(Vec::new()),
             env,
             api,
             config,
@@ -341,86 +344,20 @@ impl AppState {
         self.config.feature_flags.contains(feature)
     }
 
-    pub(crate) fn load_native_dll(
-        &self,
-        mod_id: &str,
-        path: &std::path::Path,
-        temporary_directory: Option<NativePathBuf>,
-    ) -> Result<isize, String> {
-        if !self.has_feature(AppFeatures::RUNTIME_DLL) {
-            return Err("native DLL loading is unavailable in this execution phase".into());
-        }
-        let canonical = path
-            .canonicalize()
-            .map_err(|error| format!("could not resolve DLL path: {error}"))?;
-        if !canonical.is_file() {
-            return Err(format!(
-                "native DLL does not exist: {}",
-                canonical.display()
-            ));
-        }
-        let mut loaded = self.native_dlls.borrow_mut();
-        if let Some(item) = loaded.iter().find(|item| item.path == canonical) {
-            return Ok(item.handle);
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::ffi::OsStrExt;
-            use windows_sys::Win32::System::LibraryLoader::{
-                LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR, LoadLibraryExW,
-            };
-            let wide_path = canonical
-                .as_os_str()
-                .encode_wide()
-                .chain(Some(0))
-                .collect::<Vec<_>>();
-            let handle = unsafe {
-                LoadLibraryExW(
-                    wide_path.as_ptr(),
-                    std::ptr::null_mut(),
-                    LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
-                )
-            };
-            if handle.is_null() {
-                return Err(format!(
-                    "Windows could not load native DLL for mod '{mod_id}': {}",
-                    std::io::Error::last_os_error()
-                ));
-            }
-            loaded.push(NativeDll {
-                mod_id: mod_id.to_owned(),
-                path: canonical,
-                handle: handle as isize,
-                temporary_directory,
-                plugin_id: None,
-                stop_function: None,
-                mod_root_utf16: None,
-            });
-            tracing::info!(target: "shroudforge::runtime", mod_id, dll = %path.display(), "Loaded EML native DLL");
-            Ok(handle as isize)
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = (mod_id, canonical, temporary_directory);
-            Err("EML native DLL loading is supported only on Windows".into())
-        }
-    }
-
     pub(crate) fn load_mod_native_dll(
         &self,
         target_mod: &Mod,
         relative_path: &str,
     ) -> Result<(), String> {
-        self.load_mod_native_dll_impl(target_mod, relative_path, false)
-            .map(|_| ())
+        self.queue_mod_native_dll(target_mod, relative_path, false)
     }
 
-    fn load_mod_native_dll_impl(
+    fn queue_mod_native_dll(
         &self,
         target_mod: &Mod,
         relative_path: &str,
         require_plugin_host: bool,
-    ) -> Result<bool, String> {
+    ) -> Result<(), String> {
         if !self.has_feature(AppFeatures::RUNTIME_DLL) {
             return Err("native DLL loading is unavailable in this execution phase".into());
         }
@@ -480,31 +417,138 @@ impl AppState {
                 }
             }
         };
-        let mod_directory = temporary_directory.clone().unwrap_or(package_directory);
-        match self.load_native_dll(
-            &target_mod.info().id,
-            &load_path,
-            temporary_directory.clone(),
-        ) {
-            Ok(handle) => {
-                match self.start_native_plugin(
-                    target_mod,
-                    handle,
-                    &mod_directory,
-                    require_plugin_host,
-                ) {
-                    Ok(started) => Ok(started),
-                    Err(error) => {
-                        self.unload_native_dll(handle);
-                        Err(error)
-                    }
-                }
-            }
+        let canonical = match load_path.canonicalize() {
+            Ok(path) => path,
             Err(error) => {
                 if let Some(directory) = temporary_directory {
                     let _ = std::fs::remove_dir_all(directory);
                 }
-                Err(error)
+                return Err(format!("could not resolve DLL path: {error}"));
+            }
+        };
+        let mod_id = target_mod.info().id.to_string();
+        let mod_directory = temporary_directory
+            .as_ref()
+            .cloned()
+            .unwrap_or(package_directory);
+        let already_loaded = {
+            self.native_dlls
+                .borrow()
+                .iter()
+                .find(|item| item.path == canonical)
+                .map(|item| item.handle)
+        };
+        if let Some(handle) = already_loaded {
+            if require_plugin_host {
+                self.start_native_plugin(&mod_id, handle, &mod_directory, true)?;
+            }
+            if let Some(directory) = temporary_directory {
+                let _ = std::fs::remove_dir_all(directory);
+            }
+            return Ok(());
+        }
+        if let Some(pending) = self
+            .pending_native_dlls
+            .borrow_mut()
+            .iter_mut()
+            .find(|item| item.path == canonical)
+        {
+            pending.require_plugin_host |= require_plugin_host;
+            if require_plugin_host {
+                pending.mod_directory = mod_directory;
+            }
+            if let Some(directory) = temporary_directory {
+                let _ = std::fs::remove_dir_all(directory);
+            }
+            return Ok(());
+        }
+        let (sender, receiver) = mpsc::channel();
+        let worker_mod_id = mod_id.clone();
+        let worker_path = canonical.clone();
+        let worker_tempdir = temporary_directory.clone();
+        tracing::info!(target: "shroudforge::runtime", mod_id, dll = %canonical.display(),
+            "Queuing native DLL load on isolated worker");
+        std::thread::Builder::new()
+            .name(format!("sf-native-{}", mod_id.chars().take(24).collect::<String>()))
+            .spawn(move || {
+                let result = load_native_library(&worker_mod_id, &worker_path);
+                if let Err(send_error) = sender.send(result) {
+                    if let Ok(handle) = send_error.0 {
+                        unload_native_library(handle);
+                    }
+                    if let Some(directory) = worker_tempdir {
+                        let _ = std::fs::remove_dir_all(directory);
+                    }
+                }
+            })
+            .map_err(|error| {
+                if let Some(directory) = &temporary_directory {
+                    let _ = std::fs::remove_dir_all(directory);
+                }
+                format!("could not start isolated DLL loader thread: {error}")
+            })?;
+        self.pending_native_dlls.borrow_mut().push(PendingNativeDll {
+            mod_id,
+            path: canonical,
+            temporary_directory,
+            mod_directory,
+            require_plugin_host,
+            queued_at: std::time::Instant::now(),
+            warned_stall: false,
+            receiver,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn poll_native_dll_loads(&self) {
+        let mut completed = Vec::new();
+        {
+            let mut pending = self.pending_native_dlls.borrow_mut();
+            let mut index = 0;
+            while index < pending.len() {
+                match pending[index].receiver.try_recv() {
+                    Ok(result) => completed.push((pending.remove(index), Some(result))),
+                    Err(TryRecvError::Disconnected) => completed.push((pending.remove(index), None)),
+                    Err(TryRecvError::Empty) => {
+                        if !pending[index].warned_stall && pending[index].queued_at.elapsed() >= std::time::Duration::from_secs(5) {
+                            tracing::error!(target: "shroudforge::runtime", mod_id = %pending[index].mod_id,
+                                dll = %pending[index].path.display(), elapsed_ms = pending[index].queued_at.elapsed().as_millis(),
+                                "Native DLL load is still running on isolated worker; runtime updates continue");
+                            pending[index].warned_stall = true;
+                        }
+                        index += 1;
+                    }
+                }
+            }
+        }
+        for (item, result) in completed {
+            match result.unwrap_or_else(|| Err("native DLL loader worker exited without a result".into())) {
+                Ok(handle) => {
+                    self.native_dlls.borrow_mut().push(NativeDll {
+                        mod_id: item.mod_id.clone(), path: item.path.clone(), handle,
+                        temporary_directory: item.temporary_directory.clone(), plugin_id: None,
+                        stop_function: None, mod_root_utf16: None,
+                    });
+                    tracing::info!(target: "shroudforge::runtime", mod_id = %item.mod_id,
+                        dll = %item.path.display(), "Native DLL load completed");
+                    if item.require_plugin_host {
+                        match self.start_native_plugin(&item.mod_id, handle, &item.mod_directory, true) {
+                            Ok(true) => self.report_runtime_effect(&item.mod_id, "loaded", "native-plugin.ini sidecar started"),
+                            Ok(false) => self.report_runtime_effect(&item.mod_id, "error", "sidecar DLL did not start a supported native plugin"),
+                            Err(error) => {
+                                tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id, "native plugin start failed: {error}");
+                                self.report_runtime_effect(&item.mod_id, "error", &error);
+                                self.unload_native_dll(handle);
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    if let Some(directory) = item.temporary_directory { let _ = std::fs::remove_dir_all(directory); }
+                    tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id,
+                        dll = %item.path.display(), "Native DLL load failed: {error}");
+                    if item.require_plugin_host { self.report_runtime_effect(&item.mod_id, "error", &error); }
+                }
             }
         }
     }
@@ -567,16 +611,14 @@ impl AppState {
         let dll = dll.ok_or_else(|| {
             "native-plugin.ini enables the plugin but does not name a DLL".to_owned()
         })?;
-        if !self.load_mod_native_dll_impl(target_mod, &dll, true)? {
-            return Err("native-plugin.ini sidecar did not start a supported native plugin".into());
-        }
+        self.queue_mod_native_dll(target_mod, &dll, true)?;
         Ok(true)
     }
 
     #[cfg(windows)]
     fn start_native_plugin(
         &self,
-        target_mod: &Mod,
+        mod_id: &str,
         handle: isize,
         mod_directory: &std::path::Path,
         required: bool,
@@ -641,10 +683,10 @@ impl AppState {
         {
             return Err("native plugin descriptor ID contains unsupported characters".into());
         }
-        if !plugin_id.eq_ignore_ascii_case(&target_mod.info().id) {
+        if !plugin_id.eq_ignore_ascii_case(mod_id) {
             return Err(format!(
                 "native plugin ID '{plugin_id}' does not match mod '{}'",
-                target_mod.info().id
+                mod_id
             ));
         }
         let loaded = self.native_dlls.borrow();
@@ -698,7 +740,7 @@ impl AppState {
         library.stop_function = Some(stop);
         library.plugin_id = Some(plugin_id.to_owned());
         library.mod_root_utf16 = Some(wide_directory);
-        tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+        tracing::info!(target: "shroudforge::runtime", mod_id,
             "Started native plugin using XHL host ABI v1");
         Ok(true)
     }
@@ -706,7 +748,7 @@ impl AppState {
     #[cfg(not(windows))]
     fn start_native_plugin(
         &self,
-        _target_mod: &Mod,
+        _mod_id: &str,
         _handle: isize,
         _mod_directory: &std::path::Path,
         _required: bool,
@@ -967,6 +1009,60 @@ struct NativeDll {
     #[allow(dead_code)]
     mod_root_utf16: Option<Box<[u16]>>,
 }
+
+struct PendingNativeDll {
+    mod_id: String,
+    path: NativePathBuf,
+    temporary_directory: Option<NativePathBuf>,
+    mod_directory: NativePathBuf,
+    require_plugin_host: bool,
+    queued_at: std::time::Instant,
+    warned_stall: bool,
+    receiver: Receiver<Result<isize, String>>,
+}
+
+#[cfg(windows)]
+fn load_native_library(mod_id: &str, path: &std::path::Path) -> Result<isize, String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::System::LibraryLoader::{
+        LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR, LoadLibraryExW,
+    };
+
+    tracing::debug!(target: "shroudforge::runtime", mod_id, dll = %path.display(),
+        "Calling LoadLibraryExW on isolated worker");
+    let wide_path = path.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<_>>();
+    let handle = unsafe {
+        LoadLibraryExW(
+            wide_path.as_ptr(),
+            std::ptr::null_mut(),
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+        )
+    };
+    if handle.is_null() {
+        Err(format!("Windows could not load native DLL for mod '{mod_id}': {}", std::io::Error::last_os_error()))
+    } else {
+        tracing::debug!(target: "shroudforge::runtime", mod_id, dll = %path.display(),
+            "LoadLibraryExW returned on isolated worker");
+        Ok(handle as isize)
+    }
+}
+
+#[cfg(windows)]
+fn unload_native_library(handle: isize) {
+    unsafe {
+        windows_sys::Win32::Foundation::FreeLibrary(
+            handle as windows_sys::Win32::Foundation::HMODULE,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn load_native_library(mod_id: &str, _path: &std::path::Path) -> Result<isize, String> {
+    Err(format!("native DLL loading for mod '{mod_id}' is supported only on Windows"))
+}
+
+#[cfg(not(windows))]
+fn unload_native_library(_handle: isize) {}
 
 // Internal names describe the host role. This layout currently adapts the XHL
 // native-plugin.ini ABI; the exported symbol names below remain XHL-defined.

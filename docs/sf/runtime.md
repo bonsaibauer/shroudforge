@@ -38,18 +38,17 @@ Some game values have a layout that depends on the active profile. The bridge tr
 
 A **profile** is reviewed information for one Enshrouded game version and target, such as the client. The runtime uses it to identify supported game structures and decide which operations are available.
 
-Profiles ready for a release live under:
+One complete profile per build lives under:
 
 ~~~text
 src/loader/runtime/profiles/<game>/<target>/<build>.json
-src/loader/runtime/profiles/<game>/<target>/<game>-<target>-<build>.components.json
 ~~~
 
 For example, the profile for Enshrouded client build **1076226** is under **src/loader/runtime/profiles/enshrouded/client/**.
 
 Only reviewed information needed by approved operations belongs in a release profile. Scan notes, raw captures, and unapproved values are investigation material; keep them in the maintainer tools area or local **devdata/**.
 
-Before approval, check the game and build identity, where the information came from, the component map, and the required observations from the live game. Development tools check the profile and its approval evidence. The build rejects profiles that are not approved.
+Before approval, check the game and build identity, where the information came from, the component map, and the required observations from the live game. The launcher installs profile files under `shroudforge/runtime/profiles/`, selects the matching profile automatically, and lets the player choose another profile. A different detected build produces a warning that problems may occur; verified signatures and live layout checks still decide which operations work.
 
 Maintainer tools live under **src/loader/runtime/profile-tools/**. Start with the [profile development guide](../../src/loader/runtime/profile-tools/dev/README.md).
 

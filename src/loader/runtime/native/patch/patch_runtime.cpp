@@ -150,17 +150,18 @@ bool resolve(PatchState& state, std::uint8_t* base) {
     state.function_begin_rva = actual_range->first;
     state.function_end_rva = actual_range->second;
     state.target_offset = static_cast<std::size_t>((state.target - image_base) - actual_range->first);
-    if (state.function_begin_rva != spec.function_begin_rva ||
-        state.function_end_rva != spec.function_end_rva ||
-        state.target_offset != spec.target_offset) {
+    const bool association_matches = state.function_begin_rva == spec.function_begin_rva &&
+        state.function_end_rva == spec.function_end_rva && state.target_offset == spec.target_offset;
+    if (!association_matches && KfcRuntimeCompatibility::EnshroudedClient::exact_build_match) {
         state.status = "function-association-mismatch";
         return false;
     }
+    if (!association_matches) state.status = "verified-build-diff-function-association";
     state.original.assign(reinterpret_cast<const std::uint8_t*>(match.address),
         reinterpret_cast<const std::uint8_t*>(match.address) + spec.overwrite);
     if (spec.kind == "bytes") {
         state.replacement = spec.payload;
-        state.status = "verified";
+        if (association_matches) state.status = "verified";
         return true;
     }
 
@@ -180,7 +181,7 @@ bool resolve(PatchState& state, std::uint8_t* base) {
     std::int32_t detour{};
     if (!relative(state.target, reinterpret_cast<std::uintptr_t>(allocation), detour)) { state.status = "detour-out-of-range"; return false; }
     std::memcpy(state.replacement.data() + 1, &detour, sizeof(detour));
-    state.status = "verified";
+    if (association_matches) state.status = "verified";
     return true;
 }
 }
@@ -209,13 +210,13 @@ void Shutdown() {
 bool Available(const char* name) {
     if (!name) return false;
     for (const auto& patch : patches)
-        if (patch.profile->name == name) return patch.target && patch.status == "verified";
+        if (patch.profile->name == name) return patch.target && patch.status.starts_with("verified");
     return false;
 }
 
 bool AnyAvailable() {
     for (const auto& patch : patches)
-        if (patch.target && patch.status == "verified") return true;
+        if (patch.target && patch.status.starts_with("verified")) return true;
     return false;
 }
 
@@ -224,7 +225,7 @@ bool SetEnabled(const char* name, bool enabled, std::uint32_t* outcome) {
     if (!name || !outcome) return false;
     for (auto& patch : patches) {
         if (patch.profile->name != name) continue;
-        if (!patch.target || patch.status != "verified") return false;
+        if (!patch.target || !patch.status.starts_with("verified")) return false;
         if (patch.enabled == enabled) { *outcome = 0; return true; }
         const auto* expected = enabled ? patch.original.data() : patch.replacement.data();
         const auto* replacement = enabled ? patch.replacement.data() : patch.original.data();
@@ -259,7 +260,7 @@ std::string Diagnostics() {
                     nlohmann::json(patch.function_begin_rva) : nlohmann::json(nullptr)},
                 {"actualEndRva", patch.target ? nlohmann::json(patch.function_end_rva) : nlohmann::json(nullptr)},
                 {"actualTargetOffset", patch.target ? nlohmann::json(patch.target_offset) : nlohmann::json(nullptr)},
-                {"verified", association_verified}}},
+                {"verified", association_verified}, {"buildDiffWarning", !association_verified && patch.status.starts_with("verified")}}},
             {"overwriteBytes", patch.original.size()}});
     }
     return rows.dump();

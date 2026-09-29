@@ -6,6 +6,9 @@
 namespace WorldRuntime {
 void OnPropUpdate(void* execution_view, void* actor_frame);
 void OnActorPlacement(void* execution_view, void* actor_frame);
+void OnCursorUpdate(const void* cursor);
+void SetCursorHookReady(bool ready);
+bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t* sequence);
 bool OperationAvailable(const char* name);
 bool ActiveContextAvailable();
 bool EntityContextReady();

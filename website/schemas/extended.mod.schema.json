@@ -9,6 +9,10 @@
     "$schema": { "type": "string" },
     "schemaVersion": { "const": 1 },
     "enabled": { "type": "boolean" },
+    "launcher": {
+      "description": "Launcher that originally identified this mod. Omit for ShroudForge mods; use EML to preserve EML provenance.",
+      "enum": ["EML", "SF"]
+    },
     "links": {
       "type": "object",
       "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },

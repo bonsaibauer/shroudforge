@@ -6,24 +6,18 @@ endif()
 
 enable_language(RC)
 
-# Production build profiles and their component data are the only compatibility
-# files embedded in the runtime. Function catalogs belong to the dev workflow.
+# Each approved build is a complete, single-file compatibility profile.
 file(GLOB_RECURSE profile_json_files CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../profiles/*.json")
 set(runtime_profiles)
-set(runtime_component_catalogs)
 foreach(profile_file IN LISTS profile_json_files)
-    if(profile_file MATCHES "\\.components\\.json$")
-        list(APPEND runtime_component_catalogs "${profile_file}")
-    else()
-        file(READ "${profile_file}" profile_contents)
-        string(JSON profile_status ERROR_VARIABLE profile_status_error
-            GET "${profile_contents}" provenance status)
-        if(profile_status_error STREQUAL "NOTFOUND" AND NOT profile_status STREQUAL "approved")
-            message(FATAL_ERROR "Only approved profiles may be embedded: ${profile_file}")
-        endif()
-        list(APPEND runtime_profiles "${profile_file}")
+    file(READ "${profile_file}" profile_contents)
+    string(JSON profile_status ERROR_VARIABLE profile_status_error
+        GET "${profile_contents}" provenance status)
+    if(profile_status_error STREQUAL "NOTFOUND" AND NOT profile_status STREQUAL "approved")
+        message(FATAL_ERROR "Only approved profiles may be embedded: ${profile_file}")
     endif()
+    list(APPEND runtime_profiles "${profile_file}")
 endforeach()
 if(NOT runtime_profiles)
     message(FATAL_ERROR "No production profiles found under profiles/")
@@ -43,31 +37,13 @@ foreach(profile IN LISTS runtime_profiles)
     string(APPEND profile_header_content "${profile_resource_id},")
     math(EXPR profile_resource_id "${profile_resource_id} + 1")
 endforeach()
-string(APPEND profile_header_content "};\n")
-
-set(component_header_content "inline constexpr int component_resource_ids[] = {")
-set(component_name_content "inline constexpr const char* component_resource_names[] = {")
-if(runtime_component_catalogs)
-    set(component_resource_id 1001)
-    foreach(catalog IN LISTS runtime_component_catalogs)
-        file(TO_CMAKE_PATH "${catalog}" catalog_rc_path)
-        get_filename_component(catalog_name "${catalog}" NAME)
-        string(APPEND profile_rc_content "${component_resource_id} RCDATA \"${catalog_rc_path}\"\n")
-        string(APPEND component_header_content "${component_resource_id},")
-        string(APPEND component_name_content "\"${catalog_name}\",")
-        math(EXPR component_resource_id "${component_resource_id} + 1")
-    endforeach()
-else()
-    string(APPEND component_header_content "0,")
-    string(APPEND component_name_content "nullptr,")
-endif()
-string(APPEND profile_header_content "${component_header_content}};\n${component_name_content}};\n}\n")
+string(APPEND profile_header_content "};\n}")
 
 file(WRITE "${profile_resource_rc}" "${profile_rc_content}")
 file(WRITE "${profile_resource_header}" "${profile_header_content}")
 set_source_files_properties("${profile_resource_rc}" PROPERTIES
     GENERATED TRUE
-    OBJECT_DEPENDS "${runtime_profiles};${runtime_component_catalogs}")
+    OBJECT_DEPENDS "${runtime_profiles}")
 
 add_library(kfc-runtime SHARED
     ecs/ecs_runtime.cpp

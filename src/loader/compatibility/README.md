@@ -8,7 +8,7 @@ This crate combines parser metadata and declared API operations. Declaring an op
 
 The current Windows client profile targets Enshrouded build `1076226`. The profile records the expected runtime operations, component layouts, and native addresses used by the runtime bridge.
 
-An explicitly opted-in profile may undergo structural revalidation after a game update instead of being rejected solely for a changed build identity. Missing/ambiguous hooks, invalid layouts and incompatible component sizes produce scoped failures. Structural checks do not prove unchanged engine semantics.
+Automatic profile selection may use an explicitly opted-in profile after a game update. A profile chosen manually is also tried on a different build; the launcher warns that the build differs and problems may occur. Missing or ambiguous hooks, invalid layouts and incompatible component sizes make the affected operations unavailable. Structural checks do not prove unchanged engine semantics.
 
 ## Layout
 

@@ -58,15 +58,66 @@ bool Load() {
         if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) return false;
         nlohmann::json exact_profile, fallback_profile;
         unsigned exact_count{}, fallback_count{};
-        for (const auto resource_id : KfcRuntimeEmbedded::profile_resource_ids) {
-            const auto resource = FindResourceW(self, MAKEINTRESOURCEW(resource_id), MAKEINTRESOURCEW(10));
-            if (!resource) throw std::runtime_error("embedded compatibility profile is missing");
-            const auto loaded = LoadResource(self, resource);
-            if (!loaded) throw std::runtime_error("embedded compatibility profile could not be loaded");
-            const auto size = SizeofResource(self, resource);
-            const auto* data = static_cast<const char*>(LockResource(loaded));
-            if (!data || !size) throw std::runtime_error("embedded compatibility profile is empty");
-            auto candidate = nlohmann::json::parse(data, data + size);
+        std::string requested_profile_id;
+        const auto game_root = std::filesystem::path(process_path).parent_path();
+        const auto loader_config_path = game_root / L"shroudforge" / L"config" / L"modloader-config.json";
+        auto runtime_directory = game_root / L"shroudforge" / L"runtime";
+        if (std::filesystem::exists(loader_config_path)) {
+            std::ifstream config_file(loader_config_path);
+            if (config_file) {
+                const auto config = nlohmann::json::parse(config_file, nullptr, false);
+                if (config.is_object() && config.contains("paths") && config["paths"].is_object() &&
+                    config["paths"].contains("runtime") && config["paths"]["runtime"].is_string()) {
+                    const auto configured = std::filesystem::path(config["paths"]["runtime"].get<std::string>());
+                    runtime_directory = configured.is_absolute() ? configured : game_root / configured;
+                }
+                if (config.is_object() && config.contains("runtime") && config["runtime"].is_object() &&
+                    config["runtime"].contains("profileId") && config["runtime"]["profileId"].is_string())
+                    requested_profile_id = config["runtime"]["profileId"].get<std::string>();
+            }
+        }
+        const auto profile_root = runtime_directory / L"profiles";
+        auto load_external_profiles = [&](const std::string& id_filter) {
+            std::vector<nlohmann::json> loaded_profiles;
+            if (!std::filesystem::exists(profile_root)) return loaded_profiles;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(profile_root)) {
+                if (!entry.is_regular_file() || entry.path().extension() != L".json") continue;
+                std::ifstream profile_file(entry.path());
+                if (!profile_file) continue;
+                auto candidate = nlohmann::json::parse(profile_file, nullptr, false);
+                if (!candidate.is_object() || !candidate.contains("ecsLayout") ||
+                    !candidate.contains("hooks") || !candidate.contains("components")) continue;
+                if (!id_filter.empty() && candidate.value("id", std::string{}) != id_filter) continue;
+                if (candidate.value("target", std::string{}) != process) continue;
+                loaded_profiles.push_back(std::move(candidate));
+            }
+            return loaded_profiles;
+        };
+        std::vector<nlohmann::json> candidates;
+        if (!requested_profile_id.empty()) {
+            candidates = load_external_profiles(requested_profile_id);
+            if (candidates.size() != 1) {
+                status = candidates.empty() ? "manual-profile-not-found:" + requested_profile_id
+                    : "manual-profile-id-ambiguous:" + requested_profile_id;
+                return false;
+            }
+        } else {
+            candidates = load_external_profiles({});
+            if (candidates.empty()) {
+                for (const auto resource_id : KfcRuntimeEmbedded::profile_resource_ids) {
+                    const auto resource = FindResourceW(self, MAKEINTRESOURCEW(resource_id), MAKEINTRESOURCEW(10));
+                    if (!resource) throw std::runtime_error("embedded compatibility profile is missing");
+                    const auto loaded = LoadResource(self, resource);
+                    if (!loaded) throw std::runtime_error("embedded compatibility profile could not be loaded");
+                    const auto size = SizeofResource(self, resource);
+                    const auto* data = static_cast<const char*>(LockResource(loaded));
+                    if (!data || !size) throw std::runtime_error("embedded compatibility profile is empty");
+                    auto candidate = nlohmann::json::parse(data, data + size);
+                    candidates.push_back(std::move(candidate));
+                }
+            }
+        }
+        for (auto& candidate : candidates) {
             if (candidate.at("schemaVersion") != 1 || candidate.at("target") != process) continue;
             // Generated profile drafts are developer artifacts. They must never
             // become active merely because the EXE identity happens to match.
@@ -89,7 +140,7 @@ bool Load() {
             if (matches) {
                 ++exact_count;
                 exact_profile = std::move(candidate);
-            } else if (candidate.value("allowStructuralRevalidation", false)) {
+            } else if (!requested_profile_id.empty() || candidate.value("allowStructuralRevalidation", false)) {
                 ++fallback_count;
                 fallback_profile = std::move(candidate);
             }
@@ -104,24 +155,25 @@ bool Load() {
             status = "missing-or-ambiguous-profile"; return false;
         }
         const auto& selected = exact ? exact_profile : fallback_profile;
+        exact_build_match = exact;
         // Identity is a lookup hint. Both hooks still require unique executable
         // matches and exact overwritten instructions before any patch is made.
         image_timestamp = nt->FileHeader.TimeDateStamp;
         image_size = nt->OptionalHeader.SizeOfImage;
-        const auto& layout = selected.at("layout");
+        const auto& layout = selected.at("ecsLayout");
         auto offset = [&](const char* key) {
             const auto value = layout.at(key).get<std::size_t>();
             if (value > 0x10000) throw std::runtime_error("layout offset out of range");
             return value;
         };
-        entity_manager_count = offset("entity_manager_count");
-        entity_manager_table = offset("entity_manager_table");
-        component_offsets = offset("component_offsets"); component_strides = offset("component_strides");
-        entity_id = offset("entity_id"); entity_generation = offset("entity_generation");
-        entity_layout = offset("entity_layout"); entity_storage = offset("entity_storage");
-        entity_definition = offset("entity_definition"); entity_row = offset("entity_row");
-        component_bits = offset("component_bits"); lookup_manager = offset("lookup_manager");
-        const auto& definition_layout = selected.at("entityDefinition");
+        entity_manager_count = offset("entityManagerCount");
+        entity_manager_table = offset("entityManagerTable");
+        component_offsets = offset("componentOffsets"); component_strides = offset("componentStrides");
+        entity_id = offset("entityId"); entity_generation = offset("entityGeneration");
+        entity_layout = offset("entityLayout"); entity_storage = offset("entityStorage");
+        entity_definition = offset("entityDefinitionPointer"); entity_row = offset("entityRow");
+        component_bits = offset("componentBits"); lookup_manager = offset("lookupManager");
+        const auto& definition_layout = selected.at("entityDefinitionLayout");
         auto definition_offset = [&](const char* key) {
             const auto value = definition_layout.at(key).get<std::size_t>();
             if (value > 0x10000) throw std::runtime_error(std::string("entity definition offset out of range: ") + key);
@@ -144,6 +196,13 @@ bool Load() {
         if (world_prop_update_original.size() < 5 || world_prop_update_original.size() > 32 ||
             world_actor_placement_original.size() < 5 || world_actor_placement_original.size() > 32)
             throw std::runtime_error("invalid world context hook length");
+        const auto& cursor_hook = hooks.at("world_cursor");
+        world_cursor_signature = cursor_hook.at("signature").get<std::string>();
+        world_cursor_original = cursor_hook.at("original").get<std::vector<std::uint8_t>>();
+        world_cursor_capture_offset = cursor_hook.at("captureOffset").get<std::size_t>();
+        if (world_cursor_signature.empty() || world_cursor_signature.size() > 256 ||
+            world_cursor_original.size() != 7 || world_cursor_capture_offset > 0x10000)
+            throw std::runtime_error("invalid native world cursor hook profile");
         const auto& entity_context = selected.at("worldContexts").at("entityPlacement");
         auto context_offset = [&](const char* key) {
             const auto value = entity_context.at(key).get<std::size_t>();
@@ -161,38 +220,11 @@ bool Load() {
         runtime_components.clear();
         std::unordered_set<std::string> names;
         std::unordered_set<unsigned> indices;
-        nlohmann::json component_catalog_data;
         const nlohmann::json* component_entries{};
         if (selected.contains("components")) {
             component_entries = &selected.at("components");
         } else {
-            const auto catalog_name = selected.at("componentCatalog").get<std::string>();
-            if (catalog_name.empty() || std::filesystem::path(catalog_name).filename().string() != catalog_name)
-                throw std::runtime_error("invalid embedded component catalog name");
-            int catalog_resource{};
-            for (std::size_t index = 0; index < std::size(KfcRuntimeEmbedded::component_resource_ids); ++index) {
-                if (catalog_name == KfcRuntimeEmbedded::component_resource_names[index]) {
-                    catalog_resource = KfcRuntimeEmbedded::component_resource_ids[index];
-                    break;
-                }
-            }
-            if (!catalog_resource) throw std::runtime_error("embedded component catalog is missing: " + catalog_name);
-            const auto resource = FindResourceW(self, MAKEINTRESOURCEW(catalog_resource), MAKEINTRESOURCEW(10));
-            if (!resource) throw std::runtime_error("embedded component catalog resource is missing");
-            const auto loaded = LoadResource(self, resource);
-            const auto size = SizeofResource(self, resource);
-            const auto* data = static_cast<const char*>(LockResource(loaded));
-            if (!data || !size) throw std::runtime_error("embedded component catalog is empty");
-            component_catalog_data = nlohmann::json::parse(data, data + size);
-            if (component_catalog_data.at("schemaVersion") != 1 ||
-                component_catalog_data.at("id") != selected.at("id") ||
-                component_catalog_data.at("target") != selected.at("target") ||
-                component_catalog_data.at("image").at("timestamp") != selected.at("image").at("timestamp") ||
-                component_catalog_data.at("image").at("size") != selected.at("image").at("size") ||
-                (selected.at("image").contains("sha256") &&
-                 component_catalog_data.at("image").value("sha256", std::string{}) != selected.at("image").at("sha256").get<std::string>()))
-                throw std::runtime_error("component catalog does not match selected profile identity");
-            component_entries = &component_catalog_data.at("components");
+            throw std::runtime_error("selected build profile has no inline ECS components");
         }
         if (!component_entries || !component_entries->is_array())
             throw std::runtime_error("profile component catalog is not an array");
@@ -253,12 +285,13 @@ bool Load() {
                 const bool event_id_valid = operation.name != "runtime.world.entity.finish_building" ||
                     (world_finish_event_id_rva && world_finish_event_id_rva < selected_image_size &&
                      sizeof(std::uint32_t) <= selected_image_size - world_finish_event_id_rva);
-                operation.available = exact && target_in_image && guard_matches && event_id_valid;
-                operation.status = !exact ? "requires-exact-image-build" :
-                    !target_in_image ? "target-outside-image" :
+                operation.available = target_in_image && guard_matches && event_id_valid &&
+                    (exact || !operation.guard_bytes.empty());
+                operation.status = !target_in_image ? "target-outside-image" :
                     !guard_in_image ? "guard-outside-image" :
                     !guard_matches ? "instruction-guard-mismatch" :
                     !event_id_valid ? "finish-event-id-outside-image" :
+                    !exact ? "build-diff-guard-verified" :
                     operation.global_rva ? "runtime-pointer-validation-required" : "verified";
                 runtime_operations.push_back(std::move(operation));
             }
@@ -294,10 +327,10 @@ bool Load() {
                 if (exact && (patch.function_end_rva > nt->OptionalHeader.SizeOfImage ||
                     patch.function_begin_rva >= nt->OptionalHeader.SizeOfImage))
                     throw std::runtime_error("runtime patch function range outside image: " + patch.name);
-                if (exact) runtime_patches.push_back(std::move(patch));
+                runtime_patches.push_back(std::move(patch));
             }
         }
-        status = selected.at("id").get<std::string>() + (exact ? ":exact-image" : ":structural-revalidation");
+        status = selected.at("id").get<std::string>() + (exact ? ":exact-image" : ":build-diff-warning");
         return true;
     } catch (const std::exception& error) {
         status = std::string("profile-error:") + error.what();

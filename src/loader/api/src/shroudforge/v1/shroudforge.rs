@@ -30,14 +30,17 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
 
     let log = lua.create_table()?;
-    for level in ["debug", "info", "warn", "error"] {
+    for level in ["trace", "debug", "info", "warn", "error"] {
         let id = r#mod.info().id.clone();
         log.raw_set(
             level,
             lua.create_function(move |_, args: Variadic<LuaValue>| {
-                if level == "debug"
-                    && !tracing::enabled!(target: "shroudforge::mod", tracing::Level::DEBUG)
-                {
+                let disabled_detail_level = match level {
+                    "trace" => !tracing::enabled!(target: "shroudforge::mod", tracing::Level::TRACE),
+                    "debug" => !tracing::enabled!(target: "shroudforge::mod", tracing::Level::DEBUG),
+                    _ => false,
+                };
+                if disabled_detail_level {
                     return Ok(());
                 }
                 let message = args
@@ -46,6 +49,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                     .collect::<mlua::Result<Vec<_>>>()?
                     .join("\t");
                 match level {
+                    "trace" => tracing::trace!(target: "shroudforge::mod", mod_id = %id, "{message}"),
                     "debug" => {
                         tracing::debug!(target: "shroudforge::mod", mod_id = %id, "{message}")
                     }

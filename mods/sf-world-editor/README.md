@@ -1,6 +1,6 @@
 # World Editor for ShroudForge
 
-This Lua mod now uses ShroudForge's reflected ECS and asset APIs for the editor workflow. Cursor marks are read from `keen::ecs::ClientCursor`; prop candidates come from entities carrying `CurrentTransform` and `UsedItem`; placement metadata is resolved from the current build's `keen::ItemInfo` assets. It captures props whose recipe bounds intersect the selected region and stores their item IDs and transforms with the voxel data.
+This Lua mod uses ShroudForge's native, build-profiled cursor hook through `runtime.world.cursor.get`, reflected ECS APIs for live prop candidates, and asset APIs for placement metadata. The cursor hook copies `keen::ecs::ClientCursor` at the verified native instruction and returns a stable snapshot without an ECS scan. Prop candidates come from entities carrying `CurrentTransform` and `UsedItem`; placement metadata is resolved from the current build's `keen::ItemInfo` assets. It captures props whose recipe bounds intersect the selected region and stores their item IDs and transforms with the voxel data.
 
 While the game window is focused, the World Editor polls **F4–F8**: F4 undo, F5 mark selection corner A/B, F6 reset editor state, F7 paste at the live cursor, and F8 capture, save, and select a blueprint. **F9 remains the Modloader UI shortcut; F10 remains the Debug Console shortcut.** The same actions are available as buttons in the mod settings.
 

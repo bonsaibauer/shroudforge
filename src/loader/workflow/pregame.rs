@@ -2,18 +2,17 @@ use crate::LoaderError;
 use shroudforge_api::ShroudForgeApi;
 use shroudforge_compatibility::Compatibility;
 use shroudforge_parser::{GameFiles, GameParser, KfcParser};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     ensure_game_stopped()?;
     let file_name = target_name(game_directory)?;
-    migrate_loader_settings(game_directory);
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
     if already_applied(game_directory, file_name)? && !export_pass_needed {
         // The prepared KFC files remain in place. A match means the requested
         // asset mods are already applied, not that they were skipped.
-        tracing::info!(
+        tracing::debug!(
             "Prepared KFC assets match the current game and mod configuration; keeping the existing applied data"
         );
         return Ok(());
@@ -28,13 +27,12 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     let file_name = process_target_name(game_directory)?;
-    migrate_loader_settings(game_directory);
     let lock_path = shroudforge_package::paths::startup_asset_lock(game_directory);
     let _lease = startup_asset_lease(&lock_path)?;
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
     if already_applied(game_directory, file_name)? && !export_pass_needed {
         // Enshrouded will load the already-prepared KFC data during startup.
-        tracing::info!(
+        tracing::debug!(
             "Startup KFC assets are already prepared for this game and mod configuration; no rewrite is needed"
         );
         return Ok(());
@@ -72,7 +70,7 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
         return Ok(());
     }
 
-    tracing::info!(target: "shroudforge::startup", "Applying asset mods during early process startup");
+    tracing::debug!(target: "shroudforge::startup", "Applying asset mods during early process startup");
     run_inner(game_directory, file_name, "startup")
 }
 
@@ -156,10 +154,6 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
         .pointer("/exports/enabled")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
-    let export_directory = loader_config
-        .pointer("/exports/directory")
-        .and_then(serde_json::Value::as_str)
-        .map(PathBuf::from);
     let game_utf8 = game_directory.to_str().ok_or_else(|| {
         LoaderError::Environment(format!(
             "game directory is not valid UTF-8: {}",
@@ -200,7 +194,7 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
                         force_patch: true,
                         patch: true,
                         export: export_enabled,
-                        export_dir: export_directory.clone(),
+                        export_dir: None,
                         phase: shroudforge_api::RuntimePhase::Pregame,
                         ..Default::default()
                     },
@@ -260,7 +254,7 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
                         force_patch: true,
                         patch: true,
                         export: export_enabled,
-                        export_dir: export_directory.clone(),
+                        export_dir: None,
                         ..Default::default()
                     },
                 },
@@ -308,12 +302,6 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
         "mods": mods
     })).map_err(LoaderError::Pregame)?;
     Ok(())
-}
-
-fn migrate_loader_settings(game_directory: &Path) {
-    if let Err(error) = shroudforge_package::config::migrate_eml_config_once(game_directory) {
-        tracing::warn!(%error, "Could not import EML eml.json settings; continuing with ShroudForge defaults");
-    }
 }
 
 fn target_name(game_directory: &Path) -> Result<&'static str, LoaderError> {

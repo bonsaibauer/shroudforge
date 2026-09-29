@@ -10,12 +10,27 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+    let heartbeat_pid = fs::read(crate::paths::runtime_dir(root).join("heartbeat.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .filter(|value| {
+            value["updatedAt"]
+                .as_u64()
+                .is_some_and(|timestamp| timestamp <= now && now - timestamp <= 8)
+        })
+        .and_then(|value| value["pid"].as_u64());
     let runtime_fresh = runtime.as_ref().is_some_and(|value| {
         value["running"] == true
+            && value["pid"].as_u64() == heartbeat_pid
             && value["updatedAt"]
                 .as_u64()
                 .is_some_and(|timestamp| timestamp <= now && now - timestamp <= 5)
     });
+    let awaiting_world = runtime_fresh
+        && runtime.as_ref().is_some_and(|value| {
+            value["runtimeProvider"]["available"] == true
+                && value["runtimeProvider"]["awaitingWorld"] == true
+        });
     if let Ok(events) = crate::config::read_document(root, "events-state") {
         if let Some(events) = events.as_object() {
             for (id, value) in events {
@@ -83,23 +98,25 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     .capabilities
                     .iter()
                     .any(|capability| capability.requires_pregame());
+                let runtime_mod = manifest
+                    .capabilities
+                    .iter()
+                    .any(|capability| capability.requires_runtime());
                 let state = if !manifest.enabled {
                     json!({"state":"disabled","detail":"The mod is disabled."})
-                } else if pregame_mod && applied_assets {
-                    json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."})
-                } else if pregame_mod {
-                    json!({"state":"restart-required","detail":"This mod has not been included in startup preparation for the current game files. The preparation pass will run before the next game start."})
-                } else if runtime_fresh {
+                } else if runtime_fresh && runtime_mod {
                     let runtime = runtime.as_ref().unwrap();
                     if let Some(reason) = runtime["errors"].get(&manifest.id) {
                         json!({"state":"failed","detail":reason})
-                    } else if runtime["loaded"]
-                        .get(&manifest.id)
-                        .is_some_and(|loaded| loaded != &fingerprint)
+                    } else if pregame_mod && !applied_assets {
+                        json!({"state":"restart-required","detail":"This mod's asset changes are not included in the current startup preparation. Restart the game to apply them."})
+                    } else if runtime["loaded"].get(&manifest.id).is_some_and(|loaded| loaded != &fingerprint)
+                        || (plan.iter().any(|candidate| candidate.info().id == manifest.id)
+                            && runtime["loaded"].get(&manifest.id).is_none())
                     {
-                        json!({"state":"restart-required","detail":"Configuration saved; the running process still uses the previous settings."})
-                    } else if runtime["runtimeProvider"]["ready"] != true {
-                        json!({"state":"waiting","detail":"The mod runtime is waiting for the game provider to become ready."})
+                        json!({"state":"restart-required","detail":"The current game session has not loaded this mod configuration. Restart the game to apply it."})
+                    } else if awaiting_world {
+                        json!({"state":"waiting-world","detail":"The mod is loaded for this session and is waiting for the game world."})
                     } else if runtime["active"]
                         .as_array()
                         .is_some_and(|active| active.iter().any(|id| id == &manifest.id))
@@ -130,6 +147,10 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     } else {
                         json!({"state":"disabled","detail":"The mod is disabled."})
                     }
+                } else if pregame_mod && !applied_assets {
+                    json!({"state":"restart-required","detail":"This mod's asset changes are not included in startup preparation. Restart the game to apply them."})
+                } else if pregame_mod && !runtime_mod && applied_assets {
+                    json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."})
                 } else if manifest.enabled {
                     json!({"state":"unconfirmed","detail":"Activation is saved; no current runtime report is available."})
                 } else {
@@ -218,6 +239,10 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         .filter(|_| runtime_fresh)
         .map(|value| &value["runtimeProvider"]);
     let (runtime_state, runtime_detail) = match runtime_check {
+        Some(value) if value["available"] == true && value["awaitingWorld"] == true => (
+            "neutral",
+            "KFC Runtime is waiting for the player to enter a game world.".into(),
+        ),
         Some(value) if value["available"] == true => (
             if value["ready"] == true {
                 "ok"
@@ -250,8 +275,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
             "Waiting for a fresh status from the game process.".into(),
         ),
     };
-    checks
-        .push(json!({"id":"runtime","group":"game","state":runtime_state,"detail":runtime_detail}));
+    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"detail":runtime_detail,"phase":if awaiting_world {"waiting-world"} else {"normal"}}));
     let updates = match crate::config::read_document(root, "state") {
         Ok(value) => value,
         Err(error) if error.contains("has no updates state") => Value::Null,

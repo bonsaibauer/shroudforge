@@ -289,7 +289,7 @@ mod tests {
         fs::create_dir_all(package.join("src")).unwrap();
         fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
         fs::write(
-            crate::paths::config_dir(&root).join("loader.json"),
+            crate::paths::config_dir(&root).join("modloader-config.json"),
             br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{}}"#,
         )
         .unwrap();

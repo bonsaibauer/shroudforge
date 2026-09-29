@@ -165,7 +165,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let root = root.path();
         crate::config::write_json(
-            &root.join("shroudforge/state/state.json"),
+            &crate::paths::state_file(root),
             &serde_json::json!({"schemaVersion":1,"news":{"read":[],"readAt":false}}),
         )
         .unwrap();

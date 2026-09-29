@@ -1,7 +1,7 @@
 use mlua::Table;
 
 use crate::{
-    log::{info, warn},
+    log::{debug, warn},
     lua::LuaValue,
 };
 
@@ -22,7 +22,7 @@ pub fn register(lua: &mlua::Lua, env: &Table, mod_id: &str) -> mlua::Result<()> 
                     output.push_str(&arg.to_string()?);
                 }
 
-                info!(mod_id = %mod_id, "{}", output);
+                debug!(mod_id = %mod_id, "{}", output);
 
                 Ok(())
             }

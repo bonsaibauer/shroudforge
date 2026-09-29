@@ -22,7 +22,7 @@ mod windows {
         );
         append_log(
             &arguments.root,
-            'I',
+            'D',
             &format!(
                 "Independent updater is waiting for game process {} to exit",
                 arguments.wait_pid
@@ -59,14 +59,13 @@ mod windows {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        let backup = arguments
-            .root
-            .join("shroudforge/updates/backups")
+        let backup = shroudforge_package::paths::updates_dir(&arguments.root)
+            .join("backups")
             .join(stamp.to_string());
         fs::create_dir_all(&backup).map_err(|error| error.to_string())?;
         append_log(
             &arguments.root,
-            'I',
+            'D',
             &format!("Starting update from {}", arguments.staged.display()),
         );
 
@@ -79,7 +78,7 @@ mod windows {
             if !incoming.is_file() {
                 return Err(format!("missing release file: {relative}"));
             }
-            let current = arguments.root.join(relative);
+            let current = installed_path(&arguments.root, relative);
             if current.exists() {
                 copy_entry(&current, &backup.join(relative))?;
             }
@@ -105,12 +104,11 @@ mod windows {
                         &format!("Installed files, but could not save update state: {error}"),
                     );
                 }
-                let _ = fs::remove_file(arguments.root.join("shroudforge/updates/pending.ready"));
+                let _ = fs::remove_file(shroudforge_package::paths::updates_dir(&arguments.root).join("pending.ready"));
                 let status = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"installed","step":"complete","message":"System update installed successfully","version":release["version"],"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
                 let _ = shroudforge_package::config::write_json(
-                    &arguments
-                        .root
-                        .join("shroudforge/updates/updater-status.json"),
+                    &shroudforge_package::paths::updates_dir(&arguments.root)
+                        .join("updater-status.json"),
                     &status,
                 );
                 append_log(
@@ -201,9 +199,9 @@ mod windows {
         let staged = staged
             .canonicalize()
             .map_err(|error| format!("invalid staged root: {error}"))?;
-        let updates = root.join("shroudforge/updates");
+        let updates = shroudforge_package::paths::updates_dir(&root);
         if !staged.starts_with(&updates) {
-            return Err("staged update is outside shroudforge/updates".into());
+            return Err("staged update is outside the configured updates folder".into());
         }
         if root == staged {
             return Err("staged update must not equal install root".into());
@@ -242,8 +240,8 @@ mod windows {
                     .all(|part| matches!(part, std::path::Component::Normal(_)))
                 || matches!(
                     relative,
-                    "shroudforge/config/loader.json"
-                        | "shroudforge/state/state.json"
+                    "shroudforge/config/modloader-config.json"
+                        | "shroudforge/state.json"
                         | "shroudforge/config/.shroudforge-write.lock"
                 )
             {
@@ -263,11 +261,24 @@ mod windows {
         Ok(paths)
     }
 
+    fn installed_path(root: &Path, relative: &str) -> PathBuf {
+        if let Some(mod_relative) = relative.strip_prefix("mods/") {
+            shroudforge_package::paths::mods_dir(root).join(mod_relative)
+        } else {
+            root.join(relative)
+        }
+    }
+
     fn validate_file_path(root: &Path, relative: &str) -> Result<(), String> {
         use std::os::windows::fs::MetadataExt;
-        let mut path = root.to_path_buf();
+        let mut path = if relative.starts_with("mods/") {
+            shroudforge_package::paths::mods_dir(root)
+        } else {
+            root.to_path_buf()
+        };
         // Never follow a junction/symlink into another installation or user directory.
-        for component in Path::new(relative).components() {
+        let relative_path = relative.strip_prefix("mods/").unwrap_or(relative);
+        for component in Path::new(relative_path).components() {
             path.push(component);
             match fs::symlink_metadata(&path) {
                 Ok(metadata) if metadata.file_attributes() & 0x400 != 0 => {
@@ -290,7 +301,7 @@ mod windows {
             if !incoming.exists() {
                 return Err(format!("release is missing managed path: {relative}"));
             }
-            let current = target.join(relative);
+            let current = installed_path(target, relative);
             copy_entry(&incoming, &current)?;
         }
         Ok(())
@@ -299,7 +310,7 @@ mod windows {
     fn restore(backup: &Path, target: &Path, paths: &[String]) -> Result<(), String> {
         for relative in paths {
             let saved = backup.join(relative);
-            let current = target.join(relative);
+            let current = installed_path(target, relative);
             remove_entry(&current)?;
             if saved.exists() {
                 copy_entry(&saved, &current)?;
@@ -375,7 +386,7 @@ mod scheduled {
         message: &str,
         version: Option<&str>,
     ) {
-        let previous_path = root.join("shroudforge/updates/updater-status.json");
+        let previous_path = shroudforge_package::paths::updates_dir(root).join("updater-status.json");
         let previous = fs::read(&previous_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
@@ -414,7 +425,7 @@ mod scheduled {
         };
         let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":status,"step":status,"message":message,"version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
         let _ = shroudforge_package::config::write_json(
-            &root.join("shroudforge/updates/updater-status.json"),
+            &shroudforge_package::paths::updates_dir(root).join("updater-status.json"),
             &value,
         );
     }
@@ -428,7 +439,7 @@ mod scheduled {
     ) {
         let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"downloading","step":"download","message":"Downloading ShroudForge update","version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
         let _ = shroudforge_package::config::write_json(
-            &root.join("shroudforge/updates/updater-status.json"),
+            &shroudforge_package::paths::updates_dir(root).join("updater-status.json"),
             &value,
         );
     }
@@ -454,7 +465,7 @@ mod scheduled {
         {
             return Err("stage request URL or SHA-256 checksum is invalid".into());
         }
-        let updates = root.join("shroudforge/updates");
+        let updates = shroudforge_package::paths::updates_dir(root);
         fs::create_dir_all(&updates).map_err(|e| e.to_string())?;
         let download = updates.join("download.zip");
         let extraction = updates.join("pending-download");
@@ -853,7 +864,7 @@ pub fn request_update_window(_: &std::path::Path) -> Result<(), String> {
 pub fn request_install_after_game(root: &std::path::Path, pid: u32) -> Result<(), String> {
     let request = serde_json::json!({"schemaVersion":1,"operation":"installPending","waitPid":pid});
     shroudforge_package::config::write_json(
-        &root.join("shroudforge/updates/worker-queue.json"),
+        &shroudforge_package::paths::updates_dir(root).join("worker-queue.json"),
         &request,
     )
     .map_err(|e| e.to_string())?;
@@ -874,7 +885,7 @@ pub fn request_mod_install(
     {
         return Err("invalid mod project ID".into());
     }
-    let path = root.join("shroudforge/updates/mod-install-queue.json");
+    let path = shroudforge_package::paths::updates_dir(root).join("mod-install-queue.json");
     if path.exists() {
         let existing = std::fs::read(&path)
             .ok()
@@ -916,7 +927,7 @@ pub fn request_mod_update(
     {
         return Err("invalid mod project or package ID".into());
     }
-    let path = root.join("shroudforge/updates/mod-install-queue.json");
+    let path = shroudforge_package::paths::updates_dir(root).join("mod-install-queue.json");
     if path.exists() {
         return Err("another catalog mod operation is already queued or running".into());
     }
@@ -967,8 +978,8 @@ fn request_runtime_mod_action(
             .unwrap_or_default()
             .as_nanos()
     );
-    let request_path = root.join("shroudforge/runtime/mod-reload-request.json");
-    let result_path = root.join("shroudforge/runtime/mod-reload-result.json");
+    let request_path = shroudforge_package::paths::runtime_dir(root).join("mod-reload-request.json");
+    let result_path = shroudforge_package::paths::runtime_dir(root).join("mod-reload-result.json");
     let request =
         serde_json::json!({"requestId":request_id,"operation":operation,"modIds":mod_ids});
     shroudforge_package::config::write_json(&request_path, &request)
@@ -1019,7 +1030,7 @@ pub fn request_system_stage(
     release: serde_json::Value,
     wait_pid: u32,
 ) -> Result<(), String> {
-    let path = root.join("shroudforge/updates/system-stage-request.json");
+    let path = shroudforge_package::paths::updates_dir(root).join("system-stage-request.json");
     if path.exists() {
         let existing = std::fs::read(&path)
             .ok()
@@ -1078,9 +1089,9 @@ pub fn run_scheduled_worker() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
     let value = |name: &str| args.windows(2).find(|p| p[0] == name).map(|p| p[1].clone());
     let root = std::path::PathBuf::from(value("--root").ok_or("missing --root")?);
-    let queue_path = root.join("shroudforge/updates/worker-queue.json");
+    let queue_path = shroudforge_package::paths::updates_dir(&root).join("worker-queue.json");
     let mut first_error = None;
-    let stage_request = root.join("shroudforge/updates/system-stage-request.json");
+    let stage_request = shroudforge_package::paths::updates_dir(&root).join("system-stage-request.json");
     if stage_request.is_file() {
         let result = (|| {
             let bytes = std::fs::read(&stage_request)
@@ -1116,7 +1127,7 @@ pub fn run_scheduled_worker() -> Result<(), String> {
     // Catalog mod packages are independent of the ShroudForge binary release.
     // Complete these while the game may still be running, before a full-package
     // installer can wait for the game to exit and replace the loader executable.
-    let mod_queue = root.join("shroudforge/updates/mod-install-queue.json");
+    let mod_queue = shroudforge_package::paths::updates_dir(&root).join("mod-install-queue.json");
     if mod_queue.is_file() {
         let result =
             std::process::Command::new(shroudforge_package::paths::loader_executable(&root))
@@ -1156,7 +1167,7 @@ pub fn run_scheduled_worker() -> Result<(), String> {
             let pid = queue["waitPid"]
                 .as_u64()
                 .ok_or("updater queue has no game PID")? as u32;
-            let staged = root.join("shroudforge/updates/pending");
+            let staged = shroudforge_package::paths::updates_dir(&root).join("pending");
             let status =
                 std::process::Command::new(std::env::current_exe().map_err(|e| e.to_string())?)
                     .args(["--update-worker", "--root"])

@@ -8,14 +8,11 @@
     "target",
     "image",
     "allowStructuralRevalidation",
-    "layout",
-    "entityDefinition",
+    "ecsLayout",
+    "entityDefinitionLayout",
     "hooks",
-    "worldContexts"
-  ],
-  "oneOf": [
-    { "required": ["components"] },
-    { "required": ["componentCatalog"] }
+    "worldContexts",
+    "components"
   ],
   "properties": {
     "schemaVersion": {
@@ -55,10 +52,6 @@
     "allowStructuralRevalidation": {
       "type": "boolean"
     },
-    "componentCatalog": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9_.-]+\\.json$"
-    },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
@@ -81,80 +74,80 @@
         "reviewEvidence": { "type": "array", "items": { "type": "string" } }
       }
     },
-    "layout": {
+    "ecsLayout": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "entity_manager_count",
-        "entity_manager_table",
-        "component_offsets",
-        "component_strides",
-        "entity_id",
-        "entity_generation",
-        "entity_layout",
-        "entity_storage",
-        "entity_definition",
-        "entity_row",
-        "component_bits",
-        "lookup_manager"
+        "entityManagerCount",
+        "entityManagerTable",
+        "componentOffsets",
+        "componentStrides",
+        "entityId",
+        "entityGeneration",
+        "entityLayout",
+        "entityStorage",
+        "entityDefinitionPointer",
+        "entityRow",
+        "componentBits",
+        "lookupManager"
       ],
       "properties": {
-        "entity_manager_count": {
+        "entityManagerCount": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_manager_table": {
+        "entityManagerTable": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "component_offsets": {
+        "componentOffsets": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "component_strides": {
+        "componentStrides": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_id": {
+        "entityId": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_generation": {
+        "entityGeneration": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_layout": {
+        "entityLayout": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_storage": {
+        "entityStorage": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_definition": {
+        "entityDefinitionPointer": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "entity_row": {
+        "entityRow": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "component_bits": {
+        "componentBits": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
         },
-        "lookup_manager": {
+        "lookupManager": {
           "type": "integer",
           "minimum": 0,
           "maximum": 65536
@@ -168,7 +161,8 @@
         "game_thread",
         "entity_manager",
         "world_prop_update",
-        "world_actor_placement"
+        "world_actor_placement",
+        "world_cursor"
       ],
       "properties": {
         "game_thread": {
@@ -235,6 +229,16 @@
           "properties": {
             "signature": { "type": "string", "minLength": 14 },
             "original": { "type": "array", "minItems": 5, "maxItems": 32, "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
+          }
+        },
+        "world_cursor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signature", "original", "captureOffset"],
+          "properties": {
+            "signature": { "type": "string", "minLength": 14 },
+            "original": { "type": "array", "minItems": 7, "maxItems": 7, "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
+            "captureOffset": { "type": "integer", "minimum": 0, "maximum": 65536 }
           }
         }
       }
@@ -325,7 +329,7 @@
         }
       }
     },
-    "entityDefinition": {
+    "entityDefinitionLayout": {
       "type": "object",
       "additionalProperties": false,
       "required": ["uuid", "name", "nameSize"],

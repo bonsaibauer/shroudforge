@@ -56,7 +56,7 @@ pub(crate) fn runtime_provider_report() -> serde_json::Value {
 /// Creates the canonical `runtime.*` namespace used in every execution phase.
 pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     let app_state = lua.app_data_ref::<AppState>().unwrap();
-    if app_state.phase() == RuntimePhase::Ingame && !app_state.runtime_configured.replace(true) {
+    if app_state.phase() == RuntimePhase::Ingame && !app_state.runtime_configured.get() {
         let registry = app_state.type_registry();
         let ecs_catalog_types = registry
             .iter()
@@ -79,7 +79,7 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
             .filter(|metadata| metadata.size > 0 && is_runtime_component_type(registry, metadata))
             .map(|metadata| (metadata.qualified_name.clone(), metadata.size))
             .collect();
-        tracing::info!(
+        tracing::debug!(
             target: "shroudforge::runtime",
             reflection_types = registry.len(),
             ecs_catalog_types,
@@ -89,10 +89,13 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
             "Prepared KFC runtime component index candidates"
         );
         let configured = runtime_provider::configure(&contract);
-        if !configured {
-            tracing::warn!("KFC Runtime rejected the component contract");
+        if configured {
+            app_state.runtime_configured.set(true);
         }
-        tracing::info!(
+        if !configured {
+            tracing::error!("KFC Runtime rejected the component contract");
+        }
+        tracing::debug!(
             target: "shroudforge::runtime",
             configured,
             components = contract.len(),
@@ -157,6 +160,12 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && runtime_provider::world_operation_available(feature)
                 && runtime_provider::world_context_active()
         }
+        "runtime.world.cursor.get" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::world_operation_available(feature)
+        }
         "runtime.world.voxel.read" | "runtime.world.voxel.write" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
@@ -217,7 +226,9 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
             },
         );
     }
-    let world_ready = if feature.starts_with("runtime.world.entity.") {
+    let world_ready = if feature == "runtime.world.cursor.get" {
+        runtime_provider::world_operation_available(&feature)
+    } else if feature.starts_with("runtime.world.entity.") {
         runtime_provider::world_operation_available(&feature)
             && runtime_provider::world_entity_context_ready()
     } else if feature.starts_with("runtime.world.") {
@@ -318,6 +329,9 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &voxel, "read", r#mod, lua_world_voxel_read)?;
     add_function_with_mod(lua, &voxel, "write", r#mod, lua_world_voxel_write)?;
     world.raw_set("voxel", voxel)?;
+    let cursor = lua.create_table()?;
+    add_function_with_mod(lua, &cursor, "get", r#mod, lua_world_cursor_get)?;
+    world.raw_set("cursor", cursor)?;
     let entity = lua.create_table()?;
     add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
     add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
@@ -536,6 +550,66 @@ fn lua_world_context_active(
         active,
         (!active).then(|| "active voxel world context is not available".into()),
     ))
+}
+
+fn lua_world_cursor_get(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.cursor.get") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 0 {
+        return Err(LuaError::generic(
+            "runtime.world.cursor.get does not accept arguments",
+        ));
+    }
+    let Some((bytes, sequence)) = runtime_provider::world_cursor_read() else {
+        return Ok((LuaValue::Nil, Some("native cursor hook has not published a live sample yet".into())));
+    };
+    if bytes.len() != 0xa0 || bytes[0x98] > 1 {
+        return Ok((LuaValue::Nil, Some("native cursor snapshot failed layout validation".into())));
+    }
+    let transform = |base: usize| -> mlua::Result<mlua::Table> {
+        let output = lua.create_table()?;
+        let position = lua.create_table()?;
+        for (axis, name) in ["x", "y", "z"].iter().enumerate() {
+            let start = base + axis * 8;
+            position.raw_set(*name, i64::from_le_bytes(bytes[start..start + 8].try_into().unwrap()))?;
+        }
+        let rotation = lua.create_table()?;
+        for index in 0..4 {
+            let start = base + 0x18 + index * 4;
+            rotation.raw_set(index + 1, f32::from_le_bytes(bytes[start..start + 4].try_into().unwrap()))?;
+        }
+        let scale = lua.create_table()?;
+        for index in 0..3 {
+            let start = base + 0x28 + index * 4;
+            scale.raw_set(index + 1, f32::from_le_bytes(bytes[start..start + 4].try_into().unwrap()))?;
+        }
+        output.raw_set("position", position)?;
+        output.raw_set("rotation", rotation)?;
+        output.raw_set("scale", scale)?;
+        Ok(output)
+    };
+    let value = lua.create_table()?;
+    value.raw_set("primaryTransform", transform(0)?)?;
+    value.raw_set("secondaryTransform", transform(0x38)?)?;
+    value.raw_set("primaryFlags", bytes[0x70])?;
+    value.raw_set("secondaryFlags", bytes[0x71])?;
+    value.raw_set("material", bytes[0x72])?;
+    value.raw_set("selectionVersion", format!("{}", u64::from_le_bytes(bytes[0x78..0x80].try_into().unwrap())))?;
+    let selected = lua.create_table()?;
+    selected.raw_set("value", format!("{:016x}", u64::from_le_bytes(bytes[0x80..0x88].try_into().unwrap())))?;
+    selected.raw_set("type", u32::from_le_bytes(bytes[0x88..0x8c].try_into().unwrap()))?;
+    value.raw_set("selectedObject", selected)?;
+    value.raw_set("attachedToProp", bytes[0x98] != 0)?;
+    let result = lua.create_table()?;
+    result.raw_set("sequence", sequence)?;
+    result.raw_set("value", value)?;
+    Ok((LuaValue::Table(result), None))
 }
 
 fn lua_world_voxel_read(
@@ -1085,6 +1159,7 @@ mod runtime_provider {
     type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type WorldContextActive = unsafe extern "C" fn() -> bool;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
+    type WorldCursorRead = unsafe extern "C" fn(*mut u8, usize, *mut u64) -> bool;
     type WorldVoxelRead =
         unsafe extern "C" fn(*const i32, *const u32, *mut u16, usize, *mut usize) -> bool;
     type WorldVoxelWrite =
@@ -1115,6 +1190,7 @@ mod runtime_provider {
         world_operation_available: WorldOperationAvailable,
         world_context_active: WorldContextActive,
         world_entity_context_ready: WorldEntityContextReady,
+        world_cursor_read: Option<WorldCursorRead>,
         world_voxel_read: WorldVoxelRead,
         world_voxel_write: WorldVoxelWrite,
         world_entity_spawn: WorldEntitySpawn,
@@ -1185,6 +1261,15 @@ mod runtime_provider {
                                 "KfcRuntimeWorldEntityContextReady",
                                 WorldEntityContextReady
                             ),
+                            world_cursor_read: {
+                                let pointer = GetProcAddress(
+                                    module,
+                                    c"KfcRuntimeWorldCursorRead".as_ptr(),
+                                );
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, WorldCursorRead>(pointer)
+                                })
+                            },
                             world_voxel_read: symbol!("KfcRuntimeWorldVoxelRead", WorldVoxelRead),
                             world_voxel_write: symbol!(
                                 "KfcRuntimeWorldVoxelWrite",
@@ -1230,7 +1315,12 @@ mod runtime_provider {
                 PROVIDER.get()
             }
             Err(error) => {
-                let _ = PROVIDER_ERROR.set(error);
+                // The runtime DLL may be loaded just after Lua environments are
+                // created. Treat that as a transient startup condition and try
+                // again on the next API call instead of poisoning this process.
+                if error != "provider-module-not-loaded" {
+                    let _ = PROVIDER_ERROR.set(error);
+                }
                 None
             }
         }
@@ -1287,6 +1377,14 @@ mod runtime_provider {
     }
     pub fn world_entity_context_ready() -> bool {
         provider().is_some_and(|value| unsafe { (value.world_entity_context_ready)() })
+    }
+    pub fn world_cursor_read() -> Option<(Vec<u8>, u64)> {
+        let provider = provider()?;
+        let mut bytes = vec![0u8; 0xa0];
+        let mut sequence = 0u64;
+        let read = provider.world_cursor_read?;
+        let ok = unsafe { read(bytes.as_mut_ptr(), bytes.len(), &mut sequence) };
+        (ok && sequence != 0).then_some((bytes, sequence))
     }
     pub fn world_voxel_read(
         origin: [i32; 3],
@@ -1470,7 +1568,13 @@ mod runtime_provider {
             .take_while(|byte| **byte != 0)
             .map(|byte| *byte as u8)
             .collect();
-        serde_json::json!({"available":true,"abi":provider.abi,"initialized":true,"ready":unsafe{(provider.ready)()},"writable":unsafe{(provider.can_write)()},"detail":String::from_utf8_lossy(&bytes)})
+        let detail = String::from_utf8_lossy(&bytes).into_owned();
+        // The dispatcher exposes this explicit state before its first local
+        // actor-world tick. Once that tick has occurred, its status changes to
+        // ready or stale-game-thread, so a later pause is not mistaken for the
+        // initial menu wait.
+        let awaiting_world = detail.contains("game_thread=installed-awaiting-world");
+        serde_json::json!({"available":true,"abi":provider.abi,"initialized":true,"ready":unsafe{(provider.ready)()},"writable":unsafe{(provider.can_write)()},"awaitingWorld":awaiting_world,"detail":detail})
     }
     pub fn resolve(name: &str) -> Option<Component> {
         let provider = provider()?;
@@ -1583,6 +1687,9 @@ mod runtime_provider {
     }
     pub fn world_entity_context_ready() -> bool {
         false
+    }
+    pub fn world_cursor_read() -> Option<(Vec<u8>, u64)> {
+        None
     }
     pub fn world_voxel_read(_: [i32; 3], _: [u32; 3], _: usize) -> Option<Vec<u16>> {
         None

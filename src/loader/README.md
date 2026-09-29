@@ -38,6 +38,14 @@ game process at `loader_attach` and unloads them at `loader_detach`. ShroudForge
 implements the same EML API through its in-game runtime DLL manager. For loose
 and archived mod packages, DLL paths stay within the package and archive files
 are extracted with their neighboring files so Windows can resolve dependencies.
+ShroudForge queues each DLL load on an isolated worker so a native DLL initializer
+that stalls cannot stop Lua mod activation or frame updates. The runtime log records
+when each DLL load is queued, completes, fails, or exceeds the stall threshold.
+During game startup, the Debug Console also runs as a hidden log watcher before the
+runtime DLL is loaded. It opens on startup/runtime errors and native DLL stalls, and
+keeps the final log visible after an unexpected nonzero game exit. Bootstrap phases,
+errors, and crash exit codes are recorded in the same `shroudforge/logs/shroudforge.log`
+used by the Debug Console.
 
 XHL's `native-plugin.ini` sidecar is an additional format supported by that
 manager. It uses the XHL-defined `XhlNativePluginQuery`,
@@ -46,8 +54,9 @@ names are retained when calling unchanged XHL DLLs.
 
 ShroudForge activation and player settings are stored in the mod package's
 `extended.mod.json`; package updates can reset them. Loader configuration is
-`shroudforge/config/loader.json`; generated status is
-`shroudforge/state/state.json`. EML metadata stays in `mod.json`; ShroudForge
+`shroudforge/config/modloader-config.json`; generated status defaults to
+`shroudforge/state.json`. User-selected folders are resolved in
+`package/src/paths.rs`. EML metadata stays in `mod.json`; ShroudForge
 state stays in the adjacent extension. Inline ShroudForge manifest fields and
 obsolete extension formats are rejected.
 

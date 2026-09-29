@@ -26,9 +26,10 @@ mod windows {
             CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, SetLastError, WAIT_OBJECT_0,
         },
         System::Threading::{CreateMutexW, GetCurrentProcessId, OpenEventW, WaitForSingleObject},
+        System::Com::CoTaskMemFree,
         UI::{
             Input::KeyboardAndMouse::GetAsyncKeyState,
-            Shell::ShellExecuteW,
+            Shell::{BIF_NEWDIALOGSTYLE, BIF_RETURNONLYFSDIRS, BROWSEINFOW, SHBrowseForFolderW, SHGetPathFromIDListW, ShellExecuteW},
             WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
         },
     };
@@ -104,8 +105,6 @@ mod windows {
         log_level: String,
         #[serde(default)]
         export_enabled: bool,
-        #[serde(default = "default_export_directory")]
-        export_directory: String,
         update_enabled: bool,
         base_url: String,
         project_id: String,
@@ -169,6 +168,8 @@ mod windows {
         SaveModSettings(String, serde_json::Value, String, String),
         SaveSettings(UiSettings, String),
         SaveSetting(String, Option<String>, String, serde_json::Value, String),
+        BrowsePath(String, String),
+        OpenPath(String, String),
         SetWindowVisibility(String, bool, String),
         SearchCatalog(String, String),
         InstallMod(String, String),
@@ -367,11 +368,23 @@ mod windows {
         reduced_motion: bool,
         log_level: String,
         export_enabled: bool,
-        export_directory: String,
+        runtime_profile_id: Option<String>,
+        active_runtime_profile: Option<String>,
+        runtime_profiles: Vec<String>,
+        runtime_profile_directory: String,
         update_enabled: bool,
         base_url: String,
         project_id: String,
         check_minutes: u64,
+        paths: Vec<StoragePath>,
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct StoragePath {
+        id: String,
+        path: String,
+        default_path: String,
     }
 
     #[derive(Clone, Default, Serialize)]
@@ -463,19 +476,12 @@ mod windows {
         }
     }
 
-    fn default_export_directory() -> String {
-        "shroudforge/exports".to_owned()
-    }
-
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let arguments = arguments()?;
         run_with_arguments(arguments)
     }
 
     fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std::error::Error>> {
-        if let Err(error) = shroudforge_package::config::migrate_eml_config_once(&arguments.root) {
-            tracing::warn!(%error, "Could not import EML eml.json settings");
-        }
         let _updater_window_mutex = if arguments.updater_window {
             let root = arguments
                 .root
@@ -536,6 +542,14 @@ mod windows {
             .map(open_event)
             .unwrap_or(std::ptr::null_mut());
         let event_loop = EventLoop::new();
+        let modloader_height = event_loop
+            .primary_monitor()
+            .map(|monitor| {
+                ((monitor.size().height as f64 / monitor.scale_factor()) * 0.92)
+                    .min(988.0)
+                    .max(560.0)
+            })
+            .unwrap_or(988.0);
         let window = WindowBuilder::new()
             .with_title(if arguments.updater_window {
                 "ShroudForge | Update"
@@ -548,7 +562,7 @@ mod windows {
             .with_inner_size(if arguments.updater_window {
                 LogicalSize::new(560.0, 430.0)
             } else {
-                LogicalSize::new(1180.0, 760.0)
+                LogicalSize::new(1180.0, modloader_height)
             })
             .with_min_inner_size(if arguments.updater_window {
                 LogicalSize::new(500.0, 380.0)
@@ -643,6 +657,14 @@ mod windows {
                         value.request_id.unwrap_or_default(),
                     ),
                     _ => return,
+                },
+                "browse-path" => match value.key {
+                    Some(key) => Command::BrowsePath(key, value.request_id.unwrap_or_default()),
+                    None => return,
+                },
+                "open-path" => match value.key {
+                    Some(key) => Command::OpenPath(key, value.request_id.unwrap_or_default()),
+                    None => return,
                 },
                 "set-window-visibility" => match (value.module, value.visible) {
                     (Some(module), Some(visible)) => Command::SetWindowVisibility(
@@ -1006,6 +1028,37 @@ mod windows {
                                 );
                                 next_refresh = Instant::now();
                             }
+                            Command::BrowsePath(key, request_id) => {
+                                let result = choose_folder(&key).and_then(|selected| {
+                                    save_setting(&arguments.root, "paths", None, &key, &selected)
+                                });
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Settings",
+                                    "Choose storage folder",
+                                    result,
+                                    "settings.pathsSaved",
+                                    Some("settings"),
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                            }
+                            Command::OpenPath(key, request_id) => {
+                                let result = open_storage_path(&arguments.root, &key);
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Settings",
+                                    "Open storage folder",
+                                    result,
+                                    "settings.pathsOpened",
+                                    None,
+                                    false,
+                                );
+                            }
                             Command::SetWindowVisibility(module, visible, request_id) => {
                                 let result = if module == "debugConsole"
                                     && visible
@@ -1272,9 +1325,8 @@ mod windows {
                             .join("pending.ready")
                             .is_file();
                         let operation_running = fs::read(
-                            arguments
-                                .root
-                                .join("shroudforge/updates/updater-status.json"),
+                            shroudforge_package::paths::updates_dir(&arguments.root)
+                                .join("updater-status.json"),
                         )
                         .ok()
                         .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -1621,7 +1673,7 @@ mod windows {
     }
 
     fn runtime_is_active(root: &Path) -> bool {
-        let heartbeat = root.join("shroudforge/runtime/heartbeat.json");
+        let heartbeat = shroudforge_package::paths::runtime_dir(root).join("heartbeat.json");
         let Ok(bytes) = fs::read(heartbeat) else {
             return false;
         };
@@ -1643,7 +1695,7 @@ mod windows {
     }
 
     fn runtime_pid(root: &Path) -> Option<u32> {
-        let bytes = fs::read(root.join("shroudforge/runtime/heartbeat.json")).ok()?;
+        let bytes = fs::read(shroudforge_package::paths::runtime_dir(root).join("heartbeat.json")).ok()?;
         let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
         let updated = value.get("updatedAt")?.as_u64()?;
         let now = SystemTime::now()
@@ -1675,11 +1727,6 @@ mod windows {
             .pointer("/exports/enabled")
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
-        let export_directory = central
-            .pointer("/exports/directory")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("shroudforge/exports")
-            .to_owned();
         let mods = read_mods(&arguments.root);
         sync_mod_events(&arguments.root, &mods);
         let mut release_snapshot = release
@@ -1687,9 +1734,8 @@ mod windows {
             .map(|value| value.clone())
             .unwrap_or_else(|_| ReleaseState::idle(installed_release(&arguments.root), false));
         if let Ok(bytes) = fs::read(
-            arguments
-                .root
-                .join("shroudforge/updates/updater-status.json"),
+            shroudforge_package::paths::updates_dir(&arguments.root)
+                .join("updater-status.json"),
         ) {
             if let Ok(status) = serde_json::from_slice::<serde_json::Value>(&bytes) {
                 if status["operation"] == "systemStage" {
@@ -1767,11 +1813,19 @@ mod windows {
                     .unwrap_or(false),
                 log_level: logging_level,
                 export_enabled,
-                export_directory,
+                runtime_profile_id: central
+                    .pointer("/runtime/profileId")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                active_runtime_profile: active_runtime_profile(&arguments.root),
+                runtime_profiles: runtime_profile_ids(&arguments.root),
+                runtime_profile_directory: shroudforge_package::paths::runtime_profiles_dir(&arguments.root)
+                    .display().to_string(),
                 update_enabled: provider.enabled,
                 base_url: provider.base_url.clone(),
                 project_id: provider.project_id.clone(),
                 check_minutes: provider.check_minutes,
+                paths: storage_paths(&arguments.root),
             },
             catalog: catalog
                 .lock()
@@ -1797,6 +1851,38 @@ mod windows {
             .unwrap_or_else(|| "Automatisch erkannt".into())
     }
 
+    fn runtime_profile_ids(root: &Path) -> Vec<String> {
+        let directory = shroudforge_package::paths::runtime_profiles_dir(root);
+        let mut profiles = Vec::new();
+        let mut pending = vec![directory];
+        while let Some(current) = pending.pop() {
+            let Ok(entries) = fs::read_dir(current) else { continue; };
+            for entry in entries.flatten() {
+                if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                    pending.push(entry.path());
+                } else if entry.path().extension().is_some_and(|extension| extension == "json") {
+                    if let Ok(bytes) = fs::read(entry.path()) {
+                        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                            if let Some(id) = value.get("id").and_then(serde_json::Value::as_str) {
+                                profiles.push(id.to_owned());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        profiles.sort();
+        profiles.dedup();
+        profiles
+    }
+
+    fn active_runtime_profile(root: &Path) -> Option<String> {
+        let status = shroudforge_package::config::read_document(root, "mod-status").ok()?;
+        let detail = status.pointer("/runtimeProvider/detail")?.as_str()?;
+        let profile = detail.split("profile=").nth(1)?.split_whitespace().next()?;
+        Some(profile.to_owned())
+    }
+
     fn read_mods(root: &Path) -> Vec<ModInfo> {
         let Ok(entries) = fs::read_dir(shroudforge_package::paths::mods_dir(root)) else {
             return Vec::new();
@@ -1817,11 +1903,7 @@ mod windows {
             let config =
                 serde_json::json!({"enabled":value["enabled"],"settings":value["settingValues"]});
             let revision = config_revision(&config);
-            let ecosystem = if read_package_file(&package, "extended.mod.json").is_ok() {
-                "SF"
-            } else {
-                "EML"
-            };
+            let ecosystem = mod_ecosystem_for_package(&package);
             let icon = value
                 .get("icon")
                 .and_then(|value| value.as_str())
@@ -2548,7 +2630,7 @@ mod windows {
             Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes)
                 .map_err(|error| error.to_string())?,
             Err(_error) if !package_has_file(&package, "extended.mod.json")? => {
-                serde_json::json!({"$schema":"https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json","schemaVersion":1,"enabled":manifest.enabled,"settings":{}})
+                serde_json::json!({"$schema":"https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json","schemaVersion":1,"enabled":manifest.enabled,"launcher":"EML","settings":{}})
             }
             Err(error) => return Err(error),
         };
@@ -2692,13 +2774,24 @@ mod windows {
 
     fn mod_ecosystem(root: &Path, id: &str) -> Option<&'static str> {
         let package = find_mod_package(root, id)?;
-        Some(
-            if read_package_file(&package, "extended.mod.json").is_ok() {
-                "SF"
-            } else {
-                "EML"
-            },
-        )
+        Some(mod_ecosystem_for_package(&package))
+    }
+
+    fn mod_ecosystem_for_package(package: &Path) -> &'static str {
+        let launcher = read_package_file(package, "extended.mod.json")
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|value| {
+                value
+                    .get("launcher")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            });
+        match launcher.as_deref() {
+            Some("EML") => "EML",
+            // EML is shown only when the package explicitly records it.
+            _ => "SF",
+        }
     }
 
     fn config_revision(value: &serde_json::Value) -> String {
@@ -2806,20 +2899,50 @@ mod windows {
             });
         }
         if scope == "exports" {
-            if !matches!(key, "enabled" | "directory") {
+            if key != "enabled" {
                 return Err("unsupported export setting".into());
-            }
-            if key == "directory"
-                && !setting
-                    .as_str()
-                    .is_some_and(shroudforge_package::config::valid_export_directory)
-            {
-                return Err(
-                    "export directory must be a relative path inside the game directory".into(),
-                );
             }
             return shroudforge_package::config::update_loader(root, |value| {
                 value["exports"][key] = setting.clone();
+                Ok(())
+            });
+        }
+        if scope == "paths" {
+            if !matches!(key, "mods" | "state" | "logs" | "cache" | "exports" | "updates" | "ui" | "runtime") {
+                return Err("unsupported storage path".into());
+            }
+            let normalized = if setting.is_null() {
+                serde_json::Value::Null
+            } else {
+                let text = setting.as_str().ok_or("storage path must be a folder path or null")?;
+                let selected = PathBuf::from(text);
+                if !selected.is_absolute() || !selected.is_dir() {
+                    return Err("select an existing folder".into());
+                }
+                let selected = selected.canonicalize().map_err(|error| error.to_string())?;
+                if selected == root.canonicalize().unwrap_or_else(|_| root.to_path_buf()) {
+                    return Err("a storage folder cannot be the game installation root".into());
+                }
+                serde_json::Value::String(selected.to_string_lossy().into_owned())
+            };
+            return shroudforge_package::config::update_loader(root, |value| {
+                value["paths"][key] = normalized;
+                Ok(())
+            });
+        }
+        if scope == "runtime" {
+            if key != "profileId" {
+                return Err("unsupported runtime setting".into());
+            }
+            if let Some(id) = setting.as_str() {
+                if !runtime_profile_ids(root).iter().any(|profile| profile == id) {
+                    return Err("runtime profile was not found under shroudforge/runtime/profiles".into());
+                }
+            } else if !setting.is_null() {
+                return Err("runtime profile selection must be a profile id or null for automatic".into());
+            }
+            return shroudforge_package::config::update_loader(root, |value| {
+                value["runtime"]["profileId"] = setting.clone();
                 Ok(())
             });
         }
@@ -2867,6 +2990,81 @@ mod windows {
             }
             Ok(())
         })
+    }
+
+    fn choose_folder(key: &str) -> Result<serde_json::Value, String> {
+        let title = match key {
+            "mods" => "Choose the mods folder",
+            "state" => "Choose the status folder",
+            "logs" => "Choose the logs folder",
+            "cache" => "Choose the cache folder",
+            "exports" => "Choose the exports folder",
+            "updates" => "Choose the updates folder",
+            "ui" => "Choose the UI data folder",
+            _ => return Err("unsupported storage folder".into()),
+        };
+        let title: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
+        let mut display_name = vec![0u16; 32768];
+        let mut info = BROWSEINFOW::default();
+        info.pszDisplayName = display_name.as_mut_ptr();
+        info.lpszTitle = title.as_ptr();
+        info.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+        let item = unsafe { SHBrowseForFolderW(&info) };
+        if item.is_null() {
+            return Err("folder selection was cancelled".into());
+        }
+        let mut selected = vec![0u16; 32768];
+        let ok = unsafe { SHGetPathFromIDListW(item, selected.as_mut_ptr()) } != 0;
+        unsafe { CoTaskMemFree(item.cast()) };
+        if !ok {
+            return Err("could not read the selected folder".into());
+        }
+        let length = selected.iter().position(|character| *character == 0).unwrap_or(selected.len());
+        let path = PathBuf::from(String::from_utf16(&selected[..length]).map_err(|error| error.to_string())?);
+        if !path.is_dir() {
+            return Err("select an existing folder".into());
+        }
+        Ok(serde_json::Value::String(path.to_string_lossy().into_owned()))
+    }
+
+    fn storage_path(root: &Path, key: &str) -> Result<PathBuf, String> {
+        match key {
+            "mods" => Ok(shroudforge_package::paths::mods_dir(root)),
+            "state" => Ok(shroudforge_package::paths::state_dir(root)),
+            "logs" => Ok(shroudforge_package::paths::logs_dir(root)),
+            "cache" => Ok(shroudforge_package::paths::cache_dir(root)),
+            "exports" => Ok(shroudforge_package::paths::export_dir(root)),
+            "updates" => Ok(shroudforge_package::paths::updates_dir(root)),
+            "ui" => Ok(shroudforge_package::paths::ui_data_dir(root)),
+            "runtime" => Ok(shroudforge_package::paths::runtime_dir(root)),
+            _ => Err("unsupported storage folder".into()),
+        }
+    }
+
+    fn default_storage_path(root: &Path, key: &str) -> Result<PathBuf, String> {
+        shroudforge_package::paths::default_directory(root, key)
+            .ok_or_else(|| "unsupported storage folder".into())
+    }
+
+    fn storage_paths(root: &Path) -> Vec<StoragePath> {
+        ["mods", "state", "logs", "cache", "exports", "updates", "ui", "runtime"]
+            .into_iter()
+            .filter_map(|id| Some(StoragePath {
+                id: id.to_owned(),
+                path: storage_path(root, id).ok()?.display().to_string(),
+                default_path: default_storage_path(root, id).ok()?.display().to_string(),
+            }))
+            .collect()
+    }
+
+    fn open_storage_path(root: &Path, key: &str) -> Result<(), String> {
+        let path = storage_path(root, key)?;
+        fs::create_dir_all(&path).map_err(|error| error.to_string())?;
+        std::process::Command::new("explorer.exe")
+            .arg(path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| error.to_string())
     }
 
     fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), String> {
@@ -2937,14 +3135,11 @@ mod windows {
             logging.insert("minimumLevel".into(), settings.log_level.clone().into());
             let object = value
                 .as_object_mut()
-                .ok_or("shroudforge/config/loader.json must contain an object")?;
-            object.insert(
-                "exports".into(),
-                serde_json::json!({
-                    "enabled": settings.export_enabled,
-                    "directory": settings.export_directory
-                }),
-            );
+                .ok_or("shroudforge/config/modloader-config.json must contain an object")?;
+            let exports = object
+                .entry("exports")
+                .or_insert_with(|| serde_json::json!({}));
+            exports["enabled"] = settings.export_enabled.into();
             object.insert(
                 "catalog".into(),
                 serde_json::json!({ "provider": provider }),
@@ -3276,7 +3471,7 @@ mod windows {
             .find(|pair| pair[0] == "--root")
             .map(|pair| PathBuf::from(&pair[1]))
             .ok_or("missing --root")?;
-        let request_path = root.join("shroudforge/updates/mod-install-queue.json");
+        let request_path = shroudforge_package::paths::updates_dir(&root).join("mod-install-queue.json");
         let result: Result<String, String> = (|| {
             let bytes = fs::read(&request_path)
                 .map_err(|e| format!("cannot read mod install request: {e}"))?;
@@ -3589,7 +3784,7 @@ mod windows {
         let mods = shroudforge_package::paths::mods_dir(root);
         fs::create_dir_all(&mods).map_err(|error| error.to_string())?;
         let staging_root = if update_mod_id.is_some() {
-            root.join("shroudforge/updates/mod-staging")
+            shroudforge_package::paths::updates_dir(root).join("mod-staging")
         } else {
             downloads.clone()
         };
@@ -3648,7 +3843,7 @@ mod windows {
                 .capabilities
                 .iter()
                 .any(|capability| capability.requires_runtime());
-        let status_path = root.join("shroudforge/runtime/mod-status.json");
+        let status_path = shroudforge_package::paths::runtime_dir(root).join("mod-status.json");
         let active = fs::read(&status_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -3670,7 +3865,7 @@ mod windows {
                 .unwrap_or_default()
                 .as_nanos()
         );
-        let backup_root = root.join("shroudforge/updates/mod-backups");
+        let backup_root = shroudforge_package::paths::updates_dir(root).join("mod-backups");
         fs::create_dir_all(&backup_root).map_err(|error| error.to_string())?;
         let backup = backup_root.join(&transaction);
         fs::rename(destination, &backup).map_err(|error| {
@@ -3831,7 +4026,8 @@ mod windows {
         results: mpsc::Sender<AsyncUiResult>,
         request_id: Option<String>,
     ) {
-        let updater_status_path = root.join("shroudforge/updates/updater-status.json");
+        let updater_status_path = shroudforge_package::paths::updates_dir(&root)
+            .join("updater-status.json");
         let updater_status = std::fs::read(&updater_status_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())

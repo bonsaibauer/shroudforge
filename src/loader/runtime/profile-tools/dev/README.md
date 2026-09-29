@@ -32,20 +32,19 @@ build and stages only `kfc-runtime.dll` with the loader. Optional inspection
 executables are excluded from player releases.
 ## Runtime profiles
 
-Profiles live only in `src/loader/runtime/profiles/`, grouped by game, target, and game build. For
-example, the current profile for client build 1076226 is:
+Profiles are grouped by game, target, and game build. A complete per-build profile lives in one file:
 
 ```text
 src/loader/runtime/profiles/enshrouded/client/1076226.json
-src/loader/runtime/profiles/enshrouded/client/enshrouded-client-1076226.components.json
 ```
 
 The profile contains hook signatures, structural offsets, named world
-operations, and guarded patch definitions. Its `componentCatalog` field points
-to the adjacent component map. CMake embeds the profile and sidecar in the DLL;
-at runtime the provider verifies the executable identity and loads only the
-matching approved profile. A new profile or component map requires rebuilding
-the DLL so the matching embedded resources ship together.
+operations, guarded patch definitions, and the ECS component map. CMake embeds
+the complete profile in the DLL and the release also copies profiles to
+`shroudforge/runtime/profiles/` for selection in the launcher. Automatic mode
+uses executable identity. A manually selected profile with a different build is
+still tried; the launcher warns that problems may occur, and each operation
+must resolve against the running executable before use.
 
 PE timestamp and image size are recorded for identity. Newly generated profiles
 also record executable SHA-256 and require an exact hash match. The shipped
@@ -118,29 +117,35 @@ zero unresolved ECS joins, structural validity, and explicit developer review
 of live layouts and function behavior. An unapproved draft is rejected by the
 runtime.
 
-After approval, place the pair under the build's production profile path and
+After approval, place the profile under the build's production profile path and
 build/package the DLL:
 
 ```powershell
 $profileDir = 'src\loader\runtime\profiles\enshrouded\client'
 Copy-Item $profileDraft "$profileDir\new-build.json"
-Copy-Item $componentsDraft "$profileDir\enshrouded-client-new-build.components.json"
 cmake --build build/native-runtime --config Release --target kfc-runtime
 (No separate runtime package is produced.)
 ```
 
-The approved profile and component sidecar are the only per-build runtime data.
+The approved profile is the only per-build runtime data. The profile uses
+camelCase field names consistently; its sections are ordered as executable
+identity, memory layout, hooks, world access, ECS components, and runtime code
+patches. See `src/loader/runtime/profiles/README.md` for the field definitions.
+Separate capture data
+may remain under `profile-tools/devdata/` for review.
 The function catalog, capture logs, reflection source, and draft stay in the
 development area.
 
 ## Runtime behavior and limits
 
-Profiles are selected by exact executable identity. If exact identity is absent,
-structural revalidation is allowed only for a unique profile that explicitly
-opts in and passes hook, byte, component-size, and live-access checks. These
-checks do not prove that every engine semantic stayed the same; new function
-semantics or calling conventions require profile review and sometimes native
-implementation changes.
+Automatic selection prefers an exact executable identity. A profile selected
+manually is still tried when the running build differs, even if it did not opt
+in to automatic structural fallback. The launcher reports that the build
+differs and problems may occur. Every hook, byte signature, component layout,
+and live access is checked before use; operations whose checks fail remain
+unavailable. These checks do not prove that every engine semantic stayed the
+same; new function semantics or calling conventions require profile review and
+sometimes native implementation changes.
 
 The provider retains hook trampolines and pins its DLL until process exit.
 Shutdown stops new work and attempts to restore original code without freeing

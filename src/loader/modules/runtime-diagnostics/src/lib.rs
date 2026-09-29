@@ -240,7 +240,7 @@ impl Session {
             if slow {
                 tracing::warn!(target:"shroudforge::diagnostics",report=%report,"Diagnostic measurements");
             } else {
-                tracing::info!(target:"shroudforge::diagnostics",report=%report,"Diagnostic measurements");
+                tracing::debug!(target:"shroudforge::diagnostics",report=%report,"Diagnostic measurements");
             }
             self.last_report = signature;
         }
