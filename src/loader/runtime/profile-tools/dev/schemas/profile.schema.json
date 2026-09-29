@@ -12,6 +12,7 @@
     "entityDefinitionLayout",
     "hooks",
     "worldContexts",
+    "worldGrids",
     "components"
   ],
   "properties": {
@@ -327,6 +328,30 @@
             "ownerOffset": {"type": "integer", "minimum": 0, "maximum": 65536}
           }
         }
+      }
+    },
+    "worldGrids": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_-]{0,14}$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["origin", "cellSize", "maximum"],
+        "properties": {
+          "origin": {
+            "type": "array", "minItems": 3, "maxItems": 3,
+            "items": { "type": "number" }
+          },
+          "cellSize": {
+            "type": "array", "minItems": 3, "maxItems": 3,
+            "items": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "maximum": {
+            "type": "array", "minItems": 3, "maxItems": 3,
+            "items": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "additionalProperties": false
       }
     },
     "entityDefinitionLayout": {

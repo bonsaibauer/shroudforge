@@ -2,8 +2,10 @@
 #include "embedded_profile_ids.h"
 #include <windows.h>
 #include <bcrypt.h>
+#include <array>
 #include <filesystem>
 #include <fstream>
+#include <cmath>
 #include <unordered_set>
 #include <vector>
 #include <nlohmann/json.hpp>
@@ -217,6 +219,24 @@ bool Load() {
         world_context_layout.publish_state = context_offset("publishStateOffset");
         world_context_layout.publish_commands = context_offset("publishCommandsOffset");
         world_context_layout.owner = context_offset("ownerOffset");
+        runtime_world_grids.clear();
+        const auto& grids = selected.at("worldGrids");
+        if (!grids.is_object() || grids.empty()) throw std::runtime_error("world grid catalog is missing or empty");
+        for (auto item = grids.begin(); item != grids.end(); ++item) {
+            RuntimeWorldGrid grid{};
+            grid.id = item.key();
+            const auto origin = item.value().at("origin").get<std::array<double, 3>>();
+            const auto cell_size = item.value().at("cellSize").get<std::array<double, 3>>();
+            const auto maximum = item.value().at("maximum").get<std::array<std::uint64_t, 3>>();
+            for (int axis = 0; axis < 3; ++axis) {
+                if (!std::isfinite(origin[axis]) || !std::isfinite(cell_size[axis]) || cell_size[axis] <= 0 || !maximum[axis])
+                    throw std::runtime_error("invalid world grid specification: " + grid.id);
+                grid.origin[axis] = origin[axis];
+                grid.cell_size[axis] = cell_size[axis];
+                grid.maximum[axis] = maximum[axis];
+            }
+            runtime_world_grids.push_back(std::move(grid));
+        }
         runtime_components.clear();
         std::unordered_set<std::string> names;
         std::unordered_set<unsigned> indices;

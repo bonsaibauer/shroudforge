@@ -132,6 +132,9 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     {
                         let effect = runtime["effects"].get(&manifest.id);
                         match effect.and_then(|value| value["state"].as_str()) {
+                            Some("restart-required") => {
+                                json!({"state":"restart-required","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("Restart the game to load this mod's native DLL.")})
+                            }
                             Some("error") => {
                                 json!({"state":"failed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL failed to load.")})
                             }

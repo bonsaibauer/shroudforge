@@ -93,6 +93,12 @@ function runtime.world.cursor.get() end
 --- @class RuntimeWorldVoxelApi
 runtime.world.voxel = {}
 
+--- Return metadata for a native world grid. The active backend currently exposes the `voxel` grid.
+--- @param grid_id string Grid identifier, currently "voxel".
+--- @return table? spec {id, origin, cellSize, maximum}
+--- @return string? reason
+function runtime.world.voxel.get_grid_spec(grid_id) end
+
 --- Read a bounded, x-fastest voxel region. Each number packs material in the low byte and density in the high byte.
 --- @param x integer
 --- @param y integer
@@ -137,16 +143,21 @@ runtime.world.entity = {}
 --- @return string? reason
 function runtime.world.entity.query_props(bounds, padding) end
 
---- Queue a native entity spawn in the live prop-update context and wait for a matching
---- CurrentTransform + UsedItem record in the live ECS. UUIDs are hexadecimal qwords.
---- The returned integer is still the engine command queue token, not an entity handle.
+--- Resolve the current transform and item ID for an opaque live prop handle.
+--- @param entity_handle integer Handle returned by query_props or spawn.
+--- @return table? prop
+--- @return string? reason
+function runtime.world.entity.get_transform(entity_handle) end
+
+--- Spawn a native entity in the live prop-update context and wait for its live ECS record.
+--- UUIDs are hexadecimal qwords. Returns the new opaque entity handle, not an engine queue token.
 --- @param template_uuid_high_hex string
 --- @param template_uuid_low_hex string
 --- @param position number[] Three world coordinates.
 --- @param rotation number[] Non-zero quaternion x,y,z,w; KFC Runtime normalizes it before dispatch.
 --- @param tracking_id integer
 --- @param flags integer
---- @return integer? queue_token
+--- @return integer? entity_handle
 --- @return string? reason
 function runtime.world.entity.spawn(template_uuid_high_hex, template_uuid_low_hex, position, rotation, tracking_id, flags) end
 
@@ -161,8 +172,18 @@ function runtime.world.entity.spawn(template_uuid_high_hex, template_uuid_low_he
 --- @return string? reason
 function runtime.world.entity.place(position, rotation, bounds, tracking_id, feedback_id) end
 
---- Dispatch an engine destroy call by transform and bounds, then wait for a matching CurrentTransform + UsedItem count to decrease.
---- This spatial operation does not identify an exact entity handle and does not establish save persistence or collision updates.
+--- Remove the prop identified by its current live handle. The native operation resolves the
+--- transform, dispatches the engine removal, and verifies that this exact handle disappeared.
+--- @param entity_handle integer Handle returned by query_props or spawn.
+--- @param bounds number[] AABB min xyz followed by max xyz.
+--- @param tracking_id integer
+--- @param feedback_id integer Kept for parity with the shared placement recipe.
+--- @return boolean ok
+--- @return string? reason
+function runtime.world.entity.destroy(entity_handle, bounds, tracking_id, feedback_id) end
+
+--- Legacy spatial destroy overload. Prefer the handle overload for editor operations.
+--- This operation does not establish save persistence or collision updates.
 --- @param position number[] Three world coordinates.
 --- @param rotation number[] Non-zero quaternion x,y,z,w; KFC Runtime normalizes it before dispatch.
 --- @param bounds number[] AABB min xyz followed by max xyz.

@@ -20,6 +20,11 @@ struct RuntimeWorldContextLayout {
     std::size_t actor_frame_service_view{}, service_view_world{}, placement_context{};
     std::size_t place_queue{}, remove_queue{}, publish_state{}, publish_commands{}, owner{};
 };
+struct RuntimeWorldGrid {
+    std::string id;
+    double origin[3]{}, cell_size[3]{};
+    std::uint64_t maximum[3]{};
+};
 struct RuntimePatch {
     std::string name, signature, kind;
     std::string function_id;
@@ -41,6 +46,7 @@ inline std::vector<std::uint8_t> world_cursor_original;
 inline std::size_t world_cursor_capture_offset{};
 inline std::uintptr_t world_finish_event_id_rva{};
 inline RuntimeWorldContextLayout world_context_layout{};
+inline std::vector<RuntimeWorldGrid> runtime_world_grids;
 inline std::vector<RuntimeComponent> runtime_components;
 inline std::vector<RuntimeOperation> runtime_operations;
 inline std::vector<RuntimePatch> runtime_patches;

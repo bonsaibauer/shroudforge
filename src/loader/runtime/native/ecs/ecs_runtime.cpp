@@ -412,8 +412,7 @@ void query_bounds_on_game_thread(void* opaque) {
     }
     operation.result = operation.output.size();
 }
-void query_props_on_game_thread(void* opaque) {
-    auto& operation = *static_cast<PropQueryOperation*>(opaque);
+void query_props_native(PropQueryOperation& operation) {
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
     const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
         [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
@@ -427,11 +426,11 @@ void query_props_on_game_thread(void* opaque) {
     operation.output.clear();
     std::unordered_set<std::uint64_t> seen;
     seen.reserve(pointers.size());
+    ComponentType transform_component{transform_type->index, transform_type->size};
+    ComponentType item_component{item_type->index, item_type->size};
     for (const auto pointer : pointers) {
         EntityView entity{};
         if (!entity_view(pointer, layout, entity) || !seen.insert(identity_key(entity.id, entity.generation)).second) continue;
-        ComponentType transform_component{transform_type->index, transform_type->size};
-        ComponentType item_component{item_type->index, item_type->size};
         std::uintptr_t transform_address{}, item_address{};
         if (!component_address(entity, layout, transform_component, transform_address) ||
             !component_address(entity, layout, item_component, item_address)) continue;
@@ -999,6 +998,16 @@ extern "C" bool __cdecl KfcRuntimeEcsReady() {
     std::scoped_lock lock(state_mutex);
     return GameThreadDispatcher::Ready() && layout_ready && !types.empty();
 }
+extern "C" bool __cdecl KfcRuntimeEcsPropQueryReady() {
+    ResolvedLayout layout{};
+    if (!layout_snapshot(layout)) return false;
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    const auto transform = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
+    const auto item = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
+    return transform != runtime_components.end() && item != runtime_components.end();
+}
 extern "C" bool __cdecl KfcRuntimeEcsCanWrite() {
     std::scoped_lock lock(state_mutex);
     return GameThreadDispatcher::Ready() && layout_ready && !types.empty();
@@ -1072,8 +1081,7 @@ extern "C" std::size_t __cdecl KfcRuntimeEcsQueryBounds(const char* const* names
 }
 extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryProps(const double* bounds, double padding,
                                                                   KfcRuntimePropRecord* props, std::size_t capacity) {
-    if (!bounds || !std::isfinite(padding) || padding < 0 || capacity > (1u << 20) ||
-        !GameThreadDispatcher::Ready()) return SIZE_MAX;
+    if (!bounds || !std::isfinite(padding) || padding < 0 || capacity > (1u << 20) || (!props && capacity)) return SIZE_MAX;
     auto operation = std::make_shared<PropQueryOperation>();
     operation->padding = padding;
     for (int axis = 0; axis < 3; ++axis) {
@@ -1081,9 +1089,53 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryProps(const double* bou
         operation->bounds[axis] = bounds[axis];
         operation->bounds[axis + 3] = bounds[axis + 3];
     }
-    if (!GameThreadDispatcher::Invoke(query_props_on_game_thread, operation, 500) || operation->result == SIZE_MAX) return SIZE_MAX;
+    query_props_native(*operation);
+    if (operation->result == SIZE_MAX) return SIZE_MAX;
     if (props) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->output.size()), props);
     return operation->result;
+}
+extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, KfcRuntimePropRecord* prop) {
+    if (!handle || !prop) return false;
+    HandleRecord record{};
+    {
+        std::scoped_lock lock(state_mutex);
+        const auto found = handles.find(handle);
+        if (found == handles.end() || found->second.epoch != layout_epoch) return false;
+        record = found->second;
+    }
+    ResolvedLayout layout{};
+    if (!layout_snapshot(layout)) return false;
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
+    const auto item_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
+    if (transform_type == runtime_components.end() || item_type == runtime_components.end()) return false;
+    std::vector<std::uintptr_t> pointers;
+    if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return false;
+    const ComponentType transform_component{transform_type->index, transform_type->size};
+    const ComponentType item_component{item_type->index, item_type->size};
+    for (const auto pointer : pointers) {
+        EntityView entity{};
+        if (!entity_view(pointer, layout, entity) || entity.id != record.id || entity.generation != record.generation) continue;
+        std::uintptr_t transform_address{}, item_address{};
+        struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; } transform{};
+        std::uint32_t item_id{};
+        if (!component_address(entity, layout, transform_component, transform_address) ||
+            !component_address(entity, layout, item_component, item_address) ||
+            !read_bytes(transform_address, &transform, sizeof(transform)) ||
+            !read_bytes(item_address, &item_id, sizeof(item_id)) || !item_id) return false;
+        const auto current_handle = handle_for(entity);
+        if (current_handle != handle) return false;
+        *prop = {};
+        prop->entity_handle = handle;
+        prop->item_id = item_id;
+        std::copy_n(transform.position, 3, prop->position);
+        std::copy_n(transform.rotation, 4, prop->orientation);
+        std::copy_n(transform.scale, 3, prop->scale);
+        return true;
+    }
+    return false;
 }
 extern "C" std::uint32_t __cdecl KfcRuntimeEcsResolve(std::uint32_t entity_id) {
     operation_counters.resolves.fetch_add(1, std::memory_order_relaxed);

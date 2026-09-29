@@ -3,7 +3,7 @@ use mod_loader::{Capability, Mod};
 use shroudforge_compatibility::Availability;
 use std::rc::Rc;
 
-const KFC_RUNTIME_ABI_VERSION: u32 = 7;
+const KFC_RUNTIME_ABI_VERSION: u32 = 8;
 
 use crate::{
     RuntimePhase,
@@ -175,16 +175,23 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && runtime_provider::world_operation_available(feature)
                 && runtime_provider::world_context_active()
         }
+        "runtime.world.voxel.grid_spec" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::world_operation_available("runtime.world.voxel.read")
+        }
         "runtime.world.entity.spawn"
         | "runtime.world.entity.query_props"
+        | "runtime.world.entity.get_transform"
         | "runtime.world.entity.place"
         | "runtime.world.entity.destroy"
         | "runtime.world.entity.finish_building" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
-                && if feature == "runtime.world.entity.query_props" {
-                    runtime_provider::ready()
+                && if feature == "runtime.world.entity.query_props" || feature == "runtime.world.entity.get_transform" {
+                    runtime_provider::world_entity_query_props_ready()
                 } else {
                     runtime_provider::world_operation_available(feature)
                         && runtime_provider::world_entity_context_ready()
@@ -235,8 +242,10 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
     }
     let world_ready = if feature == "runtime.world.cursor.get" {
         runtime_provider::world_operation_available(&feature)
-    } else if feature == "runtime.world.entity.query_props" {
-        runtime_provider::ready()
+    } else if feature == "runtime.world.voxel.grid_spec" {
+        runtime_provider::world_operation_available("runtime.world.voxel.read")
+    } else if feature == "runtime.world.entity.query_props" || feature == "runtime.world.entity.get_transform" {
+        runtime_provider::world_entity_query_props_ready()
     } else if feature.starts_with("runtime.world.entity.") {
         runtime_provider::world_operation_available(&feature)
             && runtime_provider::world_entity_context_ready()
@@ -338,12 +347,14 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     let voxel = lua.create_table()?;
     add_function_with_mod(lua, &voxel, "read", r#mod, lua_world_voxel_read)?;
     add_function_with_mod(lua, &voxel, "write", r#mod, lua_world_voxel_write)?;
+    add_function_with_mod(lua, &voxel, "get_grid_spec", r#mod, lua_world_grid_get_spec)?;
     world.raw_set("voxel", voxel)?;
     let cursor = lua.create_table()?;
     add_function_with_mod(lua, &cursor, "get", r#mod, lua_world_cursor_get)?;
     world.raw_set("cursor", cursor)?;
     let entity = lua.create_table()?;
     add_function_with_mod(lua, &entity, "query_props", r#mod, lua_world_entity_query_props)?;
+    add_function_with_mod(lua, &entity, "get_transform", r#mod, lua_world_entity_get_transform)?;
     add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
     add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
     add_function_with_mod(lua, &entity, "destroy", r#mod, lua_world_entity_destroy)?;
@@ -503,6 +514,87 @@ fn lua_world_entity_query_props(
     Ok((LuaValue::Table(result), None))
 }
 
+fn lua_world_entity_get_transform(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.get_transform") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 1 {
+        return Err(LuaError::generic("runtime.world.entity.get_transform expects an entity handle"));
+    }
+    let handle = args.get::<u32>(0)?;
+    let Some(prop) = runtime_provider::world_entity_get_transform(handle) else {
+        return Ok((LuaValue::Nil, Some("entity handle is stale or not a live prop".into())));
+    };
+    let item = lua.create_table()?;
+    item.raw_set("handle", prop.entity_handle)?;
+    item.raw_set("itemId", prop.item_id)?;
+    let position = lua.create_table()?;
+    let axes = ["x", "y", "z"];
+    for axis in 0..3 {
+        let value = prop.position[axis] as f64 / 4_294_967_296.0;
+        position.raw_set(axis + 1, value)?;
+        position.raw_set(axes[axis], value)?;
+    }
+    let orientation = lua.create_table()?;
+    for (axis, name) in ["x", "y", "z", "w"].iter().enumerate() {
+        orientation.raw_set(axis + 1, prop.orientation[axis])?;
+        orientation.raw_set(*name, prop.orientation[axis])?;
+    }
+    let scale = lua.create_table()?;
+    for axis in 0..3 {
+        scale.raw_set(axis + 1, prop.scale[axis])?;
+        scale.raw_set(axes[axis], prop.scale[axis])?;
+    }
+    let transform = lua.create_table()?;
+    transform.raw_set("position", position)?;
+    transform.raw_set("orientation", orientation)?;
+    transform.raw_set("scale", scale)?;
+    item.raw_set("transform", transform)?;
+    Ok((LuaValue::Table(item), None))
+}
+
+fn lua_world_grid_get_spec(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.voxel.grid_spec") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 1 {
+        return Err(LuaError::generic("runtime.world.voxel.get_grid_spec expects a grid id, currently 'voxel'"));
+    }
+    let id = args.get::<String>(0)?;
+    match runtime_provider::world_grid_get_spec(&id) {
+        Some(spec) => {
+            let result = lua.create_table()?;
+            result.raw_set("id", spec.id)?;
+            for (field, values) in [("origin", spec.origin), ("cellSize", spec.cell_size)] {
+                let value = lua.create_table()?;
+                for axis in 0..3 {
+                    value.raw_set(axis + 1, values[axis])?;
+                    value.raw_set(["x", "y", "z"][axis], values[axis])?;
+                }
+                result.raw_set(field, value)?;
+            }
+            let maximum = lua.create_table()?;
+            for axis in 0..3 {
+                maximum.raw_set(axis + 1, spec.maximum[axis])?;
+                maximum.raw_set(["x", "y", "z"][axis], spec.maximum[axis])?;
+            }
+            result.raw_set("maximum", maximum)?;
+            Ok((LuaValue::Table(result), None))
+        }
+        None => Ok((LuaValue::Nil, Some("grid is unavailable; this backend currently exposes 'voxel'".into()))),
+    }
+}
+
 fn lua_world_entity_place(
     lua: &mlua::Lua,
     args: FunctionArgs,
@@ -516,6 +608,20 @@ fn lua_world_entity_destroy(
     args: FunctionArgs,
     r#mod: &Mod,
 ) -> mlua::Result<(bool, Option<String>)> {
+    if args.len() == 4 {
+        let state = lua.app_data_ref::<AppState>().unwrap();
+        if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.destroy") {
+            return Ok((false, Some(reason)));
+        }
+        let handle = args.get::<u32>(0)?;
+        let bounds = lua_vec::<6>(args.get::<mlua::Table>(1)?.clone(), "bounds")?.map(|value| value as f32);
+        let tracking = args.get::<u32>(2)?;
+        let feedback = args.get::<u32>(3)?;
+        return match runtime_provider::world_entity_destroy_handle(handle, bounds, tracking, feedback) {
+            Ok(()) => Ok((true, None)),
+            Err(reason) => Ok((false, Some(reason))),
+        };
+    }
     lua_world_entity_placement(lua, args, r#mod, true)
 }
 
@@ -1282,6 +1388,22 @@ mod runtime_provider {
     type WorldContextActive = unsafe extern "C" fn() -> bool;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
     type WorldEntityQueryProps = unsafe extern "C" fn(*const f64, f64, *mut PropRecord, usize) -> usize;
+    type WorldEntityGetTransform = unsafe extern "C" fn(u32, *mut PropRecord) -> bool;
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    pub struct GridSpec {
+        id: [c_char; 16],
+        origin: [f64; 3],
+        cell_size: [f64; 3],
+        maximum: [u64; 3],
+    }
+    pub struct GridSpecResult {
+        pub id: String,
+        pub origin: [f64; 3],
+        pub cell_size: [f64; 3],
+        pub maximum: [u64; 3],
+    }
+    type WorldGridGetSpec = unsafe extern "C" fn(*const c_char, *mut GridSpec) -> bool;
     type WorldCursorRead = unsafe extern "C" fn(*mut u8, usize, *mut u64) -> bool;
     type WorldVoxelRead =
         unsafe extern "C" fn(*const i32, *const u32, *mut u16, usize, *mut usize) -> bool;
@@ -1298,12 +1420,14 @@ mod runtime_provider {
     ) -> bool;
     type WorldEntityPlacement =
         unsafe extern "C" fn(*const f64, *const f64, *const f32, u32, u32, *mut u32) -> bool;
+    type WorldEntityDestroyHandle = unsafe extern "C" fn(u32, *const f32, u32, u32, *mut u32) -> bool;
     type WorldEntityFinish = unsafe extern "C" fn(bool, *mut u32) -> bool;
     type RuntimePatchAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type RuntimePatchSetEnabled = unsafe extern "C" fn(*const c_char, bool, *mut u32) -> bool;
     struct Provider {
         configure: Configure,
         ready: Ready,
+        prop_query_ready: Option<Ready>,
         can_write: Ready,
         describe: Describe,
         query: Query,
@@ -1315,12 +1439,15 @@ mod runtime_provider {
         world_context_active: WorldContextActive,
         world_entity_context_ready: WorldEntityContextReady,
         world_entity_query_props: WorldEntityQueryProps,
+        world_entity_get_transform: WorldEntityGetTransform,
         world_cursor_read: Option<WorldCursorRead>,
         world_voxel_read: WorldVoxelRead,
         world_voxel_write: WorldVoxelWrite,
+        world_grid_get_spec: WorldGridGetSpec,
         world_entity_spawn: WorldEntitySpawn,
         world_entity_place: WorldEntityPlacement,
         world_entity_destroy: WorldEntityPlacement,
+        world_entity_destroy_handle: WorldEntityDestroyHandle,
         world_entity_finish: WorldEntityFinish,
         runtime_patch_available: RuntimePatchAvailable,
         runtime_patch_set_enabled: RuntimePatchSetEnabled,
@@ -1368,6 +1495,10 @@ mod runtime_provider {
                         Ok(Provider {
                             configure: symbol!("KfcRuntimeEcsConfigure", Configure),
                             ready: symbol!("KfcRuntimeEcsReady", Ready),
+                            prop_query_ready: {
+                                let pointer = GetProcAddress(module, c"KfcRuntimeEcsPropQueryReady".as_ptr());
+                                (!pointer.is_null()).then(|| std::mem::transmute::<*const c_void, Ready>(pointer))
+                            },
                             can_write: symbol!("KfcRuntimeEcsCanWrite", Ready),
                             describe: symbol!("KfcRuntimeEcsDescribe", Describe),
                             query: symbol!("KfcRuntimeEcsQuery", Query),
@@ -1394,6 +1525,10 @@ mod runtime_provider {
                                 "KfcRuntimeWorldEntityQueryProps",
                                 WorldEntityQueryProps
                             ),
+                            world_entity_get_transform: symbol!(
+                                "KfcRuntimeWorldEntityGetTransform",
+                                WorldEntityGetTransform
+                            ),
                             world_cursor_read: {
                                 let pointer = GetProcAddress(
                                     module,
@@ -1408,6 +1543,7 @@ mod runtime_provider {
                                 "KfcRuntimeWorldVoxelWrite",
                                 WorldVoxelWrite
                             ),
+                            world_grid_get_spec: symbol!("KfcRuntimeWorldGridGetSpec", WorldGridGetSpec),
                             world_entity_spawn: symbol!(
                                 "KfcRuntimeWorldEntitySpawn",
                                 WorldEntitySpawn
@@ -1419,6 +1555,10 @@ mod runtime_provider {
                             world_entity_destroy: symbol!(
                                 "KfcRuntimeWorldEntityDestroy",
                                 WorldEntityPlacement
+                            ),
+                            world_entity_destroy_handle: symbol!(
+                                "KfcRuntimeWorldEntityDestroyHandle",
+                                WorldEntityDestroyHandle
                             ),
                             world_entity_finish: symbol!(
                                 "KfcRuntimeWorldEntityFinishBuilding",
@@ -1492,6 +1632,11 @@ mod runtime_provider {
     }
     pub fn ready() -> bool {
         provider().is_some_and(|value| unsafe { (value.ready)() })
+    }
+    pub fn world_entity_query_props_ready() -> bool {
+        provider().is_some_and(|value| unsafe {
+            value.prop_query_ready.map_or_else(|| (value.ready)(), |ready| ready())
+        })
     }
     pub fn can_write() -> bool {
         provider().is_some_and(|value| unsafe { (value.can_write)() })
@@ -1613,14 +1758,39 @@ mod runtime_provider {
         padding: f64,
     ) -> Result<Vec<PropRecord>, &'static str> {
         let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable"); };
-        let mut props = vec![PropRecord::default(); 100_000];
+        let count = unsafe {
+            (provider.world_entity_query_props)(bounds.as_ptr(), padding, std::ptr::null_mut(), 0)
+        };
+        if count == usize::MAX { return Err("native prop query failed"); }
+        if count > 100_000 { return Err("native prop query exceeded the 100,000-prop safety limit"); }
+        let mut props = vec![PropRecord::default(); count];
+        if count == 0 { return Ok(props); }
         let actual = unsafe {
             (provider.world_entity_query_props)(bounds.as_ptr(), padding, props.as_mut_ptr(), props.len())
         };
-        if actual == usize::MAX { return Err("native prop query failed or timed out"); }
-        if actual > props.len() { return Err("native prop query exceeded the 100,000-prop safety limit"); }
+        if actual == usize::MAX { return Err("native prop query failed while retrieving results"); }
+        if actual > 100_000 { return Err("native prop query exceeded the 100,000-prop safety limit"); }
+        if actual > props.len() { return Err("native prop query changed between count and retrieval"); }
         props.truncate(actual);
         Ok(props)
+    }
+    pub fn world_entity_get_transform(handle: u32) -> Option<PropRecord> {
+        let provider = provider()?;
+        let mut prop = PropRecord::default();
+        let ok = unsafe { (provider.world_entity_get_transform)(handle, &mut prop) };
+        ok.then_some(prop)
+    }
+    pub fn world_grid_get_spec(id: &str) -> Option<GridSpecResult> {
+        let provider = provider()?;
+        let id = CString::new(id).ok()?;
+        let mut spec = GridSpec::default();
+        let ok = unsafe { (provider.world_grid_get_spec)(id.as_ptr(), &mut spec) };
+        if !ok { return None; }
+        let id_end = spec.id.iter().position(|byte| *byte == 0).unwrap_or(spec.id.len());
+        let id = String::from_utf8_lossy(unsafe {
+            std::slice::from_raw_parts(spec.id.as_ptr().cast::<u8>(), id_end)
+        }).into_owned();
+        Some(GridSpecResult { id, origin: spec.origin, cell_size: spec.cell_size, maximum: spec.maximum })
     }
     pub fn world_entity_placement(
         destroy: bool,
@@ -1661,6 +1831,19 @@ mod runtime_provider {
                 outcome,
             ))
         }
+    }
+    pub fn world_entity_destroy_handle(
+        handle: u32,
+        bounds: [f32; 6],
+        tracking: u32,
+        feedback: u32,
+    ) -> Result<(), String> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable".into()); };
+        let mut outcome = 1u32;
+        let ok = unsafe {
+            (provider.world_entity_destroy_handle)(handle, bounds.as_ptr(), tracking, feedback, &mut outcome)
+        };
+        if ok { Ok(()) } else { Err(operation_error("runtime.world.entity.destroy", outcome)) }
     }
     pub fn world_entity_finish_building(complete: bool) -> Result<(), String> {
         let Some(provider) = provider() else {
@@ -1887,6 +2070,17 @@ mod runtime_provider {
     }
     pub fn world_entity_query_props(_: [f64; 6], _: f64) -> Result<Vec<PropRecord>, &'static str> {
         Err("native world runtime is available on Windows only")
+    }
+    pub fn world_entity_get_transform(_: u32) -> Option<PropRecord> { None }
+    pub struct GridSpecResult {
+        pub id: String,
+        pub origin: [f64; 3],
+        pub cell_size: [f64; 3],
+        pub maximum: [u64; 3],
+    }
+    pub fn world_grid_get_spec(_: &str) -> Option<GridSpecResult> { None }
+    pub fn world_entity_destroy_handle(_: u32, _: [f32; 6], _: u32, _: u32) -> Result<(), String> {
+        Err("native world runtime is available on Windows only".into())
     }
     pub fn world_entity_finish_building(_: bool) -> Result<(), String> {
         Err("native world runtime is available on Windows only".into())

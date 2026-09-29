@@ -109,6 +109,13 @@
       "ownerOffset": 308
     }
   },
+  "worldGrids": {
+    "voxel": {
+      "origin": [0.0, 0.0, 0.0],
+      "cellSize": [0.5, 0.5, 0.5],
+      "maximum": [2147483647, 2147483647, 2147483647]
+    }
+  },
   "worldOperations": {
     "runtime.world.context.active": {
       "abi": "global-pointer-chain",

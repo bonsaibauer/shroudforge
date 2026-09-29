@@ -13,6 +13,7 @@ and ECS metadata, to executable patch definitions.
 | `entityDefinitionLayout` | Offsets of the entity template UUID and name fields. |
 | `hooks` | Signature and original instruction bytes for runtime entry hooks. `captureOffset` is only used by the cursor hook. |
 | `worldContexts` | Offsets between the live game services used by world operations. |
+| `worldGrids` | Per-build grid IDs, world origins, cell sizes, and maximum dimensions exposed by the native world API. |
 | `worldOperations` | Guarded game functions or globals used by `runtime.world.*`. `*Rva` values are relative virtual addresses. |
 | `components` | ECS component index map. Each row has the game's qualified type `name`, registry `index`, and byte `size`. Keep rows ordered by index. |
 | `runtimePatches` | Explicit executable byte patches exposed as `runtime.patch.*`; these are code patches, not ECS component data. `signature` locates code, `payload` contains replacement bytes, and `function` records the owning function range. |

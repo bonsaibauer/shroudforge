@@ -32,6 +32,7 @@ local save_blueprint_named
 local previous_key_state = {}
 local observed_rotation_setting = nil
 local active_rotation_turns = nil
+local voxel_grid_spec = nil
 
 local function key_pressed(key)
     local down = shroudforge.input.is_key_down(key)
@@ -66,6 +67,26 @@ end
 
 local function finite_number(value)
     return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+local function get_voxel_grid_spec()
+    if voxel_grid_spec then return voxel_grid_spec end
+    if not runtime.has("runtime.world.voxel.grid_spec") then
+        local status = runtime.status("runtime.world.voxel.grid_spec")
+        return nil, status and status.reason or "native voxel grid metadata is unavailable"
+    end
+    local spec, reason = runtime.world.voxel.get_grid_spec("voxel")
+    if not spec then return nil, reason end
+    voxel_grid_spec = spec
+    return spec
+end
+
+local function grid_to_world(index, axis, spec)
+    return spec.origin[axis] + index * spec.cellSize[axis]
+end
+
+local function world_to_grid(position, axis, spec)
+    return math.floor((position - spec.origin[axis]) / spec.cellSize[axis] + 0.5)
 end
 
 local function live_read(entity, component_name)
@@ -126,9 +147,10 @@ local function rotated_blueprint(source, quarter_turns)
         end
         for _, prop in ipairs(props) do
             local x, y, z = prop.x, prop.y, prop.z
-            if axis == "x" then prop.y, prop.z = z, sy * 0.5 - y
-            elseif axis == "y" then prop.x, prop.z = z, sx * 0.5 - x
-            else prop.x, prop.y = sy * 0.5 - y, x end
+            local spec = voxel_grid_spec or {cellSize = {0.5, 0.5, 0.5}}
+            if axis == "x" then prop.y, prop.z = z, sy * spec.cellSize[2] - y
+            elseif axis == "y" then prop.x, prop.z = z, sx * spec.cellSize[1] - x
+            else prop.x, prop.y = sy * spec.cellSize[2] - y, x end
             local qx, qy, qz, qw = prop.qx, prop.qy, prop.qz, prop.qw
             if axis == "x" then
                 prop.qx, prop.qy, prop.qz, prop.qw = half_sqrt_two * (qx + qw),
@@ -334,6 +356,8 @@ local function resolve_placeable_items()
 end
 
 local function voxel_region(source, use_current_cursor, cursor_override)
+    local grid, grid_reason = get_voxel_grid_spec()
+    if not grid then return nil, grid_reason end
     local names = source and {"sourceX", "sourceY", "sourceZ"} or {"targetX", "targetY", "targetZ"}
     local x, y, z
     local sx, sy, sz
@@ -341,8 +365,8 @@ local function voxel_region(source, use_current_cursor, cursor_override)
         if not selection_a or not selection_b then
             return nil, "mark both selection corners at the cursor, or clear the cursor selection"
         end
-        local ax, ay, az = math.floor(selection_a.x * 2 + 0.5), math.floor(selection_a.y * 2 + 0.5), math.floor(selection_a.z * 2 + 0.5)
-        local bx, by, bz = math.floor(selection_b.x * 2 + 0.5), math.floor(selection_b.y * 2 + 0.5), math.floor(selection_b.z * 2 + 0.5)
+        local ax, ay, az = world_to_grid(selection_a.x, 1, grid), world_to_grid(selection_a.y, 2, grid), world_to_grid(selection_a.z, 3, grid)
+        local bx, by, bz = world_to_grid(selection_b.x, 1, grid), world_to_grid(selection_b.y, 2, grid), world_to_grid(selection_b.z, 3, grid)
         x, y, z = math.min(ax, bx), math.min(ay, by), math.min(az, bz)
         sx, sy, sz = math.abs(bx - ax) + 1, math.abs(by - ay) + 1, math.abs(bz - az) + 1
     else
@@ -357,7 +381,7 @@ local function voxel_region(source, use_current_cursor, cursor_override)
             return nil, cursor_reason or "the live cursor position is unavailable"
         end
         if point then
-            x, y, z = math.floor(point.x * 2 + 0.5), math.floor(point.y * 2 + 0.5), math.floor(point.z * 2 + 0.5)
+            x, y, z = world_to_grid(point.x, 1, grid), world_to_grid(point.y, 2, grid), world_to_grid(point.z, 3, grid)
         else
             x, y, z = tonumber(setting(names[1])), tonumber(setting(names[2])), tonumber(setting(names[3]))
         end
@@ -388,8 +412,10 @@ local function capture_region_props(region)
     if unavailable then return nil, unavailable end
     local recipes = resolve_placeable_items()
     if not recipes then return nil end
-    local minimum = {region.x / 2, region.y / 2, region.z / 2}
-    local maximum = {(region.x + region.sx) / 2, (region.y + region.sy) / 2, (region.z + region.sz) / 2}
+    local grid = get_voxel_grid_spec()
+    if not grid then return nil, "native voxel grid metadata is unavailable" end
+    local minimum = {grid_to_world(region.x, 1, grid), grid_to_world(region.y, 2, grid), grid_to_world(region.z, 3, grid)}
+    local maximum = {grid_to_world(region.x + region.sx, 1, grid), grid_to_world(region.y + region.sy, 2, grid), grid_to_world(region.z + region.sz, 3, grid)}
     -- Query prop pivots far enough outside the voxel box to include recipes
     -- whose rotated placement bounds overlap the selected region. Lua applies
     -- the exact per-recipe rotated-box test below.
@@ -529,26 +555,10 @@ local function count_prop_at(item, position)
     return #handles, handles
 end
 
-local function contains_handle(handles, expected)
-    for _, handle in ipairs(handles or {}) do
-        if handle == expected then return true end
-    end
-    return false
-end
-
 local function same_cells(left, right)
     if type(left) ~= "table" or type(right) ~= "table" or #left ~= #right then return false end
     for index = 1, #left do if left[index] ~= right[index] then return false end end
     return true
-end
-
-local function newly_matching_handles(before, after)
-    local result = {}
-    if type(before) ~= "table" or type(after) ~= "table" then return result end
-    for _, handle in ipairs(after or {}) do
-        if not contains_handle(before, handle) then result[#result + 1] = handle end
-    end
-    return result
 end
 
 local function finish_copy_voxels(region, cells, props, save_and_select)
@@ -790,11 +800,13 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
                 shroudforge.log.warn("World Editor cannot replace a target prop without a current ItemInfo recipe")
                 return
             end
-            local position = {target.x / 2 + prop.x, target.y / 2 + prop.y, target.z / 2 + prop.z}
+            local grid = get_voxel_grid_spec()
+            local position = {grid_to_world(target.x, 1, grid) + prop.x,
+                grid_to_world(target.y, 2, grid) + prop.y, grid_to_world(target.z, 3, grid) + prop.z}
             local rotation = {prop.qx, prop.qy, prop.qz, prop.qw}
-            local count, handles = count_prop_at(prop.itemId, position)
-            if count ~= 1 or not contains_handle(handles, prop.entityHandle) then
-                shroudforge.log.warn("World Editor refused replace-props paste because a target prop is stale or spatially ambiguous")
+            local live_prop = runtime.world.entity.get_transform(prop.entityHandle)
+            if not live_prop or live_prop.itemId ~= prop.itemId then
+                shroudforge.log.warn("World Editor refused replace-props paste because the captured entity handle is stale")
                 return
             end
             removed_props[#removed_props + 1] = {
@@ -808,15 +820,15 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         voxel_written = false, recovery_required = true,
     }
     for _, prop in ipairs(removed_props) do
-        local removed, remove_reason = runtime.world.entity.destroy(prop.position, prop.rotation,
+        local removed, remove_reason = runtime.world.entity.destroy(prop.entityHandle,
             prop.recipe.bounds, prop.recipe.id, prop.recipe.feedback)
-        local count_after, handles_after = count_prop_at(prop.recipe.id, prop.position)
-        local handle_gone = count_after ~= nil and not contains_handle(handles_after, prop.entityHandle)
+        local still_present = runtime.world.entity.get_transform(prop.entityHandle)
+        local handle_gone = still_present == nil
         if handle_gone then
             undo_state.removed_props[#undo_state.removed_props + 1] = prop
             undo_state.removed_prop_index = #undo_state.removed_props
         end
-        if count_after == nil or not handle_gone or count_after ~= 0 then
+        if not handle_gone then
             runtime.report_effect("write-failed", remove_reason or "target prop removal was not verified")
             shroudforge.log.warn("World Editor stopped before voxel paste because a target prop could not be safely removed")
             return
@@ -837,7 +849,8 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
     undo_state.expected_cells = paste_cells
     undo_state.voxel_written = true
     local spawned = {}
-    local origin = {target.x / 2, target.y / 2, target.z / 2}
+    local grid = get_voxel_grid_spec()
+    local origin = {grid_to_world(target.x, 1, grid), grid_to_world(target.y, 2, grid), grid_to_world(target.z, 3, grid)}
     for _, prop in ipairs(rotated.props or {}) do
         local recipe = resolve_placeable_items() and resolve_placeable_items()[prop.itemId]
         if not recipe then
@@ -847,41 +860,27 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         end
         local position = {origin[1] + prop.x, origin[2] + prop.y, origin[3] + prop.z}
         local rotation = {prop.qx, prop.qy, prop.qz, prop.qw}
-        local count_before, before_handles = count_prop_at(recipe.id, position)
-        if count_before == nil then
-            undo_state.entities, undo_state.entity_index = spawned, #spawned
-            runtime.report_effect("write-failed", before_handles or "could not snapshot the prop count before spawn")
-            shroudforge.log.error("World Editor stopped after voxel paste because prop state could not be snapshotted")
-            return
-        end
-        local token, spawn_reason = runtime.world.entity.spawn(recipe.uuidHigh, recipe.uuidLow,
+        local entity_handle, spawn_reason = runtime.world.entity.spawn(recipe.uuidHigh, recipe.uuidLow,
             position, rotation, recipe.id, 0)
-        if not token then
-            local count_after, after_handles = count_prop_at(recipe.id, position)
-            if count_after and count_after > count_before then
-                local new_handles = newly_matching_handles(before_handles, after_handles)
-                spawned[#spawned + 1] = {recipe = recipe, position = position, rotation = rotation,
-                    token = nil, entityHandle = #new_handles == 1 and new_handles[1] or nil}
-            end
+        if not entity_handle then
             runtime.report_effect("write-failed", spawn_reason or "entity spawn was not verified")
             shroudforge.log.error("World Editor stopped after partial paste; entity spawn failed for item " ..
                 tostring(prop.itemId) .. ": " .. tostring(spawn_reason))
             undo_state.entities, undo_state.entity_index = spawned, #spawned
             return
         end
-        local matching_count, after_handles = count_prop_at(recipe.id, position)
-        local new_handles = matching_count ~= nil and newly_matching_handles(before_handles, after_handles) or {}
-        if not matching_count or matching_count <= count_before or #new_handles ~= 1 then
+        local created = runtime.world.entity.get_transform(entity_handle)
+        if not created or created.itemId ~= recipe.id then
             spawned[#spawned + 1] = {recipe = recipe, position = position, rotation = rotation,
-                token = token, entityHandle = #new_handles == 1 and new_handles[1] or nil}
+                entityHandle = entity_handle}
             undo_state.entities, undo_state.entity_index = spawned, #spawned
-            local detail = after_handles or "spawn returned but Lua could not uniquely identify its new live ECS handle"
+            local detail = "spawn returned an entity handle that did not resolve to the requested live prop"
             runtime.report_effect("write-failed", detail)
             shroudforge.log.error("World Editor stopped after spawn because it could not track the new prop: " .. tostring(detail))
             return
         end
         spawned[#spawned + 1] = {recipe = recipe, position = position, rotation = rotation,
-            token = token, entityHandle = new_handles[1]}
+            entityHandle = entity_handle}
     end
     undo_state.entities, undo_state.entity_index = spawned, #spawned
     undo_state.recovery_required = false
@@ -912,37 +911,23 @@ local function undo_voxels()
     local index = undo_state.entity_index or #entities
     while index >= 1 do
         local entity = entities[index]
-        local current_count, current_handles = count_prop_at(entity.recipe.id, entity.position)
-        if current_count == nil then
-            runtime.report_effect("write-failed", current_handles or "could not inspect pasted props before undo")
+        local current = entity.entityHandle and runtime.world.entity.get_transform(entity.entityHandle)
+        if not entity.entityHandle then
+            runtime.report_effect("write-failed", "pasted prop has no live entity handle")
             shroudforge.log.warn("World Editor paused undo because live prop state could not be inspected")
             return
         end
-        if current_count == 0 or (entity.entityHandle and not contains_handle(current_handles, entity.entityHandle)) then
+        if not current then
             index = index - 1
             undo_state.entity_index = index
         else
-            if not entity.entityHandle then
-                local detail = "the pasted entity has no unique live ECS handle; undo cannot safely target it"
-                runtime.report_effect("write-failed", detail)
-                shroudforge.log.warn("World Editor paused undo to avoid deleting an unrelated prop or rolling back only the voxels")
-                return
-            end
-            if current_count ~= 1 then
-                local detail = "multiple matching props share this transform; the spatial native API cannot safely target one for undo"
-                runtime.report_effect("write-failed", detail)
-                shroudforge.log.warn("World Editor paused undo because the pasted prop cannot be identified uniquely")
-                return
-            end
-            local removed, remove_reason = runtime.world.entity.destroy(entity.position, entity.rotation,
+            local removed, remove_reason = runtime.world.entity.destroy(entity.entityHandle,
                 entity.recipe.bounds, entity.recipe.id, entity.recipe.feedback)
-            local after_count, after_handles = count_prop_at(entity.recipe.id, entity.position)
-            if after_count ~= nil and not contains_handle(after_handles, entity.entityHandle) and
-               (removed or after_count < current_count) then
+            if not runtime.world.entity.get_transform(entity.entityHandle) then
                 index = index - 1
                 undo_state.entity_index = index
             else
-                local detail = remove_reason or after_handles or "the exact pasted ECS handle is still present after the destroy call"
+                local detail = remove_reason or "the exact pasted ECS handle is still present after the destroy call"
                 runtime.report_effect("write-failed", detail)
                 shroudforge.log.error("World Editor paused undo and preserved its progress: " .. tostring(detail))
                 return
@@ -964,21 +949,22 @@ local function undo_voxels()
     while removed_index >= 1 do
         local prop = undo_state.removed_props[removed_index]
         if not feature("runtime.world.entity.spawn") then return end
-        local before_count, before_reason = count_prop_at(prop.recipe.id, prop.position)
-        if before_count == nil then
-            shroudforge.log.error("World Editor paused undo because replaced target props could not be inspected: " .. tostring(before_reason))
+        local before = runtime.world.entity.query_props({prop.position[1] - 0.01, prop.position[2] - 0.01, prop.position[3] - 0.01,
+            prop.position[1] + 0.01, prop.position[2] + 0.01, prop.position[3] + 0.01}, 0)
+        if not before then
+            shroudforge.log.error("World Editor paused undo because replaced target props could not be inspected")
             return
         end
-        if before_count ~= 0 then
+        if #before ~= 0 then
             shroudforge.log.error("World Editor paused undo because a prop now occupies a position reserved for a replaced target prop")
             return
         end
-        local token, spawn_reason = runtime.world.entity.spawn(prop.recipe.uuidHigh, prop.recipe.uuidLow,
+        local entity_handle, spawn_reason = runtime.world.entity.spawn(prop.recipe.uuidHigh, prop.recipe.uuidLow,
             prop.position, prop.rotation, prop.recipe.id, 0)
-        local after_count, after_reason = count_prop_at(prop.recipe.id, prop.position)
-        if after_count == nil or after_count ~= 1 then
+        local restored = entity_handle and runtime.world.entity.get_transform(entity_handle)
+        if not restored or restored.itemId ~= prop.recipe.id then
             shroudforge.log.error("World Editor paused undo while restoring a replaced target prop: " ..
-                tostring(spawn_reason or after_reason or token or "spawn could not be uniquely verified"))
+                tostring(spawn_reason or "spawn could not be verified by entity handle"))
             return
         end
         removed_index = removed_index - 1
@@ -1086,26 +1072,15 @@ local function destroy_selected_prop()
         shroudforge.log.warn("World Editor: the selected handle is stale or has no verified ItemInfo placement recipe")
         return
     end
-    local count, handles = count_prop_at(item, {position.x, position.y, position.z})
-    if count == nil or count ~= 1 or not contains_handle(handles, handle) then
-        shroudforge.log.warn("World Editor cannot safely delete this selection: its handle is stale or the spatial target is ambiguous")
+    local live = runtime.world.entity.get_transform(handle)
+    if not live or live.itemId ~= item then
+        shroudforge.log.warn("World Editor cannot safely delete this selection: its handle is stale")
         return
     end
-    local rotation = {selected.qx, selected.qy, selected.qz, selected.qw}
-    local ok, reason = runtime.world.entity.destroy(
-        {position.x, position.y, position.z}, rotation, recipe.bounds, recipe.id, recipe.feedback)
-    if not ok then
-        local remaining, remaining_handles = count_prop_at(item, {position.x, position.y, position.z})
-        if remaining == nil or contains_handle(remaining_handles, handle) then
-            runtime.report_effect("write-failed", reason or "selected prop removal was not verified")
-            shroudforge.log.error("World Editor could not remove selected prop handle " .. tostring(handle) .. ": " .. tostring(reason))
-            return
-        end
-    end
-    local remaining, remaining_handles = count_prop_at(item, {position.x, position.y, position.z})
-    if remaining == nil or contains_handle(remaining_handles, handle) then
+    local ok, reason = runtime.world.entity.destroy(handle, recipe.bounds, recipe.id, recipe.feedback)
+    if runtime.world.entity.get_transform(handle) then
         runtime.report_effect("write-failed", "the selected live ECS handle remains after the destroy call")
-        shroudforge.log.error("World Editor could not confirm removal of the selected prop handle")
+        shroudforge.log.error("World Editor could not remove selected prop handle " .. tostring(handle) .. ": " .. tostring(reason))
         return
     end
     runtime.report_effect("write-confirmed", "The selected live ECS handle disappeared; save persistence is not verified")
@@ -1140,15 +1115,21 @@ local function spawn_entity()
         return
     end
     local position, rotation = entity_transform()
-    local token, reason = runtime.world.entity.spawn(setting("templateUuidHigh"), setting("templateUuidLow"),
+    local entity_handle, reason = runtime.world.entity.spawn(setting("templateUuidHigh"), setting("templateUuidLow"),
         position, rotation, tracking, 0)
-    if not token then
+    if not entity_handle then
         runtime.report_effect("waiting", reason or "native spawn was not dispatched")
         shroudforge.log.warn("World Editor spawn failed: " .. tostring(reason))
         return
     end
-    runtime.report_effect("write-confirmed", "Spawn was matched to a live ECS CurrentTransform and UsedItem record; token " .. tostring(token) .. " is not an entity handle")
-    shroudforge.log.info("World Editor verified the spawned prop in live ECS; engine queue token=" .. tostring(token) .. "; save persistence is not verified")
+    local prop = runtime.world.entity.get_transform(entity_handle)
+    if not prop or prop.itemId ~= tracking then
+        runtime.report_effect("write-failed", "spawn returned a handle that did not resolve to the requested live prop")
+        shroudforge.log.error("World Editor could not resolve the spawned entity handle")
+        return
+    end
+    runtime.report_effect("write-confirmed", "Spawn returned live ECS entity handle " .. tostring(entity_handle) .. "; save persistence is not verified")
+    shroudforge.log.info("World Editor verified spawned entity handle=" .. tostring(entity_handle))
 end
 
 local function placement_operation(destroy)
@@ -1170,9 +1151,9 @@ local function placement_operation(destroy)
         end
     end
     local position, rotation = entity_transform()
-    local before_count, before_reason = count_prop_at(tracking, position)
+    local before_count, before_handles = count_prop_at(tracking, position)
     if before_count == nil then
-        shroudforge.log.warn("World Editor cannot dispatch this operation without a readable pre-operation prop count: " .. tostring(before_reason))
+        shroudforge.log.warn("World Editor cannot dispatch this operation without a readable pre-operation prop count: " .. tostring(before_handles))
         return
     end
     if destroy and before_count == 0 then
@@ -1180,27 +1161,31 @@ local function placement_operation(destroy)
         shroudforge.log.warn("World Editor found no matching live prop to destroy")
         return
     end
+    if destroy and before_count ~= 1 then
+        shroudforge.log.warn("World Editor requires one unambiguous prop handle at the configured transform")
+        return
+    end
     local ok, reason
     if destroy then
-        ok, reason = runtime.world.entity.destroy(position, rotation, bounds, tracking, feedback or 0)
+        ok, reason = runtime.world.entity.destroy(before_handles[1], bounds, tracking, feedback or 0)
     else
         ok, reason = runtime.world.entity.place(position, rotation, bounds, tracking, feedback)
     end
-    local after_count, after_reason = count_prop_at(tracking, position)
-    if after_count == nil then
-        runtime.report_effect("no-change", "Native operation returned " .. tostring(ok) .. "; live ECS result could not be read: " .. tostring(after_reason))
-        shroudforge.log.warn("World Editor operation is unconfirmed because the live ECS could not be read: " .. tostring(after_reason))
-        return
-    end
     if destroy then
-        if after_count < before_count then
+        if not runtime.world.entity.get_transform(before_handles[1]) then
             runtime.report_effect("write-confirmed", "Matching live prop count decreased; save persistence is not verified")
-            shroudforge.log.info("World Editor verified the native prop removal in the live ECS")
+            shroudforge.log.info("World Editor verified exact-handle removal in the live ECS")
         else
             runtime.report_effect("write-failed", reason or "native destroy call did not reduce the matching live prop count")
             shroudforge.log.error("World Editor destroy did not remove a matching live prop")
         end
     else
+        local after_count, after_reason = count_prop_at(tracking, position)
+        if after_count == nil then
+            runtime.report_effect("no-change", "Native operation returned " .. tostring(ok) .. "; live ECS result could not be read: " .. tostring(after_reason))
+            shroudforge.log.warn("World Editor operation is unconfirmed because the live ECS could not be read: " .. tostring(after_reason))
+            return
+        end
         if after_count > before_count then
             runtime.report_effect("write-confirmed", "Matching live prop count increased after placement; save persistence is not verified")
             shroudforge.log.info("World Editor verified native placement in the live ECS")

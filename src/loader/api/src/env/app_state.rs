@@ -307,7 +307,13 @@ impl AppState {
             };
             self.report_runtime_effect(id, state, detail);
         } else {
-            self.runtime_effects.borrow_mut().remove(id);
+            let mut effects = self.runtime_effects.borrow_mut();
+            if effects
+                .get(id)
+                .is_some_and(|effect| effect["state"] != "restart-required")
+            {
+                effects.remove(id);
+            }
         }
     }
 
@@ -378,6 +384,16 @@ impl AppState {
         target_mod: &Mod,
         relative_path: &str,
     ) -> Result<(), String> {
+        if !target_mod.info().enabled {
+            self.report_runtime_effect(
+                &target_mod.info().id,
+                "restart-required",
+                "Native DLL was skipped because the mod is disabled. Enable it and restart the game to load the DLL.",
+            );
+            tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                dll = %relative_path, "Native DLL skipped because mod is disabled; restart required after enabling");
+            return Ok(());
+        }
         self.queue_mod_native_dll(target_mod, relative_path)
     }
 

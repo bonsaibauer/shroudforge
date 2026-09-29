@@ -8,6 +8,7 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
+    "Uses registered native world APIs for entity handles, transform reads, safe handle-targeted removal, and voxel grid metadata.",
     "Packages the standalone mod as world-editor and exposes F3 rotation in Keyboard shortcuts.",
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
   ],

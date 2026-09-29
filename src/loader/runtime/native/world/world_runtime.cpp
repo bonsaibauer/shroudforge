@@ -12,6 +12,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <vector>
+#include <unordered_set>
 
 namespace WorldRuntime {
 namespace {
@@ -283,7 +284,7 @@ void execute_entity_request(const std::shared_ptr<EntityRequest>& request, void*
 bool invoke_entity_request(const std::shared_ptr<EntityRequest>& request, std::uint32_t* outcome) {
     if (!outcome) return false;
     *outcome = 1;
-    if (!GameThreadDispatcher::EntityContextReady() || !request->completed) return false;
+    if (!request->completed) return false;
     std::shared_ptr<EntityRequest> empty;
     if (!pending_entity_request.compare_exchange_strong(empty, request, std::memory_order_acq_rel)) return false;
     if (WaitForSingleObject(request->completed, OperationTimeoutMs) != WAIT_OBJECT_0) {
@@ -298,71 +299,27 @@ bool invoke_entity_request(const std::shared_ptr<EntityRequest>& request, std::u
     return false;
 }
 
-bool component_address(std::uintptr_t layout, std::uintptr_t storage, std::uint32_t row,
-                       std::uint16_t index, std::uint32_t expected_size, std::uintptr_t& address) {
-    using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    std::uint64_t bits{};
-    std::uint16_t offset{}, stride{};
-    if (!layout || !storage || !component_offsets || !component_strides ||
-        !read_memory(layout + component_bits + (index / 64) * sizeof(std::uint64_t), &bits, sizeof(bits)) ||
-        !(bits & (std::uint64_t{1} << (index % 64))) ||
-        !read_memory(layout + component_offsets + index * sizeof(offset), &offset, sizeof(offset)) ||
-        !read_memory(layout + component_strides + index * sizeof(stride), &stride, sizeof(stride)) ||
-        stride != expected_size) return false;
-    address = storage + offset + static_cast<std::uintptr_t>(row) * stride;
-    return true;
-}
-
+bool matching_prop_handles(const EntityRequest& request, std::vector<std::uint32_t>& handles);
 bool count_spawn_matches(const EntityRequest& request, std::size_t& matches) {
-    using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    const auto& components = runtime_components;
-    const auto manager = GameThreadDispatcher::EntityManager();
-    const auto transform_type = std::find_if(components.begin(), components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
-    const auto item_type = std::find_if(components.begin(), components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
-    if (!manager || transform_type == components.end() || item_type == components.end()) return false;
-    std::uint64_t count{};
-    std::uintptr_t table{};
-    if (!read_memory(manager + entity_manager_count, &count, sizeof(count)) || !count || count > (1u << 20) ||
-        !read_memory(manager + entity_manager_table, &table, sizeof(table)) || !table) return false;
-    std::vector<std::uintptr_t> pointers(static_cast<std::size_t>(count));
-    if (!read_memory(table, pointers.data(), pointers.size() * sizeof(pointers[0]))) return false;
-    matches = 0;
-    for (const auto pointer : pointers) {
-        if (!pointer) continue;
-        std::uintptr_t layout{}, storage{};
-        std::uint32_t row{}, id{};
-        if (!read_memory(pointer + entity_id, &id, sizeof(id)) || !id ||
-            !read_memory(pointer + entity_layout, &layout, sizeof(layout)) || !layout ||
-            !read_memory(pointer + entity_storage, &storage, sizeof(storage)) || !storage ||
-            !read_memory(pointer + entity_row, &row, sizeof(row))) continue;
-        std::uintptr_t item_address{};
-        std::uint32_t tracking{};
-        if (!component_address(layout, storage, row, item_type->index, item_type->size, item_address) ||
-            !read_memory(item_address, &tracking, sizeof(tracking)) || tracking != request.tracking) continue;
-        std::uintptr_t transform_address{};
-        EngineTransform transform{};
-        if (!component_address(layout, storage, row, transform_type->index, transform_type->size, transform_address) ||
-            !read_memory(transform_address, &transform, sizeof(transform))) continue;
-        bool position_matches = true;
-        for (int axis = 0; axis < 3; ++axis) {
-            const auto expected = std::ldexp(request.position[axis], 32);
-            if (!std::isfinite(expected) || std::abs(static_cast<long double>(transform.position[axis]) - expected) > (1LL << 24)) {
-                position_matches = false;
-                break;
-            }
-        }
-        if (position_matches) ++matches;
-    }
+    std::vector<std::uint32_t> handles;
+    if (!matching_prop_handles(request, handles)) return false;
+    matches = handles.size();
     return true;
 }
 
-bool verify_spawn(const EntityRequest& request, std::size_t previous_matches) {
+bool verify_spawn(const EntityRequest& request, const std::vector<std::uint32_t>& before_handles,
+                  std::uint32_t& created_handle) {
     const auto deadline = GetTickCount64() + 2000;
     do {
-        std::size_t current_matches{};
-        if (count_spawn_matches(request, current_matches) && current_matches > previous_matches) return true;
+        std::vector<std::uint32_t> after_handles;
+        if (matching_prop_handles(request, after_handles)) {
+            std::vector<std::uint32_t> created;
+            for (auto handle : after_handles)
+                if (std::find(before_handles.begin(), before_handles.end(), handle) == before_handles.end())
+                    created.push_back(handle);
+            if (created.size() == 1) { created_handle = created.front(); return true; }
+            if (created.size() > 1) return false;
+        }
         if (GetTickCount64() < deadline) Sleep(10);
     } while (GetTickCount64() < deadline);
     return false;
@@ -460,6 +417,57 @@ bool cell_count(const std::uint32_t dimensions[3], std::size_t& count) {
     }
     return count <= MaximumCells;
 }
+
+bool get_grid_spec_native(const char* grid_id, KfcRuntimeGridSpec* spec) {
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    if (!grid_id || !spec || !OperationAvailable("runtime.world.voxel.read")) return false;
+    const auto found = std::find_if(runtime_world_grids.begin(), runtime_world_grids.end(),
+        [grid_id](const auto& grid) { return grid.id == grid_id; });
+    if (found == runtime_world_grids.end() || found->id.size() >= sizeof(spec->id)) return false;
+    *spec = {};
+    std::memcpy(spec->id, found->id.c_str(), found->id.size() + 1);
+    for (int axis = 0; axis < 3; ++axis) {
+        spec->origin[axis] = found->origin[axis];
+        spec->cell_size[axis] = found->cell_size[axis];
+        spec->maximum[axis] = found->maximum[axis];
+    }
+    return true;
+}
+
+bool matching_prop_handles(const EntityRequest& request, std::vector<std::uint32_t>& handles) {
+    constexpr double tolerance = 0.01;
+    double bounds[6]{};
+    for (int axis = 0; axis < 3; ++axis) {
+        bounds[axis] = request.position[axis] - tolerance;
+        bounds[axis + 3] = request.position[axis] + tolerance;
+    }
+    const auto count = KfcRuntimeWorldEntityQueryProps(bounds, 0.0, nullptr, 0);
+    if (count == SIZE_MAX || count > 100'000) return false;
+    std::vector<KfcRuntimePropRecord> props(count);
+    if (count) {
+        const auto actual = KfcRuntimeWorldEntityQueryProps(bounds, 0.0, props.data(), props.size());
+        if (actual == SIZE_MAX || actual > props.size()) return false;
+        props.resize(actual);
+    }
+    handles.clear();
+    for (const auto& prop : props) {
+        if (prop.item_id != request.tracking) continue;
+        bool matches = true;
+        for (int axis = 0; axis < 3; ++axis) {
+            const auto expected = std::ldexp(request.position[axis], 32);
+            if (!std::isfinite(expected) || std::abs(static_cast<long double>(prop.position[axis]) - expected) > (1LL << 24)) {
+                matches = false;
+                break;
+            }
+        }
+        if (matches && prop.entity_handle) handles.push_back(prop.entity_handle);
+    }
+    return true;
+}
+}
+
+bool GetGridSpec(const char* grid_id, KfcRuntimeGridSpec* spec) {
+    return get_grid_spec_native(grid_id, spec);
 }
 
 bool OperationAvailable(const char* name) {
@@ -469,7 +477,14 @@ bool OperationAvailable(const char* name) {
     return operation && operation->available;
 }
 
-bool EntityContextReady() { return GameThreadDispatcher::EntityContextReady(); }
+bool EntityContextReady() {
+    const auto actor_world = observed_actor_world.load(std::memory_order_acquire);
+    return actor_world && valid_world_context(actor_world) &&
+        OperationAvailable("runtime.world.entity.spawn") &&
+        OperationAvailable("runtime.world.entity.place") &&
+        OperationAvailable("runtime.world.entity.destroy") &&
+        OperationAvailable("runtime.world.entity.finish_building");
+}
 
 void OnPropUpdate(void* execution_view, void* actor_frame) {
     observe_actor_world(actor_frame);
@@ -569,10 +584,10 @@ bool WriteVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3]
 
 bool SpawnEntity(const std::uint64_t template_uuid[2], const double position[3],
                  const double rotation[4], std::uint32_t tracking, std::uint32_t flags,
-                 std::uint32_t* queue_token, std::uint32_t* outcome) {
-    if (!queue_token || !template_uuid || !position || !rotation || !outcome || !tracking ||
+                 std::uint32_t* entity_handle, std::uint32_t* outcome) {
+    if (!entity_handle || !template_uuid || !position || !rotation || !outcome || !tracking ||
         !OperationAvailable("runtime.world.entity.spawn")) return false;
-    std::size_t previous_matches{};
+    *entity_handle = 0;
     auto request = std::make_shared<EntityRequest>();
     request->kind = EntityRequest::Kind::Spawn;
     std::copy_n(template_uuid, 2, request->template_uuid);
@@ -580,11 +595,11 @@ bool SpawnEntity(const std::uint64_t template_uuid[2], const double position[3],
     std::copy_n(rotation, 4, request->rotation);
     request->tracking = tracking;
     request->flags = flags;
-    if (!count_spawn_matches(*request, previous_matches)) { *outcome = 1; return false; }
+    std::vector<std::uint32_t> before_handles;
+    if (!matching_prop_handles(*request, before_handles)) { *outcome = 1; return false; }
     const auto ok = invoke_entity_request(request, outcome);
-    *queue_token = request->queue_token;
     if (!ok) return false;
-    if (verify_spawn(*request, previous_matches)) return true;
+    if (verify_spawn(*request, before_handles, *entity_handle)) return true;
     *outcome = 4; // command ran, but no matching live ECS entity was observed
     return false;
 }
@@ -628,6 +643,42 @@ bool DestroyEntity(const double position[3], const double rotation[4], const flo
     return false;
 }
 
+bool DestroyEntityHandle(std::uint32_t entity_handle, const float bounds[6],
+                         std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
+    if (!entity_handle || !bounds || !tracking || !outcome) return false;
+    KfcRuntimePropRecord prop{};
+    if (!KfcRuntimeWorldEntityGetTransform(entity_handle, &prop) || prop.item_id != tracking) {
+        *outcome = 1;
+        return false;
+    }
+    double position[3]{}, rotation[4]{};
+    for (int axis = 0; axis < 3; ++axis) position[axis] = static_cast<double>(prop.position[axis]) / 4294967296.0;
+    for (int axis = 0; axis < 4; ++axis) rotation[axis] = prop.orientation[axis];
+    if (!OperationAvailable("runtime.world.entity.destroy") ||
+        !OperationAvailable("runtime.world.entity.finish_building")) { *outcome = 1; return false; }
+    for (int axis = 0; axis < 3; ++axis)
+        if (!std::isfinite(bounds[axis]) || !std::isfinite(bounds[axis + 3]) || bounds[axis] > bounds[axis + 3]) {
+            *outcome = 1;
+            return false;
+        }
+    auto request = std::make_shared<EntityRequest>();
+    request->kind = EntityRequest::Kind::Destroy;
+    std::copy_n(position, 3, request->position);
+    std::copy_n(rotation, 4, request->rotation);
+    std::copy_n(bounds, 6, request->bounds);
+    request->tracking = tracking;
+    request->feedback = feedback;
+    if (!invoke_entity_request(request, outcome)) return false;
+    const auto deadline = GetTickCount64() + 2000;
+    do {
+        KfcRuntimePropRecord current{};
+        if (!KfcRuntimeWorldEntityGetTransform(entity_handle, &current)) return true;
+        Sleep(10);
+    } while (GetTickCount64() < deadline);
+    *outcome = 4;
+    return false;
+}
+
 bool FinishBuilding(bool complete, std::uint32_t* outcome) {
     if (!outcome || !OperationAvailable("runtime.world.entity.finish_building")) return false;
     auto request = std::make_shared<EntityRequest>();
@@ -648,14 +699,17 @@ bool __cdecl KfcRuntimeWorldVoxelRead(const std::int32_t* origin, const std::uin
     std::uint16_t* values, std::size_t capacity, std::size_t* actual) {
     return WorldRuntime::ReadVoxels(origin, dimensions, values, capacity, actual);
 }
+bool __cdecl KfcRuntimeWorldGridGetSpec(const char* grid_id, KfcRuntimeGridSpec* spec) {
+    return WorldRuntime::GetGridSpec(grid_id, spec);
+}
 bool __cdecl KfcRuntimeWorldVoxelWrite(const std::int32_t* origin, const std::uint32_t* dimensions,
     const std::uint16_t* values, std::size_t count, std::uint32_t* outcome) {
     return WorldRuntime::WriteVoxels(origin, dimensions, values, count, outcome);
 }
 bool __cdecl KfcRuntimeWorldEntitySpawn(const std::uint64_t* template_uuid, const double* position,
     const double* rotation, std::uint32_t tracking, std::uint32_t flags,
-    std::uint32_t* queue_token, std::uint32_t* outcome) {
-    return WorldRuntime::SpawnEntity(template_uuid, position, rotation, tracking, flags, queue_token, outcome);
+    std::uint32_t* entity_handle, std::uint32_t* outcome) {
+    return WorldRuntime::SpawnEntity(template_uuid, position, rotation, tracking, flags, entity_handle, outcome);
 }
 bool __cdecl KfcRuntimeWorldEntityPlace(const double* position, const double* rotation,
     const float* bounds, std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
@@ -664,6 +718,10 @@ bool __cdecl KfcRuntimeWorldEntityPlace(const double* position, const double* ro
 bool __cdecl KfcRuntimeWorldEntityDestroy(const double* position, const double* rotation,
     const float* bounds, std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
     return WorldRuntime::DestroyEntity(position, rotation, bounds, tracking, feedback, outcome);
+}
+bool __cdecl KfcRuntimeWorldEntityDestroyHandle(std::uint32_t entity_handle, const float* bounds,
+    std::uint32_t tracking, std::uint32_t feedback, std::uint32_t* outcome) {
+    return WorldRuntime::DestroyEntityHandle(entity_handle, bounds, tracking, feedback, outcome);
 }
 bool __cdecl KfcRuntimeWorldEntityFinishBuilding(bool complete, std::uint32_t* outcome) {
     return WorldRuntime::FinishBuilding(complete, outcome);

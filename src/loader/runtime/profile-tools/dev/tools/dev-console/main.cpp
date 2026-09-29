@@ -7,6 +7,7 @@
 #include <array>
 #include <charconv>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -297,6 +298,18 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
         for (const char* key : {"actorFrameServiceViewOffset", "serviceViewWorldOffset", "placementContextOffset",
              "placeQueueOffset", "removeQueueOffset", "publishStateOffset", "publishCommandsOffset", "ownerOffset"})
             if (placement.at(key).get<std::uint64_t>() > 0x10000) throw std::runtime_error(std::string("world context offset out of range: ") + key);
+        const auto& grids = profile.at("worldGrids");
+        if (!grids.is_object() || grids.empty()) throw std::runtime_error("world grid catalog is missing or empty");
+        for (auto item = grids.begin(); item != grids.end(); ++item) {
+            const auto origin = item.value().at("origin").get<std::vector<double>>();
+            const auto cell_size = item.value().at("cellSize").get<std::vector<double>>();
+            const auto maximum = item.value().at("maximum").get<std::vector<std::uint64_t>>();
+            if (item.key().empty() || item.key().size() >= 16 || origin.size() != 3 || cell_size.size() != 3 || maximum.size() != 3)
+                throw std::runtime_error("invalid world grid specification: " + item.key());
+            for (std::size_t axis = 0; axis < 3; ++axis)
+                if (!std::isfinite(origin[axis]) || !std::isfinite(cell_size[axis]) || cell_size[axis] <= 0 || !maximum[axis])
+                    throw std::runtime_error("invalid world grid specification: " + item.key());
+        }
         const auto& operations = profile.at("worldOperations");
         if (operations.empty()) throw std::runtime_error("world operation catalog is empty");
         for (auto item = operations.begin(); item != operations.end(); ++item) {
