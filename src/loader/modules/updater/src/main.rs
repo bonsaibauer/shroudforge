@@ -1206,10 +1206,13 @@ pub fn run_module() -> Result<(), String> {
         });
     }
     if args.len() == 1 {
-        let root = std::env::current_exe()
-            .map_err(|error| error.to_string())?
+        let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+        let module_directory = executable
             .parent()
-            .ok_or("updater executable has no installation directory")?
+            .ok_or("updater executable has no module directory")?;
+        let root = module_directory
+            .parent()
+            .ok_or("updater executable is not inside the ShroudForge module directory")?
             .to_path_buf();
         return scheduled::request_update_window(&root).map_err(|error| {
             let _ = shroudforge_package::logging::append(&root, 'E', "updater-window", &error);
