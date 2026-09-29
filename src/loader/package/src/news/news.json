@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "messages": [
     {
+      "id": "shroudforge-discord-1",
+      "kind": "notice.discord",
+      "title": "Meet the Enshrouded modding community",
+      "message": "Join the Enshrouded Modding Discord to get help, connect with other players, and talk about modding.",
+      "level": "info",
+      "actionUrl": "https://discord.com/invite/jH2gNJYnt2",
+      "actionLabelKey": "news.notice.discord.join"
+    },
+    {
       "id": "shroudforge-welcome-1.0.0",
       "kind": "notice.welcome",
       "title": "Welcome to ShroudForge",

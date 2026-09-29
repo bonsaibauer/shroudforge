@@ -30,7 +30,8 @@
           "level": { "enum": ["info", "warning", "error", "success", "update"] },
           "updatedAt": { "type": "integer", "minimum": 0 },
           "repeatEveryDays": { "type": "integer", "minimum": 1, "maximum": 3650 },
-          "actionUrl": { "type": "string", "pattern": "^https://" }
+          "actionUrl": { "type": "string", "pattern": "^https://" },
+          "actionLabelKey": { "type": "string", "maxLength": 120 }
         }
       }
     }

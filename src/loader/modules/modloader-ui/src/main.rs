@@ -253,6 +253,8 @@ mod windows {
         message: String,
         level: String,
         action_url: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        action_label_key: Option<String>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         actions: Vec<NoticeAction>,
         updated_at: u64,
@@ -2178,6 +2180,10 @@ mod windows {
                         .and_then(|value| value.as_str())
                         .filter(|url| url.starts_with("https://"))
                         .map(str::to_owned),
+                    action_label_key: value
+                        .get("actionLabelKey")
+                        .and_then(|value| value.as_str())
+                        .map(str::to_owned),
                     actions: value
                         .get("actions")
                         .and_then(|value| value.as_array())
@@ -2376,6 +2382,7 @@ mod windows {
                     message: String::new(),
                     level: if error { "error" } else { "warning" }.into(),
                     action_url: None,
+                    action_label_key: None,
                     actions,
                     updated_at,
                     kind: Some(if error { "log.error" } else { "log.warning" }.into()),

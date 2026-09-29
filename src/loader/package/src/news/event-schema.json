@@ -6,7 +6,7 @@
     "title":{"type":"string","maxLength":120},"message":{"type":"string","maxLength":2000},
     "level":{"enum":["info","warning","error","success","update"]},
     "modId":{"type":"string"},"updatedAt":{"type":"integer","minimum":0},
-    "actionUrl":{"type":["string","null"],"pattern":"^https://"},
+    "actionUrl":{"type":["string","null"],"pattern":"^https://"},"actionLabelKey":{"type":["string","null"],"maxLength":120},
     "kind":{"type":["string","null"]},"values":{"type":["object","null"]},
     "changelog":{"type":"array","items":{"type":"string"},"maxItems":50},
     "actions":{"type":"array","maxItems":4,"items":{"type":"object","required":["id","kind"],"properties":{"id":{"type":"string","maxLength":80},"kind":{"enum":["open-mod","open-debug-console"]},"target":{"type":"string","maxLength":80}},"additionalProperties":false}}

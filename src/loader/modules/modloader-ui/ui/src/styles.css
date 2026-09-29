@@ -41,6 +41,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 }
 .header-link .icon { color: var(--header-color, currentColor); transition: transform var(--sf-speed) ease; }
 .header-link.github { --header-color: #d4e4e5; --header-border: rgba(145, 181, 181, 0.26); --header-bg: rgba(34, 54, 57, 0.48); }
+.header-link.discord { --header-color: #b4baff; --header-border: rgba(88, 101, 242, 0.48); --header-bg: rgba(55, 63, 145, 0.3); }
 .header-link.danger { --header-color: #ff9a9f; --header-border: rgba(255, 112, 120, 0.28); --header-bg: rgba(96, 35, 40, 0.28); }
 .header-link.support { --header-color: var(--sf-gold-bright); --header-border: rgba(201, 173, 110, 0.3); --header-bg: rgba(91, 70, 36, 0.27); }
 .header-link.chirper { --header-color: #8be1f7; --header-border: rgba(83, 199, 234, 0.34); --header-bg: rgba(25, 89, 107, 0.32); }
@@ -49,6 +50,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
   transform: translateY(-1px);
 }
 .header-link.github:hover { border-color: rgba(145, 181, 181, 0.48); background: rgba(43, 70, 74, 0.74); box-shadow: 0 5px 17px rgba(83, 199, 234, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
+.header-link.discord:hover { border-color: rgba(139, 149, 255, 0.7); background: rgba(71, 82, 190, 0.48); box-shadow: 0 5px 17px rgba(88, 101, 242, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
 .header-link.danger:hover { border-color: rgba(255, 112, 120, 0.54); background: rgba(133, 48, 54, 0.5); box-shadow: 0 5px 17px rgba(255, 112, 120, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
 .header-link.support:hover { border-color: rgba(225, 203, 145, 0.55); background: rgba(120, 91, 45, 0.46); box-shadow: 0 5px 17px rgba(201, 173, 110, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
 .header-link.chirper:hover { border-color: rgba(139, 225, 247, 0.6); background: rgba(27, 111, 132, 0.5); box-shadow: 0 5px 17px rgba(83, 199, 234, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
