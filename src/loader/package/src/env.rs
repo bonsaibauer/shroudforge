@@ -102,7 +102,42 @@ impl ModEnvironment {
         is_server: bool,
         api_version: &str,
     ) -> (Vec<&crate::Mod>, Vec<String>) {
-        self.plan_report_inner(is_server, api_version, true)
+        let (mut plan, errors) = self.plan_report_inner(is_server, api_version, true);
+
+        // Asset-only and export-only mods have already run in the pregame
+        // phase. Do not build live Lua environments for them; the in-game
+        // runner only activates runtime-capable mods and their dependencies.
+        let mut runtime_ids: HashSet<String> = plan
+            .iter()
+            .filter(|item| {
+                item.info()
+                    .capabilities
+                    .iter()
+                    .any(|capability| capability.requires_runtime())
+            })
+            .map(|item| item.info().id.clone())
+            .collect();
+        loop {
+            let before = runtime_ids.len();
+            for item in &plan {
+                if !runtime_ids.contains(&item.info().id) {
+                    continue;
+                }
+                for dependency in &item.info().dependencies {
+                    if plan
+                        .iter()
+                        .any(|candidate| candidate.info().id == dependency.id)
+                    {
+                        runtime_ids.insert(dependency.id.clone());
+                    }
+                }
+            }
+            if runtime_ids.len() == before {
+                break;
+            }
+        }
+        plan.retain(|item| runtime_ids.contains(&item.info().id));
+        (plan, errors)
     }
 
     fn plan_report_inner(

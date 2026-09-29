@@ -408,11 +408,17 @@ impl IngameRuntime {
                 )
             })
             .collect();
+        tracing::info!(target: "shroudforge::runtime", "Setting up runtime mod runner");
         runner.setup(plan)?;
+        tracing::info!(target: "shroudforge::runtime", "Runtime mod runner setup finished");
         for target_mod in env.enabled_mods() {
             let app_state = runner.lua.app_data_ref::<AppState>().unwrap();
+            tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                "Checking native plugin sidecar");
             match app_state.load_native_plugin(target_mod) {
                 Ok(true) => {
+                    tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                        "Native plugin sidecar started");
                     app_state.report_runtime_effect(
                         &target_mod.info().id,
                         "loaded",
@@ -433,6 +439,8 @@ impl IngameRuntime {
         }
         let mut lifecycle = Vec::new();
         for id in runner.runtime_mod_ids() {
+            tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                "Loading runtime mod entrypoint");
             let module_result = runner.load_runtime_module(&id);
             let value = match module_result {
                 Ok(value) => value,

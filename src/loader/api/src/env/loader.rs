@@ -88,9 +88,16 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
             index_candidates = contract.len(),
             "Prepared KFC runtime component index candidates"
         );
-        if !runtime_provider::configure(&contract) {
+        let configured = runtime_provider::configure(&contract);
+        if !configured {
             tracing::warn!("KFC Runtime rejected the component contract");
         }
+        tracing::info!(
+            target: "shroudforge::runtime",
+            configured,
+            components = contract.len(),
+            "KFC runtime component contract configuration finished"
+        );
     }
     let table = lua.create_table()?;
     table.raw_set("phase", app_state.phase().as_str())?;

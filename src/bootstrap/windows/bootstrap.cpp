@@ -290,6 +290,10 @@ DWORD WINAPI run(void*) {
         FreeLibrary(runtime);
         return 1;
     }
+    // Keep the control windows available even when a runtime mod or EML native
+    // sidecar stalls or fails during shroudforge_create().
+    start_debug_console(root);
+    start_modloader_ui(root);
     if (!prepare_startup(root.c_str())) {
         log('W', "Automatic startup asset application did not complete; runtime mods will still start");
     }
@@ -304,8 +308,6 @@ DWORD WINAPI run(void*) {
         return 1;
     }
     log("Runtime initialized");
-    start_debug_console(root);
-    start_modloader_ui(root);
     auto previous = std::chrono::steady_clock::now();
     auto next_runtime_status = previous;
     std::string previous_runtime_status;
