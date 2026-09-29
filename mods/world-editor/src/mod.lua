@@ -313,12 +313,16 @@ local function resolve_placeable_items()
         shroudforge.log.warn("World Editor could not read ItemInfo assets: " .. tostring(resources))
         return nil
     end
+    local item_ids, placed_entities, valid_bounds_count, feedback_count = 0, 0, 0, 0
     for _, resource in ipairs(resources) do
         local data = resource.data
         local equipment = data and data.equipment
         local id = data and item_id(data.itemId)
         local reference = equipment and equipment.placedEntity
         local high, low = guid_halves(reference)
+        local valid_id = id and id > 0 and id % 1 == 0
+        if valid_id then item_ids = item_ids + 1 end
+        if valid_id and reference ~= nil then placed_entities = placed_entities + 1 end
         local minimum, maximum = equipment and equipment.placementAABBmin, equipment and equipment.placementAABBmax
         local bounds = minimum and maximum and {
             tonumber(minimum.x), tonumber(minimum.y), tonumber(minimum.z),
@@ -333,7 +337,8 @@ local function resolve_placeable_items()
         if valid_bounds then
             for axis = 1, 3 do if bounds[axis] > bounds[axis + 3] then valid_bounds = false end end
         end
-        if id and id > 0 and id % 1 == 0 and high and low and valid_bounds then
+        if valid_id and reference ~= nil and valid_bounds then
+            valid_bounds_count = valid_bounds_count + 1
             local feedback
             for _, collider in ipairs(equipment.placementColliders or {}) do
                 for _, entry in ipairs(collider.dataArray or {}) do
@@ -344,6 +349,7 @@ local function resolve_placeable_items()
                 end
                 if feedback and feedback ~= 0 then break end
             end
+            if feedback and feedback ~= 0 then feedback_count = feedback_count + 1 end
             if feedback and feedback ~= 0 then
                 resolved[id] = {
                     id = id, uuidHigh = high, uuidLow = low, feedback = feedback,
@@ -356,7 +362,9 @@ local function resolve_placeable_items()
     local count = 0
     for _ in pairs(resolved) do count = count + 1 end
     if count == 0 then
-        shroudforge.log.warn("World Editor found no supported ItemInfo placement recipes to register")
+        shroudforge.log.warn(string.format(
+            "World Editor found no supported ItemInfo placement recipes (resources=%d validItemIds=%d withPlacedEntity=%d withValidBounds=%d withFeedback=%d)",
+            #resources, item_ids, placed_entities, valid_bounds_count, feedback_count))
         return nil
     end
     local native_recipes = {}
