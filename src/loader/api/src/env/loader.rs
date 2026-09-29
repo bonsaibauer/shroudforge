@@ -3,6 +3,8 @@ use mod_loader::{Capability, Mod};
 use shroudforge_compatibility::Availability;
 use std::rc::Rc;
 
+const KFC_RUNTIME_ABI_VERSION: u32 = 7;
+
 use crate::{
     RuntimePhase,
     alias::MappedValue,
@@ -1246,6 +1248,7 @@ fn runtime_denial_reason(state: &AppState, r#mod: &Mod, feature: &str) -> Option
 
 #[cfg(windows)]
 mod runtime_provider {
+    use super::KFC_RUNTIME_ABI_VERSION;
     use std::{
         ffi::{CString, c_char, c_void},
         sync::OnceLock,
@@ -1357,9 +1360,9 @@ mod runtime_provider {
                     }
                     let abi = symbol!("KfcRuntimeAbi", unsafe extern "C" fn() -> u32);
                     let actual_abi = abi();
-                    if actual_abi != 7 {
+                    if actual_abi != KFC_RUNTIME_ABI_VERSION {
                         Err(format!(
-                            "provider-abi-mismatch:expected=7,actual={actual_abi}"
+                            "provider-abi-mismatch:expected={KFC_RUNTIME_ABI_VERSION},actual={actual_abi}"
                         ))
                     } else {
                         Ok(Provider {

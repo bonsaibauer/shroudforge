@@ -411,7 +411,7 @@ DWORD WINAPI run(void*) {
     }
     startup_stage(root, "native-provider-init");
     if (!EcsRuntime::Initialize()) {
-        log('W', "KFC Runtime unavailable for this game build; non-runtime mods remain available");
+        log('W', "KFC Runtime initialization failed: " + EcsRuntime::Status());
     }
     startup_stage(root, "runtime-create");
     std::mutex create_watchdog_mutex;

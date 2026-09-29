@@ -889,7 +889,7 @@ std::string Diagnostics() {
             {"entitiesSeen", sample.entity_count}, {"componentSlots", std::move(component_slots)}});
     }
     return nlohmann::json({
-        {"schemaVersion",1}, {"providerAbi",7},
+        {"schemaVersion",1}, {"providerAbi",KFC_RUNTIME_ABI_VERSION},
         {"profile",KfcRuntimeCompatibility::EnshroudedClient::status},
         {"candidateTypeBreakdown",nlohmann::json{
             {"total",configured_types.size()},

@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 /* Stable C ABI for native modloader hosts. Query KfcRuntimeAbi before use. */
+#define KFC_RUNTIME_ABI_VERSION 7u
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeAbi(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeInitialize(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);

@@ -1,6 +1,6 @@
 [submodule "src/parser/kfc-parser"]
 	path = src/parser/kfc-parser
-	url = https://github.com/Brabb3l/kfc-parser.git
+	url = https://github.com/bonsaibauer/kfc-parser.git
 [submodule "nlohmann-json"]
 	path = src/loader/runtime/native/json
 	url = https://github.com/nlohmann/json.git

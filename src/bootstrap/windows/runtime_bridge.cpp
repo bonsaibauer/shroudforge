@@ -28,8 +28,12 @@ bool Initialize() {
     tick = reinterpret_cast<VoidFunction>(GetProcAddress(provider, "KfcRuntimeTick"));
     shutdown = reinterpret_cast<VoidFunction>(GetProcAddress(provider, "KfcRuntimeShutdown"));
     status = reinterpret_cast<StatusFunction>(GetProcAddress(provider, "KfcRuntimeStatus"));
-    if (!abi || abi() != 5 || !initialize || !tick || !shutdown || !status) {
-        error = "incompatible-runtime-provider-ABI";
+    const auto actual_abi = abi ? abi() : 0;
+    if (!abi || actual_abi != KFC_RUNTIME_ABI_VERSION || !initialize || !tick || !shutdown || !status) {
+        error = abi
+            ? "incompatible-runtime-provider-ABI:expected=" + std::to_string(KFC_RUNTIME_ABI_VERSION) +
+                ",actual=" + std::to_string(actual_abi)
+            : "missing-runtime-provider-ABI-export";
         tick = nullptr; shutdown = nullptr; status = nullptr;
         FreeLibrary(provider); provider = nullptr; return false;
     }
