@@ -21,10 +21,12 @@
 #include <unordered_set>
 #include <vector>
 
-static_assert(sizeof(KfcRuntimePropRecord) == 64);
+static_assert(sizeof(KfcRuntimePropRecord) == 80);
+static_assert(sizeof(KfcRuntimePropRecipe) == 28);
 static_assert(offsetof(KfcRuntimePropRecord, position) == 8);
 static_assert(offsetof(KfcRuntimePropRecord, orientation) == 32);
 static_assert(offsetof(KfcRuntimePropRecord, scale) == 48);
+static_assert(offsetof(KfcRuntimePropRecord, template_uuid) == 64);
 
 namespace {
 constexpr std::size_t max_components = 1024;
@@ -127,6 +129,9 @@ std::unordered_map<std::uint32_t, ResolveCacheEntry> resolve_cache;
 std::uint32_t next_handle{1};
 std::uint64_t layout_epoch{1};
 std::mutex write_mutex;
+std::mutex prop_recipe_mutex;
+std::unordered_map<std::uint32_t, std::array<float, 6>> prop_recipes;
+bool prop_recipe_catalog_ready{};
 std::atomic<bool> stop_requested{};
 std::uintptr_t image_base{};
 
@@ -267,6 +272,7 @@ struct BoundsQueryOperation {
 struct PropQueryOperation {
     double bounds[6]{};
     double padding{};
+    bool exact_recipe_bounds{};
     std::vector<KfcRuntimePropRecord> output;
     std::size_t result{SIZE_MAX};
 };
@@ -412,6 +418,48 @@ void query_bounds_on_game_thread(void* opaque) {
     }
     operation.result = operation.output.size();
 }
+bool recipe_bounds_intersect(const KfcRuntimePropRecord& prop,
+                             const std::array<float, 6>& bounds,
+                             const double* query_bounds) {
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(bounds[axis]) || !std::isfinite(bounds[axis + 3]) ||
+            bounds[axis] > bounds[axis + 3]) return false;
+    }
+    const double qx = prop.orientation[0], qy = prop.orientation[1];
+    const double qz = prop.orientation[2], qw = prop.orientation[3];
+    const double norm = qx*qx + qy*qy + qz*qz + qw*qw;
+    const double sx = prop.scale[0], sy = prop.scale[1], sz = prop.scale[2];
+    if (!std::isfinite(norm) || norm <= 1e-12 || !std::isfinite(sx) ||
+        !std::isfinite(sy) || !std::isfinite(sz)) return false;
+    const double factor = 2.0 / norm;
+    const double rotation[3][3] = {
+        {1-factor*(qy*qy+qz*qz), factor*(qx*qy-qz*qw), factor*(qx*qz+qy*qw)},
+        {factor*(qx*qy+qz*qw), 1-factor*(qx*qx+qz*qz), factor*(qy*qz-qx*qw)},
+        {factor*(qx*qz-qy*qw), factor*(qy*qz+qx*qw), 1-factor*(qx*qx+qy*qy)},
+    };
+    const double scale[3]{sx, sy, sz};
+    double local_center[3]{}, local_half[3]{};
+    for (int axis = 0; axis < 3; ++axis) {
+        local_center[axis] = (static_cast<double>(bounds[axis]) + bounds[axis + 3]) * 0.5;
+        local_half[axis] = std::abs(static_cast<double>(bounds[axis + 3]) - bounds[axis]) * 0.5 * std::abs(scale[axis]);
+        local_center[axis] *= scale[axis];
+    }
+    double world_center[3]{}, world_half[3]{};
+    for (int row = 0; row < 3; ++row) {
+        world_center[row] = static_cast<double>(prop.position[row]) / 4294967296.0;
+        for (int column = 0; column < 3; ++column) {
+            world_center[row] += rotation[row][column] * local_center[column];
+            world_half[row] += std::abs(rotation[row][column]) * local_half[column];
+        }
+    }
+    if (world_half[0] + world_half[1] + world_half[2] < 1e-6)
+        world_half[0] = world_half[1] = world_half[2] = 0.25;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (world_center[axis] + world_half[axis] < query_bounds[axis] ||
+            world_center[axis] - world_half[axis] >= query_bounds[axis + 3]) return false;
+    }
+    return true;
+}
 void query_props_native(PropQueryOperation& operation) {
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
     const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
@@ -423,6 +471,12 @@ void query_props_native(PropQueryOperation& operation) {
     if (!layout_snapshot(layout)) return;
     std::vector<std::uintptr_t> pointers;
     if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return;
+    std::unordered_map<std::uint32_t, std::array<float, 6>> recipes;
+    if (operation.exact_recipe_bounds) {
+        std::scoped_lock lock(prop_recipe_mutex);
+        if (!prop_recipe_catalog_ready) return;
+        recipes = prop_recipes;
+    }
     operation.output.clear();
     std::unordered_set<std::uint64_t> seen;
     seen.reserve(pointers.size());
@@ -439,23 +493,31 @@ void query_props_native(PropQueryOperation& operation) {
         std::uint32_t item_id{};
         if (!read_bytes(transform_address, &transform, sizeof(transform)) ||
             !read_bytes(item_address, &item_id, sizeof(item_id)) || !item_id) continue;
-        const double scale = (std::max)({std::abs(static_cast<double>(transform.scale[0])),
-            std::abs(static_cast<double>(transform.scale[1])), std::abs(static_cast<double>(transform.scale[2]))});
-        if (!std::isfinite(scale)) continue;
-        const auto margin = operation.padding * scale;
-        bool inside = true;
-        for (int axis = 0; axis < 3; ++axis) {
-            const auto position = static_cast<double>(transform.position[axis]) / 4294967296.0;
-            if (!std::isfinite(position) || position < operation.bounds[axis] - margin ||
-                position >= operation.bounds[axis + 3] + margin) { inside = false; break; }
-        }
-        if (!inside) continue;
         KfcRuntimePropRecord prop{};
-        prop.entity_handle = handle_for(entity);
         prop.item_id = item_id;
         std::copy_n(transform.position, 3, prop.position);
         std::copy_n(transform.rotation, 4, prop.orientation);
         std::copy_n(transform.scale, 3, prop.scale);
+        if (!entity.definition || !read_bytes(entity.definition + definition_uuid,
+                prop.template_uuid, sizeof(prop.template_uuid)) ||
+            !(prop.template_uuid[0] || prop.template_uuid[1])) continue;
+        if (operation.exact_recipe_bounds) {
+            const auto recipe = recipes.find(item_id);
+            if (recipe == recipes.end() || !recipe_bounds_intersect(prop, recipe->second, operation.bounds)) continue;
+        } else {
+            const double scale = (std::max)({std::abs(static_cast<double>(transform.scale[0])),
+                std::abs(static_cast<double>(transform.scale[1])), std::abs(static_cast<double>(transform.scale[2]))});
+            if (!std::isfinite(scale)) continue;
+            const auto margin = operation.padding * scale;
+            bool inside = true;
+            for (int axis = 0; axis < 3; ++axis) {
+                const auto position = static_cast<double>(transform.position[axis]) / 4294967296.0;
+                if (!std::isfinite(position) || position < operation.bounds[axis] - margin ||
+                    position >= operation.bounds[axis + 3] + margin) { inside = false; break; }
+            }
+            if (!inside) continue;
+        }
+        prop.entity_handle = handle_for(entity);
         if (prop.entity_handle) operation.output.push_back(prop);
     }
     operation.result = operation.output.size();
@@ -1094,6 +1156,42 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryProps(const double* bou
     if (props) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->output.size()), props);
     return operation->result;
 }
+extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryPropsInBounds(
+    const double* bounds, KfcRuntimePropRecord* props, std::size_t capacity) {
+    if (!bounds || capacity > (1u << 20) || (!props && capacity)) return SIZE_MAX;
+    auto operation = std::make_shared<PropQueryOperation>();
+    operation->exact_recipe_bounds = true;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(bounds[axis]) || !std::isfinite(bounds[axis + 3]) ||
+            bounds[axis] >= bounds[axis + 3]) return SIZE_MAX;
+        operation->bounds[axis] = bounds[axis];
+        operation->bounds[axis + 3] = bounds[axis + 3];
+    }
+    query_props_native(*operation);
+    if (operation->result == SIZE_MAX) return SIZE_MAX;
+    if (props) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->output.size()), props);
+    return operation->result;
+}
+extern "C" bool __cdecl KfcRuntimeWorldEntityRegisterPropRecipes(
+    const KfcRuntimePropRecipe* recipes, std::size_t count) {
+    if ((!recipes && count) || count > 1'000'000) return false;
+    std::unordered_map<std::uint32_t, std::array<float, 6>> resolved;
+    resolved.reserve(count);
+    for (std::size_t index = 0; index < count; ++index) {
+        const auto& recipe = recipes[index];
+        if (!recipe.item_id || !std::all_of(std::begin(recipe.bounds), std::end(recipe.bounds),
+                [](float value) { return std::isfinite(value); }) ||
+            recipe.bounds[0] > recipe.bounds[3] || recipe.bounds[1] > recipe.bounds[4] ||
+            recipe.bounds[2] > recipe.bounds[5]) return false;
+        if (!resolved.emplace(recipe.item_id, std::to_array(recipe.bounds)).second) return false;
+    }
+    {
+        std::scoped_lock lock(prop_recipe_mutex);
+        prop_recipes = std::move(resolved);
+        prop_recipe_catalog_ready = true;
+    }
+    return true;
+}
 extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, KfcRuntimePropRecord* prop) {
     if (!handle || !prop) return false;
     HandleRecord record{};
@@ -1133,6 +1231,10 @@ extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, 
         std::copy_n(transform.position, 3, prop->position);
         std::copy_n(transform.rotation, 4, prop->orientation);
         std::copy_n(transform.scale, 3, prop->scale);
+        using namespace KfcRuntimeCompatibility::EnshroudedClient;
+        if (!entity.definition || !read_bytes(entity.definition + definition_uuid,
+                prop->template_uuid, sizeof(prop->template_uuid)) ||
+            !(prop->template_uuid[0] || prop->template_uuid[1])) return false;
         return true;
     }
     return false;

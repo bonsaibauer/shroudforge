@@ -48,6 +48,7 @@ struct EntityRequest {
     enum class Kind { Spawn, Place, Destroy, Finish } kind{};
     std::uint64_t template_uuid[2]{};
     double position[3]{}, rotation[4]{0,0,0,1};
+    float scale[3]{1,1,1};
     float bounds[6]{};
     std::uint32_t tracking{}, feedback{}, flags{}, event_id{};
     bool complete{};
@@ -179,6 +180,10 @@ bool valid_transform(const EntityRequest& request, EngineTransform& transform) {
     const auto inverse_norm = 1.0L / std::sqrt(norm);
     for (int index = 0; index < 4; ++index)
         transform.rotation[index] = static_cast<float>(request.rotation[index] * inverse_norm);
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(request.scale[axis])) return false;
+        transform.scale[axis] = request.scale[axis];
+    }
     return true;
 }
 
@@ -442,7 +447,7 @@ bool matching_prop_handles(const EntityRequest& request, std::vector<std::uint32
         bounds[axis + 3] = request.position[axis] + tolerance;
     }
     const auto count = KfcRuntimeWorldEntityQueryProps(bounds, 0.0, nullptr, 0);
-    if (count == SIZE_MAX || count > 100'000) return false;
+    if (count == SIZE_MAX || count > 1'000'000) return false;
     std::vector<KfcRuntimePropRecord> props(count);
     if (count) {
         const auto actual = KfcRuntimeWorldEntityQueryProps(bounds, 0.0, props.data(), props.size());
@@ -665,6 +670,7 @@ bool DestroyEntityHandle(std::uint32_t entity_handle, const float bounds[6],
     request->kind = EntityRequest::Kind::Destroy;
     std::copy_n(position, 3, request->position);
     std::copy_n(rotation, 4, request->rotation);
+    std::copy_n(prop.scale, 3, request->scale);
     std::copy_n(bounds, 6, request->bounds);
     request->tracking = tracking;
     request->feedback = feedback;

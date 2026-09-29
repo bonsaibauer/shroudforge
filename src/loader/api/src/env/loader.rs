@@ -3,7 +3,7 @@ use mod_loader::{Capability, Mod};
 use shroudforge_compatibility::Availability;
 use std::rc::Rc;
 
-const KFC_RUNTIME_ABI_VERSION: u32 = 8;
+const KFC_RUNTIME_ABI_VERSION: u32 = 10;
 
 use crate::{
     RuntimePhase,
@@ -183,6 +183,8 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
         }
         "runtime.world.entity.spawn"
         | "runtime.world.entity.query_props"
+        | "runtime.world.entity.query_props_in_bounds"
+        | "runtime.world.entity.register_prop_recipes"
         | "runtime.world.entity.get_transform"
         | "runtime.world.entity.place"
         | "runtime.world.entity.destroy"
@@ -190,7 +192,10 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
-                && if feature == "runtime.world.entity.query_props" || feature == "runtime.world.entity.get_transform" {
+                && if feature == "runtime.world.entity.query_props"
+                    || feature == "runtime.world.entity.query_props_in_bounds"
+                    || feature == "runtime.world.entity.register_prop_recipes"
+                    || feature == "runtime.world.entity.get_transform" {
                     runtime_provider::world_entity_query_props_ready()
                 } else {
                     runtime_provider::world_operation_available(feature)
@@ -244,7 +249,10 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
         runtime_provider::world_operation_available(&feature)
     } else if feature == "runtime.world.voxel.grid_spec" {
         runtime_provider::world_operation_available("runtime.world.voxel.read")
-    } else if feature == "runtime.world.entity.query_props" || feature == "runtime.world.entity.get_transform" {
+    } else if feature == "runtime.world.entity.query_props"
+        || feature == "runtime.world.entity.query_props_in_bounds"
+        || feature == "runtime.world.entity.register_prop_recipes"
+        || feature == "runtime.world.entity.get_transform" {
         runtime_provider::world_entity_query_props_ready()
     } else if feature.starts_with("runtime.world.entity.") {
         runtime_provider::world_operation_available(&feature)
@@ -354,6 +362,8 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     world.raw_set("cursor", cursor)?;
     let entity = lua.create_table()?;
     add_function_with_mod(lua, &entity, "query_props", r#mod, lua_world_entity_query_props)?;
+    add_function_with_mod(lua, &entity, "query_props_in_bounds", r#mod, lua_world_entity_query_props_in_bounds)?;
+    add_function_with_mod(lua, &entity, "register_prop_recipes", r#mod, lua_world_entity_register_prop_recipes)?;
     add_function_with_mod(lua, &entity, "get_transform", r#mod, lua_world_entity_get_transform)?;
     add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
     add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
@@ -486,6 +496,8 @@ fn lua_world_entity_query_props(
         let item = lua.create_table()?;
         item.raw_set("handle", prop.entity_handle)?;
         item.raw_set("itemId", prop.item_id)?;
+        item.raw_set("templateUuidHighHex", format!("{:016x}", prop.template_uuid[0]))?;
+        item.raw_set("templateUuidLowHex", format!("{:016x}", prop.template_uuid[1]))?;
         let position = lua.create_table()?;
         let position_names = ["x", "y", "z"];
         for axis in 0..3 {
@@ -503,6 +515,117 @@ fn lua_world_entity_query_props(
         for axis in 0..3 {
             scale.raw_set(axis + 1, prop.scale[axis])?;
             scale.raw_set(position_names[axis], prop.scale[axis])?;
+        }
+        let transform = lua.create_table()?;
+        transform.raw_set("position", position)?;
+        transform.raw_set("orientation", orientation)?;
+        transform.raw_set("scale", scale)?;
+        item.raw_set("transform", transform)?;
+        result.raw_set(index + 1, item)?;
+    }
+    Ok((LuaValue::Table(result), None))
+}
+
+fn lua_world_entity_register_prop_recipes(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(
+        &state,
+        r#mod,
+        "runtime.world.entity.register_prop_recipes",
+    ) {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 1 {
+        return Err(LuaError::generic(
+            "runtime.world.entity.register_prop_recipes expects a recipe array",
+        ));
+    }
+    let input = args.get::<mlua::Table>(0)?;
+    let count = input.raw_len();
+    if count > 1_000_000 {
+        return Ok((LuaValue::Nil, Some("prop recipe catalog exceeds the 1,000,000-entry safety limit".into())));
+    }
+    let mut recipes = Vec::with_capacity(count);
+    for index in 1..=count {
+        let item = input.raw_get::<mlua::Table>(index)?;
+        let item_id = item.raw_get::<u32>("itemId")?;
+        let bounds = lua_vec::<6>(item.raw_get::<mlua::Table>("bounds")?, "recipe bounds")?
+            .map(|value| value as f32);
+        if item_id == 0
+            || bounds.iter().any(|value| !value.is_finite())
+            || (0..3).any(|axis| bounds[axis] > bounds[axis + 3])
+        {
+            return Ok((LuaValue::Nil, Some(format!("invalid placement recipe at index {index}"))));
+        }
+        recipes.push(runtime_provider::PropRecipe { item_id, bounds });
+    }
+    match runtime_provider::world_entity_register_prop_recipes(&recipes) {
+        Ok(()) => Ok((LuaValue::Boolean(true), None)),
+        Err(reason) => Ok((LuaValue::Nil, Some(reason))),
+    }
+}
+
+fn lua_world_entity_query_props_in_bounds(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let query_started = std::time::Instant::now();
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(
+        &state,
+        r#mod,
+        "runtime.world.entity.query_props_in_bounds",
+    ) {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 1 {
+        return Err(LuaError::generic(
+            "runtime.world.entity.query_props_in_bounds expects bounds[6]",
+        ));
+    }
+    let bounds = lua_vec::<6>(args.get::<mlua::Table>(0)?.clone(), "bounds")?;
+    if bounds.iter().any(|value| !value.is_finite())
+        || (0..3).any(|axis| bounds[axis] >= bounds[axis + 3])
+    {
+        return Ok((LuaValue::Nil, Some("bounds must contain finite minimum xyz and maximum xyz values".into())));
+    }
+    let props = match runtime_provider::world_entity_query_props_in_bounds(bounds) {
+        Ok(props) => props,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason.into()))),
+    };
+    tracing::info!(
+        target: "shroudforge::runtime",
+        elapsed_ms = query_started.elapsed().as_millis() as u64,
+        matched_props = props.len(),
+        "Native recipe-bounds prop query completed"
+    );
+    let result = lua.create_table_with_capacity(props.len(), 0)?;
+    for (index, prop) in props.into_iter().enumerate() {
+        let item = lua.create_table()?;
+        item.raw_set("handle", prop.entity_handle)?;
+        item.raw_set("itemId", prop.item_id)?;
+        item.raw_set("templateUuidHighHex", format!("{:016x}", prop.template_uuid[0]))?;
+        item.raw_set("templateUuidLowHex", format!("{:016x}", prop.template_uuid[1]))?;
+        let position = lua.create_table()?;
+        for axis in 0..3 {
+            let value = prop.position[axis] as f64 / 4_294_967_296.0;
+            position.raw_set(axis + 1, value)?;
+            position.raw_set(["x", "y", "z"][axis], value)?;
+        }
+        let orientation = lua.create_table()?;
+        for axis in 0..4 {
+            orientation.raw_set(axis + 1, prop.orientation[axis])?;
+            orientation.raw_set(["x", "y", "z", "w"][axis], prop.orientation[axis])?;
+        }
+        let scale = lua.create_table()?;
+        for axis in 0..3 {
+            scale.raw_set(axis + 1, prop.scale[axis])?;
+            scale.raw_set(["x", "y", "z"][axis], prop.scale[axis])?;
         }
         let transform = lua.create_table()?;
         transform.raw_set("position", position)?;
@@ -533,6 +656,8 @@ fn lua_world_entity_get_transform(
     let item = lua.create_table()?;
     item.raw_set("handle", prop.entity_handle)?;
     item.raw_set("itemId", prop.item_id)?;
+    item.raw_set("templateUuidHighHex", format!("{:016x}", prop.template_uuid[0]))?;
+    item.raw_set("templateUuidLowHex", format!("{:016x}", prop.template_uuid[1]))?;
     let position = lua.create_table()?;
     let axes = ["x", "y", "z"];
     for axis in 0..3 {
@@ -1373,6 +1498,14 @@ mod runtime_provider {
         pub position: [i64; 3],
         pub orientation: [f32; 4],
         pub scale: [f32; 3],
+        pub template_uuid: [u64; 2],
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    pub struct PropRecipe {
+        pub item_id: u32,
+        pub bounds: [f32; 6],
     }
 
     type Ready = unsafe extern "C" fn() -> bool;
@@ -1388,6 +1521,8 @@ mod runtime_provider {
     type WorldContextActive = unsafe extern "C" fn() -> bool;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
     type WorldEntityQueryProps = unsafe extern "C" fn(*const f64, f64, *mut PropRecord, usize) -> usize;
+    type WorldEntityQueryPropsInBounds = unsafe extern "C" fn(*const f64, *mut PropRecord, usize) -> usize;
+    type WorldEntityRegisterPropRecipes = unsafe extern "C" fn(*const PropRecipe, usize) -> bool;
     type WorldEntityGetTransform = unsafe extern "C" fn(u32, *mut PropRecord) -> bool;
     #[repr(C)]
     #[derive(Clone, Copy, Default)]
@@ -1439,6 +1574,8 @@ mod runtime_provider {
         world_context_active: WorldContextActive,
         world_entity_context_ready: WorldEntityContextReady,
         world_entity_query_props: WorldEntityQueryProps,
+        world_entity_query_props_in_bounds: WorldEntityQueryPropsInBounds,
+        world_entity_register_prop_recipes: WorldEntityRegisterPropRecipes,
         world_entity_get_transform: WorldEntityGetTransform,
         world_cursor_read: Option<WorldCursorRead>,
         world_voxel_read: WorldVoxelRead,
@@ -1524,6 +1661,14 @@ mod runtime_provider {
                             world_entity_query_props: symbol!(
                                 "KfcRuntimeWorldEntityQueryProps",
                                 WorldEntityQueryProps
+                            ),
+                            world_entity_query_props_in_bounds: symbol!(
+                                "KfcRuntimeWorldEntityQueryPropsInBounds",
+                                WorldEntityQueryPropsInBounds
+                            ),
+                            world_entity_register_prop_recipes: symbol!(
+                                "KfcRuntimeWorldEntityRegisterPropRecipes",
+                                WorldEntityRegisterPropRecipes
                             ),
                             world_entity_get_transform: symbol!(
                                 "KfcRuntimeWorldEntityGetTransform",
@@ -1762,14 +1907,46 @@ mod runtime_provider {
             (provider.world_entity_query_props)(bounds.as_ptr(), padding, std::ptr::null_mut(), 0)
         };
         if count == usize::MAX { return Err("native prop query failed"); }
-        if count > 100_000 { return Err("native prop query exceeded the 100,000-prop safety limit"); }
+        if count > 1_000_000 { return Err("native prop query exceeded the 1,000,000-prop safety limit"); }
         let mut props = vec![PropRecord::default(); count];
         if count == 0 { return Ok(props); }
         let actual = unsafe {
             (provider.world_entity_query_props)(bounds.as_ptr(), padding, props.as_mut_ptr(), props.len())
         };
         if actual == usize::MAX { return Err("native prop query failed while retrieving results"); }
-        if actual > 100_000 { return Err("native prop query exceeded the 100,000-prop safety limit"); }
+        if actual > 1_000_000 { return Err("native prop query exceeded the 1,000,000-prop safety limit"); }
+        if actual > props.len() { return Err("native prop query changed between count and retrieval"); }
+        props.truncate(actual);
+        Ok(props)
+    }
+    pub fn world_entity_register_prop_recipes(recipes: &[PropRecipe]) -> Result<(), String> {
+        let Some(provider) = provider() else {
+            return Err("KFC Runtime provider unavailable".into());
+        };
+        let accepted = unsafe {
+            (provider.world_entity_register_prop_recipes)(recipes.as_ptr(), recipes.len())
+        };
+        if accepted {
+            Ok(())
+        } else {
+            Err("native prop recipe registration was rejected".into())
+        }
+    }
+    pub fn world_entity_query_props_in_bounds(
+        bounds: [f64; 6],
+    ) -> Result<Vec<PropRecord>, &'static str> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable"); };
+        let count = unsafe {
+            (provider.world_entity_query_props_in_bounds)(bounds.as_ptr(), std::ptr::null_mut(), 0)
+        };
+        if count == usize::MAX { return Err("native recipe-bounds prop query failed"); }
+        if count > 1_000_000 { return Err("native prop query exceeded the 1,000,000-prop safety limit"); }
+        let mut props = vec![PropRecord::default(); count];
+        if count == 0 { return Ok(props); }
+        let actual = unsafe {
+            (provider.world_entity_query_props_in_bounds)(bounds.as_ptr(), props.as_mut_ptr(), props.len())
+        };
+        if actual == usize::MAX { return Err("native recipe-bounds prop query failed while retrieving results"); }
         if actual > props.len() { return Err("native prop query changed between count and retrieval"); }
         props.truncate(actual);
         Ok(props)
@@ -2017,6 +2194,13 @@ mod runtime_provider {
         pub position: [i64; 3],
         pub orientation: [f32; 4],
         pub scale: [f32; 3],
+        pub template_uuid: [u64; 2],
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    pub struct PropRecipe {
+        pub item_id: u32,
+        pub bounds: [f32; 6],
     }
     #[derive(Clone, Copy)]
     pub struct Component {
@@ -2069,6 +2253,12 @@ mod runtime_provider {
         Err("native world runtime is available on Windows only".into())
     }
     pub fn world_entity_query_props(_: [f64; 6], _: f64) -> Result<Vec<PropRecord>, &'static str> {
+        Err("native world runtime is available on Windows only")
+    }
+    pub fn world_entity_register_prop_recipes(_: &[PropRecipe]) -> Result<(), String> {
+        Err("native world runtime is available on Windows only".into())
+    }
+    pub fn world_entity_query_props_in_bounds(_: [f64; 6]) -> Result<Vec<PropRecord>, &'static str> {
         Err("native world runtime is available on Windows only")
     }
     pub fn world_entity_get_transform(_: u32) -> Option<PropRecord> { None }

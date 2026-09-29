@@ -14,6 +14,8 @@
     "runtime.world.voxel.grid_spec",
     "runtime.world.entity.spawn",
     "runtime.world.entity.query_props",
+    "runtime.world.entity.query_props_in_bounds",
+    "runtime.world.entity.register_prop_recipes",
     "runtime.world.entity.get_transform",
     "runtime.world.entity.place",
     "runtime.world.entity.destroy",

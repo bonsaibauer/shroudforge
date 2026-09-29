@@ -136,14 +136,28 @@ function runtime.world.context_active() end
 runtime.world.entity = {}
 
 --- Query placeable props using the native, build-profiled ECS layout. Returns
---- transforms and item IDs directly, without requiring Lua reflection reads.
+--- transforms, item IDs, and the native entity template UUID directly, without requiring Lua reflection reads.
 --- @param bounds number[] World-space min xyz followed by max xyz.
 --- @param padding number Conservative pivot margin, scaled by each prop's maximum absolute scale.
 --- @return table[]? props
 --- @return string? reason
 function runtime.world.entity.query_props(bounds, padding) end
 
---- Resolve the current transform and item ID for an opaque live prop handle.
+--- Register ItemInfo placement AABBs for native prop-bound filtering.
+--- @param recipes table[] Entries with itemId and bounds[6].
+--- @return boolean? registered
+--- @return string? reason
+function runtime.world.entity.register_prop_recipes(recipes) end
+
+--- Query props whose native, rotated and scaled ItemInfo placement AABBs intersect bounds.
+--- Each result includes templateUuidHighHex/templateUuidLowHex from the live native entity definition.
+--- Requires placement recipes registered with register_prop_recipes.
+--- @param bounds number[] World-space min xyz followed by max xyz.
+--- @return table[]? props
+--- @return string? reason
+function runtime.world.entity.query_props_in_bounds(bounds) end
+
+--- Resolve the current transform, item ID, and native template UUID for an opaque live prop handle.
 --- @param entity_handle integer Handle returned by query_props or spawn.
 --- @return table? prop
 --- @return string? reason

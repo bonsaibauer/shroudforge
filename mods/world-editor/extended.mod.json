@@ -8,15 +8,15 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
+    "Moves rotated and scaled ItemInfo placement-bound filtering into the registered native world query.",
+    "Preserves the native entity-template UUID through prop capture, blueprint files, and paste.",
+    "Refuses non-unit prop-scale paste because the active native spawn backend supports unit scale only.",
+    "Adds V6 props-only blueprints and ShroudEdit-style world-space placement anchors with grid alignment checks.",
     "Uses registered native world APIs for entity handles, transform reads, safe handle-targeted removal, and voxel grid metadata.",
     "Packages the standalone mod as world-editor and exposes F3 rotation in Keyboard shortcuts.",
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
   ],
   "settings": {
-    "queryComponent": {
-      "value": "",
-      "label": "Query component type"
-    },
     "sourceX": {
       "value": 0,
       "label": "Source cell X (manual fallback)"
@@ -32,19 +32,19 @@
     "sizeX": {
       "value": 8,
       "min": 1,
-      "max": 256,
+      "max": 65536,
       "label": "Size X (manual fallback)"
     },
     "sizeY": {
       "value": 8,
       "min": 1,
-      "max": 256,
+      "max": 65536,
       "label": "Size Y (manual fallback)"
     },
     "sizeZ": {
       "value": 8,
       "min": 1,
-      "max": 256,
+      "max": 65536,
       "label": "Size Z (manual fallback)"
     },
     "blueprintName": {
@@ -81,6 +81,18 @@
       "value": 0,
       "label": "Target cell Z"
     },
+    "targetWorldX": {
+      "value": 0.0,
+      "label": "Props-only target world X"
+    },
+    "targetWorldY": {
+      "value": 0.0,
+      "label": "Props-only target world Y"
+    },
+    "targetWorldZ": {
+      "value": 0.0,
+      "label": "Props-only target world Z"
+    },
     "rotationQuarterTurns": {
       "value": 0,
       "min": 0,
@@ -100,18 +112,6 @@
       "value": 0,
       "min": 0,
       "label": "Opaque entity handle"
-    },
-    "componentType": {
-      "value": "",
-      "label": "Component type"
-    },
-    "fieldPath": {
-      "value": "",
-      "label": "Reflected field path"
-    },
-    "fieldValue": {
-      "value": "",
-      "label": "New primitive value"
     },
     "templateUuidHigh": {
       "value": "0000000000000000",
@@ -246,8 +246,8 @@
       ]
     },
     {
-      "label": "Live runtime discovery",
-      "description": "Inspect the live ECS, capture regions, and manage blueprints.",
+      "label": "World Editor",
+      "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
       "settings": [
         "sourceX",
         "sourceY",
@@ -263,11 +263,10 @@
         "targetX",
         "targetY",
         "targetZ",
-        "queryComponent",
-        "entityHandle",
-        "componentType",
-        "fieldPath",
-        "fieldValue"
+        "targetWorldX",
+        "targetWorldY",
+        "targetWorldZ",
+        "entityHandle"
       ],
       "actions": [
         {
@@ -296,6 +295,11 @@
           "style": "secondary"
         },
         {
+          "id": "capturePropsOnly",
+          "label": "Capture props only from A/B selection",
+          "style": "secondary"
+        },
+        {
           "id": "listProps",
           "label": "List props in source region",
           "style": "secondary"
@@ -317,9 +321,9 @@
         },
         {
           "id": "pasteVoxels",
-          "label": "Paste voxel region",
+          "label": "Paste active blueprint",
           "style": "danger",
-          "confirm": "Write the copied voxel region to the target coordinates?"
+          "confirm": "Write the active blueprint to the target anchor?"
         },
         {
           "id": "previewPaste",
@@ -332,30 +336,9 @@
           "style": "secondary"
         },
         {
-          "id": "discoverTypes",
-          "label": "Discover live ECS types",
-          "style": "secondary"
-        },
-        {
-          "id": "queryEntities",
-          "label": "List matching entities",
-          "style": "secondary"
-        },
-        {
           "id": "destroySelectedProp",
           "label": "Destroy selected listed prop",
           "style": "secondary"
-        },
-        {
-          "id": "inspectComponent",
-          "label": "Inspect component",
-          "style": "secondary"
-        },
-        {
-          "id": "writeField",
-          "label": "Write field to game",
-          "style": "danger",
-          "confirm": "Write this reflected component field to the live game entity?"
         }
       ]
     }
