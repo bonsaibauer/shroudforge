@@ -47,9 +47,9 @@ for _, resource in ipairs(registries) do
 end
 
 if #registries == 0 then
-    shroudforge.log.warn("Unlock Blueprints found no RecipeRegistryResource assets")
+    warn("Unlock Blueprints found no RecipeRegistryResource assets")
 elseif changed_recipes == 0 then
-    shroudforge.log.info("Unlock Blueprints found no recipes requiring changes in " .. #registries .. " registries")
+    print("Unlock Blueprints found no recipes requiring changes in " .. #registries .. " registries")
 else
-    shroudforge.log.info("Updated " .. changed_recipes .. " recipes in " .. changed_registries .. " of " .. #registries .. " registries")
+    print("Updated " .. changed_recipes .. " recipes in " .. changed_registries .. " of " .. #registries .. " registries")
 end

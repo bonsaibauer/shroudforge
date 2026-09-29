@@ -97,6 +97,24 @@ The build checks mod folders for **mod.json**, a mod ID, and **src/mod.lua**, th
 | **Vein Mining** | Mines matching ore in an area around the hit point. | 🚧 Beta |
 | **20x Workshop Production Speed** | Increases timed workshop recipe production speed by 20×. | 🚧 Beta |
 
+## Development roadmap
+
+This table describes the current state of ShroudForge itself. **Proven** means the workflow is in place for the supported build; **Beta** means it exists but still has known reliability or coverage limits; **Open** means more implementation or validation is needed. A mod being included in the release does not make every runtime feature it uses proven.
+
+| Area | Current state | Status |
+| --- | --- | --- |
+| **Release build and mod checks** | Release packaging checks each mod's manifest, ID, Lua entry point, and Lua syntax. | ✅ Proven |
+| **Build profiles** | Profiles are kept per Enshrouded build and target. The current profile is for client build **1076226**. Supporting another game build usually means reviewing and updating its profile; mods do not need per-build copies unless game behavior or the mod API changes. | ✅ Proven |
+| **Asset changes before launch** | Supported asset edits are prepared before the game starts, so changes take effect on the next launch. Coverage and compatibility still depend on the resource and game build. | ✅ Proven |
+| **KFC runtime and ECS** | The native runtime and ECS API are present, but live ECS discovery, queries, reads, and writes are not reliable enough to treat as a stable foundation yet. Keep this path experimental while it is being corrected. | 🚧 Beta |
+| **Runtime hooks and patches** | Build-profiled hooks and guarded runtime patches provide the current route for many live gameplay changes. They depend on executable signatures and game behavior, so a game update can make individual operations unavailable or require new native work. | 🚧 Beta |
+| **Current gameplay mods** | Several runtime mods rely on targeted hooks or runtime patches while the ECS path is incomplete. Their status is specific to the supported build and does not guarantee compatibility with every game update or mod combination. | 🚧 Beta |
+| **EML mod support** | ShroudForge reads EML-style packages and implements EML v1 APIs, including supported export, asset-patch, runtime, and package-local DLL flows. Compatibility depends on which APIs and native behavior an individual EML mod uses. | 🚧 Beta |
+| **Mod discovery and updater** | The Modloader can find and install catalog mods, queue mod updates, and stage ShroudForge updates for after the game closes. System updates verify the download and keep a backup for rollback; the complete range of release and recovery scenarios still needs broader validation. | 🚧 Beta |
+| **Runtime diagnostics** | Bounded runtime snapshots, mod activity, callback timings, and logs are available to help investigate failures. Diagnostics report observations; they do not certify that a game operation or mod is safe. | 🚧 Beta |
+| **More game builds and server profiles** | Add and validate profiles for further Enshrouded builds and targets, with live checks for the operations each profile enables. | 🕓 Open |
+| **Stable ECS-backed mod API** | Make ECS discovery and access dependable, verify gameplay effects in live sessions, and document which operations are supported before moving mods away from their current hooks and patches. | 🕓 Open |
+
 ## What is inside the modules folder?
 
 The folder **src/loader/modules/** contains five built-in Rust modules. They are parts of ShroudForge; they are not separate mods you need to install.

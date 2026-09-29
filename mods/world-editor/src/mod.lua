@@ -1,3 +1,7 @@
+-- Export-capable mods can also be loaded during the pregame asset pass,
+-- where runtime-only namespaces may not be available.
+if type(shroudforge) ~= "table" or type(shroudforge.ui) ~= "table" then return {} end
+
 runtime.require("runtime.lifecycle")
 
 local function setting(name)
