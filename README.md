@@ -25,7 +25,7 @@ New to mods? Start with the illustrated guide. It explains everything in simple 
 
 The guide includes separate instructions for your PC and game server, pictures of the Modloader, a first-mod lesson, and an interactive preview for mod settings.
 
-![ShroudForge Modloader in Enshrouded](assets/modloader-ui.png)
+![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)
 
 ## Quickstart: use ShroudForge
 
