@@ -1,4 +1,8 @@
-runtime.require("game.assets.write")
+-- This mod runs in the pregame asset pass, where EML exposes patch availability
+-- through loader.features rather than requiring the in-game runtime namespace.
+if not loader.features.patch then
+    error("Unlock Blueprints requires the game.assets.write patch capability")
+end
 
 local recipe_type = game.types.get("keen::RecipeRegistryResource")
 if recipe_type == nil then
