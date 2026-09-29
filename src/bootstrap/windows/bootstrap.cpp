@@ -4,12 +4,15 @@
 #include "logging_config.h"
 
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <ctime>
+#include <thread>
 
 namespace {
 using CreateRuntime = void* (__cdecl*)(const wchar_t*);
@@ -346,7 +349,10 @@ DWORD WINAPI run(void*) {
     }
     begin_log_session(root);
     session_started = std::chrono::steady_clock::now();
+    clear_runtime_heartbeat(root);
     startup_stage(root, "bootstrap-thread-started");
+    log("Log session started for game PID " + std::to_string(GetCurrentProcessId()) +
+        "; archived log files contain earlier sessions");
     // Start the independent log viewer before any ShroudForge DLL or mod code
     // can fail during process startup.
     start_debug_console(root);
@@ -381,7 +387,29 @@ DWORD WINAPI run(void*) {
         log('W', "KFC Runtime unavailable for this game build; non-runtime mods remain available");
     }
     startup_stage(root, "runtime-create");
+    std::mutex create_watchdog_mutex;
+    std::condition_variable create_watchdog_condition;
+    bool create_finished = false;
+    std::thread create_watchdog;
+    try {
+        create_watchdog = std::thread([&] {
+            std::unique_lock lock(create_watchdog_mutex);
+            if (!create_watchdog_condition.wait_for(lock, std::chrono::seconds(15),
+                    [&] { return create_finished; })) {
+                lock.unlock();
+                log('E', "Runtime initialization has not returned after 15 seconds at runtime-create; inspect the last [shroudforge::runtime] startup stage above");
+            }
+        });
+    } catch (...) {
+        log('W', "Could not start runtime-create watchdog");
+    }
     void* handle = create(root.c_str());
+    {
+        std::lock_guard lock(create_watchdog_mutex);
+        create_finished = true;
+    }
+    create_watchdog_condition.notify_one();
+    if (create_watchdog.joinable()) create_watchdog.join();
     if (!handle) {
         startup_failed(root, "runtime-create", "Runtime initialization returned no handle; see preceding runtime log entries");
         EcsRuntime::Shutdown();

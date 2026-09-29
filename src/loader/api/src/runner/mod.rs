@@ -73,9 +73,11 @@ impl LuaModRunner {
 
     pub fn setup<'a>(&self, mods: impl IntoIterator<Item = &'a Mod>) -> mlua::Result<()> {
         for r#mod in mods {
-            debug!(mod_id = %r#mod.info().id, "Preparing runtime mod environment");
+            tracing::info!(target: "shroudforge::runtime", stage = "runner-setup",
+                mod_id = %r#mod.info().id, "Preparing runtime mod environment");
             self.setup_mod(r#mod)?;
-            debug!(mod_id = %r#mod.info().id, "Runtime mod environment ready");
+            tracing::info!(target: "shroudforge::runtime", stage = "runner-setup",
+                mod_id = %r#mod.info().id, "Runtime mod environment ready");
         }
 
         Ok(())

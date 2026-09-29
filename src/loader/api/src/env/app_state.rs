@@ -471,7 +471,15 @@ impl AppState {
         std::thread::Builder::new()
             .name(format!("sf-native-{}", mod_id.chars().take(24).collect::<String>()))
             .spawn(move || {
+                tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                    dll = %worker_path.display(), "Isolated native DLL load started");
                 let result = load_native_library(&worker_mod_id, &worker_path);
+                match &result {
+                    Ok(_) => tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                        dll = %worker_path.display(), "Isolated native DLL load completed"),
+                    Err(error) => tracing::error!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                        dll = %worker_path.display(), "Isolated native DLL load failed: {error}"),
+                }
                 if let Err(send_error) = sender.send(result) {
                     if let Ok(handle) = send_error.0 {
                         unload_native_library(handle);
@@ -557,17 +565,20 @@ impl AppState {
         if !self.has_feature(AppFeatures::RUNTIME_DLL) {
             return Ok(false);
         }
-        let mut filesystem = target_mod.fs();
         let config_path = camino::Utf8Path::new("native-plugin.ini");
-        if !filesystem.is_file(config_path) {
-            return Ok(false);
-        }
-        let mut config = String::new();
-        filesystem
-            .read_file(config_path)
-            .map_err(|error| format!("could not read native-plugin.ini: {error}"))?
-            .read_to_string(&mut config)
-            .map_err(|error| format!("could not decode native-plugin.ini: {error}"))?;
+        let config = {
+            let mut filesystem = target_mod.fs();
+            if !filesystem.is_file(config_path) {
+                return Ok(false);
+            }
+            let mut config = String::new();
+            filesystem
+                .read_file(config_path)
+                .map_err(|error| format!("could not read native-plugin.ini: {error}"))?
+                .read_to_string(&mut config)
+                .map_err(|error| format!("could not decode native-plugin.ini: {error}"))?;
+            config
+        };
 
         let mut in_plugin_section = false;
         let mut enabled = false;
@@ -611,6 +622,8 @@ impl AppState {
         let dll = dll.ok_or_else(|| {
             "native-plugin.ini enables the plugin but does not name a DLL".to_owned()
         })?;
+        tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+            dll = %dll, "Native plugin sidecar configuration parsed; queuing isolated load");
         self.queue_mod_native_dll(target_mod, &dll, true)?;
         Ok(true)
     }
@@ -643,6 +656,8 @@ impl AppState {
         }
 
         let module = handle as HMODULE;
+        tracing::info!(target: "shroudforge::runtime", mod_id,
+            "Resolving native plugin host ABI exports");
         let query = unsafe { GetProcAddress(module, NATIVE_PLUGIN_QUERY_EXPORT.as_ptr()) };
         let start = unsafe { GetProcAddress(module, NATIVE_PLUGIN_START_EXPORT.as_ptr()) };
         let stop = unsafe { GetProcAddress(module, NATIVE_PLUGIN_STOP_EXPORT.as_ptr()) };
@@ -728,6 +743,8 @@ impl AppState {
             reserved: 0,
             log: Some(native_plugin_log),
         };
+        tracing::info!(target: "shroudforge::runtime", mod_id,
+            "Calling native plugin start callback");
         if unsafe { start(&context) } == 0 {
             return Err("native plugin start callback failed for XHL host ABI v1".into());
         }

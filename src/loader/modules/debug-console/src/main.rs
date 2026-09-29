@@ -17,7 +17,7 @@ mod windows {
     };
     use windows_sys::Win32::{
         Foundation::{CloseHandle, HANDLE, HWND, WAIT_OBJECT_0},
-        Graphics::Dwm::{DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE, DwmSetWindowAttribute},
+        Graphics::Dwm::{DWMWA_BORDER_COLOR, DwmSetWindowAttribute},
         System::Threading::{
             GetCurrentProcessId, GetExitCodeProcess, OpenEventW, OpenProcess,
             PROCESS_QUERY_LIMITED_INFORMATION, WaitForSingleObject,
@@ -106,15 +106,6 @@ mod windows {
             .with_resizable(false)
             .with_maximizable(false)
             .build(&event_loop)?;
-        let border_color = DWMWA_COLOR_NONE;
-        let _ = unsafe {
-            DwmSetWindowAttribute(
-                window.hwnd() as HWND,
-                DWMWA_BORDER_COLOR as u32,
-                (&border_color as *const u32).cast(),
-                std::mem::size_of::<u32>() as u32,
-            )
-        };
         position_window(&window, &preferences["window"]["position"], true);
 
         let (sender, receiver) = mpsc::channel();
@@ -144,6 +135,18 @@ mod windows {
             .with_html(html)
             .with_ipc_handler(handler)
             .build(&window)?;
+        // WebView2 can reset DWM frame attributes while attaching to the
+        // window. Reapply the border color afterwards so Windows never falls
+        // back to its bright default frame around this undecorated window.
+        let border_color: u32 = 0x001A_170C; // COLORREF for the shell background (#0c171a)
+        let _ = unsafe {
+            DwmSetWindowAttribute(
+                window.hwnd() as HWND,
+                DWMWA_BORDER_COLOR as u32,
+                (&border_color as *const u32).cast(),
+                std::mem::size_of::<u32>() as u32,
+            )
+        };
 
         let mut shown = arguments.desktop;
         let initial_window_state = shroudforge_package::config::window_state(&arguments.root);

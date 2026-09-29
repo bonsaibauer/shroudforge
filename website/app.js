@@ -58,7 +58,7 @@ function rebuildManifestStudio() {
   modColumns.append(modFile, modBuilder);
   extColumns.append(extFile, extBuilder);
   const iconUpload = document.createElement("div");
-  iconUpload.className = "icon-upload";
+  iconUpload.className = "icon-upload builder-wide";
   iconUpload.innerHTML = `<label>${locale === "de" ? "Mod-Icon hochladen" : "Upload mod icon"}<input id="mod-icon-file" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml"><small>${locale === "de" ? "PNG, JPG/JPEG, WebP oder SVG · maximal 2 MiB" : "PNG, JPG/JPEG, WebP, or SVG · up to 2 MiB"}</small></label><div class="icon-upload-preview"><span id="icon-preview-empty">${locale === "de" ? "Kein Icon ausgewählt" : "No icon selected"}</span><img id="icon-preview-image" alt="" hidden></div><button id="download-icon" class="button small ghost" type="button" disabled>${locale === "de" ? "Icon-Datei herunterladen" : "Download icon file"}</button>`;
   modBuilder.querySelector("#mod-icon").closest("label").after(iconUpload);
   const dependencyList = document.createElement("div");

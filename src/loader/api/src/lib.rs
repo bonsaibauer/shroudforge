@@ -312,8 +312,10 @@ impl IngameRuntime {
         api: Option<ShroudForgeApi>,
         file_name: String,
     ) -> anyhow::Result<Self> {
+        tracing::info!(target: "shroudforge::runtime", stage = "loader-config", "Runtime startup stage started");
         let loader_config = mod_loader::config::read_loader(env.game_dir().as_std_path())
             .map_err(anyhow::Error::msg)?;
+        tracing::info!(target: "shroudforge::runtime", stage = "app-state", "Runtime startup stage started");
         let export_enabled = loader_config
             .pointer("/exports/enabled")
             .and_then(serde_json::Value::as_bool)
@@ -339,10 +341,15 @@ impl IngameRuntime {
             &CacheDiff::new_dirty(),
         );
         let state = state.map_err(|_| anyhow::anyhow!("failed to initialize ShroudForge API"))?;
+        tracing::info!(target: "shroudforge::runtime", stage = "app-state", "Runtime startup stage completed");
+        tracing::info!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage started");
         let runner = LuaModRunner::new(state)?;
+        tracing::info!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage completed");
         let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
         let root = env.game_dir().as_std_path().to_path_buf();
+        tracing::info!(target: "shroudforge::runtime", stage = "runtime-plan", "Runtime startup stage started");
         let (mut plan, plan_errors) = env.runtime_plan_report(is_server, API_VERSION);
+        tracing::info!(target: "shroudforge::runtime", stage = "runtime-plan", planned_mods = plan.len(), "Runtime startup stage completed");
         let mut errors = serde_json::Map::new();
         for (index, error) in plan_errors.into_iter().enumerate() {
             errors.insert(format!("plan-{index}"), error.into());
@@ -399,12 +406,12 @@ impl IngameRuntime {
                 )
             })
             .collect();
-        tracing::debug!(target: "shroudforge::runtime", "Setting up runtime mod runner");
+        tracing::info!(target: "shroudforge::runtime", stage = "runner-setup", planned_mods = plan.len(), "Runtime startup stage started");
         runner.setup(plan)?;
-        tracing::debug!(target: "shroudforge::runtime", "Runtime mod runner setup finished");
+        tracing::info!(target: "shroudforge::runtime", stage = "runner-setup", "Runtime startup stage completed");
         for target_mod in env.enabled_mods() {
             let app_state = runner.lua.app_data_ref::<AppState>().unwrap();
-            tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+            tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                 "Checking native plugin sidecar");
             match app_state.load_native_plugin(target_mod) {
                 Ok(true) => {
@@ -416,7 +423,8 @@ impl IngameRuntime {
                         "native-plugin.ini sidecar queued; Lua runtime continues independently",
                     );
                 }
-                Ok(false) => {}
+                Ok(false) => tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                    "No enabled native plugin sidecar"),
                 Err(error) => {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                         "native plugin failed to load: {error}");
@@ -430,11 +438,15 @@ impl IngameRuntime {
         }
         let mut lifecycle = Vec::new();
         for id in runner.runtime_mod_ids() {
-            tracing::debug!(target: "shroudforge::runtime", mod_id = %id,
+            tracing::info!(target: "shroudforge::runtime", mod_id = %id,
                 "Loading runtime mod entrypoint");
             let module_result = runner.load_runtime_module(&id);
             let value = match module_result {
-                Ok(value) => value,
+                Ok(value) => {
+                    tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                        "Runtime mod entrypoint loaded");
+                    value
+                }
                 Err(error) => {
                     errors.insert(
                         id.clone(),
@@ -499,6 +511,8 @@ impl IngameRuntime {
             }
             if enabled && let Some(key) = load.as_ref() {
                 let started = std::time::Instant::now();
+                tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                    "Runtime mod on_load started");
                 let result = runner.lua.registry_value::<Function>(&key)?.call::<()>(());
                 diagnostics.measure("mods", &id, "on_load", started.elapsed(), result.is_err());
                 if let Err(error) = result {
@@ -522,6 +536,8 @@ impl IngameRuntime {
                         .set_runtime_mod_active(&id, false);
                     continue;
                 }
+                tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                    elapsed_ms = started.elapsed().as_millis(), "Runtime mod on_load completed");
             }
             lifecycle.push(Lifecycle {
                 id,
@@ -559,7 +575,9 @@ impl IngameRuntime {
             processed_reload_request: None,
             publish_on_drop: true,
         };
+        tracing::info!(target: "shroudforge::runtime", stage = "status-publication", "Runtime startup stage started");
         runtime.publish_status(true);
+        tracing::info!(target: "shroudforge::runtime", stage = "status-publication", "Runtime startup stage completed");
         Ok(runtime)
     }
 
