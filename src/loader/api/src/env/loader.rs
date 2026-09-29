@@ -3,7 +3,7 @@ use mod_loader::{Capability, Mod};
 use shroudforge_compatibility::Availability;
 use std::rc::Rc;
 
-const KFC_RUNTIME_ABI_VERSION: u32 = 10;
+const KFC_RUNTIME_ABI_VERSION: u32 = 11;
 
 use crate::{
     RuntimePhase,
@@ -186,6 +186,7 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
         | "runtime.world.entity.query_props_in_bounds"
         | "runtime.world.entity.register_prop_recipes"
         | "runtime.world.entity.get_transform"
+        | "runtime.world.entity.set_scale"
         | "runtime.world.entity.place"
         | "runtime.world.entity.destroy"
         | "runtime.world.entity.finish_building" => {
@@ -195,7 +196,8 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && if feature == "runtime.world.entity.query_props"
                     || feature == "runtime.world.entity.query_props_in_bounds"
                     || feature == "runtime.world.entity.register_prop_recipes"
-                    || feature == "runtime.world.entity.get_transform" {
+                    || feature == "runtime.world.entity.get_transform"
+                    || feature == "runtime.world.entity.set_scale" {
                     runtime_provider::world_entity_query_props_ready()
                 } else {
                     runtime_provider::world_operation_available(feature)
@@ -252,7 +254,8 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
     } else if feature == "runtime.world.entity.query_props"
         || feature == "runtime.world.entity.query_props_in_bounds"
         || feature == "runtime.world.entity.register_prop_recipes"
-        || feature == "runtime.world.entity.get_transform" {
+        || feature == "runtime.world.entity.get_transform"
+        || feature == "runtime.world.entity.set_scale" {
         runtime_provider::world_entity_query_props_ready()
     } else if feature.starts_with("runtime.world.entity.") {
         runtime_provider::world_operation_available(&feature)
@@ -365,6 +368,7 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &entity, "query_props_in_bounds", r#mod, lua_world_entity_query_props_in_bounds)?;
     add_function_with_mod(lua, &entity, "register_prop_recipes", r#mod, lua_world_entity_register_prop_recipes)?;
     add_function_with_mod(lua, &entity, "get_transform", r#mod, lua_world_entity_get_transform)?;
+    add_function_with_mod(lua, &entity, "set_scale", r#mod, lua_world_entity_set_scale)?;
     add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
     add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
     add_function_with_mod(lua, &entity, "destroy", r#mod, lua_world_entity_destroy)?;
@@ -681,6 +685,26 @@ fn lua_world_entity_get_transform(
     transform.raw_set("scale", scale)?;
     item.raw_set("transform", transform)?;
     Ok((LuaValue::Table(item), None))
+}
+
+fn lua_world_entity_set_scale(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(bool, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.set_scale") {
+        return Ok((false, Some(reason)));
+    }
+    if args.len() != 2 {
+        return Err(LuaError::generic("runtime.world.entity.set_scale expects an entity handle and scale[3]"));
+    }
+    let handle = args.get::<u32>(0)?;
+    let scale = lua_vec::<3>(args.get::<mlua::Table>(1)?.clone(), "scale")?;
+    match runtime_provider::world_entity_set_scale(handle, scale) {
+        Ok(()) => Ok((true, None)),
+        Err(reason) => Ok((false, Some(reason))),
+    }
 }
 
 fn lua_world_grid_get_spec(
@@ -1524,6 +1548,7 @@ mod runtime_provider {
     type WorldEntityQueryPropsInBounds = unsafe extern "C" fn(*const f64, *mut PropRecord, usize) -> usize;
     type WorldEntityRegisterPropRecipes = unsafe extern "C" fn(*const PropRecipe, usize) -> bool;
     type WorldEntityGetTransform = unsafe extern "C" fn(u32, *mut PropRecord) -> bool;
+    type WorldEntitySetScale = unsafe extern "C" fn(u32, *const f64) -> bool;
     #[repr(C)]
     #[derive(Clone, Copy, Default)]
     pub struct GridSpec {
@@ -1577,6 +1602,7 @@ mod runtime_provider {
         world_entity_query_props_in_bounds: WorldEntityQueryPropsInBounds,
         world_entity_register_prop_recipes: WorldEntityRegisterPropRecipes,
         world_entity_get_transform: WorldEntityGetTransform,
+        world_entity_set_scale: WorldEntitySetScale,
         world_cursor_read: Option<WorldCursorRead>,
         world_voxel_read: WorldVoxelRead,
         world_voxel_write: WorldVoxelWrite,
@@ -1673,6 +1699,10 @@ mod runtime_provider {
                             world_entity_get_transform: symbol!(
                                 "KfcRuntimeWorldEntityGetTransform",
                                 WorldEntityGetTransform
+                            ),
+                            world_entity_set_scale: symbol!(
+                                "KfcRuntimeWorldEntitySetScale",
+                                WorldEntitySetScale
                             ),
                             world_cursor_read: {
                                 let pointer = GetProcAddress(
@@ -1956,6 +1986,16 @@ mod runtime_provider {
         let mut prop = PropRecord::default();
         let ok = unsafe { (provider.world_entity_get_transform)(handle, &mut prop) };
         ok.then_some(prop)
+    }
+    pub fn world_entity_set_scale(handle: u32, scale: [f64; 3]) -> Result<(), String> {
+        let Some(provider) = provider() else {
+            return Err("KFC Runtime provider unavailable".into());
+        };
+        if scale.iter().any(|value| !value.is_finite()) {
+            return Err("entity scale must contain finite values".into());
+        }
+        let ok = unsafe { (provider.world_entity_set_scale)(handle, scale.as_ptr()) };
+        if ok { Ok(()) } else { Err("native entity scale update failed or timed out".into()) }
     }
     pub fn world_grid_get_spec(id: &str) -> Option<GridSpecResult> {
         let provider = provider()?;
@@ -2262,6 +2302,9 @@ mod runtime_provider {
         Err("native world runtime is available on Windows only")
     }
     pub fn world_entity_get_transform(_: u32) -> Option<PropRecord> { None }
+    pub fn world_entity_set_scale(_: u32, _: [f64; 3]) -> Result<(), String> {
+        Err("native world runtime is available on Windows only".into())
+    }
     pub struct GridSpecResult {
         pub id: String,
         pub origin: [f64; 3],

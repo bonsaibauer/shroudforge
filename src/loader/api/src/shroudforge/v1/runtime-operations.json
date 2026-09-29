@@ -17,6 +17,7 @@
     "runtime.world.entity.query_props_in_bounds",
     "runtime.world.entity.register_prop_recipes",
     "runtime.world.entity.get_transform",
+    "runtime.world.entity.set_scale",
     "runtime.world.entity.place",
     "runtime.world.entity.destroy",
     "runtime.world.entity.finish_building",

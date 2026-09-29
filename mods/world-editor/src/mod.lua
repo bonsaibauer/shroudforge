@@ -132,7 +132,7 @@ local function rotated_blueprint(source, quarter_turns)
     local sx, sy, sz = region.sx or 0, region.sy or 0, region.sz or 0
     local axis = region.rotationAxis or setting("rotationAxis")
     if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
-    local cells, props = source.cells, {}
+    local cells, coverage, props = source.cells, source.coverage, {}
     local extent = {source.extent[1], source.extent[2], source.extent[3]}
     local voxel_offset = source.voxelOffset and {source.voxelOffset[1], source.voxelOffset[2], source.voxelOffset[3]} or nil
     local cell_size = source.hasVoxels and {source.cellSize[1], source.cellSize[2], source.cellSize[3]} or nil
@@ -155,7 +155,7 @@ local function rotated_blueprint(source, quarter_turns)
         elseif axis == "y" then next_sx, next_sz = sz, sx
         else next_sx, next_sy = sy, sx end
         if source.hasVoxels then
-            local next_cells = {}
+            local next_cells, next_coverage = {}, coverage and {} or nil
             for z = 0, sz - 1 do
                 for y = 0, sy - 1 do
                     for x = 0, sx - 1 do
@@ -166,10 +166,12 @@ local function rotated_blueprint(source, quarter_turns)
                         else next_x, next_y, next_z = sy - 1 - y, x, z end
                         local target_index = next_x + next_sx * (next_y + next_sy * next_z) + 1
                         next_cells[target_index] = cells[source_index]
+                        if coverage then next_coverage[target_index] = coverage[source_index] end
                     end
                 end
             end
             cells = next_cells
+            if coverage then coverage = next_coverage end
         end
         for _, prop in ipairs(props) do
             local x, y, z = prop.x, prop.y, prop.z
@@ -204,7 +206,7 @@ local function rotated_blueprint(source, quarter_turns)
     end
     local bounds_low, bounds_high = rotated_box_bounds({0, 0, 0}, source.extent, quarter_turns, axis)
     return {sx = sx, sy = sy, sz = sz, cells = cells, props = props,
-        hasVoxels = source.hasVoxels, voxelOffset = voxel_offset,
+        hasVoxels = source.hasVoxels, coverage = coverage, voxelOffset = voxel_offset,
         extent = extent, cellSize = cell_size, boundsMin = bounds_low, boundsMax = bounds_high}
 end
 
@@ -653,7 +655,7 @@ local function transform_matches(actual, expected)
             actual.templateUuidLowHex == expected.templateUuidLowHex)
 end
 
-local function intended_spawn_transform(position, rotation, item_id_value, template_high, template_low)
+local function intended_spawn_transform(position, rotation, scale, item_id_value, template_high, template_low)
     return {
         itemId = item_id_value,
         templateUuidHighHex = template_high,
@@ -661,7 +663,7 @@ local function intended_spawn_transform(position, rotation, item_id_value, templ
         transform = {
             position = {x = position[1], y = position[2], z = position[3]},
             orientation = {x = rotation[1], y = rotation[2], z = rotation[3], w = rotation[4]},
-            scale = {x = 1, y = 1, z = 1},
+            scale = {x = scale[1], y = scale[2], z = scale[3]},
         },
     }
 end
@@ -674,6 +676,11 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
     clipboard = {region = blueprint_region, cells = cells, props = props,
         hasVoxels = cells ~= nil, extent = extent, voxelOffset = voxel_offset,
         cellSize = cells and region and (region.cellSize or {0.5, 0.5, 0.5}) or nil}
+    if cells then
+        clipboard.coverage = {}
+        for index, value in ipairs(cells) do clipboard.coverage[index] = value == 0 and 1 or 2 end
+    end
+    placement_preview = nil
     local occupied = 0
     for _, value in ipairs(cells or {}) do if value ~= 0 then occupied = occupied + 1 end end
     if cells then
@@ -769,12 +776,13 @@ save_blueprint_named = function(name)
     if not path then shroudforge.log.warn("World Editor: " .. reason); return end
     local region, values = clipboard.region, clipboard.cells
     local extent = clipboard.extent
-    local body = {"SHROUDFORGE_WORLD_BLUEPRINT_V6",
+    local body = {"SHROUDFORGE_WORLD_BLUEPRINT_V7",
         region.rotationAxis or "y", table.concat(extent, ","), clipboard.hasVoxels and "voxel" or "props",
         clipboard.hasVoxels and table.concat({region.sx, region.sy, region.sz}, ",") or "-",
         clipboard.hasVoxels and table.concat(clipboard.voxelOffset, ",") or "-",
         clipboard.hasVoxels and table.concat(clipboard.cellSize, ",") or "-",
         clipboard.hasVoxels and table.concat(values, ",") or "-",
+        clipboard.hasVoxels and table.concat(clipboard.coverage, ",") or "-",
         tostring(#(clipboard.props or {}))}
     for _, prop in ipairs(clipboard.props or {}) do
         body[#body + 1] = table.concat({prop.itemId, prop.x, prop.y, prop.z,
@@ -816,12 +824,12 @@ local function load_blueprint()
     for line in (content .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
     local version = lines[1]
     local rotation_axis, extent_text, kind = lines[2], lines[3], lines[4]
-    local dimensions, offset_text, cell_size_text, encoded = lines[5], lines[6], lines[7], lines[8]
+    local dimensions, offset_text, cell_size_text, encoded, coverage_encoded = lines[5], lines[6], lines[7], lines[8], lines[9]
     local has_voxels = kind == "voxel"
-    if version ~= "SHROUDFORGE_WORLD_BLUEPRINT_V6" or
+    if version ~= "SHROUDFORGE_WORLD_BLUEPRINT_V7" or
        (rotation_axis ~= "x" and rotation_axis ~= "y" and rotation_axis ~= "z") or
        (kind ~= "voxel" and kind ~= "props") or not extent_text or not dimensions or not offset_text or
-       not cell_size_text or not encoded then
+       not cell_size_text or not encoded or not coverage_encoded then
         shroudforge.log.warn("World Editor: blueprint format is invalid")
         return
     end
@@ -837,7 +845,7 @@ local function load_blueprint()
         shroudforge.log.warn("World Editor: blueprint extent is invalid")
         return
     end
-    local cells = {}
+    local cells, coverage = {}, {}
     local sx, sy, sz, voxel_offset, cell_size
     if has_voxels then
         local dimensions_values = parse_triplet(dimensions)
@@ -865,12 +873,32 @@ local function load_blueprint()
             shroudforge.log.warn("World Editor: blueprint cell count does not match its dimensions")
             return
         end
-    elseif dimensions ~= "-" or offset_text ~= "-" or cell_size_text ~= "-" or encoded ~= "-" then
+        for state in coverage_encoded:gmatch("[^,]+") do
+            local value = tonumber(state)
+            if not value or value % 1 ~= 0 or value < 0 or value > 2 then
+                shroudforge.log.warn("World Editor: blueprint contains invalid voxel coverage")
+                return
+            end
+            coverage[#coverage + 1] = value
+        end
+        if #coverage ~= #cells then
+            shroudforge.log.warn("World Editor: blueprint coverage count does not match its dimensions")
+            return
+        end
+        for index, state in ipairs(coverage) do
+            if state == 2 and cells[index] == 0 then
+                shroudforge.log.warn("World Editor: occupied blueprint cells must have a non-zero value")
+                return
+            elseif state ~= 2 then
+                cells[index] = 0
+            end
+        end
+    elseif dimensions ~= "-" or offset_text ~= "-" or cell_size_text ~= "-" or encoded ~= "-" or coverage_encoded ~= "-" then
         shroudforge.log.warn("World Editor: props-only blueprint has unexpected voxel data")
         return
     end
     local props = {}
-    local count_line = 9
+    local count_line = 10
     local count = tonumber(lines[count_line])
     if not count or count % 1 ~= 0 or count < 0 or count > 1000000 or #lines ~= count_line + count then
         shroudforge.log.warn("World Editor: blueprint prop count is invalid")
@@ -921,19 +949,28 @@ local function load_blueprint()
     end
     clipboard = {region = {sx = sx, sy = sy, sz = sz, rotationAxis = rotation_axis},
         cells = has_voxels and cells or nil, props = props, hasVoxels = has_voxels,
+        coverage = has_voxels and coverage or nil,
         extent = extent, voxelOffset = voxel_offset,
         cellSize = cell_size}
+    placement_preview = nil
     active_blueprint_name = setting("blueprintName")
     shroudforge.log.info(string.format("World Editor loaded persistent blueprint '%s' (%d cells, %d props)", active_blueprint_name, #cells, #props))
 end
 
 local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
     if not clipboard then shroudforge.log.warn("World Editor: capture or load a blueprint before pasting"); return end
+    if undo_state and undo_state.recovery_required then
+        shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before starting another paste")
+        return
+    end
     if clipboard.hasVoxels and not require_world_feature("runtime.world.voxel.write", function()
         paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
     end) then return end
     local context, reason
     if target_override then context = target_override
+    elseif placement_preview and placement_preview.blueprint == clipboard and
+       placement_preview.turns == rotation_turns() then
+        context = placement_preview
     else
         local anchor
         anchor, reason = target_anchor(use_current_cursor, cursor_override)
@@ -968,10 +1005,13 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         return
     end
     local recipes = (#rotated.props > 0 or setting("targetPropMode") == "replace") and resolve_placeable_items() or {}
-    if #rotated.props > 0 and not feature("runtime.world.entity.spawn") then return end
+    if #rotated.props > 0 and (not feature("runtime.world.entity.spawn") or
+       not feature("runtime.world.entity.set_scale")) then return end
     for _, prop in ipairs(rotated.props or {}) do
-        if math.abs(prop.sx - 1) > 1e-6 or math.abs(prop.sy - 1) > 1e-6 or math.abs(prop.sz - 1) > 1e-6 then
-            shroudforge.log.warn("World Editor: native prop spawn supports unit scale only; paste was not started")
+        local maximum_scale = 3.402823466e38
+        if not finite_number(prop.sx) or not finite_number(prop.sy) or not finite_number(prop.sz) or
+           math.abs(prop.sx) > maximum_scale or math.abs(prop.sy) > maximum_scale or math.abs(prop.sz) > maximum_scale then
+            shroudforge.log.warn("World Editor: blueprint prop scale is outside the native transform range")
             return
         end
         if not recipes or not recipes[prop.itemId] then
@@ -990,12 +1030,20 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         paste_cells = {}
         local additive = setting("pasteVoxelMode") == "add"
         for index, value in ipairs(rotated.cells) do
-            paste_cells[index] = additive and value == 0 and previous_cells[index] or value
+            local state = rotated.coverage[index]
+            if state == 0 or (additive and state == 1) then
+                paste_cells[index] = previous_cells[index]
+            elseif state == 1 then
+                paste_cells[index] = 0
+            else
+                paste_cells[index] = value
+            end
         end
     end
     local removed_props = {}
     if setting("targetPropMode") == "replace" then
-        if not feature("runtime.world.entity.destroy") then return end
+        if not feature("runtime.world.entity.destroy") or not feature("runtime.world.entity.spawn") or
+           not feature("runtime.world.entity.set_scale") then return end
         if not captured_props then
             local query_region = {queryBounds = context.bounds, anchor = anchor}
             request_prop_capture(query_region, function(props)
@@ -1026,9 +1074,8 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
                 return
             end
             local sx, sy, sz = tonumber(live_scale.x), tonumber(live_scale.y), tonumber(live_scale.z)
-            if not finite_number(sx) or not finite_number(sy) or not finite_number(sz) or
-               math.abs(sx - 1) > 1e-6 or math.abs(sy - 1) > 1e-6 or math.abs(sz - 1) > 1e-6 then
-                shroudforge.log.warn("World Editor cannot replace a non-unit-scale target prop because the native spawn backend cannot restore its scale")
+            if not finite_number(sx) or not finite_number(sy) or not finite_number(sz) then
+                shroudforge.log.warn("World Editor cannot replace a target prop with invalid scale data")
                 return
             end
             removed_props[#removed_props + 1] = {
@@ -1063,6 +1110,11 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         end
     end
     if clipboard.hasVoxels then
+        -- A native write can partially modify the grid even when it reports
+        -- failure. Mark the snapshot as applied before calling it so automatic
+        -- rollback always attempts to restore the original region.
+        undo_state.voxel_written = true
+        undo_state.expected_cells = paste_cells
         local ok, write_reason = runtime.world.voxel.write(target.x, target.y, target.z,
             target.sx, target.sy, target.sz, paste_cells)
         if not ok then
@@ -1095,22 +1147,31 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
             rollback_partial_paste()
             return
         end
+        local scale = {prop.sx, prop.sy, prop.sz}
+        local tracked = {recipe = recipe, position = position, rotation = rotation, scale = scale,
+            entityHandle = entity_handle, expected_transform = intended_spawn_transform(position, rotation, scale,
+                recipe.id, prop.templateUuidHighHex or recipe.uuidHigh, prop.templateUuidLowHex or recipe.uuidLow)}
+        spawned[#spawned + 1] = tracked
+        undo_state.entities, undo_state.entity_index = spawned, #spawned
+        local scaled, scale_reason = runtime.world.entity.set_scale(entity_handle, scale)
+        if not scaled then
+            local current = runtime.world.entity.get_transform(entity_handle)
+            if current then tracked.expected_transform = current end
+            runtime.report_effect("write-failed", scale_reason or "spawned prop scale could not be set")
+            shroudforge.log.error("World Editor stopped after spawn because native prop scale could not be set: " .. tostring(scale_reason))
+            rollback_partial_paste()
+            return
+        end
         local created = runtime.world.entity.get_transform(entity_handle)
         if not created or created.itemId ~= recipe.id then
-            spawned[#spawned + 1] = {recipe = recipe, position = position, rotation = rotation,
-                entityHandle = entity_handle, expected_transform = created or intended_spawn_transform(position, rotation,
-                    recipe.id, prop.templateUuidHighHex or recipe.uuidHigh, prop.templateUuidLowHex or recipe.uuidLow)}
-            undo_state.entities, undo_state.entity_index = spawned, #spawned
+            tracked.expected_transform = created or tracked.expected_transform
             local detail = "spawn returned an entity handle that did not resolve to the requested live prop"
             runtime.report_effect("write-failed", detail)
             shroudforge.log.error("World Editor stopped after spawn because it could not track the new prop: " .. tostring(detail))
             rollback_partial_paste()
             return
         end
-        local spawned_prop = {recipe = recipe, position = position, rotation = rotation,
-            entityHandle = entity_handle, expected_transform = created}
-        spawned[#spawned + 1] = spawned_prop
-        undo_state.entities, undo_state.entity_index = spawned, #spawned
+        tracked.expected_transform = created
     end
     undo_state.entities, undo_state.entity_index = spawned, #spawned
     undo_state.recovery_required = false
@@ -1123,20 +1184,25 @@ end
 
 undo_voxels = function()
     if not undo_state then shroudforge.log.warn("World Editor: there is no verified blueprint placement to undo"); return end
-    if undo_state.hasVoxels and (not require_world_feature("runtime.world.voxel.write", undo_voxels) or
-       not require_world_feature("runtime.world.voxel.read", undo_voxels)) then return end
+    if #(undo_state.removed_props or {}) > 0 and
+       (not feature("runtime.world.entity.spawn") or not feature("runtime.world.entity.set_scale")) then return end
+    if undo_state.hasVoxels and not require_world_feature("runtime.world.voxel.write", undo_voxels) then return end
+    if undo_state.hasVoxels and not undo_state.automaticRollback and
+       not require_world_feature("runtime.world.voxel.read", undo_voxels) then return end
     local region = undo_state.region
     if undo_state.hasVoxels then
-        local current_cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
-            region.sx, region.sy, region.sz)
-        if not current_cells then
-            shroudforge.log.warn("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
-            return
-        end
-        local expected_cells = undo_state.voxel_written and undo_state.expected_cells or undo_state.cells
-        if not same_cells(current_cells, expected_cells) then
-            shroudforge.log.warn("World Editor paused undo because the target voxels changed after the paste; no later changes were overwritten")
-            return
+        if not undo_state.automaticRollback then
+            local current_cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
+                region.sx, region.sy, region.sz)
+            if not current_cells then
+                shroudforge.log.warn("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
+                return
+            end
+            local expected_cells = undo_state.voxel_written and undo_state.expected_cells or undo_state.cells
+            if not same_cells(current_cells, expected_cells) then
+                shroudforge.log.warn("World Editor paused undo because the target voxels changed after the paste; no later changes were overwritten")
+                return
+            end
         end
     end
     local entities = undo_state.entities or {}
@@ -1149,7 +1215,7 @@ undo_voxels = function()
             shroudforge.log.warn("World Editor refused undo because a pasted prop is no longer present at its recorded handle")
             return
         end
-        if not transform_matches(current, entity.expected_transform) then
+        if not undo_state.automaticRollback and not transform_matches(current, entity.expected_transform) then
             runtime.report_effect("write-failed", "a pasted prop changed after paste")
             shroudforge.log.warn("World Editor refused undo because a pasted prop changed after paste")
             return
@@ -1158,7 +1224,7 @@ undo_voxels = function()
     local removed_index = undo_state.removed_prop_index or 0
     for prop_index = 1, removed_index do
         local prop = undo_state.removed_props[prop_index]
-        if prop.entityHandle and runtime.world.entity.get_transform(prop.entityHandle) then
+        if not undo_state.automaticRollback and prop.entityHandle and runtime.world.entity.get_transform(prop.entityHandle) then
             runtime.report_effect("write-failed", "a replaced prop reappeared before undo")
             shroudforge.log.warn("World Editor refused undo because a replaced prop is already live again")
             return
@@ -1204,6 +1270,14 @@ undo_voxels = function()
                 prop.position, prop.rotation, prop.recipe.id, 0)
             prop.restoreHandle = entity_handle
         end
+        if entity_handle then
+            local scaled, scale_reason = runtime.world.entity.set_scale(entity_handle, prop.scale)
+            if not scaled then
+                shroudforge.log.error("World Editor paused undo while restoring a replaced prop's scale: " ..
+                    tostring(scale_reason or "native scale update failed"))
+                return
+            end
+        end
         local restored = entity_handle and runtime.world.entity.get_transform(entity_handle)
         if not restored or not transform_matches(restored, prop.expected_transform) then
             shroudforge.log.error("World Editor paused undo while restoring a replaced target prop: " ..
@@ -1226,8 +1300,10 @@ end
 rollback_partial_paste = function()
     if not undo_state then return end
     shroudforge.log.warn("World Editor is rolling back the changes completed before the paste failure")
+    undo_state.automaticRollback = true
     undo_voxels()
     if undo_state then
+        undo_state.automaticRollback = nil
         shroudforge.log.error("World Editor rollback is incomplete; use F4 again after resolving the reported recovery issue")
     else
         shroudforge.log.info("World Editor automatically restored the pre-paste snapshot")
@@ -1246,6 +1322,10 @@ end
 
 local function preview_paste_at(point)
     if not clipboard then shroudforge.log.warn("World Editor: copy or load a blueprint before previewing"); return end
+    if undo_state and undo_state.recovery_required then
+        shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before preparing another placement")
+        return
+    end
     local turns = rotation_turns()
     local axis = clipboard.region.rotationAxis or setting("rotationAxis")
     if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end

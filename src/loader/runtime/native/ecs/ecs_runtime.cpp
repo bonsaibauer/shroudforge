@@ -1239,6 +1239,50 @@ extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, 
     }
     return false;
 }
+struct SetEntityScaleOperation {
+    std::uint32_t handle{};
+    float scale[3]{};
+    bool result{};
+};
+void set_entity_scale_on_game_thread(void* opaque) {
+    auto& operation = *static_cast<SetEntityScaleOperation*>(opaque);
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
+    if (transform_type == runtime_components.end() || transform_type->size != 0x38) return;
+    ResolvedLayout layout{};
+    EntityView entity{};
+    std::uintptr_t address{};
+    const ComponentType component{transform_type->index, transform_type->size};
+    if (!layout_snapshot(layout) || !entity_for_handle(operation.handle, layout, entity) ||
+        !component_address(entity, layout, component, address)) return;
+    struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; };
+    static_assert(sizeof(NativeTransform) == 0x38);
+    constexpr auto scale_offset = offsetof(NativeTransform, scale);
+    float before[3]{}, verified[3]{};
+    if (!read_bytes(address + scale_offset, before, sizeof(before))) return;
+    SIZE_T written{};
+    if (!WriteProcessMemory(GetCurrentProcess(), reinterpret_cast<void*>(address + scale_offset),
+            operation.scale, sizeof(operation.scale), &written) || written != sizeof(operation.scale) ||
+        !read_bytes(address + scale_offset, verified, sizeof(verified)) ||
+        std::memcmp(verified, operation.scale, sizeof(verified))) {
+        SIZE_T restored{};
+        WriteProcessMemory(GetCurrentProcess(), reinterpret_cast<void*>(address + scale_offset),
+            before, sizeof(before), &restored);
+        return;
+    }
+    operation.result = true;
+}
+extern "C" bool __cdecl KfcRuntimeWorldEntitySetScale(std::uint32_t handle, const double* scale) {
+    if (!handle || !scale || !GameThreadDispatcher::Ready()) return false;
+    auto operation = std::make_shared<SetEntityScaleOperation>();
+    operation->handle = handle;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(scale[axis]) || std::abs(scale[axis]) > std::numeric_limits<float>::max()) return false;
+        operation->scale[axis] = static_cast<float>(scale[axis]);
+    }
+    return GameThreadDispatcher::Invoke(set_entity_scale_on_game_thread, operation) && operation->result;
+}
 extern "C" std::uint32_t __cdecl KfcRuntimeEcsResolve(std::uint32_t entity_id) {
     operation_counters.resolves.fetch_add(1, std::memory_order_relaxed);
     if (!entity_id || !KfcRuntimeEcsReady()) {

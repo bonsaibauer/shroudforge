@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 /* Stable C ABI for native modloader hosts. Query KfcRuntimeAbi before use. */
-#define KFC_RUNTIME_ABI_VERSION 10u
+#define KFC_RUNTIME_ABI_VERSION 11u
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeAbi(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeInitialize(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
@@ -71,6 +71,8 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityRegisterPropRecipes(
     const KfcRuntimePropRecipe* recipes, size_t count);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityGetTransform(
     uint32_t entity_handle, KfcRuntimePropRecord* prop);
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntitySetScale(
+    uint32_t entity_handle, const double* scale);
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeEcsResolve(uint32_t entity_id);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsRead(
     uint32_t entity, const char* qualified_name, void* value, size_t size);
