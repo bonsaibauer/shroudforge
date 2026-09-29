@@ -1,5 +1,5 @@
-# 小狐狸：工坊生产速度20倍
+# XHL: 20x workshop production speed
 enabled=true
 
-# 相对于当前存档设置，将所有有生产时间的配方加速多少倍
+# Multiplier applied to all recipes with a production time, relative to the current save's settings.
 multiplier=20

@@ -1,7 +1,7 @@
--- XHL 连锁挖矿 v1.0.33
--- 地形连锁挖矿由本模组的独立 Native Sidecar 提供。
--- 此 EML 补丁将全部七把镐子的触及距离保持为10米。
--- 原生 DLL 读取游戏完成材质解析后的本地 ClientCursorInput。
+-- XHL Vein Mining v1.0.33
+-- Terrain vein mining is provided by this mod's standalone Native Sidecar.
+-- This EML patch sets the reach of all seven pickaxes to 10 meters.
+-- The native DLL reads the local ClientCursorInput after the game resolves the material.
 
 local TAG = "[XHL-Vein-Mining]"
 local DEFAULT_WHITELIST_COUNT = 34
@@ -9,13 +9,13 @@ local PICKAXE_MAX_DISTANCE = 10.0
 local EXPECTED_PICKAXE_COUNT = 7
 
 local PICKAXE_ITEM_GUIDS = {
-    ["59dba0f3-81b8-4ac5-88d7-ba97f4d2928c"] = true, -- T0 石镐
-    ["46ea9b46-445a-4e36-bf84-20cab7585f48"] = true, -- T1 废料镐
-    ["70ecc7fb-6ed1-416c-a51e-0362b2ebdd1a"] = true, -- T2 铜镐
-    ["c03c05ce-4cc0-40fd-b201-58d05c730767"] = true, -- T3 青铜镐
-    ["2e4b3166-4960-48b1-ad1f-f3bb9d0d981a"] = true, -- T4 铁镐
-    ["aaff198b-9139-47f5-8e41-b1ce0262abc8"] = true, -- T5 钢镐
-    ["aee6b3ba-adeb-4264-b117-25f974a08cb8"] = true, -- T6 钢/金镐
+    ["59dba0f3-81b8-4ac5-88d7-ba97f4d2928c"] = true, -- T0 Stone Pickaxe
+    ["46ea9b46-445a-4e36-bf84-20cab7585f48"] = true, -- T1 Scrappy Pickaxe
+    ["70ecc7fb-6ed1-416c-a51e-0362b2ebdd1a"] = true, -- T2 Copper Pickaxe
+    ["c03c05ce-4cc0-40fd-b201-58d05c730767"] = true, -- T3 Bronze Pickaxe
+    ["2e4b3166-4960-48b1-ad1f-f3bb9d0d981a"] = true, -- T4 Iron Pickaxe
+    ["aaff198b-9139-47f5-8e41-b1ce0262abc8"] = true, -- T5 Steel Pickaxe
+    ["aee6b3ba-adeb-4264-b117-25f974a08cb8"] = true, -- T6 Steel/Gold Pickaxe
 }
 
 local function get_field(object, field)

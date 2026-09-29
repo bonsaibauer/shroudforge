@@ -1,3 +1,3 @@
-# 抓钩拉拽距离翻倍
+# Double the grappling hook's pull distance.
 enabled=true
 pullDistanceMultiplier=2

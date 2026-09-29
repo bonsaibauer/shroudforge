@@ -26,9 +26,24 @@ The folder structure looks like this:
 my-first-mod/
 ├── mod.json
 ├── extended.mod.json
+├── native-plugin.ini    # optional; declares a DLL to load
 └── src/
     └── mod.lua
 ~~~
+
+Mods can declare a package-local DLL in **native-plugin.ini**:
+
+~~~ini
+[Plugin]
+Enabled=1
+Dll=bin/example.dll
+~~~
+
+When enabled, ShroudForge loads the DLL with the Windows loader. Its `DllMain`
+initialization runs as part of that load. No plugin-specific exports or host ABI
+are required. The DLL path must stay inside the package. This is the same
+package-local DLL registration behavior exposed by EML's
+`loader.runtime.register_dll(path)` API.
 
 The mod's **mod.json** contains its basic information:
 

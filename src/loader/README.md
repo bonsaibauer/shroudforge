@@ -47,10 +47,19 @@ keeps the final log visible after an unexpected nonzero game exit. Bootstrap pha
 errors, and crash exit codes are recorded in the same `shroudforge/logs/shroudforge.log`
 used by the Debug Console.
 
-XHL's `native-plugin.ini` sidecar is an additional format supported by that
-manager. It uses the XHL-defined `XhlNativePluginQuery`,
-`XhlNativePluginStart`, and `XhlNativePluginRequestStop` ABI v1 exports; those
-names are retained when calling unchanged XHL DLLs.
+Mods can declare a package-local DLL in `native-plugin.ini`:
+
+```ini
+[Plugin]
+Enabled=1
+Dll=bin/example.dll
+```
+
+The DLL path must stay inside the package. ShroudForge loads the DLL through
+the Windows loader, which runs its `DllMain`; it does not look for or call any
+plugin-specific exports. DLL loading runs on an isolated worker / runtime poll
+path so a slow DLL initializer does not block Lua activation. This matches the
+behavior of EML's `loader.runtime.register_dll(path)` API.
 
 ShroudForge activation and player settings are stored in the mod package's
 `extended.mod.json`; package updates can reset them. Loader configuration is

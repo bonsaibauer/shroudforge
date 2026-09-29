@@ -13642,6 +13642,16 @@
     {
       "kind": "function",
       "namespace": "runtime",
+      "name": "runtime.ecs.query_bounds",
+      "signature": "runtime.ecs.query_bounds(bounds, padding, ...)",
+      "params": [],
+      "returns": [],
+      "description": "Query live entities whose CurrentTransform pivots overlap bounds expanded by padding * max(abs(scale)).",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
       "name": "runtime.ecs.resolve",
       "signature": "runtime.ecs.resolve(keen_entity_id)",
       "params": [
@@ -13846,6 +13856,30 @@
         "string?"
       ],
       "description": "Report whether a validated live voxel-world context is available.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.entity.query_props",
+      "signature": "runtime.world.entity.query_props(bounds, padding)",
+      "params": [
+        {
+          "name": "bounds",
+          "type": "number[]",
+          "description": ""
+        },
+        {
+          "name": "padding",
+          "type": "number",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table[]?",
+        "string?"
+      ],
+      "description": "Query placeable props using the native, build-profiled ECS layout. Returns transforms and item IDs directly, without requiring Lua reflection reads.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -14287,14 +14321,14 @@
       "params": [
         {
           "name": "key",
-          "type": "'F4'|'F5'|'F6'|'F7'|'F8'",
+          "type": "'F3'|'F4'|'F5'|'F6'|'F7'|'F8'",
           "description": ""
         }
       ],
       "returns": [
         "boolean"
       ],
-      "description": "Returns true while F4 through F8 is held and the game window is focused. Poll from a runtime `on_update` callback and detect rising edges.",
+      "description": "Returns true while F3 through F8 is held and the game window is focused. Poll from a runtime `on_update` callback and detect rising edges.",
       "source": "shroudforge/v1/definitions/shroudforge.lua"
     },
     {

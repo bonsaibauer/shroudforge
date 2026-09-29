@@ -1,8 +1,8 @@
-# XHL 连锁挖矿 v1.0.33
-# 地形材质 ID 白名单。修改后需要完全退出并重新启动游戏。
-# 这里填写的是准星提示中的“地形材质 ID”，不是物品 ID 或 GUID。
-# 此列表会完整替换白名单；添加新材质时请保留原有 ID，并用英文逗号分隔。
-# 有效范围：1至127。重复 ID 会自动去重；非法内容会回退到内置33项。
-# 普通幽光土=32；水下幽光土=93。
-# 多人联机时房主和客机建议使用相同列表，实际地形清除由房主配置决定。
+# XHL Vein Mining v1.0.33
+# Terrain material ID whitelist. Fully exit and restart the game after making changes.
+# Enter the "Terrain Material ID" shown in the crosshair tooltip here, not an item ID or GUID.
+# This list completely replaces the whitelist. Keep the existing IDs when adding new materials, and separate them with commas.
+# Valid range: 1 to 127. Duplicate IDs are automatically removed; invalid content falls back to the built-in list of 33 IDs.
+# Normal Shroud Soil = 32; Underwater Shroud Soil = 93.
+# In multiplayer, the host and clients should use the same list. The host's settings determine the actual terrain removal.
 materialIds=6,7,14,17,18,19,24,25,26,27,29,30,31,32,33,38,48,50,60,63,65,68,71,72,76,82,83,84,85,89,93,96,97,98

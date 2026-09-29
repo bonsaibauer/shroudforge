@@ -292,13 +292,42 @@ impl AppState {
     }
 
     pub(crate) fn set_runtime_mod_active(&self, id: &str, active: bool) {
+        let native_dll_state = self.native_dll_state(id);
         let mut active_mods = self.runtime_active_mods.borrow_mut();
         if active {
             active_mods.insert(id.to_owned());
-            self.runtime_effects.borrow_mut().remove(id);
         } else {
             active_mods.remove(id);
+        }
+        drop(active_mods);
+        if let Some(state) = native_dll_state {
+            let detail = match state {
+                "loading" => "native DLL is still loading",
+                _ => "native DLL remains loaded for this game session",
+            };
+            self.report_runtime_effect(id, state, detail);
+        } else {
             self.runtime_effects.borrow_mut().remove(id);
+        }
+    }
+
+    fn native_dll_state(&self, id: &str) -> Option<&'static str> {
+        if self
+            .native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == id)
+        {
+            Some("loaded")
+        } else if self
+            .pending_native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == id)
+        {
+            Some("loading")
+        } else {
+            None
         }
     }
 
@@ -349,15 +378,10 @@ impl AppState {
         target_mod: &Mod,
         relative_path: &str,
     ) -> Result<(), String> {
-        self.queue_mod_native_dll(target_mod, relative_path, false)
+        self.queue_mod_native_dll(target_mod, relative_path)
     }
 
-    fn queue_mod_native_dll(
-        &self,
-        target_mod: &Mod,
-        relative_path: &str,
-        require_plugin_host: bool,
-    ) -> Result<(), String> {
+    fn queue_mod_native_dll(&self, target_mod: &Mod, relative_path: &str) -> Result<(), String> {
         if !self.has_feature(AppFeatures::RUNTIME_DLL) {
             return Err("native DLL loading is unavailable in this execution phase".into());
         }
@@ -370,7 +394,6 @@ impl AppState {
             return Err("DLL path must stay inside the mod package".into());
         }
         let mut filesystem = target_mod.fs();
-        let package_directory = filesystem.root().as_std_path().to_path_buf();
         let (load_path, temporary_directory) = if let Some(path) = filesystem
             .absolute_path(package_path)
             .map_err(|error| error.to_string())?
@@ -427,21 +450,14 @@ impl AppState {
             }
         };
         let mod_id = target_mod.info().id.to_string();
-        let mod_directory = temporary_directory
-            .as_ref()
-            .cloned()
-            .unwrap_or(package_directory);
         let already_loaded = {
             self.native_dlls
                 .borrow()
                 .iter()
                 .find(|item| item.path == canonical)
-                .map(|item| item.handle)
+                .is_some()
         };
-        if let Some(handle) = already_loaded {
-            if require_plugin_host {
-                self.start_native_plugin(&mod_id, handle, &mod_directory, true)?;
-            }
+        if already_loaded {
             if let Some(directory) = temporary_directory {
                 let _ = std::fs::remove_dir_all(directory);
             }
@@ -453,10 +469,6 @@ impl AppState {
             .iter_mut()
             .find(|item| item.path == canonical)
         {
-            pending.require_plugin_host |= require_plugin_host;
-            if require_plugin_host {
-                pending.mod_directory = mod_directory;
-            }
             if let Some(directory) = temporary_directory {
                 let _ = std::fs::remove_dir_all(directory);
             }
@@ -499,8 +511,6 @@ impl AppState {
             mod_id,
             path: canonical,
             temporary_directory,
-            mod_directory,
-            require_plugin_host,
             queued_at: std::time::Instant::now(),
             warned_stall: false,
             receiver,
@@ -534,34 +544,23 @@ impl AppState {
                 Ok(handle) => {
                     self.native_dlls.borrow_mut().push(NativeDll {
                         mod_id: item.mod_id.clone(), path: item.path.clone(), handle,
-                        temporary_directory: item.temporary_directory.clone(), plugin_id: None,
-                        stop_function: None, mod_root_utf16: None,
+                        temporary_directory: item.temporary_directory.clone(),
                     });
                     tracing::info!(target: "shroudforge::runtime", mod_id = %item.mod_id,
                         dll = %item.path.display(), "Native DLL load completed");
-                    if item.require_plugin_host {
-                        match self.start_native_plugin(&item.mod_id, handle, &item.mod_directory, true) {
-                            Ok(true) => self.report_runtime_effect(&item.mod_id, "loaded", "native-plugin.ini sidecar started"),
-                            Ok(false) => self.report_runtime_effect(&item.mod_id, "error", "sidecar DLL did not start a supported native plugin"),
-                            Err(error) => {
-                                tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id, "native plugin start failed: {error}");
-                                self.report_runtime_effect(&item.mod_id, "error", &error);
-                                self.unload_native_dll(handle);
-                            }
-                        }
-                    }
+                    self.report_runtime_effect(&item.mod_id, "loaded", "native DLL loaded");
                 }
                 Err(error) => {
                     if let Some(directory) = item.temporary_directory { let _ = std::fs::remove_dir_all(directory); }
                     tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id,
                         dll = %item.path.display(), "Native DLL load failed: {error}");
-                    if item.require_plugin_host { self.report_runtime_effect(&item.mod_id, "error", &error); }
+                    self.report_runtime_effect(&item.mod_id, "error", &error);
                 }
             }
         }
     }
 
-    pub(crate) fn load_native_plugin(&self, target_mod: &Mod) -> Result<bool, String> {
+    pub(crate) fn load_native_dll_declaration(&self, target_mod: &Mod) -> Result<bool, String> {
         if !self.has_feature(AppFeatures::RUNTIME_DLL) {
             return Ok(false);
         }
@@ -579,17 +578,12 @@ impl AppState {
                 .map_err(|error| format!("could not decode native-plugin.ini: {error}"))?;
             config
         };
-
         let mut in_plugin_section = false;
         let mut enabled = false;
         let mut dll = None;
         for raw_line in config.lines() {
-            let line = raw_line
-                .split(|character| character == ';' || character == '#')
-                .next()
-                .unwrap_or_default()
-                .trim();
-            if line.is_empty() {
+            let line = raw_line.trim();
+            if line.is_empty() || line.starts_with(';') || line.starts_with('#') {
                 continue;
             }
             if line.starts_with('[') && line.ends_with(']') {
@@ -604,7 +598,15 @@ impl AppState {
             let Some((key, value)) = line.split_once('=') else {
                 continue;
             };
-            let value = value.trim().trim_matches('"').trim_matches('\'');
+            let value = value.trim();
+            let value = if value.len() >= 2
+                && ((value.starts_with('"') && value.ends_with('"'))
+                    || (value.starts_with('\'') && value.ends_with('\'')))
+            {
+                &value[1..value.len() - 1]
+            } else {
+                value
+            };
             match key.trim().to_ascii_lowercase().as_str() {
                 "enabled" => {
                     enabled = matches!(
@@ -620,157 +622,12 @@ impl AppState {
             return Ok(false);
         }
         let dll = dll.ok_or_else(|| {
-            "native-plugin.ini enables the plugin but does not name a DLL".to_owned()
+            "native-plugin.ini enables DLL loading but does not name a DLL".to_owned()
         })?;
         tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
-            dll = %dll, "Native plugin sidecar configuration parsed; queuing isolated load");
-        self.queue_mod_native_dll(target_mod, &dll, true)?;
+            dll = %dll, "Native DLL declaration parsed; queuing isolated load");
+        self.queue_mod_native_dll(target_mod, &dll)?;
         Ok(true)
-    }
-
-    #[cfg(windows)]
-    fn start_native_plugin(
-        &self,
-        mod_id: &str,
-        handle: isize,
-        mod_directory: &std::path::Path,
-        required: bool,
-    ) -> Result<bool, String> {
-        use std::os::windows::ffi::OsStrExt;
-        use windows_sys::Win32::{
-            Foundation::HMODULE,
-            System::LibraryLoader::{GetModuleHandleW, GetProcAddress},
-        };
-
-        type Query = unsafe extern "system" fn(*mut NativePluginInfoV1) -> i32;
-        type Start = unsafe extern "system" fn(*const NativePluginHostV1) -> i32;
-        type Stop = unsafe extern "system" fn();
-
-        if self
-            .native_dlls
-            .borrow()
-            .iter()
-            .any(|item| item.handle == handle && item.stop_function.is_some())
-        {
-            return Ok(true);
-        }
-
-        let module = handle as HMODULE;
-        tracing::info!(target: "shroudforge::runtime", mod_id,
-            "Resolving native plugin host ABI exports");
-        let query = unsafe { GetProcAddress(module, NATIVE_PLUGIN_QUERY_EXPORT.as_ptr()) };
-        let start = unsafe { GetProcAddress(module, NATIVE_PLUGIN_START_EXPORT.as_ptr()) };
-        let stop = unsafe { GetProcAddress(module, NATIVE_PLUGIN_STOP_EXPORT.as_ptr()) };
-        if query.is_none() && start.is_none() && stop.is_none() {
-            return if required {
-                Err("native-plugin.ini sidecar does not export the XHL host ABI v1".into())
-            } else {
-                Ok(false)
-            };
-        }
-        let (Some(query), Some(start), Some(stop)) = (query, start, stop) else {
-            return Err("native plugin exports an incomplete XHL host ABI v1".into());
-        };
-        let query: Query = unsafe { std::mem::transmute(query) };
-        let start: Start = unsafe { std::mem::transmute(start) };
-        let stop: Stop = unsafe { std::mem::transmute(stop) };
-
-        let mut descriptor = NativePluginInfoV1 {
-            size: std::mem::size_of::<NativePluginInfoV1>() as u32,
-            ..NativePluginInfoV1::default()
-        };
-        if unsafe { query(&mut descriptor) } == 0 {
-            return Err("native plugin rejected the XHL host ABI v1 descriptor".into());
-        }
-        if descriptor.size as usize != std::mem::size_of::<NativePluginInfoV1>()
-            || descriptor.abi_version != 0x0001_0000
-            || descriptor.reserved != 0
-        {
-            return Err("native plugin reported an unsupported XHL ABI version".into());
-        }
-        let plugin_id = native_plugin_text_field(&descriptor.id, "ID")?;
-        let _plugin_name = native_plugin_text_field(&descriptor.name, "name")?;
-        let _plugin_version = native_plugin_text_field(&descriptor.version, "version")?;
-        if plugin_id.is_empty()
-            || !plugin_id
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-        {
-            return Err("native plugin descriptor ID contains unsupported characters".into());
-        }
-        if !plugin_id.eq_ignore_ascii_case(mod_id) {
-            return Err(format!(
-                "native plugin ID '{plugin_id}' does not match mod '{}'",
-                mod_id
-            ));
-        }
-        let loaded = self.native_dlls.borrow();
-        if loaded.iter().any(|item| {
-            item.handle != handle
-                && item
-                    .plugin_id
-                    .as_deref()
-                    .is_some_and(|loaded_id| loaded_id.eq_ignore_ascii_case(plugin_id))
-        }) {
-            return Err(format!("native plugin ID '{plugin_id}' is already loaded"));
-        }
-        if loaded
-            .iter()
-            .filter(|item| item.plugin_id.is_some())
-            .count()
-            >= 16
-        {
-            return Err("native plugin host limit of 16 loaded plugins was reached".into());
-        }
-        drop(loaded);
-
-        let mut wide_directory = mod_directory.as_os_str().encode_wide().collect::<Vec<_>>();
-        wide_directory.push(0);
-        let wide_directory = wide_directory.into_boxed_slice();
-        let game_module = unsafe { GetModuleHandleW(std::ptr::null()) };
-        if game_module.is_null() {
-            return Err(format!(
-                "could not resolve the game module: {}",
-                std::io::Error::last_os_error()
-            ));
-        }
-        let context = NativePluginHostV1 {
-            size: std::mem::size_of::<NativePluginHostV1>() as u32,
-            abi_version: 0x0001_0000,
-            game_module,
-            mod_directory: wide_directory.as_ptr(),
-            process_id: unsafe { windows_sys::Win32::System::Threading::GetCurrentProcessId() },
-            reserved: 0,
-            log: Some(native_plugin_log),
-        };
-        tracing::info!(target: "shroudforge::runtime", mod_id,
-            "Calling native plugin start callback");
-        if unsafe { start(&context) } == 0 {
-            return Err("native plugin start callback failed for XHL host ABI v1".into());
-        }
-
-        let mut loaded = self.native_dlls.borrow_mut();
-        let library = loaded
-            .iter_mut()
-            .find(|item| item.handle == handle)
-            .ok_or_else(|| "native plugin handle was lost during startup".to_owned())?;
-        library.stop_function = Some(stop);
-        library.plugin_id = Some(plugin_id.to_owned());
-        library.mod_root_utf16 = Some(wide_directory);
-        tracing::info!(target: "shroudforge::runtime", mod_id,
-            "Started native plugin using XHL host ABI v1");
-        Ok(true)
-    }
-
-    #[cfg(not(windows))]
-    fn start_native_plugin(
-        &self,
-        _mod_id: &str,
-        _handle: isize,
-        _mod_directory: &std::path::Path,
-        _required: bool,
-    ) -> Result<bool, String> {
-        Err("native plugin ABI v1 is supported only on Windows".into())
     }
 
     fn unload_native_dll(&self, handle: isize) {
@@ -782,9 +639,6 @@ impl AppState {
         drop(loaded);
         #[cfg(windows)]
         unsafe {
-            if let Some(stop) = dll.stop_function {
-                stop();
-            }
             windows_sys::Win32::Foundation::FreeLibrary(
                 dll.handle as windows_sys::Win32::Foundation::HMODULE,
             );
@@ -997,9 +851,6 @@ impl Drop for AppState {
         for dll in self.native_dlls.get_mut().drain(..).rev() {
             #[cfg(windows)]
             unsafe {
-                if let Some(stop) = dll.stop_function {
-                    stop();
-                }
                 windows_sys::Win32::Foundation::FreeLibrary(
                     dll.handle as windows_sys::Win32::Foundation::HMODULE,
                 );
@@ -1014,25 +865,17 @@ impl Drop for AppState {
 }
 
 struct NativeDll {
-    #[allow(dead_code)]
     mod_id: String,
     path: NativePathBuf,
     #[allow(dead_code)]
     handle: isize,
     temporary_directory: Option<NativePathBuf>,
-    plugin_id: Option<String>,
-    #[allow(dead_code)]
-    stop_function: Option<unsafe extern "system" fn()>,
-    #[allow(dead_code)]
-    mod_root_utf16: Option<Box<[u16]>>,
 }
 
 struct PendingNativeDll {
     mod_id: String,
     path: NativePathBuf,
     temporary_directory: Option<NativePathBuf>,
-    mod_directory: NativePathBuf,
-    require_plugin_host: bool,
     queued_at: std::time::Instant,
     warned_stall: bool,
     receiver: Receiver<Result<isize, String>>,
@@ -1080,73 +923,6 @@ fn load_native_library(mod_id: &str, _path: &std::path::Path) -> Result<isize, S
 
 #[cfg(not(windows))]
 fn unload_native_library(_handle: isize) {}
-
-// Internal names describe the host role. This layout currently adapts the XHL
-// native-plugin.ini ABI; the exported symbol names below remain XHL-defined.
-const NATIVE_PLUGIN_QUERY_EXPORT: &[u8] = b"XhlNativePluginQuery\0";
-const NATIVE_PLUGIN_START_EXPORT: &[u8] = b"XhlNativePluginStart\0";
-const NATIVE_PLUGIN_STOP_EXPORT: &[u8] = b"XhlNativePluginRequestStop\0";
-
-#[repr(C)]
-struct NativePluginInfoV1 {
-    size: u32,
-    abi_version: u32,
-    reserved: u32,
-    id: [u8; 64],
-    name: [u8; 128],
-    version: [u8; 32],
-}
-
-impl Default for NativePluginInfoV1 {
-    fn default() -> Self {
-        Self {
-            size: 0,
-            abi_version: 0,
-            reserved: 0,
-            id: [0; 64],
-            name: [0; 128],
-            version: [0; 32],
-        }
-    }
-}
-
-fn native_plugin_text_field<'a>(field: &'a [u8], name: &str) -> Result<&'a str, String> {
-    let end = field
-        .iter()
-        .position(|byte| *byte == 0)
-        .ok_or_else(|| format!("native plugin descriptor {name} is not NUL-terminated"))?;
-    if field[..end]
-        .iter()
-        .any(|byte| *byte < 0x20 || *byte == 0x7f)
-    {
-        return Err(format!(
-            "native plugin descriptor {name} contains non-printable bytes"
-        ));
-    }
-    std::str::from_utf8(&field[..end])
-        .map_err(|_| format!("native plugin descriptor {name} is not UTF-8"))
-}
-
-#[cfg(windows)]
-#[repr(C)]
-struct NativePluginHostV1 {
-    size: u32,
-    abi_version: u32,
-    game_module: windows_sys::Win32::Foundation::HMODULE,
-    mod_directory: *const u16,
-    process_id: u32,
-    reserved: u32,
-    log: Option<unsafe extern "system" fn(*const std::ffi::c_char)>,
-}
-
-#[cfg(windows)]
-unsafe extern "system" fn native_plugin_log(message: *const std::ffi::c_char) {
-    if message.is_null() {
-        return;
-    }
-    let message = unsafe { std::ffi::CStr::from_ptr(message) }.to_string_lossy();
-    tracing::info!(target: "shroudforge::native-plugin", "{message}");
-}
 
 pub struct ResourceInfo {
     pub resource_id: ResourceId,

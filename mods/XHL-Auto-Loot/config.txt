@@ -1,30 +1,30 @@
-# 小狐狸自动拾取 v1.5.0
-# Native Sidecar只对本模组拾取区域跳过原版首次0至5秒随机等待。
-# 范围检测周期约200ms；私有标记多出的123ns仅用于识别本模组。
-# 背包格子占满但目标物品仍可合并堆叠时会继续拾取；只有原版实际判定
-# 该物品无法进入背包并产生 InventoryFull 时，才暂停该玩家对此掉落物的重试。
+# XHL Auto Loot v1.5.0
+# Native Sidecar skips the vanilla initial random wait of 0 to 5 seconds only for this mod's pickup areas.
+# Range checks run about every 200 ms; the extra 123 ns private marker is used only to identify this mod.
+# Pickup continues when inventory slots are full if the target item can still be merged into an existing stack.
+# Retries for a player and a drop are paused only when vanilla determines the item cannot enter the inventory and raises InventoryFull.
 enabled=true
 
-# 普通重力掉落：树枝、碎石、木材、矿石碎块等
+# Ordinary gravity drops: branches, stone fragments, wood, ore chunks, etc.
 collectGravityDrops=true
 
-# 材料堆：原木堆、石料堆、树脂堆等
+# Material piles: log piles, stone piles, resin piles, etc.
 collectMaterialPiles=true
 
-# 任务、收藏、剧情拾取物。仍按你原来的设置默认关闭
+# Quest, collectible, and story items. Disabled by default, as in the original settings.
 collectQuestItems=false
 
-# 自动拾取半径（米），5米可显著减少范围候选数量
+# Auto-pickup radius (meters); 5 meters can significantly reduce the number of range candidates.
 pickupRadiusMeters=5
 
-# 根据采集节点实际组件，把掉落初速度、偏移和散落半径归零
+# Set drop initial velocity, offset, and scatter radius to zero based on the gather node's actual components.
 tuneGatherNodes=true
 
-# 关闭普通白名单掉落物自身的重力，减少四处弹落
+# Disable gravity on ordinary whitelisted drops to reduce them bouncing away.
 softenGravityDrops=true
 
-# 移除白名单掉落物的生成等待
+# Remove the spawn delay for whitelisted drops.
 removeSpawnDelay=true
 
-# 保留地面拾取物的闪光提示
+# Keep the sparkle effect on ground pickups.
 keepLootSparks=true

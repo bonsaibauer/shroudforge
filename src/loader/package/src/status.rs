@@ -102,7 +102,16 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     .capabilities
                     .iter()
                     .any(|capability| capability.requires_runtime());
-                let state = if !manifest.enabled {
+                let native_dll_effect = runtime
+                    .as_ref()
+                    .filter(|_| runtime_fresh)
+                    .and_then(|value| value["effects"].get(&manifest.id));
+                let dll_still_loaded = native_dll_effect
+                    .and_then(|value| value["state"].as_str())
+                    .is_some_and(|state| matches!(state, "loading" | "loaded"));
+                let state = if !manifest.enabled && dll_still_loaded {
+                    json!({"state":"restart-required","code":"native-dll-disable-pending","detail":"The mod is disabled in settings, but its native DLL is still loaded in this game session. It will not load after the next game restart."})
+                } else if !manifest.enabled {
                     json!({"state":"disabled","detail":"The mod is disabled."})
                 } else if runtime_fresh && runtime_mod {
                     let runtime = runtime.as_ref().unwrap();
@@ -124,13 +133,13 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                         let effect = runtime["effects"].get(&manifest.id);
                         match effect.and_then(|value| value["state"].as_str()) {
                             Some("error") => {
-                                json!({"state":"failed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar failed to start.")})
+                                json!({"state":"failed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL failed to load.")})
                             }
                             Some("loaded") => {
-                                json!({"state":"active","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar started successfully.")})
+                                json!({"state":"active","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL loaded successfully.")})
                             }
                             Some("loading") => {
-                                json!({"state":"waiting","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar is loading.")})
+                                json!({"state":"waiting","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL is loading.")})
                             }
                             Some("write-confirmed") => {
                                 json!({"state":"write-confirmed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("A typed ECS write was confirmed in memory. The gameplay effect still requires in-game confirmation.")} )
@@ -159,13 +168,10 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 } else if pregame_mod && !applied_assets {
                     json!({"state":"restart-required","detail":"This mod's asset changes are not included in startup preparation. Restart the game to apply them."})
                 } else if pregame_mod && !runtime_mod && applied_assets {
-                    let sidecar = runtime_fresh
-                        .then(|| runtime.as_ref().and_then(|value| value["effects"].get(&manifest.id)))
-                        .flatten();
-                    match sidecar.and_then(|value| value["state"].as_str()) {
-                        Some("error") => json!({"state":"failed","detail":sidecar.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar failed to start.")}),
-                        Some("loading") => json!({"state":"applied","detail":"Asset changes are applied; the native plugin sidecar is still loading."}),
-                        Some("loaded") => json!({"state":"applied","detail":sidecar.and_then(|value|value["detail"].as_str()).unwrap_or("Asset changes and native plugin sidecar are active for this session.")}),
+                    match native_dll_effect.and_then(|value| value["state"].as_str()) {
+                        Some("error") => json!({"state":"failed","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL failed to load.")}),
+                        Some("loading") => json!({"state":"applied","detail":"Asset changes are applied; the native DLL is still loading."}),
+                        Some("loaded") => json!({"state":"applied","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("Asset changes and native DLL are active for this session.")}),
                         _ => json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."}),
                     }
                 } else if manifest.enabled {
@@ -333,7 +339,7 @@ mod tests {
                 }
             });
             crate::config::validate_document(Path::new("."), "mod-status", &document)
-                .unwrap_or_else(|error| panic!("native plugin state '{state}' was rejected: {error}"));
+                .unwrap_or_else(|error| panic!("native DLL state '{state}' was rejected: {error}"));
         }
     }
 }
