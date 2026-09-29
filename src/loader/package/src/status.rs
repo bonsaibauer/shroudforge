@@ -123,6 +123,15 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     {
                         let effect = runtime["effects"].get(&manifest.id);
                         match effect.and_then(|value| value["state"].as_str()) {
+                            Some("error") => {
+                                json!({"state":"failed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar failed to start.")})
+                            }
+                            Some("loaded") => {
+                                json!({"state":"active","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar started successfully.")})
+                            }
+                            Some("loading") => {
+                                json!({"state":"waiting","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar is loading.")})
+                            }
                             Some("write-confirmed") => {
                                 json!({"state":"write-confirmed","detail":effect.and_then(|value|value["detail"].as_str()).unwrap_or("A typed ECS write was confirmed in memory. The gameplay effect still requires in-game confirmation.")} )
                             }
@@ -150,7 +159,15 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 } else if pregame_mod && !applied_assets {
                     json!({"state":"restart-required","detail":"This mod's asset changes are not included in startup preparation. Restart the game to apply them."})
                 } else if pregame_mod && !runtime_mod && applied_assets {
-                    json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."})
+                    let sidecar = runtime_fresh
+                        .then(|| runtime.as_ref().and_then(|value| value["effects"].get(&manifest.id)))
+                        .flatten();
+                    match sidecar.and_then(|value| value["state"].as_str()) {
+                        Some("error") => json!({"state":"failed","detail":sidecar.and_then(|value|value["detail"].as_str()).unwrap_or("The native plugin sidecar failed to start.")}),
+                        Some("loading") => json!({"state":"applied","detail":"Asset changes are applied; the native plugin sidecar is still loading."}),
+                        Some("loaded") => json!({"state":"applied","detail":sidecar.and_then(|value|value["detail"].as_str()).unwrap_or("Asset changes and native plugin sidecar are active for this session.")}),
+                        _ => json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."}),
+                    }
                 } else if manifest.enabled {
                     json!({"state":"unconfirmed","detail":"Activation is saved; no current runtime report is available."})
                 } else {
@@ -290,4 +307,33 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         }
     }
     json!({"errors":errors,"checks":checks,"assets":assets,"lastUpdate":updates,"modStates":mod_states})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_plugin_lifecycle_effects_pass_runtime_status_validation() {
+        for state in ["loading", "loaded", "error"] {
+            let document = json!({
+                "schemaVersion": 1,
+                "pid": 1,
+                "updatedAt": 1,
+                "running": true,
+                "active": [],
+                "loaded": {},
+                "errors": {},
+                "effects": {
+                    "community-mod": {
+                        "state": state,
+                        "detail": "sidecar lifecycle test",
+                        "updatedAt": 1
+                    }
+                }
+            });
+            crate::config::validate_document(Path::new("."), "mod-status", &document)
+                .unwrap_or_else(|error| panic!("native plugin state '{state}' was rejected: {error}"));
+        }
+    }
 }

@@ -70,7 +70,7 @@ Runtime mods have separate Lua environments. The loader selects a matching profi
 - **mod.json** follows the EML format. It contains the mod's identity, version, dependencies, and permissions.
 - **extended.mod.json** is an optional ShroudForge file. It contains the enabled state, setting values, groups, actions, links, short update notes, and optional `launcher` provenance (`EML` or `SF`).
 
-The UI shows EML only when **extended.mod.json** explicitly records `launcher: "EML"`. When ShroudForge adds the extension to an EML package, it writes that marker so the UI keeps the package's original EML identity. A missing or non-EML marker is shown as SF. The loader checks the extension against its schema before accepting the package.
+The UI treats a package without **extended.mod.json** as EML; ShroudForge mods always include the extension. If ShroudForge adds an extension to an EML package, it writes `launcher: "EML"` so the package keeps its original identity. When an extension exists, only that explicit marker is shown as EML; a missing or non-EML marker is shown as SF. The loader checks the extension against its schema before accepting the package.
 
 Player changes are saved into the package's **extended.mod.json**. Updating the package can replace those choices. Setting migration is not supported. See [Mod packages](mod-packages.md) for examples and the exact schemas.
 

@@ -144,7 +144,7 @@ The [extension schema](../../src/loader/package/src/registry/extended.mod.schema
 
 When someone changes a setting, the Modloader writes that choice into the mod's own **extended.mod.json**. Updating a mod replaces its package and may reset those choices. Settings migration is not supported.
 
-Only an explicit `"launcher": "EML"` in **extended.mod.json** preserves the EML badge. The loader writes that marker when it first adds an extension to an EML package; the original **mod.json** stays untouched. `launcher: "SF"` can be written explicitly, but is optional because missing or other values are treated as SF.
+Packages without **extended.mod.json** are treated as EML; ShroudForge mods always include the extension. For packages with an extension, only an explicit `"launcher": "EML"` preserves the EML badge. The loader writes that marker when it first adds an extension to an EML package; the original **mod.json** stays untouched. `launcher: "SF"` can be written explicitly, but is optional because missing or other values in an existing extension are treated as SF.
 
 ## Groups, buttons, and links
 

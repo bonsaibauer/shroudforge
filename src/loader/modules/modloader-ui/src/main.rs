@@ -2784,6 +2784,12 @@ mod windows {
     }
 
     fn mod_ecosystem_for_package(package: &Path) -> &'static str {
+        // ShroudForge mods always ship an extension. A package that only has
+        // mod.json is an EML mod until ShroudForge creates the extension when
+        // the user first changes its state.
+        if !package_has_file(package, "extended.mod.json").unwrap_or(true) {
+            return "EML";
+        }
         let launcher = read_package_file(package, "extended.mod.json")
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -2795,7 +2801,7 @@ mod windows {
             });
         match launcher.as_deref() {
             Some("EML") => "EML",
-            // EML is shown only when the package explicitly records it.
+            // Existing extensions without EML provenance belong to SF.
             _ => "SF",
         }
     }

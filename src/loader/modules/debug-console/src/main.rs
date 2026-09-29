@@ -31,6 +31,7 @@ mod windows {
 
     const MAX_TAIL: u64 = 1024 * 1024;
     const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
+    const ALERT_REOPEN_COOLDOWN: Duration = Duration::from_secs(30);
 
     enum Command {
         Hide,
@@ -162,8 +163,10 @@ mod windows {
         let mut fatal_seen = false;
         let mut failure_review = false;
         let mut game_exited = false;
+        let mut game_exit_deadline: Option<Instant> = None;
         let mut show_event_seen = false;
         let mut auto_open_alert = false;
+        let mut auto_open_suppressed_until: Option<Instant> = None;
         let mut log_offset = arguments.log_start_offset;
         let log_path = shroudforge_package::paths::current_log(&arguments.root);
         let mut user_enabled = preferences["enabled"] != false;
@@ -174,6 +177,15 @@ mod windows {
             match event {
                 Event::NewEvents(StartCause::ResumeTimeReached { .. })
                 | Event::NewEvents(StartCause::Init) => {
+                    if game_exit_deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+                        let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false);
+                        if !stop_event.is_null() { unsafe { CloseHandle(stop_event) }; }
+                        if !show_event.is_null() { unsafe { CloseHandle(show_event) }; }
+                        if !arguments.owner_process.is_null() { unsafe { CloseHandle(arguments.owner_process) }; }
+                        if !arguments.game_process.is_null() { unsafe { CloseHandle(arguments.game_process) }; }
+                        *control_flow = ControlFlow::Exit;
+                        return;
+                    }
                     let stop_requested = !stop_event.is_null()
                         && unsafe { WaitForSingleObject(stop_event, 0) } == WAIT_OBJECT_0;
                     let owner_exited = !arguments.owner_process.is_null()
@@ -190,10 +202,13 @@ mod windows {
                     if scan_log_for_alert(&log_path, &mut log_offset) {
                         fatal_seen = true;
                         failure_review = true;
-                        shown = true;
-                        auto_open_alert = true;
-                        window.set_visible(true);
-                        window.set_focus();
+                        open_for_alert(
+                            &window,
+                            &arguments.root,
+                            &mut shown,
+                            &mut auto_open_alert,
+                            auto_open_suppressed_until,
+                        );
                     }
                     if !game_exited && !arguments.game_process.is_null()
                         && unsafe { WaitForSingleObject(arguments.game_process, 0) } == WAIT_OBJECT_0
@@ -205,14 +220,19 @@ mod windows {
                             let detail = format!("Enshrouded exited unexpectedly with process exit code 0x{exit_code:08X}");
                             let _ = shroudforge_package::logging::append(&arguments.root, 'E', "bootstrap-watch", &detail);
                             fatal_seen = true;
-                            auto_open_alert = true;
+                            open_for_alert(
+                                &window,
+                                &arguments.root,
+                                &mut shown,
+                                &mut auto_open_alert,
+                                auto_open_suppressed_until,
+                            );
                         }
                         if fatal_seen {
+                            // Keep the captured startup error visible briefly, but never
+                            // let the debug helper outlive Enshrouded indefinitely.
                             failure_review = true;
-                            shown = true;
-                            auto_open_alert = true;
-                            window.set_visible(true);
-                            window.set_focus();
+                            game_exit_deadline = Some(Instant::now() + Duration::from_secs(2));
                         } else {
                             let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false);
                             if !stop_event.is_null() { unsafe { CloseHandle(stop_event) }; }
@@ -228,14 +248,18 @@ mod windows {
                         show_event_seen = true;
                         fatal_seen = true;
                         failure_review = true;
-                        shown = true;
-                        auto_open_alert = true;
-                        window.set_visible(true);
-                        window.set_focus();
+                        open_for_alert(
+                            &window,
+                            &arguments.root,
+                            &mut shown,
+                            &mut auto_open_alert,
+                            auto_open_suppressed_until,
+                        );
                     }
                     while let Ok(command) = receiver.try_recv() {
                         match command {
                             Command::Hide => {
+                                auto_open_suppressed_until = Some(Instant::now() + ALERT_REOPEN_COOLDOWN);
                                 shown = false;
                                 window.set_visible(false);
                                 let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
@@ -260,7 +284,11 @@ mod windows {
                         let requested_id = window_state["debugConsole"]["requestId"].as_u64().unwrap_or(0);
                         if requested_id != visibility_request_id {
                             visibility_request_id = requested_id;
-                            shown = window_state["debugConsole"]["requestedVisible"].as_bool().unwrap_or(shown);
+                            let requested_visible = window_state["debugConsole"]["requestedVisible"].as_bool().unwrap_or(shown);
+                            if shown && !requested_visible {
+                                auto_open_suppressed_until = Some(Instant::now() + ALERT_REOPEN_COOLDOWN);
+                            }
+                            shown = requested_visible;
                             window.set_visible(shown);
                             if shown { window.set_focus(); }
                             let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
@@ -273,6 +301,9 @@ mod windows {
                     let down = unsafe { GetAsyncKeyState(config.toggle_key as i32) } < 0;
                     if user_enabled && (game_focused || console_focused) && down && !key_down {
                         shown = !shown;
+                        if !shown {
+                            auto_open_suppressed_until = Some(Instant::now() + ALERT_REOPEN_COOLDOWN);
+                        }
                         window.set_visible(shown);
                         let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
                         if shown {
@@ -339,20 +370,31 @@ mod windows {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
+                    auto_open_suppressed_until = Some(Instant::now() + ALERT_REOPEN_COOLDOWN);
                     shown = false;
                     window.set_visible(false);
                     let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", shown);
-                    if failure_review {
-                        if !stop_event.is_null() { unsafe { CloseHandle(stop_event) }; }
-                        if !show_event.is_null() { unsafe { CloseHandle(show_event) }; }
-                        if !arguments.owner_process.is_null() { unsafe { CloseHandle(arguments.owner_process) }; }
-                        if !arguments.game_process.is_null() { unsafe { CloseHandle(arguments.game_process) }; }
-                        *control_flow = ControlFlow::Exit;
-                    }
                 }
                 _ => {}
             }
         });
+    }
+
+    fn open_for_alert(
+        window: &tao::window::Window,
+        root: &Path,
+        shown: &mut bool,
+        auto_open_alert: &mut bool,
+        suppressed_until: Option<Instant>,
+    ) {
+        if *shown || suppressed_until.is_some_and(|deadline| Instant::now() < deadline) {
+            return;
+        }
+        *shown = true;
+        *auto_open_alert = true;
+        window.set_visible(true);
+        window.set_focus();
+        let _ = shroudforge_package::config::publish_window_visibility(root, "debugConsole", true);
     }
 
     fn position_window(window: &tao::window::Window, saved: &serde_json::Value, right: bool) {
