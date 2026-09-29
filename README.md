@@ -61,11 +61,7 @@ Enshrouded/
             └── mod.lua
 ~~~
 
-Open the game, press **F9**, find the mod, and switch it on. Some mods need a game restart. Mods that change game files must prepare those changes before the game starts. Start Enshrouded through ShroudForge for those mods:
-
-~~~powershell
-.\shroudforge\shroudforge.exe launch "."
-~~~
+Open the game, press **F9**, find the mod, and switch it on. Some mods need a game restart. Mods that change game files must prepare those changes before the game starts.
 
 Read the full [PC quickstart](https://bonsaibauer.github.io/shroudforge/en/#play) or [server guide](https://bonsaibauer.github.io/shroudforge/en/#server) for screenshots and help with each step.
 
@@ -79,21 +75,27 @@ To look up functions or Enshrouded game information, open the [searchable API re
 
 ## Mods included in the release
 
-The build checks mod folders for **mod.json**, a mod ID, and **src/mod.lua**, then checks the Lua files before packaging them. These are the 11 packages included in the release build today:
+The build checks mod folders for **mod.json**, a mod ID, and **src/mod.lua**, then checks the Lua files before packaging them. These are the 17 packages included in the release build today:
 
-| Mod | What it does |
-| --- | --- |
-| **Fishing Data Exporter** | Saves fishing information in CSV files for community research. |
-| **Item Exporter and English Translator** | Saves item information and English names in CSV files. |
-| **KFC Parser Mimic** | Exports Enshrouded game data in a format similar to the KFC Parser tool. |
-| **SF Infinite Item Split** | Keeps the selected amount from being removed from the original stack when splitting items. |
-| **SF Infinite Item Use** | Prevents item use from consuming the item. |
-| **SF No Fall Damage** | Prevents fall damage. |
-| **SF No Resource Cost** | Removes the supported crafting cost. |
-| **SF No Stamina Loss** | Prevents stamina from running out. |
-| **SF Unlimited Flight** | Applies the supported change to flight. |
-| **SF Unlock Blueprints** | Unlocks supported crafting recipes. |
-| **World Editor** | Adds shortcuts for marking an area, undoing, and saving or placing blueprints. |
+| Mod | What it does | Status |
+| --- | --- | --- |
+| **Fishing Data Exporter** | Exports fishing data and English item names to CSV files for community research. | 🚧 Beta |
+| **Item Exporter and English Translator** | Exports item information and English names to CSV files. | 🚧 Beta |
+| **KFC Parser Mimic** | Exports Enshrouded game data in a format similar to the KFC Parser tool. | 🚧 Beta |
+| **SF Infinite Item Split** | Keeps the selected amount from being removed from the original stack when splitting items. | ✅ Proven |
+| **SF Infinite Item Use** | Prevents item use from consuming the item. | ✅ Proven |
+| **SF No Fall Damage** | Prevents fall damage. | ✅ Proven |
+| **SF No Resource Cost** | Removes supported crafting costs. | ✅ Proven |
+| **SF No Stamina Loss** | Prevents stamina from running out. | ✅ Proven |
+| **SF Unlimited Flight** | Applies the supported change to flight. | ✅ Proven |
+| **SF Unlock Blueprints** | Unlocks supported crafting recipes. | ✅ Proven |
+| **World Editor** | Adds shortcuts for marking areas, undoing, and saving or placing blueprints. | ✅ Proven |
+| **Auto Loot** | Automatically collects nearby harvest drops that match the configured whitelist. | 🚧 Beta |
+| **2x Grappling Hook Pull Distance** | Doubles grappling hook pull distance; swing distance stays unchanged. | 🚧 Beta |
+| **Item Stack Limit 65535** | Raises the stack limit of stackable items to 65,535. | 🚧 Beta |
+| **Unlimited Flame Altars** | Removes the Flame Altar limit. | 🚧 Beta |
+| **Vein Mining** | Mines matching ore in an area around the hit point. | 🚧 Beta |
+| **20x Workshop Production Speed** | Increases timed workshop recipe production speed by 20×. | 🚧 Beta |
 
 ## What is inside the modules folder?
 

@@ -170,6 +170,7 @@ fn is_game_key_down(key: &str) -> bool {
         };
 
         let virtual_key = match key {
+            "F3" => 0x72,
             "F4" => 0x73,
             "F5" => 0x74,
             "F6" => 0x75,

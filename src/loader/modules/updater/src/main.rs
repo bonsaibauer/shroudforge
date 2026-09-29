@@ -70,12 +70,22 @@ mod windows {
         );
 
         let paths = managed_paths(&source)?;
+        let obsolete_mod_paths = obsolete_managed_mod_paths(&arguments.root, &paths)?;
+        let mut transaction_paths = paths.clone();
+        transaction_paths.extend(obsolete_mod_paths.iter().cloned());
+        transaction_paths.sort();
+        transaction_paths.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
         // Complete and verify backup before the first installed file changes.
-        for relative in &paths {
-            validate_file_path(&source, relative)?;
+        for relative in &transaction_paths {
+            let is_incoming = paths
+                .iter()
+                .any(|incoming| incoming.eq_ignore_ascii_case(relative));
+            if is_incoming {
+                validate_file_path(&source, relative)?;
+            }
             validate_file_path(&arguments.root, relative)?;
             let incoming = source.join(relative);
-            if !incoming.is_file() {
+            if is_incoming && !incoming.is_file() {
                 return Err(format!("missing release file: {relative}"));
             }
             let current = installed_path(&arguments.root, relative);
@@ -83,7 +93,14 @@ mod windows {
                 copy_entry(&current, &backup.join(relative))?;
             }
         }
-        let result = apply(&source, &arguments.root, &paths);
+        let result = apply(&source, &arguments.root, &paths).and_then(|()| {
+            for relative in &obsolete_mod_paths {
+                let current = installed_path(&arguments.root, relative);
+                remove_entry(&current)?;
+                remove_empty_mod_directories(&arguments.root, &current)?;
+            }
+            Ok(())
+        });
         match result {
             Ok(()) => {
                 let release: serde_json::Value = serde_json::from_slice(
@@ -124,7 +141,9 @@ mod windows {
                     'E',
                     &format!("Update failed: {error}; restoring backup"),
                 );
-                if let Err(rollback_error) = restore(&backup, &arguments.root, &paths) {
+                if let Err(rollback_error) =
+                    restore(&backup, &arguments.root, &transaction_paths)
+                {
                     append_log(
                         &arguments.root,
                         'E',
@@ -259,6 +278,72 @@ mod windows {
             return Err("release must manage shroudforge/version.json".into());
         }
         Ok(paths)
+    }
+
+    fn obsolete_managed_mod_paths(
+        target: &Path,
+        current: &[String],
+    ) -> Result<Vec<String>, String> {
+        let version_path = target.join("shroudforge/version.json");
+        if !version_path.is_file() {
+            return Ok(Vec::new());
+        }
+        let release: serde_json::Value = serde_json::from_slice(
+            &fs::read(&version_path).map_err(|error| error.to_string())?,
+        )
+        .map_err(|error| format!("installed version manifest is invalid: {error}"))?;
+        let entries = release["managedPaths"]
+            .as_array()
+            .ok_or("installed version has no managedPaths")?;
+        let mut obsolete = Vec::new();
+        for entry in entries {
+            let Some(relative) = entry.as_str() else {
+                return Err("installed version has an invalid managed path".into());
+            };
+            if !relative.starts_with("mods/")
+                || current
+                    .iter()
+                    .any(|path| path.eq_ignore_ascii_case(relative))
+            {
+                continue;
+            }
+            let mod_relative = relative.strip_prefix("mods/").unwrap_or_default();
+            let path = Path::new(mod_relative);
+            if mod_relative.is_empty()
+                || relative.contains('\\')
+                || relative.contains(':')
+                || !path
+                    .components()
+                    .all(|part| matches!(part, std::path::Component::Normal(_)))
+            {
+                return Err(format!("unsafe installed managed path: {relative}"));
+            }
+            obsolete.push(relative.to_owned());
+        }
+        obsolete.sort();
+        obsolete.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
+        Ok(obsolete)
+    }
+
+    fn remove_empty_mod_directories(root: &Path, file: &Path) -> Result<(), String> {
+        let mods = shroudforge_package::paths::mods_dir(root);
+        let mut directory = file.parent();
+        while let Some(path) = directory {
+            if path == mods || !path.starts_with(&mods) {
+                break;
+            }
+            match fs::remove_dir(path) {
+                Ok(()) => directory = path.parent(),
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::DirectoryNotEmpty
+                        || error.kind() == std::io::ErrorKind::NotFound =>
+                {
+                    break;
+                }
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        Ok(())
     }
 
     fn installed_path(root: &Path, relative: &str) -> PathBuf {

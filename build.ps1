@@ -98,14 +98,14 @@ function Copy-ShroudForgeMods([string]$Destination) {
         'signature',
         'Payload'
     )
-    foreach ($directory in Get-ChildItem -LiteralPath (Join-Path $root 'mods') -Directory) {
+    foreach ($directory in Get-ChildItem -LiteralPath (Join-Path $root 'mods') -Force -Directory) {
         $manifestPath = Join-Path $directory.FullName 'mod.json'
         $luaPath = Join-Path $directory.FullName 'src\mod.lua'
         if (-not (Test-Path -LiteralPath $manifestPath)) { continue }
         if (-not (Test-Path -LiteralPath $luaPath)) { throw "Lua entrypoint missing: $luaPath" }
         $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
         if (-not $manifest.id) { throw "Invalid mod manifest: $manifestPath" }
-        foreach ($luaFile in Get-ChildItem -LiteralPath (Join-Path $directory.FullName 'src') -Filter '*.lua' -Recurse -File) {
+        foreach ($luaFile in Get-ChildItem -LiteralPath (Join-Path $directory.FullName 'src') -Filter '*.lua' -Force -Recurse -File) {
             $source = Get-Content -LiteralPath $luaFile.FullName -Raw
             foreach ($token in $forbiddenLuaTokens) {
                 if ($source -match [regex]::Escape($token)) {
@@ -113,10 +113,9 @@ function Copy-ShroudForgeMods([string]$Destination) {
                 }
             }
         }
-        $target = Join-Path $Destination ([string]$manifest.id)
-        foreach ($file in Get-ChildItem -LiteralPath $directory.FullName -Recurse -File) {
+        $target = Join-Path $Destination $directory.Name
+        foreach ($file in Get-ChildItem -LiteralPath $directory.FullName -Force -Recurse -File) {
             $relative = [IO.Path]::GetRelativePath($directory.FullName, $file.FullName)
-            if ($relative -match '(^|[\\/])\.[^\\/]+([\\/]|$)' -or $file.Name -eq '.mod-json.lock') { continue }
             $destinationFile = Join-Path $target $relative
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationFile) | Out-Null
             Copy-Item -LiteralPath $file.FullName -Destination $destinationFile -Force
@@ -149,16 +148,17 @@ $versionManifest = [ordered]@{
     builtAt = [DateTime]::UtcNow.ToString('o')
     updateKind = 'system'
     requiredAction = 'game_restart'
-    managedPaths = @(Get-ChildItem -LiteralPath $package -File -Recurse |
+    managedPaths = @(Get-ChildItem -LiteralPath $package -Force -File -Recurse |
         ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName).Replace('\', '/') } |
         Where-Object { $_ -notin @('shroudforge/config/modloader-config.json', 'shroudforge/state.json', 'shroudforge/config/.shroudforge-write.lock') }) + @('shroudforge/version.json')
 }
 $versionManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $dataPackage 'version.json') -Encoding utf8
-Compress-Archive -Path "$package\*" -DestinationPath $archive -Force
+Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
+[System.IO.Compression.ZipFile]::CreateFromDirectory($package, $archive, [System.IO.Compression.CompressionLevel]::Optimal, $false)
 $releaseZip = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $entryNames = @($releaseZip.Entries | ForEach-Object { $_.FullName })
-    if ($entryNames -notcontains 'winmm.dll' -or $entryNames -notcontains 'dbghelp.dll' -or $entryNames -notcontains 'dinput8.dll' -or $entryNames -notcontains 'mods/sf-world-editor/mod.json' -or $entryNames -notcontains 'shroudforge/shroudforge.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-runtime.dll' -or $entryNames -notcontains 'shroudforge/kfc-runtime.dll' -or $entryNames -notcontains 'shroudforge/config/modloader-config.json' -or
+    if ($entryNames -notcontains 'winmm.dll' -or $entryNames -notcontains 'dbghelp.dll' -or $entryNames -notcontains 'dinput8.dll' -or $entryNames -notcontains 'shroudforge/shroudforge.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-updater.exe' -or $entryNames -notcontains 'shroudforge/shroudforge-runtime.dll' -or $entryNames -notcontains 'shroudforge/kfc-runtime.dll' -or $entryNames -notcontains 'shroudforge/config/modloader-config.json' -or
         $entryNames -notcontains 'shroudforge/version.json' -or $entryNames -notcontains 'shroudforge/runtime/profiles/enshrouded/client/1076226.json') {
         throw 'Release archive is missing the launcher, loader configuration, or version file.'
     }

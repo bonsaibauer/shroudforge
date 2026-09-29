@@ -16,7 +16,7 @@ A mod can also have **extended.mod.json**. This optional file holds its ShroudFo
 | **shroudforge/version.json** | Release version and build details. |
 | **shroudforge/state.json** | Default status file created by the loader, such as mod and update information. The location is configurable in Settings. |
 
-The placeholder **<id>** means the folder name of a mod, such as **sf-world-editor**.
+The placeholder **<id>** means the folder name of a mod, such as **world-editor**.
 
 ## Example: a small mod
 

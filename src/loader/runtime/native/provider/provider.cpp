@@ -4,7 +4,7 @@
 #include <cstring>
 #include <string>
 extern "C" {
-KFC_EXPORT unsigned __cdecl KfcRuntimeAbi() { return 5; }
+KFC_EXPORT unsigned __cdecl KfcRuntimeAbi() { return 7; }
 KFC_EXPORT bool __cdecl KfcRuntimeInitialize() {
     try { return EcsRuntime::Initialize(); } catch (...) { EcsRuntime::Shutdown(); return false; }
 }

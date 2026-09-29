@@ -174,14 +174,19 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && runtime_provider::world_context_active()
         }
         "runtime.world.entity.spawn"
+        | "runtime.world.entity.query_props"
         | "runtime.world.entity.place"
         | "runtime.world.entity.destroy"
         | "runtime.world.entity.finish_building" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
-                && runtime_provider::world_operation_available(feature)
-                && runtime_provider::world_entity_context_ready()
+                && if feature == "runtime.world.entity.query_props" {
+                    runtime_provider::ready()
+                } else {
+                    runtime_provider::world_operation_available(feature)
+                        && runtime_provider::world_entity_context_ready()
+                }
         }
         _ => false,
     }
@@ -228,6 +233,8 @@ fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<
     }
     let world_ready = if feature == "runtime.world.cursor.get" {
         runtime_provider::world_operation_available(&feature)
+    } else if feature == "runtime.world.entity.query_props" {
+        runtime_provider::ready()
     } else if feature.starts_with("runtime.world.entity.") {
         runtime_provider::world_operation_available(&feature)
             && runtime_provider::world_entity_context_ready()
@@ -302,6 +309,7 @@ fn create_ecs(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
 
     add_function_with_mod(lua, &table, "get_components", r#mod, lua_ecs_get_components)?;
     add_function_with_mod(lua, &table, "query", r#mod, lua_ecs_query)?;
+    add_function_with_mod(lua, &table, "query_bounds", r#mod, lua_ecs_query_bounds)?;
     add_function_with_mod(lua, &table, "resolve", r#mod, lua_ecs_resolve)?;
     add_function_with_mod(lua, &table, "read", r#mod, lua_ecs_read)?;
     add_function_with_mod(lua, &table, "write", r#mod, lua_ecs_write)?;
@@ -333,6 +341,7 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &cursor, "get", r#mod, lua_world_cursor_get)?;
     world.raw_set("cursor", cursor)?;
     let entity = lua.create_table()?;
+    add_function_with_mod(lua, &entity, "query_props", r#mod, lua_world_entity_query_props)?;
     add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
     add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
     add_function_with_mod(lua, &entity, "destroy", r#mod, lua_world_entity_destroy)?;
@@ -431,6 +440,65 @@ fn lua_world_entity_spawn(
         Ok(token) => Ok((LuaValue::Integer(i64::from(token)), None)),
         Err(reason) => Ok((LuaValue::Nil, Some(reason))),
     }
+}
+
+fn lua_world_entity_query_props(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.query_props") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() != 2 {
+        return Err(LuaError::generic("runtime.world.entity.query_props expects bounds[6] and padding"));
+    }
+    let bounds_table = args.get::<mlua::Table>(0)?;
+    let mut bounds = [0.0_f64; 6];
+    for (index, value) in bounds.iter_mut().enumerate() {
+        *value = bounds_table.raw_get::<f64>(index + 1)?;
+        if !value.is_finite() { return Ok((LuaValue::Nil, Some("bounds must contain six finite numbers".into()))); }
+    }
+    let padding = args.get::<f64>(1)?;
+    if !padding.is_finite() || padding < 0.0 {
+        return Ok((LuaValue::Nil, Some("padding must be a finite non-negative number".into())));
+    }
+    let props = match runtime_provider::world_entity_query_props(bounds, padding) {
+        Ok(props) => props,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason.into()))),
+    };
+    let result = lua.create_table_with_capacity(props.len(), 0)?;
+    for (index, prop) in props.into_iter().enumerate() {
+        let item = lua.create_table()?;
+        item.raw_set("handle", prop.entity_handle)?;
+        item.raw_set("itemId", prop.item_id)?;
+        let position = lua.create_table()?;
+        let position_names = ["x", "y", "z"];
+        for axis in 0..3 {
+            let value = prop.position[axis] as f64 / 4_294_967_296.0;
+            position.raw_set(axis + 1, value)?;
+            position.raw_set(position_names[axis], value)?;
+        }
+        let orientation = lua.create_table()?;
+        let orientation_names = ["x", "y", "z", "w"];
+        for axis in 0..4 {
+            orientation.raw_set(axis + 1, prop.orientation[axis])?;
+            orientation.raw_set(orientation_names[axis], prop.orientation[axis])?;
+        }
+        let scale = lua.create_table()?;
+        for axis in 0..3 {
+            scale.raw_set(axis + 1, prop.scale[axis])?;
+            scale.raw_set(position_names[axis], prop.scale[axis])?;
+        }
+        let transform = lua.create_table()?;
+        transform.raw_set("position", position)?;
+        transform.raw_set("orientation", orientation)?;
+        transform.raw_set("scale", scale)?;
+        item.raw_set("transform", transform)?;
+        result.raw_set(index + 1, item)?;
+    }
+    Ok((LuaValue::Table(result), None))
 }
 
 fn lua_world_entity_place(
@@ -810,6 +878,46 @@ fn lua_ecs_query(
     Ok((LuaValue::Table(result), None))
 }
 
+fn lua_ecs_query_bounds(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.ecs.query") {
+        return Ok((LuaValue::Nil, Some(reason)));
+    }
+    if args.len() < 3 {
+        return Err(LuaError::generic("runtime.ecs.query_bounds requires bounds[6], padding, and at least one keen::ecs type"));
+    }
+    let bounds_table = args.get::<mlua::Table>(0)?;
+    let padding = args.get::<f64>(1)?;
+    if !padding.is_finite() || padding < 0.0 {
+        return Ok((LuaValue::Nil, Some("padding must be a finite non-negative number".into())));
+    }
+    let mut bounds = [0.0_f64; 6];
+    for (index, value) in bounds.iter_mut().enumerate() {
+        *value = bounds_table.raw_get::<f64>(index + 1)?;
+        if !value.is_finite() { return Ok((LuaValue::Nil, Some("bounds must contain six finite numbers".into()))); }
+    }
+    if !runtime_provider::ready() { return Ok((LuaValue::Nil, Some("KFC Runtime is not ready".into()))); }
+    let mut components = Vec::with_capacity(args.len() - 2);
+    for index in 2..args.len() {
+        let name = runtime_type_name(lua, &args, index)?;
+        if runtime_provider::resolve(&name).is_none() {
+            return Ok((LuaValue::Nil, Some(format!("live ECS component unavailable: {name}"))));
+        }
+        components.push(name);
+    }
+    let entities = match runtime_provider::query_bounds(&components, bounds, padding) {
+        Ok(entities) => entities,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason.into()))),
+    };
+    let result = lua.create_table_with_capacity(entities.len(), 0)?;
+    for (index, entity) in entities.into_iter().enumerate() { result.raw_set(index + 1, entity)?; }
+    Ok((LuaValue::Table(result), None))
+}
+
 fn lua_ecs_read(
     lua: &mlua::Lua,
     args: FunctionArgs,
@@ -1148,10 +1256,21 @@ mod runtime_provider {
         pub size: u32,
     }
 
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    pub struct PropRecord {
+        pub entity_handle: u32,
+        pub item_id: u32,
+        pub position: [i64; 3],
+        pub orientation: [f32; 4],
+        pub scale: [f32; 3],
+    }
+
     type Ready = unsafe extern "C" fn() -> bool;
     type Configure = unsafe extern "C" fn(*const *const c_char, *const u32, usize) -> bool;
     type Describe = unsafe extern "C" fn(*const c_char, *mut u32) -> bool;
     type Query = unsafe extern "C" fn(*const *const c_char, usize, *mut u32, usize) -> usize;
+    type QueryBounds = unsafe extern "C" fn(*const *const c_char, usize, *const f64, f64, *mut u32, usize) -> usize;
     type ResolveEntity = unsafe extern "C" fn(u32) -> u32;
     type Read = unsafe extern "C" fn(u32, *const c_char, *mut c_void, usize) -> bool;
     type Write =
@@ -1159,6 +1278,7 @@ mod runtime_provider {
     type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type WorldContextActive = unsafe extern "C" fn() -> bool;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
+    type WorldEntityQueryProps = unsafe extern "C" fn(*const f64, f64, *mut PropRecord, usize) -> usize;
     type WorldCursorRead = unsafe extern "C" fn(*mut u8, usize, *mut u64) -> bool;
     type WorldVoxelRead =
         unsafe extern "C" fn(*const i32, *const u32, *mut u16, usize, *mut usize) -> bool;
@@ -1184,12 +1304,14 @@ mod runtime_provider {
         can_write: Ready,
         describe: Describe,
         query: Query,
+        query_bounds: Option<QueryBounds>,
         resolve_entity: ResolveEntity,
         read: Read,
         write: Write,
         world_operation_available: WorldOperationAvailable,
         world_context_active: WorldContextActive,
         world_entity_context_ready: WorldEntityContextReady,
+        world_entity_query_props: WorldEntityQueryProps,
         world_cursor_read: Option<WorldCursorRead>,
         world_voxel_read: WorldVoxelRead,
         world_voxel_write: WorldVoxelWrite,
@@ -1235,9 +1357,9 @@ mod runtime_provider {
                     }
                     let abi = symbol!("KfcRuntimeAbi", unsafe extern "C" fn() -> u32);
                     let actual_abi = abi();
-                    if actual_abi != 5 {
+                    if actual_abi != 7 {
                         Err(format!(
-                            "provider-abi-mismatch:expected=5,actual={actual_abi}"
+                            "provider-abi-mismatch:expected=7,actual={actual_abi}"
                         ))
                     } else {
                         Ok(Provider {
@@ -1246,6 +1368,10 @@ mod runtime_provider {
                             can_write: symbol!("KfcRuntimeEcsCanWrite", Ready),
                             describe: symbol!("KfcRuntimeEcsDescribe", Describe),
                             query: symbol!("KfcRuntimeEcsQuery", Query),
+                            query_bounds: {
+                                let pointer = GetProcAddress(module, c"KfcRuntimeEcsQueryBounds".as_ptr());
+                                (!pointer.is_null()).then(|| std::mem::transmute::<*const c_void, QueryBounds>(pointer))
+                            },
                             resolve_entity: symbol!("KfcRuntimeEcsResolve", ResolveEntity),
                             read: symbol!("KfcRuntimeEcsRead", Read),
                             write: symbol!("KfcRuntimeEcsWrite", Write),
@@ -1260,6 +1386,10 @@ mod runtime_provider {
                             world_entity_context_ready: symbol!(
                                 "KfcRuntimeWorldEntityContextReady",
                                 WorldEntityContextReady
+                            ),
+                            world_entity_query_props: symbol!(
+                                "KfcRuntimeWorldEntityQueryProps",
+                                WorldEntityQueryProps
                             ),
                             world_cursor_read: {
                                 let pointer = GetProcAddress(
@@ -1475,6 +1605,20 @@ mod runtime_provider {
             Err(operation_error("runtime.world.entity.spawn", outcome))
         }
     }
+    pub fn world_entity_query_props(
+        bounds: [f64; 6],
+        padding: f64,
+    ) -> Result<Vec<PropRecord>, &'static str> {
+        let Some(provider) = provider() else { return Err("KFC Runtime provider unavailable"); };
+        let mut props = vec![PropRecord::default(); 100_000];
+        let actual = unsafe {
+            (provider.world_entity_query_props)(bounds.as_ptr(), padding, props.as_mut_ptr(), props.len())
+        };
+        if actual == usize::MAX { return Err("native prop query failed or timed out"); }
+        if actual > props.len() { return Err("native prop query exceeded the 100,000-prop safety limit"); }
+        props.truncate(actual);
+        Ok(props)
+    }
     pub fn world_entity_placement(
         destroy: bool,
         position: [f64; 3],
@@ -1623,6 +1767,19 @@ mod runtime_provider {
         }
         Err("live ECS query buffer did not stabilize")
     }
+    pub fn query_bounds(components: &[String], bounds: [f64; 6], padding: f64) -> Result<Vec<u32>, &'static str> {
+        let Some(provider) = provider() else { return Err("native ECS provider unavailable"); };
+        let Some(query) = provider.query_bounds else { return Err("native spatial ECS query is unavailable; update KFC Runtime"); };
+        let Ok(names) = components.iter().map(|name| CString::new(name.as_str())).collect::<Result<Vec<_>, _>>()
+            else { return Err("invalid ECS component name"); };
+        let pointers: Vec<_> = names.iter().map(|name| name.as_ptr()).collect();
+        let mut entities = vec![0; 1 << 20];
+        let actual = unsafe { query(pointers.as_ptr(), pointers.len(), bounds.as_ptr(), padding, entities.as_mut_ptr(), entities.len()) };
+        if actual == usize::MAX { return Err("native spatial ECS query failed or timed out"); }
+        if actual > entities.len() { return Err("native spatial ECS query exceeded the entity safety limit"); }
+        entities.truncate(actual);
+        Ok(entities)
+    }
     pub fn read(entity: u32, name: &str, size: u32) -> Option<Vec<u8>> {
         let provider = provider()?;
         let name = CString::new(name).ok()?;
@@ -1666,6 +1823,15 @@ mod runtime_provider {
 
 #[cfg(not(windows))]
 mod runtime_provider {
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    pub struct PropRecord {
+        pub entity_handle: u32,
+        pub item_id: u32,
+        pub position: [i64; 3],
+        pub orientation: [f32; 4],
+        pub scale: [f32; 3],
+    }
     #[derive(Clone, Copy)]
     pub struct Component {
         pub size: u32,
@@ -1716,6 +1882,9 @@ mod runtime_provider {
     ) -> Result<(), String> {
         Err("native world runtime is available on Windows only".into())
     }
+    pub fn world_entity_query_props(_: [f64; 6], _: f64) -> Result<Vec<PropRecord>, &'static str> {
+        Err("native world runtime is available on Windows only")
+    }
     pub fn world_entity_finish_building(_: bool) -> Result<(), String> {
         Err("native world runtime is available on Windows only".into())
     }
@@ -1732,6 +1901,9 @@ mod runtime_provider {
         None
     }
     pub fn query(_: &[String]) -> Result<Vec<u32>, &'static str> {
+        Err("native ECS runtime is available on Windows only")
+    }
+    pub fn query_bounds(_: &[String], _: [f64; 6], _: f64) -> Result<Vec<u32>, &'static str> {
         Err("native ECS runtime is available on Windows only")
     }
     pub fn read(_: u32, _: &str, _: u32) -> Option<Vec<u8>> {

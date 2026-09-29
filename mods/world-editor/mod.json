@@ -1,9 +1,9 @@
 {
   "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
-  "id": "sf-world-editor",
+  "id": "world-editor",
   "name": "World Editor",
-  "version": "0.2.0",
-  "description": "World editing shortcuts: F4 undo, F5 mark A/B, F6 reset, F7 paste at the cursor, and F8 capture/save/select. F9 opens the Modloader UI; F10 opens the Debug Console.",
+  "version": "0.3.0",
+  "description": "Standalone world editor mod using ShroudForge's Lua API. F3 rotates the active blueprint; F4 undo, F5 mark A/B, F6 reset, F7 paste at the cursor, and F8 capture/save/select.",
   "authors": [
     "bonsaibauer"
   ],

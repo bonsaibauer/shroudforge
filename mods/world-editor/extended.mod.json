@@ -8,7 +8,8 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
-    "Adds F4-F8 World Editor shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
+    "Packages the standalone mod as world-editor and exposes F3 rotation in Keyboard shortcuts.",
+    "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
   ],
   "settings": {
     "queryComponent": {
@@ -83,7 +84,16 @@
       "value": 0,
       "min": 0,
       "max": 3,
-      "label": "Paste rotation (quarter turns around Y, 0–3)"
+          "label": "Initial paste rotation (F3 cycles in game, 0–3)"
+    },
+    "rotationAxis": {
+      "value": "y",
+      "options": {
+        "x": "X axis",
+        "y": "Y axis",
+        "z": "Z axis"
+      },
+      "label": "Blueprint up axis (stored on capture)"
     },
     "entityHandle": {
       "value": 0,
@@ -161,6 +171,11 @@
       "label": "Keyboard shortcuts",
       "description": "Shortcuts work while the game window is focused.",
       "actions": [
+        {
+          "id": "rotateBlueprint",
+          "label": "F3 — Rotate blueprint 90°",
+          "style": "secondary"
+        },
         {
           "id": "undoVoxels",
           "label": "F4 — Undo last paste",
@@ -241,6 +256,7 @@
         "sizeZ",
         "blueprintName",
         "rotationQuarterTurns",
+        "rotationAxis",
         "pasteVoxelMode",
         "targetPropMode",
         "targetX",
@@ -303,6 +319,11 @@
           "label": "Paste voxel region",
           "style": "danger",
           "confirm": "Write the copied voxel region to the target coordinates?"
+        },
+        {
+          "id": "previewPaste",
+          "label": "Preview placement plan (log only)",
+          "style": "secondary"
         },
         {
           "id": "undoVoxels",

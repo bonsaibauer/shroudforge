@@ -165,6 +165,33 @@ void startup_stage(const std::filesystem::path& root, const char* stage) {
     log(std::string("Startup stage: ") + stage);
 }
 
+std::string_view status_value(std::string_view status, std::string_view key) {
+    const auto position = status.find(key);
+    if (position == std::string_view::npos) return {};
+    const auto start = position + key.size();
+    const auto end = status.find(' ', start);
+    return status.substr(start, end == std::string_view::npos ? end : end - start);
+}
+
+std::string_view runtime_thread_state(std::string_view value) {
+    if (value.find("stale-game-thread") == 0) return "stale";
+    if (value.find("installed-awaiting-world") == 0) return "awaiting-world";
+    if (value.find("ready(") == 0) return "ready";
+    if (value.find("unavailable") == 0) return "unavailable";
+    return "unknown";
+}
+
+std::string runtime_status_state(std::string_view status) {
+    const auto registry = status_value(status, "registry=");
+    const auto layout = status_value(status, "layout=");
+    const auto game_thread = runtime_thread_state(status_value(status, "game_thread="));
+    const auto voxel_context = status_value(status, "voxel_context=");
+    return "registry=" + std::string(registry.empty() ? "unknown" : registry) +
+        " layout=" + std::string(layout.empty() ? "unknown" : layout) +
+        " game_thread=" + std::string(game_thread) +
+        " voxel_context=" + std::string(voxel_context.empty() ? "unknown" : voxel_context);
+}
+
 void startup_failed(const std::filesystem::path& root, const char* stage,
         const std::string& detail) {
     (void)root;
@@ -429,9 +456,11 @@ DWORD WINAPI run(void*) {
         if (now >= next_runtime_status) {
             write_runtime_heartbeat(root);
             const auto status = EcsRuntime::Status();
-            if (status != previous_runtime_status) {
-                log("KFC Runtime " + status);
-                previous_runtime_status = status;
+            log('D', "KFC Runtime details " + status);
+            const auto state = runtime_status_state(status);
+            if (state != previous_runtime_status) {
+                log("KFC Runtime state: " + state);
+                previous_runtime_status = state;
             }
             next_runtime_status = now + std::chrono::seconds(2);
         }

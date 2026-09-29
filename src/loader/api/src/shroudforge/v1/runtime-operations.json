@@ -12,6 +12,7 @@
     "runtime.world.voxel.read",
     "runtime.world.voxel.write",
     "runtime.world.entity.spawn",
+    "runtime.world.entity.query_props",
     "runtime.world.entity.place",
     "runtime.world.entity.destroy",
     "runtime.world.entity.finish_building",

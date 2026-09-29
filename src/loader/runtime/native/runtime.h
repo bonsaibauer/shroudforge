@@ -40,6 +40,18 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsDescribe(
 KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeEcsQuery(
     const char* const* qualified_names, size_t component_count,
     uint32_t* entities, size_t capacity);
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeEcsQueryBounds(
+    const char* const* qualified_names, size_t component_count,
+    const double* bounds, double padding, uint32_t* entities, size_t capacity);
+typedef struct KfcRuntimePropRecord {
+    uint32_t entity_handle;
+    uint32_t item_id;
+    int64_t position[3];
+    float orientation[4];
+    float scale[3];
+} KfcRuntimePropRecord;
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeWorldEntityQueryProps(
+    const double* bounds, double padding, KfcRuntimePropRecord* props, size_t capacity);
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeEcsResolve(uint32_t entity_id);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsRead(
     uint32_t entity, const char* qualified_name, void* value, size_t size);

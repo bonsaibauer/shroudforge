@@ -11,6 +11,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstring>
 #include <mutex>
 #include <memory>
@@ -19,6 +20,11 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+static_assert(sizeof(KfcRuntimePropRecord) == 64);
+static_assert(offsetof(KfcRuntimePropRecord, position) == 8);
+static_assert(offsetof(KfcRuntimePropRecord, orientation) == 32);
+static_assert(offsetof(KfcRuntimePropRecord, scale) == 48);
 
 namespace {
 constexpr std::size_t max_components = 1024;
@@ -250,6 +256,20 @@ struct QueryOperation {
     std::vector<const char*> name_pointers;
     std::vector<std::uint32_t> output;
 };
+struct BoundsQueryOperation {
+    std::vector<std::string> names;
+    double bounds[6]{};
+    double padding{};
+    std::vector<std::uint32_t> output;
+    std::size_t capacity{};
+    std::size_t result{SIZE_MAX};
+};
+struct PropQueryOperation {
+    double bounds[6]{};
+    double padding{};
+    std::vector<KfcRuntimePropRecord> output;
+    std::size_t result{SIZE_MAX};
+};
 std::string query_key(const QueryOperation& operation) {
     std::string key;
     for (const auto& name : operation.owned_names) {
@@ -342,6 +362,104 @@ void query_on_game_thread(void* opaque) {
     query_scans.erase(scan);
     auto [cached, _] = query_cache.insert_or_assign(key, QueryCacheEntry{epoch, now_ms, std::move(completed)});
     publish_query_result(operation, cached->second.matches);
+}
+void query_bounds_on_game_thread(void* opaque) {
+    auto& operation = *static_cast<BoundsQueryOperation*>(opaque);
+    std::vector<ComponentType> components;
+    components.reserve(operation.names.size());
+    for (const auto& name : operation.names) {
+        ComponentType component{};
+        if (!resolve_component(name.c_str(), component)) return;
+        components.push_back(component);
+    }
+    const auto transform_type = std::find_if(operation.names.begin(), operation.names.end(),
+        [](const auto& name) { return name == "keen::ecs::CurrentTransform"; });
+    if (transform_type == operation.names.end()) return;
+    const auto component_index = static_cast<std::size_t>(transform_type - operation.names.begin());
+    ResolvedLayout layout{};
+    if (!layout_snapshot(layout)) return;
+    std::vector<std::uintptr_t> pointers;
+    if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return;
+    operation.output.clear();
+    std::unordered_set<std::uint32_t> seen;
+    seen.reserve(pointers.size());
+    for (const auto pointer : pointers) {
+        EntityView entity{};
+        if (!entity_view(pointer, layout, entity)) continue;
+        if (!seen.insert(entity.id).second) continue;
+        bool include = true;
+        for (const auto& component : components) {
+            std::uintptr_t address{};
+            if (!component_address(entity, layout, component, address)) { include = false; break; }
+        }
+        if (!include) continue;
+        std::uintptr_t address{};
+        if (!component_address(entity, layout, components[component_index], address)) continue;
+        struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; } transform{};
+        static_assert(sizeof(NativeTransform) == 0x38);
+        if (!read_bytes(address, &transform, sizeof(transform))) continue;
+        const auto scale = (std::max)({std::abs(static_cast<double>(transform.scale[0])),
+            std::abs(static_cast<double>(transform.scale[1])), std::abs(static_cast<double>(transform.scale[2]))});
+        if (!std::isfinite(scale)) continue;
+        const auto margin = operation.padding * scale;
+        bool inside = true;
+        for (int axis = 0; axis < 3; ++axis) {
+            const auto world_position = static_cast<double>(transform.position[axis]) / 4294967296.0;
+            if (!std::isfinite(world_position) || world_position < operation.bounds[axis] - margin ||
+                world_position >= operation.bounds[axis + 3] + margin) { inside = false; break; }
+        }
+        if (inside) operation.output.push_back(handle_for(entity));
+    }
+    operation.result = operation.output.size();
+}
+void query_props_on_game_thread(void* opaque) {
+    auto& operation = *static_cast<PropQueryOperation*>(opaque);
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
+    const auto item_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
+    if (transform_type == runtime_components.end() || item_type == runtime_components.end()) return;
+    ResolvedLayout layout{};
+    if (!layout_snapshot(layout)) return;
+    std::vector<std::uintptr_t> pointers;
+    if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return;
+    operation.output.clear();
+    std::unordered_set<std::uint64_t> seen;
+    seen.reserve(pointers.size());
+    for (const auto pointer : pointers) {
+        EntityView entity{};
+        if (!entity_view(pointer, layout, entity) || !seen.insert(identity_key(entity.id, entity.generation)).second) continue;
+        ComponentType transform_component{transform_type->index, transform_type->size};
+        ComponentType item_component{item_type->index, item_type->size};
+        std::uintptr_t transform_address{}, item_address{};
+        if (!component_address(entity, layout, transform_component, transform_address) ||
+            !component_address(entity, layout, item_component, item_address)) continue;
+        struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; } transform{};
+        static_assert(sizeof(NativeTransform) == 0x38);
+        std::uint32_t item_id{};
+        if (!read_bytes(transform_address, &transform, sizeof(transform)) ||
+            !read_bytes(item_address, &item_id, sizeof(item_id)) || !item_id) continue;
+        const double scale = (std::max)({std::abs(static_cast<double>(transform.scale[0])),
+            std::abs(static_cast<double>(transform.scale[1])), std::abs(static_cast<double>(transform.scale[2]))});
+        if (!std::isfinite(scale)) continue;
+        const auto margin = operation.padding * scale;
+        bool inside = true;
+        for (int axis = 0; axis < 3; ++axis) {
+            const auto position = static_cast<double>(transform.position[axis]) / 4294967296.0;
+            if (!std::isfinite(position) || position < operation.bounds[axis] - margin ||
+                position >= operation.bounds[axis + 3] + margin) { inside = false; break; }
+        }
+        if (!inside) continue;
+        KfcRuntimePropRecord prop{};
+        prop.entity_handle = handle_for(entity);
+        prop.item_id = item_id;
+        std::copy_n(transform.position, 3, prop.position);
+        std::copy_n(transform.rotation, 4, prop.orientation);
+        std::copy_n(transform.scale, 3, prop.scale);
+        if (prop.entity_handle) operation.output.push_back(prop);
+    }
+    operation.result = operation.output.size();
 }
 
 struct ResolveOperation { std::uint32_t entity_id{}, result{}; };
@@ -771,7 +889,7 @@ std::string Diagnostics() {
             {"entitiesSeen", sample.entity_count}, {"componentSlots", std::move(component_slots)}});
     }
     return nlohmann::json({
-        {"schemaVersion",1}, {"providerAbi",5},
+        {"schemaVersion",1}, {"providerAbi",7},
         {"profile",KfcRuntimeCompatibility::EnshroudedClient::status},
         {"candidateTypeBreakdown",nlohmann::json{
             {"total",configured_types.size()},
@@ -923,6 +1041,48 @@ extern "C" std::size_t __cdecl KfcRuntimeEcsQuery(const char* const* names, std:
     }
     if (entities) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->result), entities);
     operation_counters.query_successes.fetch_add(1, std::memory_order_relaxed);
+    return operation->result;
+}
+extern "C" std::size_t __cdecl KfcRuntimeEcsQueryBounds(const char* const* names, std::size_t count,
+                                                           const double* bounds, double padding, std::uint32_t* entities,
+                                                           std::size_t capacity) {
+    if (!names || !count || count > max_components || !bounds || !std::isfinite(padding) || padding < 0 ||
+        capacity > (1u << 20) || !KfcRuntimeEcsReady())
+        return SIZE_MAX;
+    auto operation = std::make_shared<BoundsQueryOperation>();
+    operation->padding = padding;
+    for (std::size_t index = 0; index < count; ++index) {
+        if (!names[index]) return SIZE_MAX;
+        operation->names.emplace_back(names[index]);
+    }
+    bool has_transform = false;
+    for (int axis = 0; axis < 3; ++axis) {
+        const auto minimum = bounds[axis], maximum = bounds[axis + 3];
+        if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum >= maximum) return SIZE_MAX;
+        operation->bounds[axis] = minimum;
+        operation->bounds[axis + 3] = maximum;
+    }
+    has_transform = std::find(operation->names.begin(), operation->names.end(), "keen::ecs::CurrentTransform") != operation->names.end();
+    if (!has_transform) return SIZE_MAX;
+    operation->capacity = capacity;
+    if (!GameThreadDispatcher::Invoke(query_bounds_on_game_thread, operation, 500)) return SIZE_MAX;
+    if (operation->result == SIZE_MAX) return SIZE_MAX;
+    if (entities) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->output.size()), entities);
+    return operation->result;
+}
+extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryProps(const double* bounds, double padding,
+                                                                  KfcRuntimePropRecord* props, std::size_t capacity) {
+    if (!bounds || !std::isfinite(padding) || padding < 0 || capacity > (1u << 20) ||
+        !GameThreadDispatcher::Ready()) return SIZE_MAX;
+    auto operation = std::make_shared<PropQueryOperation>();
+    operation->padding = padding;
+    for (int axis = 0; axis < 3; ++axis) {
+        if (!std::isfinite(bounds[axis]) || !std::isfinite(bounds[axis + 3]) || bounds[axis] >= bounds[axis + 3]) return SIZE_MAX;
+        operation->bounds[axis] = bounds[axis];
+        operation->bounds[axis + 3] = bounds[axis + 3];
+    }
+    if (!GameThreadDispatcher::Invoke(query_props_on_game_thread, operation, 500) || operation->result == SIZE_MAX) return SIZE_MAX;
+    if (props) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->output.size()), props);
     return operation->result;
 }
 extern "C" std::uint32_t __cdecl KfcRuntimeEcsResolve(std::uint32_t entity_id) {

@@ -34,9 +34,9 @@ function shroudforge_notifications.publish(notice) end
 --- @class ShroudForgeInput
 shroudforge_input = {}
 
---- Returns true while F4 through F8 is held and the game window is focused.
+--- Returns true while F3 through F8 is held and the game window is focused.
 --- Poll from a runtime `on_update` callback and detect rising edges.
---- @param key 'F4'|'F5'|'F6'|'F7'|'F8'
+--- @param key 'F3'|'F4'|'F5'|'F6'|'F7'|'F8'
 --- @return boolean
 function shroudforge_input.is_key_down(key) end
 

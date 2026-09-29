@@ -50,6 +50,8 @@ function runtime.ecs.get_components() end
 --- @return integer[]? entities Opaque, generation-checked ShroudForge entity handles.
 --- @return string? reason
 function runtime.ecs.query(...) end
+--- Query live entities whose CurrentTransform pivots overlap bounds expanded by padding * max(abs(scale)).
+function runtime.ecs.query_bounds(bounds, padding, ...) end
 
 --- Resolve a real `keen::EntityId.id` obtained from a reflected component to
 --- the current generation-checked ShroudForge handle. The id is looked up in
@@ -126,6 +128,14 @@ function runtime.world.context_active() end
 
 --- @class RuntimeWorldEntityApi
 runtime.world.entity = {}
+
+--- Query placeable props using the native, build-profiled ECS layout. Returns
+--- transforms and item IDs directly, without requiring Lua reflection reads.
+--- @param bounds number[] World-space min xyz followed by max xyz.
+--- @param padding number Conservative pivot margin, scaled by each prop's maximum absolute scale.
+--- @return table[]? props
+--- @return string? reason
+function runtime.world.entity.query_props(bounds, padding) end
 
 --- Queue a native entity spawn in the live prop-update context and wait for a matching
 --- CurrentTransform + UsedItem record in the live ECS. UUIDs are hexadecimal qwords.

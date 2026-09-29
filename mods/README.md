@@ -35,7 +35,7 @@ The SF gameplay packages use the same two-file format. EML data tools only need
 | `fishing-exporter`, `item-translator`, `kfc-parser-mimic` | `export` | Write generated reports through `io.export`; asset reads do not need `patch`. |
 | `sf-infinite-item-split`, `sf-infinite-item-use`, `sf-no-fall-damage`, `sf-no-resource-cost`, `sf-no-stamina-loss`, `sf-unlimited-flight` | `runtime` | Use approved in-game runtime patch operations. |
 | `sf-unlock-blueprints` | `patch` | Write EML game assets during startup preparation. |
-| `sf-world-editor` | `runtime`, `export` | Use in-game world/ECS operations and export blueprint files. |
+| `world-editor` | `runtime`, `export` | Standalone Lua world editor using the public runtime API and export storage. |
 
 Inline `shroudforge` data is not part of the current manifest contract and is
 rejected. ShroudForge state belongs in the neighboring `extended.mod.json`.

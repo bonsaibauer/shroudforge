@@ -7,6 +7,7 @@ local function setting(name)
 end
 
 local clipboard = nil
+local placement_preview = nil
 local undo_state = nil
 local feature
 local component_type
@@ -14,6 +15,7 @@ local selection_a = nil
 local selection_b = nil
 local selection_target = nil
 local active_blueprint_name = nil
+local live_prop_cache = {}
 local placeable_items = nil
 local live_component_types = nil
 local pending_cursor_action = nil
@@ -24,12 +26,38 @@ local readiness_wait_logged = false
 local maximum_blueprint_bytes = 32 * 1024 * 1024
 local save_blueprint_named
 local previous_key_state = {}
+local observed_rotation_setting = nil
+local active_rotation_turns = nil
 
 local function key_pressed(key)
     local down = shroudforge.input.is_key_down(key)
     local pressed = down and not previous_key_state[key]
     previous_key_state[key] = down
     return pressed
+end
+
+local function rotation_turns()
+    local configured = math.floor(tonumber(setting("rotationQuarterTurns")) or 0) % 4
+    if active_rotation_turns == nil or configured ~= observed_rotation_setting then
+        active_rotation_turns = configured
+        observed_rotation_setting = configured
+    end
+    return active_rotation_turns
+end
+
+local function rotate_blueprint()
+    if not clipboard then
+        shroudforge.log.warn("World Editor: capture or load a blueprint before rotating it")
+        return
+    end
+    active_rotation_turns = (rotation_turns() + 1) % 4
+    placement_preview = nil
+    local axis = clipboard.region.rotationAxis or setting("rotationAxis")
+    if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
+    local degrees = active_rotation_turns * 90
+    shroudforge.log.info(string.format(
+        "World Editor rotation: %d/3 quarter turns (%d degrees) around %s; F3 rotates again, F7 pastes, Preview checks the cursor target",
+        active_rotation_turns, degrees, string.upper(axis)))
 end
 
 local function finite_number(value)
@@ -61,6 +89,8 @@ end
 local function rotated_blueprint(source, quarter_turns)
     local region = source.region
     local sx, sy, sz = region.sx, region.sy, region.sz
+    local axis = region.rotationAxis or setting("rotationAxis")
+    if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
     local cells, props = source.cells, {}
     for index, prop in ipairs(source.props or {}) do
         props[index] = {
@@ -72,28 +102,42 @@ local function rotated_blueprint(source, quarter_turns)
     end
     local half_sqrt_two = math.sqrt(0.5)
     for _ = 1, quarter_turns % 4 do
-        local next_sx, next_sz = sz, sx
+        local next_sx, next_sy, next_sz = sx, sy, sz
+        if axis == "x" then next_sy, next_sz = sz, sy
+        elseif axis == "y" then next_sx, next_sz = sz, sx
+        else next_sx, next_sy = sy, sx end
         local next_cells = {}
         for z = 0, sz - 1 do
             for y = 0, sy - 1 do
                 for x = 0, sx - 1 do
                     local source_index = x + sx * (y + sy * z) + 1
-                    local next_x, next_z = z, sx - 1 - x
-                    local target_index = next_x + next_sx * (y + sy * next_z) + 1
+                    local next_x, next_y, next_z
+                    if axis == "x" then next_x, next_y, next_z = x, sz - 1 - z, y
+                    elseif axis == "y" then next_x, next_y, next_z = z, y, sx - 1 - x
+                    else next_x, next_y, next_z = sy - 1 - y, x, z end
+                    local target_index = next_x + next_sx * (next_y + next_sy * next_z) + 1
                     next_cells[target_index] = cells[source_index]
                 end
             end
         end
         for _, prop in ipairs(props) do
-            local x, z = prop.x, prop.z
-            prop.x, prop.z = z, sx * 0.5 - x
+            local x, y, z = prop.x, prop.y, prop.z
+            if axis == "x" then prop.y, prop.z = z, sy * 0.5 - y
+            elseif axis == "y" then prop.x, prop.z = z, sx * 0.5 - x
+            else prop.x, prop.y = sy * 0.5 - y, x end
             local qx, qy, qz, qw = prop.qx, prop.qy, prop.qz, prop.qw
-            prop.qx = half_sqrt_two * qx + half_sqrt_two * qz
-            prop.qy = half_sqrt_two * qy + half_sqrt_two * qw
-            prop.qz = half_sqrt_two * qz - half_sqrt_two * qx
-            prop.qw = half_sqrt_two * qw - half_sqrt_two * qy
+            if axis == "x" then
+                prop.qx, prop.qy, prop.qz, prop.qw = half_sqrt_two * (qx + qw),
+                    half_sqrt_two * (qy - qz), half_sqrt_two * (qz + qy), half_sqrt_two * (qw - qx)
+            elseif axis == "y" then
+                prop.qx, prop.qy, prop.qz, prop.qw = half_sqrt_two * (qx + qz),
+                    half_sqrt_two * (qy + qw), half_sqrt_two * (qz - qx), half_sqrt_two * (qw - qy)
+            else
+                prop.qx, prop.qy, prop.qz, prop.qw = half_sqrt_two * (qx - qy),
+                    half_sqrt_two * (qy + qx), half_sqrt_two * (qz + qw), half_sqrt_two * (qw - qz)
+            end
         end
-        sx, sz, cells = next_sx, next_sz, next_cells
+        sx, sy, sz, cells = next_sx, next_sy, next_sz, next_cells
     end
     return {sx = sx, sy = sy, sz = sz, cells = cells, props = props}
 end
@@ -316,9 +360,14 @@ local function voxel_region(source, use_current_cursor, cursor_override)
     end
     if not sx then sx, sy, sz = tonumber(setting("sizeX")), tonumber(setting("sizeY")), tonumber(setting("sizeZ")) end
     if not source and clipboard then
-        local turns = (tonumber(setting("rotationQuarterTurns")) or 0) % 4
+        local turns = rotation_turns()
+        local axis = clipboard.region.rotationAxis or setting("rotationAxis")
         sx, sy, sz = clipboard.region.sx, clipboard.region.sy, clipboard.region.sz
-        if turns % 2 == 1 then sx, sz = sz, sx end
+        if turns % 2 == 1 then
+            if axis == "x" then sy, sz = sz, sy
+            elseif axis == "z" then sx, sy = sy, sx
+            else sx, sz = sz, sx end
+        end
     end
     if not x or not y or not z or not sx or not sy or not sz or
        x % 1 ~= 0 or y % 1 ~= 0 or z % 1 ~= 0 or
@@ -331,44 +380,44 @@ local function voxel_region(source, use_current_cursor, cursor_override)
 end
 
 local function capture_region_props(region)
-    local unavailable = unavailable_ecs_reason("runtime.ecs.query") or unavailable_ecs_reason("runtime.ecs.read")
+    local unavailable = unavailable_ecs_reason("runtime.world.entity.query_props")
     if unavailable then return nil, unavailable end
-    if not component_type("keen::ecs::CurrentTransform") or not component_type("keen::ecs::UsedItem") then
-        return nil, "CurrentTransform/UsedItem are not mapped in the live ECS component registry"
-    end
     local recipes = resolve_placeable_items()
     if not recipes then return nil end
-    local entities, reason = runtime.ecs.query("keen::ecs::CurrentTransform", "keen::ecs::UsedItem")
-    if not entities then
+    local minimum = {region.x / 2, region.y / 2, region.z / 2}
+    local maximum = {(region.x + region.sx) / 2, (region.y + region.sy) / 2, (region.z + region.sz) / 2}
+    -- Query prop pivots far enough outside the voxel box to include recipes
+    -- whose rotated placement bounds overlap the selected region. Lua applies
+    -- the exact per-recipe rotated-box test below.
+    local query_margin = 0
+    for _, recipe in pairs(recipes) do
+        local bounds = recipe.bounds
+        if type(bounds) == "table" and #bounds >= 6 then
+            local radius = math.sqrt(math.max(math.abs(bounds[1]), math.abs(bounds[4]))^2 +
+                math.max(math.abs(bounds[2]), math.abs(bounds[5]))^2 +
+                math.max(math.abs(bounds[3]), math.abs(bounds[6]))^2)
+            if finite_number(radius) then query_margin = math.max(query_margin, radius) end
+        end
+    end
+    query_margin = math.max(query_margin, 0.25)
+    local live_props, reason = runtime.world.entity.query_props({minimum[1], minimum[2], minimum[3],
+        maximum[1], maximum[2], maximum[3]}, query_margin)
+    if not live_props then
         if not query_is_pending(reason) then
             shroudforge.log.warn("World Editor prop enumeration failed: " .. tostring(reason))
         end
         return nil, reason
     end
-    if #entities > 100000 then
-        shroudforge.log.warn("World Editor refused prop capture: live ECS query exceeded the 100,000-entity safety limit")
+    if #live_props > 100000 then
+        shroudforge.log.warn("World Editor refused prop capture: native query exceeded the 100,000-prop safety limit")
         return nil
     end
-    local minimum = {region.x / 2, region.y / 2, region.z / 2}
-    local maximum = {(region.x + region.sx) / 2, (region.y + region.sy) / 2, (region.z + region.sz) / 2}
     local props = {}
-    for _, handle in ipairs(entities) do
-        local transform_component, transform_reason = live_read(handle, "keen::ecs::CurrentTransform")
-        local used_component, used_reason = live_read(handle, "keen::ecs::UsedItem")
-        if not transform_component or not used_component then
-            return nil, transform_reason or used_reason or "a live prop component could not be read"
-        end
-        local transform = transform_component and transform_component.transform
+    for _, live_prop in ipairs(live_props) do
+        local transform = live_prop.transform
         local position = transform and world_position(transform.position)
-        local id = used_component and item_id(used_component.itemId)
+        local id = item_id(live_prop.itemId)
         local recipe = id and recipes[id]
-        local pivot_inside = position and position.x >= minimum[1] and position.x < maximum[1] and
-            position.y >= minimum[2] and position.y < maximum[2] and
-            position.z >= minimum[3] and position.z < maximum[3]
-        if position and pivot_inside and id and not recipe then
-            shroudforge.log.warn("World Editor prop capture incomplete: ItemInfo recipe is missing for item " .. tostring(id))
-            return nil
-        end
         if position and recipe then
             local rotation = transform.orientation or {}
             local scale = transform.scale or {x = 1, y = 1, z = 1}
@@ -384,8 +433,12 @@ local function capture_region_props(region)
                 return nil
             end
             if intersects_recipe(position, transform, recipe, minimum, maximum) then
+                live_prop_cache[live_prop.handle] = {
+                    itemId = id, position = {position.x, position.y, position.z},
+                    qx = qx, qy = qy, qz = qz, qw = qw, sx = sx, sy = sy, sz = sz,
+                }
                 props[#props + 1] = {
-                    itemId = id, entityHandle = handle,
+                    itemId = id, entityHandle = live_prop.handle,
                     x = position.x - minimum[1], y = position.y - minimum[2], z = position.z - minimum[3],
                     qx = qx, qy = qy, qz = qz, qw = qw,
                     sx = sx, sy = sy, sz = sz,
@@ -451,28 +504,22 @@ local function update_pending_queries()
 end
 
 local function count_prop_at(item, position)
-    local unavailable = unavailable_ecs_reason("runtime.ecs.query") or unavailable_ecs_reason("runtime.ecs.read")
+    local unavailable = unavailable_ecs_reason("runtime.world.entity.query_props")
     if unavailable then return nil, unavailable end
-    if not component_type("keen::ecs::CurrentTransform") or not component_type("keen::ecs::UsedItem") then
-        return nil, "CurrentTransform/UsedItem are not mapped in the live ECS component registry"
-    end
-    local entities, reason = runtime.ecs.query("keen::ecs::CurrentTransform", "keen::ecs::UsedItem")
-    if not entities then return nil, reason end
-    if #entities > 100000 then return nil, "live ECS query exceeded the 100,000-entity safety limit" end
+    local epsilon = 0.01
+    local props, reason = runtime.world.entity.query_props({position[1] - epsilon, position[2] - epsilon, position[3] - epsilon,
+        position[1] + epsilon, position[2] + epsilon, position[3] + epsilon}, 0)
+    if not props then return nil, reason end
+    if #props > 100000 then return nil, "native prop query exceeded the 100,000-prop safety limit" end
     local handles = {}
-    for _, handle in ipairs(entities) do
-        local transform_component, transform_reason = live_read(handle, "keen::ecs::CurrentTransform")
-        local used_component, used_reason = live_read(handle, "keen::ecs::UsedItem")
-        if not transform_component or not used_component then
-            return nil, transform_reason or used_reason or "a live prop component could not be read"
-        end
-        local transform = transform_component and transform_component.transform
+    for _, prop in ipairs(props) do
+        local transform = prop.transform
         local actual_position = transform and world_position(transform.position)
-        if actual_position and item_id(used_component and used_component.itemId) == item and
+        if actual_position and item_id(prop.itemId) == item and
            math.abs(actual_position.x - position[1]) < 0.01 and
            math.abs(actual_position.y - position[2]) < 0.01 and
            math.abs(actual_position.z - position[3]) < 0.01 then
-            handles[#handles + 1] = handle
+            handles[#handles + 1] = prop.handle
         end
     end
     return #handles, handles
@@ -501,6 +548,9 @@ local function newly_matching_handles(before, after)
 end
 
 local function finish_copy_voxels(region, cells, props, save_and_select)
+    local rotation_axis = setting("rotationAxis")
+    if rotation_axis ~= "x" and rotation_axis ~= "y" and rotation_axis ~= "z" then rotation_axis = "y" end
+    region.rotationAxis = rotation_axis
     clipboard = {region = region, cells = cells, props = props}
     local occupied = 0
     for _, value in ipairs(cells) do if value ~= 0 then occupied = occupied + 1 end end
@@ -556,9 +606,9 @@ save_blueprint_named = function(name)
     local path, reason = blueprint_path(name)
     if not path then shroudforge.log.warn("World Editor: " .. reason); return end
     local region, values = clipboard.region, clipboard.cells
-    local body = {"SHROUDFORGE_WORLD_BLUEPRINT_V3",
+    local body = {"SHROUDFORGE_WORLD_BLUEPRINT_V4",
         table.concat({region.sx, region.sy, region.sz}, ","),
-        table.concat(values, ","), tostring(#(clipboard.props or {}))}
+        region.rotationAxis or "y", table.concat(values, ","), tostring(#(clipboard.props or {}))}
     for _, prop in ipairs(clipboard.props or {}) do
         body[#body + 1] = table.concat({prop.itemId, prop.x, prop.y, prop.z,
             prop.qx, prop.qy, prop.qz, prop.qw, prop.sx, prop.sy, prop.sz}, ",")
@@ -596,8 +646,16 @@ local function load_blueprint()
     end
     local lines = {}
     for line in (content .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
-    local version, dimensions, encoded = lines[1], lines[2], lines[3]
-    if version ~= "SHROUDFORGE_WORLD_BLUEPRINT_V3" or not dimensions or not encoded then
+    local version = lines[1]
+    local version_four = version == "SHROUDFORGE_WORLD_BLUEPRINT_V4"
+    local version_three = version == "SHROUDFORGE_WORLD_BLUEPRINT_V3"
+    local dimensions = lines[2]
+    local rotation_axis = version_four and lines[3] or "y"
+    local data_line = version_four and 4 or 3
+    local encoded = lines[data_line]
+    if (not version_four and not version_three) or
+       (rotation_axis ~= "x" and rotation_axis ~= "y" and rotation_axis ~= "z") or
+       not dimensions or not encoded then
         shroudforge.log.warn("World Editor: blueprint format is invalid")
         return
     end
@@ -621,15 +679,16 @@ local function load_blueprint()
         return
     end
     local props = {}
-    local count = tonumber(lines[4])
-    if not count or count % 1 ~= 0 or count < 0 or count > 100000 or #lines ~= 4 + count then
+    local count_line = data_line + 1
+    local count = tonumber(lines[count_line])
+    if not count or count % 1 ~= 0 or count < 0 or count > 100000 or #lines ~= count_line + count then
         shroudforge.log.warn("World Editor: blueprint prop count is invalid")
         return
     end
     for index = 1, count do
         local fields = {}
         local field_count, invalid_field = 0, false
-        for field in (lines[index + 4] .. ","):gmatch("(.-),") do
+        for field in (lines[index + count_line] .. ","):gmatch("(.-),") do
             field_count = field_count + 1
             fields[field_count] = tonumber(field)
             if not finite_number(fields[field_count]) then invalid_field = true end
@@ -655,7 +714,7 @@ local function load_blueprint()
             qx = fields[5], qy = fields[6], qz = fields[7], qw = fields[8],
             sx = fields[9], sy = fields[10], sz = fields[11]}
     end
-    clipboard = {region = {x = 0, y = 0, z = 0, sx = sx, sy = sy, sz = sz}, cells = cells, props = props}
+    clipboard = {region = {x = 0, y = 0, z = 0, sx = sx, sy = sy, sz = sz, rotationAxis = rotation_axis}, cells = cells, props = props}
     active_blueprint_name = setting("blueprintName")
     shroudforge.log.info(string.format("World Editor loaded persistent blueprint '%s' (%d cells, %d props)", active_blueprint_name, #cells, #props))
 end
@@ -675,8 +734,15 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         return
     end
     if not target then shroudforge.log.warn("World Editor: " .. reason); return end
-    local turns = (tonumber(setting("rotationQuarterTurns")) or 0) % 4
-    local rotated = rotated_blueprint(clipboard, turns)
+    local turns = rotation_turns()
+    local axis = clipboard.region.rotationAxis or setting("rotationAxis")
+    if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
+    local preview = placement_preview
+    local same_target = preview and preview.target.x == target.x and preview.target.y == target.y and
+        preview.target.z == target.z and preview.target.sx == target.sx and
+        preview.target.sy == target.sy and preview.target.sz == target.sz
+    local rotated = same_target and preview.blueprint == clipboard and preview.turns == turns and
+        preview.axis == axis and preview.plan or rotated_blueprint(clipboard, turns)
     local source = rotated
     if source.sx ~= target.sx or source.sy ~= target.sy or source.sz ~= target.sz then
         shroudforge.log.warn("World Editor: copied region dimensions changed; copy the region again")
@@ -815,6 +881,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
     end
     undo_state.entities, undo_state.entity_index = spawned, #spawned
     undo_state.recovery_required = false
+    placement_preview = nil
     runtime.report_effect("write-confirmed", string.format("Wrote and read back %d voxel cells and verified %d new props in live ECS; save persistence is not verified",
         #clipboard.cells, #spawned))
     shroudforge.log.info(string.format("World Editor wrote %d voxel cells and verified %d spawned props at %d,%d,%d",
@@ -928,6 +995,31 @@ local function mark_cursor(which)
     end)
 end
 
+local function preview_paste_at(point)
+    if not clipboard then shroudforge.log.warn("World Editor: copy or load a blueprint before previewing"); return end
+    local target, reason = voxel_region(false, true, point)
+    if not target then shroudforge.log.warn("World Editor preview: " .. tostring(reason)); return end
+    local turns = rotation_turns()
+    local axis = clipboard.region.rotationAxis or setting("rotationAxis")
+    if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
+    local plan = rotated_blueprint(clipboard, turns)
+    local occupied = 0
+    for _, cell in ipairs(plan.cells) do if cell ~= 0 then occupied = occupied + 1 end end
+    if plan.sx ~= target.sx or plan.sy ~= target.sy or plan.sz ~= target.sz then
+        shroudforge.log.warn("World Editor preview rejected: rotated blueprint dimensions do not match the target region")
+        return
+    end
+    placement_preview = {blueprint = clipboard, target = target, turns = turns, axis = axis, plan = plan}
+    shroudforge.log.info(string.format(
+        "World Editor placement plan prepared: axis=%s turns=%d target=%d,%d,%d size=%d,%d,%d occupied=%d props=%d; no world changes made",
+        axis, turns, target.x, target.y, target.z, plan.sx, plan.sy, plan.sz, occupied, #plan.props))
+end
+
+local function preview_paste()
+    if not clipboard then shroudforge.log.warn("World Editor: copy or load a blueprint before previewing"); return end
+    request_cursor_action(preview_paste_at)
+end
+
 local function clear_cursor_selection()
     selection_a, selection_b, selection_target = nil, nil, nil
     shroudforge.log.info("World Editor cursor marks cleared; manual coordinates are active")
@@ -955,6 +1047,8 @@ local function reset_editor()
     selection_a, selection_b, selection_target = nil, nil, nil
     pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
     clipboard, undo_state, active_blueprint_name = nil, nil, nil
+    live_prop_cache = {}
+    placement_preview = nil
     shroudforge.log.info("World Editor reset: selection, active blueprint, and undo history cleared")
 end
 
@@ -974,17 +1068,15 @@ local function list_props()
 end
 
 local function destroy_selected_prop()
-    if not feature("runtime.ecs.read") or not feature("runtime.world.entity.destroy") then return end
+    if not feature("runtime.world.entity.query_props") or not feature("runtime.world.entity.destroy") then return end
     local handle = tonumber(setting("entityHandle"))
     if not handle or handle < 1 or handle % 1 ~= 0 then
         shroudforge.log.warn("World Editor: enter a live prop handle from the List props output")
         return
     end
-    local transform_component = live_read(handle, "keen::ecs::CurrentTransform")
-    local used_component = live_read(handle, "keen::ecs::UsedItem")
-    local transform = transform_component and transform_component.transform
-    local position = transform and world_position(transform.position)
-    local item = item_id(used_component and used_component.itemId)
+    local selected = live_prop_cache[handle]
+    local item = selected and selected.itemId
+    local position = selected and {x = selected.position[1], y = selected.position[2], z = selected.position[3]}
     local recipe = item and resolve_placeable_items() and resolve_placeable_items()[item]
     if not position or not recipe then
         shroudforge.log.warn("World Editor: the selected handle is stale or has no verified ItemInfo placement recipe")
@@ -995,9 +1087,7 @@ local function destroy_selected_prop()
         shroudforge.log.warn("World Editor cannot safely delete this selection: its handle is stale or the spatial target is ambiguous")
         return
     end
-    local orientation = transform.orientation or {}
-    local rotation = {tonumber(orientation.x) or 0, tonumber(orientation.y) or 0,
-        tonumber(orientation.z) or 0, tonumber(orientation.w) or 1}
+    local rotation = {selected.qx, selected.qy, selected.qz, selected.qw}
     local ok, reason = runtime.world.entity.destroy(
         {position.x, position.y, position.z}, rotation, recipe.bounds, recipe.id, recipe.feedback)
     if not ok then
@@ -1060,7 +1150,7 @@ end
 local function placement_operation(destroy)
     local operation = destroy and "runtime.world.entity.destroy" or "runtime.world.entity.place"
     if not feature(operation) or not feature("runtime.world.entity.finish_building") then return end
-    if not feature("runtime.ecs.query") or not feature("runtime.ecs.read") then return end
+    if not feature("runtime.world.entity.query_props") then return end
     local tracking, feedback = tonumber(setting("trackingId")), tonumber(setting("feedbackId"))
     local bounds = entity_bounds()
     if not tracking or tracking < 1 or tracking % 1 ~= 0 or
@@ -1308,6 +1398,8 @@ shroudforge.ui.on_action("captureAndSave", function() copy_voxels(true) end)
 shroudforge.ui.on_action("saveBlueprint", save_blueprint)
 shroudforge.ui.on_action("loadBlueprint", load_blueprint)
 shroudforge.ui.on_action("pasteVoxels", paste_voxels)
+shroudforge.ui.on_action("previewPaste", preview_paste)
+shroudforge.ui.on_action("rotateBlueprint", rotate_blueprint)
 shroudforge.ui.on_action("pasteAtCursor", function() paste_voxels(true) end)
 shroudforge.ui.on_action("undoVoxels", undo_voxels)
 shroudforge.ui.on_action("markCursorNext", mark_cursor_next)
@@ -1333,16 +1425,16 @@ return {
     end,
     on_update = function(_delta_seconds)
         if not readiness_logged then
-            local ecs_ready = runtime.has("runtime.ecs.query") and runtime.has("runtime.ecs.read")
+            local ecs_ready = runtime.has("runtime.world.entity.query_props")
             local cursor_ready = runtime.has("runtime.world.cursor.get")
             local world_ready = runtime.has("runtime.world.context.active") and
                 runtime.has("runtime.world.voxel.read") and runtime.has("runtime.world.voxel.write")
             if ecs_ready and cursor_ready and world_ready then
                 readiness_logged = true
-                shroudforge.log.info("World Editor ready: native cursor hook, live ECS, and validated voxel world are available. F4 undo, F5 mark A/B, F6 reset, F7 paste at cursor, F8 capture/save/select.")
+                shroudforge.log.info("World Editor ready: F3 rotate blueprint, F4 undo, F5 mark A/B, F6 reset, F7 paste at cursor, F8 capture/save/select.")
             elseif not readiness_wait_logged then
                 readiness_wait_logged = true
-                local ecs = runtime.status("runtime.ecs.query")
+                local ecs = runtime.status("runtime.world.entity.query_props")
                 local cursor = runtime.status("runtime.world.cursor.get")
                 local world = runtime.status("runtime.world.context.active")
                 shroudforge.log.info("World Editor waiting for runtime readiness: cursor=" .. tostring(cursor and cursor.reason or "ready") ..
@@ -1350,6 +1442,7 @@ return {
                     "; world=" .. tostring(world and world.reason or "ready"))
             end
         end
+        local rotate = key_pressed("F3")
         local undo = key_pressed("F4")
         local mark = key_pressed("F5")
         local reset = key_pressed("F6")
@@ -1357,6 +1450,7 @@ return {
         local capture = key_pressed("F8")
         if reset then reset_editor(); return end
         update_pending_queries()
+        if rotate then rotate_blueprint() end
         if undo then undo_voxels() end
         if mark then mark_cursor_next() end
         if paste then paste_voxels(true) end
@@ -1365,6 +1459,7 @@ return {
     on_unload = function()
         pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
         live_component_types = nil
+        live_prop_cache = {}
     shroudforge.log.debug("World Editor Lua runtime unloaded")
     end,
 }
