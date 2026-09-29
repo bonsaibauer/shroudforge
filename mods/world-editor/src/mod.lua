@@ -27,6 +27,8 @@ local pending_world_action = nil
 local readiness_logged = false
 local readiness_wait_logged = false
 local maximum_blueprint_bytes = 256 * 1024 * 1024
+local maximum_supported_props = 1000000
+local default_maximum_copyable_props = 60000
 local save_blueprint_named
 local undo_voxels
 local rollback_partial_paste
@@ -68,6 +70,12 @@ end
 
 local function finite_number(value)
     return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+local function maximum_copyable_props()
+    local configured = tonumber(setting("maximumCopyableProps"))
+    if not finite_number(configured) then configured = default_maximum_copyable_props end
+    return math.min(maximum_supported_props, math.max(1, math.floor(configured)))
 end
 
 local function get_voxel_grid_spec()
@@ -121,9 +129,18 @@ end
 
 local function world_position(position)
     if not position then return nil end
+    local x, y, z = tonumber(position.x), tonumber(position.y), tonumber(position.z)
+    if not finite_number(x) or not finite_number(y) or not finite_number(z) then return nil end
+    -- Prop-query/get-transform Lua API records are already decoded to world units.
+    return {x = x, y = y, z = z}
+end
+
+local function cursor_world_position(position)
+    if not position then return nil end
     local scale = 4294967296
     local x, y, z = tonumber(position.x), tonumber(position.y), tonumber(position.z)
     if not finite_number(x) or not finite_number(y) or not finite_number(z) then return nil end
+    -- The cursor hook exposes the raw Q32.32 fields from the game structure.
     return {x = x / scale, y = y / scale, z = z / scale}
 end
 
@@ -217,7 +234,7 @@ local function cursor_point()
     if not snapshot then return nil, reason end
     local value = snapshot.value
     local transform = value and value.primaryTransform
-    local position = transform and world_position(transform.position)
+    local position = transform and cursor_world_position(transform.position)
     if position then return position end
     return nil, "native cursor snapshot has no readable primary transform"
 end
@@ -301,7 +318,12 @@ local function guid_halves(reference)
 end
 
 local function item_id(value)
-    if type(value) == "table" then value = value.value or value.id end
+    local kind = type(value)
+    if kind == "userdata" then
+        value = value.value
+    elseif kind == "table" then
+        value = value.value or value.id
+    end
     return tonumber(value)
 end
 
@@ -342,8 +364,9 @@ local function resolve_placeable_items()
             local feedback
             for _, collider in ipairs(equipment.placementColliders or {}) do
                 for _, entry in ipairs(collider.dataArray or {}) do
-                    local entry_value = entry["$value"] or entry.value or entry
-                    local candidate = entry_value.materialFeedbackId
+                    -- KFC variants expose their contained typed value as `.value`;
+                    -- `$value` exists only in the raw JSON representation.
+                    local candidate = entry.value.materialFeedbackId
                     feedback = item_id(candidate)
                     if feedback and feedback ~= 0 then break end
                 end
@@ -511,9 +534,9 @@ local function capture_region_props(region)
         end
         return nil, reason
     end
-    if #live_props > 1000000 then
-        shroudforge.log.warn("World Editor refused prop capture: native query exceeded the 1,000,000-prop safety limit")
-        return nil
+    local maximum = maximum_copyable_props()
+    if #live_props > maximum then
+        return nil, string.format("selection contains %d props, above the configured maximum of %d; increase Maximum props per blueprint in the mod settings", #live_props, maximum)
     end
     local props = {}
     for _, live_prop in ipairs(live_props) do
@@ -549,6 +572,9 @@ local function capture_region_props(region)
                 sx = sx, sy = sy, sz = sz,
             }
         end
+    end
+    if #props > maximum then
+        return nil, string.format("capture produced %d props, above the configured maximum of %d", #props, maximum)
     end
     return props
 end
@@ -677,6 +703,11 @@ local function intended_spawn_transform(position, rotation, scale, item_id_value
 end
 
 local function finish_capture(region, cells, props, save_and_select, anchor, extent, voxel_offset)
+    local maximum = maximum_copyable_props()
+    if #(props or {}) > maximum then
+        shroudforge.log.warn(string.format("World Editor refused capture: %d props exceed the configured maximum of %d", #props, maximum))
+        return
+    end
     local rotation_axis = region and region.rotationAxis or setting("rotationAxis")
     if rotation_axis ~= "x" and rotation_axis ~= "y" and rotation_axis ~= "z" then rotation_axis = "y" end
     local blueprint_region = {rotationAxis = rotation_axis}
@@ -719,7 +750,20 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
     end
 end
 
+local function export_ready_for_capture(save_and_select)
+    if not save_and_select then return true end
+    local ok, result = pcall(function()
+        return io.export_exists("world-editor/blueprints/capture-1.sfbp")
+    end)
+    if not ok then
+        shroudforge.log.error("World Editor cannot start F8 capture because blueprint export is unavailable: " .. tostring(result))
+        return false
+    end
+    return true
+end
+
 local function copy_voxels(save_and_select)
+    if not export_ready_for_capture(save_and_select) then return end
     if not require_world_feature("runtime.world.voxel.read", function() copy_voxels(save_and_select) end) then return end
     local region, reason = voxel_region(true)
     if not region then shroudforge.log.warn("World Editor: " .. reason); return end
@@ -752,6 +796,7 @@ local function copy_voxels(save_and_select)
 end
 
 local function copy_props_only(save_and_select)
+    if not export_ready_for_capture(save_and_select) then return end
     if not selection_a or not selection_b then
         shroudforge.log.warn("World Editor props-only capture requires cursor selection corners A and B")
         return
@@ -780,6 +825,12 @@ end
 
 save_blueprint_named = function(name)
     if not clipboard then shroudforge.log.warn("World Editor: capture a region before saving a blueprint"); return end
+    local prop_count = #(clipboard.props or {})
+    local maximum = maximum_copyable_props()
+    if prop_count > maximum then
+        shroudforge.log.warn(string.format("World Editor: cannot save %d props because the configured blueprint maximum is %d", prop_count, maximum))
+        return false
+    end
     local path, reason = blueprint_path(name)
     if not path then shroudforge.log.warn("World Editor: " .. reason); return end
     local region, values = clipboard.region, clipboard.cells
@@ -908,7 +959,8 @@ local function load_blueprint()
     local props = {}
     local count_line = 10
     local count = tonumber(lines[count_line])
-    if not count or count % 1 ~= 0 or count < 0 or count > 1000000 or #lines ~= count_line + count then
+    local maximum = maximum_copyable_props()
+    if not count or count % 1 ~= 0 or count < 0 or count > maximum or count > maximum_supported_props or #lines ~= count_line + count then
         shroudforge.log.warn("World Editor: blueprint prop count is invalid")
         return
     end
@@ -967,6 +1019,12 @@ end
 
 local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
     if not clipboard then shroudforge.log.warn("World Editor: capture or load a blueprint before pasting"); return end
+    local maximum = maximum_copyable_props()
+    local prop_count = #(clipboard.props or {})
+    if prop_count > maximum then
+        shroudforge.log.warn(string.format("World Editor: paste refused because the blueprint has %d props and the configured maximum is %d", prop_count, maximum))
+        return
+    end
     if undo_state and undo_state.recovery_required then
         shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before starting another paste")
         return

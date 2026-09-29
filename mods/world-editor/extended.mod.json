@@ -17,6 +17,12 @@
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
   ],
   "settings": {
+    "maximumCopyableProps": {
+      "value": 60000,
+      "min": 1,
+      "max": 1000000,
+      "label": "Maximum props per blueprint"
+    },
     "sourceX": {
       "value": 0,
       "label": "Source cell X (manual fallback)"
@@ -168,6 +174,12 @@
     }
   },
   "groups": [
+    {
+      "label": "World Editor limits",
+      "settings": [
+        "maximumCopyableProps"
+      ]
+    },
     {
       "label": "Keyboard shortcuts",
       "description": "Shortcuts work while the game window is focused.",

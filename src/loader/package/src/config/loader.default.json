@@ -7,7 +7,7 @@
     "minimumLevel": "INFO"
   },
   "exports": {
-    "enabled": false
+    "enabled": true
   },
   "paths": {
     "mods": null,

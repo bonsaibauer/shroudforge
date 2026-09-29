@@ -31,7 +31,7 @@ const linkAssetIcons=Object.fromEntries(Object.entries(import.meta.glob('./links
 const empty:Snapshot = {
   connected:false, mode:(window as any).__shroudforgeLaunchMode==='updater'?'UPDATER':'DESKTOP', updaterWindow:(window as any).__shroudforgeLaunchMode==='updater', gameVersion:'', version:'1.0.0', mods:[], activity:[], notices:[], readNoticeIds:[], locale:'de',
   release:{currentVersion:'1.0.0',updateAvailable:false,state:'idle',staged:false},
-  settings:{compactMode:false,reducedMotion:false,logLevel:'INFO',exportEnabled:false,runtimeProfileId:null,runtimeProfiles:[],paths:[],updateEnabled:false,baseUrl:'https://api.shroudedit.com',projectId:'shroudforge',checkMinutes:30},
+  settings:{compactMode:false,reducedMotion:false,logLevel:'INFO',exportEnabled:true,runtimeProfileId:null,runtimeProfiles:[],paths:[],updateEnabled:false,baseUrl:'https://api.shroudedit.com',projectId:'shroudforge',checkMinutes:30},
   catalog:{state:'idle',query:'',items:[]},
 }
 const post=(command:string,payload:Record<string,unknown>={})=>window.ipc?.postMessage(JSON.stringify({command,...payload}))

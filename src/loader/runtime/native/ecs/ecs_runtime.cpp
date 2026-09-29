@@ -132,6 +132,14 @@ std::mutex write_mutex;
 std::mutex prop_recipe_mutex;
 std::unordered_map<std::uint32_t, std::array<float, 6>> prop_recipes;
 bool prop_recipe_catalog_ready{};
+std::mutex prop_query_call_mutex;
+struct PropQueryResultCache {
+    std::array<double, 6> bounds{};
+    std::uint64_t epoch{};
+    std::vector<KfcRuntimePropRecord> props;
+    bool ready{};
+};
+PropQueryResultCache prop_query_result_cache;
 std::atomic<bool> stop_requested{};
 std::uintptr_t image_base{};
 
@@ -235,6 +243,59 @@ std::uint32_t handle_for(const EntityView& entity) {
     handles.emplace(handle, HandleRecord{entity.id, entity.generation, layout_epoch, entity.pointer});
     reverse_handles.emplace(key, handle);
     return handle;
+}
+
+bool SnapshotEntityIds(std::vector<std::uint32_t>& ids) {
+    ResolvedLayout layout{};
+    std::vector<std::uintptr_t> pointers;
+    if (!layout_snapshot(layout) || !entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return false;
+    ids.clear();
+    ids.reserve(pointers.size());
+    for (const auto pointer : pointers) {
+        std::uint32_t id{};
+        if (pointer && read(pointer + layout.entity_id, id) && id) ids.push_back(id);
+    }
+    return true;
+}
+
+bool ResolvePropEntityId(std::uint32_t entity_id, KfcRuntimePropRecord* prop) {
+    if (!entity_id || !prop) return false;
+    using namespace KfcRuntimeCompatibility::EnshroudedClient;
+    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
+    const auto item_type = std::find_if(runtime_components.begin(), runtime_components.end(),
+        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
+    if (transform_type == runtime_components.end() || transform_type->size != 0x38 ||
+        item_type == runtime_components.end() || item_type->size != sizeof(std::uint32_t)) return false;
+    ResolvedLayout layout{};
+    std::vector<std::uintptr_t> pointers;
+    if (!layout_snapshot(layout) || !entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return false;
+    const ComponentType transform_component{transform_type->index, transform_type->size};
+    const ComponentType item_component{item_type->index, item_type->size};
+    for (const auto pointer : pointers) {
+        EntityView entity{};
+        if (!entity_view(pointer, layout, entity) || entity.id != entity_id) continue;
+        std::uintptr_t transform_address{}, item_address{};
+        struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; } transform{};
+        std::uint32_t item_id{};
+        std::uint64_t template_uuid[2]{};
+        if (!component_address(entity, layout, transform_component, transform_address) ||
+            !component_address(entity, layout, item_component, item_address) ||
+            !read_bytes(transform_address, &transform, sizeof(transform)) ||
+            !read_bytes(item_address, &item_id, sizeof(item_id)) || !item_id || !entity.definition ||
+            !read_bytes(entity.definition + definition_uuid, template_uuid, sizeof(template_uuid)) ||
+            !(template_uuid[0] || template_uuid[1])) return false;
+        *prop = {};
+        prop->entity_handle = handle_for(entity);
+        prop->item_id = item_id;
+        std::copy_n(transform.position, 3, prop->position);
+        std::copy_n(transform.rotation, 4, prop->orientation);
+        std::copy_n(transform.scale, 3, prop->scale);
+        std::copy_n(template_uuid, 2, prop->template_uuid);
+        if (!prop->entity_handle) return false;
+        return true;
+    }
+    return false;
 }
 bool entity_for_handle(std::uint32_t handle, const ResolvedLayout& layout, EntityView& entity) {
     HandleRecord record{};
@@ -498,12 +559,15 @@ void query_props_native(PropQueryOperation& operation) {
         std::copy_n(transform.position, 3, prop.position);
         std::copy_n(transform.rotation, 4, prop.orientation);
         std::copy_n(transform.scale, 3, prop.scale);
-        if (!entity.definition || !read_bytes(entity.definition + definition_uuid,
-                prop.template_uuid, sizeof(prop.template_uuid)) ||
-            !(prop.template_uuid[0] || prop.template_uuid[1])) continue;
         if (operation.exact_recipe_bounds) {
             const auto recipe = recipes.find(item_id);
             if (recipe == recipes.end() || !recipe_bounds_intersect(prop, recipe->second, operation.bounds)) continue;
+            // UUIDs are needed by the editor only for props inside the selected
+            // region. Reading them before the spatial test made every capture
+            // touch the template definition of every UsedItem in the world.
+            if (!entity.definition || !read_bytes(entity.definition + definition_uuid,
+                    prop.template_uuid, sizeof(prop.template_uuid)) ||
+                !(prop.template_uuid[0] || prop.template_uuid[1])) continue;
         } else {
             const double scale = (std::max)({std::abs(static_cast<double>(transform.scale[0])),
                 std::abs(static_cast<double>(transform.scale[1])), std::abs(static_cast<double>(transform.scale[2]))});
@@ -808,6 +872,12 @@ void component_discovery_tick(std::uintptr_t manager) {
 }
 
 namespace EcsRuntime {
+bool SnapshotEntityIds(std::vector<std::uint32_t>& ids) {
+    return ::SnapshotEntityIds(ids);
+}
+bool ResolvePropEntityId(std::uint32_t entity_id, KfcRuntimePropRecord* prop) {
+    return ::ResolvePropEntityId(entity_id, prop);
+}
 bool Initialize() {
     if (!KfcRuntimeCompatibility::EnshroudedClient::Load()) return false;
     image_base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
@@ -1159,6 +1229,7 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryProps(const double* bou
 extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryPropsInBounds(
     const double* bounds, KfcRuntimePropRecord* props, std::size_t capacity) {
     if (!bounds || capacity > (1u << 20) || (!props && capacity)) return SIZE_MAX;
+    std::scoped_lock query_lock(prop_query_call_mutex);
     auto operation = std::make_shared<PropQueryOperation>();
     operation->exact_recipe_bounds = true;
     for (int axis = 0; axis < 3; ++axis) {
@@ -1167,8 +1238,30 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryPropsInBounds(
         operation->bounds[axis] = bounds[axis];
         operation->bounds[axis + 3] = bounds[axis + 3];
     }
+    const auto epoch = current_epoch();
+    const auto same_bounds = [&] {
+        for (int axis = 0; axis < 6; ++axis)
+            if (prop_query_result_cache.bounds[axis] != operation->bounds[axis]) return false;
+        return true;
+    };
+    if (props && prop_query_result_cache.ready && prop_query_result_cache.epoch == epoch && same_bounds()) {
+        const auto count = prop_query_result_cache.props.size();
+        std::copy_n(prop_query_result_cache.props.begin(), (std::min)(capacity, count), props);
+        prop_query_result_cache.ready = false;
+        std::vector<KfcRuntimePropRecord>().swap(prop_query_result_cache.props);
+        return count;
+    }
     query_props_native(*operation);
     if (operation->result == SIZE_MAX) return SIZE_MAX;
+    if (!props && capacity == 0 && !operation->output.empty()) {
+        prop_query_result_cache.ready = true;
+        prop_query_result_cache.epoch = epoch;
+        std::copy_n(operation->bounds, 6, prop_query_result_cache.bounds.begin());
+        prop_query_result_cache.props = std::move(operation->output);
+    } else {
+        prop_query_result_cache.ready = false;
+        std::vector<KfcRuntimePropRecord>().swap(prop_query_result_cache.props);
+    }
     if (props) std::copy_n(operation->output.begin(), (std::min)(capacity, operation->output.size()), props);
     return operation->result;
 }

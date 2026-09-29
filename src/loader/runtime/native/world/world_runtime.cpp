@@ -312,20 +312,37 @@ bool count_spawn_matches(const EntityRequest& request, std::size_t& matches) {
     return true;
 }
 
-bool verify_spawn(const EntityRequest& request, const std::vector<std::uint32_t>& before_handles,
+bool verify_spawn(const EntityRequest& request, const std::unordered_set<std::uint32_t>& before_ids,
                   std::uint32_t& created_handle) {
     const auto deadline = GetTickCount64() + 2000;
+    auto next_scan = GetTickCount64();
     do {
-        std::vector<std::uint32_t> after_handles;
-        if (matching_prop_handles(request, after_handles)) {
-            std::vector<std::uint32_t> created;
-            for (auto handle : after_handles)
-                if (std::find(before_handles.begin(), before_handles.end(), handle) == before_handles.end())
-                    created.push_back(handle);
-            if (created.size() == 1) { created_handle = created.front(); return true; }
-            if (created.size() > 1) return false;
+        const auto now = GetTickCount64();
+        if (now >= next_scan) {
+            std::vector<std::uint32_t> after_ids;
+            if (EcsRuntime::SnapshotEntityIds(after_ids)) {
+                for (const auto id : after_ids) {
+                    if (before_ids.contains(id)) continue;
+                    KfcRuntimePropRecord prop{};
+                    if (!EcsRuntime::ResolvePropEntityId(id, &prop) || prop.item_id != request.tracking ||
+                        prop.template_uuid[0] != request.template_uuid[0] ||
+                        prop.template_uuid[1] != request.template_uuid[1]) continue;
+                    bool position_matches = true;
+                    for (int axis = 0; axis < 3; ++axis) {
+                        const auto expected = std::ldexp(request.position[axis], 32);
+                        if (!std::isfinite(expected) || std::abs(static_cast<long double>(prop.position[axis]) - expected) > (1LL << 24)) {
+                            position_matches = false;
+                            break;
+                        }
+                    }
+                    if (!position_matches) continue;
+                    created_handle = prop.entity_handle;
+                    return true;
+                }
+            }
+            next_scan = now + 50;
         }
-        if (GetTickCount64() < deadline) Sleep(10);
+        if (GetTickCount64() < deadline) Sleep(5);
     } while (GetTickCount64() < deadline);
     return false;
 }
@@ -600,11 +617,14 @@ bool SpawnEntity(const std::uint64_t template_uuid[2], const double position[3],
     std::copy_n(rotation, 4, request->rotation);
     request->tracking = tracking;
     request->flags = flags;
-    std::vector<std::uint32_t> before_handles;
-    if (!matching_prop_handles(*request, before_handles)) { *outcome = 1; return false; }
+    // Match Shroudtopia: snapshot existing entity IDs, dispatch creation in the
+    // prop-update hook, then resolve only newly appeared IDs to live props.
+    std::vector<std::uint32_t> id_snapshot;
+    if (!EcsRuntime::SnapshotEntityIds(id_snapshot)) { *outcome = 1; return false; }
+    const std::unordered_set<std::uint32_t> before_ids(id_snapshot.begin(), id_snapshot.end());
     const auto ok = invoke_entity_request(request, outcome);
     if (!ok) return false;
-    if (verify_spawn(*request, before_handles, *entity_handle)) return true;
+    if (verify_spawn(*request, before_ids, *entity_handle)) return true;
     *outcome = 4; // command ran, but no matching live ECS entity was observed
     return false;
 }
