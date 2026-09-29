@@ -13714,6 +13714,19 @@
     {
       "kind": "function",
       "namespace": "runtime",
+      "name": "runtime.world.cursor.get",
+      "signature": "runtime.world.cursor.get()",
+      "params": [],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Read the most recent live building cursor captured by the current build's verified native hook. The hook copies the ClientCursor layout before returning to the game and the snapshot is served without an ECS scan.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
       "name": "runtime.world.voxel.read",
       "signature": "runtime.world.voxel.read(x, y, z, size_x, size_y, size_z)",
       "params": [

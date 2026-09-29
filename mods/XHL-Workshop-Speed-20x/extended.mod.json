@@ -1,7 +1,0 @@
-{
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
-  "schemaVersion": 1,
-  "enabled": false,
-  "launcher": "EML",
-  "settings": {}
-}
