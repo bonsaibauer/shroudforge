@@ -9,7 +9,7 @@ rust-version.workspace = true
 shroudforge-runtime-diagnostics = { path = "../modules/runtime-diagnostics" }
 shroudforge-parser = { path = "../../parser" }
 shroudforge-compatibility = { path = "../compatibility" }
-kfc = { git = "https://github.com/Brabb3l/kfc-parser.git", rev = "f201f7667ddd5d0d78f0a27368f2e7481b870618", features = ["resource", "content"] }
+kfc = { git = "https://github.com/bonsaibauer/kfc-parser.git", rev = "933c11a68854894dd75414812f275543c4ee2faa", features = ["resource", "content"] }
 mod-loader = { package = "shroudforge-package", path = "../package" }
 
 thiserror = "2.0"

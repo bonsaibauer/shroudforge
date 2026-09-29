@@ -1832,7 +1832,7 @@ dependencies = [
 [[package]]
 name = "kfc"
 version = "0.1.2"
-source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
+source = "git+https://github.com/bonsaibauer/kfc-parser.git?rev=933c11a68854894dd75414812f275543c4ee2faa#933c11a68854894dd75414812f275543c4ee2faa"
 dependencies = [
  "kfc-base",
  "kfc-content",
@@ -1842,7 +1842,7 @@ dependencies = [
 [[package]]
 name = "kfc-base"
 version = "0.1.2"
-source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
+source = "git+https://github.com/bonsaibauer/kfc-parser.git?rev=933c11a68854894dd75414812f275543c4ee2faa#933c11a68854894dd75414812f275543c4ee2faa"
 dependencies = [
  "aes",
  "bitflags 2.13.2",
@@ -1855,7 +1855,7 @@ dependencies = [
 [[package]]
 name = "kfc-content"
 version = "0.1.2"
-source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
+source = "git+https://github.com/bonsaibauer/kfc-parser.git?rev=933c11a68854894dd75414812f275543c4ee2faa#933c11a68854894dd75414812f275543c4ee2faa"
 dependencies = [
  "anyhow",
  "block_compression",
@@ -1871,7 +1871,7 @@ dependencies = [
 [[package]]
 name = "kfc-resource"
 version = "0.1.2"
-source = "git+https://github.com/Brabb3l/kfc-parser.git?rev=f201f7667ddd5d0d78f0a27368f2e7481b870618#f201f7667ddd5d0d78f0a27368f2e7481b870618"
+source = "git+https://github.com/bonsaibauer/kfc-parser.git?rev=933c11a68854894dd75414812f275543c4ee2faa#933c11a68854894dd75414812f275543c4ee2faa"
 dependencies = [
  "indexmap",
  "kfc-base",
