@@ -132,7 +132,12 @@ jobs:
       - name: Scan release packages for malware with Microsoft Defender
         shell: pwsh
         run: |
-          Update-MpSignature
+          try {
+            Update-MpSignature -ErrorAction Stop
+            Write-Host 'Microsoft Defender signature update completed.'
+          } catch {
+            Write-Warning "Microsoft Defender signature update failed; scanning with the signatures already present on the runner. Other malware scans remain required. $($_.Exception.Message)"
+          }
 
           $archives = @(Get-ChildItem -LiteralPath 'build' -Filter 'shroudforge-*.zip' -File)
           if ($archives.Count -eq 0) {
