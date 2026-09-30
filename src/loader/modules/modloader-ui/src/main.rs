@@ -177,8 +177,8 @@ mod windows {
     }
 
     enum Command {
-        Hide,
-        Drag,
+        Hide(String),
+        Drag(String),
         Refresh(Option<String>),
         RefreshMod(String, String),
         ReloadSettings(String),
@@ -204,9 +204,9 @@ mod windows {
         InstallMod(String, String, String),
         UpdateMod(String, String, String),
         SaveLanguage(String, String),
-        RunModAction(String, String),
-        RemoveMod(String),
-        SetNewsRead(Vec<String>, bool),
+        RunModAction(String, String, String),
+        RemoveMod(String, String),
+        SetNewsRead(Vec<String>, bool, String),
         Diagnostics(String, String),
         UiReady,
         UiError(String),
@@ -528,8 +528,175 @@ mod windows {
         }
     }
 
+    fn parse_ui_command(
+        value: UiCommand,
+        desktop: bool,
+        updater_window: bool,
+        server: bool,
+    ) -> Option<Command> {
+        Some(match value.command.as_str() {
+                "diagnostics" => Command::Diagnostics(
+                    value.action.unwrap_or_default(),
+                    value.request_id.unwrap_or_default(),
+                ),
+                "hide" => Command::Hide(value.request_id.unwrap_or_default()),
+                "drag" => Command::Drag(value.request_id.unwrap_or_default()),
+                "refresh" => Command::Refresh(value.request_id),
+                "refresh-mod" => match value.mod_id {
+                    Some(id) => Command::RefreshMod(id, value.request_id.unwrap_or_default()),
+                    None => return None,
+                },
+                "reload-settings" => Command::ReloadSettings(value.request_id.unwrap_or_default()),
+                "check-updates" => Command::CheckUpdates(value.request_id.unwrap_or_default()),
+                "stage-update" => Command::StageUpdate(
+                    value.request_id.unwrap_or_default(),
+                    value.wait_for_game.unwrap_or(!desktop),
+                ),
+                "queue-system-update" => {
+                    Command::QueueSystemUpdate(value.request_id.unwrap_or_default())
+                }
+                "select-update-queue-items" => match value.selected {
+                    Some(selected) => Command::SelectUpdateQueueItems(
+                        value.ids.unwrap_or_default(),
+                        selected,
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return None,
+                },
+                "remove-update-queue-item" => match value.key {
+                    Some(id) => {
+                        Command::RemoveUpdateQueueItem(id, value.request_id.unwrap_or_default())
+                    }
+                    None => return None,
+                },
+                "start-update-queue" => Command::StartUpdateQueue(
+                    value.ids.unwrap_or_default(),
+                    value.wait_for_game.unwrap_or(!desktop),
+                    !server && !updater_window,
+                    value.request_id.unwrap_or_default(),
+                ),
+                "clear-update-queue" => {
+                    Command::ClearUpdateQueue(value.request_id.unwrap_or_default())
+                }
+                "cancel-update" => Command::CancelUpdate(value.request_id.unwrap_or_default()),
+                "restore-gamefiles" => {
+                    Command::RestoreGamefiles(value.request_id.unwrap_or_default())
+                }
+                "capture-gamefile-originals" => {
+                    Command::CaptureGamefileOriginals(value.request_id.unwrap_or_default())
+                }
+                "search-catalog" => match value.query {
+                    Some(query) => {
+                        Command::SearchCatalog(query, value.request_id.unwrap_or_default())
+                    }
+                    None => return None,
+                },
+                "install-mod" => match value.project_id {
+                    Some(project_id) => {
+                        let title = value.title.unwrap_or_else(|| project_id.clone());
+                        Command::InstallMod(project_id, title, value.request_id.unwrap_or_default())
+                    }
+                    None => return None,
+                },
+                "update-mod" => match value.mod_id {
+                    Some(mod_id) => {
+                        let title = value.title.unwrap_or_else(|| mod_id.clone());
+                        Command::UpdateMod(mod_id, title, value.request_id.unwrap_or_default())
+                    }
+                    None => return None,
+                },
+                "save-language" => match value.locale {
+                    Some(locale) => {
+                        Command::SaveLanguage(locale, value.request_id.unwrap_or_default())
+                    }
+                    None => return None,
+                },
+                "open-url" => match value.url {
+                    Some(url) => Command::OpenUrl(url, value.request_id.unwrap_or_default()),
+                    None => return None,
+                },
+                "save-mod-settings" => match (value.mod_id, value.values) {
+                    (Some(id), Some(values)) => Command::SaveModSettings(
+                        id,
+                        values,
+                        value.revision.unwrap_or_default(),
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return None,
+                },
+                "set-mod-enabled" => match (value.mod_id, value.enabled) {
+                    (Some(id), Some(enabled)) => Command::SetModEnabled(
+                        id,
+                        enabled,
+                        value.revision.unwrap_or_default(),
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return None,
+                },
+                "save-settings" => match value.settings {
+                    Some(settings) => {
+                        Command::SaveSettings(settings, value.request_id.unwrap_or_default())
+                    }
+                    None => return None,
+                },
+                "save-setting" => match (value.scope, value.key) {
+                    (Some(scope), Some(key)) => Command::SaveSetting(
+                        scope,
+                        value.module,
+                        key,
+                        value.value,
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return None,
+                },
+                "browse-path" => match value.key {
+                    Some(key) => Command::BrowsePath(key, value.request_id.unwrap_or_default()),
+                    None => return None,
+                },
+                "open-path" => match value.key {
+                    Some(key) => Command::OpenPath(key, value.request_id.unwrap_or_default()),
+                    None => return None,
+                },
+                "set-window-visibility" => match (value.module, value.visible) {
+                    (Some(module), Some(visible)) => Command::SetWindowVisibility(
+                        module,
+                        visible,
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return None,
+                },
+                "run-mod-action" => match (value.mod_id, value.action) {
+                    (Some(id), Some(action)) => Command::RunModAction(
+                        id,
+                        action,
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return None,
+                },
+                "remove-mod" => match value.mod_id {
+                    Some(id) => Command::RemoveMod(id, value.request_id.unwrap_or_default()),
+                    None => return None,
+                },
+                "set-news-read" => {
+                    Command::SetNewsRead(
+                        value.ids.unwrap_or_default(),
+                        value.read.unwrap_or(true),
+                        value.request_id.unwrap_or_default(),
+                    )
+                }
+                "ui-ready" => Command::UiReady,
+                "ui-error" => Command::UiError(
+                    value
+                        .message
+                        .unwrap_or_else(|| "Unknown WebView error".into()),
+                ),
+                _ => return None,
+            })
+    }
+
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let arguments = arguments()?;
+        shroudforge_package::config::initialize_loader_config(&arguments.root)?;
         run_with_arguments(arguments)
     }
 
@@ -569,6 +736,7 @@ mod windows {
                 system_update_provider: default_system_provider(),
             });
         if !arguments.desktop
+            && !arguments.server
             && shroudforge_package::config::read_loader(&arguments.root)
                 .is_ok_and(|value| value["modules"]["modloaderUi"]["enabled"] == false)
         {
@@ -628,160 +796,19 @@ mod windows {
                 .clone();
         position_window(&window, &saved_position, false);
         let (sender, receiver) = mpsc::channel();
+        let control_sender = sender.clone();
         let (async_sender, async_receiver) = mpsc::channel::<AsyncUiResult>();
         let handler = move |message: wry::http::Request<String>| {
             let Ok(value) = serde_json::from_str::<UiCommand>(message.body()) else {
                 return;
             };
-            let command = match value.command.as_str() {
-                "diagnostics" => Command::Diagnostics(
-                    value.action.unwrap_or_default(),
-                    value.request_id.unwrap_or_default(),
-                ),
-                "hide" => Command::Hide,
-                "drag" => Command::Drag,
-                "refresh" => Command::Refresh(value.request_id),
-                "refresh-mod" => match value.mod_id {
-                    Some(id) => Command::RefreshMod(id, value.request_id.unwrap_or_default()),
-                    None => return,
-                },
-                "reload-settings" => Command::ReloadSettings(value.request_id.unwrap_or_default()),
-                "check-updates" => Command::CheckUpdates(value.request_id.unwrap_or_default()),
-                "stage-update" => Command::StageUpdate(
-                    value.request_id.unwrap_or_default(),
-                    value.wait_for_game.unwrap_or(!arguments.desktop),
-                ),
-                "queue-system-update" => {
-                    Command::QueueSystemUpdate(value.request_id.unwrap_or_default())
-                }
-                "select-update-queue-items" => match value.selected {
-                    Some(selected) => Command::SelectUpdateQueueItems(
-                        value.ids.unwrap_or_default(),
-                        selected,
-                        value.request_id.unwrap_or_default(),
-                    ),
-                    _ => return,
-                },
-                "remove-update-queue-item" => match value.key {
-                    Some(id) => {
-                        Command::RemoveUpdateQueueItem(id, value.request_id.unwrap_or_default())
-                    }
-                    None => return,
-                },
-                "start-update-queue" => Command::StartUpdateQueue(
-                    value.ids.unwrap_or_default(),
-                    value.wait_for_game.unwrap_or(!arguments.desktop),
-                    !arguments.updater_window,
-                    value.request_id.unwrap_or_default(),
-                ),
-                "clear-update-queue" => {
-                    Command::ClearUpdateQueue(value.request_id.unwrap_or_default())
-                }
-                "cancel-update" => Command::CancelUpdate(value.request_id.unwrap_or_default()),
-                "restore-gamefiles" => {
-                    Command::RestoreGamefiles(value.request_id.unwrap_or_default())
-                }
-                "capture-gamefile-originals" => {
-                    Command::CaptureGamefileOriginals(value.request_id.unwrap_or_default())
-                }
-                "search-catalog" => match value.query {
-                    Some(query) => {
-                        Command::SearchCatalog(query, value.request_id.unwrap_or_default())
-                    }
-                    None => return,
-                },
-                "install-mod" => match value.project_id {
-                    Some(project_id) => {
-                        let title = value.title.unwrap_or_else(|| project_id.clone());
-                        Command::InstallMod(project_id, title, value.request_id.unwrap_or_default())
-                    }
-                    None => return,
-                },
-                "update-mod" => match value.mod_id {
-                    Some(mod_id) => {
-                        let title = value.title.unwrap_or_else(|| mod_id.clone());
-                        Command::UpdateMod(mod_id, title, value.request_id.unwrap_or_default())
-                    }
-                    None => return,
-                },
-                "save-language" => match value.locale {
-                    Some(locale) => {
-                        Command::SaveLanguage(locale, value.request_id.unwrap_or_default())
-                    }
-                    None => return,
-                },
-                "open-url" => match value.url {
-                    Some(url) => Command::OpenUrl(url, value.request_id.unwrap_or_default()),
-                    None => return,
-                },
-                "save-mod-settings" => match (value.mod_id, value.values) {
-                    (Some(id), Some(values)) => Command::SaveModSettings(
-                        id,
-                        values,
-                        value.revision.unwrap_or_default(),
-                        value.request_id.unwrap_or_default(),
-                    ),
-                    _ => return,
-                },
-                "set-mod-enabled" => match (value.mod_id, value.enabled) {
-                    (Some(id), Some(enabled)) => Command::SetModEnabled(
-                        id,
-                        enabled,
-                        value.revision.unwrap_or_default(),
-                        value.request_id.unwrap_or_default(),
-                    ),
-                    _ => return,
-                },
-                "save-settings" => match value.settings {
-                    Some(settings) => {
-                        Command::SaveSettings(settings, value.request_id.unwrap_or_default())
-                    }
-                    None => return,
-                },
-                "save-setting" => match (value.scope, value.key) {
-                    (Some(scope), Some(key)) => Command::SaveSetting(
-                        scope,
-                        value.module,
-                        key,
-                        value.value,
-                        value.request_id.unwrap_or_default(),
-                    ),
-                    _ => return,
-                },
-                "browse-path" => match value.key {
-                    Some(key) => Command::BrowsePath(key, value.request_id.unwrap_or_default()),
-                    None => return,
-                },
-                "open-path" => match value.key {
-                    Some(key) => Command::OpenPath(key, value.request_id.unwrap_or_default()),
-                    None => return,
-                },
-                "set-window-visibility" => match (value.module, value.visible) {
-                    (Some(module), Some(visible)) => Command::SetWindowVisibility(
-                        module,
-                        visible,
-                        value.request_id.unwrap_or_default(),
-                    ),
-                    _ => return,
-                },
-                "run-mod-action" => match (value.mod_id, value.action) {
-                    (Some(id), Some(action)) => Command::RunModAction(id, action),
-                    _ => return,
-                },
-                "remove-mod" => match value.mod_id {
-                    Some(id) => Command::RemoveMod(id),
-                    None => return,
-                },
-                "set-news-read" => {
-                    Command::SetNewsRead(value.ids.unwrap_or_default(), value.read.unwrap_or(true))
-                }
-                "ui-ready" => Command::UiReady,
-                "ui-error" => Command::UiError(
-                    value
-                        .message
-                        .unwrap_or_else(|| "Unknown WebView error".into()),
-                ),
-                _ => return,
+            let Some(command) = parse_ui_command(
+                value,
+                arguments.desktop,
+                arguments.updater_window,
+                arguments.server,
+            ) else {
+                return;
             };
             let _ = sender.send(command);
         };
@@ -823,6 +850,7 @@ mod windows {
         let mut next_refresh = Instant::now();
         let mut next_visibility_poll = Instant::now();
         let mut next_window_state_refresh = Instant::now();
+        let mut next_control_poll = Instant::now();
         let mut next_update_check = if module_config.system_update_provider.enabled {
             Instant::now()
         } else {
@@ -831,6 +859,8 @@ mod windows {
         let mut active_provider = provider;
         let mut system_provider = module_config.system_update_provider.clone();
         let mut desktop_debug_console: Option<Child> = None;
+        let mut recovered_control_actions = false;
+        let mut loaded_settings_revision = live_settings_revision(&arguments.root);
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
             match event {
@@ -862,12 +892,125 @@ mod windows {
                         *control_flow = ControlFlow::Exit;
                         return;
                     }
+                    if Instant::now() >= next_control_poll {
+                        let current_settings_revision = live_settings_revision(&arguments.root);
+                        if current_settings_revision != loaded_settings_revision {
+                            if let Ok(updated_module_config) = load_module_config(&arguments.root) {
+                                module_config = updated_module_config;
+                                active_provider = effective_provider(
+                                    &module_config,
+                                    &load_user_config(&arguments.root),
+                                );
+                                let updated_system_provider =
+                                    module_config.system_update_provider.clone();
+                                if serde_json::to_value(&updated_system_provider).ok()
+                                    != serde_json::to_value(&system_provider).ok()
+                                {
+                                    system_provider = updated_system_provider;
+                                    next_update_check = if system_provider.enabled {
+                                        Instant::now()
+                                    } else {
+                                        Instant::now() + Duration::from_secs(86400)
+                                    };
+                                }
+                                if read_central_config(&arguments.root)["modules"]["debugConsole"]["enabled"] == false {
+                                    let _ = shroudforge_package::config::publish_window_visibility(
+                                        &arguments.root,
+                                        "debugConsole",
+                                        false,
+                                    );
+                                }
+                                if read_central_config(&arguments.root)["modules"]["modloaderUi"]["enabled"] == false {
+                                    shown = false;
+                                    window.set_visible(false);
+                                    let _ = shroudforge_package::config::publish_window_visibility(
+                                        &arguments.root,
+                                        "modloaderUi",
+                                        false,
+                                    );
+                                }
+                            }
+                            loaded_settings_revision = current_settings_revision;
+                        }
+                        match claim_control_actions(&arguments.root, !recovered_control_actions) {
+                            Ok(actions) => {
+                                recovered_control_actions = true;
+                                for action in actions {
+                                    let request_id = action.request_id.clone().unwrap_or_default();
+                                    if arguments.server
+                                        && (matches!(
+                                            action.command.as_str(),
+                                            "drag"
+                                                | "browse-path"
+                                                | "open-path"
+                                                | "open-url"
+                                                | "ui-ready"
+                                                | "ui-error"
+                                        ) || (action.command == "set-window-visibility"
+                                            && action.visible == Some(true)))
+                                    {
+                                        mark_control_action(
+                                            &arguments.root,
+                                            &request_id,
+                                            "failed",
+                                            "This command requires a visible desktop. Use save-setting with an explicit path for storage paths.",
+                                        );
+                                        continue;
+                                    }
+                                    match parse_ui_command(
+                                        action,
+                                        arguments.desktop,
+                                        arguments.updater_window,
+                                        arguments.server,
+                                    ) {
+                                        Some(command) => {
+                                            if control_sender.send(command).is_err() {
+                                                mark_control_action(
+                                                    &arguments.root,
+                                                    &request_id,
+                                                    "failed",
+                                                    "Modloader command dispatcher is unavailable",
+                                                );
+                                            }
+                                        }
+                                        None => mark_control_action(
+                                            &arguments.root,
+                                            &request_id,
+                                            "failed",
+                                            "Invalid or unsupported Modloader UI command payload",
+                                        ),
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                recovered_control_actions = true;
+                                let _ = shroudforge_package::logging::append(
+                                    &arguments.root,
+                                    'E',
+                                    "modloader-config",
+                                    &format!("Could not read control actions: {error}"),
+                                );
+                            }
+                        }
+                        next_control_poll = Instant::now() + Duration::from_millis(250);
+                    }
                     while let Ok(command) = receiver.try_recv() {
                         match command {
-                            Command::Hide => {
-                                let _ = shroudforge_package::config::publish_window_visibility(
+                            Command::Hide(request_id) => {
+                                let result = shroudforge_package::config::publish_window_visibility(
                                     &arguments.root,
                                     "modloaderUi",
+                                    false,
+                                );
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Modloader UI",
+                                    "Hide window",
+                                    result,
+                                    "settings.visibilityRequested",
+                                    None,
                                     false,
                                 );
                                 if arguments.desktop {
@@ -877,8 +1020,19 @@ mod windows {
                                     window.set_visible(false);
                                 }
                             }
-                            Command::Drag => {
-                                let _ = window.drag_window();
+                            Command::Drag(request_id) => {
+                                let result = window.drag_window().map_err(|error| error.to_string());
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Modloader UI",
+                                    "Move window",
+                                    result,
+                                    "settings.visibilityRequested",
+                                    None,
+                                    false,
+                                );
                             }
                             Command::Refresh(request_id) => {
                                 if let Some(request_id) = request_id {
@@ -962,26 +1116,32 @@ mod windows {
                                 )
                             }
                             Command::QueueSystemUpdate(request_id) => {
-                                let release = release_state
+                                let persisted = read_central_config(&arguments.root)
+                                    .pointer("/modules/updates/system/latestRelease")
+                                    .filter(|release| release["updateAvailable"].as_bool() == Some(true))
+                                    .cloned();
+                                let release = persisted.or_else(|| release_state
                                     .lock()
                                     .ok()
-                                    .and_then(|state| state.release.clone());
+                                    .and_then(|state| {
+                                        state.update_available.then(|| state.release.clone()).flatten()
+                                    })
+                                    .map(|release| serde_json::json!({
+                                        "version":release.version.clone(),
+                                        "baseVersion":release.base_version.clone(),
+                                        "build":release.build,
+                                        "downloadUrl":release.download_url.clone(),
+                                        "checksum":release.checksum.clone(),
+                                        "releaseUrl":release.release_url.clone(),
+                                        "message":release.message.clone(),
+                                        "prerelease":release.prerelease,
+                                        "updateAvailable":true,
+                                        "checkedAt":SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+                                    })));
                                 let result = release.ok_or_else(|| {
                                     "Check for system updates before adding one to the queue."
                                         .to_owned()
-                                }).and_then(|release| {
-                                    shroudforge_updater::enqueue_system_update(
-                                        &arguments.root,
-                                        serde_json::json!({
-                                            "version":release.version,
-                                            "downloadUrl":release.download_url,
-                                            "checksum":release.checksum,
-                                            "releaseUrl":release.release_url,
-                                            "message":release.message,
-                                            "prerelease":release.prerelease
-                                        }),
-                                    )
-                                });
+                                }).and_then(|release| shroudforge_updater::enqueue_system_update(&arguments.root, release));
                                 report_command_result(
                                     &arguments.root,
                                     &webview,
@@ -1408,12 +1568,12 @@ mod windows {
                                 );
                                 next_refresh = Instant::now();
                             }
-                            Command::RunModAction(id, action) => {
+                            Command::RunModAction(id, action, request_id) => {
                                 let result = queue_mod_action(&arguments.root, &id, &action);
                                 report_command_result(
                                     &arguments.root,
                                     &webview,
-                                    "",
+                                    &request_id,
                                     &id,
                                     "Queue mod action",
                                     result,
@@ -1423,33 +1583,22 @@ mod windows {
                                 );
                                 next_refresh = Instant::now();
                             }
-                            Command::RemoveMod(id) => {
-                                let ecosystem = mod_ecosystem(&arguments.root, &id);
+                            Command::RemoveMod(id, request_id) => {
                                 let result = remove_mod(&arguments.root, &id);
-                                let (activity_result, details, level) = match &result {
-                                    Ok(()) => ("Succeeded", None, "success"),
-                                    Err(error) => ("Failed", Some(error.as_str()), "error"),
-                                };
-                                write_activity(
+                                report_command_result(
                                     &arguments.root,
+                                    &webview,
+                                    &request_id,
                                     &id,
                                     "Remove mod",
-                                    activity_result,
-                                    details,
-                                    level,
-                                );
-                                notify_command_result(
-                                    &webview,
-                                    "",
                                     result,
                                     "mod.removedToast",
                                     None,
                                     false,
-                                    ecosystem,
                                 );
                                 next_refresh = Instant::now();
                             }
-                            Command::SetNewsRead(ids, read) => {
+                            Command::SetNewsRead(ids, read, request_id) => {
                                 let result = if read {
                                     mark_news_read(&arguments.root, &ids)
                                 } else {
@@ -1458,7 +1607,7 @@ mod windows {
                                 report_command_result(
                                     &arguments.root,
                                     &webview,
-                                    "",
+                                    &request_id,
                                     "Modloader",
                                     if read {
                                         "Mark notices as read"
@@ -1535,9 +1684,13 @@ mod windows {
                             .unwrap_or(0);
                         if requested_id != visibility_request_id {
                             visibility_request_id = requested_id;
-                            shown = window_state["modloaderUi"]["requestedVisible"]
-                                .as_bool()
-                                .unwrap_or(shown);
+                            shown = if arguments.server {
+                                false
+                            } else {
+                                window_state["modloaderUi"]["requestedVisible"]
+                                    .as_bool()
+                                    .unwrap_or(shown)
+                            };
                             window.set_visible(shown);
                             if shown {
                                 window.set_focus();
@@ -1978,6 +2131,44 @@ mod windows {
             .lock()
             .map(|value| value.clone())
             .unwrap_or_else(|_| ReleaseState::idle(installed_release(&arguments.root), false));
+        if let Some(latest) = central.pointer("/modules/updates/system/latestRelease") {
+            if latest.is_object() {
+                if let (Some(version), Some(base_version), Some(build), Some(download_url), Some(checksum)) = (
+                    latest["version"].as_str(),
+                    latest["baseVersion"].as_str(),
+                    latest["build"].as_u64(),
+                    latest["downloadUrl"].as_str(),
+                    latest["checksum"].as_str(),
+                ) {
+                    let update_available = latest["updateAvailable"].as_bool().unwrap_or(false);
+                    let prerelease = latest["prerelease"].as_bool().unwrap_or(false);
+                    let release_url = latest["releaseUrl"].as_str().map(str::to_owned);
+                    let message = latest["message"].as_str().unwrap_or_default().to_owned();
+                    release_snapshot.latest_version = Some(version.to_owned());
+                    release_snapshot.update_available = update_available;
+                    release_snapshot.prerelease = prerelease;
+                    release_snapshot.release_url = release_url.clone();
+                    if release_snapshot.state == "idle" || release_snapshot.state == "ready" {
+                        release_snapshot.state = "ready".into();
+                        release_snapshot.message = Some(if update_available {
+                            message.clone()
+                        } else {
+                            "ShroudForge is up to date.".into()
+                        });
+                    }
+                    release_snapshot.release = Some(Release {
+                        version: version.to_owned(),
+                        base_version: base_version.to_owned(),
+                        build,
+                        download_url: download_url.to_owned(),
+                        checksum: checksum.to_owned(),
+                        release_url,
+                        message,
+                        prerelease,
+                    });
+                }
+            }
+        }
         if let Ok(bytes) = fs::read(
             shroudforge_package::paths::updates_dir(&arguments.root).join("updater-status.json"),
         ) {
@@ -3187,6 +3378,178 @@ mod windows {
         )
     }
 
+    fn live_settings_revision(root: &Path) -> String {
+        let config = shroudforge_package::config::read_loader(root).unwrap_or_default();
+        config_revision(&serde_json::json!({
+            "general": config["general"],
+            "logging": config["logging"],
+            "exports": config["exports"],
+            "paths": config["paths"],
+            "runtime": config["runtime"],
+            "catalog": config["catalog"],
+            "modules": config["modules"]
+        }))
+    }
+
+    fn claim_control_actions(root: &Path, recover_interrupted: bool) -> Result<Vec<UiCommand>, String> {
+        let current = shroudforge_package::config::read_loader(root)?;
+        let has_pending = current
+            .pointer("/control/actions")
+            .and_then(serde_json::Value::as_object)
+            .is_some_and(|actions| actions.values().any(|action| action.as_bool() == Some(true)));
+        if !recover_interrupted && !has_pending {
+            return Ok(Vec::new());
+        }
+
+        let mut claimed = Vec::new();
+        shroudforge_package::config::update_loader(root, |config| {
+            if recover_interrupted {
+                let interrupted = config
+                    .pointer("/control/results")
+                    .and_then(serde_json::Value::as_object)
+                    .into_iter()
+                    .flat_map(|results| results.iter())
+                    .filter_map(|(name, result)| {
+                        (result["state"] == "running").then(|| name.clone())
+                    })
+                    .collect::<Vec<_>>();
+                for name in interrupted {
+                    config["control"]["actions"][&name] = serde_json::Value::Bool(false);
+                    config["control"]["results"][&name]["state"] =
+                        serde_json::Value::String("failed".into());
+                    config["control"]["results"][&name]["result"] =
+                        serde_json::Value::String("The command process stopped while this action was running. Inspect the update queue and log before retrying.".into());
+                }
+            }
+
+            let names = config["control"]["actions"]
+                .as_object()
+                .ok_or("control.actions must be an object")?
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>();
+            for name in names {
+                if config["control"]["actions"][&name].as_bool() != Some(true) {
+                    continue;
+                }
+                let Some(command_name) = control_action_command(&name) else {
+                    config["control"]["actions"][&name] = serde_json::Value::Bool(false);
+                    config["control"]["results"][&name]["state"] =
+                        serde_json::Value::String("failed".into());
+                    config["control"]["results"][&name]["result"] =
+                        serde_json::Value::String("Unknown predefined control action".into());
+                    continue;
+                };
+
+                let nonce = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos();
+                let request_id = format!("config-{name}-{}-{nonce}", std::process::id());
+                let mut payload = config["control"]["parameters"][&name]
+                    .as_object()
+                    .cloned()
+                    .unwrap_or_default();
+                payload.insert(
+                    "command".into(),
+                    serde_json::Value::String(command_name.into()),
+                );
+                payload.insert(
+                    "requestId".into(),
+                    serde_json::Value::String(request_id.clone()),
+                );
+                let command: UiCommand = match serde_json::from_value(
+                    serde_json::Value::Object(payload),
+                ) {
+                    Ok(command) => command,
+                    Err(error) => {
+                        config["control"]["actions"][&name] = serde_json::Value::Bool(false);
+                        config["control"]["results"][&name]["requestId"] =
+                            serde_json::Value::String(request_id);
+                        config["control"]["results"][&name]["state"] =
+                            serde_json::Value::String("failed".into());
+                        config["control"]["results"][&name]["result"] =
+                            serde_json::Value::String(format!("Invalid control action: {error}"));
+                        continue;
+                    }
+                };
+
+                // Reset the one-shot trigger as it is claimed. The result record
+                // remains visible in the same config while execution continues.
+                config["control"]["actions"][&name] = serde_json::Value::Bool(false);
+                config["control"]["results"][&name]["requestId"] =
+                    serde_json::Value::String(request_id);
+                config["control"]["results"][&name]["state"] =
+                    serde_json::Value::String("running".into());
+                config["control"]["results"][&name]["result"] = serde_json::Value::String(
+                    "Accepted by Modloader command dispatcher".into(),
+                );
+                claimed.push(command);
+            }
+            Ok(())
+        })?;
+        Ok(claimed)
+    }
+
+    fn mark_control_action(root: &Path, request_id: &str, state: &str, result: &str) {
+        if request_id.is_empty() {
+            return;
+        }
+        let present = shroudforge_package::config::read_loader(root)
+            .ok()
+            .and_then(|config| config.pointer("/control/results").cloned())
+            .and_then(|results| results.as_object().cloned())
+            .is_some_and(|results| {
+                results
+                    .values()
+                    .any(|status| status["requestId"] == request_id)
+            });
+        if !present {
+            return;
+        }
+        let _ = shroudforge_package::config::update_loader(root, |config| {
+            let results = config
+                .pointer_mut("/control/results")
+                .and_then(serde_json::Value::as_object_mut)
+                .ok_or("control.results must be an object")?;
+            if let Some(status) = results
+                .values_mut()
+                .find(|status| status["requestId"] == request_id)
+            {
+                status["state"] = serde_json::Value::String(state.into());
+                status["result"] =
+                    serde_json::Value::String(result.chars().take(2000).collect());
+            }
+            Ok(())
+        });
+    }
+
+    fn control_action_command(action: &str) -> Option<&'static str> {
+        Some(match action {
+            "diagnostics" => "diagnostics",
+            "refresh" => "refresh",
+            "refreshMod" => "refresh-mod",
+            "reloadSettings" => "reload-settings",
+            "checkUpdates" => "check-updates",
+            "stageUpdate" => "stage-update",
+            "queueSystemUpdate" => "queue-system-update",
+            "selectUpdateQueueItems" => "select-update-queue-items",
+            "removeUpdateQueueItem" => "remove-update-queue-item",
+            "startUpdateQueue" => "start-update-queue",
+            "clearUpdateQueue" => "clear-update-queue",
+            "cancelUpdate" => "cancel-update",
+            "restoreGamefiles" => "restore-gamefiles",
+            "captureGamefileOriginals" => "capture-gamefile-originals",
+            "searchCatalog" => "search-catalog",
+            "installMod" => "install-mod",
+            "updateMod" => "update-mod",
+            "runModAction" => "run-mod-action",
+            "removeMod" => "remove-mod",
+            "setNewsRead" => "set-news-read",
+            _ => return None,
+        })
+    }
+
     fn notify_command_result(
         webview: &wry::WebView,
         request_id: &str,
@@ -3218,6 +3581,10 @@ mod windows {
         batch_key: Option<&str>,
         restore_settings: bool,
     ) {
+        match &result {
+            Ok(()) => mark_control_action(root, request_id, "succeeded", success_message),
+            Err(error) => mark_control_action(root, request_id, "failed", error),
+        }
         let (activity_result, details, level) = match &result {
             Ok(()) => ("Succeeded", None, "success"),
             Err(error) => ("Failed", Some(error.as_str()), "error"),
@@ -3236,6 +3603,10 @@ mod windows {
     }
 
     fn report_async_result(root: &Path, webview: &wry::WebView, command: AsyncUiResult) {
+        match &command.result {
+            Ok(message) => mark_control_action(root, &command.request_id, "succeeded", message),
+            Err(error) => mark_control_action(root, &command.request_id, "failed", error),
+        }
         let (result, activity_result, details, level) = match command.result {
             Ok(details) => (Ok(()), "Succeeded", Some(details), "success"),
             Err(error) => (Err(error.clone()), "Failed", Some(error), "error"),
@@ -3353,7 +3724,8 @@ mod windows {
             "debugConsole" => {
                 matches!(
                     key,
-                    "defaultSource"
+                    "enabled"
+                        | "defaultSource"
                         | "levelFilter"
                         | "autoScroll"
                         | "toggleKey"
@@ -3362,15 +3734,16 @@ mod windows {
                 ) || key == "window.position"
             }
             "modloaderUi" => {
-                matches!(key, "startPage" | "toggleKey" | "refreshMilliseconds")
+                matches!(key, "enabled" | "startPage" | "toggleKey" | "refreshMilliseconds")
                     || key == "window.position"
             }
-            "worldEditor" => key == "enabled",
+            "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
             "runtimeDiagnostics" => matches!(
                 key,
                 "intervalMilliseconds"
                     | "maximumDurationSeconds"
                     | "slowCallbackMilliseconds"
+                    | "continuous"
                     | "onlyChanges"
                     | "areas"
             ),
@@ -3514,6 +3887,7 @@ mod windows {
                     (
                         "debugConsole",
                         &[
+                            "enabled",
                             "defaultSource",
                             "levelFilter",
                             "autoScroll",
@@ -3524,7 +3898,11 @@ mod windows {
                     ),
                     (
                         "modloaderUi",
-                        &["startPage", "toggleKey", "refreshMilliseconds"][..],
+                        &["enabled", "startPage", "toggleKey", "refreshMilliseconds"][..],
+                    ),
+                    (
+                        "worldEditor",
+                        &["enabled", "toggleKey", "refreshMilliseconds"][..],
                     ),
                     (
                         "runtimeDiagnostics",
@@ -3532,6 +3910,7 @@ mod windows {
                             "intervalMilliseconds",
                             "maximumDurationSeconds",
                             "slowCallbackMilliseconds",
+                            "continuous",
                             "onlyChanges",
                             "areas",
                         ][..],
@@ -4578,6 +4957,34 @@ mod windows {
                         });
                         let update_available = value.update_available;
                         let latest_version = release.version.clone();
+                        let checked_at = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        let persisted_release = serde_json::json!({
+                            "version":release.version.clone(),
+                            "baseVersion":release.base_version.clone(),
+                            "build":release.build,
+                            "downloadUrl":release.download_url.clone(),
+                            "checksum":release.checksum.clone(),
+                            "releaseUrl":release.release_url.clone(),
+                            "message":release.message.chars().take(20_000).collect::<String>(),
+                            "prerelease":release.prerelease,
+                            "updateAvailable":update_available,
+                            "checkedAt":checked_at
+                        });
+                        if let Err(error) = shroudforge_package::config::update_loader(&root, |config| {
+                            config["modules"]["updates"]["system"]["lastCheckAt"] = serde_json::json!(checked_at);
+                            config["modules"]["updates"]["system"]["latestRelease"] = persisted_release;
+                            Ok(())
+                        }) {
+                            let _ = shroudforge_package::logging::append(
+                                &root,
+                                'W',
+                                "updates",
+                                &format!("Could not persist checked release in modloader-config.json: {error}"),
+                            );
+                        }
                         value.release = Some(release);
                         value.state = "ready".into();
                         outcome = Ok(if update_available {
@@ -4595,11 +5002,29 @@ mod windows {
                         value.state = "ready".into();
                         value.message =
                             Some("No ShroudForge release has been published on GitHub yet.".into());
+                        let checked_at = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        let _ = shroudforge_package::config::update_loader(&root, |config| {
+                            config["modules"]["updates"]["system"]["lastCheckAt"] = serde_json::json!(checked_at);
+                            config["modules"]["updates"]["system"]["latestRelease"] =
+                                serde_json::Value::Null;
+                            Ok(())
+                        });
                         outcome = Ok("No ShroudForge release has been published yet.".into());
                     }
                     Err(error) => {
                         value.state = "error".into();
                         value.message = Some(error.clone());
+                        let checked_at = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        let _ = shroudforge_package::config::update_loader(&root, |config| {
+                            config["modules"]["updates"]["system"]["lastCheckAt"] = serde_json::json!(checked_at);
+                            Ok(())
+                        });
                         outcome = Err(error);
                     }
                 }

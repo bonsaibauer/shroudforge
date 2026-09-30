@@ -25,6 +25,184 @@
   "catalog": {
     "provider": null
   },
+  "control": {
+    "actions": {
+      "diagnostics": false,
+      "refresh": false,
+      "refreshMod": false,
+      "reloadSettings": false,
+      "checkUpdates": false,
+      "stageUpdate": false,
+      "queueSystemUpdate": false,
+      "selectUpdateQueueItems": false,
+      "removeUpdateQueueItem": false,
+      "startUpdateQueue": false,
+      "clearUpdateQueue": false,
+      "cancelUpdate": false,
+      "restoreGamefiles": false,
+      "captureGamefileOriginals": false,
+      "searchCatalog": false,
+      "installMod": false,
+      "updateMod": false,
+      "runModAction": false,
+      "removeMod": false,
+      "setNewsRead": false
+    },
+    "parameters": {
+      "diagnostics": {
+        "action": "snapshot"
+      },
+      "refresh": {},
+      "refreshMod": {
+        "modId": ""
+      },
+      "reloadSettings": {},
+      "checkUpdates": {},
+      "stageUpdate": {
+        "waitForGame": true
+      },
+      "queueSystemUpdate": {},
+      "selectUpdateQueueItems": {
+        "ids": [],
+        "selected": true
+      },
+      "removeUpdateQueueItem": {
+        "key": ""
+      },
+      "startUpdateQueue": {
+        "ids": [],
+        "waitForGame": true
+      },
+      "clearUpdateQueue": {},
+      "cancelUpdate": {},
+      "restoreGamefiles": {},
+      "captureGamefileOriginals": {},
+      "searchCatalog": {
+        "query": ""
+      },
+      "installMod": {
+        "projectId": "",
+        "title": ""
+      },
+      "updateMod": {
+        "modId": "",
+        "title": ""
+      },
+      "runModAction": {
+        "modId": "",
+        "action": ""
+      },
+      "removeMod": {
+        "modId": ""
+      },
+      "setNewsRead": {
+        "ids": [],
+        "read": true
+      }
+    },
+    "results": {
+      "diagnostics": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "refresh": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "refreshMod": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "reloadSettings": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "checkUpdates": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "stageUpdate": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "queueSystemUpdate": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "selectUpdateQueueItems": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "removeUpdateQueueItem": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "startUpdateQueue": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "clearUpdateQueue": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "cancelUpdate": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "restoreGamefiles": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "captureGamefileOriginals": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "searchCatalog": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "installMod": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "updateMod": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "runModAction": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "removeMod": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      },
+      "setNewsRead": {
+        "requestId": null,
+        "state": "idle",
+        "result": ""
+      }
+    }
+  },
   "modules": {
     "debugConsole": {
       "enabled": true,
@@ -71,7 +249,9 @@
         "enabled": true,
         "checkMinutes": 60,
         "channel": "stable",
-        "includePrereleases": false
+        "includePrereleases": false,
+        "lastCheckAt": null,
+        "latestRelease": null
       }
     }
   }

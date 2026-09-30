@@ -17,8 +17,8 @@
     "Adds V6 props-only blueprints and ShroudEdit-style world-space placement anchors with grid alignment checks.",
     "Uses registered native world APIs for entity handles, transform reads, safe handle-targeted removal, and voxel grid metadata.",
     "Packages the standalone mod as world-editor and exposes F3 rotation in Keyboard shortcuts.",
-    "Adds a single F2-controlled blueprint window with a top instruction line, blueprint library, F1 screenshot capture, and library management controls.",
-    "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
+    "Adds a single F2-controlled blueprint window with a contextual instruction line, blueprint library, and screenshot-folder browser in blueprint management.",
+    "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo. F1 remains available to the game."
   ],
   "settings": {
     "panelWidth": {

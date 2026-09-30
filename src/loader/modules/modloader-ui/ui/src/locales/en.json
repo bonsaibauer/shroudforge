@@ -436,6 +436,7 @@
   "settings.modules.field.threshold": "Slow callback threshold (ms)",
   "settings.modules.field.onlyChanges": "Log changes only",
   "settings.modules.field.active": "Module active",
+  "settings.modules.field.continuous": "Continuous diagnostics",
   "settings.modules.field.source": "Log source",
   "settings.modules.field.filter": "Display filter",
   "settings.modules.field.autoScroll": "Auto-scroll",

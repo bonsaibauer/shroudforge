@@ -436,6 +436,7 @@
   "settings.modules.field.threshold": "Grenzwert für langsame Aufrufe (ms)",
   "settings.modules.field.onlyChanges": "Nur Änderungen protokollieren",
   "settings.modules.field.active": "Modul aktiv",
+  "settings.modules.field.continuous": "Kontinuierliche Diagnose",
   "settings.modules.field.source": "Protokollquelle",
   "settings.modules.field.filter": "Anzeigefilter",
   "settings.modules.field.autoScroll": "Automatisch scrollen",

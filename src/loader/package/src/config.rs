@@ -181,8 +181,42 @@ pub fn request_window_visibility(root: &Path, module: &str, visible: bool) -> Re
             .and_then(Value::as_u64)
             .unwrap_or(0)
             .saturating_add(1);
-        state[module] = json!({"visible":current.get("visible").and_then(Value::as_bool).unwrap_or(false),
-            "requestedVisible":visible,"requestId":request_id});
+        let mut window = current.as_object().cloned().unwrap_or_default();
+        window.insert(
+            "visible".into(),
+            json!(current.get("visible").and_then(Value::as_bool).unwrap_or(false)),
+        );
+        window.insert("requestedVisible".into(), json!(visible));
+        window.insert("requestId".into(), json!(request_id));
+        state[module] = Value::Object(window);
+        Ok(state)
+    })
+}
+
+pub fn request_world_editor_module_settings(root: &Path) -> Result<(), String> {
+    update_state_section(root, "windows", |existing| {
+        let mut state = existing.cloned().unwrap_or_else(|| json!({}));
+        let current = state.get("modloaderUi").cloned().unwrap_or_else(|| json!({}));
+        let mut window = current.as_object().cloned().unwrap_or_default();
+        let request_id = current
+            .get("requestId")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            .saturating_add(1);
+        let focus_request_id = current
+            .get("focusRequestId")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            .saturating_add(1);
+        window.insert(
+            "visible".into(),
+            json!(current.get("visible").and_then(Value::as_bool).unwrap_or(false)),
+        );
+        window.insert("requestedVisible".into(), json!(true));
+        window.insert("requestId".into(), json!(request_id));
+        window.insert("focusTarget".into(), json!("worldEditorSettings"));
+        window.insert("focusRequestId".into(), json!(focus_request_id));
+        state["modloaderUi"] = Value::Object(window);
         Ok(state)
     })
 }
@@ -194,9 +228,20 @@ pub fn publish_window_visibility(root: &Path, module: &str, visible: bool) -> Re
     update_state_section(root, "windows", |existing| {
         let mut state = existing.cloned().unwrap_or_else(|| json!({}));
         let current = state.get(module).cloned().unwrap_or_else(|| json!({}));
-        state[module] = json!({"visible":visible,
-            "requestedVisible":current.get("requestedVisible").and_then(Value::as_bool).unwrap_or(visible),
-            "requestId":current.get("requestId").and_then(Value::as_u64).unwrap_or(0)});
+        let mut window = current.as_object().cloned().unwrap_or_default();
+        window.insert("visible".into(), json!(visible));
+        window.insert(
+            "requestedVisible".into(),
+            json!(current
+                .get("requestedVisible")
+                .and_then(Value::as_bool)
+                .unwrap_or(visible)),
+        );
+        window.insert(
+            "requestId".into(),
+            json!(current.get("requestId").and_then(Value::as_u64).unwrap_or(0)),
+        );
+        state[module] = Value::Object(window);
         Ok(state)
     })
 }
@@ -249,6 +294,43 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
     }
     validate_document(root, "shroudforge", &result)?;
     Ok(result)
+}
+
+/// Materializes the resolved storage locations in modloader-config.json.
+/// Release archives cannot contain installation-specific absolute paths, so
+/// the first process that knows the installed game root fills the defaults.
+/// Existing absolute overrides are preserved; legacy relative overrides are
+/// resolved against the game root once and then persisted as absolute paths.
+pub fn initialize_loader_config(root: &Path) -> Result<(), String> {
+    let root = root
+        .canonicalize()
+        .map_err(|error| format!("could not resolve game installation root: {error}"))?;
+    update_loader(&root, |config| {
+        for key in [
+            "mods", "state", "logs", "cache", "exports", "updates", "ui", "runtime",
+        ] {
+            let path = config
+                .pointer(&format!("/paths/{key}"))
+                .cloned()
+                .ok_or_else(|| format!("missing storage path setting: {key}"))?;
+            let resolved = match path {
+                Value::Null => crate::paths::default_directory(&root, key)
+                    .ok_or_else(|| format!("unknown storage path: {key}"))?,
+                Value::String(value) => {
+                    let path = Path::new(&value);
+                    if path.is_absolute() {
+                        path.to_path_buf()
+                    } else {
+                        let joined = root.join(path);
+                        joined.canonicalize().unwrap_or(joined)
+                    }
+                }
+                _ => return Err(format!("invalid storage path setting: {key}")),
+            };
+            config["paths"][key] = Value::String(resolved.to_string_lossy().into_owned());
+        }
+        Ok(())
+    })
 }
 
 pub fn update_loader(

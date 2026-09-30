@@ -10,23 +10,115 @@
   <header class="topbar">
     <div class="help"><img class="mod-icon" src="__WORLD_EDITOR_ICON__" alt=""><span class="help-text" id="help">Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5.</span></div>
     <div class="mode-badge online"><i></i><span id="blueprintCount">0 BLUEPRINTS</span></div>
-    <button id="keysButton" class="control keys-button" title="Keyboard shortcuts">Keys</button>
+    <button id="expandLibrary" class="control expand-button" title="Expand blueprint library" aria-expanded="false">⌄</button>
+    <button id="settingsButton" class="control keys-button" title="Open World Editor settings in the Modloader UI">Settings</button>
     <button id="close" class="window-close" aria-label="Hide window" title="Hide the World Editor; press F2 to reopen">×</button>
   </header>
   <div class="cards" id="cards"></div>
   <div class="notice" id="notice"></div>
   <div class="manage" id="manage"></div>
-  <div class="keys" id="keys"><div>F1 · Capture a screenshot for the selected blueprint</div><div>F2 · Open or hide this window</div><div>F3 · Rotate the blueprint by 90°</div><div>F4 · Undo the last placement</div><div>F5 · Mark corner A or B</div><div>F6 · Reset the editor</div><div>F7 · Place the blueprint at the target</div><div>F8 · Capture the selection and save it as a blueprint</div></div>
 </div>
 <script>
-const cards=document.getElementById('cards'),help=document.getElementById('help'),manage=document.getElementById('manage'),notice=document.getElementById('notice'),keys=document.getElementById('keys'),blueprintCount=document.getElementById('blueprintCount');let state={blueprints:[],stage:'idle',hint:'Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5.',selected:'',axis:'y',turns:0},oldNames=new Set(),noticeTimer,initialized=false,clickTimer,lastStateSignature='';
-function ipc(v,attempt=0){const bridge=window.ipc;if(bridge&&typeof bridge.postMessage==='function'){bridge.postMessage(JSON.stringify(v));return}if(attempt<40&&(v.kind==='ready'||v.kind==='state-applied'))setTimeout(()=>ipc(v,attempt+1),50)}window.__worldEditorNotice=m=>{notice.textContent=m;notice.classList.add('show');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>notice.classList.remove('show'),2600)};
-function guide(s){if(s.hint)return s.hint;switch(s.stage){case'need_b':return'Corner A is marked. Aim at the opposite corner and press F5 again.';case'ready':return'The selection is ready. Press F8 to capture and save the blueprint.';case'capturing':return'Capturing props and voxels, creating the blueprint file, and adding it to the library…';case'selected':return`“${s.selected}” is selected. Aim with the Building Hammer, rotate with F3, and place with F7.`;case'placing':return`Placing “${s.selected}” at the aimed target…`;case'recovery':return'Placement is incomplete. Press F4 to retry recovery.';default:return'Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5.'}}
+const cards=document.getElementById('cards'),help=document.getElementById('help'),manage=document.getElementById('manage'),notice=document.getElementById('notice'),keys=document.getElementById('keys'),blueprintCount=document.getElementById('blueprintCount'),expandButton=document.getElementById('expandLibrary');let state={blueprints:[],stage:'idle',hint:'Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5.',selected:'',axis:'y',turns:0},noticeTimer,lastStateSignature='',managedCard=null,selectedScreenshot=null,selectedPending='',selectionTimer=null,libraryExpanded=false,recentNames=[];try{recentNames=JSON.parse(localStorage.getItem('worldEditorRecentBlueprints')||'[]').filter(x=>typeof x==='string')}catch{}
+function ipc(v,attempt=0){const bridge=window.ipc;if(bridge&&typeof bridge.postMessage==='function'){bridge.postMessage(JSON.stringify(v));return}if(attempt<40&&(v.kind==='ready'||v.kind==='state-applied'))setTimeout(()=>ipc(v,attempt+1),50)}window.__worldEditorNotice=m=>{notice.textContent=m;notice.classList.add('show');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>notice.classList.remove('show'),3200)};
+function guide(s){if(s.hint)return s.hint;switch(s.stage){case'need_b':return'Corner A is marked. Aim at the opposite corner and press F5 again.';case'ready':return'The selection is ready. Press F8 to capture and save the blueprint.';case'capturing':return'Capturing props and voxels, creating the blueprint file, and adding it to the library…';case'selected':return`“${s.selected}” is selected. Aim where you want to place it, then press F7 to place it.`;case'placing':return`Placing “${s.selected}” at the aimed target…`;case'recovery':return'Placement is incomplete. Press F4 to retry recovery.';default:return'Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5.'}}
 function action(name,value=''){ipc({kind:'action',action:name,value})}
-function openManage(card){manage.innerHTML=`<strong>Manage blueprint · ${escapeHtml(card.name)}</strong><input id="rename" value="${escapeAttr(card.name)}" maxlength="64"><button id="renameBtn">Rename</button><button id="duplicateBtn">Duplicate as…</button><button id="imageBtn">Change image · F1</button><button class="danger" id="deleteBtn">Delete</button><button id="doneBtn">Done</button>`;manage.classList.add('show');document.getElementById('renameBtn').onclick=()=>{const n=document.getElementById('rename').value.trim();if(n&&n!==card.name)action('renameLibraryBlueprint',card.name+'\t'+n)};document.getElementById('duplicateBtn').onclick=()=>{const n=document.getElementById('rename').value.trim();if(n&&n!==card.name)action('duplicateLibraryBlueprint',card.name+'\t'+n)};document.getElementById('imageBtn').onclick=()=>window.__worldEditorNotice('Press F1 to capture a new image for this blueprint.');document.getElementById('deleteBtn').onclick=()=>{if(confirm(`Delete blueprint “${card.name}” and its image?`))action('deleteLibraryBlueprint',card.name)};document.getElementById('doneBtn').onclick=()=>manage.classList.remove('show')}
 function escapeHtml(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function escapeAttr(x){return escapeHtml(x)}
-window.__worldEditorUpdate=s=>{const signature=JSON.stringify(s);if(signature===lastStateSignature){ipc({kind:'state-applied',blueprints:s.blueprints.length,stage:s.stage,selected:s.selected});return;}lastStateSignature=signature;state=s;blueprintCount.textContent=`${s.blueprints.length} BLUEPRINT${s.blueprints.length===1?'':'S'}`;document.body.classList.toggle('capturing',s.stage==='capturing');help.textContent=guide(s);cards.innerHTML='';if(!s.blueprints.length){const e=document.createElement('div');e.className='empty';e.textContent='No blueprints yet · Mark the region with F5, then capture it with F8';cards.append(e)}s.blueprints.forEach(c=>{const el=document.createElement('div');el.className='card'+(c.name===s.selected?' selected':'')+(initialized&&!oldNames.has(c.name)?' new':'');el.title='Click to select · Double-click to manage';el.tabIndex=0;const thumb=document.createElement('div');thumb.className='thumb';if(c.image){const img=document.createElement('img');img.src=c.image;img.alt='Screenshot of '+c.name;thumb.append(img)}else{const placeholder=document.createElement('div');placeholder.className='placeholder';placeholder.innerHTML='<span class="blueprint-icon" aria-hidden="true"></span><span class="placeholder-label">BLUEPRINT</span>';thumb.append(placeholder)}const label=document.createElement('div');label.className='name';label.textContent=c.name;el.append(thumb,label);el.onclick=()=>{clearTimeout(clickTimer);clickTimer=setTimeout(()=>action('selectBlueprint',c.name),220)};el.ondblclick=()=>{clearTimeout(clickTimer);action('selectBlueprint',c.name);openManage(c)};el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action('selectBlueprint',c.name)}};cards.append(el)});const add=document.createElement('div');add.className='card create';add.innerHTML='<span class="create-plus">＋</span><span>New blueprint</span>';add.title='Mark the region with F5, then capture it with F8';add.onclick=()=>window.__worldEditorNotice(guide({...s,stage:s.stage==='idle'?'need_a':s.stage}));cards.append(add);oldNames=new Set(s.blueprints.map(x=>x.name));initialized=true;if(s.selected){const selected=Array.from(cards.children).find(x=>x.classList.contains('selected'));selected?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'})}ipc({kind:'state-applied',blueprints:s.blueprints.length,stage:s.stage,selected:s.selected})};
-window.addEventListener('shroudforge-world-editor-state',event=>window.__worldEditorUpdate(event.detail));if(window.__sfPendingState)window.__worldEditorUpdate(window.__sfPendingState);document.getElementById('close').onclick=()=>ipc({kind:'hide'});document.getElementById('keysButton').onclick=()=>keys.classList.toggle('show');document.addEventListener('wheel',e=>{if(e.target.closest('.cards')){cards.scrollLeft+=e.deltaY||e.deltaX;e.preventDefault()}},{passive:false});window.addEventListener('error',e=>ipc({kind:'script-error',value:String(e.message||'unknown UI script error')}));window.addEventListener('unhandledrejection',e=>ipc({kind:'script-error',value:String(e.reason||'unhandled promise rejection')}));ipc({kind:'ready'});
+function rememberBlueprint(name){if(!name)return;recentNames=[name,...recentNames.filter(x=>x!==name)];try{localStorage.setItem('worldEditorRecentBlueprints',JSON.stringify(recentNames))}catch{}}
+function setLibraryExpanded(value){if(manage.classList.contains('show'))value=false;libraryExpanded=!!value;cards.classList.toggle('expanded',libraryExpanded);expandButton.textContent=libraryExpanded?'⌃':'⌄';expandButton.title=libraryExpanded?'Collapse blueprint library':'Expand blueprint library';expandButton.setAttribute('aria-expanded',String(libraryExpanded));const columns=Math.max(1,getComputedStyle(cards).gridTemplateColumns.split(' ').length);const rows=Math.min(6,Math.max(1,Math.ceil((state.blueprints.length+1)/columns)));const height=Math.min(720,Math.max(190,61+rows*109));ipc({kind:'library-expand',expanded:libraryExpanded,height})}
+function requestBlueprint(name){if(state.selected===name&&!selectedPending){rememberBlueprint(name);setLibraryExpanded(false);return}selectedPending=name;rememberBlueprint(name);renderCards(state);help.textContent=`Loading “${name}”…`;window.__worldEditorNotice(`Loading “${name}”…`);action('selectBlueprint',name);clearTimeout(selectionTimer);selectionTimer=setTimeout(()=>{if(selectedPending===name){selectedPending='';renderCards(state);help.textContent=guide(state);window.__worldEditorNotice(`Could not confirm “${name}” as the active blueprint. Check the World Editor log.`)}},5000);setLibraryExpanded(false)}
+function selectNewBlueprint(){selectedPending='';clearTimeout(selectionTimer);state={...state,selected:'',stage:'need_a',hint:'New blueprint selected. Aim at the first corner and press F5 to mark it.'};renderCards(state);help.textContent=guide(state);setLibraryExpanded(false);action('newBlueprint')}
+function renderCards(s){
+  cards.replaceChildren();
+  const captureStage=['need_a','need_b','ready','capturing'].includes(s.stage);
+  const newActive=(captureStage&&!selectedPending)||(!s.selected&&!selectedPending);
+  const add=document.createElement('button');
+  add.type='button';
+  add.className='card create'+(newActive?' active':'');
+  const addStatus=newActive?(s.stage==='need_b'?'CORNER B NEXT':s.stage==='ready'?'PRESS F8':s.stage==='capturing'?'SAVING…':'ACTIVE'):'CREATE';
+  add.innerHTML=`<span class="create-art" aria-hidden="true"><svg class="new-blueprint-icon" viewBox="0 0 44 54"><path class="page" d="M5 2h24l10 10v38H5zM29 2v10h10"/><path class="plus" d="M16 31h12M22 25v12"/></svg></span><span class="create-label">New blueprint</span><span class="card-state">${addStatus}</span>`;
+  add.title='Start a new capture. F5 marks the first corner.';
+  add.setAttribute('aria-pressed',String(newActive));
+  add.onclick=selectNewBlueprint;
+  cards.append(add);
+
+  const activeName=selectedPending||s.selected;
+  const ordered=[...s.blueprints].sort((a,b)=>{
+    if(a.name===activeName)return -1;
+    if(b.name===activeName)return 1;
+    const ai=recentNames.indexOf(a.name),bi=recentNames.indexOf(b.name);
+    if(ai>=0||bi>=0)return(ai<0?Infinity:ai)-(bi<0?Infinity:bi);
+    return a.name.localeCompare(b.name,undefined,{sensitivity:'base'});
+  });
+  for(const blueprint of ordered){
+    const isActive=blueprint.name===activeName;
+    const card=document.createElement('article');
+    card.className='card blueprint-card'+(isActive?' active':'')+(selectedPending===blueprint.name?' pending':'');
+    card.title='Click to select · Double-click or use Edit to manage';
+    card.tabIndex=0;
+    card.setAttribute('aria-pressed',String(isActive));
+    const thumb=document.createElement('div');
+    thumb.className='thumb';
+    if(blueprint.image){
+      const image=document.createElement('img');
+      image.src=blueprint.image;
+      image.alt='Screenshot of '+blueprint.name;
+      thumb.append(image);
+    }else{
+      const placeholder=document.createElement('div');
+      placeholder.className='placeholder';
+      placeholder.innerHTML='<span class="blueprint-icon" aria-hidden="true"></span><span class="placeholder-label">BLUEPRINT</span>';
+      thumb.append(placeholder);
+    }
+    const label=document.createElement('div');
+    label.className='name';
+    label.textContent=blueprint.name;
+    const badge=document.createElement('span');
+    badge.className='card-state';
+    badge.textContent=selectedPending===blueprint.name?'LOADING…':isActive?'ACTIVE':'';
+    card.append(thumb,label,badge);
+    card.onclick=event=>{
+      if(event.detail>=2){
+        clearTimeout(selectionTimer);
+        if(state.selected!==blueprint.name&&selectedPending!==blueprint.name)action('selectBlueprint',blueprint.name);
+        selectedPending='';
+        rememberBlueprint(blueprint.name);
+        openManage(blueprint);
+      }else requestBlueprint(blueprint.name);
+    };
+    card.ondblclick=event=>{
+      event.preventDefault();
+      clearTimeout(selectionTimer);
+      selectedPending='';
+      if(state.selected!==blueprint.name)action('selectBlueprint',blueprint.name);
+      rememberBlueprint(blueprint.name);
+      openManage(blueprint);
+    };
+    card.onkeydown=event=>{
+      if(event.key==='Enter'||event.key===' '){event.preventDefault();requestBlueprint(blueprint.name)}
+      else if(event.key==='F2'){event.preventDefault();if(state.selected===blueprint.name)openManage(blueprint)}
+    };
+    const edit=document.createElement('button');
+    edit.type='button';
+    edit.className='card-edit';
+    edit.textContent='Edit';
+    edit.title='Open blueprint manager';
+    edit.onclick=event=>{
+      event.stopPropagation();
+      if(state.selected!==blueprint.name)action('selectBlueprint',blueprint.name);
+      rememberBlueprint(blueprint.name);
+      openManage(blueprint);
+    };
+    card.append(edit);
+    cards.append(card);
+  }
+}
+function openManage(card){if(manage.classList.contains('show')&&managedCard?.name===card.name)return;setLibraryExpanded(false);managedCard=card;selectedScreenshot=null;manage.innerHTML=`<div class="manage-head"><div><strong>Manage blueprint · ${escapeHtml(card.name)}</strong><p>Choose a screenshot from your Steam or Enshrouded screenshots folder.</p></div><button id="doneBtn">Back to library</button></div><div class="manage-actions"><input id="rename" value="${escapeAttr(card.name)}" maxlength="64" aria-label="Blueprint name"><button id="renameBtn">Rename</button><button id="duplicateBtn">Duplicate as…</button><button class="danger" id="deleteBtn">Delete blueprint</button></div><div class="screenshot-toolbar"><span id="screenshotFolder">Finding screenshots…</span><button id="browseBtn">Choose folder…</button><button id="reloadBtn">Reload</button><button id="useScreenshotBtn" disabled>Use selected screenshot</button><button id="undoScreenshotBtn" hidden>Undo cover change</button></div><div id="screenshotQueue" class="screenshot-queue"><div class="screenshot-empty">Loading screenshots…</div></div>`;manage.classList.add('show');ipc({kind:'manager-open'});action('refreshScreenshots',card.name);document.getElementById('browseBtn').onclick=()=>action('browseScreenshots',card.name);document.getElementById('reloadBtn').onclick=()=>action('refreshScreenshots',card.name);document.getElementById('useScreenshotBtn').onclick=()=>{if(selectedScreenshot&&managedCard)action('applyScreenshot',managedCard.name+'\t'+selectedScreenshot.path)};document.getElementById('undoScreenshotBtn').onclick=()=>{if(managedCard)action('undoScreenshot',managedCard.name)};document.getElementById('renameBtn').onclick=()=>{const n=document.getElementById('rename').value.trim();if(n&&n!==card.name)action('renameLibraryBlueprint',card.name+'\t'+n)};document.getElementById('duplicateBtn').onclick=()=>{const n=document.getElementById('rename').value.trim();if(n&&n!==card.name)action('duplicateLibraryBlueprint',card.name+'\t'+n)};document.getElementById('deleteBtn').onclick=()=>{if(confirm(`Delete blueprint “${card.name}” and its image?`))action('deleteLibraryBlueprint',card.name)};document.getElementById('doneBtn').onclick=closeManage}
+function closeManage(){manage.classList.remove('show');managedCard=null;selectedScreenshot=null;ipc({kind:'manager-close'})}
+window.__worldEditorScreenshots=data=>{if(!manage.classList.contains('show'))return;selectedScreenshot=null;document.getElementById('useScreenshotBtn').disabled=true;document.getElementById('undoScreenshotBtn').hidden=!data.canUndo;document.getElementById('screenshotFolder').textContent=data.folder||'Screenshot folder unavailable';const queue=document.getElementById('screenshotQueue');queue.innerHTML='';if(!data.screenshots.length){const empty=document.createElement('div');empty.className='screenshot-empty';empty.textContent='No supported image files found in this folder. Choose another folder or take a Steam screenshot and reload.';queue.append(empty);return}for(const shot of data.screenshots){const item=document.createElement('button');item.className='screenshot-item';item.title=shot.name;const image=document.createElement('img');image.src=shot.thumbnail;image.alt='';const label=document.createElement('span');label.textContent=shot.name;const date=document.createElement('small');date.textContent=new Date(shot.modified*1000).toLocaleString();item.append(image,label,date);item.onclick=()=>{queue.querySelectorAll('.screenshot-item').forEach(x=>x.classList.remove('selected'));item.classList.add('selected');selectedScreenshot=shot;document.getElementById('useScreenshotBtn').disabled=false};queue.append(item)}if(data.truncated){const note=document.createElement('div');note.className='screenshot-note';note.textContent='Showing the newest 120 images. Choose another folder to narrow the list.';queue.append(note)}};
+window.__worldEditorScreenshotApplied=undone=>{window.__worldEditorNotice(undone?`Previous cover restored for “${managedCard?.name||'blueprint'}”.`:`Screenshot applied to “${managedCard?.name||'blueprint'}”.`);selectedScreenshot=null;document.getElementById('useScreenshotBtn').disabled=true;document.getElementById('undoScreenshotBtn').hidden=!!undone};window.__worldEditorScreenshotError=message=>window.__worldEditorNotice(`Screenshot not applied: ${message}`);
+window.__worldEditorUpdate=s=>{const signature=JSON.stringify(s);if(signature===lastStateSignature){ipc({kind:'state-applied',blueprints:s.blueprints.length,stage:s.stage,selected:s.selected});return}lastStateSignature=signature;const previousSelected=state.selected;state=s;if(s.selected&&s.selected!==previousSelected)rememberBlueprint(s.selected);if(selectedPending&&s.selected===selectedPending){clearTimeout(selectionTimer);selectedPending='';rememberBlueprint(s.selected)}if(['need_a','need_b','ready','capturing'].includes(s.stage)){selectedPending='';clearTimeout(selectionTimer)}blueprintCount.textContent=`${s.blueprints.length} BLUEPRINT${s.blueprints.length===1?'':'S'}`;document.body.classList.toggle('capturing',s.stage==='capturing');help.textContent=guide(s);renderCards(s);if(libraryExpanded&&(s.selected||['need_a','need_b','ready','capturing'].includes(s.stage)))setLibraryExpanded(false);if(s.selected&&s.stage==='selected')help.textContent=`“${s.selected}” is active. Aim where you want it, then press F7 to place it.`;ipc({kind:'state-applied',blueprints:s.blueprints.length,stage:s.stage,selected:s.selected})};
+window.addEventListener('shroudforge-world-editor-state',event=>window.__worldEditorUpdate(event.detail));if(window.__sfPendingState)window.__worldEditorUpdate(window.__sfPendingState);expandButton.onclick=()=>setLibraryExpanded(!libraryExpanded);document.getElementById('close').onclick=()=>ipc({kind:'hide'});document.getElementById('settingsButton').onclick=()=>ipc({kind:'open-mod-settings'});document.addEventListener('wheel',e=>{const gallery=e.target.closest('.screenshot-queue');if(gallery){gallery.scrollLeft+=e.deltaY||e.deltaX;e.preventDefault();return}const library=e.target.closest('.cards');if(library&&libraryExpanded&&library.scrollHeight>library.clientHeight){library.scrollTop+=e.deltaY||e.deltaX;e.preventDefault()}},{passive:false});window.addEventListener('resize',()=>{if(libraryExpanded)setLibraryExpanded(true)});window.addEventListener('error',e=>ipc({kind:'script-error',value:String(e.message||'unknown UI script error')}));window.addEventListener('unhandledrejection',e=>ipc({kind:'script-error',value:String(e.reason||'unhandled promise rejection')}));ipc({kind:'ready'});
 </script>
 </body>
 </html>

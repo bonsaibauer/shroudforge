@@ -16,13 +16,21 @@ mod windows {
         event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
     };
-    use windows_sys::Win32::{
-        Foundation::{CloseHandle, HANDLE, HWND, RECT, WAIT_OBJECT_0},
-        Graphics::Gdi::{
-            BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CreateCompatibleBitmap,
-            CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits,
-            ReleaseDC, SRCCOPY, SelectObject,
+    use windows::{
+        Win32::{
+            System::Com::{
+                CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+                CoTaskMemFree, CoUninitialize,
+            },
+            UI::Shell::{
+                FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, FileOpenDialog, IFileOpenDialog,
+                SIGDN_FILESYSPATH,
+            },
         },
+        core::PCWSTR,
+    };
+    use windows_sys::Win32::{
+        Foundation::{CloseHandle, HANDLE, RECT, WAIT_OBJECT_0},
         System::Threading::{GetCurrentProcessId, OpenEventW, OpenProcess, WaitForSingleObject},
         UI::{
             Input::KeyboardAndMouse::{GetAsyncKeyState, VK_F1, VK_F2},
@@ -49,8 +57,17 @@ mod windows {
         },
         ScriptError(String),
         Hide,
+        OpenModSettings,
         Drag,
-        Action { action: String, value: String },
+        Action {
+            action: String,
+            value: String,
+        },
+        Manager(bool),
+        LibraryExpanded {
+            expanded: bool,
+            height: u32,
+        },
     }
 
     #[derive(Serialize)]
@@ -58,6 +75,24 @@ mod windows {
     struct BlueprintCard {
         name: String,
         image: Option<String>,
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ScreenshotCard {
+        name: String,
+        path: String,
+        modified: u64,
+        thumbnail: String,
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ScreenshotList {
+        folder: String,
+        screenshots: Vec<ScreenshotCard>,
+        truncated: bool,
+        can_undo: bool,
     }
 
     #[derive(Serialize)]
@@ -168,7 +203,15 @@ mod windows {
                                 .to_owned(),
                         ),
                         "hide" => Command::Hide,
+                        "open-mod-settings" => Command::OpenModSettings,
                         "drag" => Command::Drag,
+                        "manager-open" => Command::Manager(true),
+                        "manager-close" => Command::Manager(false),
+                        "library-expand" => Command::LibraryExpanded {
+                            expanded: value["expanded"].as_bool().unwrap_or(false),
+                            height: value["height"].as_u64().unwrap_or(DEFAULT_HEIGHT as u64)
+                                as u32,
+                        },
                         "action" => {
                             let action = value["action"].as_str().unwrap_or_default().to_owned();
                             let payload = value["value"].as_str().unwrap_or_default().to_owned();
@@ -207,12 +250,18 @@ mod windows {
         // Keep the same native window and WebView setup as the Modloader UI.
         // The document paints its own opaque surface; per-window background and
         // DWM frame overrides caused this host to diverge from that working path.
-        let _ = append_ui_log(&arguments.root, "window initialized with Modloader-style undecorated Tao window; document owns the opaque panel surface");
+        let _ = append_ui_log(
+            &arguments.root,
+            "window initialized with Modloader-style undecorated Tao window; document owns the opaque panel surface",
+        );
 
         let mut panel_width = initial_state.panel_width;
         let mut panel_height = initial_state.panel_height;
         let mut panel_position_x = initial_state.panel_position_x;
         let mut panel_position_y = initial_state.panel_position_y;
+        let mut manager_open = false;
+        let mut library_expanded = false;
+        let mut library_expanded_height = initial_state.panel_height;
         let mut module_enabled = preferences["enabled"] != false;
         let mut native_visible = false;
         let _ = shroudforge_package::config::publish_window_visibility(
@@ -274,10 +323,104 @@ mod windows {
                                     false,
                                 );
                             }
+                            Command::OpenModSettings => {
+                                if let Err(error) = shroudforge_package::config::request_world_editor_module_settings(&arguments.root) {
+                                    let _ = append_ui_log(&arguments.root, &format!("Could not open World Editor module settings in Modloader UI: {error}"));
+                                }
+                            }
                             Command::Drag => {}
+                            Command::Manager(open) => {
+                                if manager_open != open {
+                                    manager_open = open;
+                                    if manager_open {
+                                        library_expanded = false;
+                                    }
+                                    let height = if manager_open {
+                                        560.0
+                                    } else if library_expanded {
+                                        library_expanded_height as f64
+                                    } else {
+                                        panel_height as f64
+                                    };
+                                    set_fixed_size(&window, panel_width, height);
+                                    window.set_inner_size(LogicalSize::new(
+                                        panel_width as f64,
+                                        height,
+                                    ));
+                                    position_window(
+                                        &window,
+                                        arguments.game_pid,
+                                        panel_width as f64,
+                                        panel_position_x,
+                                        panel_position_y,
+                                    );
+                                }
+                            }
+                            Command::LibraryExpanded { expanded, height } => {
+                                library_expanded = expanded;
+                                library_expanded_height = height.clamp(DEFAULT_HEIGHT, 720);
+                                if !manager_open {
+                                    let height = if library_expanded {
+                                        library_expanded_height as f64
+                                    } else {
+                                        panel_height as f64
+                                    };
+                                    set_fixed_size(&window, panel_width, height);
+                                    window.set_inner_size(LogicalSize::new(
+                                        panel_width as f64,
+                                        height,
+                                    ));
+                                    position_window(
+                                        &window,
+                                        arguments.game_pid,
+                                        panel_width as f64,
+                                        panel_position_x,
+                                        panel_position_y,
+                                    );
+                                }
+                            }
                             Command::Action { action, value } => {
-                                if let Err(error) = dispatch_action(&arguments.root, &action, &value) {
-                                    let _ = webview.evaluate_script(&format!("window.__worldEditorNotice({});", js_string(&format!("Action failed: {error}"))));
+                                let result = match action.as_str() {
+                                    "browseScreenshots" => {
+                                        browse_screenshots(&arguments.root, &value)
+                                    }
+                                    "refreshScreenshots" => {
+                                        load_screenshot_list(&arguments.root, &value).map(Some)
+                                    }
+                                    "applyScreenshot" => apply_screenshot(&arguments.root, &value)
+                                        .map(|()| None),
+                                    "undoScreenshot" => undo_screenshot(&arguments.root, &value)
+                                        .map(|()| None),
+                                    _ => dispatch_action(&arguments.root, &action, &value)
+                                        .map(|()| None),
+                                };
+                                match result {
+                                    Ok(Some(list)) => {
+                                        if let Ok(payload) = serde_json::to_string(&list) {
+                                            let _ = webview.evaluate_script(&format!(
+                                                "window.__worldEditorScreenshots({payload});"
+                                            ));
+                                        }
+                                    }
+                                    Ok(None) => {
+                                        if action == "applyScreenshot" {
+                                            let _ = webview.evaluate_script(
+                                                "window.__worldEditorScreenshotApplied(false);",
+                                            );
+                                            next_refresh = Instant::now();
+                                        } else if action == "undoScreenshot" {
+                                            let _ = webview.evaluate_script(
+                                                "window.__worldEditorScreenshotApplied(true);",
+                                            );
+                                            next_refresh = Instant::now();
+                                        }
+                                    }
+                                    Err(error) => {
+                                        let _ = webview.evaluate_script(&format!(
+                                            "window.__worldEditorScreenshotError({});",
+                                            js_string(&error.to_string())
+                                        ));
+                                    }
                                 }
                             }
                         }
@@ -294,10 +437,17 @@ mod windows {
                                 .as_bool()
                                 .unwrap_or(window_visible);
                             if window_visible {
-                                set_fixed_size(&window, panel_width, panel_height as f64);
+                                let height = if manager_open {
+                                    560.0
+                                } else if library_expanded {
+                                    library_expanded_height as f64
+                                } else {
+                                    panel_height as f64
+                                };
+                                set_fixed_size(&window, panel_width, height);
                                 window.set_inner_size(LogicalSize::new(
                                     panel_width as f64,
-                                    panel_height as f64,
+                                    height,
                                 ));
                             }
                             let _ = shroudforge_package::config::publish_window_visibility(
@@ -354,10 +504,17 @@ mod windows {
                         if toggle_pressed || function_key_pressed[1] {
                             window_visible = !window_visible;
                             if window_visible {
-                                set_fixed_size(&window, panel_width, panel_height as f64);
+                                let height = if manager_open {
+                                    560.0
+                                } else if library_expanded {
+                                    library_expanded_height as f64
+                                } else {
+                                    panel_height as f64
+                                };
+                                set_fixed_size(&window, panel_width, height);
                                 window.set_inner_size(LogicalSize::new(
                                     panel_width as f64,
-                                    panel_height as f64,
+                                    height,
                                 ));
                             }
                         }
@@ -375,26 +532,6 @@ mod windows {
                         native_visible = should_show;
                         window.set_visible(native_visible);
                     }
-                    if function_key_pressed[0] && module_enabled && window_visible && (is_game || is_overlay) {
-                        let state = view_state(&arguments.root).unwrap_or_else(|_| empty_state());
-                        if state.selected.is_empty() {
-                            let _ = webview.evaluate_script("window.__worldEditorNotice('Select a blueprint first to change its image.');");
-                        } else {
-                            window.set_visible(false);
-                            std::thread::sleep(Duration::from_millis(90));
-                            let result = capture_game_window(foreground, &arguments.root, &state.selected);
-                            window.set_visible(native_visible);
-                            match result {
-                                Ok(()) => {
-                                    let _ = webview.evaluate_script("window.__worldEditorNotice('Screenshot saved.');");
-                                    next_refresh = Instant::now();
-                                }
-                                Err(error) => {
-                                    let _ = webview.evaluate_script(&format!("window.__worldEditorNotice({});", js_string(&format!("Screenshot failed: {error}"))));
-                                }
-                            }
-                        }
-                    }
                     if Instant::now() >= next_refresh {
                         if let Ok(state) = view_state(&arguments.root) {
                             if let Ok(payload) = serde_json::to_string(&state) {
@@ -409,10 +546,17 @@ mod windows {
                                         panel_height = state.panel_height;
                                         panel_position_x = state.panel_position_x;
                                         panel_position_y = state.panel_position_y;
-                                        set_fixed_size(&window, panel_width, panel_height as f64);
+                                        let height = if manager_open {
+                                            560.0
+                                        } else if library_expanded {
+                                            library_expanded_height as f64
+                                        } else {
+                                            panel_height as f64
+                                        };
+                                        set_fixed_size(&window, panel_width, height);
                                         window.set_inner_size(LogicalSize::new(
                                             panel_width as f64,
-                                            panel_height as f64,
+                                            height,
                                         ));
                                         position_window(
                                             &window,
@@ -633,10 +777,7 @@ mod windows {
                         .unwrap_or(DEFAULT_HEIGHT)
                         .clamp(MIN_HEIGHT, MAX_HEIGHT);
                 } else if let Some(value) = line.strip_prefix("panelPositionX=") {
-                    panel_position_x = value
-                        .parse::<i32>()
-                        .unwrap_or(-1)
-                        .clamp(-1, MAX_POSITION);
+                    panel_position_x = value.parse::<i32>().unwrap_or(-1).clamp(-1, MAX_POSITION);
                 } else if let Some(value) = line.strip_prefix("panelPositionY=") {
                     panel_position_y = value
                         .parse::<u32>()
@@ -710,6 +851,296 @@ mod windows {
         }
     }
 
+    fn browse_screenshots(
+        root: &Path,
+        blueprint: &str,
+    ) -> Result<Option<ScreenshotList>, Box<dyn std::error::Error>> {
+        let folder = choose_screenshot_folder()?;
+        save_screenshot_folder(root, &folder)?;
+        load_screenshot_list(root, blueprint).map(Some)
+    }
+
+    fn choose_screenshot_folder() -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let initialized = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        initialized.ok().map_err(|error| {
+            format!("could not initialize the Windows screenshot-folder picker: {error}")
+        })?;
+        struct ComUninitialize;
+        impl Drop for ComUninitialize {
+            fn drop(&mut self) {
+                unsafe { CoUninitialize() };
+            }
+        }
+        let _com = ComUninitialize;
+
+        let title: Vec<u16> = "Choose the folder containing your screenshots"
+            .encode_utf16()
+            .chain(Some(0))
+            .collect();
+        let dialog = unsafe {
+            CoCreateInstance::<_, IFileOpenDialog>(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)
+        }?;
+        unsafe {
+            dialog
+                .SetTitle(PCWSTR(title.as_ptr()))
+                .and_then(|()| dialog.SetOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM))?;
+            dialog.Show(None)?;
+        }
+        let selected = unsafe { dialog.GetResult() }?;
+        let display_name = unsafe { selected.GetDisplayName(SIGDN_FILESYSPATH) }?;
+        let path_string: Result<String, std::string::FromUtf16Error> =
+            unsafe { display_name.to_string() };
+        unsafe { CoTaskMemFree(Some(display_name.0.cast())) };
+        let folder = PathBuf::from(path_string?);
+        if !folder.is_dir() {
+            return Err("The selected screenshot folder is unavailable".into());
+        }
+        Ok(folder)
+    }
+
+    fn screenshot_folder_file(root: &Path) -> PathBuf {
+        shroudforge_package::paths::export_dir(root)
+            .join("world-editor")
+            .join("screenshot-source.txt")
+    }
+
+    fn save_screenshot_folder(
+        root: &Path,
+        folder: &Path,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if !folder.is_dir() {
+            return Err("The selected screenshot folder is unavailable".into());
+        }
+        let path = screenshot_folder_file(root);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, folder.to_string_lossy().as_bytes())?;
+        Ok(())
+    }
+
+    fn current_screenshot_folder(root: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+        let saved = screenshot_folder_file(root);
+        if let Ok(value) = fs::read_to_string(&saved) {
+            let folder = PathBuf::from(value.trim());
+            if folder.is_dir() {
+                return Ok(folder);
+            }
+        }
+        if let Some(folder) = discover_screenshot_folder() {
+            save_screenshot_folder(root, &folder)?;
+            return Ok(folder);
+        }
+        Err("Choose the folder where your screenshots are stored".into())
+    }
+
+    fn discover_screenshot_folder() -> Option<PathBuf> {
+        let mut candidates = Vec::new();
+        if let Some(profile) = std::env::var_os("USERPROFILE") {
+            candidates.push(PathBuf::from(profile).join("Pictures/Screenshots/Enshrouded"));
+        }
+        let mut steam_roots = Vec::new();
+        for variable in ["PROGRAMFILES(X86)", "PROGRAMFILES"] {
+            if let Some(value) = std::env::var_os(variable) {
+                steam_roots.push(PathBuf::from(value).join("Steam"));
+            }
+        }
+        if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+            steam_roots.push(PathBuf::from(local).join("Programs/Steam"));
+        }
+        for steam in steam_roots {
+            let userdata = steam.join("userdata");
+            let Ok(accounts) = fs::read_dir(userdata) else {
+                continue;
+            };
+            for account in accounts.flatten() {
+                candidates.push(account.path().join("760/remote/1203620/screenshots"));
+            }
+        }
+        candidates.into_iter().find(|path| {
+            path.is_dir()
+                && fs::read_dir(path).ok().is_some_and(|entries| {
+                    entries.flatten().any(|entry| {
+                        entry.file_type().is_ok_and(|kind| kind.is_file())
+                            && is_supported_image(&entry.path())
+                    })
+                })
+        })
+    }
+
+    fn load_screenshot_list(
+        root: &Path,
+        blueprint: &str,
+    ) -> Result<ScreenshotList, Box<dyn std::error::Error>> {
+        const MAX_SCREENSHOTS: usize = 120;
+        if !valid_blueprint_name(blueprint) {
+            return Err("Select a blueprint before choosing a screenshot".into());
+        }
+        let folder = current_screenshot_folder(root)?;
+        let mut files = fs::read_dir(&folder)?
+            .flatten()
+            .filter_map(|entry| {
+                let path = entry.path();
+                if !entry.file_type().ok()?.is_file() || !is_supported_image(&path) {
+                    return None;
+                }
+                let modified = entry
+                    .metadata()
+                    .ok()?
+                    .modified()
+                    .ok()?
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                Some((path, modified))
+            })
+            .collect::<Vec<_>>();
+        files.sort_by(|left, right| right.1.cmp(&left.1));
+        let truncated = files.len() > MAX_SCREENSHOTS;
+        files.truncate(MAX_SCREENSHOTS);
+        let mut screenshots = Vec::with_capacity(files.len());
+        for (path, modified) in files {
+            let Ok(image) = image::open(&path) else {
+                continue;
+            };
+            let thumbnail = image.thumbnail(320, 180);
+            let mut bytes = Cursor::new(Vec::new());
+            thumbnail.write_to(&mut bytes, image::ImageFormat::Png)?;
+            screenshots.push(ScreenshotCard {
+                name: path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("Screenshot")
+                    .to_owned(),
+                path: path.to_string_lossy().into_owned(),
+                modified,
+                thumbnail: format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(bytes.into_inner())
+                ),
+            });
+        }
+        Ok(ScreenshotList {
+            folder: folder.to_string_lossy().into_owned(),
+            screenshots,
+            truncated,
+            can_undo: shroudforge_package::paths::export_dir(root)
+                .join("world-editor/blueprints")
+                .join(format!("{blueprint}.cover-undo.json"))
+                .is_file(),
+        })
+    }
+
+    fn is_supported_image(path: &Path) -> bool {
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| {
+                matches!(
+                    extension.to_ascii_lowercase().as_str(),
+                    "png" | "jpg" | "jpeg" | "bmp" | "webp"
+                )
+            })
+    }
+
+    fn apply_screenshot(root: &Path, value: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let (name, source) = value
+            .split_once('\t')
+            .ok_or("Screenshot selection is incomplete")?;
+        if !valid_blueprint_name(name) {
+            return Err("The selected blueprint name is invalid".into());
+        }
+        let exports = shroudforge_package::paths::export_dir(root);
+        let blueprint_dir = exports.join("world-editor/blueprints");
+        if !blueprint_dir.join(format!("{name}.sfbp")).is_file() {
+            return Err("The selected blueprint no longer exists".into());
+        }
+        let folder = current_screenshot_folder(root)?.canonicalize()?;
+        let source = PathBuf::from(source).canonicalize()?;
+        if !source.starts_with(&folder) || !source.is_file() || !is_supported_image(&source) {
+            return Err("Choose an image from the selected screenshot folder".into());
+        }
+        let image = image::open(&source)?;
+        fs::create_dir_all(&blueprint_dir)?;
+        backup_cover(&blueprint_dir, name)?;
+        let mut full = Cursor::new(Vec::new());
+        image.write_to(&mut full, image::ImageFormat::Png)?;
+        fs::write(blueprint_dir.join(format!("{name}.png")), full.into_inner())?;
+        let thumbnail = image.thumbnail(960, 540);
+        let mut thumb = Cursor::new(Vec::new());
+        thumbnail.write_to(&mut thumb, image::ImageFormat::Png)?;
+        fs::write(
+            blueprint_dir.join(format!("{name}.thumb.png")),
+            thumb.into_inner(),
+        )?;
+        Ok(())
+    }
+
+    fn backup_cover(directory: &Path, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let cover = directory.join(format!("{name}.png"));
+        let thumbnail = directory.join(format!("{name}.thumb.png"));
+        let cover_backup = directory.join(format!("{name}.cover-undo.png"));
+        let thumbnail_backup = directory.join(format!("{name}.cover-undo.thumb.png"));
+        let had_cover = cover.is_file();
+        let had_thumbnail = thumbnail.is_file();
+        if had_cover {
+            fs::copy(&cover, &cover_backup)?;
+        } else {
+            let _ = fs::remove_file(&cover_backup);
+        }
+        if had_thumbnail {
+            fs::copy(&thumbnail, &thumbnail_backup)?;
+        } else {
+            let _ = fs::remove_file(&thumbnail_backup);
+        }
+        fs::write(
+            directory.join(format!("{name}.cover-undo.json")),
+            serde_json::to_vec(&serde_json::json!({
+                "hadCover": had_cover,
+                "hadThumbnail": had_thumbnail,
+            }))?,
+        )?;
+        Ok(())
+    }
+
+    fn undo_screenshot(root: &Path, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+        if !valid_blueprint_name(name) {
+            return Err("The selected blueprint name is invalid".into());
+        }
+        let directory =
+            shroudforge_package::paths::export_dir(root).join("world-editor/blueprints");
+        if !directory.join(format!("{name}.sfbp")).is_file() {
+            return Err("The selected blueprint no longer exists".into());
+        }
+        let undo_path = directory.join(format!("{name}.cover-undo.json"));
+        let undo: serde_json::Value = serde_json::from_slice(&fs::read(&undo_path)?)?;
+        for (key, current_name, backup_name) in [
+            (
+                "hadCover",
+                format!("{name}.png"),
+                format!("{name}.cover-undo.png"),
+            ),
+            (
+                "hadThumbnail",
+                format!("{name}.thumb.png"),
+                format!("{name}.cover-undo.thumb.png"),
+            ),
+        ] {
+            let current = directory.join(current_name);
+            let backup = directory.join(backup_name);
+            if undo[key].as_bool().unwrap_or(false) {
+                if !backup.is_file() {
+                    return Err("The previous cover backup is missing".into());
+                }
+                fs::copy(&backup, &current)?;
+            } else if current.exists() {
+                fs::remove_file(current)?;
+            }
+            let _ = fs::remove_file(backup);
+        }
+        fs::remove_file(undo_path)?;
+        Ok(())
+    }
+
     fn dispatch_action(
         root: &Path,
         action: &str,
@@ -752,107 +1183,6 @@ mod windows {
 
     fn js_string(value: &str) -> String {
         serde_json::to_string(value).unwrap_or_else(|_| "\"\"".into())
-    }
-
-    fn capture_game_window(
-        hwnd: HWND,
-        root: &Path,
-        blueprint: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        if hwnd.is_null() {
-            return Err("Game window is unavailable".into());
-        }
-        let mut rect: RECT = unsafe { std::mem::zeroed() };
-        if unsafe { GetWindowRect(hwnd, &mut rect) } == 0 {
-            return Err("Could not read the game window size".into());
-        }
-        let width = rect.right - rect.left;
-        let height = rect.bottom - rect.top;
-        if width <= 0 || height <= 0 {
-            return Err("Game window has an invalid size".into());
-        }
-        let screen = unsafe { GetDC(std::ptr::null_mut()) };
-        if screen.is_null() {
-            return Err("Could not open the game screen".into());
-        }
-        let memory = unsafe { CreateCompatibleDC(screen) };
-        let bitmap = unsafe { CreateCompatibleBitmap(screen, width, height) };
-        if memory.is_null() || bitmap.is_null() {
-            if !memory.is_null() {
-                unsafe { DeleteDC(memory) };
-            }
-            if !bitmap.is_null() {
-                unsafe { DeleteObject(bitmap) };
-            }
-            unsafe { ReleaseDC(std::ptr::null_mut(), screen) };
-            return Err("Could not allocate the screenshot buffer".into());
-        }
-        let previous = unsafe { SelectObject(memory, bitmap) };
-        let copied = unsafe {
-            BitBlt(
-                memory, 0, 0, width, height, screen, rect.left, rect.top, SRCCOPY,
-            )
-        };
-        unsafe { SelectObject(memory, previous) };
-        let mut info: BITMAPINFO = unsafe { std::mem::zeroed() };
-        info.bmiHeader = BITMAPINFOHEADER {
-            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: width,
-            biHeight: -height,
-            biPlanes: 1,
-            biBitCount: 32,
-            biCompression: BI_RGB,
-            ..unsafe { std::mem::zeroed() }
-        };
-        let mut bgra = vec![0u8; width as usize * height as usize * 4];
-        let read = if copied != 0 {
-            unsafe {
-                GetDIBits(
-                    memory,
-                    bitmap,
-                    0,
-                    height as u32,
-                    bgra.as_mut_ptr().cast(),
-                    &mut info,
-                    DIB_RGB_COLORS,
-                )
-            }
-        } else {
-            0
-        };
-        unsafe {
-            DeleteObject(bitmap);
-            DeleteDC(memory);
-            ReleaseDC(std::ptr::null_mut(), screen);
-        }
-        if read == 0 {
-            return Err("Could not capture the game screen (exclusive fullscreen mode may be enabled)".into());
-        }
-        for pixel in bgra.chunks_exact_mut(4) {
-            pixel.swap(0, 2);
-            pixel[3] = 255;
-        }
-        let image = image::RgbaImage::from_raw(width as u32, height as u32, bgra)
-            .ok_or("Screenshot pixels do not match the window size")?;
-        let name = if valid_blueprint_name(blueprint) {
-            blueprint
-        } else {
-            return Err("Invalid blueprint name".into());
-        };
-        let directory =
-            shroudforge_package::paths::export_dir(root).join("world-editor/blueprints");
-        fs::create_dir_all(&directory)?;
-        let mut png = Cursor::new(Vec::new());
-        image.write_to(&mut png, image::ImageFormat::Png)?;
-        fs::write(directory.join(format!("{name}.png")), png.into_inner())?;
-        let thumbnail = image::imageops::thumbnail(&image, 960, 540);
-        let mut png = Cursor::new(Vec::new());
-        thumbnail.write_to(&mut png, image::ImageFormat::Png)?;
-        fs::write(
-            directory.join(format!("{name}.thumb.png")),
-            png.into_inner(),
-        )?;
-        Ok(())
     }
 
     fn valid_blueprint_name(value: &str) -> bool {

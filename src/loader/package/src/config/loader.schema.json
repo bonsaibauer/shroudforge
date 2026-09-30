@@ -30,28 +30,647 @@
     "exports": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean" }
+        "enabled": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": false
     },
     "runtime": {
       "type": "object",
       "properties": {
-        "profileId": { "type": ["string", "null"], "minLength": 1 }
+        "profileId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "catalog": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "enabled",
+                "kind",
+                "baseUrl",
+                "projectId",
+                "loader",
+                "checkMinutes",
+                "includePrereleases"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "baseUrl": {
+                  "type": "string",
+                  "pattern": "^https://",
+                  "maxLength": 2048
+                },
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "loader": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "checkMinutes": {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 1440
+                },
+                "includePrereleases": {
+                  "type": "boolean"
+                },
+                "lastCheckAt": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "latestRelease": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "version",
+                        "baseVersion",
+                        "build",
+                        "downloadUrl",
+                        "checksum",
+                        "releaseUrl",
+                        "message",
+                        "prerelease",
+                        "updateAvailable",
+                        "checkedAt"
+                      ],
+                      "properties": {
+                        "version": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "baseVersion": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "build": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "downloadUrl": {
+                          "type": "string",
+                          "pattern": "^https://",
+                          "maxLength": 2048
+                        },
+                        "checksum": {
+                          "type": "string",
+                          "pattern": "^[A-Fa-f0-9]{64}$"
+                        },
+                        "releaseUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 2048
+                        },
+                        "message": {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        "prerelease": {
+                          "type": "boolean"
+                        },
+                        "updateAvailable": {
+                          "type": "boolean"
+                        },
+                        "checkedAt": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "control": {
+      "type": "object",
+      "required": [
+        "actions",
+        "parameters",
+        "results"
+      ],
+      "properties": {
+        "actions": {
+          "type": "object",
+          "required": [
+            "diagnostics",
+            "refresh",
+            "refreshMod",
+            "reloadSettings",
+            "checkUpdates",
+            "stageUpdate",
+            "queueSystemUpdate",
+            "selectUpdateQueueItems",
+            "removeUpdateQueueItem",
+            "startUpdateQueue",
+            "clearUpdateQueue",
+            "cancelUpdate",
+            "restoreGamefiles",
+            "captureGamefileOriginals",
+            "searchCatalog",
+            "installMod",
+            "updateMod",
+            "runModAction",
+            "removeMod",
+            "setNewsRead"
+          ],
+          "properties": {
+            "diagnostics": {
+              "type": "boolean"
+            },
+            "refresh": {
+              "type": "boolean"
+            },
+            "refreshMod": {
+              "type": "boolean"
+            },
+            "reloadSettings": {
+              "type": "boolean"
+            },
+            "checkUpdates": {
+              "type": "boolean"
+            },
+            "stageUpdate": {
+              "type": "boolean"
+            },
+            "queueSystemUpdate": {
+              "type": "boolean"
+            },
+            "selectUpdateQueueItems": {
+              "type": "boolean"
+            },
+            "removeUpdateQueueItem": {
+              "type": "boolean"
+            },
+            "startUpdateQueue": {
+              "type": "boolean"
+            },
+            "clearUpdateQueue": {
+              "type": "boolean"
+            },
+            "cancelUpdate": {
+              "type": "boolean"
+            },
+            "restoreGamefiles": {
+              "type": "boolean"
+            },
+            "captureGamefileOriginals": {
+              "type": "boolean"
+            },
+            "searchCatalog": {
+              "type": "boolean"
+            },
+            "installMod": {
+              "type": "boolean"
+            },
+            "updateMod": {
+              "type": "boolean"
+            },
+            "runModAction": {
+              "type": "boolean"
+            },
+            "removeMod": {
+              "type": "boolean"
+            },
+            "setNewsRead": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "diagnostics",
+            "refresh",
+            "refreshMod",
+            "reloadSettings",
+            "checkUpdates",
+            "stageUpdate",
+            "queueSystemUpdate",
+            "selectUpdateQueueItems",
+            "removeUpdateQueueItem",
+            "startUpdateQueue",
+            "clearUpdateQueue",
+            "cancelUpdate",
+            "restoreGamefiles",
+            "captureGamefileOriginals",
+            "searchCatalog",
+            "installMod",
+            "updateMod",
+            "runModAction",
+            "removeMod",
+            "setNewsRead"
+          ],
+          "properties": {
+            "diagnostics": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "enum": [
+                    "start",
+                    "stop",
+                    "snapshot"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "refresh": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "refreshMod": {
+              "type": "object",
+              "required": [
+                "modId"
+              ],
+              "properties": {
+                "modId": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            },
+            "reloadSettings": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "checkUpdates": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "stageUpdate": {
+              "type": "object",
+              "properties": {
+                "waitForGame": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "queueSystemUpdate": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "selectUpdateQueueItems": {
+              "type": "object",
+              "required": [
+                "ids",
+                "selected"
+              ],
+              "properties": {
+                "ids": {
+                  "type": "array",
+                  "maxItems": 256,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                },
+                "selected": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "removeUpdateQueueItem": {
+              "type": "object",
+              "required": [
+                "key"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              },
+              "additionalProperties": false
+            },
+            "startUpdateQueue": {
+              "type": "object",
+              "properties": {
+                "ids": {
+                  "type": "array",
+                  "maxItems": 256,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                },
+                "waitForGame": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "clearUpdateQueue": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "cancelUpdate": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "restoreGamefiles": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "captureGamefileOriginals": {
+              "type": "object",
+              "maxProperties": 0
+            },
+            "searchCatalog": {
+              "type": "object",
+              "required": [
+                "query"
+              ],
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "maxLength": 500
+                }
+              },
+              "additionalProperties": false
+            },
+            "installMod": {
+              "type": "object",
+              "required": [
+                "projectId"
+              ],
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              },
+              "additionalProperties": false
+            },
+            "updateMod": {
+              "type": "object",
+              "required": [
+                "modId"
+              ],
+              "properties": {
+                "modId": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              },
+              "additionalProperties": false
+            },
+            "runModAction": {
+              "type": "object",
+              "required": [
+                "modId",
+                "action"
+              ],
+              "properties": {
+                "modId": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "action": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            },
+            "removeMod": {
+              "type": "object",
+              "required": [
+                "modId"
+              ],
+              "properties": {
+                "modId": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false
+            },
+            "setNewsRead": {
+              "type": "object",
+              "properties": {
+                "ids": {
+                  "type": "array",
+                  "maxItems": 256,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                },
+                "read": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "results": {
+          "type": "object",
+          "required": [
+            "diagnostics",
+            "refresh",
+            "refreshMod",
+            "reloadSettings",
+            "checkUpdates",
+            "stageUpdate",
+            "queueSystemUpdate",
+            "selectUpdateQueueItems",
+            "removeUpdateQueueItem",
+            "startUpdateQueue",
+            "clearUpdateQueue",
+            "cancelUpdate",
+            "restoreGamefiles",
+            "captureGamefileOriginals",
+            "searchCatalog",
+            "installMod",
+            "updateMod",
+            "runModAction",
+            "removeMod",
+            "setNewsRead"
+          ],
+          "properties": {
+            "diagnostics": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "refresh": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "refreshMod": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "reloadSettings": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "checkUpdates": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "stageUpdate": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "queueSystemUpdate": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "selectUpdateQueueItems": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "removeUpdateQueueItem": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "startUpdateQueue": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "clearUpdateQueue": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "cancelUpdate": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "restoreGamefiles": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "captureGamefileOriginals": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "searchCatalog": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "installMod": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "updateMod": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "runModAction": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "removeMod": {
+              "$ref": "#/$defs/controlResult"
+            },
+            "setNewsRead": {
+              "$ref": "#/$defs/controlResult"
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },
     "paths": {
       "type": "object",
       "properties": {
-        "mods": { "type": ["string", "null"], "minLength": 1 },
-        "state": { "type": ["string", "null"], "minLength": 1 },
-        "logs": { "type": ["string", "null"], "minLength": 1 },
-        "cache": { "type": ["string", "null"], "minLength": 1 },
-        "exports": { "type": ["string", "null"], "minLength": 1 },
-        "updates": { "type": ["string", "null"], "minLength": 1 },
-        "ui": { "type": ["string", "null"], "minLength": 1 },
-        "runtime": { "type": ["string", "null"], "minLength": 1 }
+        "mods": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "state": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "logs": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "cache": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "exports": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "updates": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "ui": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "runtime": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
       },
       "additionalProperties": false
     },
@@ -133,9 +752,19 @@
         "worldEditor": {
           "type": "object",
           "properties": {
-            "enabled": { "type": "boolean" },
-            "toggleKey": { "type": "integer", "minimum": 1, "maximum": 255 },
-            "refreshMilliseconds": { "type": "integer", "minimum": 100, "maximum": 5000 }
+            "enabled": {
+              "type": "boolean"
+            },
+            "toggleKey": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 255
+            },
+            "refreshMilliseconds": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 5000
+            }
           },
           "additionalProperties": false
         },
@@ -284,6 +913,77 @@
         },
         "reducedMotion": {
           "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "controlAction": {
+      "type": "object",
+      "required": [
+        "execute",
+        "payload",
+        "requestId",
+        "state",
+        "result"
+      ],
+      "properties": {
+        "execute": {
+          "type": "boolean"
+        },
+        "payload": {
+          "type": "object"
+        },
+        "requestId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "idle",
+            "pending",
+            "running",
+            "succeeded",
+            "failed"
+          ]
+        },
+        "result": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "controlResult": {
+      "type": "object",
+      "required": [
+        "requestId",
+        "state",
+        "result"
+      ],
+      "properties": {
+        "requestId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "idle",
+            "running",
+            "succeeded",
+            "failed"
+          ]
+        },
+        "result": {
+          "type": "string",
+          "maxLength": 2000
         }
       },
       "additionalProperties": false

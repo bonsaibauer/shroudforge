@@ -7,6 +7,8 @@ use std::path::Path;
 pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     let file_name = target_name(game_directory)?;
+    shroudforge_package::config::initialize_loader_config(game_directory)
+        .map_err(LoaderError::Pregame)?;
     ensure_game_stopped(file_name)?;
     ensure_original_gamefiles(game_directory, file_name);
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
@@ -28,6 +30,8 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     let file_name = process_target_name(game_directory)?;
+    shroudforge_package::config::initialize_loader_config(game_directory)
+        .map_err(LoaderError::Pregame)?;
     // Capture a first-install original before the early return for installations
     // that do not have asset mods. Uncertain legacy installs remain unclassified.
     ensure_original_gamefiles(game_directory, file_name);

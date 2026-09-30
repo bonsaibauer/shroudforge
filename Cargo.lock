@@ -3622,6 +3622,7 @@ name = "shroudforge-updater"
 version = "1.0.0"
 dependencies = [
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
@@ -3640,6 +3641,7 @@ dependencies = [
  "serde_json",
  "shroudforge-package",
  "tao",
+ "windows",
  "windows-sys 0.61.2",
  "wry",
 ]

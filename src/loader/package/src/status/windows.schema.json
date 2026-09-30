@@ -15,7 +15,9 @@
       "properties": {
         "visible": { "type": "boolean" },
         "requestedVisible": { "type": "boolean" },
-        "requestId": { "type": "integer", "minimum": 0 }
+        "requestId": { "type": "integer", "minimum": 0 },
+        "focusTarget": { "type": "string", "enum": ["worldEditorSettings"] },
+        "focusRequestId": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     }

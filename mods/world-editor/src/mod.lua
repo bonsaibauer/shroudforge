@@ -857,6 +857,7 @@ end
 
 local function capture_and_save()
     if not selection_a then
+        clipboard, active_blueprint_name, placement_preview = nil, nil, nil
         editor_stage = "need_a"
         editor_hint = "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
         publish_editor_state()
@@ -1099,6 +1100,7 @@ local function load_blueprint(name)
         coverage = has_voxels and coverage or nil,
         extent = extent, voxelOffset = voxel_offset,
         cellSize = cell_size}
+    selection_a, selection_b = nil, nil
     placement_preview = nil
     active_blueprint_name = name
     editor_stage = "selected"
@@ -1684,8 +1686,26 @@ local function clear_cursor_selection()
 end
 
 local function mark_cursor_next()
+    if undo_state and undo_state.recovery_required then
+        editor_hint = "Finish the incomplete placement recovery with F4 before starting a new blueprint."
+        publish_editor_state()
+        shroudforge.log.warn("World Editor: cannot start a new capture while placement recovery is required")
+        return
+    end
+    if editor_stage == "capturing" or editor_stage == "placing" then
+        shroudforge.log.warn("World Editor: wait for the current capture or placement to finish")
+        return
+    end
+    local starting_new_capture = editor_stage ~= "need_b"
+    if starting_new_capture then
+        clipboard, active_blueprint_name, placement_preview = nil, nil, nil
+        selection_a, selection_b = nil, nil
+        editor_stage = "need_a"
+        editor_hint = "New blueprint selected. Aim at the first corner and press F5 to mark it."
+        publish_editor_state()
+    end
     request_cursor_action(function(point)
-        if not selection_a or selection_b then
+        if starting_new_capture then
             selection_a, selection_b = point, nil
             editor_stage = "need_b"
             editor_hint = "Corner A is marked. Aim at the opposite corner and press F5 again."
@@ -1701,6 +1721,21 @@ local function mark_cursor_next()
                 point.x, point.y, point.z))
         end
     end)
+end
+
+local function start_new_blueprint()
+    if undo_state and undo_state.recovery_required then
+        editor_hint = "Finish the incomplete placement recovery with F4 before starting a new blueprint."
+        publish_editor_state()
+        shroudforge.log.warn("World Editor: cannot start a new blueprint while placement recovery is required")
+        return
+    end
+    clipboard, active_blueprint_name, placement_preview = nil, nil, nil
+    selection_a, selection_b = nil, nil
+    editor_stage = "need_a"
+    editor_hint = "New blueprint selected. Aim at the first corner and press F5 to mark it."
+    publish_editor_state()
+    shroudforge.log.info("World Editor: new blueprint capture selected; press F5 to mark the first corner")
 end
 
 local function reset_editor()
@@ -1892,6 +1927,7 @@ shroudforge.ui.on_action("selectBlueprint", function(name)
     if type(name) ~= "string" then return end
     load_blueprint(name)
 end)
+shroudforge.ui.on_action("newBlueprint", start_new_blueprint)
 shroudforge.ui.on_action("refreshBlueprintLibrary", refresh_blueprint_library)
 shroudforge.ui.on_action("renameLibraryBlueprint", rename_library_blueprint)
 shroudforge.ui.on_action("duplicateLibraryBlueprint", duplicate_library_blueprint)

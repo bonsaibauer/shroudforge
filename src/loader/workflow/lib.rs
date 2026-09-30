@@ -108,7 +108,17 @@ pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
         };
         let _ = shroudforge_package::logging::initialize(&game, false);
         let started = std::time::Instant::now();
-        match pregame::run_startup(&game) {
+        let startup_result = pregame::run_startup(&game);
+        #[cfg(windows)]
+        if let Err(error) = shroudforge_updater::start_headless_control_worker(&game) {
+            let _ = shroudforge_package::logging::append(
+                &game,
+                'E',
+                "config-controller",
+                &format!("Could not start headless config controller: {error}"),
+            );
+        }
+        match startup_result {
             Ok(()) => {
                 let message = format!(
                     "Early startup asset pass completed in {} ms",
