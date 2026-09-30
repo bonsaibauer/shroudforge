@@ -16,6 +16,40 @@ struct ModEnvironmentInner {
     disabled_mods: HashSet<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModPlanIssue {
+    pub mod_id: String,
+    pub code: String,
+    pub detail: String,
+}
+
+impl ModPlanIssue {
+    fn new(mod_id: &str, detail: String) -> Self {
+        let lower = detail.to_ascii_lowercase();
+        let code = if lower.contains("missing ") {
+            "missing-dependency"
+        } else if lower.contains("disabled dependency") {
+            "dependency-disabled"
+        } else if lower.contains("incompatible") {
+            "dependency-version"
+        } else if lower.contains("dependency cycle") {
+            "dependency-cycle"
+        } else if lower.contains("wrong process target") {
+            "wrong-target"
+        } else {
+            "conflict-or-plan-error"
+        };
+        Self { mod_id: mod_id.into(), code: code.into(), detail }
+    }
+}
+
+impl std::fmt::Display for ModPlanIssue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.mod_id, self.detail)
+    }
+}
+
 #[derive(Clone)]
 pub struct ModEnvironment {
     inner: Arc<ModEnvironmentInner>,
@@ -92,6 +126,18 @@ impl ModEnvironment {
         is_server: bool,
         api_version: &str,
     ) -> (Vec<&crate::Mod>, Vec<String>) {
+        let (plan, issues) = self.plan_report_detailed(is_server, api_version);
+        (plan, issues.into_iter().map(|issue| issue.to_string()).collect())
+    }
+
+    /// Return the executable plan and per-mod reasons without logging. Status
+    /// callers may invoke this repeatedly, so diagnostics belong to the actual
+    /// startup path rather than plan calculation.
+    pub fn plan_report_detailed(
+        &self,
+        is_server: bool,
+        api_version: &str,
+    ) -> (Vec<&crate::Mod>, Vec<ModPlanIssue>) {
         self.plan_report_inner(is_server, api_version, false)
     }
 
@@ -102,7 +148,19 @@ impl ModEnvironment {
         is_server: bool,
         api_version: &str,
     ) -> (Vec<&crate::Mod>, Vec<String>) {
-        let (mut plan, errors) = self.plan_report_inner(is_server, api_version, true);
+        let (plan, issues) = self.runtime_plan_report_detailed(is_server, api_version);
+        (plan, issues.into_iter().map(|issue| issue.to_string()).collect())
+    }
+
+    /// Runtime candidate plan. Disabled packages stay available for live
+    /// activation; callers must separately check whether their dependencies
+    /// are active before invoking lifecycle callbacks.
+    pub fn runtime_plan_report_detailed(
+        &self,
+        is_server: bool,
+        api_version: &str,
+    ) -> (Vec<&crate::Mod>, Vec<ModPlanIssue>) {
+        let (mut plan, issues) = self.plan_report_inner(is_server, api_version, true);
 
         // Asset-only and export-only mods have already run in the pregame
         // phase. Do not build live Lua environments for them; the in-game
@@ -137,7 +195,7 @@ impl ModEnvironment {
             }
         }
         plan.retain(|item| runtime_ids.contains(&item.info().id));
-        (plan, errors)
+        (plan, issues)
     }
 
     fn plan_report_inner(
@@ -145,10 +203,13 @@ impl ModEnvironment {
         is_server: bool,
         api_version: &str,
         include_disabled: bool,
-    ) -> (Vec<&crate::Mod>, Vec<String>) {
+    ) -> (Vec<&crate::Mod>, Vec<ModPlanIssue>) {
         let blocked = match crate::compatibility::conflicts(self) {
             Ok(blocked) => blocked,
-            Err(error) => return (Vec::new(), vec![format!("compatibility rules: {error}")]),
+            Err(error) => return (Vec::new(), vec![ModPlanIssue {
+                mod_id: "__loader__".into(), code: "compatibility-rules".into(),
+                detail: format!("compatibility rules: {error}"),
+            }]),
         };
         fn visit<'a>(
             env: &'a ModEnvironment,
@@ -177,10 +238,7 @@ impl ModEnvironment {
             if !include_disabled && !env.is_mod_enabled(id) {
                 return Err(format!("disabled dependency: {id}"));
             }
-            if matches!(
-                (item.info().target, server),
-                (crate::ModTarget::Client, true) | (crate::ModTarget::Server, false)
-            ) {
+            if !item.info().target.supports_process(server) {
                 return Err(format!("{id}: wrong process target"));
             }
             for dependency in &item.info().dependencies {
@@ -246,8 +304,7 @@ impl ModEnvironment {
                 &mut done,
                 &mut order,
             ) {
-                tracing::error!(mod_id = %id, %error, "Mod excluded from execution plan");
-                errors.push(error);
+                errors.push(ModPlanIssue::new(&id, error));
             }
         }
         (order, errors)

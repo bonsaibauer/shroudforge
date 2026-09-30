@@ -25,6 +25,7 @@ shroudforge-api = { path = "api" }
 shroudforge-package.workspace = true
 shroudforge-commands = { path = "modules/commands" }
 shroudforge-debug-console = { path = "modules/debug-console" }
+shroudforge-world-editor-ui = { path = "modules/world-editor-ui" }
 shroudforge-modloader-ui = { path = "modules/modloader-ui" }
 shroudforge-runtime-diagnostics = { path = "modules/runtime-diagnostics" }
 shroudforge-updater = { path = "modules/updater" }

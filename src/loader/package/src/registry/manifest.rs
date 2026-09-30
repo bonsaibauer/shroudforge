@@ -49,7 +49,17 @@ pub enum ModTarget {
     Client,
     Server,
     #[default]
-    Both,
+    #[serde(rename = "client, server")]
+    ClientServer,
+}
+
+impl ModTarget {
+    pub fn supports_process(self, is_server: bool) -> bool {
+        matches!(
+            (self, is_server),
+            (Self::Client, false) | (Self::Server, true) | (Self::ClientServer, _)
+        )
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -137,7 +137,10 @@ pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
                     &game,
                     'E',
                     "startup-assets",
-                    &format!("Rust panic during startup asset preparation: {}", panic_detail(&*payload)),
+                    &format!(
+                        "Rust panic during startup asset preparation: {}",
+                        panic_detail(&*payload)
+                    ),
                 );
             }
             false
@@ -206,7 +209,10 @@ pub unsafe extern "C" fn shroudforge_create(game: *const u16) -> *mut RuntimeHan
                 let _ = shroudforge_package::logging::initialize(&game, false);
                 append_runtime_log(
                     &game,
-                    &format!("Rust panic during runtime initialization: {}", panic_detail(&*payload)),
+                    &format!(
+                        "Rust panic during runtime initialization: {}",
+                        panic_detail(&*payload)
+                    ),
                 );
             }
             std::ptr::null_mut()

@@ -55,8 +55,8 @@ fn collect_lua_sources(
     Ok(())
 }
 
-/// Derive execution phase and process scope from the Lua entrypoint's API usage.
-/// These values are runtime metadata and are not author-maintained manifest flags.
+/// Derive execution phase from Lua API usage. Process targets live in
+/// extended.mod.json. Legacy EML packages default to both listed processes.
 pub fn infer_api_contract(manifest: &mut ModManifest, source: &str) {
     let normalized: String = strip_lua_comments(source)
         .chars()
@@ -82,16 +82,8 @@ pub fn infer_api_contract(manifest: &mut ModManifest, source: &str) {
         || normalized.contains("on_load=")
         || normalized.contains("on_update=")
         || normalized.contains("on_unload=");
-    let client_runtime = normalized.contains("runtime.ecs.")
-        || normalized.contains("runtime.world.")
-        || normalized.contains("runtime.patch.");
     // Capabilities are author-declared contract entries. Source inspection may
     // derive execution metadata, but it must never silently grant permissions.
-    manifest.target = if runtime && !assets && client_runtime {
-        crate::ModTarget::Client
-    } else {
-        crate::ModTarget::Both
-    };
     let apply_at = if runtime && !assets {
         "live"
     } else {
@@ -191,6 +183,21 @@ pub fn parse_manifest_with_extension(
         // Mods remain disabled until activation is explicitly persisted. This
         // also keeps EML packages without an extension safe by default.
         .unwrap_or(false);
+    let target = match extension.get("targets").and_then(Value::as_array) {
+        Some(targets) => {
+            let client = targets.iter().any(|value| value == "client");
+            let server = targets.iter().any(|value| value == "server");
+            match (client, server) {
+                (true, true) => crate::ModTarget::ClientServer,
+                (false, true) => crate::ModTarget::Server,
+                _ => crate::ModTarget::Client,
+            }
+        }
+        None if extension.get("launcher").and_then(Value::as_str) == Some("SF") => {
+            crate::ModTarget::Client
+        }
+        None => crate::ModTarget::ClientServer,
+    };
     let settings = extension
         .get("settings")
         .cloned()
@@ -233,6 +240,10 @@ pub fn parse_manifest_with_extension(
     let object = value.as_object_mut().ok_or("mod.json must be an object")?;
     object.remove("$schema");
     object.insert("enabled".into(), json!(enabled));
+    object.insert(
+        "target".into(),
+        serde_json::to_value(target).map_err(|error| error.to_string())?,
+    );
     object.insert("settingValues".into(), Value::Object(effective));
     object.insert("settings".into(), json!(definitions));
     object.insert("groups".into(), json!(groups));
@@ -461,6 +472,50 @@ mod tests {
         assert_eq!(manifest.settings[0].label, "Enable feature");
         assert_eq!(manifest.groups[0].settings, vec!["enabledFeature"]);
         assert_eq!(manifest.groups[0].actions[0].id, "reset");
+    }
+
+    #[test]
+    fn extension_targets_apply_to_all_packages_without_changing_mod_json() {
+        let manifest = parse_manifest_with_extension(
+            Path::new("."),
+            json!({
+                "id": "shared-runtime-mod",
+                "name": "Shared Runtime Mod",
+                "version": "1.0.0",
+                "capabilities": ["runtime"]
+            }),
+            Some(json!({"schemaVersion":1,"enabled":true,"targets":["client","server"]})),
+        ).expect("targets are read from extended.mod.json");
+
+        assert!(matches!(manifest.target, crate::ModTarget::ClientServer));
+    }
+
+    #[test]
+    fn legacy_eml_without_extension_defaults_to_client_and_server() {
+        let mut manifest = parse_manifest(
+            Path::new("."),
+            json!({
+                "id": "legacy-runtime-mod",
+                "name": "Legacy Runtime Mod",
+                "version": "1.0.0",
+                "capabilities": ["runtime"]
+            }),
+        )
+        .expect("legacy EML manifest remains valid");
+
+        infer_api_contract(&mut manifest, "runtime.patch.set_enabled('runtime.patch.example', true)");
+
+        assert!(matches!(manifest.target, crate::ModTarget::ClientServer));
+    }
+
+    #[test]
+    fn mod_targets_match_only_the_declared_processes() {
+        assert!(crate::ModTarget::Client.supports_process(false));
+        assert!(!crate::ModTarget::Client.supports_process(true));
+        assert!(!crate::ModTarget::Server.supports_process(false));
+        assert!(crate::ModTarget::Server.supports_process(true));
+        assert!(crate::ModTarget::ClientServer.supports_process(false));
+        assert!(crate::ModTarget::ClientServer.supports_process(true));
     }
 
     #[test]

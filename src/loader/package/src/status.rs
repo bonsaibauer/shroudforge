@@ -86,7 +86,11 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         .and_then(|path| crate::ModEnvironment::load(path).map_err(|_| "mod discovery failed"))
     {
         Ok(env) => {
-            let (plan, failures) = env.plan_report(server, api);
+            let (plan, failures) = env.plan_report_detailed(server, api);
+            let plan_issues: std::collections::HashMap<_, _> = failures
+                .iter()
+                .map(|issue| (issue.mod_id.as_str(), issue))
+                .collect();
             let applied_assets = crate::prepared::fingerprint(&env, server, api)
                 .ok()
                 .is_some_and(|fingerprint| crate::prepared::matches(root, &fingerprint));
@@ -106,10 +110,22 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     .as_ref()
                     .filter(|_| runtime_fresh)
                     .and_then(|value| value["effects"].get(&manifest.id));
+                let runtime_error = runtime
+                    .as_ref()
+                    .filter(|_| runtime_fresh)
+                    .and_then(|value| value["errors"].get(&manifest.id))
+                    .and_then(Value::as_str);
                 let dll_still_loaded = native_dll_effect
                     .and_then(|value| value["state"].as_str())
                     .is_some_and(|state| matches!(state, "loading" | "loaded"));
-                let state = if !manifest.enabled && dll_still_loaded {
+                let state = if runtime_mod && runtime_error.is_some_and(|reason| reason.starts_with("plan-blocked:") || reason.starts_with("dependency-blocked:")) {
+                    let reason = runtime_error.unwrap();
+                    json!({"state":"blocked","code":"runtime-plan","detail":reason.split_once(": ").map(|(_, detail)| detail).unwrap_or(reason)})
+                } else if runtime_mod && runtime_error.is_some() {
+                    json!({"state":"failed","detail":runtime_error.unwrap()})
+                } else if manifest.enabled && let Some(issue) = plan_issues.get(manifest.id.as_str()) {
+                    json!({"state":"blocked","code":issue.code,"detail":issue.detail})
+                } else if !manifest.enabled && dll_still_loaded {
                     json!({"state":"restart-required","code":"native-dll-disable-pending","detail":"The mod is disabled in settings, but its native DLL is still loaded in this game session. It will not load after the next game restart."})
                 } else if !manifest.enabled {
                     json!({"state":"disabled","detail":"The mod is disabled."})
@@ -119,8 +135,12 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                         json!({"state":"failed","detail":reason})
                     } else if pregame_mod && !applied_assets {
                         json!({"state":"restart-required","detail":"This mod's asset changes are not included in the current startup preparation. Restart the game to apply them."})
-                    } else if runtime["loaded"].get(&manifest.id).is_some_and(|loaded| loaded != &fingerprint)
-                        || (plan.iter().any(|candidate| candidate.info().id == manifest.id)
+                    } else if runtime["loaded"]
+                        .get(&manifest.id)
+                        .is_some_and(|loaded| loaded != &fingerprint)
+                        || (plan
+                            .iter()
+                            .any(|candidate| candidate.info().id == manifest.id)
                             && runtime["loaded"].get(&manifest.id).is_none())
                     {
                         json!({"state":"restart-required","detail":"The current game session has not loaded this mod configuration. Restart the game to apply it."})
@@ -172,10 +192,18 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     json!({"state":"restart-required","detail":"This mod's asset changes are not included in startup preparation. Restart the game to apply them."})
                 } else if pregame_mod && !runtime_mod && applied_assets {
                     match native_dll_effect.and_then(|value| value["state"].as_str()) {
-                        Some("error") => json!({"state":"failed","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL failed to load.")}),
-                        Some("loading") => json!({"state":"applied","detail":"Asset changes are applied; the native DLL is still loading."}),
-                        Some("loaded") => json!({"state":"applied","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("Asset changes and native DLL are active for this session.")}),
-                        _ => json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."}),
+                        Some("error") => {
+                            json!({"state":"failed","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL failed to load.")})
+                        }
+                        Some("loading") => {
+                            json!({"state":"applied","detail":"Asset changes are applied; the native DLL is still loading."})
+                        }
+                        Some("loaded") => {
+                            json!({"state":"applied","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("Asset changes and native DLL are active for this session.")})
+                        }
+                        _ => {
+                            json!({"state":"applied","detail":"This mod was included in the startup preparation pass for the current game and configuration."})
+                        }
                     }
                 } else if manifest.enabled {
                     json!({"state":"unconfirmed","detail":"Activation is saved; no current runtime report is available."})
@@ -184,25 +212,39 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 };
                 mod_states.insert(manifest.id.clone(), state);
             }
-            checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, inferred process scope, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.join("; ")}}));
+            checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, inferred process scope, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ")}}));
             let needs_prepare = plan.iter().any(|item| {
                 item.info()
                     .capabilities
                     .iter()
                     .any(|capability| capability.requires_pregame())
             });
+            let blocked_pregame = failures
+                .iter()
+                .filter(|issue| {
+                    env.mod_registry().get(&issue.mod_id).is_some_and(|item| {
+                        item.info().capabilities.iter().any(|capability| capability.requires_pregame())
+                    })
+                })
+                .count();
             let existing = crate::config::read_document(root, "applied").is_ok();
             if needs_prepare || existing {
                 assets = match crate::prepared::fingerprint(&env, server, api) {
                     Ok(fingerprint) => {
                         if crate::prepared::matches(root, &fingerprint) {
-                            json!({"state":"applied","detail":"Preparation record matches the game and current mod configuration."})
+                            if blocked_pregame > 0 {
+                                json!({"state":"partial","detail":format!("Preparation matches the runnable mods; {blocked_pregame} startup mod(s) were skipped because of compatibility or dependency issues.")})
+                            } else {
+                                json!({"state":"applied","detail":"Preparation record matches the game and current mod configuration."})
+                            }
                         } else {
                             json!({"state":"prepare-required","detail":"The startup preparation pass will apply this configuration on the next game start. Use `shroudforge launch` if the game has already passed its early loading window."})
                         }
                     }
                     Err(error) => json!({"state":"unknown","detail":error}),
                 };
+            } else if blocked_pregame > 0 {
+                assets = json!({"state":"partial","detail":format!("{blocked_pregame} startup mod(s) were skipped because of compatibility or dependency issues.")});
             } else {
                 assets = json!({"state":"not-required","detail":"No enabled pregame mods and no previous preparation record."});
             }

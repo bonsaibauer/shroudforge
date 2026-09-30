@@ -125,9 +125,7 @@ pub fn read_document(root: &Path, name: &str) -> Result<Value, String> {
         let state_path = crate::paths::state_file(root);
         let state = read_state_file(root)?;
         let Some(value) = state.get(section) else {
-            return Err(format!(
-                "{} has no {section} state", state_path.display()
-            ));
+            return Err(format!("{} has no {section} state", state_path.display()));
         };
         validate_document(root, name, value)?;
         return Ok(value.clone());
@@ -153,7 +151,10 @@ pub fn update_state_section(
         .and_then(Value::as_u64)
         .is_some_and(|version| version != 1)
     {
-        return Err(format!("unsupported schemaVersion in {}", crate::paths::state_file(root).display()));
+        return Err(format!(
+            "unsupported schemaVersion in {}",
+            crate::paths::state_file(root).display()
+        ));
     }
     state["schemaVersion"] = json!(1);
     let value = update(state.get(section))?;
@@ -169,7 +170,7 @@ pub fn window_state(root: &Path) -> Value {
 }
 
 pub fn request_window_visibility(root: &Path, module: &str, visible: bool) -> Result<(), String> {
-    if !matches!(module, "modloaderUi" | "debugConsole") {
+    if !matches!(module, "modloaderUi" | "debugConsole" | "worldEditor") {
         return Err("unknown window module".into());
     }
     update_state_section(root, "windows", |existing| {
@@ -187,7 +188,7 @@ pub fn request_window_visibility(root: &Path, module: &str, visible: bool) -> Re
 }
 
 pub fn publish_window_visibility(root: &Path, module: &str, visible: bool) -> Result<(), String> {
-    if !matches!(module, "modloaderUi" | "debugConsole") {
+    if !matches!(module, "modloaderUi" | "debugConsole" | "worldEditor") {
         return Err("unknown window module".into());
     }
     update_state_section(root, "windows", |existing| {

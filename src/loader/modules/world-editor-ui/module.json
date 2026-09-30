@@ -1,0 +1,9 @@
+{
+  "id": "shroudforge.world-editor-ui",
+  "name": "ShroudForge World Editor UI",
+  "version": "1.0.0",
+  "entrypoint": "shroudforge.exe",
+  "mode": "--world-editor-ui",
+  "toggleKey": 113,
+  "refreshMilliseconds": 400
+}

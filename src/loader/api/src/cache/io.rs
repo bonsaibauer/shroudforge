@@ -63,7 +63,7 @@ impl FileStateCache {
                     }
                 }
                 Err(e) => {
-                debug!(
+                    debug!(
                         error = %e,
                         path = cache_file.as_str(),
                         "Failed to create cache file"

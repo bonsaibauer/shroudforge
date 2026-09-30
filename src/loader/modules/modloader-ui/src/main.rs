@@ -21,6 +21,19 @@ mod windows {
         event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
     };
+    use windows::{
+        Win32::{
+            System::Com::{
+                CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+                CoTaskMemFree, CoUninitialize,
+            },
+            UI::Shell::{
+                FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, FileOpenDialog, IFileOpenDialog,
+                SIGDN_FILESYSPATH,
+            },
+        },
+        core::PCWSTR,
+    };
     use windows_sys::Win32::{
         Foundation::{
             CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, SetLastError, WAIT_OBJECT_0,
@@ -30,13 +43,6 @@ mod windows {
             Input::KeyboardAndMouse::GetAsyncKeyState,
             Shell::ShellExecuteW,
             WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
-        },
-    };
-    use windows::{
-        core::PCWSTR,
-        Win32::{
-            System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED},
-            UI::Shell::{FileOpenDialog, IFileOpenDialog, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, SIGDN_FILESYSPATH},
         },
     };
     use wry::{WebContext, WebViewBuilder};
@@ -62,6 +68,8 @@ mod windows {
         loader: String,
         #[serde(default = "default_check_minutes")]
         check_minutes: u64,
+        #[serde(default)]
+        include_prereleases: bool,
     }
 
     impl Default for ProviderConfig {
@@ -73,6 +81,7 @@ mod windows {
                 project_id: default_project_id(),
                 loader: default_loader(),
                 check_minutes: default_check_minutes(),
+                include_prereleases: false,
             }
         }
     }
@@ -142,9 +151,13 @@ mod windows {
         #[serde(default)]
         ids: Option<Vec<String>>,
         #[serde(default)]
+        selected: Option<bool>,
+        #[serde(default)]
         read: Option<bool>,
         #[serde(default)]
         project_id: Option<String>,
+        #[serde(default)]
+        title: Option<String>,
         #[serde(default)]
         message: Option<String>,
         #[serde(default)]
@@ -159,6 +172,8 @@ mod windows {
         request_id: Option<String>,
         #[serde(default)]
         visible: Option<bool>,
+        #[serde(default)]
+        wait_for_game: Option<bool>,
     }
 
     enum Command {
@@ -168,7 +183,15 @@ mod windows {
         RefreshMod(String, String),
         ReloadSettings(String),
         CheckUpdates(String),
-        StageUpdate(String),
+        StageUpdate(String, bool),
+        QueueSystemUpdate(String),
+        SelectUpdateQueueItems(Vec<String>, bool, String),
+        RemoveUpdateQueueItem(String, String),
+        StartUpdateQueue(Vec<String>, bool, bool, String),
+        ClearUpdateQueue(String),
+        CancelUpdate(String),
+        RestoreGamefiles(String),
+        CaptureGamefileOriginals(String),
         OpenUrl(String, String),
         SetModEnabled(String, bool, String, String),
         SaveModSettings(String, serde_json::Value, String, String),
@@ -178,8 +201,8 @@ mod windows {
         OpenPath(String, String),
         SetWindowVisibility(String, bool, String),
         SearchCatalog(String, String),
-        InstallMod(String, String),
-        UpdateMod(String, String),
+        InstallMod(String, String, String),
+        UpdateMod(String, String, String),
         SaveLanguage(String, String),
         RunModAction(String, String),
         RemoveMod(String),
@@ -214,6 +237,7 @@ mod windows {
         id: String,
         name: String,
         version: String,
+        dependencies: Vec<ModDependencyInfo>,
         ecosystem: &'static str,
         target: String,
         runtime: bool,
@@ -229,6 +253,16 @@ mod windows {
         changelog: Vec<String>,
         assets: std::collections::HashMap<String, String>,
         setting_values: serde_json::Value,
+    }
+
+    #[derive(Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ModDependencyInfo {
+        id: String,
+        version: String,
+        optional: bool,
+        installed_version: Option<String>,
+        status: String,
     }
 
     #[derive(Deserialize, Serialize)]
@@ -283,6 +317,7 @@ mod windows {
         current_build: u64,
         latest_version: Option<String>,
         update_available: bool,
+        prerelease: bool,
         state: String,
         message: Option<String>,
         release_url: Option<String>,
@@ -301,6 +336,7 @@ mod windows {
                 current_build: installed.build,
                 latest_version: None,
                 update_available: false,
+                prerelease: false,
                 state: "idle".into(),
                 message: None,
                 release_url: None,
@@ -322,6 +358,7 @@ mod windows {
         checksum: String,
         release_url: Option<String>,
         message: String,
+        prerelease: bool,
     }
 
     struct InstalledRelease {
@@ -332,6 +369,10 @@ mod windows {
     #[derive(Deserialize)]
     struct GithubRelease {
         tag_name: String,
+        #[serde(default)]
+        draft: bool,
+        #[serde(default)]
+        prerelease: bool,
         #[serde(default)]
         body: String,
         html_url: String,
@@ -362,6 +403,8 @@ mod windows {
         news_templates: serde_json::Value,
         read_notice_ids: Vec<String>,
         release: ReleaseState,
+        update_queue: serde_json::Value,
+        backup_management: serde_json::Value,
         settings: SnapshotSettings,
         catalog: CatalogState,
         locale: String,
@@ -481,6 +524,7 @@ mod windows {
             project_id: "bonsaibauer/shroudforge".into(),
             loader: default_loader(),
             check_minutes: 60,
+            include_prereleases: false,
         }
     }
 
@@ -568,12 +612,12 @@ mod windows {
             .with_always_on_top(true)
             .with_visible(arguments.desktop)
             .with_inner_size(if arguments.updater_window {
-                LogicalSize::new(560.0, 430.0)
+                LogicalSize::new(640.0, 620.0)
             } else {
                 LogicalSize::new(1180.0, modloader_height)
             })
             .with_min_inner_size(if arguments.updater_window {
-                LogicalSize::new(500.0, 380.0)
+                LogicalSize::new(540.0, 480.0)
             } else {
                 LogicalSize::new(860.0, 560.0)
             })
@@ -603,7 +647,43 @@ mod windows {
                 },
                 "reload-settings" => Command::ReloadSettings(value.request_id.unwrap_or_default()),
                 "check-updates" => Command::CheckUpdates(value.request_id.unwrap_or_default()),
-                "stage-update" => Command::StageUpdate(value.request_id.unwrap_or_default()),
+                "stage-update" => Command::StageUpdate(
+                    value.request_id.unwrap_or_default(),
+                    value.wait_for_game.unwrap_or(!arguments.desktop),
+                ),
+                "queue-system-update" => {
+                    Command::QueueSystemUpdate(value.request_id.unwrap_or_default())
+                }
+                "select-update-queue-items" => match value.selected {
+                    Some(selected) => Command::SelectUpdateQueueItems(
+                        value.ids.unwrap_or_default(),
+                        selected,
+                        value.request_id.unwrap_or_default(),
+                    ),
+                    _ => return,
+                },
+                "remove-update-queue-item" => match value.key {
+                    Some(id) => {
+                        Command::RemoveUpdateQueueItem(id, value.request_id.unwrap_or_default())
+                    }
+                    None => return,
+                },
+                "start-update-queue" => Command::StartUpdateQueue(
+                    value.ids.unwrap_or_default(),
+                    value.wait_for_game.unwrap_or(!arguments.desktop),
+                    !arguments.updater_window,
+                    value.request_id.unwrap_or_default(),
+                ),
+                "clear-update-queue" => {
+                    Command::ClearUpdateQueue(value.request_id.unwrap_or_default())
+                }
+                "cancel-update" => Command::CancelUpdate(value.request_id.unwrap_or_default()),
+                "restore-gamefiles" => {
+                    Command::RestoreGamefiles(value.request_id.unwrap_or_default())
+                }
+                "capture-gamefile-originals" => {
+                    Command::CaptureGamefileOriginals(value.request_id.unwrap_or_default())
+                }
                 "search-catalog" => match value.query {
                     Some(query) => {
                         Command::SearchCatalog(query, value.request_id.unwrap_or_default())
@@ -612,13 +692,15 @@ mod windows {
                 },
                 "install-mod" => match value.project_id {
                     Some(project_id) => {
-                        Command::InstallMod(project_id, value.request_id.unwrap_or_default())
+                        let title = value.title.unwrap_or_else(|| project_id.clone());
+                        Command::InstallMod(project_id, title, value.request_id.unwrap_or_default())
                     }
                     None => return,
                 },
                 "update-mod" => match value.mod_id {
                     Some(mod_id) => {
-                        Command::UpdateMod(mod_id, value.request_id.unwrap_or_default())
+                        let title = value.title.unwrap_or_else(|| mod_id.clone());
+                        Command::UpdateMod(mod_id, title, value.request_id.unwrap_or_default())
                     }
                     None => return,
                 },
@@ -741,7 +823,6 @@ mod windows {
         let mut next_refresh = Instant::now();
         let mut next_visibility_poll = Instant::now();
         let mut next_window_state_refresh = Instant::now();
-        let mut auto_stage_requested = false;
         let mut next_update_check = if module_config.system_update_provider.enabled {
             Instant::now()
         } else {
@@ -865,24 +946,212 @@ mod windows {
                                 async_sender.clone(),
                                 Some(request_id),
                             ),
-                            Command::StageUpdate(request_id) => {
-                                let wait_pid = runtime_pid(&arguments.root).unwrap_or_else(|| {
-                                    if arguments.updater_window {
-                                        0
-                                    } else if arguments.desktop {
-                                        unsafe { GetCurrentProcessId() }
-                                    } else {
-                                        arguments.game_pid
-                                    }
-                                });
+                            Command::StageUpdate(request_id, wait_for_game) => {
+                                let wait_pid = if !wait_for_game {
+                                    0
+                                } else {
+                                    runtime_pid(&arguments.root).unwrap_or(arguments.game_pid)
+                                };
                                 start_staging(
                                     arguments.root.clone(),
                                     release_state.clone(),
                                     async_sender.clone(),
                                     request_id,
                                     wait_pid,
-                                    !arguments.updater_window,
+                                    wait_for_game,
                                 )
+                            }
+                            Command::QueueSystemUpdate(request_id) => {
+                                let release = release_state
+                                    .lock()
+                                    .ok()
+                                    .and_then(|state| state.release.clone());
+                                let result = release.ok_or_else(|| {
+                                    "Check for system updates before adding one to the queue."
+                                        .to_owned()
+                                }).and_then(|release| {
+                                    shroudforge_updater::enqueue_system_update(
+                                        &arguments.root,
+                                        serde_json::json!({
+                                            "version":release.version,
+                                            "downloadUrl":release.download_url,
+                                            "checksum":release.checksum,
+                                            "releaseUrl":release.release_url,
+                                            "message":release.message,
+                                            "prerelease":release.prerelease
+                                        }),
+                                    )
+                                });
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Updates",
+                                    "Add system update to queue",
+                                    result,
+                                    "updates.queue.added",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                            }
+                            Command::SelectUpdateQueueItems(ids, selected, request_id) => {
+                                let result = shroudforge_updater::select_update_queue_items(
+                                    &arguments.root,
+                                    &ids,
+                                    selected,
+                                );
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Updates",
+                                    "Change update selection",
+                                    result,
+                                    "updates.queue.selectionChanged",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                            }
+                            Command::RemoveUpdateQueueItem(id, request_id) => {
+                                let result = shroudforge_updater::remove_update_queue_item(
+                                    &arguments.root,
+                                    &id,
+                                );
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Updates",
+                                    "Remove update from queue",
+                                    result,
+                                    "updates.queue.removed",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                            }
+                            Command::StartUpdateQueue(ids, wait_for_game, show_window, request_id) => {
+                                let result = shroudforge_updater::start_update_queue(
+                                    &arguments.root,
+                                    &ids,
+                                    wait_for_game,
+                                    show_window,
+                                );
+                                if result.is_ok() {
+                                    if let Ok(mut release) = release_state.lock() {
+                                        release.state = "queued".into();
+                                        release.message = Some("Selected updates are queued.".into());
+                                    }
+                                }
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Updates",
+                                    "Start update queue",
+                                    result,
+                                    "updates.queue.started",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                            }
+                            Command::ClearUpdateQueue(request_id) => {
+                                let result = shroudforge_updater::clear_update_queue(&arguments.root);
+                                let clear_succeeded = result.is_ok();
+                                if result.is_ok() {
+                                    if let Ok(mut release) = release_state.lock() {
+                                        release.state = "ready".into();
+                                        release.staged = false;
+                                        release.message = Some("Update queue cleared.".into());
+                                    }
+                                }
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Updates",
+                                    "Clear update queue",
+                                    result,
+                                    "updates.queue.cleared",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                                if arguments.updater_window && clear_succeeded {
+                                    *control_flow = ControlFlow::Exit;
+                                    return;
+                                }
+                            }
+                            Command::CancelUpdate(request_id) => {
+                                let result = shroudforge_updater::cancel_update_queue(&arguments.root);
+                                let clear_succeeded = result.is_ok();
+                                if result.is_ok() {
+                                    if let Ok(mut release) = release_state.lock() {
+                                        release.state = "ready".into();
+                                        release.staged = false;
+                                        release.message = Some("Update download cancelled.".into());
+                                    }
+                                }
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Updates",
+                                    "Cancel update",
+                                    result,
+                                    "updates.cancelled",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                                if arguments.updater_window && clear_succeeded {
+                                    *control_flow = ControlFlow::Exit;
+                                    return;
+                                }
+                            }
+                            Command::RestoreGamefiles(request_id) => {
+                                let target = if arguments.server { "server" } else { "client" };
+                                let result = if shroudforge_package::backups::originals_status(
+                                    &arguments.root, target)["status"] != "ready" {
+                                    Err("verified original game files are not available for this game build".into())
+                                } else {
+                                    disable_all_mods_for_gamefile_restore(&arguments.root)
+                                        .and_then(|()| shroudforge_updater::request_gamefiles_restore(&arguments.root))
+                                };
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Backup Management",
+                                    "Restore Gamefiles",
+                                    result,
+                                    "backups.restore.queued",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
+                            }
+                            Command::CaptureGamefileOriginals(request_id) => {
+                                let target = if arguments.server { "server" } else { "client" };
+                                let result = shroudforge_package::backups::capture_verified_originals(
+                                    &arguments.root,
+                                    target,
+                                ).map(|_| ());
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Backup Management",
+                                    "Capture verified original gamefiles",
+                                    result,
+                                    "backups.originals.captured",
+                                    None,
+                                    false,
+                                );
+                                next_refresh = Instant::now();
                             }
                             Command::SearchCatalog(query, request_id) => start_catalog_search(
                                 arguments.root.clone(),
@@ -892,17 +1161,19 @@ mod windows {
                                 async_sender.clone(),
                                 request_id,
                             ),
-                            Command::InstallMod(project_id, request_id) => start_mod_install(
+                            Command::InstallMod(project_id, title, request_id) => start_mod_install(
                                 arguments.root.clone(),
                                 active_provider.clone(),
                                 project_id,
+                                title,
                                 async_sender.clone(),
                                 request_id,
                             ),
-                            Command::UpdateMod(mod_id, request_id) => start_mod_update(
+                            Command::UpdateMod(mod_id, title, request_id) => start_mod_update(
                                 arguments.root.clone(),
                                 active_provider.clone(),
                                 mod_id,
+                                title,
                                 async_sender.clone(),
                                 request_id,
                             ),
@@ -1325,49 +1596,6 @@ mod windows {
                                 system_provider.check_minutes.clamp(5, 1440) * 60,
                             );
                     }
-                    if arguments.updater_window && !auto_stage_requested {
-                        let ready = release_state.lock().ok().is_some_and(|release| {
-                            release.state == "ready" && release.update_available
-                        });
-                        let has_pending = shroudforge_package::paths::updates_dir(&arguments.root)
-                            .join("pending.ready")
-                            .is_file();
-                        let operation_running = fs::read(
-                            shroudforge_package::paths::updates_dir(&arguments.root)
-                                .join("updater-status.json"),
-                        )
-                        .ok()
-                        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-                        .and_then(|value| {
-                            value
-                                .get("status")
-                                .and_then(serde_json::Value::as_str)
-                                .map(str::to_owned)
-                        })
-                        .is_some_and(|status| {
-                            matches!(
-                                status.as_str(),
-                                "queued"
-                                    | "downloading"
-                                    | "verifying"
-                                    | "extracting"
-                                    | "staged"
-                                    | "waitingForGame"
-                                    | "installing"
-                            )
-                        });
-                        if ready && !has_pending && !operation_running {
-                            auto_stage_requested = true;
-                            start_staging(
-                                arguments.root.clone(),
-                                release_state.clone(),
-                                async_sender.clone(),
-                                "updater-window-auto".into(),
-                                0,
-                                false,
-                            );
-                        }
-                    }
                     if Instant::now() >= next_refresh {
                         let next_position = read_central_config(&arguments.root)["modules"]
                             ["modloaderUi"]["window"]["position"]
@@ -1383,6 +1611,8 @@ mod windows {
                             if next.system_update_provider.enabled != system_provider.enabled
                                 || next.system_update_provider.check_minutes
                                     != system_provider.check_minutes
+                                || next.system_update_provider.include_prereleases
+                                    != system_provider.include_prereleases
                             {
                                 next_update_check = Instant::now();
                             }
@@ -1624,6 +1854,12 @@ mod windows {
         {
             config.system_update_provider.check_minutes = minutes;
         }
+        if let Some(include_prereleases) = value
+            .pointer("/modules/updates/system/includePrereleases")
+            .and_then(|v| v.as_bool())
+        {
+            config.system_update_provider.include_prereleases = include_prereleases;
+        }
         Ok(config)
     }
 
@@ -1703,7 +1939,8 @@ mod windows {
     }
 
     fn runtime_pid(root: &Path) -> Option<u32> {
-        let bytes = fs::read(shroudforge_package::paths::runtime_dir(root).join("heartbeat.json")).ok()?;
+        let bytes =
+            fs::read(shroudforge_package::paths::runtime_dir(root).join("heartbeat.json")).ok()?;
         let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
         let updated = value.get("updatedAt")?.as_u64()?;
         let now = SystemTime::now()
@@ -1742,8 +1979,7 @@ mod windows {
             .map(|value| value.clone())
             .unwrap_or_else(|_| ReleaseState::idle(installed_release(&arguments.root), false));
         if let Ok(bytes) = fs::read(
-            shroudforge_package::paths::updates_dir(&arguments.root)
-                .join("updater-status.json"),
+            shroudforge_package::paths::updates_dir(&arguments.root).join("updater-status.json"),
         ) {
             if let Ok(status) = serde_json::from_slice::<serde_json::Value>(&bytes) {
                 if status["operation"] == "systemStage" {
@@ -1808,6 +2044,11 @@ mod windows {
                 .unwrap_or_else(|| serde_json::json!({})),
             read_notice_ids: read_news_state(&arguments.root),
             release: release_snapshot,
+            update_queue: shroudforge_updater::read_update_queue(&arguments.root),
+            backup_management: shroudforge_package::backups::management_status(
+                &arguments.root,
+                if arguments.server { "server" } else { "client" },
+            ),
             settings: SnapshotSettings {
                 config_revision: config_revision(&central),
                 module_preferences: central["modules"].clone(),
@@ -1827,8 +2068,11 @@ mod windows {
                     .map(str::to_owned),
                 active_runtime_profile: active_runtime_profile(&arguments.root),
                 runtime_profiles: runtime_profile_ids(&arguments.root),
-                runtime_profile_directory: shroudforge_package::paths::runtime_profiles_dir(&arguments.root)
-                    .display().to_string(),
+                runtime_profile_directory: shroudforge_package::paths::runtime_profiles_dir(
+                    &arguments.root,
+                )
+                .display()
+                .to_string(),
                 update_enabled: provider.enabled,
                 base_url: provider.base_url.clone(),
                 project_id: provider.project_id.clone(),
@@ -1864,11 +2108,17 @@ mod windows {
         let mut profiles = Vec::new();
         let mut pending = vec![directory];
         while let Some(current) = pending.pop() {
-            let Ok(entries) = fs::read_dir(current) else { continue; };
+            let Ok(entries) = fs::read_dir(current) else {
+                continue;
+            };
             for entry in entries.flatten() {
                 if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
                     pending.push(entry.path());
-                } else if entry.path().extension().is_some_and(|extension| extension == "json") {
+                } else if entry
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension == "json")
+                {
                     if let Ok(bytes) = fs::read(entry.path()) {
                         if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
                             if let Some(id) = value.get("id").and_then(serde_json::Value::as_str) {
@@ -1896,15 +2146,36 @@ mod windows {
             return Vec::new();
         };
         let catalog_mods = catalog_installed_mod_ids(root);
+        let manifests: Vec<_> = entries
+            .flatten()
+            .filter_map(|entry| {
+                let package = entry.path();
+                shroudforge_package::config::read_manifest_path(root, &package)
+                    .and_then(|manifest| {
+                        serde_json::to_value(manifest)
+                            .map(|value| (package, value))
+                            .map_err(|error| error.to_string())
+                    })
+                    .ok()
+            })
+            .collect();
+        let installed: std::collections::HashMap<String, (String, bool)> = manifests
+            .iter()
+            .filter_map(|(_, value)| {
+                Some((
+                    value.get("id")?.as_str()?.to_owned(),
+                    (
+                        value.get("version")?.as_str()?.to_owned(),
+                        value
+                            .get("enabled")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(false),
+                    ),
+                ))
+            })
+            .collect();
         let mut mods = Vec::new();
-        for entry in entries.flatten() {
-            let package = entry.path();
-            let Some(value) = shroudforge_package::config::read_manifest_path(root, &package)
-                .and_then(|manifest| serde_json::to_value(manifest).map_err(|e| e.to_string()))
-                .ok()
-            else {
-                continue;
-            };
+        for (package, value) in manifests {
             let Some(id) = value.get("id").and_then(|value| value.as_str()) else {
                 continue;
             };
@@ -1917,6 +2188,48 @@ mod windows {
                 .and_then(|value| value.as_str())
                 .map(str::to_owned);
             let assets = read_mod_assets(&package, icon.as_deref());
+            let dependencies = value
+                .get("dependencies")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|dependency| {
+                    let id = dependency.get("id")?.as_str()?.to_owned();
+                    let version = dependency.get("version")?.as_str()?.to_owned();
+                    let optional = dependency
+                        .get("optional")
+                        .and_then(serde_json::Value::as_bool)
+                        .unwrap_or(false);
+                    let installed_version = installed.get(&id).map(|(version, _)| version.clone());
+                    let status = if id == "shroudforge-api" {
+                        "loader-api"
+                    } else if let Some((candidate_version, enabled)) = installed.get(&id) {
+                        match semver::VersionReq::parse(&version)
+                            .ok()
+                            .zip(semver::Version::parse(candidate_version).ok())
+                        {
+                            Some((requirement, candidate)) if !requirement.matches(&candidate) => {
+                                "version-mismatch"
+                            }
+                            Some(_) if !*enabled && optional => "optional-disabled",
+                            Some(_) if !*enabled => "disabled",
+                            Some(_) => "installed",
+                            None => "invalid-version",
+                        }
+                    } else if optional {
+                        "optional-missing"
+                    } else {
+                        "missing"
+                    };
+                    Some(ModDependencyInfo {
+                        id,
+                        version,
+                        optional,
+                        installed_version,
+                        status: status.into(),
+                    })
+                })
+                .collect();
             mods.push(ModInfo {
                 revision,
                 id: id.into(),
@@ -1930,11 +2243,12 @@ mod windows {
                     .and_then(|value| value.as_str())
                     .unwrap_or("unknown")
                     .into(),
+                dependencies,
                 ecosystem,
                 target: value
                     .get("target")
                     .and_then(|value| value.as_str())
-                    .unwrap_or("both")
+                    .unwrap_or("client, server")
                     .into(),
                 runtime: value
                     .get("capabilities")
@@ -2624,6 +2938,40 @@ mod windows {
         })
     }
 
+    fn disable_all_mods_for_gamefile_restore(root: &Path) -> Result<(), String> {
+        let enabled = read_mods(root)
+            .into_iter()
+            .filter(|mod_info| mod_info.enabled)
+            .collect::<Vec<_>>();
+        let mut errors = Vec::new();
+        let mut disabled = Vec::new();
+        for item in &enabled {
+            match set_mod_enabled(root, &item.id, false, &item.revision) {
+                Ok(()) => disabled.push(item.id.clone()),
+                Err(error) => errors.push(format!("{}: {error}", item.id)),
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            let current = read_mods(root);
+            for id in &disabled {
+                if let Some(item) = current.iter().find(|item| &item.id == id) {
+                    if let Err(error) = set_mod_enabled(root, id, true, &item.revision) {
+                        errors.push(format!(
+                            "could not restore {} to its previous enabled state: {error}",
+                            id
+                        ));
+                    }
+                }
+            }
+            Err(format!(
+                "could not disable every mod; gamefiles were not queued for restoration. {}",
+                errors.join("; ")
+            ))
+        }
+    }
+
     fn update_mod_extension(
         root: &Path,
         id: &str,
@@ -2643,7 +2991,7 @@ mod windows {
             Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes)
                 .map_err(|error| error.to_string())?,
             Err(_error) if !package_has_file(&package, "extended.mod.json")? => {
-                serde_json::json!({"$schema":"https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json","schemaVersion":1,"enabled":manifest.enabled,"launcher":"EML","settings":{}})
+                serde_json::json!({"$schema":"https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json","schemaVersion":1,"enabled":manifest.enabled,"targets":["client","server"],"launcher":"EML","settings":{}})
             }
             Err(error) => return Err(error),
         };
@@ -2652,6 +3000,26 @@ mod windows {
             .ok_or("extended.mod.json must be an object")?
             .entry("settings")
             .or_insert_with(|| serde_json::json!({}));
+        let targets = if extension.get("launcher").and_then(|value| value.as_str()) == Some("SF") {
+            serde_json::json!(["client"])
+        } else {
+            serde_json::json!(["client", "server"])
+        };
+        let object = extension
+            .as_object_mut()
+            .ok_or("extended.mod.json must be an object")?;
+        if !object.contains_key("targets") {
+            let old = std::mem::take(object);
+            let mut migrated = serde_json::Map::new();
+            for (key, value) in old {
+                let insert_target = key == "enabled";
+                migrated.insert(key, value);
+                if insert_target {
+                    migrated.insert("targets".into(), targets.clone());
+                }
+            }
+            *object = migrated;
+        }
         update(&mut extension)?;
         shroudforge_package::config::validate_document(root, "extended-mod", &extension)?;
         let wire_manifest = serde_json::from_slice(&read_package_file(&package, "mod.json")?)
@@ -2927,13 +3295,18 @@ mod windows {
             });
         }
         if scope == "paths" {
-            if !matches!(key, "mods" | "state" | "logs" | "cache" | "exports" | "updates" | "ui" | "runtime") {
+            if !matches!(
+                key,
+                "mods" | "state" | "logs" | "cache" | "exports" | "updates" | "ui" | "runtime"
+            ) {
                 return Err("unsupported storage path".into());
             }
             let normalized = if setting.is_null() {
                 serde_json::Value::Null
             } else {
-                let text = setting.as_str().ok_or("storage path must be a folder path or null")?;
+                let text = setting
+                    .as_str()
+                    .ok_or("storage path must be a folder path or null")?;
                 let selected = PathBuf::from(text);
                 if !selected.is_absolute() || !selected.is_dir() {
                     return Err("select an existing folder".into());
@@ -2954,11 +3327,18 @@ mod windows {
                 return Err("unsupported runtime setting".into());
             }
             if let Some(id) = setting.as_str() {
-                if !runtime_profile_ids(root).iter().any(|profile| profile == id) {
-                    return Err("runtime profile was not found under shroudforge/runtime/profiles".into());
+                if !runtime_profile_ids(root)
+                    .iter()
+                    .any(|profile| profile == id)
+                {
+                    return Err(
+                        "runtime profile was not found under shroudforge/runtime/profiles".into(),
+                    );
                 }
             } else if !setting.is_null() {
-                return Err("runtime profile selection must be a profile id or null for automatic".into());
+                return Err(
+                    "runtime profile selection must be a profile id or null for automatic".into(),
+                );
             }
             return shroudforge_package::config::update_loader(root, |value| {
                 value["runtime"]["profileId"] = setting.clone();
@@ -2985,6 +3365,7 @@ mod windows {
                 matches!(key, "startPage" | "toggleKey" | "refreshMilliseconds")
                     || key == "window.position"
             }
+            "worldEditor" => key == "enabled",
             "runtimeDiagnostics" => matches!(
                 key,
                 "intervalMilliseconds"
@@ -2993,7 +3374,10 @@ mod windows {
                     | "onlyChanges"
                     | "areas"
             ),
-            "updates.system" => matches!(key, "enabled" | "checkMinutes" | "channel"),
+            "updates.system" => matches!(
+                key,
+                "enabled" | "checkMinutes" | "channel" | "includePrereleases"
+            ),
             _ => false,
         };
         if !valid {
@@ -3024,7 +3408,9 @@ mod windows {
             _ => return Err("unsupported storage folder".into()),
         };
         let initialized = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
-        initialized.ok().map_err(|error| format!("could not initialize the Windows folder picker: {error}"))?;
+        initialized
+            .ok()
+            .map_err(|error| format!("could not initialize the Windows folder picker: {error}"))?;
         struct ComUninitialize;
         impl Drop for ComUninitialize {
             fn drop(&mut self) {
@@ -3034,26 +3420,35 @@ mod windows {
         let _com = ComUninitialize;
 
         let title: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
-        let dialog = unsafe { CoCreateInstance::<_, IFileOpenDialog>(&FileOpenDialog, None, CLSCTX_INPROC_SERVER) }
-            .map_err(|error| format!("could not open the Windows folder picker: {error}"))?;
+        let dialog = unsafe {
+            CoCreateInstance::<_, IFileOpenDialog>(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)
+        }
+        .map_err(|error| format!("could not open the Windows folder picker: {error}"))?;
         unsafe {
-            dialog.SetTitle(PCWSTR(title.as_ptr()))
+            dialog
+                .SetTitle(PCWSTR(title.as_ptr()))
                 .and_then(|()| dialog.SetOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM))
-                .map_err(|error| format!("could not configure the Windows folder picker: {error}"))?;
-            dialog.Show(None)
+                .map_err(|error| {
+                    format!("could not configure the Windows folder picker: {error}")
+                })?;
+            dialog
+                .Show(None)
                 .map_err(|_| "folder selection was cancelled".to_owned())?;
         }
         let selected = unsafe { dialog.GetResult() }
             .map_err(|error| format!("could not read the selected folder: {error}"))?;
         let display_name = unsafe { selected.GetDisplayName(SIGDN_FILESYSPATH) }
             .map_err(|error| format!("could not read the selected folder: {error}"))?;
-        let path_string: Result<String, std::string::FromUtf16Error> = unsafe { display_name.to_string() };
+        let path_string: Result<String, std::string::FromUtf16Error> =
+            unsafe { display_name.to_string() };
         unsafe { CoTaskMemFree(Some(display_name.0.cast())) };
         let path = PathBuf::from(path_string.map_err(|error| error.to_string())?);
         if !path.is_dir() {
             return Err("select an existing folder".into());
         }
-        Ok(serde_json::Value::String(path.to_string_lossy().into_owned()))
+        Ok(serde_json::Value::String(
+            path.to_string_lossy().into_owned(),
+        ))
     }
 
     fn storage_path(root: &Path, key: &str) -> Result<PathBuf, String> {
@@ -3076,14 +3471,18 @@ mod windows {
     }
 
     fn storage_paths(root: &Path) -> Vec<StoragePath> {
-        ["mods", "state", "logs", "cache", "exports", "updates", "ui", "runtime"]
-            .into_iter()
-            .filter_map(|id| Some(StoragePath {
+        [
+            "mods", "state", "logs", "cache", "exports", "updates", "ui", "runtime",
+        ]
+        .into_iter()
+        .filter_map(|id| {
+            Some(StoragePath {
                 id: id.to_owned(),
                 path: storage_path(root, id).ok()?.display().to_string(),
                 default_path: default_storage_path(root, id).ok()?.display().to_string(),
-            }))
-            .collect()
+            })
+        })
+        .collect()
     }
 
     fn open_storage_path(root: &Path, key: &str) -> Result<(), String> {
@@ -3104,6 +3503,7 @@ mod windows {
             project_id: settings.project_id.trim().to_owned(),
             loader: default_loader(),
             check_minutes: settings.check_minutes.clamp(5, 1440),
+            include_prereleases: false,
         };
         if provider.base_url.is_empty() || provider.project_id.is_empty() {
             return Err("update provider fields must not be empty".into());
@@ -3151,7 +3551,7 @@ mod windows {
                         value["modules"][module]["window"]["position"] = position.clone();
                     }
                 }
-                for key in ["enabled", "checkMinutes", "channel"] {
+                for key in ["enabled", "checkMinutes", "channel", "includePrereleases"] {
                     if let Some(setting) = preferences.pointer(&format!("/updates/system/{key}")) {
                         value["modules"]["updates"]["system"][key] = setting.clone();
                     }
@@ -3383,6 +3783,7 @@ mod windows {
         root: PathBuf,
         provider: ProviderConfig,
         project_id: String,
+        title: String,
         results: mpsc::Sender<AsyncUiResult>,
         request_id: String,
     ) {
@@ -3409,6 +3810,7 @@ mod windows {
         let result = shroudforge_updater::request_mod_install(
             &root,
             &project_id,
+            &title,
             serde_json::to_value(provider).unwrap_or_default(),
         );
         match &result {
@@ -3442,6 +3844,7 @@ mod windows {
         root: PathBuf,
         provider: ProviderConfig,
         mod_id: String,
+        title: String,
         results: mpsc::Sender<AsyncUiResult>,
         request_id: String,
     ) {
@@ -3461,6 +3864,7 @@ mod windows {
                 &root,
                 &project_id,
                 &mod_id,
+                &title,
                 serde_json::to_value(provider).unwrap_or_default(),
             )
             .map(|()| format!("Update queued for {mod_id}.")),
@@ -3500,12 +3904,16 @@ mod windows {
             .find(|pair| pair[0] == "--root")
             .map(|pair| PathBuf::from(&pair[1]))
             .ok_or("missing --root")?;
-        let request_path = shroudforge_package::paths::updates_dir(&root).join("mod-install-queue.json");
+        let request_path =
+            shroudforge_package::paths::updates_dir(&root).join("mod-install-queue.json");
         let result: Result<String, String> = (|| {
             let bytes = fs::read(&request_path)
                 .map_err(|e| format!("cannot read mod install request: {e}"))?;
             let request: serde_json::Value = serde_json::from_slice(&bytes)
                 .map_err(|e| format!("invalid mod install request: {e}"))?;
+            let queue_item_id = request["queueItemId"]
+                .as_str()
+                .ok_or("request has no queueItemId")?;
             let project_id = request["projectId"]
                 .as_str()
                 .ok_or("request has no projectId")?;
@@ -3527,7 +3935,13 @@ mod windows {
             if operation != "install" && operation != "update" {
                 return Err(format!("unsupported catalog operation: {operation}"));
             }
-            let installed = install_mod_from_catalog(&root, &provider, project_id, update_mod_id)?;
+            let installed = install_mod_from_catalog(
+                &root,
+                &provider,
+                project_id,
+                update_mod_id,
+                queue_item_id,
+            )?;
             Ok(format!(
                 "{} {} package(s) for {project_id}",
                 if update_mod_id.is_some() {
@@ -3565,6 +3979,7 @@ mod windows {
         provider: &ProviderConfig,
         project_id: &str,
         update_mod_id: Option<&str>,
+        queue_item_id: &str,
     ) -> Result<Vec<String>, String> {
         if !provider.enabled || provider.kind != "shroudedit" {
             return Err("ShroudEdit access is disabled".into());
@@ -3628,14 +4043,21 @@ mod windows {
             for item in resolved {
                 let is_primary_update = update_mod_id.is_some() && item.project_id == project_id;
                 if is_primary_update {
-                    let staged =
-                        download_catalog_version(root, provider, &client, &item, update_mod_id)?;
+                    let staged = download_catalog_version(
+                        root,
+                        provider,
+                        &client,
+                        &item,
+                        update_mod_id,
+                        queue_item_id,
+                    )?;
                     staged_update =
                         Some((item.project_id.clone(), item.version_id.clone(), staged.1));
                     installed.push(staged.0);
                     continue;
                 }
-                let installed_mod = download_catalog_version(root, provider, &client, &item, None)?;
+                let installed_mod =
+                    download_catalog_version(root, provider, &client, &item, None, queue_item_id)?;
                 installed_paths.push(installed_mod.1.clone());
                 remember_catalog_install(
                     root,
@@ -3720,7 +4142,14 @@ mod windows {
         client: &reqwest::blocking::Client,
         resolved: &ResolvedContent,
         update_mod_id: Option<&str>,
+        queue_item_id: &str,
     ) -> Result<(String, PathBuf), String> {
+        shroudforge_updater::set_active_queue_item_state(
+            root,
+            queue_item_id,
+            "downloading",
+            Some("Downloading mod package"),
+        )?;
         let response = client
             .get(format!(
                 "{}/v3/version/{}",
@@ -3767,14 +4196,29 @@ mod windows {
             return Err("Mod package exceeds 512 MiB".into());
         }
         let mut bytes = Vec::new();
-        response
-            .take(MAX_MOD_BYTES + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|error| error.to_string())?;
+        let mut response = response.take(MAX_MOD_BYTES + 1);
+        let mut buffer = [0u8; 1024 * 1024];
+        loop {
+            shroudforge_updater::check_update_cancelled(root)?;
+            let count = response
+                .read(&mut buffer)
+                .map_err(|error| error.to_string())?;
+            if count == 0 {
+                break;
+            }
+            bytes.extend_from_slice(&buffer[..count]);
+        }
+        shroudforge_updater::check_update_cancelled(root)?;
         if bytes.len() as u64 > MAX_MOD_BYTES {
             return Err("Mod package exceeds 512 MiB".into());
         }
         verify_mod_hash(&bytes, &file.hashes)?;
+        shroudforge_updater::set_active_queue_item_state(
+            root,
+            queue_item_id,
+            "installing",
+            Some("Download verified; preparing mod installation"),
+        )?;
 
         let downloads = shroudforge_package::paths::ui_data_dir(root).join("downloads");
         fs::create_dir_all(&downloads).map_err(|error| error.to_string())?;
@@ -4055,8 +4499,8 @@ mod windows {
         results: mpsc::Sender<AsyncUiResult>,
         request_id: Option<String>,
     ) {
-        let updater_status_path = shroudforge_package::paths::updates_dir(&root)
-            .join("updater-status.json");
+        let updater_status_path =
+            shroudforge_package::paths::updates_dir(&root).join("updater-status.json");
         let updater_status = std::fs::read(&updater_status_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -4125,6 +4569,7 @@ mod windows {
                             release.build,
                         );
                         value.latest_version = Some(release.version.clone());
+                        value.prerelease = release.prerelease;
                         value.release_url = release.release_url.clone();
                         value.message = Some(if value.update_available {
                             release.message.clone()
@@ -4143,6 +4588,7 @@ mod windows {
                     }
                     Ok(None) => {
                         value.update_available = false;
+                        value.prerelease = false;
                         value.latest_version = None;
                         value.release_url = None;
                         value.release = None;
@@ -4206,7 +4652,7 @@ mod windows {
             .build()
             .map_err(|error| error.to_string())?;
         let url = format!(
-            "{}/repos/{}/releases/latest",
+            "{}/repos/{}/releases?per_page=100",
             provider.base_url.trim_end_matches('/'),
             provider.project_id.trim_matches('/')
         );
@@ -4222,22 +4668,47 @@ mod windows {
         if !response.status().is_success() {
             return Err(format!("GitHub returned HTTP {}", response.status()));
         }
-        let release: GithubRelease = response
+        let releases: Vec<GithubRelease> = response
             .json()
             .map_err(|error| format!("Invalid GitHub response: {error}"))?;
-        let archive = release
-            .assets
-            .iter()
-            .find(|asset| asset.name.starts_with("shroudforge-") && asset.name.ends_with(".zip"))
-            .ok_or("GitHub release does not contain a ShroudForge ZIP")?;
-        let checksum_name = format!("{}.sha256", archive.name);
-        let checksum_asset = release
-            .assets
-            .iter()
-            .find(|asset| asset.name == checksum_name)
-            .ok_or("GitHub release does not contain a matching .zip.sha256 file")?;
+        let mut eligible = releases
+            .into_iter()
+            .filter(|release| {
+                !release.draft && (provider.include_prereleases || !release.prerelease)
+            })
+            .filter_map(|release| {
+                let version = release.tag_name.trim_start_matches('v').to_owned();
+                let (base_version, build) = parse_release_tag(&version).ok()?;
+                let parsed_version = Version::parse(&base_version).ok()?;
+                let archive = release.assets.iter().find(|asset| {
+                    asset.name.starts_with("shroudforge-") && asset.name.ends_with(".zip")
+                })?;
+                let checksum_name = format!("{}.sha256", archive.name);
+                let checksum_asset = release
+                    .assets
+                    .iter()
+                    .find(|asset| asset.name == checksum_name)?;
+                let archive_url = archive.browser_download_url.clone();
+                let checksum_url = checksum_asset.browser_download_url.clone();
+                Some((
+                    parsed_version,
+                    build,
+                    release,
+                    archive_url,
+                    checksum_url,
+                    base_version,
+                    version,
+                ))
+            })
+            .collect::<Vec<_>>();
+        eligible.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+        let Some((_, build, release, archive_url, checksum_url, base_version, version)) =
+            eligible.pop()
+        else {
+            return Ok(None);
+        };
         let checksum_response = client
-            .get(&checksum_asset.browser_download_url)
+            .get(&checksum_url)
             .send()
             .map_err(|error| format!("Could not download GitHub checksum: {error}"))?;
         if !checksum_response.status().is_success() {
@@ -4257,15 +4728,14 @@ mod windows {
         if checksum.len() != 64 || !checksum.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err("GitHub release does not contain a valid SHA-256 checksum".into());
         }
-        let version = release.tag_name.trim_start_matches('v').to_owned();
-        let (base_version, build) = parse_release_tag(&version)?;
         Ok(Some(Release {
             version,
             base_version,
             build,
-            download_url: archive.browser_download_url.clone(),
+            download_url: archive_url,
             checksum,
             release_url: Some(release.html_url),
+            prerelease: release.prerelease,
             message: if release.body.trim().is_empty() {
                 "A new ShroudForge version is available on GitHub.".into()
             } else {
@@ -4278,6 +4748,7 @@ mod windows {
         let tag = tag.trim_start_matches('v');
         let (version, build) = tag
             .rsplit_once("-build.")
+            .or_else(|| tag.rsplit_once("-dev."))
             .ok_or_else(|| format!("Invalid ShroudForge release tag: {tag}"))?;
         Version::parse(version)
             .map_err(|error| format!("Invalid ShroudForge version '{version}': {error}"))?;
@@ -4308,7 +4779,7 @@ mod windows {
         results: mpsc::Sender<AsyncUiResult>,
         request_id: String,
         wait_pid: u32,
-        open_progress_window: bool,
+        wait_for_game: bool,
     ) {
         let release = {
             let Ok(mut value) = state.lock() else {
@@ -4355,13 +4826,9 @@ mod windows {
         let version = release.version.clone();
         thread::spawn(move || {
             let request = serde_json::json!({"version":release.version,"downloadUrl":release.download_url,"checksum":release.checksum});
-            let result = shroudforge_updater::request_system_stage(&root, request, wait_pid);
-            let result = result.and_then(|()| {
-                if open_progress_window {
-                    shroudforge_updater::request_update_window(&root).map_err(|error| format!("Update was queued, but its progress window could not be opened: {error}"))?;
-                }
-                Ok(())
-            });
+            let result =
+                shroudforge_updater::request_system_stage(&root, request, wait_pid, wait_for_game);
+            let result = result;
             let feedback = match result {
                 Ok(()) => Ok(format!(
                     "Download of version {version} queued in the independent updater."

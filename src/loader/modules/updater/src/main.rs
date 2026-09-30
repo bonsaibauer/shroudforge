@@ -3,17 +3,80 @@ mod windows {
     use std::{
         fs,
         path::{Path, PathBuf},
-        time::{SystemTime, UNIX_EPOCH},
+        time::SystemTime,
     };
-    use windows_sys::Win32::{
-        Foundation::{
-            CloseHandle, ERROR_INVALID_PARAMETER, GetLastError, WAIT_OBJECT_0, WAIT_TIMEOUT,
-        },
-        System::Threading::{OpenProcess, WaitForSingleObject},
-    };
-
-    const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
     pub fn run() -> Result<(), String> {
+        let result = run_install();
+        if let Err(error) = &result {
+            if let Ok(arguments) = Arguments::read() {
+                if error == "UPDATE_CANCELLED" {
+                    super::scheduled::write_status(
+                        &arguments.root,
+                        "cancelled",
+                        "Update download cancelled; queue cleared",
+                    );
+                } else {
+                    super::scheduled::write_status(&arguments.root, "error", error);
+                    append_log(
+                        &arguments.root,
+                        'E',
+                        &format!("Update worker failed before completion: {error}"),
+                    );
+                }
+            }
+        }
+        result
+    }
+
+    pub(super) fn restore_gamefiles_worker(root: &Path) -> Result<(), String> {
+        let status_path =
+            shroudforge_package::paths::backups_dir(root).join("gamefiles-restore-status.json");
+        let write_status = |status: &str, message: &str| {
+            shroudforge_package::config::write_json(
+                &status_path,
+                &serde_json::json!({"schemaVersion":1,"status":status,"message":message,
+                    "updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()}),
+            )
+        };
+        let target = if root.join("enshrouded_server.exe").is_file() {
+            "server"
+        } else if root.join("enshrouded.exe").is_file() {
+            "client"
+        } else {
+            return Err("could not identify the Enshrouded installation target".into());
+        };
+        write_status("waitingForGame", "Waiting for Enshrouded to close")?;
+        append_log(
+            root,
+            'I',
+            "Gamefile restoration is waiting for the game process to exit",
+        );
+        let result: Result<(), String> = (|| {
+            super::scheduled::wait_for_game_processes(root)?;
+            write_status("restoring", "Verifying and restoring original game files")?;
+            let restored = shroudforge_package::backups::restore_originals(root, target)?;
+            shroudforge_package::config::write_json(
+                &status_path,
+                &serde_json::json!({"schemaVersion":1,"status":"restart-required",
+                    "message":"Original game files restored; restart Enshrouded",
+                    "target":target,"result":restored,
+                    "updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()}),
+            )?;
+            append_log(
+                root,
+                'I',
+                "Original game files restored and verified; restart required",
+            );
+            Ok(())
+        })();
+        if let Err(error) = &result {
+            let _ = write_status("error", error);
+            append_log(root, 'E', &format!("Gamefile restoration failed: {error}"));
+        }
+        result
+    }
+
+    fn run_install() -> Result<(), String> {
         let arguments = Arguments::read()?;
         super::scheduled::write_status(
             &arguments.root,
@@ -23,19 +86,8 @@ mod windows {
         append_log(
             &arguments.root,
             'D',
-            &format!(
-                "Independent updater is waiting for game process {} to exit",
-                arguments.wait_pid
-            ),
+            "Independent updater is waiting for Enshrouded processes to exit",
         );
-        if let Err(error) = wait_for_process(arguments.wait_pid) {
-            append_log(
-                &arguments.root,
-                'E',
-                &format!("Game exit could not be confirmed; update was not installed: {error}"),
-            );
-            return Err(error);
-        }
         if let Err(error) = super::scheduled::wait_for_game_processes(&arguments.root) {
             append_log(
                 &arguments.root,
@@ -44,10 +96,11 @@ mod windows {
             );
             return Err(error);
         }
+        super::scheduled::check_update_cancelled(&arguments.root)?;
         super::scheduled::write_status(
             &arguments.root,
             "installing",
-            "Installing the verified ShroudForge update",
+            "Validating the verified ShroudForge update",
         );
         validate_roots(&arguments.root, &arguments.staged)?;
         let source = arguments.staged.clone();
@@ -56,13 +109,18 @@ mod windows {
         }
 
         let stamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
         let backup = shroudforge_package::paths::updates_dir(&arguments.root)
             .join("backups")
             .join(stamp.to_string());
         fs::create_dir_all(&backup).map_err(|error| error.to_string())?;
+        super::scheduled::write_status(
+            &arguments.root,
+            "installing",
+            "Preparing rollback backup before replacing files",
+        );
         append_log(
             &arguments.root,
             'D',
@@ -93,6 +151,11 @@ mod windows {
                 copy_entry(&current, &backup.join(relative))?;
             }
         }
+        super::scheduled::write_status(
+            &arguments.root,
+            "installing",
+            "Applying the verified update",
+        );
         let result = apply(&source, &arguments.root, &paths).and_then(|()| {
             for relative in &obsolete_mod_paths {
                 let current = installed_path(&arguments.root, relative);
@@ -121,8 +184,10 @@ mod windows {
                         &format!("Installed files, but could not save update state: {error}"),
                     );
                 }
-                let _ = fs::remove_file(shroudforge_package::paths::updates_dir(&arguments.root).join("pending.ready"));
-                let status = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"installed","step":"complete","message":"System update installed successfully","version":release["version"],"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
+                let _ = fs::remove_file(
+                    shroudforge_package::paths::updates_dir(&arguments.root).join("pending.ready"),
+                );
+                let status = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"installed","step":"complete","message":"System update installed successfully","version":release["version"],"updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()});
                 let _ = shroudforge_package::config::write_json(
                     &shroudforge_package::paths::updates_dir(&arguments.root)
                         .join("updater-status.json"),
@@ -141,9 +206,7 @@ mod windows {
                     'E',
                     &format!("Update failed: {error}; restoring backup"),
                 );
-                if let Err(rollback_error) =
-                    restore(&backup, &arguments.root, &transaction_paths)
-                {
+                if let Err(rollback_error) = restore(&backup, &arguments.root, &transaction_paths) {
                     append_log(
                         &arguments.root,
                         'E',
@@ -159,7 +222,6 @@ mod windows {
     struct Arguments {
         root: PathBuf,
         staged: PathBuf,
-        wait_pid: u32,
     }
 
     impl Arguments {
@@ -174,41 +236,8 @@ mod windows {
             Ok(Self {
                 root: PathBuf::from(value("--root").ok_or("missing --root")?),
                 staged: PathBuf::from(value("--staged").ok_or("missing --staged")?),
-                wait_pid: value("--wait-pid")
-                    .ok_or("missing --wait-pid")?
-                    .parse()
-                    .map_err(|_| "invalid --wait-pid")?,
             })
         }
-    }
-
-    fn wait_for_process(pid: u32) -> Result<(), String> {
-        if pid == 0 {
-            return Ok(());
-        }
-        let process = unsafe { OpenProcess(SYNCHRONIZE_ACCESS, 0, pid) };
-        if process.is_null() {
-            let error = unsafe { GetLastError() };
-            return if error == ERROR_INVALID_PARAMETER {
-                Ok(())
-            } else {
-                Err(format!(
-                    "cannot confirm game process {pid} has exited (Windows error {error})"
-                ))
-            };
-        }
-        let result = loop {
-            let result = unsafe { WaitForSingleObject(process, 1_000) };
-            if result == WAIT_TIMEOUT {
-                continue;
-            }
-            break result;
-        };
-        unsafe { CloseHandle(process) };
-        if result != WAIT_OBJECT_0 {
-            return Err("could not confirm Enshrouded process exit".into());
-        }
-        Ok(())
     }
 
     fn validate_roots(root: &Path, staged: &Path) -> Result<(), String> {
@@ -228,6 +257,62 @@ mod windows {
         Ok(())
     }
 
+    fn validate_relative_path(relative: &str) -> Result<PathBuf, String> {
+        let path = Path::new(relative);
+        if relative.is_empty()
+            || relative.contains('\\')
+            || relative.contains(':')
+            || relative.contains('\0')
+            || !path
+                .components()
+                .all(|part| matches!(part, std::path::Component::Normal(_)))
+        {
+            return Err(format!("unsafe managed path: {relative}"));
+        }
+        Ok(path.to_path_buf())
+    }
+
+    fn reserved_game_path(key: &str) -> bool {
+        matches!(
+            key,
+            "enshrouded.exe" | "enshrouded_server.exe" | "enshrouded.log" | "steam_api64.dll"
+        ) || key.starts_with("enshrouded_")
+            || key.starts_with("enshrouded.kfc")
+    }
+
+    fn protected_user_path(key: &str) -> bool {
+        let protected = [
+            "shroudforge/config/modloader-config.json",
+            "shroudforge/config/.shroudforge-write.lock",
+            "shroudforge/state.json",
+            "shroudforge/cache/",
+            "shroudforge/exports/",
+            "shroudforge/logs/",
+            "shroudforge/ui/",
+            "shroudforge/updates/",
+            "shroudforge/runtime/heartbeat.json",
+            "shroudforge/runtime/startup-assets.lock",
+        ];
+        protected.iter().any(|item| {
+            if item.ends_with('/') {
+                key.starts_with(item)
+            } else {
+                key == *item
+            }
+        })
+    }
+
+    fn validate_release_path(relative: &str) -> Result<PathBuf, String> {
+        let path = validate_relative_path(relative)?;
+        let key = relative.to_ascii_lowercase();
+        if protected_user_path(&key) || reserved_game_path(&key) {
+            return Err(format!(
+                "release path is reserved for game or user data: {relative}"
+            ));
+        }
+        Ok(path)
+    }
+
     fn managed_paths(source: &Path) -> Result<Vec<String>, String> {
         let bytes = fs::read(source.join("shroudforge/version.json")).map_err(|e| e.to_string())?;
         let release: serde_json::Value =
@@ -238,34 +323,7 @@ mod windows {
         let mut paths = Vec::new();
         for entry in entries {
             let relative = entry.as_str().ok_or("invalid managed path")?;
-            let path = Path::new(relative);
-            let allowed = matches!(
-                relative,
-                "winmm.dll"
-                    | "dbghelp.dll"
-                    | "dinput8.dll"
-                    | "shroudforge/kfc-runtime.dll"
-                    | "shroudforge/shroudforge-runtime.dll"
-                    | "shroudforge/shroudforge.exe"
-                    | "shroudforge/shroudforge-updater.exe"
-                    | "shroudforge/version.json"
-            ) || relative.starts_with("mods/");
-            if !allowed
-                || relative.is_empty()
-                || relative.contains('\\')
-                || relative.contains(':')
-                || !path
-                    .components()
-                    .all(|part| matches!(part, std::path::Component::Normal(_)))
-                || matches!(
-                    relative,
-                    "shroudforge/config/modloader-config.json"
-                        | "shroudforge/state.json"
-                        | "shroudforge/config/.shroudforge-write.lock"
-                )
-            {
-                return Err(format!("unsafe managed path: {relative}"));
-            }
+            let path = validate_release_path(relative)?;
             // New releases list files, never whole mod/config directories.
             if !source.join(path).is_file() {
                 return Err(format!("managed path is not a file: {relative}"));
@@ -288,10 +346,9 @@ mod windows {
         if !version_path.is_file() {
             return Ok(Vec::new());
         }
-        let release: serde_json::Value = serde_json::from_slice(
-            &fs::read(&version_path).map_err(|error| error.to_string())?,
-        )
-        .map_err(|error| format!("installed version manifest is invalid: {error}"))?;
+        let release: serde_json::Value =
+            serde_json::from_slice(&fs::read(&version_path).map_err(|error| error.to_string())?)
+                .map_err(|error| format!("installed version manifest is invalid: {error}"))?;
         let entries = release["managedPaths"]
             .as_array()
             .ok_or("installed version has no managedPaths")?;
@@ -324,7 +381,6 @@ mod windows {
         obsolete.dedup_by(|left, right| left.eq_ignore_ascii_case(right));
         Ok(obsolete)
     }
-
     fn remove_empty_mod_directories(root: &Path, file: &Path) -> Result<(), String> {
         let mods = shroudforge_package::paths::mods_dir(root);
         let mut directory = file.parent();
@@ -443,7 +499,6 @@ mod scheduled {
         io::{Read, Write},
         path::{Path, PathBuf},
         process::Command,
-        time::UNIX_EPOCH,
     };
     use windows_sys::Win32::{
         Foundation::{CloseHandle, ERROR_INVALID_PARAMETER, GetLastError},
@@ -471,7 +526,8 @@ mod scheduled {
         message: &str,
         version: Option<&str>,
     ) {
-        let previous_path = shroudforge_package::paths::updates_dir(root).join("updater-status.json");
+        let previous_path =
+            shroudforge_package::paths::updates_dir(root).join("updater-status.json");
         let previous = fs::read(&previous_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
@@ -508,7 +564,7 @@ mod scheduled {
         } else {
             serde_json::Value::Null
         };
-        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":status,"step":status,"message":message,"version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
+        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":status,"step":status,"message":message,"version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()});
         let _ = shroudforge_package::config::write_json(
             &shroudforge_package::paths::updates_dir(root).join("updater-status.json"),
             &value,
@@ -522,7 +578,7 @@ mod scheduled {
         total: Option<u64>,
         speed: Option<u64>,
     ) {
-        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"downloading","step":"download","message":"Downloading ShroudForge update","version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
+        let value = serde_json::json!({"schemaVersion":1,"operation":"systemStage","status":"downloading","step":"download","message":"Downloading ShroudForge update","version":version,"downloadedBytes":downloaded,"totalBytes":total,"bytesPerSecond":speed,"updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()});
         let _ = shroudforge_package::config::write_json(
             &shroudforge_package::paths::updates_dir(root).join("updater-status.json"),
             &value,
@@ -551,6 +607,7 @@ mod scheduled {
             return Err("stage request URL or SHA-256 checksum is invalid".into());
         }
         let updates = shroudforge_package::paths::updates_dir(root);
+        check_update_cancelled(root)?;
         fs::create_dir_all(&updates).map_err(|e| e.to_string())?;
         let download = updates.join("download.zip");
         let extraction = updates.join("pending-download");
@@ -585,6 +642,7 @@ mod scheduled {
         write_download_progress(root, version, 0, content_length, Some(0));
         let mut buffer = [0u8; 1024 * 1024];
         loop {
+            check_update_cancelled(root)?;
             let count = response.read(&mut buffer).map_err(|e| e.to_string())?;
             if count == 0 {
                 break;
@@ -622,6 +680,7 @@ mod scheduled {
         }
         let mut expanded = 0u64;
         for index in 0..archive.len() {
+            check_update_cancelled(root)?;
             let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
             let relative = entry
                 .enclosed_name()
@@ -664,7 +723,7 @@ mod scheduled {
         }
         fs::rename(&extraction, &pending)
             .map_err(|e| format!("could not promote verified update: {e}"))?;
-        let ready = serde_json::json!({"version":version,"checksumAlgorithm":"SHA-256","checksum":checksum,"stagedAt":std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()});
+        let ready = serde_json::json!({"version":version,"checksumAlgorithm":"SHA-256","checksum":checksum,"stagedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()});
         shroudforge_package::config::write_json(&updates.join("pending.ready"), &ready)?;
         let _ = fs::remove_file(download);
         let queue =
@@ -673,18 +732,52 @@ mod scheduled {
         Ok(())
     }
 
+    fn cancel_path(root: &Path) -> PathBuf {
+        shroudforge_package::paths::updates_dir(root).join("cancel-system-update")
+    }
+
+    pub(super) fn check_update_cancelled(root: &Path) -> Result<(), String> {
+        if cancel_path(root).exists() {
+            Err("UPDATE_CANCELLED".into())
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(super) fn clear_system_update(root: &Path) -> Result<(), String> {
+        let updates = shroudforge_package::paths::updates_dir(root);
+        fs::create_dir_all(&updates).map_err(|error| error.to_string())?;
+        fs::write(cancel_path(root), b"cancel").map_err(|error| error.to_string())?;
+        for path in [
+            updates.join("system-stage-request.json"),
+            updates.join("worker-queue.json"),
+            updates.join("pending.ready"),
+            updates.join("download.zip"),
+        ] {
+            let _ = fs::remove_file(path);
+        }
+        for path in [updates.join("pending-download"), updates.join("pending")] {
+            if path.exists() {
+                let _ = fs::remove_dir_all(path);
+            }
+        }
+        write_status(
+            root,
+            "cancelled",
+            "Update download cancelled; queue cleared",
+        );
+        Ok(())
+    }
+
     pub(super) fn wait_for_game_processes(root: &Path) -> Result<(), String> {
         use std::{mem::size_of, time::Duration};
         let root = root
             .canonicalize()
             .map_err(|e| format!("invalid install root for process scan: {e}"))?;
-        let prefix = format!(
-            "{}\\",
-            root.to_string_lossy()
-                .trim_end_matches(['\\', '/'])
-                .to_lowercase()
-        );
+        let root_key = root.to_string_lossy().to_lowercase();
+        let mut last_waiting_pid = None;
         loop {
+            check_update_cancelled(&root)?;
             let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
             if snapshot == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
                 return Err(format!(
@@ -694,7 +787,7 @@ mod scheduled {
             }
             let mut entry: PROCESSENTRY32W = unsafe { std::mem::zeroed() };
             entry.dwSize = size_of::<PROCESSENTRY32W>() as u32;
-            let mut running = false;
+            let mut running: Option<(u32, String)> = None;
             let mut has_entry = unsafe { Process32FirstW(snapshot, &mut entry) } != 0;
             while has_entry {
                 let exe = String::from_utf16_lossy(
@@ -737,10 +830,18 @@ mod scheduled {
                                 entry.th32ProcessID
                             ));
                         }
-                        let path =
-                            String::from_utf16_lossy(&path[..length as usize]).to_lowercase();
-                        if path.starts_with(&prefix) {
-                            running = true;
+                        let image_path = String::from_utf16_lossy(&path[..length as usize]);
+                        let image_root = PathBuf::from(&image_path)
+                            .parent()
+                            .and_then(|path| path.canonicalize().ok());
+                        // Canonicalize both sides so Steam libraries reached through junctions
+                        // still match. If the executable path cannot be resolved, wait safely
+                        // instead of assuming the game has exited.
+                        let belongs_to_install = image_root
+                            .map(|path| path.to_string_lossy().eq_ignore_ascii_case(&root_key))
+                            .unwrap_or(true);
+                        if belongs_to_install {
+                            running = Some((entry.th32ProcessID, image_path));
                             break;
                         }
                     }
@@ -748,7 +849,27 @@ mod scheduled {
                 has_entry = unsafe { Process32NextW(snapshot, &mut entry) } != 0;
             }
             unsafe { CloseHandle(snapshot) };
-            if !running {
+            if let Some((pid, image_path)) = running {
+                if last_waiting_pid != Some(pid) {
+                    let _ = shroudforge_package::logging::append(
+                        &root,
+                        'D',
+                        "updater",
+                        &format!(
+                            "Enshrouded is still running (PID {pid}, {image_path}); waiting before installation"
+                        ),
+                    );
+                    last_waiting_pid = Some(pid);
+                }
+            } else {
+                if last_waiting_pid.is_some() {
+                    let _ = shroudforge_package::logging::append(
+                        &root,
+                        'I',
+                        "updater",
+                        "Enshrouded process exited; updater continues",
+                    );
+                }
                 return Ok(());
             }
             std::thread::sleep(Duration::from_secs(1));
@@ -774,7 +895,7 @@ mod scheduled {
         let modified = fs::metadata(&source)
             .and_then(|m| m.modified())
             .map_err(|e| e.to_string())?
-            .duration_since(UNIX_EPOCH)
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis();
         let destination = PathBuf::from(local)
@@ -791,53 +912,6 @@ mod scheduled {
                 .map_err(|e| format!("cannot install independent updater: {e}"))?;
         }
         Ok(destination)
-    }
-
-    fn update_window_task_id(root: &Path) -> Result<String, String> {
-        Ok(format!("{}_Window", task_id(root)?))
-    }
-
-    fn ensure_update_window_task(root: &Path) -> Result<String, String> {
-        let executable = task_executable(root)?;
-        let name = update_window_task_id(root)?;
-        let canonical_root = root.canonicalize().map_err(|error| error.to_string())?;
-        let action = format!(
-            "\"{}\" --open-window --root \"{}\"",
-            executable.display(),
-            canonical_root.display()
-        );
-        let output = Command::new("schtasks.exe")
-            .args([
-                "/Create", "/SC", "ONCE", "/ST", "23:59", "/TN", &name, "/TR", &action, "/F",
-                "/RL", "LIMITED", "/IT",
-            ])
-            .output()
-            .map_err(|error| format!("could not register update window: {error}"))?;
-        if !output.status.success() {
-            return Err(format!(
-                "could not register update window: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            ));
-        }
-        Ok(name)
-    }
-
-    pub fn request_update_window(root: &Path) -> Result<(), String> {
-        let name = ensure_update_window_task(root)?;
-        let output = Command::new("schtasks.exe")
-            .args(["/Run", "/TN", &name])
-            .output()
-            .map_err(|error| format!("could not open update window: {error}"))?;
-        if !output.status.success() {
-            let _ = Command::new("schtasks.exe")
-                .args(["/Delete", "/TN", &name, "/F"])
-                .output();
-            return Err(format!(
-                "could not open update window: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            ));
-        }
-        Ok(())
     }
 
     pub fn open_update_window(root: &Path) -> Result<(), String> {
@@ -857,7 +931,7 @@ mod scheduled {
         let changed = metadata
             .modified()
             .map_err(|error| error.to_string())?
-            .duration_since(UNIX_EPOCH)
+            .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis();
         let ui = directory.join(format!("shroudforge-ui-{changed}.exe"));
@@ -877,12 +951,20 @@ mod scheduled {
             .creation_flags(0x0800_0000)
             .spawn()
             .map_err(|error| format!("could not launch independent update window: {error}"))?;
-        if let Ok(name) = update_window_task_id(root) {
-            let _ = Command::new("schtasks.exe")
-                .args(["/Delete", "/TN", &name, "/F"])
-                .output();
-        }
         Ok(())
+    }
+
+    pub fn start_system_waiter(root: &Path) -> Result<(), String> {
+        use std::os::windows::process::CommandExt;
+        let executable = task_executable(root)?;
+        let canonical_root = root.canonicalize().map_err(|error| error.to_string())?;
+        Command::new(executable)
+            .args(["--run-queue", "--root"])
+            .arg(canonical_root)
+            .creation_flags(0x08000000)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| format!("could not start the queued update waiter: {error}"))
     }
 
     fn ensure_task(root: &Path) -> Result<String, String> {
@@ -909,17 +991,48 @@ mod scheduled {
         Ok(name)
     }
 
+    fn spawn_worker(root: &Path) -> Result<(), String> {
+        use std::os::windows::process::CommandExt;
+        let executable = task_executable(root)?;
+        let canonical_root = root.canonicalize().map_err(|error| error.to_string())?;
+        Command::new(executable)
+            .args(["--run-queue", "--root"])
+            .arg(canonical_root)
+            .creation_flags(0x08000000)
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| format!("could not start updater worker: {error}"))
+    }
+
     pub fn request(root: &Path) -> Result<(), String> {
-        let name = ensure_task(root)?;
-        let output = Command::new("schtasks.exe")
+        let name = match ensure_task(root) {
+            Ok(name) => name,
+            Err(task_error) => {
+                return spawn_worker(root).map_err(|spawn_error| {
+                    format!("{task_error}; direct updater start also failed: {spawn_error}")
+                });
+            }
+        };
+        let output = match Command::new("schtasks.exe")
             .args(["/Run", "/TN", &name])
             .output()
-            .map_err(|e| format!("could not start scheduled updater: {e}"))?;
+        {
+            Ok(output) => output,
+            Err(task_error) => {
+                let task_error = format!("could not start scheduled updater: {task_error}");
+                return spawn_worker(root).map_err(|spawn_error| {
+                    format!("{task_error}; direct updater start also failed: {spawn_error}")
+                });
+            }
+        };
         if !output.status.success() {
-            return Err(format!(
+            let task_error = format!(
                 "could not start scheduled updater: {}",
                 String::from_utf8_lossy(&output.stderr).trim()
-            ));
+            );
+            return spawn_worker(root).map_err(|spawn_error| {
+                format!("{task_error}; direct updater start also failed: {spawn_error}")
+            });
         }
         Ok(())
     }
@@ -932,16 +1045,6 @@ pub fn request_worker(root: &std::path::Path) -> Result<(), String> {
 
 #[cfg(not(windows))]
 pub fn request_worker(_: &std::path::Path) -> Result<(), String> {
-    Err("scheduled updater is available on Windows only".into())
-}
-
-#[cfg(windows)]
-pub fn request_update_window(root: &std::path::Path) -> Result<(), String> {
-    scheduled::request_update_window(root)
-}
-
-#[cfg(not(windows))]
-pub fn request_update_window(_: &std::path::Path) -> Result<(), String> {
     Err("scheduled updater is available on Windows only".into())
 }
 
@@ -960,6 +1063,7 @@ pub fn request_install_after_game(root: &std::path::Path, pid: u32) -> Result<()
 pub fn request_mod_install(
     root: &std::path::Path,
     project_id: &str,
+    title: &str,
     provider: serde_json::Value,
 ) -> Result<(), String> {
     if project_id.is_empty()
@@ -970,26 +1074,10 @@ pub fn request_mod_install(
     {
         return Err("invalid mod project ID".into());
     }
-    let path = shroudforge_package::paths::updates_dir(root).join("mod-install-queue.json");
-    if path.exists() {
-        let existing = std::fs::read(&path)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
-        if existing
-            .as_ref()
-            .and_then(|value| value["projectId"].as_str())
-            != Some(project_id)
-        {
-            return Err("another catalog install is already queued or running".into());
-        }
-        return request_worker(root);
-    }
-    let request = serde_json::json!({"schemaVersion":1,"operation":"install","projectId":project_id,"provider":provider});
-    shroudforge_package::config::write_json(&path, &request).map_err(|e| e.to_string())?;
-    request_worker(root).map_err(|error| {
-        format!("install request was saved but the scheduled updater could not be started: {error}")
-    })?;
-    Ok(())
+    enqueue_update_item(
+        root,
+        serde_json::json!({"id":format!("mod-install:{project_id}"),"kind":"mod","operation":"install","title":title,"version":"","state":"queued","selected":true,"payload":{"projectId":project_id,"provider":provider}}),
+    )
 }
 
 #[cfg(windows)]
@@ -997,6 +1085,7 @@ pub fn request_mod_update(
     root: &std::path::Path,
     project_id: &str,
     mod_id: &str,
+    title: &str,
     provider: serde_json::Value,
 ) -> Result<(), String> {
     if project_id.is_empty()
@@ -1012,20 +1101,16 @@ pub fn request_mod_update(
     {
         return Err("invalid mod project or package ID".into());
     }
-    let path = shroudforge_package::paths::updates_dir(root).join("mod-install-queue.json");
-    if path.exists() {
-        return Err("another catalog mod operation is already queued or running".into());
-    }
-    let request = serde_json::json!({"schemaVersion":1,"operation":"update","projectId":project_id,"modId":mod_id,"provider":provider});
-    shroudforge_package::config::write_json(&path, &request).map_err(|error| error.to_string())?;
-    request_worker(root).map_err(|error| {
-        format!("mod update was saved but the updater could not be started: {error}")
-    })
+    enqueue_update_item(
+        root,
+        serde_json::json!({"id":format!("mod-update:{project_id}:{mod_id}"),"kind":"mod","operation":"update","title":title,"version":"","state":"queued","selected":true,"payload":{"projectId":project_id,"modId":mod_id,"provider":provider}}),
+    )
 }
 
 #[cfg(not(windows))]
 pub fn request_mod_update(
     _: &std::path::Path,
+    _: &str,
     _: &str,
     _: &str,
     _: serde_json::Value,
@@ -1063,7 +1148,8 @@ fn request_runtime_mod_action(
             .unwrap_or_default()
             .as_nanos()
     );
-    let request_path = shroudforge_package::paths::runtime_dir(root).join("mod-reload-request.json");
+    let request_path =
+        shroudforge_package::paths::runtime_dir(root).join("mod-reload-request.json");
     let result_path = shroudforge_package::paths::runtime_dir(root).join("mod-reload-result.json");
     let request =
         serde_json::json!({"requestId":request_id,"operation":operation,"modIds":mod_ids});
@@ -1109,40 +1195,327 @@ pub fn request_runtime_mod_unload(_: &std::path::Path, _: &[String]) -> Result<(
     Err("live runtime mod reload is available on Windows only".into())
 }
 
+fn update_queue_path(root: &std::path::Path) -> std::path::PathBuf {
+    shroudforge_package::paths::updates_dir(root).join("update-queue.json")
+}
+
+fn read_update_queue_value(root: &std::path::Path) -> serde_json::Value {
+    std::fs::read(update_queue_path(root))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .filter(|value: &serde_json::Value| value["items"].is_array())
+        .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"items":[],"run":null}))
+}
+
+#[cfg(windows)]
+pub fn read_update_queue(root: &std::path::Path) -> serde_json::Value {
+    read_update_queue_value(root)
+}
+
+#[cfg(not(windows))]
+pub fn read_update_queue(_: &std::path::Path) -> serde_json::Value {
+    serde_json::json!({"schemaVersion":1,"items":[],"run":null})
+}
+
+#[cfg(windows)]
+pub fn check_update_cancelled(root: &std::path::Path) -> Result<(), String> {
+    scheduled::check_update_cancelled(root)
+}
+
+#[cfg(windows)]
+pub fn set_active_queue_item_state(
+    root: &std::path::Path,
+    id: &str,
+    state: &str,
+    message: Option<&str>,
+) -> Result<(), String> {
+    set_update_item_state(root, id, state, message)?;
+    scheduled::write_status(root, state, message.unwrap_or(""));
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn set_active_queue_item_state(
+    _: &std::path::Path,
+    _: &str,
+    _: &str,
+    _: Option<&str>,
+) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(not(windows))]
+pub fn check_update_cancelled(_: &std::path::Path) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(windows)]
+fn write_update_queue_value(
+    root: &std::path::Path,
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    shroudforge_package::config::write_json(&update_queue_path(root), value)
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(windows)]
+fn enqueue_update_item(root: &std::path::Path, item: serde_json::Value) -> Result<(), String> {
+    let mut queue = read_update_queue_value(root);
+    let items = queue["items"]
+        .as_array_mut()
+        .ok_or("update queue has an invalid items list")?;
+    let id = item["id"].as_str().ok_or("update queue item has no ID")?;
+    if let Some(existing) = items
+        .iter_mut()
+        .find(|existing| existing["id"].as_str() == Some(id))
+    {
+        if existing["state"] == "complete" {
+            *existing = item;
+        }
+    } else {
+        items.push(item);
+    }
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(windows)]
+pub fn enqueue_system_update(
+    root: &std::path::Path,
+    release: serde_json::Value,
+) -> Result<(), String> {
+    let version = release["version"]
+        .as_str()
+        .ok_or("release has no version")?;
+    if release["downloadUrl"]
+        .as_str()
+        .map_or(true, |url| !url.starts_with("https://"))
+        || release["checksum"].as_str().is_none()
+    {
+        return Err("release download URL or checksum is missing".into());
+    }
+    enqueue_update_item(
+        root,
+        serde_json::json!({"id":format!("system:{version}"),"kind":"system","title":format!("ShroudForge {version}"),"version":version,"prerelease":release["prerelease"].as_bool().unwrap_or(false),"state":"queued","selected":true,"message":release["message"],"releaseUrl":release["releaseUrl"],"payload":release}),
+    )
+}
+
+#[cfg(not(windows))]
+pub fn enqueue_system_update(_: &std::path::Path, _: serde_json::Value) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(windows)]
+pub fn select_update_queue_item(
+    root: &std::path::Path,
+    id: &str,
+    selected: bool,
+) -> Result<(), String> {
+    let mut queue = read_update_queue_value(root);
+    let item = queue["items"]
+        .as_array_mut()
+        .and_then(|items| {
+            items
+                .iter_mut()
+                .find(|item| item["id"].as_str() == Some(id))
+        })
+        .ok_or("update queue item was not found")?;
+    if matches!(item["state"].as_str(), Some("downloading" | "installing")) {
+        return Err("an active update cannot change selection".into());
+    }
+    item["selected"] = serde_json::Value::Bool(selected);
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(windows)]
+pub fn select_update_queue_items(
+    root: &std::path::Path,
+    ids: &[String],
+    selected: bool,
+) -> Result<(), String> {
+    let mut queue = read_update_queue_value(root);
+    let items = queue["items"]
+        .as_array_mut()
+        .ok_or("update queue has an invalid items list")?;
+    for item in items {
+        if ids
+            .iter()
+            .any(|id| item["id"].as_str() == Some(id.as_str()))
+        {
+            if matches!(item["state"].as_str(), Some("downloading" | "installing")) {
+                return Err("an active update cannot change selection".into());
+            }
+            item["selected"] = serde_json::Value::Bool(selected);
+        }
+    }
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(not(windows))]
+pub fn select_update_queue_items(_: &std::path::Path, _: &[String], _: bool) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(windows)]
+pub fn remove_update_queue_item(root: &std::path::Path, id: &str) -> Result<(), String> {
+    let mut queue = read_update_queue_value(root);
+    let items = queue["items"]
+        .as_array_mut()
+        .ok_or("update queue has an invalid items list")?;
+    if items.iter().any(|item| {
+        item["id"].as_str() == Some(id)
+            && matches!(item["state"].as_str(), Some("downloading" | "installing"))
+    }) {
+        return Err("an active update cannot be removed".into());
+    }
+    items.retain(|item| item["id"].as_str() != Some(id));
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(not(windows))]
+pub fn remove_update_queue_item(_: &std::path::Path, _: &str) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(not(windows))]
+pub fn select_update_queue_item(_: &std::path::Path, _: &str, _: bool) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(windows)]
+pub fn start_update_queue(
+    root: &std::path::Path,
+    ids: &[String],
+    wait_for_game: bool,
+    show_window: bool,
+) -> Result<(), String> {
+    if ids.is_empty() {
+        return Err("select at least one update before starting the queue".into());
+    }
+    let mut queue = read_update_queue_value(root);
+    if queue["run"]["state"] == "running" {
+        return Err("the update queue is already running".into());
+    }
+    let items = queue["items"]
+        .as_array_mut()
+        .ok_or("update queue has an invalid items list")?;
+    let mut selected_ids = Vec::new();
+    for id in ids {
+        let item = items
+            .iter_mut()
+            .find(|item| item["id"].as_str() == Some(id.as_str()))
+            .ok_or_else(|| format!("update queue item '{id}' was not found"))?;
+        if matches!(item["state"].as_str(), Some("downloading" | "installing")) {
+            return Err(format!("update queue item '{id}' is already active"));
+        }
+        item["state"] = serde_json::Value::String("queued".into());
+        item["selected"] = serde_json::Value::Bool(true);
+        item["waitForGame"] = serde_json::Value::Bool(wait_for_game);
+        selected_ids.push(id.clone());
+    }
+    queue["run"] = serde_json::json!({"state":"running","waitForGame":wait_for_game,"showWindow":show_window,"itemIds":selected_ids,"startedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()});
+    write_update_queue_value(root, &queue)?;
+    let _ = std::fs::remove_file(
+        shroudforge_package::paths::updates_dir(root).join("cancel-system-update"),
+    );
+    scheduled::write_status(root, "queued", "Selected updates are queued");
+    if let Err(error) = scheduled::start_system_waiter(root) {
+        let mut queue = read_update_queue_value(root);
+        queue["run"] = serde_json::Value::Null;
+        if let Some(items) = queue["items"].as_array_mut() {
+            for item in items {
+                if selected_ids
+                    .iter()
+                    .any(|id| item["id"].as_str() == Some(id.as_str()))
+                {
+                    item["state"] = serde_json::Value::String("error".into());
+                    item["message"] = serde_json::Value::String(error.clone());
+                }
+            }
+        }
+        let _ = write_update_queue_value(root, &queue);
+        return Err(error);
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub fn start_update_queue(
+    _: &std::path::Path,
+    _: &[String],
+    _: bool,
+    _: bool,
+) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(windows)]
+pub fn clear_update_queue(root: &std::path::Path) -> Result<(), String> {
+    let status =
+        std::fs::read(shroudforge_package::paths::updates_dir(root).join("updater-status.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|value| value["status"].as_str().map(str::to_owned));
+    if status.as_deref() == Some("installing") {
+        return Err("the update is being installed and can no longer be cancelled".into());
+    }
+    scheduled::clear_system_update(root)?;
+    let mut queue = read_update_queue_value(root);
+    queue["items"] = serde_json::json!([]);
+    queue["run"] = serde_json::Value::Null;
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(windows)]
+pub fn cancel_update_queue(root: &std::path::Path) -> Result<(), String> {
+    let status =
+        std::fs::read(shroudforge_package::paths::updates_dir(root).join("updater-status.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .and_then(|value| value["status"].as_str().map(str::to_owned));
+    if status.as_deref() == Some("installing") {
+        return Err("the update is being installed and can no longer be cancelled".into());
+    }
+    let queue = read_update_queue_value(root);
+    if queue["run"]["state"] != "running" {
+        return Err("there is no running update queue to cancel".into());
+    }
+    scheduled::clear_system_update(root)?;
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(not(windows))]
+pub fn cancel_update_queue(_: &std::path::Path) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
+#[cfg(not(windows))]
+pub fn clear_update_queue(_: &std::path::Path) -> Result<(), String> {
+    Err("update queue is available on Windows only".into())
+}
+
 #[cfg(windows)]
 pub fn request_system_stage(
     root: &std::path::Path,
     release: serde_json::Value,
-    wait_pid: u32,
+    _wait_pid: u32,
+    wait_for_game: bool,
 ) -> Result<(), String> {
-    let path = shroudforge_package::paths::updates_dir(root).join("system-stage-request.json");
-    if path.exists() {
-        let existing = std::fs::read(&path)
-            .ok()
-            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
-        if existing
-            .as_ref()
-            .and_then(|value| value["version"].as_str())
-            != release["version"].as_str()
-        {
-            return Err("another system update download is already queued or running".into());
-        }
-        return request_worker(root);
-    }
-    let request = serde_json::json!({"schemaVersion":1,"version":release["version"],"downloadUrl":release["downloadUrl"],"checksum":release["checksum"],"waitPid":wait_pid});
-    shroudforge_package::config::write_json(&path, &request).map_err(|e| e.to_string())?;
-    scheduled::write_status_with_version(
-        root,
-        "queued",
-        "System update download queued in independent updater",
-        release["version"].as_str(),
-    );
-    request_worker(root).map_err(|error| {
-        format!(
-            "download request was saved but the scheduled updater could not be started: {error}"
-        )
-    })?;
-    Ok(())
+    let version = release["version"]
+        .as_str()
+        .ok_or("release has no version")?
+        .to_owned();
+    enqueue_system_update(root, release)?;
+    start_update_queue(root, &[format!("system:{version}")], wait_for_game, true)
+}
+
+#[cfg(windows)]
+pub fn cancel_system_update(root: &std::path::Path) -> Result<(), String> {
+    scheduled::clear_system_update(root)
+}
+
+#[cfg(not(windows))]
+pub fn cancel_system_update(_: &std::path::Path) -> Result<(), String> {
+    Err("system update cancellation is available on Windows only".into())
 }
 
 #[cfg(not(windows))]
@@ -1150,6 +1523,7 @@ pub fn request_system_stage(
     _: &std::path::Path,
     _: serde_json::Value,
     _: u32,
+    _: bool,
 ) -> Result<(), String> {
     Err("scheduled updater is available on Windows only".into())
 }
@@ -1157,6 +1531,7 @@ pub fn request_system_stage(
 #[cfg(not(windows))]
 pub fn request_mod_install(
     _: &std::path::Path,
+    _: &str,
     _: &str,
     _: serde_json::Value,
 ) -> Result<(), String> {
@@ -1169,20 +1544,262 @@ pub fn request_install_after_game(_: &std::path::Path, _: u32) -> Result<(), Str
 }
 
 #[cfg(windows)]
+fn set_update_item_state(
+    root: &std::path::Path,
+    id: &str,
+    state: &str,
+    message: Option<&str>,
+) -> Result<(), String> {
+    let mut queue = read_update_queue_value(root);
+    let item = queue["items"]
+        .as_array_mut()
+        .and_then(|items| {
+            items
+                .iter_mut()
+                .find(|item| item["id"].as_str() == Some(id))
+        })
+        .ok_or_else(|| format!("update queue item '{id}' disappeared"))?;
+    item["state"] = serde_json::Value::String(state.into());
+    item["message"] = message
+        .map(|message| serde_json::Value::String(message.into()))
+        .unwrap_or(serde_json::Value::Null);
+    write_update_queue_value(root, &queue)
+}
+
+#[cfg(windows)]
+fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let mut queue = read_update_queue_value(root);
+    let run = queue["run"].clone();
+    let ids = run["itemIds"]
+        .as_array()
+        .ok_or("update queue run has no item list")?
+        .iter()
+        .filter_map(|id| id.as_str().map(str::to_owned))
+        .collect::<Vec<_>>();
+    let wait_for_game = run["waitForGame"].as_bool().unwrap_or(false);
+    let show_window = run["showWindow"].as_bool().unwrap_or(true);
+    if wait_for_game {
+        scheduled::write_status(
+            root,
+            "waitingForGame",
+            "Waiting for Enshrouded to close before starting selected downloads",
+        );
+        if let Err(error) = scheduled::wait_for_game_processes(root) {
+            if error == "UPDATE_CANCELLED" {
+                finish_cancelled_queue(root, &ids);
+                return Ok(());
+            }
+            return Err(error);
+        }
+    }
+    if show_window {
+        scheduled::open_update_window(root)?;
+    }
+
+    let mut failures = Vec::new();
+    for id in &ids {
+        if scheduled::check_update_cancelled(root).is_err() {
+            finish_cancelled_queue(root, &ids);
+            return Ok(());
+        }
+        queue = read_update_queue_value(root);
+        let Some(item) = queue["items"]
+            .as_array()
+            .and_then(|items| items.iter().find(|item| item["id"].as_str() == Some(id)))
+            .cloned()
+        else {
+            failures.push(format!("queue item '{id}' disappeared"));
+            continue;
+        };
+        if item["state"] == "cancelled" {
+            continue;
+        }
+        set_update_item_state(root, id, "downloading", None)?;
+        let result = match item["kind"].as_str() {
+            Some("system") => {
+                let request = item["payload"].clone();
+                let version = request["version"].as_str().unwrap_or_default();
+                scheduled::write_status_with_version(
+                    root,
+                    "downloading",
+                    "Downloading selected ShroudForge update",
+                    Some(version),
+                );
+                scheduled::stage_system_update(root, &request).and_then(|()| {
+                    if scheduled::check_update_cancelled(root).is_err() {
+                        return Err("UPDATE_CANCELLED".into());
+                    }
+                    set_update_item_state(
+                        root,
+                        id,
+                        "waitingForGame",
+                        Some("Download verified; installation waits for Enshrouded to close"),
+                    )?;
+                    scheduled::write_status(
+                        root,
+                        "waitingForGame",
+                        "Download verified; waiting to install ShroudForge",
+                    );
+                    let staged = shroudforge_package::paths::updates_dir(root).join("pending");
+                    let status = std::process::Command::new(
+                        std::env::current_exe().map_err(|error| error.to_string())?,
+                    )
+                    .args(["--update-worker", "--root"])
+                    .arg(root)
+                    .arg("--staged")
+                    .arg(staged)
+                    .status()
+                    .map_err(|error| format!("could not launch validated installer: {error}"))?;
+                    let _ = std::fs::remove_file(
+                        shroudforge_package::paths::updates_dir(root).join("worker-queue.json"),
+                    );
+                    if status.success() {
+                        Ok(())
+                    } else if scheduled::check_update_cancelled(root).is_err() {
+                        Err("UPDATE_CANCELLED".into())
+                    } else {
+                        Err(format!("installer returned {status}"))
+                    }
+                })
+            }
+            Some("mod") => {
+                let payload = &item["payload"];
+                let request = serde_json::json!({
+                    "schemaVersion":1,
+                    "queueItemId":id,
+                    "operation":item["operation"],
+                    "projectId":payload["projectId"],
+                    "modId":payload["modId"],
+                    "provider":payload["provider"]
+                });
+                let request_path =
+                    shroudforge_package::paths::updates_dir(root).join("mod-install-queue.json");
+                shroudforge_package::config::write_json(&request_path, &request)
+                    .map_err(|error| error.to_string())?;
+                let status =
+                    std::process::Command::new(shroudforge_package::paths::loader_executable(root))
+                        .args(["--catalog-install-worker", "--root"])
+                        .arg(root)
+                        .creation_flags(0x08000000)
+                        .status()
+                        .map_err(|error| format!("could not launch catalog installer: {error}"))?;
+                if status.success() {
+                    Ok(())
+                } else if scheduled::check_update_cancelled(root).is_err() {
+                    Err("UPDATE_CANCELLED".into())
+                } else {
+                    Err(format!("catalog installer returned {status}"))
+                }
+            }
+            _ => Err(format!("unsupported update queue item kind for '{id}'")),
+        };
+        match result {
+            Ok(()) => set_update_item_state(root, id, "complete", Some("Update completed"))?,
+            Err(error) if error == "UPDATE_CANCELLED" => {
+                finish_cancelled_queue(root, &ids);
+                return Ok(());
+            }
+            Err(error) => {
+                set_update_item_state(root, id, "error", Some(&error))?;
+                failures.push(format!("{id}: {error}"));
+            }
+        }
+    }
+    let mut queue = read_update_queue_value(root);
+    queue["run"]["state"] = serde_json::Value::String("complete".into());
+    queue["run"]["finishedAt"] = serde_json::json!(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    );
+    write_update_queue_value(root, &queue)?;
+    let _ = std::fs::remove_file(
+        shroudforge_package::paths::updates_dir(root).join("cancel-system-update"),
+    );
+    let contains_system_update = ids.iter().any(|id| id.starts_with("system:"));
+    if failures.is_empty() {
+        if contains_system_update {
+            scheduled::write_status(root, "installed", "Selected update queue completed");
+        } else {
+            scheduled::write_status(root, "ready", "Selected mod queue completed");
+        }
+        Ok(())
+    } else {
+        if contains_system_update {
+            scheduled::write_status(root, "error", &failures.join("; "));
+        } else {
+            scheduled::write_status(root, "ready", "One or more mod queue items failed");
+        }
+        Err(failures.join("; "))
+    }
+}
+
+#[cfg(windows)]
+fn finish_cancelled_queue(root: &std::path::Path, ids: &[String]) {
+    for id in ids {
+        let queue = read_update_queue_value(root);
+        let state = queue["items"]
+            .as_array()
+            .and_then(|items| items.iter().find(|item| item["id"].as_str() == Some(id)))
+            .and_then(|item| item["state"].as_str());
+        if !matches!(state, Some("complete" | "error")) {
+            let _ = set_update_item_state(root, id, "cancelled", Some("Cancelled by user"));
+        }
+    }
+    let mut queue = read_update_queue_value(root);
+    queue["run"]["state"] = serde_json::Value::String("cancelled".into());
+    queue["run"]["finishedAt"] = serde_json::json!(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    );
+    let _ = write_update_queue_value(root, &queue);
+    let updates = shroudforge_package::paths::updates_dir(root);
+    let _ = std::fs::remove_file(updates.join("mod-install-queue.json"));
+    let _ = std::fs::remove_file(updates.join("worker-queue.json"));
+    let _ = std::fs::remove_file(updates.join("system-stage-request.json"));
+    let _ = std::fs::remove_file(updates.join("download.zip"));
+    let _ = std::fs::remove_dir_all(updates.join("pending-download"));
+    let _ = std::fs::remove_file(updates.join("pending.ready"));
+    scheduled::write_status(root, "cancelled", "Selected update queue cancelled");
+    let _ = std::fs::remove_file(updates.join("cancel-system-update"));
+}
+
+#[cfg(windows)]
 pub fn run_scheduled_worker() -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     let args: Vec<String> = std::env::args().collect();
     let value = |name: &str| args.windows(2).find(|p| p[0] == name).map(|p| p[1].clone());
     let root = std::path::PathBuf::from(value("--root").ok_or("missing --root")?);
+    let update_queue = read_update_queue_value(&root);
+    if update_queue["run"]["state"] == "running" {
+        return run_update_queue(&root);
+    }
     let queue_path = shroudforge_package::paths::updates_dir(&root).join("worker-queue.json");
     let mut first_error = None;
-    let stage_request = shroudforge_package::paths::updates_dir(&root).join("system-stage-request.json");
+    let stage_request =
+        shroudforge_package::paths::updates_dir(&root).join("system-stage-request.json");
     if stage_request.is_file() {
         let result = (|| {
             let bytes = std::fs::read(&stage_request)
                 .map_err(|e| format!("cannot read system stage request: {e}"))?;
             let request: serde_json::Value = serde_json::from_slice(&bytes)
                 .map_err(|e| format!("invalid system stage request: {e}"))?;
+            if request["waitForGame"]
+                .as_bool()
+                .unwrap_or_else(|| request["waitPid"].as_u64().unwrap_or_default() != 0)
+            {
+                scheduled::write_status(
+                    &root,
+                    "waitingForGame",
+                    "Waiting for Enshrouded to close before preparing the update",
+                );
+                scheduled::wait_for_game_processes(&root)?;
+            }
+            scheduled::open_update_window(&root)?;
             scheduled::write_status(
                 &root,
                 "downloading",
@@ -1196,6 +1813,18 @@ pub fn run_scheduled_worker() -> Result<(), String> {
                 "staged",
                 "Verified and staged; installation waits for game exit",
             ),
+            Err(error) if error == "UPDATE_CANCELLED" => {
+                let updates = shroudforge_package::paths::updates_dir(&root);
+                let _ = std::fs::remove_file(updates.join("download.zip"));
+                let _ = std::fs::remove_dir_all(updates.join("pending-download"));
+                let _ = std::fs::remove_dir_all(updates.join("pending"));
+                let _ = std::fs::remove_file(updates.join("pending.ready"));
+                scheduled::write_status(
+                    &root,
+                    "cancelled",
+                    "Update download cancelled; queue cleared",
+                );
+            }
             Err(error) => {
                 scheduled::write_status(&root, "error", error);
                 let _ = shroudforge_package::logging::append(
@@ -1208,6 +1837,9 @@ pub fn run_scheduled_worker() -> Result<(), String> {
             }
         }
         let _ = std::fs::remove_file(&stage_request);
+        let _ = std::fs::remove_file(
+            shroudforge_package::paths::updates_dir(&root).join("cancel-system-update"),
+        );
     }
     // Catalog mod packages are independent of the ShroudForge binary release.
     // Complete these while the game may still be running, before a full-package
@@ -1249,9 +1881,6 @@ pub fn run_scheduled_worker() -> Result<(), String> {
             if queue["operation"] != "installPending" {
                 return Err("unsupported updater operation".into());
             }
-            let pid = queue["waitPid"]
-                .as_u64()
-                .ok_or("updater queue has no game PID")? as u32;
             let staged = shroudforge_package::paths::updates_dir(&root).join("pending");
             let status =
                 std::process::Command::new(std::env::current_exe().map_err(|e| e.to_string())?)
@@ -1259,8 +1888,6 @@ pub fn run_scheduled_worker() -> Result<(), String> {
                     .arg(&root)
                     .arg("--staged")
                     .arg(&staged)
-                    .arg("--wait-pid")
-                    .arg(pid.to_string())
                     .status()
                     .map_err(|e| format!("could not launch validated installer: {e}"))?;
             if status.success() {
@@ -1287,6 +1914,14 @@ pub fn run_scheduled_worker() -> Result<(), String> {
 #[cfg(windows)]
 pub fn run_module() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg == "--restore-gamefiles-worker") {
+        let root = args
+            .windows(2)
+            .find(|pair| pair[0] == "--root")
+            .map(|pair| std::path::PathBuf::from(&pair[1]))
+            .ok_or("missing --root")?;
+        return windows::restore_gamefiles_worker(&root);
+    }
     if args.iter().any(|a| a == "--run-queue") {
         return run_scheduled_worker();
     }
@@ -1310,12 +1945,62 @@ pub fn run_module() -> Result<(), String> {
             .parent()
             .ok_or("updater executable is not inside the ShroudForge module directory")?
             .to_path_buf();
-        return scheduled::request_update_window(&root).map_err(|error| {
+        return scheduled::open_update_window(&root).map_err(|error| {
             let _ = shroudforge_package::logging::append(&root, 'E', "updater-window", &error);
             error
         });
     }
     windows::run()
+}
+
+#[cfg(windows)]
+pub fn request_gamefiles_restore(root: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let status_path =
+        shroudforge_package::paths::backups_dir(root).join("gamefiles-restore-status.json");
+    let status = shroudforge_package::backups::originals_status(
+        root,
+        if root.join("enshrouded_server.exe").is_file() {
+            "server"
+        } else {
+            "client"
+        },
+    );
+    if status["status"] != "ready" {
+        return Err("verified original game files are not available".into());
+    }
+    if let Ok(bytes) = std::fs::read(&status_path) {
+        if let Ok(previous) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            if matches!(
+                previous["status"].as_str(),
+                Some("queued" | "waitingForGame" | "restoring")
+            ) {
+                return Err("gamefile restoration is already in progress".into());
+            }
+        }
+    }
+    shroudforge_package::config::write_json(
+        &status_path,
+        &serde_json::json!({"schemaVersion":1,"status":"queued","message":"Gamefile restoration queued"}),
+    )?;
+    let _ = std::fs::remove_file(
+        shroudforge_package::paths::updates_dir(root).join("cancel-system-update"),
+    );
+    let result = std::process::Command::new(shroudforge_package::paths::updater_executable(root))
+        .args(["--restore-gamefiles-worker", "--root"])
+        .arg(root)
+        .creation_flags(0x08000000)
+        .spawn()
+        .map_err(|error| format!("could not start gamefile restoration in the updater: {error}"));
+    if result.is_err() {
+        let _ = std::fs::remove_file(status_path);
+    }
+    result.map(|_| ())
+}
+
+#[cfg(not(windows))]
+pub fn request_gamefiles_restore(_: &std::path::Path) -> Result<(), String> {
+    Err("gamefile restoration is available on Windows only".into())
 }
 
 #[cfg(not(windows))]

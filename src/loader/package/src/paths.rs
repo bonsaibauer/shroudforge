@@ -15,6 +15,9 @@ fn configured_dir(root: &Path, key: &str) -> Option<PathBuf> {
 pub fn data_dir(root: &Path) -> PathBuf {
     root.join("shroudforge")
 }
+pub fn backups_dir(root: &Path) -> PathBuf {
+    data_dir(root).join("backups")
+}
 pub fn default_directory(root: &Path, key: &str) -> Option<PathBuf> {
     let data = data_dir(root);
     match key {
@@ -42,8 +45,7 @@ pub fn cache_dir(root: &Path) -> PathBuf {
         .unwrap()
 }
 pub fn export_dir(root: &Path) -> PathBuf {
-    configured_dir(root, "exports")
-        .unwrap_or_else(|| default_directory(root, "exports").unwrap())
+    configured_dir(root, "exports").unwrap_or_else(|| default_directory(root, "exports").unwrap())
 }
 pub fn loader_executable(root: &Path) -> PathBuf {
     data_dir(root).join("shroudforge.exe")

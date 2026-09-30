@@ -348,11 +348,39 @@ impl IngameRuntime {
         let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
         let root = env.game_dir().as_std_path().to_path_buf();
         tracing::info!(target: "shroudforge::runtime", stage = "runtime-plan", "Runtime startup stage started");
-        let (mut plan, plan_errors) = env.runtime_plan_report(is_server, API_VERSION);
+        let (mut plan, plan_errors) = env.runtime_plan_report_detailed(is_server, API_VERSION);
         tracing::info!(target: "shroudforge::runtime", stage = "runtime-plan", planned_mods = plan.len(), "Runtime startup stage completed");
         let mut errors = serde_json::Map::new();
-        for (index, error) in plan_errors.into_iter().enumerate() {
-            errors.insert(format!("plan-{index}"), error.into());
+        for issue in plan_errors {
+            tracing::warn!(target: "shroudforge::runtime", mod_id = %issue.mod_id,
+                code = %issue.code, detail = %issue.detail, "Mod is blocked by its execution plan");
+            errors.insert(issue.mod_id, format!("plan-blocked: {}", issue.detail).into());
+        }
+        // Candidate plans contain disabled mods so the UI can toggle them live.
+        // Enabled mods still require their non-optional dependencies to be
+        // enabled and available before their startup callbacks may run.
+        for item in &plan {
+            if !item.info().enabled || errors.contains_key(&item.info().id) {
+                continue;
+            }
+            let blocked_dependency = item.info().dependencies.iter().find_map(|dependency| {
+                if dependency.id == "shroudforge-api" || dependency.optional.unwrap_or(false) {
+                    return None;
+                }
+                let candidate = env.mod_registry().get(&dependency.id);
+                if candidate.is_none_or(|candidate| !candidate.info().enabled) {
+                    Some(format!("required dependency is disabled or unavailable: {}", dependency.id))
+                } else {
+                    errors.get(&dependency.id).map(|_| {
+                        format!("required dependency is blocked: {}", dependency.id)
+                    })
+                }
+            });
+            if let Some(detail) = blocked_dependency {
+                tracing::warn!(target: "shroudforge::runtime", mod_id = %item.info().id,
+                    detail = %detail, "Runtime mod activation skipped");
+                errors.insert(item.info().id.clone(), format!("dependency-blocked: {detail}").into());
+            }
         }
         let needs_assets = plan.iter().any(|item| {
             item.info().enabled
@@ -409,7 +437,18 @@ impl IngameRuntime {
         tracing::info!(target: "shroudforge::runtime", stage = "runner-setup", planned_mods = plan.len(), "Runtime startup stage started");
         runner.setup(plan)?;
         tracing::info!(target: "shroudforge::runtime", stage = "runner-setup", "Runtime startup stage completed");
+        let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
         for target_mod in env.enabled_mods() {
+            if let Some(reason) = errors.get(&target_mod.info().id) {
+                tracing::warn!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                    reason = %reason, "Skipping native DLL scan for blocked mod");
+                continue;
+            }
+            if !target_mod.info().target.supports_process(is_server) {
+                tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                    server = is_server, "Skipping native DLL scan for wrong process target");
+                continue;
+            }
             let app_state = runner.lua.app_data_ref::<AppState>().unwrap();
             tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                 "Checking native DLL declaration");
@@ -423,8 +462,10 @@ impl IngameRuntime {
                         "native-plugin.ini DLL queued; Lua runtime continues independently",
                     );
                 }
-                Ok(false) => tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
-                    "No native DLL declaration"),
+                Ok(false) => {
+                    tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                    "No native DLL declaration")
+                }
                 Err(error) => {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                         "native DLL failed to load: {error}");
@@ -498,10 +539,34 @@ impl IngameRuntime {
                     continue;
                 }
             };
-            let enabled = env
+            let configured_enabled = env
                 .mod_registry()
                 .get(&id)
                 .is_some_and(|item| item.info().enabled);
+            if configured_enabled {
+                let failed_dependency = env
+                    .mod_registry()
+                    .get(&id)
+                    .and_then(|item| {
+                        item.info().dependencies.iter().find(|dependency| {
+                            !dependency.optional.unwrap_or(false)
+                                && dependency.id != "shroudforge-api"
+                                && errors.contains_key(&dependency.id)
+                        })
+                    })
+                    .map(|dependency| dependency.id.clone());
+                if let Some(dependency) = failed_dependency {
+                    errors.insert(
+                        id.clone(),
+                        format!("dependency-blocked: required dependency failed to initialize: {dependency}").into(),
+                    );
+                }
+            }
+            let enabled = configured_enabled && !errors.contains_key(&id);
+            if configured_enabled && !enabled {
+                tracing::warn!(target: "shroudforge::runtime", mod_id = %id,
+                    "Runtime mod is loaded for possible live activation but remains inactive because a dependency is blocked");
+            }
             if enabled {
                 runner
                     .lua
@@ -597,7 +662,11 @@ impl IngameRuntime {
 
     pub fn update(&mut self, delta_seconds: f64) {
         self.diagnostics.tick();
-        self.runner.lua.app_data_ref::<AppState>().unwrap().poll_native_dll_loads();
+        self.runner
+            .lua
+            .app_data_ref::<AppState>()
+            .unwrap()
+            .poll_native_dll_loads();
         self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
             self.refresh_configuration();
@@ -660,8 +729,8 @@ impl IngameRuntime {
     }
 
     fn process_runtime_reload_request(&mut self) {
-        let request_path = mod_loader::paths::runtime_dir(&self.root)
-            .join("mod-reload-request.json");
+        let request_path =
+            mod_loader::paths::runtime_dir(&self.root).join("mod-reload-request.json");
         let Ok(bytes) = std::fs::read(&request_path) else {
             return;
         };
@@ -870,6 +939,29 @@ impl IngameRuntime {
                 )
             })
             .collect();
+        let active_ids: std::collections::HashSet<String> = self
+            .lifecycle
+            .iter()
+            .filter(|item| item.active)
+            .map(|item| item.id.clone())
+            .collect();
+        let mut active_dependents = std::collections::HashMap::<String, Vec<String>>::new();
+        for (dependent_id, _, manifest) in &self.configurations {
+            if !active_ids.contains(dependent_id) {
+                continue;
+            }
+            for dependency in manifest["dependencies"].as_array().into_iter().flatten() {
+                if dependency["optional"].as_bool().unwrap_or(false) {
+                    continue;
+                }
+                if let Some(dependency_id) = dependency["id"].as_str() {
+                    active_dependents
+                        .entry(dependency_id.to_owned())
+                        .or_default()
+                        .push(dependent_id.clone());
+                }
+            }
+        }
         for (id, package, applied) in &mut self.configurations {
             let signature = match mod_loader::config::manifest_revision(package) {
                 Ok(signature) => signature,
@@ -899,6 +991,18 @@ impl IngameRuntime {
             };
             let desired = serde_json::to_value(&manifest).expect("manifest is serializable");
             if desired == *applied {
+                if self
+                    .lifecycle
+                    .iter()
+                    .any(|item| item.id == *id && item.active)
+                    && self
+                        .errors
+                        .get(id)
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|reason| reason.starts_with("dependency-blocked:"))
+                {
+                    self.errors.remove(id);
+                }
                 continue;
             }
             let mut metadata = desired.clone();
@@ -916,8 +1020,7 @@ impl IngameRuntime {
             let wanted_enabled = manifest.enabled;
             let was_enabled = applied["enabled"].as_bool().unwrap_or(false);
             if metadata_unchanged && live_mod && wanted_enabled != was_enabled {
-                let missing_dependency = wanted_enabled
-                    .then(|| {
+                let transition_block = if wanted_enabled {
                         manifest
                             .dependencies
                             .iter()
@@ -933,13 +1036,15 @@ impl IngameRuntime {
                                 });
                                 config_disabled || runtime_disabled
                             })
-                            .map(|dependency| dependency.id.clone())
-                    })
-                    .flatten();
-                if let Some(dependency) = missing_dependency {
-                    let error = format!("required dependency is not active: {dependency}");
-                    self.errors.insert(id.clone(), error.clone().into());
-                    tracing::error!(target:"shroudforge::runtime", mod_id=%id, "Live activation transition failed: {error}");
+                            .map(|dependency| format!("required dependency is not active: {}", dependency.id))
+                    } else {
+                        active_dependents
+                            .get(id)
+                            .map(|dependents| format!("cannot disable this dependency while required by active mod(s): {}", dependents.join(", ")))
+                    };
+                if let Some(error) = transition_block {
+                    self.errors.insert(id.clone(), format!("dependency-blocked: {error}").into());
+                    tracing::warn!(target:"shroudforge::runtime", mod_id=%id, "Live activation transition deferred: {error}");
                 } else if let Some(item) = self.lifecycle.iter_mut().find(|item| item.id == *id) {
                     let transition = if wanted_enabled {
                         self.runner
@@ -1131,6 +1236,13 @@ pub fn export_lua_definitions(game_dir: impl AsRef<Path>, file_name: &str, force
 
 pub fn restore(game_dir: impl AsRef<Path>, file_name: &str) -> bool {
     let kfc_path = game_dir.as_ref().join(format!("{file_name}.kfc"));
+    if load::restore_backup(&kfc_path).is_err() {
+        return false;
+    }
+    let resources = game_dir.as_ref().join(format!("{file_name}.kfc_resources"));
+    load::restore_companion_backup(resources).is_ok()
+}
 
-    load::restore_backup(&kfc_path).is_ok()
+pub fn backup_companion_file(path: impl AsRef<std::path::Path>) -> bool {
+    load::create_companion_backup(path).is_ok()
 }

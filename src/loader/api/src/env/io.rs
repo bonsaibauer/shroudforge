@@ -33,6 +33,10 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     add_function(lua, &table, "join", lua_join)?;
     add_function(lua, &table, "export", lua_export)?;
     add_function(lua, &table, "export_exists", lua_export_exists)?;
+    add_function(lua, &table, "export_list", lua_export_list)?;
+    add_function(lua, &table, "export_rename", lua_export_rename)?;
+    add_function(lua, &table, "export_copy", lua_export_copy)?;
+    add_function(lua, &table, "export_delete", lua_export_delete)?;
     add_function(
         lua,
         &table,
@@ -251,6 +255,125 @@ fn lua_export_exists(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<bool> 
     }
 
     Ok(true)
+}
+
+fn export_root(lua: &mlua::Lua) -> mlua::Result<std::path::PathBuf> {
+    let app_state = lua.app_data_ref::<AppState>().unwrap();
+    if !app_state.has_feature(AppFeatures::EXPORT) {
+        return Err(LuaError::generic("export access is disabled"));
+    }
+    std::fs::create_dir_all(app_state.export_dir())
+        .map_err(|error| LuaError::generic(format!("export directory is unavailable: {error}")))?;
+    std::fs::canonicalize(app_state.export_dir())
+        .map_err(|error| LuaError::generic(format!("export directory is unavailable: {error}")))
+}
+
+fn export_path(root: &std::path::Path, relative: &str) -> mlua::Result<std::path::PathBuf> {
+    let relative = sanitize_path(Path::new(relative))
+        .map_err(|error| LuaError::generic(format!("invalid export path: {error}")))?;
+    Ok(root.join(relative))
+}
+
+fn checked_export_file(root: &std::path::Path, relative: &str) -> mlua::Result<std::path::PathBuf> {
+    let path = export_path(root, relative)?;
+    let canonical = std::fs::canonicalize(&path).map_err(|error| {
+        LuaError::generic(format!("export file could not be inspected: {error}"))
+    })?;
+    if !canonical.starts_with(root) || !canonical.is_file() {
+        return Err(LuaError::generic(
+            "export path must name a file inside the configured export directory",
+        ));
+    }
+    Ok(canonical)
+}
+
+fn checked_export_parent(
+    root: &std::path::Path,
+    relative: &str,
+) -> mlua::Result<std::path::PathBuf> {
+    let path = export_path(root, relative)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| LuaError::generic("export path has no parent directory"))?;
+    std::fs::create_dir_all(parent).map_err(|error| {
+        LuaError::generic(format!("export directory could not be created: {error}"))
+    })?;
+    let canonical_parent = std::fs::canonicalize(parent).map_err(|error| {
+        LuaError::generic(format!("export directory could not be inspected: {error}"))
+    })?;
+    if !canonical_parent.starts_with(root) {
+        return Err(LuaError::generic(
+            "export path resolves outside the configured export directory",
+        ));
+    }
+    Ok(path)
+}
+
+fn lua_export_list(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Vec<String>> {
+    let root = export_root(lua)?;
+    let directory = export_path(&root, &args.get::<String>(0)?)?;
+    if !directory.exists() {
+        return Ok(Vec::new());
+    }
+    let canonical = std::fs::canonicalize(&directory).map_err(|error| {
+        LuaError::generic(format!("export directory could not be inspected: {error}"))
+    })?;
+    if !canonical.starts_with(&root) || !canonical.is_dir() {
+        return Err(LuaError::generic(
+            "export path must name a directory inside the configured export directory",
+        ));
+    }
+
+    let mut entries = Vec::new();
+    for entry in std::fs::read_dir(canonical).map_err(|error| {
+        LuaError::generic(format!("export directory could not be listed: {error}"))
+    })? {
+        let entry = entry.map_err(|error| {
+            LuaError::generic(format!("export entry could not be read: {error}"))
+        })?;
+        let path = entry.path();
+        let Ok(resolved) = std::fs::canonicalize(&path) else {
+            continue;
+        };
+        if resolved.starts_with(&root) {
+            if let Ok(relative) = resolved.strip_prefix(&root) {
+                entries.push(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    entries.sort();
+    Ok(entries)
+}
+
+fn lua_export_rename(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<()> {
+    let root = export_root(lua)?;
+    let source = checked_export_file(&root, &args.get::<String>(0)?)?;
+    let destination_name = args.get::<String>(1)?;
+    let destination = checked_export_parent(&root, &destination_name)?;
+    if destination.exists() {
+        return Err(LuaError::generic("destination export file already exists"));
+    }
+    std::fs::rename(source, destination)
+        .map_err(|error| LuaError::generic(format!("export file could not be renamed: {error}")))
+}
+
+fn lua_export_copy(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<()> {
+    let root = export_root(lua)?;
+    let source = checked_export_file(&root, &args.get::<String>(0)?)?;
+    let destination = checked_export_parent(&root, &args.get::<String>(1)?)?;
+    if destination.exists() {
+        return Err(LuaError::generic("destination export file already exists"));
+    }
+    std::fs::copy(source, destination)
+        .map(|_| ())
+        .map_err(|error| LuaError::generic(format!("export file could not be copied: {error}")))
+}
+
+fn lua_export_delete(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<()> {
+    let root = export_root(lua)?;
+    let path = checked_export_file(&root, &args.get::<String>(0)?)?;
+    std::fs::remove_file(path)
+        .map_err(|error| LuaError::generic(format!("export file could not be deleted: {error}")))
 }
 
 fn lua_read_export_to_string(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<mlua::String> {

@@ -1,6 +1,4 @@
-use shroudforge_api::ShroudForgeApi;
-use shroudforge_compatibility::Compatibility;
-use shroudforge_modloader::{ModLoader, prepare};
+use shroudforge_modloader::prepare;
 use shroudforge_parser::{GameFiles, GameParser, KfcParser, export_api_snapshot};
 use std::{env, path::PathBuf, process::Command};
 
@@ -60,6 +58,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     Err(error)
+                }
+            };
+        }
+        Some("--world-editor-ui") => {
+            return match shroudforge_world_editor_ui::run_module() {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    let detail = format!("World Editor window failed to start: {error}");
+                    if let Some(root) = args
+                        .windows(2)
+                        .find(|pair| pair[0] == "--root")
+                        .map(|pair| PathBuf::from(&pair[1]))
+                    {
+                        let _ = shroudforge_package::logging::append(
+                            &root,
+                            'E',
+                            "world-editor-ui",
+                            &detail,
+                        );
+                    }
+                    Err(std::io::Error::other(detail).into())
                 }
             };
         }
@@ -143,19 +162,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let game = PathBuf::from(&args[2]);
             let is_client = game.join("enshrouded.exe").is_file();
             let schema = KfcParser.parse(&detect_files(&game))?;
-            let api = ShroudForgeApi::new(
-                Compatibility::new([
-                    "runtime.lifecycle",
-                    "runtime.ecs.query",
-                    "runtime.ecs.resolve",
-                    "runtime.ecs.read",
-                    "runtime.ecs.write",
-                ])
-                .resolve(schema),
+            let root = game
+                .to_str()
+                .ok_or("game directory path must be valid UTF-8")?;
+            let environment = shroudforge_package::ModEnvironment::load(root)
+                .map_err(|report| format!("mod discovery failed: {report:?}"))?;
+            let is_server = !is_client;
+            let (plan, errors) = environment.plan_report(is_server, shroudforge_api::API_VERSION);
+            let ids = plan
+                .iter()
+                .map(|item| item.info().id.as_str())
+                .collect::<Vec<_>>();
+            println!(
+                "{} target: {}",
+                if is_server { "Server" } else { "Client" },
+                game.display()
             );
-            let mut loader = ModLoader::new(api, is_client);
-            let report = loader.load_directory(&game)?;
-            println!("Lua runtime mods: {}", report.lua.join(", "));
+            println!("Planned mods: {}", ids.join(", "));
+            for error in errors {
+                eprintln!("Skipped mod: {error}");
+            }
+            let _ = schema;
         }
         _ => {
             eprintln!("usage: shroudforge types <game-directory> <output-directory>");
@@ -220,6 +247,8 @@ fn create_mod(
         "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
         "schemaVersion": 1,
         "enabled": true,
+        "targets": ["client"],
+        "launcher": "SF",
         "settings": {}
     });
     let lua_library = shroudforge_package::paths::cache_dir(game)

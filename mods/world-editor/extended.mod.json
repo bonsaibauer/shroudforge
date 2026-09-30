@@ -2,6 +2,9 @@
   "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
   "schemaVersion": 1,
   "enabled": true,
+  "targets": [
+    "client"
+  ],
   "links": {
     "source-github": "https://github.com/bonsaibauer/shroudforge",
     "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
@@ -14,9 +17,34 @@
     "Adds V6 props-only blueprints and ShroudEdit-style world-space placement anchors with grid alignment checks.",
     "Uses registered native world APIs for entity handles, transform reads, safe handle-targeted removal, and voxel grid metadata.",
     "Packages the standalone mod as world-editor and exposes F3 rotation in Keyboard shortcuts.",
+    "Adds a single F2-controlled blueprint window with a top instruction line, blueprint library, F1 screenshot capture, and library management controls.",
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo."
   ],
   "settings": {
+    "panelWidth": {
+      "value": 1180,
+      "min": 760,
+      "max": 1920,
+      "label": "Blueprint panel width"
+    },
+    "panelHeight": {
+      "value": 190,
+      "min": 140,
+      "max": 400,
+      "label": "Blueprint panel height"
+    },
+    "panelPositionX": {
+      "value": -1,
+      "min": -1,
+      "max": 8192,
+      "label": "Panel position X (−1 = centered)"
+    },
+    "panelPositionY": {
+      "value": 92,
+      "min": 0,
+      "max": 8192,
+      "label": "Panel position Y (from game top)"
+    },
     "maximumCopyableProps": {
       "value": 60000,
       "min": 1,
@@ -58,6 +86,12 @@
       "minLength": 1,
       "maxLength": 64,
       "label": "Persistent blueprint name"
+    },
+    "blueprintNewName": {
+      "value": "my_blueprint_copy",
+      "minLength": 1,
+      "maxLength": 64,
+      "label": "New name for rename or duplicate"
     },
     "pasteVoxelMode": {
       "value": "replace",
@@ -103,7 +137,7 @@
       "value": 0,
       "min": 0,
       "max": 3,
-          "label": "Initial paste rotation (F3 cycles in game, 0–3)"
+      "label": "Initial paste rotation (F3 cycles in game, 0–3)"
     },
     "rotationAxis": {
       "value": "y",
@@ -174,6 +208,16 @@
     }
   },
   "groups": [
+    {
+      "label": "In-game panel",
+      "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel; Y is measured down from the top. Changes apply while the game is running.",
+      "settings": [
+        "panelWidth",
+        "panelHeight",
+        "panelPositionX",
+        "panelPositionY"
+      ]
+    },
     {
       "label": "World Editor limits",
       "settings": [
@@ -268,6 +312,7 @@
         "sizeY",
         "sizeZ",
         "blueprintName",
+        "blueprintNewName",
         "rotationQuarterTurns",
         "rotationAxis",
         "pasteVoxelMode",
@@ -330,6 +375,27 @@
           "id": "loadBlueprint",
           "label": "Load world blueprint",
           "style": "secondary"
+        },
+        {
+          "id": "refreshBlueprintLibrary",
+          "label": "Refresh blueprint folder",
+          "style": "secondary"
+        },
+        {
+          "id": "renameLibraryBlueprint",
+          "label": "Rename blueprint to new name",
+          "style": "secondary"
+        },
+        {
+          "id": "duplicateLibraryBlueprint",
+          "label": "Duplicate blueprint to new name",
+          "style": "secondary"
+        },
+        {
+          "id": "deleteLibraryBlueprint",
+          "label": "Delete blueprint and image",
+          "style": "danger",
+          "confirm": "Delete the named blueprint and its image from the export folder?"
         },
         {
           "id": "pasteVoxels",

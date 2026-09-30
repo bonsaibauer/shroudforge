@@ -9,7 +9,12 @@
   ],
   "license": null,
   "icon": "icon.svg",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "id": "sf-no-stamina-loss",
+      "version": "^1.1.1"
+    }
+  ],
   "capabilities": [
     "runtime"
   ]

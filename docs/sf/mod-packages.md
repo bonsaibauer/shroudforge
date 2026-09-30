@@ -66,6 +66,28 @@ The mod's **mod.json** contains its basic information:
 - **dependencies** lists other mods that must be installed first. Use an empty list when there are none.
 - **capabilities** lists the mod's declared access needs: **patch**, **export**, **runtime**, or **runtime-register-dll**. The last one schedules an EML mod that uses package-local native DLL registration for the runtime. The registration API checks the current phase and package path; it does not check this specific capability.
 
+Each dependency has a mod **id** and a SemVer **version** requirement. Set
+**optional** to `true` when the mod may run without that dependency; the default
+is `false`. An installed dependency must still match its version requirement.
+For example:
+
+~~~json
+"dependencies": [
+  { "id": "helper-mod", "version": "^1.2.0" },
+  { "id": "extra-integration", "version": ">=2.0.0, <3.0.0", "optional": true }
+]
+~~~
+
+The loader orders dependencies before their consumers and reports missing,
+disabled, incompatible, conflicting, or cyclic dependencies per mod. A blocked
+mod is skipped while the game can continue to start. Runtime mods also require
+their mandatory dependencies to be active before lifecycle callbacks run. The
+special id `shroudforge-api` checks the installed ShroudForge Lua API version.
+Dependencies express planning and availability requirements; they do not
+automatically export functions or create shared globals. Cross-mod module
+loading uses the existing `require("mods.<id>.<module>")` support separately.
+`capabilities` describes the loader features a mod uses.
+
 The current [manifest schema](../../src/loader/package/src/registry/manifest.schema.json) defines every accepted field.
 
 ## Add a switch or slider
@@ -76,6 +98,7 @@ The optional **extended.mod.json** file can add settings to the Modloader. For e
 {
   "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
   "schemaVersion": 1,
+  "targets": ["client"],
   "enabled": true,
   "launcher": "SF",
   "settings": {

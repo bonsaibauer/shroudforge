@@ -6,8 +6,9 @@ use std::path::Path;
 
 pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
-    ensure_game_stopped()?;
     let file_name = target_name(game_directory)?;
+    ensure_game_stopped(file_name)?;
+    ensure_original_gamefiles(game_directory, file_name);
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
     if already_applied(game_directory, file_name)? && !export_pass_needed {
         // The prepared KFC files remain in place. A match means the requested
@@ -27,6 +28,9 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     let file_name = process_target_name(game_directory)?;
+    // Capture a first-install original before the early return for installations
+    // that do not have asset mods. Uncertain legacy installs remain unclassified.
+    ensure_original_gamefiles(game_directory, file_name);
     let lock_path = shroudforge_package::paths::startup_asset_lock(game_directory);
     let _lease = startup_asset_lease(&lock_path)?;
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
@@ -46,18 +50,16 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
     })?;
     let environment = shroudforge_package::ModEnvironment::load(game_utf8)
         .map_err(|report| LoaderError::Environment(format_report(&report)))?;
-    let has_startup_mods = environment
-        .plan(
-            file_name == "enshrouded_server",
-            shroudforge_api::API_VERSION,
-        )
-        .iter()
-        .any(|item| {
-            item.info()
-                .capabilities
-                .iter()
-                .any(|capability| capability.requires_pregame())
-        });
+    let (startup_plan, plan_issues) = environment.plan_report_detailed(
+        file_name == "enshrouded_server",
+        shroudforge_api::API_VERSION,
+    );
+    let has_startup_mods = startup_plan.iter().any(|item| {
+        item.info()
+            .capabilities
+            .iter()
+            .any(|capability| capability.requires_pregame())
+    });
     let has_previous_apply = shroudforge_package::config::read_document(game_directory, "applied")
         .ok()
         .is_some_and(|value| {
@@ -67,11 +69,24 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
             )
         });
     if !has_startup_mods && !has_previous_apply {
+        for issue in plan_issues {
+            tracing::warn!(target: "shroudforge::startup", mod_id = %issue.mod_id,
+                code = %issue.code, detail = %issue.detail, "Startup mod skipped by dependency or compatibility planning");
+        }
         return Ok(());
     }
 
     tracing::debug!(target: "shroudforge::startup", "Applying asset mods during early process startup");
     run_inner(game_directory, file_name, "startup")
+}
+
+fn ensure_original_gamefiles(game_directory: &Path, file_name: &str) {
+    match shroudforge_package::backups::ensure_originals(game_directory, file_name) {
+        Ok(status) => tracing::info!(target: "shroudforge::backup", target = file_name,
+            state = %status["status"], "Original game-file backup status checked"),
+        Err(error) => tracing::warn!(target: "shroudforge::backup", target = file_name,
+            %error, "Could not capture original game files"),
+    }
 }
 
 fn export_pass_needed(game_directory: &Path, file_name: &str) -> Result<bool, LoaderError> {
@@ -162,6 +177,14 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
     })?;
     let environment = shroudforge_package::ModEnvironment::load(game_utf8)
         .map_err(|report| LoaderError::Environment(format_report(&report)))?;
+    let (_, plan_issues) = environment.plan_report_detailed(
+        file_name == "enshrouded_server",
+        shroudforge_api::API_VERSION,
+    );
+    for issue in plan_issues {
+        tracing::warn!(target: "shroudforge::startup", mod_id = %issue.mod_id,
+            code = %issue.code, detail = %issue.detail, "Mod skipped during startup preparation");
+    }
     let backup = game_directory.join(format!("{file_name}.kfc.bak"));
     let fingerprint = shroudforge_package::prepared::fingerprint(
         &environment,
@@ -183,6 +206,16 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
         if backup.is_file() && !shroudforge_api::restore(game_utf8, file_name) {
             return Err(LoaderError::Pregame(format!(
                 "failed to restore the clean {file_name}.kfc baseline"
+            )));
+        }
+        let resources = game_directory.join(format!("{file_name}.kfc_resources"));
+        let resources = resources.to_str().ok_or_else(|| {
+            LoaderError::Environment("companion resource file path is not valid UTF-8".into())
+        })?;
+        if !shroudforge_api::backup_companion_file(resources) {
+            return Err(LoaderError::Pregame(format!(
+                "failed to back up the clean {}.kfc_resources baseline",
+                file_name
             )));
         }
         if phase == "startup" {
@@ -365,7 +398,7 @@ fn startup_asset_lease(path: &Path) -> Result<std::fs::File, LoaderError> {
 }
 
 #[cfg(windows)]
-fn ensure_game_stopped() -> Result<(), LoaderError> {
+fn ensure_game_stopped(file_name: &str) -> Result<(), LoaderError> {
     use windows_sys::Win32::{
         Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
         System::Diagnostics::ToolHelp::{
@@ -391,9 +424,7 @@ fn ensure_game_stopped() -> Result<(), LoaderError> {
                 .position(|value| *value == 0)
                 .unwrap_or(entry.szExeFile.len());
             let name = String::from_utf16_lossy(&entry.szExeFile[..len]);
-            if name.eq_ignore_ascii_case("enshrouded.exe")
-                || name.eq_ignore_ascii_case("enshrouded_server.exe")
-            {
+            if name.eq_ignore_ascii_case(&format!("{file_name}.exe")) {
                 running = true;
                 break;
             }
@@ -408,7 +439,7 @@ fn ensure_game_stopped() -> Result<(), LoaderError> {
 }
 
 #[cfg(not(windows))]
-fn ensure_game_stopped() -> Result<(), LoaderError> {
+fn ensure_game_stopped(_file_name: &str) -> Result<(), LoaderError> {
     Ok(())
 }
 

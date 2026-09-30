@@ -9,6 +9,13 @@
     "$schema": { "type": "string" },
     "schemaVersion": { "const": 1 },
     "enabled": { "type": "boolean" },
+    "targets": {
+      "description": "Processes this mod runs in. Legacy EML packages without targets default to client and server; ShroudForge packages default to client.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["client", "server"] }
+    },
     "launcher": {
       "description": "Launcher that originally identified this mod. Omit for ShroudForge mods; use EML to preserve EML provenance.",
       "enum": ["EML", "SF"]

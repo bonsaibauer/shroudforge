@@ -17,7 +17,7 @@ use kfc::{
     reflection::{TypeHandle, TypeIndex, TypeRegistry},
     resource::value::Value,
 };
-use mod_loader::{Mod, ModEnvironment};
+use mod_loader::{Capability, Mod, ModEnvironment};
 use once_cell::unsync::OnceCell;
 use shroudforge_parser::kfc_format;
 
@@ -318,12 +318,7 @@ impl AppState {
     }
 
     fn native_dll_state(&self, id: &str) -> Option<&'static str> {
-        if self
-            .native_dlls
-            .borrow()
-            .iter()
-            .any(|dll| dll.mod_id == id)
-        {
+        if self.native_dlls.borrow().iter().any(|dll| dll.mod_id == id) {
             Some("loaded")
         } else if self
             .pending_native_dlls
@@ -497,16 +492,23 @@ impl AppState {
         tracing::info!(target: "shroudforge::runtime", mod_id, dll = %canonical.display(),
             "Queuing native DLL load on isolated worker");
         std::thread::Builder::new()
-            .name(format!("sf-native-{}", mod_id.chars().take(24).collect::<String>()))
+            .name(format!(
+                "sf-native-{}",
+                mod_id.chars().take(24).collect::<String>()
+            ))
             .spawn(move || {
                 tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
                     dll = %worker_path.display(), "Isolated native DLL load started");
                 let result = load_native_library(&worker_mod_id, &worker_path);
                 match &result {
-                    Ok(_) => tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
-                        dll = %worker_path.display(), "Isolated native DLL load completed"),
-                    Err(error) => tracing::error!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
-                        dll = %worker_path.display(), "Isolated native DLL load failed: {error}"),
+                    Ok(_) => {
+                        tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                        dll = %worker_path.display(), "Isolated native DLL load completed")
+                    }
+                    Err(error) => {
+                        tracing::error!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                        dll = %worker_path.display(), "Isolated native DLL load failed: {error}")
+                    }
                 }
                 if let Err(send_error) = sender.send(result) {
                     if let Ok(handle) = send_error.0 {
@@ -523,14 +525,16 @@ impl AppState {
                 }
                 format!("could not start isolated DLL loader thread: {error}")
             })?;
-        self.pending_native_dlls.borrow_mut().push(PendingNativeDll {
-            mod_id,
-            path: canonical,
-            temporary_directory,
-            queued_at: std::time::Instant::now(),
-            warned_stall: false,
-            receiver,
-        });
+        self.pending_native_dlls
+            .borrow_mut()
+            .push(PendingNativeDll {
+                mod_id,
+                path: canonical,
+                temporary_directory,
+                queued_at: std::time::Instant::now(),
+                warned_stall: false,
+                receiver,
+            });
         Ok(())
     }
 
@@ -542,9 +546,14 @@ impl AppState {
             while index < pending.len() {
                 match pending[index].receiver.try_recv() {
                     Ok(result) => completed.push((pending.remove(index), Some(result))),
-                    Err(TryRecvError::Disconnected) => completed.push((pending.remove(index), None)),
+                    Err(TryRecvError::Disconnected) => {
+                        completed.push((pending.remove(index), None))
+                    }
                     Err(TryRecvError::Empty) => {
-                        if !pending[index].warned_stall && pending[index].queued_at.elapsed() >= std::time::Duration::from_secs(5) {
+                        if !pending[index].warned_stall
+                            && pending[index].queued_at.elapsed()
+                                >= std::time::Duration::from_secs(5)
+                        {
                             tracing::error!(target: "shroudforge::runtime", mod_id = %pending[index].mod_id,
                                 dll = %pending[index].path.display(), elapsed_ms = pending[index].queued_at.elapsed().as_millis(),
                                 "Native DLL load is still running on isolated worker; runtime updates continue");
@@ -556,10 +565,14 @@ impl AppState {
             }
         }
         for (item, result) in completed {
-            match result.unwrap_or_else(|| Err("native DLL loader worker exited without a result".into())) {
+            match result
+                .unwrap_or_else(|| Err("native DLL loader worker exited without a result".into()))
+            {
                 Ok(handle) => {
                     self.native_dlls.borrow_mut().push(NativeDll {
-                        mod_id: item.mod_id.clone(), path: item.path.clone(), handle,
+                        mod_id: item.mod_id.clone(),
+                        path: item.path.clone(),
+                        handle,
                         temporary_directory: item.temporary_directory.clone(),
                     });
                     tracing::info!(target: "shroudforge::runtime", mod_id = %item.mod_id,
@@ -567,7 +580,9 @@ impl AppState {
                     self.report_runtime_effect(&item.mod_id, "loaded", "native DLL loaded");
                 }
                 Err(error) => {
-                    if let Some(directory) = item.temporary_directory { let _ = std::fs::remove_dir_all(directory); }
+                    if let Some(directory) = item.temporary_directory {
+                        let _ = std::fs::remove_dir_all(directory);
+                    }
                     tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id,
                         dll = %item.path.display(), "Native DLL load failed: {error}");
                     self.report_runtime_effect(&item.mod_id, "error", &error);
@@ -577,7 +592,12 @@ impl AppState {
     }
 
     pub(crate) fn load_native_dll_declaration(&self, target_mod: &Mod) -> Result<bool, String> {
-        if !self.has_feature(AppFeatures::RUNTIME_DLL) {
+        if !self.has_feature(AppFeatures::RUNTIME_DLL)
+            || !target_mod
+                .info()
+                .capabilities
+                .contains(&Capability::RuntimeRegisterDll)
+        {
             return Ok(false);
         }
         let config_path = camino::Utf8Path::new("native-plugin.ini");
@@ -906,7 +926,11 @@ fn load_native_library(mod_id: &str, path: &std::path::Path) -> Result<isize, St
 
     tracing::debug!(target: "shroudforge::runtime", mod_id, dll = %path.display(),
         "Calling LoadLibraryExW on isolated worker");
-    let wide_path = path.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<_>>();
+    let wide_path = path
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
     let handle = unsafe {
         LoadLibraryExW(
             wide_path.as_ptr(),
@@ -915,7 +939,10 @@ fn load_native_library(mod_id: &str, path: &std::path::Path) -> Result<isize, St
         )
     };
     if handle.is_null() {
-        Err(format!("Windows could not load native DLL for mod '{mod_id}': {}", std::io::Error::last_os_error()))
+        Err(format!(
+            "Windows could not load native DLL for mod '{mod_id}': {}",
+            std::io::Error::last_os_error()
+        ))
     } else {
         tracing::debug!(target: "shroudforge::runtime", mod_id, dll = %path.display(),
             "LoadLibraryExW returned on isolated worker");
@@ -934,7 +961,9 @@ fn unload_native_library(handle: isize) {
 
 #[cfg(not(windows))]
 fn load_native_library(mod_id: &str, _path: &std::path::Path) -> Result<isize, String> {
-    Err(format!("native DLL loading for mod '{mod_id}' is supported only on Windows"))
+    Err(format!(
+        "native DLL loading for mod '{mod_id}' is supported only on Windows"
+    ))
 }
 
 #[cfg(not(windows))]

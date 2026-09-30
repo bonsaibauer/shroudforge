@@ -130,6 +130,15 @@
             }
           }
         },
+        "worldEditor": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "toggleKey": { "type": "integer", "minimum": 1, "maximum": 255 },
+            "refreshMilliseconds": { "type": "integer", "minimum": 100, "maximum": 5000 }
+          },
+          "additionalProperties": false
+        },
         "modloaderUi": {
           "type": "object",
           "properties": {
@@ -251,6 +260,9 @@
                   "enum": [
                     "stable"
                   ]
+                },
+                "includePrereleases": {
+                  "type": "boolean"
                 }
               },
               "additionalProperties": false

@@ -263,7 +263,24 @@ function validateManifests(manifest, extended) {
   if (manifest.license !== undefined && manifest.license !== null && typeof manifest.license !== "string") fail("mod.json: license must be text or null.");
   if (manifest.icon !== undefined && manifest.icon !== null && (typeof manifest.icon !== "string" || !/^(?:assets\/[A-Za-z0-9._/-]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$/.test(manifest.icon))) fail("mod.json: icon must be a file name or a path under assets/.");
   if (manifest.capabilities !== undefined && (!Array.isArray(manifest.capabilities) || manifest.capabilities.some(value => !["patch", "export", "runtime", "runtime-register-dll"].includes(value)) || new Set(manifest.capabilities).size !== manifest.capabilities.length)) fail("mod.json: capabilities can contain patch, export, runtime, and runtime-register-dll once each.");
-  if (manifest.dependencies !== undefined && (!Array.isArray(manifest.dependencies) || manifest.dependencies.some(item => !item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).some(key => !["id", "version", "optional"].includes(key)) || typeof item.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(item.id) || typeof item.version !== "string" || (item.optional !== undefined && typeof item.optional !== "boolean")))) fail("mod.json: each dependency needs an id and version; optional can be true or false.");
+  if (manifest.dependencies !== undefined) {
+    if (!Array.isArray(manifest.dependencies)) fail("mod.json: dependencies must be a list.");
+    else {
+      const dependencyIds = new Set();
+      for (const item of manifest.dependencies) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) { fail("mod.json: each dependency must be an object with an id and version."); continue; }
+        if (Object.keys(item).some(key => !["id", "version", "optional"].includes(key))) fail("mod.json: a dependency only allows id, version, and optional.");
+        if (typeof item.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(item.id)) fail("mod.json: dependency id must use 1–80 letters, numbers, dots, hyphens, or underscores.");
+        else {
+          if (item.id === manifest.id) fail("mod.json: a mod cannot depend on itself.");
+          if (dependencyIds.has(item.id)) fail(`mod.json: dependency “${item.id}” is listed more than once.`);
+          dependencyIds.add(item.id);
+        }
+        if (typeof item.version !== "string" || !item.version.trim()) fail("mod.json: every dependency needs a non-empty SemVer version requirement.");
+        if (item.optional !== undefined && typeof item.optional !== "boolean") fail("mod.json: dependency optional must be true or false.");
+      }
+    }
+  }
   checkKeys(extended, ["$schema", "schemaVersion", "enabled", "launcher", "links", "changelog", "settings", "groups"], "extended.mod.json");
   if (extended.schemaVersion !== 1) fail("extended.mod.json: schemaVersion must be 1.");
   if (extended["$schema"] !== undefined && typeof extended["$schema"] !== "string") fail("extended.mod.json: $schema must be a text address.");
@@ -317,7 +334,7 @@ function renderSchemaReference() {
       ["license", "string | null", de ? "Lizenzkennung." : "License identifier.", "z. B. MIT oder null"],
       ["icon", "string | null", de ? "Dateiname im Paketstamm oder Pfad unter assets/." : "Filename in the package root or path under assets/.", "Bildtypen: PNG, JPG/JPEG, WebP, SVG; max. 2 MiB"],
       ["capabilities", "string[]", de ? "Vom Mod benötigte Berechtigungen." : "Permissions required by the mod.", "patch · export · runtime · runtime-register-dll"],
-      ["dependencies", "object[]", de ? "Andere benötigte Mods." : "Other required mods.", "id + version erforderlich; id nach Key-Regel; optional: boolean"]
+      ["dependencies", "object[]", de ? "Abhängigkeiten stehen in mod.json. id ist die Kennung aus der mod.json der anderen Mod; version ist ein SemVer-Versionsbereich. Fehlende, deaktivierte oder unpassende Pflicht-Abhängigkeiten blockieren den Start. optional: true blockiert nicht." : "Dependencies belong in mod.json. id is the identifier from the other mod's mod.json; version is a SemVer version requirement. Missing, disabled, or incompatible required dependencies block startup. optional: true does not block startup.", "id + version erforderlich; z. B. ^1.2.0 oder >=1.2.0, <2.0.0; optional: boolean, Standard false"]
     ] },
     { title: "extended.mod.json", rows: [
       ["schemaVersion", "integer", de ? "Version des Erweiterungsformats." : "Extension format version.", "fest: 1"],
@@ -376,7 +393,7 @@ function readManifestIntoBuilder() {
 function renderDependencyList(dependencies) {
   const root = $("#dependency-list");
   if (!root) return;
-  root.innerHTML = dependencies.length ? dependencies.map((item, index) => `<div class="dependency-item"><span><b>${esc(item.id)}</b><small>${esc(item.version)}${item.optional ? (locale === "de" ? " · freiwillig" : " · optional") : ""}</small></span><button type="button" class="remove-item" data-remove-dependency="${index}" aria-label="${locale === "de" ? "Abhängigkeit entfernen" : "Remove dependency"}">×</button></div>`).join("") : `<small>${locale === "de" ? "Noch keine Abhängigkeiten hinzugefügt." : "No dependencies added yet."}</small>`;
+  root.innerHTML = dependencies.length ? dependencies.map((item, index) => `<div class="dependency-item"><span><b>${esc(item.id)}</b><small>${locale === "de" ? "Version:" : "Version:"} ${esc(item.version)} · ${item.optional ? (locale === "de" ? "optional" : "optional") : (locale === "de" ? "erforderlich" : "required")}</small></span><button type="button" class="remove-item" data-remove-dependency="${index}" aria-label="${locale === "de" ? "Abhängigkeit entfernen" : "Remove dependency"}">×</button></div>`).join("") : `<small>${locale === "de" ? "Noch keine Abhängigkeiten hinzugefügt." : "No dependencies added yet."}</small>`;
 }
 function showUploadedIcon(file, dataUrl) {
   uploadedIcon = file ? { file, dataUrl, name: file.name } : null;
@@ -472,9 +489,11 @@ $("#download-package")?.addEventListener("click", async event => {
 $("#add-dependency")?.addEventListener("click", () => {
   const id = $("#dependency-id").value.trim();
   const version = $("#dependency-version").value.trim();
-  if (!id || !version) { alert(locale === "de" ? "Bitte trage Mod-Kennung und Version ein." : "Please enter the mod ID and version."); return; }
+  if (!/^[A-Za-z0-9._-]{1,80}$/.test(id) || !version) { alert(locale === "de" ? "Bitte trage die gültige Mod-Kennung aus deren mod.json und einen SemVer-Versionsbereich ein." : "Enter the dependency ID from its mod.json and a SemVer version requirement."); return; }
   let mod; try { mod = JSON.parse(state.manifest); } catch { return; }
+  if (id === mod.id) { alert(locale === "de" ? "Ein Mod kann nicht von sich selbst abhängen." : "A mod cannot depend on itself."); return; }
   mod.dependencies ||= [];
+  if (mod.dependencies.some(item => item.id === id)) { alert(locale === "de" ? "Diese Mod ist bereits als Abhängigkeit eingetragen." : "This mod is already listed as a dependency."); return; }
   const dependency = { id, version };
   if ($("#dependency-optional").checked) dependency.optional = true;
   mod.dependencies.push(dependency);
@@ -644,6 +663,10 @@ function renderPreview(manifest, extended) {
   const icon = uploadedIcon?.dataUrl || "";
   const details = `<div class="mock-details"><div class="mock-section-title">${locale === "de" ? "MOD-DETAILS" : "MOD DETAILS"}</div><div class="mock-meta"><span>${locale === "de" ? "Quelle" : "Ecosystem"}<b>${ecosystem === "EML" ? "EML" : "ShroudForge"}</b></span><span>Version<b>${esc(manifest.version || "0.0.0")}</b></span><span>${locale === "de" ? "Ziel" : "Target"}<b>${target}</b></span><span>${locale === "de" ? "Typ" : "Type"}<b>${runtime ? (locale === "de" ? "Laufzeit-Mod" : "Runtime mod") : (locale === "de" ? "Daten-Mod" : "Asset mod")}</b></span>${manifest.license ? `<span>${locale === "de" ? "Lizenz" : "License"}<b>${esc(manifest.license)}</b></span>` : ""}</div>${manifest.authors?.length ? `<small class="mock-authors">${locale === "de" ? "Erstellt von" : "Created by"}: ${esc(manifest.authors.join(", "))}</small>` : ""}${links ? `<div class="mock-badges">${links}</div>` : ""}${changelog ? `<div class="mock-changelog"><b>${locale === "de" ? "ÄNDERUNGEN" : "WHAT’S NEW"}</b><ul>${changelog}</ul></div>` : ""}</div>`;
   preview.innerHTML = `<header class="mock-page-head"><div><span class="eyebrow">MOD</span><h3>${esc(manifest.name || (locale === "de" ? "Unbenannter Mod" : "Unnamed mod"))}</h3><p>${esc(manifest.description || manifest.id || copy.editor.noDescription)}</p></div><div class="mock-page-actions"><button>${locale === "de" ? "Aktualisieren" : "Refresh"}</button><button>${locale === "de" ? "Speichern" : "Save"}</button></div></header><div class="mock-status-row"><span class="mock-state">${locale === "de" ? "BEREIT" : "READY"}</span><label>${locale === "de" ? "Aktiv" : "Active"}<span class="switch"><input type="checkbox" ${extended.enabled ? "checked" : ""} aria-label="${locale === "de" ? "Mod aktivieren" : "Enable mod"}"><i></i></span></label></div><article class="mock-mod-card"><div class="mock-mod-head"><div class="mock-avatar">${icon ? `<img src="${icon}" alt="">` : esc((manifest.name || "SF").slice(0, 2).toUpperCase())}</div><div class="mock-title"><strong>${esc(manifest.name || "Unnamed mod")}</strong><small>${esc(manifest.id || "mod.id")} · v${esc(manifest.version || "0.0.0")}</small></div></div><p class="mock-description">${esc(manifest.description || copy.editor.noDescription)}</p><div class="mock-divider"></div><div class="mock-section-title">${locale === "de" ? "EINSTELLUNGEN" : "SETTINGS"}<span>${entries.length}</span></div>${sectionHtml}${ungrouped}${entries.length || groups.length ? "" : `<div class="preview-empty">${esc(copy.editor.noSettings)}</div>`}</article>${details}`;
+  if (manifest.dependencies?.length) {
+    const rows = manifest.dependencies.map(item => `<div class="mock-dependency"><span><b>${esc(item.id)}</b><small>${locale === "de" ? "Benötigt" : "Requires"} ${esc(item.version)}</small></span><span class="mock-dependency-kind ${item.optional ? "optional" : "required"}">${item.optional ? (locale === "de" ? "Optional" : "Optional") : (locale === "de" ? "Erforderlich" : "Required")}</span></div>`).join("");
+    preview.insertAdjacentHTML("beforeend", `<section class="mock-details mock-dependencies"><div class="mock-section-title">${locale === "de" ? "ABHÄNGIGKEITEN" : "DEPENDENCIES"}</div>${rows}<small class="mock-dependency-note">${locale === "de" ? "Die echte Modloader-Ansicht ergänzt den Installations- und Laufzeitstatus." : "The actual Modloader view also resolves installation and runtime status."}</small></section>`);
+  }
 }
 function renderSetting(key, setting) {
   const metadata = setting && typeof setting === "object" && !Array.isArray(setting) ? setting : {};

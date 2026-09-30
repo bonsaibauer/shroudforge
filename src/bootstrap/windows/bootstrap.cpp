@@ -28,6 +28,8 @@ HANDLE console_process{};
 HANDLE console_show_event{};
 HANDLE modloader_ui_stop_event{};
 HANDLE modloader_ui_process{};
+HANDLE world_editor_ui_stop_event{};
+HANDLE world_editor_ui_process{};
 auto session_started = std::chrono::steady_clock::now();
 
 std::string single_line(std::string_view value) {
@@ -75,6 +77,19 @@ std::filesystem::path module_directory() {
     if (length == 0 || length == path.size()) return {};
     path.resize(length);
     return std::filesystem::path(path).parent_path();
+}
+
+bool is_dedicated_server_process() {
+    wchar_t path[32768]{};
+    const auto length = GetModuleFileNameW(nullptr, path, static_cast<DWORD>(std::size(path)));
+    if (length == 0 || length >= std::size(path)) return false;
+    const std::wstring_view executable(path, length);
+    const auto separator = executable.find_last_of(L"\\/");
+    const auto name = separator == std::wstring_view::npos
+        ? executable
+        : executable.substr(separator + 1);
+    return CompareStringOrdinal(name.data(), static_cast<int>(name.size()),
+        L"enshrouded_server.exe", -1, TRUE) == CSTR_EQUAL;
 }
 
 std::filesystem::path shroudforge_directory(const std::filesystem::path& root) {
@@ -212,6 +227,10 @@ void clear_runtime_heartbeat(const std::filesystem::path& root) {
 }
 
 void start_debug_console(const std::filesystem::path& root) {
+    if (is_dedicated_server_process()) {
+        log("Dedicated server uses file logging; interactive Debug Console is skipped");
+        return;
+    }
     if (!std::filesystem::is_regular_file(root / L"enshrouded.exe") &&
         !std::filesystem::is_regular_file(root / L"enshrouded_server.exe")) return;
     const auto executable = shroudforge_directory(root) / L"shroudforge.exe";
@@ -289,6 +308,10 @@ void stop_debug_console() {
 }
 
 void start_modloader_ui(const std::filesystem::path& root) {
+    if (is_dedicated_server_process()) {
+        log("Modloader UI window is skipped in the Dedicated Server process");
+        return;
+    }
     if (!ShroudforgeConfig::ModuleEnabled(root,"modloaderUi")) return;
     const auto executable = shroudforge_directory(root) / L"shroudforge.exe";
     if (!std::filesystem::is_regular_file(executable)) {
@@ -333,6 +356,56 @@ void stop_modloader_ui() {
     if (modloader_ui_stop_event) {
         CloseHandle(modloader_ui_stop_event);
         modloader_ui_stop_event = nullptr;
+    }
+}
+
+void start_world_editor_ui(const std::filesystem::path& root) {
+    if (is_dedicated_server_process()) {
+        log("World Editor window is skipped in the Dedicated Server process");
+        return;
+    }
+    const auto executable = shroudforge_directory(root) / L"shroudforge.exe";
+    if (!std::filesystem::is_regular_file(executable)) {
+        log('W', "World Editor window host is not installed");
+        return;
+    }
+    const auto pid = GetCurrentProcessId();
+    const auto event_name = L"Local\\ShroudForge.WorldEditorUI." + std::to_wstring(pid);
+    world_editor_ui_stop_event = CreateEventW(nullptr, TRUE, FALSE, event_name.c_str());
+    if (!world_editor_ui_stop_event) {
+        log('E', "World Editor window host stop event could not be created");
+        return;
+    }
+    std::wstring command = L"\"" + executable.wstring() + L"\" --world-editor-ui --root \"" +
+        root.wstring() + L"\" --game-pid " + std::to_wstring(pid) +
+        L" --stop-event \"" + event_name + L"\"";
+    STARTUPINFOW startup{sizeof(startup)};
+    PROCESS_INFORMATION process{};
+    if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
+            CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(), &startup, &process)) {
+        log('E', "World Editor window host process could not be started");
+        CloseHandle(world_editor_ui_stop_event);
+        world_editor_ui_stop_event = nullptr;
+        return;
+    }
+    CloseHandle(process.hThread);
+    world_editor_ui_process = process.hProcess;
+    log("World Editor window host started; F1-F8 open its strip and F2 toggles it");
+}
+
+void stop_world_editor_ui() {
+    if (world_editor_ui_stop_event) SetEvent(world_editor_ui_stop_event);
+    if (world_editor_ui_process) {
+        if (WaitForSingleObject(world_editor_ui_process, 3000) != WAIT_OBJECT_0) {
+            log('W', "World Editor window host did not stop after its stop event; terminating owned process");
+            if (TerminateProcess(world_editor_ui_process, 1)) WaitForSingleObject(world_editor_ui_process, 1000);
+        }
+        CloseHandle(world_editor_ui_process);
+        world_editor_ui_process = nullptr;
+    }
+    if (world_editor_ui_stop_event) {
+        CloseHandle(world_editor_ui_stop_event);
+        world_editor_ui_stop_event = nullptr;
     }
 }
 
@@ -404,10 +477,10 @@ DWORD WINAPI run(void*) {
     }
     startup_stage(root, "runtime-exports-resolved");
     start_modloader_ui(root);
+    start_world_editor_ui(root);
     startup_stage(root, "startup-assets");
     if (!prepare_startup(root.c_str())) {
         log('W', "Automatic startup asset application did not complete; runtime mods will still start");
-        if (console_show_event) SetEvent(console_show_event);
     }
     startup_stage(root, "native-provider-init");
     if (!EcsRuntime::Initialize()) {
@@ -471,6 +544,7 @@ DWORD WINAPI run(void*) {
     }
     destroy(handle);
     EcsRuntime::Shutdown();
+    stop_world_editor_ui();
     stop_modloader_ui();
     stop_debug_console();
     clear_runtime_heartbeat(root);

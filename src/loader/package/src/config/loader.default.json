@@ -38,6 +38,11 @@
         "position": null
       }
     },
+    "worldEditor": {
+      "enabled": true,
+      "toggleKey": 113,
+      "refreshMilliseconds": 400
+    },
     "modloaderUi": {
       "enabled": true,
       "startPage": "activity",
@@ -65,7 +70,8 @@
       "system": {
         "enabled": true,
         "checkMinutes": 60,
-        "channel": "stable"
+        "channel": "stable",
+        "includePrereleases": false
       }
     }
   }

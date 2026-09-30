@@ -12,12 +12,10 @@ mod windows {
         dpi::LogicalSize,
         event::{Event, StartCause, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
-        platform::windows::WindowExtWindows,
         window::WindowBuilder,
     };
     use windows_sys::Win32::{
-        Foundation::{CloseHandle, HANDLE, HWND, WAIT_OBJECT_0},
-        Graphics::Dwm::{DWMWA_BORDER_COLOR, DwmSetWindowAttribute},
+        Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0},
         System::Threading::{
             GetCurrentProcessId, GetExitCodeProcess, OpenEventW, OpenProcess,
             PROCESS_QUERY_LIMITED_INFORMATION, WaitForSingleObject,
@@ -104,8 +102,10 @@ mod windows {
             .with_always_on_top(true)
             .with_visible(arguments.desktop)
             .with_inner_size(LogicalSize::new(960.0, 580.0))
-            .with_resizable(false)
-            .with_maximizable(false)
+            // Match Modloader UI's native window style. Identical min/max
+            // bounds keep the console fixed-size without dropping WS_SIZEBOX.
+            .with_min_inner_size(LogicalSize::new(960.0, 580.0))
+            .with_max_inner_size(LogicalSize::new(960.0, 580.0))
             .build(&event_loop)?;
         position_window(&window, &preferences["window"]["position"], true);
 
@@ -136,19 +136,6 @@ mod windows {
             .with_html(html)
             .with_ipc_handler(handler)
             .build(&window)?;
-        // WebView2 can reset DWM frame attributes while attaching to the
-        // window. Reapply the border color afterwards so Windows never falls
-        // back to its bright default frame around this undecorated window.
-        let border_color: u32 = 0x001A_170C; // COLORREF for the shell background (#0c171a)
-        let _ = unsafe {
-            DwmSetWindowAttribute(
-                window.hwnd() as HWND,
-                DWMWA_BORDER_COLOR as u32,
-                (&border_color as *const u32).cast(),
-                std::mem::size_of::<u32>() as u32,
-            )
-        };
-
         let mut shown = arguments.desktop;
         let initial_window_state = shroudforge_package::config::window_state(&arguments.root);
         let mut visibility_request_id = initial_window_state["debugConsole"]["requestId"]
@@ -519,11 +506,9 @@ mod windows {
             return false;
         }
         *offset = start + bytes.len() as u64;
-        String::from_utf8_lossy(&bytes).lines().any(|line| {
-            line.starts_with("[E ")
-                || line.contains("Native DLL load is still running")
-                || (line.starts_with("[W ") && line.contains("startup-assets"))
-        })
+        String::from_utf8_lossy(&bytes)
+            .lines()
+            .any(|line| line.starts_with("[E "))
     }
 
     fn foreground_process() -> u32 {

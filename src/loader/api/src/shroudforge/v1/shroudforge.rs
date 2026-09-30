@@ -36,8 +36,12 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             level,
             lua.create_function(move |_, args: Variadic<LuaValue>| {
                 let disabled_detail_level = match level {
-                    "trace" => !tracing::enabled!(target: "shroudforge::mod", tracing::Level::TRACE),
-                    "debug" => !tracing::enabled!(target: "shroudforge::mod", tracing::Level::DEBUG),
+                    "trace" => {
+                        !tracing::enabled!(target: "shroudforge::mod", tracing::Level::TRACE)
+                    }
+                    "debug" => {
+                        !tracing::enabled!(target: "shroudforge::mod", tracing::Level::DEBUG)
+                    }
                     _ => false,
                 };
                 if disabled_detail_level {
@@ -49,7 +53,9 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                     .collect::<mlua::Result<Vec<_>>>()?
                     .join("\t");
                 match level {
-                    "trace" => tracing::trace!(target: "shroudforge::mod", mod_id = %id, "{message}"),
+                    "trace" => {
+                        tracing::trace!(target: "shroudforge::mod", mod_id = %id, "{message}")
+                    }
                     "debug" => {
                         tracing::debug!(target: "shroudforge::mod", mod_id = %id, "{message}")
                     }
@@ -170,6 +176,8 @@ fn is_game_key_down(key: &str) -> bool {
         };
 
         let virtual_key = match key {
+            "F1" => 0x70,
+            "F2" => 0x71,
             "F3" => 0x72,
             "F4" => 0x73,
             "F5" => 0x74,
@@ -228,6 +236,10 @@ pub(crate) fn dispatch_ui_actions(lua: &mlua::Lua, active_mods: &[String]) {
             let _ = fs::remove_file(path);
             continue;
         };
+        let payload = value
+            .get("value")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
         if !active_mods.iter().any(|id| id == mod_id) {
             let _ = fs::remove_file(path);
             continue;
@@ -238,7 +250,12 @@ pub(crate) fn dispatch_ui_actions(lua: &mlua::Lua, active_mods: &[String]) {
         }
         match lua.named_registry_value::<Function>(&action_registry_key(mod_id, action)) {
             Ok(callback) => {
-                if let Err(error) = callback.call::<()>(()) {
+                let result = if let Some(payload) = payload {
+                    callback.call::<()>(payload)
+                } else {
+                    callback.call::<()>(())
+                };
+                if let Err(error) = result {
                     tracing::error!(target: "shroudforge::mod", mod_id, action, "ui action failed: {error}");
                 }
                 let _ = fs::remove_file(path);

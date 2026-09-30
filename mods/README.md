@@ -12,11 +12,15 @@ package files; those folders are not copied into the release.
   `icon` fields accept a string or `null`; `null` means no value is declared.
   Omitting either field is also valid. An icon is a root filename or a path under
   `assets/`.
+- `targets` in `extended.mod.json` lists the supported processes using `client`
+  and/or `server`. Existing EML packages without this field default to the
+  `client` and `server` entries so migration does not block them. The loader
+  applies this generically to every package folder without mod-ID lists.
 - `capabilities` lists only the permissions the Lua code uses: `patch` for EML
   asset writes, `export` for `io.export` and export reads, and `runtime` for
   ShroudForge in-game runtime APIs. EML mods that register a package DLL also
-  use `runtime-register-dll`. API scanning derives execution phase and process
-  scope; it never adds permissions that the manifest omitted.
+  use `runtime-register-dll`. API scanning derives execution phase; process
+  targets come only from `extended.mod.json`.
 - `extended.mod.json` is optional ShroudForge state and metadata. It holds the
   enabled value, setting values, groups, actions, links, and changelog. The
   loader writes player changes into this same file. Package updates can reset
@@ -36,6 +40,10 @@ The SF gameplay packages use the same two-file format. EML data tools only need
 | `sf-infinite-item-split`, `sf-infinite-item-use`, `sf-no-fall-damage`, `sf-no-resource-cost`, `sf-no-stamina-loss`, `sf-unlimited-flight` | `runtime` | Use approved in-game runtime patch operations. |
 | `sf-unlock-blueprints` | `patch` | Write EML game assets during startup preparation. |
 | `world-editor` | `runtime`, `export` | Standalone Lua world editor using the public runtime API and export storage. |
+
+The gameplay patch mods and `sf-unlock-blueprints` declare
+`targets: ["client", "server"]`. `world-editor` declares `targets: ["client"]` because it depends on the local
+cursor and keyboard UI.
 
 Inline `shroudforge` data is not part of the current manifest contract and is
 rejected. ShroudForge state belongs in the neighboring `extended.mod.json`.

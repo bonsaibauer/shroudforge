@@ -42,8 +42,9 @@ ShroudForge queues each DLL load on an isolated worker so a native DLL initializ
 that stalls cannot stop Lua mod activation or frame updates. The runtime log records
 when each DLL load is queued, completes, fails, or exceeds the stall threshold.
 During game startup, the Debug Console also runs as a hidden log watcher before the
-runtime DLL is loaded. It opens on startup/runtime errors and native DLL stalls, and
-keeps the final log visible after an unexpected nonzero game exit. Bootstrap phases,
+runtime DLL is loaded. It opens on startup/runtime errors and keeps the final log
+visible after an unexpected nonzero game exit. Warnings and native DLL stalls do not
+open it automatically. Bootstrap phases,
 errors, and crash exit codes are recorded in the same `shroudforge/logs/shroudforge.log`
 used by the Debug Console.
 

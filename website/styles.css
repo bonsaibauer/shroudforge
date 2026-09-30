@@ -102,6 +102,7 @@ pre{white-space:pre;overflow-x:auto;overscroll-behavior-inline:contain;max-width
 .dependency-item>span{display:grid;gap:3px;min-width:0}
 .dependency-item b{font-size:9px}
 .dependency-item small{color:var(--muted);font-size:8px}
+.mock-dependencies{margin-top:8px}.mock-dependency{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft)}.mock-dependency>span:first-child{display:grid;gap:3px;min-width:0}.mock-dependency b{overflow-wrap:anywhere;color:#d2e2dc;font-size:9px}.mock-dependency small,.mock-dependency-note{color:var(--muted);font-size:8px}.mock-dependency-kind{flex:0 0 auto;color:var(--gold);font-size:8px}.mock-dependency-kind.optional{color:var(--muted)}.mock-dependency-note{display:block;margin-top:6px;line-height:1.5}
 .builder-empty{margin:0;padding:13px;color:var(--muted);font-size:10px}
 .remove-item,.remove-inline{display:grid;place-items:center;width:27px;height:27px;flex:0 0 auto;border:1px solid rgba(250,133,128,.23);border-radius:5px;color:var(--red);background:rgba(250,133,128,.05);font-size:16px;cursor:pointer}
 .group-item{align-items:flex-start}

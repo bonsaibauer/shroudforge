@@ -32,10 +32,15 @@ local default_maximum_copyable_props = 60000
 local save_blueprint_named
 local undo_voxels
 local rollback_partial_paste
+local refresh_blueprint_library
+local publish_editor_state
 local previous_key_state = {}
 local observed_rotation_setting = nil
 local active_rotation_turns = nil
 local voxel_grid_spec = nil
+local editor_stage = "need_a"
+local editor_hint = "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
+local last_published_editor_state = nil
 
 local function key_pressed(key)
     local down = shroudforge.input.is_key_down(key)
@@ -66,6 +71,9 @@ local function rotate_blueprint()
     shroudforge.log.info(string.format(
         "World Editor rotation: %d/3 quarter turns (%d degrees) around %s; F3 rotates again, F7 pastes, Preview checks the cursor target",
         active_rotation_turns, degrees, string.upper(axis)))
+    editor_stage = "selected"
+    editor_hint = string.format("Rotated the blueprint %d° around the %s axis. Aim at the target and press F7 to place it.", degrees, string.upper(axis))
+    if publish_editor_state then publish_editor_state() end
 end
 
 local function finite_number(value)
@@ -76,6 +84,42 @@ local function maximum_copyable_props()
     local configured = tonumber(setting("maximumCopyableProps"))
     if not finite_number(configured) then configured = default_maximum_copyable_props end
     return math.min(maximum_supported_props, math.max(1, math.floor(configured)))
+end
+
+publish_editor_state = function()
+    local axis = clipboard and clipboard.region and clipboard.region.rotationAxis or setting("rotationAxis")
+    if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
+    local panel_width = tonumber(setting("panelWidth")) or 1180
+    local panel_height = tonumber(setting("panelHeight")) or 190
+    local panel_position_x = tonumber(setting("panelPositionX")) or -1
+    local panel_position_y = tonumber(setting("panelPositionY")) or 92
+    if panel_width ~= panel_width then panel_width = 1180 end
+    if panel_height ~= panel_height then panel_height = 190 end
+    if not finite_number(panel_position_x) then panel_position_x = -1 end
+    if not finite_number(panel_position_y) then panel_position_y = 92 end
+    panel_width = math.floor(math.min(1920, math.max(760, panel_width)))
+    panel_height = math.floor(math.min(400, math.max(140, panel_height)))
+    panel_position_x = math.floor(math.min(8192, math.max(-1, panel_position_x)))
+    panel_position_y = math.floor(math.min(8192, math.max(0, panel_position_y)))
+    local text = table.concat({
+        "stage=" .. tostring(editor_stage),
+        "hint=" .. tostring(editor_hint),
+        "selected=" .. tostring(active_blueprint_name or ""),
+        "axis=" .. axis,
+        "turns=" .. tostring(rotation_turns()),
+        "panelWidth=" .. tostring(panel_width),
+        "panelHeight=" .. tostring(panel_height),
+        "panelPositionX=" .. tostring(panel_position_x),
+        "panelPositionY=" .. tostring(panel_position_y),
+    }, "\n") .. "\n"
+    if text == last_published_editor_state then return true end
+    local ok, reason = pcall(io.export, "world-editor/editor-state.txt", text)
+    if not ok then
+        shroudforge.log.warn("World Editor could not publish its on-screen helper state: " .. tostring(reason))
+        return false
+    end
+    last_published_editor_state = text
+    return true
 end
 
 local function get_voxel_grid_spec()
@@ -605,6 +649,11 @@ local function update_pending_queries()
             local reason = status and status.reason
             if not world_feature_pending(reason) then
                 pending_world_action = nil
+                if editor_stage == "capturing" then
+                    editor_stage = "ready"
+                    editor_hint = "Capture cancelled: " .. tostring(reason or "World API unavailable")
+                    publish_editor_state()
+                end
                 shroudforge.log.warn("World Editor world query stopped: " .. tostring(reason or "world operation unavailable"))
             end
         end
@@ -617,6 +666,8 @@ local function update_pending_queries()
             action(point)
         elseif not query_is_pending(reason) then
             pending_cursor_action = nil
+            editor_hint = "Could not read the cursor: " .. tostring(reason or "cursor position unavailable")
+            publish_editor_state()
             shroudforge.log.warn("World Editor cursor query stopped: " .. tostring(reason))
         end
     end
@@ -628,6 +679,11 @@ local function update_pending_queries()
             pending.callback(props)
         elseif not query_is_pending(reason) then
             pending_prop_capture = nil
+            if editor_stage == "capturing" then
+                editor_stage = "ready"
+                editor_hint = "Prop capture failed: " .. tostring(reason or "live prop query unavailable")
+                publish_editor_state()
+            end
             shroudforge.log.warn("World Editor prop query stopped: " .. tostring(reason or "live prop query unavailable"))
         end
     end
@@ -746,7 +802,11 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
             return
         end
         active_blueprint_name = name
-        shroudforge.log.info("World Editor saved and selected blueprint " .. name)
+        editor_stage = "selected"
+        editor_hint = "Saved and selected blueprint ‘" .. name .. "’. Click to select; double-click to manage. Press F7 to place it at the target."
+        if publish_editor_state then publish_editor_state() end
+        if refresh_blueprint_library then refresh_blueprint_library() end
+        shroudforge.log.info("World Editor help: blueprint saved as '" .. name .. "' and selected. Click selects; double-click manages it. Press F7 only when you want to place it.")
     end
 end
 
@@ -793,6 +853,32 @@ local function copy_voxels(save_and_select)
     request_prop_capture(props_region, function(props)
         finish_capture(region, cells, props, save_and_select, anchor, extent, voxel_offset)
     end)
+end
+
+local function capture_and_save()
+    if not selection_a then
+        editor_stage = "need_a"
+        editor_hint = "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
+        publish_editor_state()
+        shroudforge.log.info("World Editor help: select the building hammer, choose a single voxel, aim at the first corner, then press F5.")
+        return
+    end
+    if not selection_b then
+        editor_stage = "need_b"
+        editor_hint = "Corner A is marked. Aim at the opposite corner and press F5 again."
+        publish_editor_state()
+        shroudforge.log.info("World Editor help: aim at the opposite corner and press F5 before capturing with F8.")
+        return
+    end
+    editor_stage = "capturing"
+    editor_hint = "Capturing props and voxels, creating the blueprint file, and adding it to the library…"
+    publish_editor_state()
+    copy_voxels(true)
+    if editor_stage == "capturing" and not pending_prop_capture and not pending_world_action then
+        editor_stage = "ready"
+        editor_hint = "Capture complete. Press F8 to save the blueprint, F3 to rotate it, and F7 to place it."
+        publish_editor_state()
+    end
 end
 
 local function copy_props_only(save_and_select)
@@ -871,8 +957,9 @@ local function save_blueprint()
     if save_blueprint_named(name) then active_blueprint_name = name end
 end
 
-local function load_blueprint()
-    local path, reason = blueprint_path()
+local function load_blueprint(name)
+    name = name or setting("blueprintName")
+    local path, reason = blueprint_path(name)
     if not path then shroudforge.log.warn("World Editor: " .. reason); return end
     local ok, content = pcall(io.read_export_to_string, path)
     if not ok then
@@ -1013,8 +1100,167 @@ local function load_blueprint()
         extent = extent, voxelOffset = voxel_offset,
         cellSize = cell_size}
     placement_preview = nil
-    active_blueprint_name = setting("blueprintName")
-    shroudforge.log.info(string.format("World Editor loaded persistent blueprint '%s' (%d cells, %d props)", active_blueprint_name, #cells, #props))
+    active_blueprint_name = name
+    editor_stage = "selected"
+    editor_hint = "Loaded and selected blueprint ‘" .. name .. "’. Aim at the target, rotate with F3, and place with F7."
+    publish_editor_state()
+    shroudforge.log.info(string.format("World Editor loaded blueprint '%s' (%d cells, %d props). It is selected, not placed; aim with the build hammer and use F7 to place it.", active_blueprint_name, #cells, #props))
+end
+
+local blueprint_library = {}
+
+refresh_blueprint_library = function()
+    local ok, paths = pcall(io.export_list, "world-editor/blueprints")
+    if not ok then
+        shroudforge.log.warn("World Editor could not scan the blueprint folder: " .. tostring(paths))
+        return false
+    end
+    local entries = {}
+    for _, path in ipairs(paths) do
+        local name = path:match("^world%-editor/blueprints/([^/]+)%.sfbp$")
+        if name and name:match("^[%w_-]+$") then
+            entries[#entries + 1] = {
+                name = name,
+                path = path,
+                image = "world-editor/blueprints/" .. name .. ".png",
+            }
+        end
+    end
+    table.sort(entries, function(left, right) return left.name:lower() < right.name:lower() end)
+    blueprint_library = entries
+    shroudforge.log.info(string.format("World Editor blueprint library refreshed: %d blueprint(s)", #entries))
+    for index, entry in ipairs(entries) do
+        shroudforge.log.debug(string.format("World Editor blueprint %d: %s%s", index, entry.name,
+            entry.name == active_blueprint_name and " [selected]" or ""))
+    end
+    return true
+end
+
+local function library_name_setting(key)
+    local name = setting(key)
+    local path, reason = blueprint_path(name)
+    if not path then
+        shroudforge.log.warn("World Editor: " .. tostring(reason))
+        return nil
+    end
+    return name, path
+end
+
+local function action_names(value)
+    if type(value) == "string" then
+        local old_name, new_name = value:match("^([^\t]+)\t([^\t]+)$")
+        if old_name and new_name then return old_name, new_name end
+    end
+    return setting("blueprintName"), setting("blueprintNewName")
+end
+
+local function rename_library_blueprint(value)
+    local old_name, new_name = action_names(value)
+    local old_path = blueprint_path(old_name)
+    local new_path = blueprint_path(new_name)
+    if not old_path or not new_path then
+        shroudforge.log.warn("World Editor: use blueprint names containing only letters, digits, underscores, and hyphens")
+        return
+    end
+    if not old_name or not new_name then return end
+    if old_name == new_name then shroudforge.log.warn("World Editor: source and new blueprint names are identical"); return end
+    if io.export_exists(new_path) then shroudforge.log.warn("World Editor: a blueprint with that name already exists"); return end
+    local old_image, new_image = "world-editor/blueprints/" .. old_name .. ".png",
+        "world-editor/blueprints/" .. new_name .. ".png"
+    local old_thumb, new_thumb = "world-editor/blueprints/" .. old_name .. ".thumb.png",
+        "world-editor/blueprints/" .. new_name .. ".thumb.png"
+    local has_image = io.export_exists(old_image)
+    local has_thumb = io.export_exists(old_thumb)
+    local ok, reason = pcall(io.export_rename, old_path, new_path)
+    if not ok then shroudforge.log.error("World Editor could not rename blueprint: " .. tostring(reason)); return end
+    if has_image then
+        local image_ok, image_reason = pcall(io.export_rename, old_image, new_image)
+        if not image_ok then
+            pcall(io.export_rename, new_path, old_path)
+            shroudforge.log.error("World Editor could not rename the blueprint image; the blueprint rename was rolled back: " .. tostring(image_reason))
+            return
+        end
+    end
+    if has_thumb then
+        local thumb_ok, thumb_reason = pcall(io.export_rename, old_thumb, new_thumb)
+        if not thumb_ok then
+            if has_image then pcall(io.export_rename, new_image, old_image) end
+            pcall(io.export_rename, new_path, old_path)
+            shroudforge.log.error("World Editor could not rename the blueprint thumbnail; the rename was rolled back: " .. tostring(thumb_reason))
+            return
+        end
+    end
+    if active_blueprint_name == old_name then
+        active_blueprint_name = new_name
+        publish_editor_state()
+    end
+    refresh_blueprint_library()
+    shroudforge.log.info("World Editor renamed blueprint " .. old_name .. " to " .. new_name)
+end
+
+local function duplicate_library_blueprint(value)
+    local source_name, new_name = action_names(value)
+    local source_path = blueprint_path(source_name)
+    local destination = blueprint_path(new_name)
+    if not source_path or not destination then
+        shroudforge.log.warn("World Editor: use blueprint names containing only letters, digits, underscores, and hyphens")
+        return
+    end
+    if not source_name or not new_name then return end
+    if source_name == new_name then shroudforge.log.warn("World Editor: choose a different name for the duplicate"); return end
+    if io.export_exists(destination) then shroudforge.log.warn("World Editor: a blueprint with that name already exists"); return end
+    local ok, reason = pcall(io.export_copy, source_path, destination)
+    if not ok then shroudforge.log.error("World Editor could not duplicate blueprint: " .. tostring(reason)); return end
+    local source_image, destination_image = "world-editor/blueprints/" .. source_name .. ".png",
+        "world-editor/blueprints/" .. new_name .. ".png"
+    local source_thumb, destination_thumb = "world-editor/blueprints/" .. source_name .. ".thumb.png",
+        "world-editor/blueprints/" .. new_name .. ".thumb.png"
+    if io.export_exists(source_image) then
+        local image_ok, image_reason = pcall(io.export_copy, source_image, destination_image)
+        if not image_ok then
+            pcall(io.export_delete, destination)
+            shroudforge.log.error("World Editor could not duplicate the blueprint image; the duplicate was rolled back: " .. tostring(image_reason))
+            return
+        end
+    end
+    if io.export_exists(source_thumb) then
+        local thumb_ok, thumb_reason = pcall(io.export_copy, source_thumb, destination_thumb)
+        if not thumb_ok then
+            pcall(io.export_delete, destination)
+            pcall(io.export_delete, destination_image)
+            shroudforge.log.error("World Editor could not duplicate the blueprint thumbnail; the duplicate was rolled back: " .. tostring(thumb_reason))
+            return
+        end
+    end
+    refresh_blueprint_library()
+    shroudforge.log.info("World Editor duplicated blueprint " .. source_name .. " as " .. new_name)
+end
+
+local function delete_library_blueprint(name)
+    name = name or setting("blueprintName")
+    local path = blueprint_path(name)
+    if not path then shroudforge.log.warn("World Editor: invalid blueprint name"); return end
+    if not name then return end
+    if not io.export_exists(path) then shroudforge.log.warn("World Editor: blueprint file does not exist: " .. path); return end
+    local image = "world-editor/blueprints/" .. name .. ".png"
+    local thumbnail = "world-editor/blueprints/" .. name .. ".thumb.png"
+    local ok, reason = pcall(io.export_delete, path)
+    if not ok then shroudforge.log.error("World Editor could not delete blueprint: " .. tostring(reason)); return end
+    if io.export_exists(image) then
+        local image_ok, image_reason = pcall(io.export_delete, image)
+        if not image_ok then shroudforge.log.warn("World Editor deleted the blueprint but could not delete its image: " .. tostring(image_reason)) end
+    end
+    if io.export_exists(thumbnail) then
+        local thumb_ok, thumb_reason = pcall(io.export_delete, thumbnail)
+        if not thumb_ok then shroudforge.log.warn("World Editor deleted the blueprint but could not delete its thumbnail: " .. tostring(thumb_reason)) end
+    end
+    if active_blueprint_name == name then
+        clipboard, active_blueprint_name, placement_preview = nil, nil, nil
+        editor_stage = "need_a"
+        publish_editor_state()
+    end
+    refresh_blueprint_library()
+    shroudforge.log.info("World Editor deleted blueprint " .. name)
 end
 
 local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
@@ -1159,6 +1405,9 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         entities = {}, entity_index = 0, removed_props = {}, removed_prop_index = 0,
         voxel_written = false, recovery_required = true, hasVoxels = clipboard.hasVoxels,
     }
+    editor_stage = "placing"
+    editor_hint = "Placing the blueprint at the aimed target…"
+    publish_editor_state()
     for _, prop in ipairs(removed_props) do
         local removed, remove_reason = runtime.world.entity.destroy(prop.entityHandle,
             prop.recipe.bounds, prop.recipe.id, prop.recipe.feedback)
@@ -1242,6 +1491,9 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
     undo_state.entities, undo_state.entity_index = spawned, #spawned
     undo_state.recovery_required = false
     placement_preview = nil
+    editor_stage = "selected"
+    editor_hint = "Blueprint placed. Press F4 to undo the last placement or F7 to place it again."
+    publish_editor_state()
     runtime.report_effect("write-confirmed", string.format("Wrote and verified %d voxel cells and %d new props in live ECS; save persistence is not verified",
         #(clipboard.cells or {}), #spawned))
     shroudforge.log.info(string.format("World Editor placed blueprint with %d voxel cells and %d props at %.3f,%.3f,%.3f",
@@ -1368,12 +1620,15 @@ rollback_partial_paste = function()
     shroudforge.log.warn("World Editor is rolling back the changes completed before the paste failure")
     undo_state.automaticRollback = true
     undo_voxels()
-    if undo_state then
+        if undo_state then
         undo_state.automaticRollback = nil
         shroudforge.log.error("World Editor rollback is incomplete; use F4 again after resolving the reported recovery issue")
+            editor_stage = "recovery"
     else
         shroudforge.log.info("World Editor automatically restored the pre-paste snapshot")
+            editor_stage = "selected"
     end
+        publish_editor_state()
 end
 
 local function mark_cursor(which)
@@ -1381,6 +1636,14 @@ local function mark_cursor(which)
         if which == "a" then selection_a = point
         elseif which == "b" then selection_b = point
         else selection_target = point end
+        if which == "a" then
+            editor_stage = "need_b"
+            editor_hint = "Corner A is marked. Aim at the opposite corner and press F5 again."
+        elseif which == "b" then
+            editor_stage = "ready"
+            editor_hint = "Both corners are marked. Press F8 to capture and save the blueprint."
+        end
+        publish_editor_state()
         shroudforge.log.info(string.format("World Editor cursor selection %s = %.3f, %.3f, %.3f",
             which == "target" and "TARGET" or which:upper(), point.x, point.y, point.z))
     end)
@@ -1424,11 +1687,17 @@ local function mark_cursor_next()
     request_cursor_action(function(point)
         if not selection_a or selection_b then
             selection_a, selection_b = point, nil
-            shroudforge.log.info(string.format("World Editor selection A = %.3f, %.3f, %.3f; press F5 at the opposite corner for B",
+            editor_stage = "need_b"
+            editor_hint = "Corner A is marked. Aim at the opposite corner and press F5 again."
+            publish_editor_state()
+            shroudforge.log.info(string.format("World Editor help: first corner marked at %.3f, %.3f, %.3f. Aim at the opposite corner and press F5 again.",
                 point.x, point.y, point.z))
         else
             selection_b = point
-            shroudforge.log.info(string.format("World Editor selection B = %.3f, %.3f, %.3f; region is ready for F8 capture",
+            editor_stage = "ready"
+            editor_hint = "Both corners are marked. Press F8 to capture and save the blueprint."
+            publish_editor_state()
+            shroudforge.log.info(string.format("World Editor help: second corner marked at %.3f, %.3f, %.3f. Selection is ready; press F8 to capture and save.",
                 point.x, point.y, point.z))
         end
     end)
@@ -1437,6 +1706,8 @@ end
 local function reset_editor()
     if undo_state and undo_state.recovery_required then
         shroudforge.log.warn("World Editor reset refused: undo the incomplete paste with F4 before clearing editor state")
+        editor_hint = "Reset blocked: press F4 to restore the incomplete placement first."
+        publish_editor_state()
         return
     end
     selection_a, selection_b, selection_target = nil, nil, nil
@@ -1444,6 +1715,9 @@ local function reset_editor()
     clipboard, undo_state, active_blueprint_name = nil, nil, nil
     live_prop_cache = {}
     placement_preview = nil
+    editor_stage = "need_a"
+    editor_hint = "Editor reset. Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
+    publish_editor_state()
     shroudforge.log.info("World Editor reset: selection, active blueprint, and undo history cleared")
 end
 
@@ -1610,10 +1884,18 @@ feature = function(feature_name)
 end
 
 shroudforge.ui.on_action("copyVoxels", copy_voxels)
-shroudforge.ui.on_action("captureAndSave", function() copy_voxels(true) end)
+shroudforge.ui.on_action("captureAndSave", capture_and_save)
 shroudforge.ui.on_action("capturePropsOnly", function() copy_props_only(false) end)
 shroudforge.ui.on_action("saveBlueprint", save_blueprint)
 shroudforge.ui.on_action("loadBlueprint", load_blueprint)
+shroudforge.ui.on_action("selectBlueprint", function(name)
+    if type(name) ~= "string" then return end
+    load_blueprint(name)
+end)
+shroudforge.ui.on_action("refreshBlueprintLibrary", refresh_blueprint_library)
+shroudforge.ui.on_action("renameLibraryBlueprint", rename_library_blueprint)
+shroudforge.ui.on_action("duplicateLibraryBlueprint", duplicate_library_blueprint)
+shroudforge.ui.on_action("deleteLibraryBlueprint", delete_library_blueprint)
 shroudforge.ui.on_action("pasteVoxels", paste_voxels)
 shroudforge.ui.on_action("previewPaste", preview_paste)
 shroudforge.ui.on_action("rotateBlueprint", rotate_blueprint)
@@ -1636,6 +1918,9 @@ return {
     update_interval_ms = 30,
     on_load = function()
         shroudforge.log.info("World Editor loaded; checking native world API readiness")
+        shroudforge.log.info("World Editor help: to create a blueprint, select the building hammer, choose a single voxel, aim at the first corner and press F5. Then mark the opposite corner with F5 and capture with F8.")
+        refresh_blueprint_library()
+        publish_editor_state()
     end,
     on_update = function(_delta_seconds)
         if not readiness_logged then
@@ -1667,7 +1952,8 @@ return {
         if undo then undo_voxels() end
         if mark then mark_cursor_next() end
         if paste then paste_voxels(true) end
-        if capture then copy_voxels(true) end
+        if capture then capture_and_save() end
+        publish_editor_state()
     end,
     on_unload = function()
         pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil

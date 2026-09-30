@@ -214,3 +214,23 @@ function io.export_exists(path) end
 --- @param path string
 --- @return string
 function io.read_export_to_string(path) end
+
+--- Lists immediate entries inside an export directory, returning paths relative to the export root.
+--- Only entries resolving inside the configured export directory are returned.
+--- @param directory string
+--- @return string[]
+function io.export_list(directory) end
+
+--- Renames an exported file to another export-relative path. Existing destinations are rejected.
+--- @param source string
+--- @param destination string
+function io.export_rename(source, destination) end
+
+--- Copies an exported file to another export-relative path. Existing destinations are rejected.
+--- @param source string
+--- @param destination string
+function io.export_copy(source, destination) end
+
+--- Deletes an exported file. Directories and paths outside the export root are rejected.
+--- @param path string
+function io.export_delete(path) end

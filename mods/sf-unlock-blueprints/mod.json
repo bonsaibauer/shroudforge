@@ -3,7 +3,7 @@
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
   "version": "1.0.1",
-  "description": "Unlocks crafting recipes through the native keen::RecipeRegistryResource type.",
+  "description": "Unlocks crafting blueprints globally for the world. Once activated, this progress is saved to the world and cannot be undone by disabling this mod.",
   "authors": [
     "bonsaibauer"
   ],

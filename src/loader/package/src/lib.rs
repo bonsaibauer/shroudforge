@@ -1,6 +1,7 @@
 mod alias;
 pub mod compatibility;
 pub mod config;
+pub mod backups;
 mod env;
 mod error;
 mod log;

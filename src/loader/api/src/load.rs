@@ -190,6 +190,67 @@ pub fn restore_backup(kfc_path: impl AsRef<Path>) -> Result<(), ()> {
     Ok(())
 }
 
+/// Keeps the original companion resource file before pregame asset mods run.
+pub fn create_companion_backup(
+    path: impl AsRef<std::path::Path>,
+) -> Result<std::path::PathBuf, ()> {
+    let path = path.as_ref();
+    let backup = std::path::PathBuf::from(format!("{}.bak", path.display()));
+    if backup.exists() {
+        if backup.is_file() {
+            return Ok(backup);
+        }
+        error!(path = ?backup, "Companion backup path is not a file");
+        return Err(());
+    }
+    std::fs::copy(path, &backup).map_err(|error| {
+        error!(path = ?path, backup_path = ?backup, error = %error, "Failed to create companion backup");
+    })?;
+    info!(path = ?path, backup_path = ?backup, "Companion backup created");
+    Ok(backup)
+}
+
+/// Restores a companion file when ShroudForge has a saved original.
+pub fn restore_companion_backup(path: impl AsRef<std::path::Path>) -> Result<bool, ()> {
+    let path = path.as_ref();
+    let backup = std::path::PathBuf::from(format!("{}.bak", path.display()));
+    if !backup.exists() {
+        return Ok(false);
+    }
+    if !backup.is_file() {
+        error!(path = ?backup, "Companion backup path is not a file");
+        return Err(());
+    }
+    std::fs::copy(&backup, path).map_err(|error| {
+        error!(path = ?path, backup_path = ?backup, error = %error, "Failed to restore companion backup");
+    })?;
+    info!(path = ?path, backup_path = ?backup, "Companion backup restored");
+    Ok(true)
+}
+
+#[cfg(test)]
+mod companion_backup_tests {
+    use super::{create_companion_backup, restore_companion_backup};
+
+    #[test]
+    fn companion_resource_backup_restores_original_bytes() {
+        let root = std::env::temp_dir().join(format!(
+            "shroudforge-resource-backup-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let resource = root.join("enshrouded_server.kfc_resources");
+        std::fs::write(&resource, b"original resources").unwrap();
+
+        create_companion_backup(&resource).unwrap();
+        std::fs::write(&resource, b"modded resources").unwrap();
+
+        assert!(restore_companion_backup(&resource).unwrap());
+        assert_eq!(std::fs::read(&resource).unwrap(), b"original resources");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
+
 pub fn validate_backup(kfc_path: &Path, kfc_path_bak: &Path) -> bool {
     let version_bak = match KFCFile::get_version_tag(kfc_path_bak) {
         Ok(file) => file,
