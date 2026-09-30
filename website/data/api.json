@@ -12926,6 +12926,82 @@
       "source": "eml/v1/definitions/io.lua"
     },
     {
+      "kind": "function",
+      "namespace": "shroudforge",
+      "name": "shroudforge.io.export_list",
+      "signature": "shroudforge.io.export_list(directory)",
+      "params": [
+        {
+          "name": "directory",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "string[]"
+      ],
+      "description": "Lists immediate entries inside an export directory, returning paths relative to the export root. Only entries resolving inside the configured export directory are returned.",
+      "source": "eml/v1/definitions/io.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "shroudforge",
+      "name": "shroudforge.io.export_rename",
+      "signature": "shroudforge.io.export_rename(source, destination)",
+      "params": [
+        {
+          "name": "source",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "destination",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [],
+      "description": "Renames an exported file to another export-relative path. Existing destinations are rejected.",
+      "source": "eml/v1/definitions/io.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "shroudforge",
+      "name": "shroudforge.io.export_copy",
+      "signature": "shroudforge.io.export_copy(source, destination)",
+      "params": [
+        {
+          "name": "source",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "destination",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [],
+      "description": "Copies an exported file to another export-relative path. Existing destinations are rejected.",
+      "source": "eml/v1/definitions/io.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "shroudforge",
+      "name": "shroudforge.io.export_delete",
+      "signature": "shroudforge.io.export_delete(path)",
+      "params": [
+        {
+          "name": "path",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [],
+      "description": "Deletes an exported file. Directories and paths outside the export root are rejected.",
+      "source": "eml/v1/definitions/io.lua"
+    },
+    {
       "kind": "field",
       "namespace": "shroudforge",
       "name": "shroudforge.loader.features.patch",
@@ -13737,6 +13813,25 @@
     {
       "kind": "function",
       "namespace": "runtime",
+      "name": "runtime.world.voxel.get_grid_spec",
+      "signature": "runtime.world.voxel.get_grid_spec(grid_id)",
+      "params": [
+        {
+          "name": "grid_id",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Return metadata for a native world grid. The active backend currently exposes the `voxel` grid.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
       "name": "runtime.world.voxel.read",
       "signature": "runtime.world.voxel.read(x, y, z, size_x, size_y, size_z)",
       "params": [
@@ -13879,7 +13974,88 @@
         "table[]?",
         "string?"
       ],
-      "description": "Query placeable props using the native, build-profiled ECS layout. Returns transforms and item IDs directly, without requiring Lua reflection reads.",
+      "description": "Query placeable props using the native, build-profiled ECS layout. Returns transforms, item IDs, and the native entity template UUID directly, without requiring Lua reflection reads.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.entity.register_prop_recipes",
+      "signature": "runtime.world.entity.register_prop_recipes(recipes)",
+      "params": [
+        {
+          "name": "recipes",
+          "type": "table[]",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean?",
+        "string?"
+      ],
+      "description": "Register ItemInfo placement AABBs for native prop-bound filtering.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.entity.query_props_in_bounds",
+      "signature": "runtime.world.entity.query_props_in_bounds(bounds)",
+      "params": [
+        {
+          "name": "bounds",
+          "type": "number[]",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table[]?",
+        "string?"
+      ],
+      "description": "Query props whose native, rotated and scaled ItemInfo placement AABBs intersect bounds. Each result includes templateUuidHighHex/templateUuidLowHex from the live native entity definition. Requires placement recipes registered with register_prop_recipes.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.entity.get_transform",
+      "signature": "runtime.world.entity.get_transform(entity_handle)",
+      "params": [
+        {
+          "name": "entity_handle",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Resolve the current transform, item ID, and native template UUID for an opaque live prop handle.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.entity.set_scale",
+      "signature": "runtime.world.entity.set_scale(entity_handle, scale)",
+      "params": [
+        {
+          "name": "entity_handle",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "scale",
+          "type": "number[]",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean",
+        "string?"
+      ],
+      "description": "Update a live prop's three scale values through the build-profiled native API. The game-thread write is read back and verified; a failed write is restored when possible.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -13923,7 +14099,7 @@
         "integer?",
         "string?"
       ],
-      "description": "Queue a native entity spawn in the live prop-update context and wait for a matching CurrentTransform + UsedItem record in the live ECS. UUIDs are hexadecimal qwords. The returned integer is still the engine command queue token, not an entity handle.",
+      "description": "Spawn a native entity in the live prop-update context and wait for its live ECS record. UUIDs are hexadecimal qwords. Returns the new opaque entity handle, not an engine queue token.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -13969,6 +14145,40 @@
       "kind": "function",
       "namespace": "runtime",
       "name": "runtime.world.entity.destroy",
+      "signature": "runtime.world.entity.destroy(entity_handle, bounds, tracking_id, feedback_id)",
+      "params": [
+        {
+          "name": "entity_handle",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "bounds",
+          "type": "number[]",
+          "description": ""
+        },
+        {
+          "name": "tracking_id",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "feedback_id",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean",
+        "string?"
+      ],
+      "description": "Remove the prop identified by its current live handle. The native operation resolves the transform, dispatches the engine removal, and verifies that this exact handle disappeared.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.entity.destroy",
       "signature": "runtime.world.entity.destroy(position, rotation, bounds, tracking_id, feedback_id)",
       "params": [
         {
@@ -14001,7 +14211,7 @@
         "boolean",
         "string?"
       ],
-      "description": "Dispatch an engine destroy call by transform and bounds, then wait for a matching CurrentTransform + UsedItem count to decrease. This spatial operation does not identify an exact entity handle and does not establish save persistence or collision updates.",
+      "description": "Legacy spatial destroy overload. Prefer the handle overload for editor operations. This operation does not establish save persistence or collision updates.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -14321,14 +14531,14 @@
       "params": [
         {
           "name": "key",
-          "type": "'F3'|'F4'|'F5'|'F6'|'F7'|'F8'",
+          "type": "'F1'|'F2'|'F3'|'F4'|'F5'|'F6'|'F7'|'F8'",
           "description": ""
         }
       ],
       "returns": [
         "boolean"
       ],
-      "description": "Returns true while F3 through F8 is held and the game window is focused. Poll from a runtime `on_update` callback and detect rising edges.",
+      "description": "Returns true while F1 through F8 is held and the game window is focused. Poll from a runtime `on_update` callback and detect rising edges.",
       "source": "shroudforge/v1/definitions/shroudforge.lua"
     },
     {

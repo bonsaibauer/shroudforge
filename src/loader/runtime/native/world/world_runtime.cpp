@@ -58,8 +58,29 @@ struct EntityRequest {
     std::uint32_t queue_token{};
     ~EntityRequest() { if (completed) CloseHandle(completed); }
 };
+// Prop deletion follows Shroudtopia's synchronous WorldApi path. The entity
+// placement callback owns this POD request until it publishes phase 3; unlike
+// the generic request/event path it cannot be cancelled after the game hook
+// has started consuming it.
+struct RemovalRequest {
+    EngineTransform transform{};
+    PlacementBounds bounds{};
+    std::uint32_t tracking{}, feedback{};
+    volatile long phase{}; // 0 idle, 1 queued, 2 consumed, 3 complete
+    bool success{};
+    std::uint32_t thread_id{};
+    std::uintptr_t actor_world{}, remove_queue{};
+    std::uint32_t owner{};
+};
 std::atomic<std::shared_ptr<EntityRequest>> pending_entity_request;
+RemovalRequest pending_removal;
+std::mutex removal_mutex;
+thread_local bool inside_building_dispatch{};
 std::atomic<std::uintptr_t> observed_actor_world{};
+std::atomic<std::uint64_t> actor_placement_hook_hits{}, actor_placement_request_hits{};
+std::atomic<std::uint64_t> building_dispatch_hook_hits{}, building_dispatch_request_hits{};
+std::atomic<std::uint64_t> entity_dispatch_completions{};
+std::atomic<std::uintptr_t> observed_execution_view{};
 struct CursorMailbox {
     volatile long lock{};
     volatile long hook_ready{};
@@ -163,6 +184,12 @@ using NativeCreate = std::uint32_t (__fastcall*)(void*, const std::uint64_t*, co
 using NativePlace = void (__fastcall*)(void*, const EngineTransform*, const float*, std::uint32_t, std::uint32_t);
 using NativeDestroy = void (__fastcall*)(void*, const EngineTransform*, const float*, std::uint32_t);
 using NativeFinish = void (__fastcall*)(void*, void*, std::uint32_t, bool);
+
+bool safe_destroy(NativeDestroy function, void* context, const EngineTransform* transform,
+                  const float* bounds, std::uint32_t tracking) {
+    __try { function(context, transform, bounds, tracking); return true; }
+    __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
+}
 
 bool valid_transform(const EntityRequest& request, EngineTransform& transform) {
     for (int axis = 0; axis < 3; ++axis) {
@@ -278,12 +305,116 @@ void execute_entity_request(const std::shared_ptr<EntityRequest>& request, void*
             __except(EXCEPTION_EXECUTE_HANDLER) { called = false; }
         } else {
             auto function = reinterpret_cast<NativeDestroy>(base + place_profile->function_rva);
-            __try { function(reinterpret_cast<void*>(native_address), &transform, bounds.minimum, request->tracking); }
+            // Shroudtopia passes the recipe's materialFeedbackId here; the
+            // fourth native argument is not the prop item/tracking ID.
+            __try { function(reinterpret_cast<void*>(native_address), &transform, bounds.minimum, request->feedback); }
             __except(EXCEPTION_EXECUTE_HANDLER) { called = false; }
         }
-        if (called) called = native_finish(reinterpret_cast<void*>(native_address), true);
+        if (called) {
+            if (request->kind != EntityRequest::Kind::Finish) inside_building_dispatch = true;
+            called = native_finish(reinterpret_cast<void*>(native_address), request->kind == EntityRequest::Kind::Finish
+                ? request->complete : true);
+            inside_building_dispatch = false;
+        }
     }
     complete_entity_request(request, called);
+}
+
+void execute_pending_removal(void* execution_view, void* actor_frame) {
+    if (!actor_frame || InterlockedCompareExchange(&pending_removal.phase, 2, 1) != 1) return;
+    const auto frame = reinterpret_cast<std::uintptr_t>(actor_frame);
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    std::uintptr_t service_view{}, actor_world{}, active_world{};
+    std::uintptr_t native_address{}, root{}, remove_queue{}, publish_state{}, publish_commands{};
+    std::uint32_t owner{};
+    bool success = false;
+    if (read_memory(frame + layout.actor_frame_service_view, &service_view, sizeof(service_view)) && service_view &&
+        read_memory(service_view + layout.service_view_world, &actor_world, sizeof(actor_world)) && actor_world &&
+        resolve_voxel_world(active_world) && actor_world == active_world &&
+        execution_view &&
+        (native_address = frame + layout.placement_context) != 0 &&
+        read_memory(native_address, &root, sizeof(root)) && root == reinterpret_cast<std::uintptr_t>(execution_view) &&
+        read_memory(native_address + layout.remove_queue, &remove_queue, sizeof(remove_queue)) && remove_queue &&
+        read_memory(native_address + layout.publish_state, &publish_state, sizeof(publish_state)) && publish_state &&
+        read_memory(native_address + layout.publish_commands, &publish_commands, sizeof(publish_commands)) && publish_commands &&
+        read_memory(native_address + layout.owner, &owner, sizeof(owner)) && owner) {
+        const auto* operation = find_operation("runtime.world.entity.destroy");
+        const auto* finish = find_operation("runtime.world.entity.finish_building");
+        if (operation && operation->available && finish && finish->available) {
+            const auto base = image_base();
+            auto destroy = reinterpret_cast<NativeDestroy>(base + operation->function_rva);
+            success = safe_destroy(destroy, reinterpret_cast<void*>(native_address), &pending_removal.transform,
+                pending_removal.bounds.minimum, pending_removal.feedback);
+            if (success) success = native_finish(reinterpret_cast<void*>(native_address), true);
+        }
+    }
+    pending_removal.success = success;
+    pending_removal.thread_id = GetCurrentThreadId();
+    pending_removal.actor_world = actor_world;
+    pending_removal.remove_queue = remove_queue;
+    pending_removal.owner = owner;
+    InterlockedExchange(&pending_removal.phase, 3);
+}
+
+void execute_pending_removal_dispatch(void* placement_context) {
+    if (!placement_context || InterlockedCompareExchange(&pending_removal.phase, 2, 1) != 1) return;
+    const auto context = reinterpret_cast<std::uintptr_t>(placement_context);
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    std::uintptr_t root{}, remove_queue{}, publish_state{}, publish_commands{};
+    std::uint32_t owner{};
+    bool success = false;
+    const auto execution_view = observed_execution_view.load(std::memory_order_acquire);
+    if (execution_view &&
+        read_memory(context, &root, sizeof(root)) && root == execution_view &&
+        read_memory(context + layout.remove_queue, &remove_queue, sizeof(remove_queue)) && remove_queue &&
+        read_memory(context + layout.publish_state, &publish_state, sizeof(publish_state)) && publish_state &&
+        read_memory(context + layout.publish_commands, &publish_commands, sizeof(publish_commands)) && publish_commands &&
+        read_memory(context + layout.owner, &owner, sizeof(owner)) && owner) {
+        const auto* operation = find_operation("runtime.world.entity.destroy");
+        if (operation && operation->available) {
+            auto destroy = reinterpret_cast<NativeDestroy>(image_base() + operation->function_rva);
+            success = safe_destroy(destroy, placement_context, &pending_removal.transform,
+                pending_removal.bounds.minimum, pending_removal.feedback);
+        }
+    }
+    // The original BuildingDispatch/finish function runs immediately after the
+    // detour, so this hook must not call native_finish a second time. This is
+    // Shroudtopia's second synchronous consumer for the same queued removal.
+    pending_removal.success = success;
+    pending_removal.thread_id = GetCurrentThreadId();
+    pending_removal.actor_world = observed_actor_world.load(std::memory_order_acquire);
+    pending_removal.remove_queue = remove_queue;
+    pending_removal.owner = owner;
+    InterlockedExchange(&pending_removal.phase, 3);
+}
+
+bool queue_removal(const EngineTransform& transform, const float bounds[6],
+                   std::uint32_t tracking, std::uint32_t feedback) {
+    pending_removal.transform = transform;
+    std::copy_n(bounds, 3, pending_removal.bounds.minimum);
+    std::copy_n(bounds + 3, 3, pending_removal.bounds.maximum);
+    pending_removal.tracking = tracking;
+    pending_removal.feedback = feedback;
+    pending_removal.success = false;
+    pending_removal.thread_id = 0;
+    pending_removal.actor_world = 0;
+    pending_removal.remove_queue = 0;
+    pending_removal.owner = 0;
+    InterlockedExchange(&pending_removal.phase, 1);
+    const auto deadline = GetTickCount64() + OperationTimeoutMs;
+    for (;;) {
+        const auto phase = InterlockedCompareExchange(&pending_removal.phase, 0, 0);
+        if (phase == 3) {
+            const auto success = pending_removal.success;
+            return success;
+        }
+        // Match Shroudtopia: only cancel a request that no native hook has
+        // consumed. Once phase 2 is published, let that synchronous operation
+        // finish instead of freeing/cancelling state underneath the game.
+        if (GetTickCount64() >= deadline &&
+            InterlockedCompareExchange(&pending_removal.phase, 0, 1) == 1) return false;
+        Sleep(1);
+    }
 }
 
 bool invoke_entity_request(const std::shared_ptr<EntityRequest>& request, std::uint32_t* outcome) {
@@ -509,6 +640,7 @@ bool EntityContextReady() {
 }
 
 void OnPropUpdate(void* execution_view, void* actor_frame) {
+    if (execution_view) observed_execution_view.store(reinterpret_cast<std::uintptr_t>(execution_view), std::memory_order_release);
     observe_actor_world(actor_frame);
     const auto request = pending_entity_request.load(std::memory_order_acquire);
     if (!request || request->kind != EntityRequest::Kind::Spawn) return;
@@ -516,10 +648,84 @@ void OnPropUpdate(void* execution_view, void* actor_frame) {
 }
 
 void OnActorPlacement(void* execution_view, void* actor_frame) {
+    actor_placement_hook_hits.fetch_add(1, std::memory_order_relaxed);
+    if (execution_view) observed_execution_view.store(reinterpret_cast<std::uintptr_t>(execution_view), std::memory_order_release);
     observe_actor_world(actor_frame);
+    if (InterlockedCompareExchange(&pending_removal.phase, 0, 0) == 1) {
+        actor_placement_request_hits.fetch_add(1, std::memory_order_relaxed);
+        execute_pending_removal(execution_view, actor_frame);
+        if (InterlockedCompareExchange(&pending_removal.phase, 0, 0) == 3)
+            entity_dispatch_completions.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
     const auto request = pending_entity_request.load(std::memory_order_acquire);
     if (!request || request->kind == EntityRequest::Kind::Spawn) return;
+    actor_placement_request_hits.fetch_add(1, std::memory_order_relaxed);
     execute_entity_request(request, execution_view, actor_frame);
+    if (request->done.load(std::memory_order_acquire))
+        entity_dispatch_completions.fetch_add(1, std::memory_order_relaxed);
+}
+
+void OnBuildingDispatch(void* placement_context) {
+    building_dispatch_hook_hits.fetch_add(1, std::memory_order_relaxed);
+    if (inside_building_dispatch || !placement_context) return;
+    if (InterlockedCompareExchange(&pending_removal.phase, 0, 0) == 1) {
+        building_dispatch_request_hits.fetch_add(1, std::memory_order_relaxed);
+        execute_pending_removal_dispatch(placement_context);
+        if (InterlockedCompareExchange(&pending_removal.phase, 0, 0) == 3)
+            entity_dispatch_completions.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+    const auto request = pending_entity_request.load(std::memory_order_acquire);
+    if (!request || request->kind != EntityRequest::Kind::Destroy ||
+        request->cancelled.load(std::memory_order_acquire) || request->done.load(std::memory_order_acquire)) return;
+    building_dispatch_request_hits.fetch_add(1, std::memory_order_relaxed);
+    const auto* operation = find_operation("runtime.world.entity.destroy");
+    const auto* finish = find_operation("runtime.world.entity.finish_building");
+    if (!operation || !operation->available || !finish || !finish->available) {
+        complete_entity_request(request, false);
+        return;
+    }
+    const auto context = reinterpret_cast<std::uintptr_t>(placement_context);
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    std::uintptr_t root{}, remove_queue{}, publish_state{}, publish_commands{};
+    std::uint32_t owner{};
+    const auto active_execution_view = observed_execution_view.load(std::memory_order_acquire);
+    if (!active_execution_view || !read_memory(context, &root, sizeof(root)) || root != active_execution_view ||
+        !read_memory(context + layout.remove_queue, &remove_queue, sizeof(remove_queue)) || !remove_queue ||
+        !read_memory(context + layout.publish_state, &publish_state, sizeof(publish_state)) || !publish_state ||
+        !read_memory(context + layout.publish_commands, &publish_commands, sizeof(publish_commands)) || !publish_commands ||
+        !read_memory(context + layout.owner, &owner, sizeof(owner)) || !owner) {
+        complete_entity_request(request, false);
+        return;
+    }
+    EngineTransform transform{};
+    if (!valid_transform(*request, transform)) {
+        complete_entity_request(request, false);
+        return;
+    }
+    PlacementBounds bounds{};
+    std::copy_n(request->bounds, 3, bounds.minimum);
+    std::copy_n(request->bounds + 3, 3, bounds.maximum);
+    auto function = reinterpret_cast<NativeDestroy>(image_base() + operation->function_rva);
+    inside_building_dispatch = true;
+    bool called = safe_destroy(function, placement_context, &transform, bounds.minimum, request->tracking);
+    if (called) called = native_finish(placement_context, true);
+    inside_building_dispatch = false;
+    complete_entity_request(request, called);
+    entity_dispatch_completions.fetch_add(1, std::memory_order_relaxed);
+}
+
+std::string EntityHookStatus() {
+    return "actor-placement=" + std::to_string(actor_placement_hook_hits.load(std::memory_order_relaxed)) +
+        "/" + std::to_string(actor_placement_request_hits.load(std::memory_order_relaxed)) +
+        ",building-dispatch=" + std::to_string(building_dispatch_hook_hits.load(std::memory_order_relaxed)) +
+        "/" + std::to_string(building_dispatch_request_hits.load(std::memory_order_relaxed)) +
+        ",completed=" + std::to_string(entity_dispatch_completions.load(std::memory_order_relaxed)) +
+        ",removal{phase=" + std::to_string(InterlockedCompareExchange(&pending_removal.phase, 0, 0)) +
+        ",success=" + std::to_string(pending_removal.success ? 1 : 0) +
+        ",thread=" + std::to_string(pending_removal.thread_id) +
+        ",owner=" + std::to_string(pending_removal.owner) + '}';
 }
 
 void SetCursorHookReady(bool ready) {
@@ -676,9 +882,6 @@ bool DestroyEntityHandle(std::uint32_t entity_handle, const float bounds[6],
         *outcome = 1;
         return false;
     }
-    double position[3]{}, rotation[4]{};
-    for (int axis = 0; axis < 3; ++axis) position[axis] = static_cast<double>(prop.position[axis]) / 4294967296.0;
-    for (int axis = 0; axis < 4; ++axis) rotation[axis] = prop.orientation[axis];
     if (!OperationAvailable("runtime.world.entity.destroy") ||
         !OperationAvailable("runtime.world.entity.finish_building")) { *outcome = 1; return false; }
     for (int axis = 0; axis < 3; ++axis)
@@ -686,21 +889,43 @@ bool DestroyEntityHandle(std::uint32_t entity_handle, const float bounds[6],
             *outcome = 1;
             return false;
         }
-    auto request = std::make_shared<EntityRequest>();
-    request->kind = EntityRequest::Kind::Destroy;
-    std::copy_n(position, 3, request->position);
-    std::copy_n(rotation, 4, request->rotation);
-    std::copy_n(prop.scale, 3, request->scale);
-    std::copy_n(bounds, 6, request->bounds);
-    request->tracking = tracking;
-    request->feedback = feedback;
-    if (!invoke_entity_request(request, outcome)) return false;
-    const auto deadline = GetTickCount64() + 2000;
-    do {
+    std::scoped_lock lock(removal_mutex);
+    // Resolve the live handle again after acquiring the single-request lock,
+    // then preserve its exact fixed-point transform and scale for native removal.
+    if (!KfcRuntimeWorldEntityGetTransform(entity_handle, &prop) || prop.item_id != tracking) {
+        *outcome = 1;
+        return false;
+    }
+    EngineTransform transform{};
+    std::copy_n(prop.position, 3, transform.position);
+    std::copy_n(prop.orientation, 4, transform.rotation);
+    std::copy_n(prop.scale, 3, transform.scale);
+    const auto actor_hooks_before = actor_placement_hook_hits.load(std::memory_order_acquire);
+    const auto actor_requests_before = actor_placement_request_hits.load(std::memory_order_acquire);
+    const auto dispatch_hooks_before = building_dispatch_hook_hits.load(std::memory_order_acquire);
+    const auto dispatch_requests_before = building_dispatch_request_hits.load(std::memory_order_acquire);
+    if (!queue_removal(transform, bounds, tracking, feedback)) {
+        const auto phase = InterlockedCompareExchange(&pending_removal.phase, 0, 0);
+        if (phase == 0) {
+            // Preserve hook evidence in the API result so the Lua error written
+            // to shroudforge.log identifies which native callback actually ran.
+            std::uint32_t flags{};
+            if (actor_placement_hook_hits.load(std::memory_order_acquire) != actor_hooks_before) flags |= 1u;
+            if (actor_placement_request_hits.load(std::memory_order_acquire) != actor_requests_before) flags |= 2u;
+            if (building_dispatch_hook_hits.load(std::memory_order_acquire) != dispatch_hooks_before) flags |= 4u;
+            if (building_dispatch_request_hits.load(std::memory_order_acquire) != dispatch_requests_before) flags |= 8u;
+            if (GameThreadDispatcher::EntityContextReady()) flags |= 16u;
+            *outcome = 30u + flags;
+        } else {
+            *outcome = 2;
+        }
+        return false;
+    }
+    for (int attempt = 0; attempt < 200; ++attempt) {
         KfcRuntimePropRecord current{};
-        if (!KfcRuntimeWorldEntityGetTransform(entity_handle, &current)) return true;
+        if (!KfcRuntimeWorldEntityGetTransform(entity_handle, &current)) { *outcome = 0; return true; }
         Sleep(10);
-    } while (GetTickCount64() < deadline);
+    }
     *outcome = 4;
     return false;
 }

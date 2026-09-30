@@ -39,6 +39,25 @@ pub struct ModManifest {
     pub settings: Vec<SettingDefinition>,
 }
 
+impl ModManifest {
+    /// Export is a permission to write files; it only needs the startup pass
+    /// for export-only mods. Runtime mods can use the same permission live.
+    pub fn requires_pregame(&self) -> bool {
+        let has_runtime = self
+            .capabilities
+            .iter()
+            .any(|capability| capability.requires_runtime());
+        self.capabilities
+            .iter()
+            .any(|capability| *capability == Capability::Patch)
+            || (!has_runtime
+                && self
+                    .capabilities
+                    .iter()
+                    .any(|capability| *capability == Capability::Export))
+    }
+}
+
 fn empty_settings() -> serde_json::Value {
     serde_json::json!({})
 }

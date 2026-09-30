@@ -98,10 +98,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 let manifest = item.info();
                 let fingerprint =
                     crate::config::revision(&serde_json::to_vec(manifest).unwrap_or_default());
-                let pregame_mod = manifest
-                    .capabilities
-                    .iter()
-                    .any(|capability| capability.requires_pregame());
+                let pregame_mod = manifest.requires_pregame();
                 let runtime_mod = manifest
                     .capabilities
                     .iter()
@@ -213,18 +210,13 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 mod_states.insert(manifest.id.clone(), state);
             }
             checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, inferred process scope, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ")}}));
-            let needs_prepare = plan.iter().any(|item| {
-                item.info()
-                    .capabilities
-                    .iter()
-                    .any(|capability| capability.requires_pregame())
-            });
+            let needs_prepare = plan.iter().any(|item| item.info().requires_pregame());
             let blocked_pregame = failures
                 .iter()
                 .filter(|issue| {
-                    env.mod_registry().get(&issue.mod_id).is_some_and(|item| {
-                        item.info().capabilities.iter().any(|capability| capability.requires_pregame())
-                    })
+                    env.mod_registry()
+                        .get(&issue.mod_id)
+                        .is_some_and(|item| item.info().requires_pregame())
                 })
                 .count();
             let existing = crate::config::read_document(root, "applied").is_ok();

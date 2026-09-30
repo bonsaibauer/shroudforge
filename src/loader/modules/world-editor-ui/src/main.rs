@@ -9,6 +9,7 @@ mod windows {
     };
 
     use base64::Engine as _;
+    use image::{DynamicImage, ImageReader, RgbaImage};
     use serde::Serialize;
     use tao::{
         dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
@@ -332,9 +333,6 @@ mod windows {
                             Command::Manager(open) => {
                                 if manager_open != open {
                                     manager_open = open;
-                                    if manager_open {
-                                        library_expanded = false;
-                                    }
                                     let height = if manager_open {
                                         560.0
                                     } else if library_expanded {
@@ -404,11 +402,20 @@ mod windows {
                                     }
                                     Ok(None) => {
                                         if action == "applyScreenshot" {
+                                            let name = value.split_once('\t').map(|(name, _)| name).unwrap_or("unknown");
+                                            let _ = append_ui_log(
+                                                &arguments.root,
+                                                &format!("screenshot cover saved for blueprint={name}"),
+                                            );
                                             let _ = webview.evaluate_script(
                                                 "window.__worldEditorScreenshotApplied(false);",
                                             );
                                             next_refresh = Instant::now();
                                         } else if action == "undoScreenshot" {
+                                            let _ = append_ui_log(
+                                                &arguments.root,
+                                                &format!("screenshot cover undo completed for blueprint={value}"),
+                                            );
                                             let _ = webview.evaluate_script(
                                                 "window.__worldEditorScreenshotApplied(true);",
                                             );
@@ -416,6 +423,10 @@ mod windows {
                                         }
                                     }
                                     Err(error) => {
+                                        let _ = append_ui_log(
+                                            &arguments.root,
+                                            &format!("action failed action={action}: {error}"),
+                                        );
                                         let _ = webview.evaluate_script(&format!(
                                             "window.__worldEditorScreenshotError({});",
                                             js_string(&error.to_string())
@@ -585,13 +596,28 @@ mod windows {
                                         const count = document.getElementById('blueprintCount');
                                         const help = document.getElementById('help');
                                         const list = document.getElementById('cards');
+                                        window.__sfPendingState = state;
+                                        const renderSignature = JSON.stringify([state.stage, state.selected, state.blueprints.map(item => [item.name, item.image])]);
                                         if (count) count.textContent = `${{state.blueprints.length}} BLUEPRINT${{state.blueprints.length === 1 ? '' : 'S'}}`;
                                         if (help) help.textContent = state.hint;
-                                        if (list && (!rendered || list.querySelectorAll('.card:not(.create)').length !== state.blueprints.length)) {{
+                                        const cardCountMismatch = list && list.querySelectorAll('.card:not(.create)').length !== state.blueprints.length;
+                                        const fallbackNeedsRender = !rendered && (window.__sfFallbackRenderSignature !== renderSignature || cardCountMismatch);
+                                        if (list && (fallbackNeedsRender || (rendered && cardCountMismatch))) {{
                                             list.replaceChildren();
+                                            window.__sfFallbackRenderSignature = renderSignature;
+                                            const create = document.createElement('button');
+                                            create.type = 'button';
+                                            const createActive = !state.selected;
+                                            create.className = 'card create' + (createActive ? ' active' : '');
+                                            create.innerHTML = `<span class="create-art" aria-hidden="true"><svg class="new-blueprint-icon" viewBox="0 0 44 54"><path class="page" d="M5 2h24l10 10v38H5zM29 2v10h10"/><path class="plus" d="M16 31h12M22 25v12"/></svg></span><span class="create-label">New blueprint</span><span class="card-state">${{createActive ? 'ACTIVE' : 'CREATE'}}</span>`;
+                                            create.title = 'Start a new capture. F5 marks the first corner.';
+                                            create.onclick = () => window.ipc?.postMessage(JSON.stringify({{kind:'action', action:'newBlueprint', value:''}}));
+                                            list.append(create);
                                             for (const blueprint of state.blueprints) {{
-                                                const card = document.createElement('div');
-                                                card.className = 'card';
+                                                const card = document.createElement('button');
+                                                card.type = 'button';
+                                                const active = state.selected === blueprint.name;
+                                                card.className = 'card blueprint-card' + (active ? ' active' : '');
                                                 const thumb = document.createElement('div');
                                                 thumb.className = 'thumb';
                                                 if (blueprint.image) {{
@@ -605,9 +631,82 @@ mod windows {
                                                 const label = document.createElement('div');
                                                 label.className = 'name';
                                                 label.textContent = blueprint.name;
-                                                card.append(thumb, label);
+                                                const badge = document.createElement('span');
+                                                badge.className = 'card-state';
+                                                badge.textContent = active ? 'ACTIVE' : '';
+                                                card.append(thumb, label, badge);
+                                                card.onclick = event => {{
+                                                    clearTimeout(window.__sfFallbackCardClickTimer);
+                                                    if (event.detail >= 2) {{
+                                                        window.__worldEditorManageSelected?.(blueprint.name);
+                                                        return;
+                                                    }}
+                                                    window.__sfFallbackCardClickTimer = setTimeout(() => window.ipc?.postMessage(JSON.stringify({{kind:'action', action:'selectBlueprint', value:blueprint.name}})), 260);
+                                                }};
                                                 list.append(card);
                                             }}
+                                        }}
+                                        if (typeof window.__worldEditorManageSelected !== 'function') {{
+                                            window.__worldEditorManageSelected = name => {{
+                                                const current = window.__sfPendingState || state;
+                                                const target = current.blueprints.find(item => item.name === name) || current.blueprints.find(item => item.name === current.selected);
+                                                if (!target) {{
+                                                    const help = document.getElementById('help');
+                                                    if (help) help.textContent = 'Select a saved blueprint before opening its manager.';
+                                                    return;
+                                                }}
+                                                if (current.selected !== target.name) window.ipc?.postMessage(JSON.stringify({{kind:'action', action:'selectBlueprint', value:target.name}}));
+                                                const panel = document.getElementById('manage');
+                                                if (!panel) return;
+                                                const esc = value => String(value).replace(/[&<>"']/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[ch]));
+                                                panel.innerHTML = `<div class="manage-head"><div><strong>Manage blueprint · ${{esc(target.name)}}</strong><p>Take a Steam screenshot with F12, then select it here. You can also browse another folder.</p></div><button id="fallbackDone">Back to library</button></div><div class="manage-actions"><input id="fallbackRename" maxlength="64" aria-label="Blueprint name"><button id="fallbackRenameButton">Rename</button><button id="fallbackDuplicateButton">Duplicate as…</button><button class="danger" id="fallbackDeleteButton">Delete blueprint</button></div><div class="screenshot-toolbar"><span id="fallbackFolder">Finding screenshots…</span><button id="fallbackBrowse">Choose folder…</button><button id="fallbackReload">Reload screenshots</button><button id="fallbackUse" disabled>Use selected screenshot</button><button id="fallbackUndo" hidden>Undo cover change</button></div><div id="fallbackQueue" class="screenshot-queue"><div class="screenshot-empty">Loading screenshots…</div></div>`;
+                                                panel.classList.add('show');
+                                                const send = (kind, fields = {{}}) => window.ipc?.postMessage(JSON.stringify({{kind, ...fields}}));
+                                                const action = (id, value = '') => send('action', {{action:id, value}});
+                                                const input = panel.querySelector('#fallbackRename');
+                                                input.value = target.name;
+                                                let selectedShot = null;
+                                                const refresh = () => action('refreshScreenshots', target.name);
+                                                send('manager-open'); refresh();
+                                                panel.querySelector('#fallbackDone').onclick = () => {{ panel.classList.remove('show'); send('manager-close'); }};
+                                                panel.querySelector('#fallbackBrowse').onclick = () => action('browseScreenshots', target.name);
+                                                panel.querySelector('#fallbackReload').onclick = refresh;
+                                                panel.querySelector('#fallbackUse').onclick = () => selectedShot && action('applyScreenshot', target.name + String.fromCharCode(9) + selectedShot.path);
+                                                panel.querySelector('#fallbackUndo').onclick = () => action('undoScreenshot', target.name);
+                                                panel.querySelector('#fallbackRenameButton').onclick = () => input.value.trim() && action('renameLibraryBlueprint', target.name + String.fromCharCode(9) + input.value.trim());
+                                                panel.querySelector('#fallbackDuplicateButton').onclick = () => input.value.trim() && action('duplicateLibraryBlueprint', target.name + String.fromCharCode(9) + input.value.trim());
+                                                panel.querySelector('#fallbackDeleteButton').onclick = () => window.confirm(`Delete blueprint “${{target.name}}” and its image?`) && action('deleteLibraryBlueprint', target.name);
+                                                window.__sfFallbackSelectedShot = shot => {{ selectedShot = shot; panel.querySelector('#fallbackUse').disabled = !shot; }};
+                                            }};
+                                        }}
+                                        if (typeof window.__worldEditorScreenshots !== 'function') window.__worldEditorScreenshots = data => {{
+                                            const panel = document.getElementById('manage');
+                                            if (!panel?.classList.contains('show')) return;
+                                            panel.querySelector('#fallbackFolder').textContent = data.folder || 'Screenshot folder unavailable';
+                                            panel.querySelector('#fallbackUndo').hidden = !data.canUndo;
+                                            const queue = panel.querySelector('#fallbackQueue'); queue.replaceChildren();
+                                            if (!data.screenshots.length) {{ const empty = document.createElement('div'); empty.className = 'screenshot-empty'; empty.textContent = 'No SVG, PNG, JPG, or JPEG images found. Choose another folder, or take a Steam screenshot with F12 and reload.'; queue.append(empty); return; }}
+                                            for (const shot of data.screenshots) {{ const item = document.createElement('button'); item.className = 'screenshot-item'; const image = document.createElement('img'); image.src = shot.thumbnail; image.alt = ''; const label = document.createElement('span'); label.textContent = shot.name; const date = document.createElement('small'); date.textContent = new Date(shot.modified * 1000).toLocaleString(); item.append(image, label, date); item.onclick = () => {{ queue.querySelectorAll('.screenshot-item').forEach(node => node.classList.remove('selected')); item.classList.add('selected'); window.__sfFallbackSelectedShot?.(shot); }}; queue.append(item); }}
+                                        }};
+                                        if (typeof window.__worldEditorScreenshotApplied !== 'function') window.__worldEditorScreenshotApplied = undone => {{ const help = document.getElementById('help'); if (help) help.textContent = undone ? 'Previous screenshot cover restored.' : 'Screenshot cover updated.'; }};
+                                        if (typeof window.__worldEditorScreenshotError !== 'function') window.__worldEditorScreenshotError = message => {{ const help = document.getElementById('help'); if (help) help.textContent = `Screenshot update failed: ${{message}}`; }};
+                                        if (window.__worldEditorUpdate !== undefined && typeof window.__worldEditorUpdate !== 'function') console.error('World Editor UI entrypoint is unavailable');
+                                        if (typeof window.__worldEditorUpdate !== 'function' && !window.__sfWorldEditorFallbackEvents) {{
+                                            window.__sfWorldEditorFallbackEvents = true;
+                                            document.addEventListener('click', event => {{
+                                                const target = event.target instanceof Element ? event.target.closest('#close, #manageButton, #expandLibrary') : null;
+                                                if (!target || !window.ipc || typeof window.ipc.postMessage !== 'function') return;
+                                                if (target.id === 'close') window.ipc.postMessage(JSON.stringify({{kind:'hide'}}));
+                                                if (target.id === 'manageButton') window.__worldEditorManageSelected?.();
+                                                if (target.id === 'expandLibrary') {{
+                                                    const expanded = !document.getElementById('cards')?.classList.contains('expanded');
+                                                    const list = document.getElementById('cards');
+                                                    list?.classList.toggle('expanded', expanded);
+                                                    target.textContent = expanded ? '⌃' : '⌄';
+                                                    target.setAttribute('aria-expanded', String(expanded));
+                                                    window.ipc.postMessage(JSON.stringify({{kind:'library-expand', expanded, height: 400}}));
+                                                }}
+                                            }});
                                         }}
                                         if (window.ipc && typeof window.ipc.postMessage === 'function') {{
                                             window.ipc.postMessage(JSON.stringify({{ kind: 'state-applied', blueprints: state.blueprints.length, stage: state.stage, selected: state.selected }}));
@@ -1000,7 +1099,7 @@ mod windows {
         files.truncate(MAX_SCREENSHOTS);
         let mut screenshots = Vec::with_capacity(files.len());
         for (path, modified) in files {
-            let Ok(image) = image::open(&path) else {
+            let Ok(image) = load_screenshot_image(&path, 320) else {
                 continue;
             };
             let thumbnail = image.thumbnail(320, 180);
@@ -1035,11 +1134,73 @@ mod windows {
         path.extension()
             .and_then(|extension| extension.to_str())
             .is_some_and(|extension| {
-                matches!(
-                    extension.to_ascii_lowercase().as_str(),
-                    "png" | "jpg" | "jpeg" | "bmp" | "webp"
-                )
+                matches!(extension.to_ascii_lowercase().as_str(), "svg" | "png" | "jpg" | "jpeg")
             })
+    }
+
+    fn load_screenshot_image(
+        path: &Path,
+        max_dimension: u32,
+    ) -> Result<DynamicImage, Box<dyn std::error::Error>> {
+        const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
+        const MAX_RASTER_DIMENSION: u32 = 8192;
+        const MAX_RASTER_PIXELS: u64 = 32 * 1024 * 1024;
+        let metadata = fs::metadata(path)?;
+        if !metadata.is_file() || metadata.len() > MAX_FILE_BYTES {
+            return Err("Image file is not a supported size".into());
+        }
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if extension == "svg" {
+            let data = fs::read(path)?;
+            let mut options = resvg::usvg::Options::default();
+            options.fontdb_mut().load_system_fonts();
+            let tree = resvg::usvg::Tree::from_data(&data, &options)?;
+            let size = tree.size();
+            let source_width = size.width();
+            let source_height = size.height();
+            let longest = source_width.max(source_height);
+            if !longest.is_finite() || longest <= 0.0 {
+                return Err("SVG has invalid dimensions".into());
+            }
+            let scale = (max_dimension.max(1) as f32 / longest).min(1.0);
+            let width = (source_width * scale).ceil().max(1.0) as u32;
+            let height = (source_height * scale).ceil().max(1.0) as u32;
+            let mut pixmap = resvg::tiny_skia::Pixmap::new(width, height)
+                .ok_or("Could not allocate the SVG preview")?;
+            let transform = resvg::tiny_skia::Transform::from_scale(
+                width as f32 / source_width,
+                height as f32 / source_height,
+            );
+            resvg::render(&tree, transform, &mut pixmap.as_mut());
+            let pixels = RgbaImage::from_raw(width, height, pixmap.take())
+                .ok_or("Could not read the rendered SVG pixels")?;
+            return Ok(DynamicImage::ImageRgba8(pixels));
+        }
+
+        let reader = ImageReader::open(path)?.with_guessed_format()?;
+        let format = reader.format().ok_or("Image format could not be identified")?;
+        let expected_format = match extension.as_str() {
+            "png" => image::ImageFormat::Png,
+            "jpg" | "jpeg" => image::ImageFormat::Jpeg,
+            _ => return Err("Choose an SVG, PNG, JPG, or JPEG image".into()),
+        };
+        if format != expected_format {
+            return Err("Image contents do not match the file extension".into());
+        }
+        let (width, height) = reader.into_dimensions()?;
+        if width == 0
+            || height == 0
+            || width > MAX_RASTER_DIMENSION
+            || height > MAX_RASTER_DIMENSION
+            || u64::from(width) * u64::from(height) > MAX_RASTER_PIXELS
+        {
+            return Err("Image dimensions exceed the 8192 by 8192 limit".into());
+        }
+        Ok(image::open(path)?)
     }
 
     fn apply_screenshot(root: &Path, value: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -1059,7 +1220,7 @@ mod windows {
         if !source.starts_with(&folder) || !source.is_file() || !is_supported_image(&source) {
             return Err("Choose an image from the selected screenshot folder".into());
         }
-        let image = image::open(&source)?;
+        let image = load_screenshot_image(&source, 4096)?;
         fs::create_dir_all(&blueprint_dir)?;
         backup_cover(&blueprint_dir, name)?;
         let mut full = Cursor::new(Vec::new());

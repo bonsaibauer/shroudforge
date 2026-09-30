@@ -163,6 +163,14 @@ function runtime.world.entity.query_props_in_bounds(bounds) end
 --- @return string? reason
 function runtime.world.entity.get_transform(entity_handle) end
 
+--- Update a live prop's three scale values through the build-profiled native API.
+--- The game-thread write is read back and verified; a failed write is restored when possible.
+--- @param entity_handle integer Handle returned by query_props or spawn.
+--- @param scale number[] Three finite scale values for x, y, and z.
+--- @return boolean ok
+--- @return string? reason
+function runtime.world.entity.set_scale(entity_handle, scale) end
+
 --- Spawn a native entity in the live prop-update context and wait for its live ECS record.
 --- UUIDs are hexadecimal qwords. Returns the new opaque entity handle, not an engine queue token.
 --- @param template_uuid_high_hex string

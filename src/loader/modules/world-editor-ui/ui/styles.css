@@ -36,7 +36,7 @@ button,input{color:inherit}
 .card.new{animation:forge .75s ease-out}
 @keyframes forge{0%{transform:scale(.7);filter:brightness(2.2);box-shadow:0 0 32px rgba(201,173,110,.6)}65%{transform:scale(1.06);filter:brightness(1.3)}100%{transform:scale(1);filter:none}}
 .card.create{display:grid;grid-template-columns:44px minmax(0,1fr);grid-template-rows:1fr 20px;align-items:center;justify-items:center;gap:2px 7px;padding:7px;border:2px dashed var(--sf-line-strong);background:#101a1d;color:var(--sf-text);font-size:11px;font-weight:700}
-.card.create.active{border-style:dashed}
+.card.create.active{border:2px dashed var(--sf-line-strong);background:#101a1d;box-shadow:none}
 .create-art{grid-row:1 / 3;width:42px;height:52px;display:grid;place-items:center}
 .new-blueprint-icon{width:42px;height:52px;overflow:visible}
 .new-blueprint-icon .page{fill:#142226;stroke:var(--sf-gold);stroke-width:2;stroke-dasharray:4 3}

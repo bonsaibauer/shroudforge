@@ -58,12 +58,7 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
         file_name == "enshrouded_server",
         shroudforge_api::API_VERSION,
     );
-    let has_startup_mods = startup_plan.iter().any(|item| {
-        item.info()
-            .capabilities
-            .iter()
-            .any(|capability| capability.requires_pregame())
-    });
+    let has_startup_mods = startup_plan.iter().any(|item| item.info().requires_pregame());
     let has_previous_apply = shroudforge_package::config::read_document(game_directory, "applied")
         .ok()
         .is_some_and(|value| {
@@ -137,12 +132,7 @@ fn already_applied(game_directory: &Path, file_name: &str) -> Result<bool, Loade
     let has_startup_mods = environment
         .plan(server, shroudforge_api::API_VERSION)
         .iter()
-        .any(|item| {
-            item.info()
-                .capabilities
-                .iter()
-                .any(|capability| capability.requires_pregame())
-        });
+        .any(|item| item.info().requires_pregame());
     let has_previous_apply = shroudforge_package::config::read_document(game_directory, "applied")
         .ok()
         .is_some_and(|value| {
@@ -304,12 +294,7 @@ fn run_inner(game_directory: &Path, file_name: &str, phase: &str) -> Result<(), 
                 shroudforge_api::API_VERSION,
             )
             .into_iter()
-            .filter(|item| {
-                item.info()
-                    .capabilities
-                    .iter()
-                    .any(|capability| capability.requires_pregame())
-            })
+            .filter(|item| item.info().requires_pregame())
             .map(|item| {
                 Ok(serde_json::json!({"id": item.info().id, "version": item.info().version}))
             })

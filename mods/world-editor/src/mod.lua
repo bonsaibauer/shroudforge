@@ -34,6 +34,7 @@ local undo_voxels
 local rollback_partial_paste
 local refresh_blueprint_library
 local publish_editor_state
+local set_editor_message
 local previous_key_state = {}
 local observed_rotation_setting = nil
 local active_rotation_turns = nil
@@ -60,6 +61,7 @@ end
 
 local function rotate_blueprint()
     if not clipboard then
+        set_editor_message("need_a", "No blueprint is active. Press F5 to start a capture or select a saved blueprint.")
         shroudforge.log.warn("World Editor: capture or load a blueprint before rotating it")
         return
     end
@@ -69,11 +71,10 @@ local function rotate_blueprint()
     if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
     local degrees = active_rotation_turns * 90
     shroudforge.log.info(string.format(
-        "World Editor rotation: %d/3 quarter turns (%d degrees) around %s; F3 rotates again, F7 pastes, Preview checks the cursor target",
+        "World Editor rotation: %d/3 quarter turns (%d degrees) around %s. F3 rotates again, F7 places it, and Preview checks the cursor target.",
         active_rotation_turns, degrees, string.upper(axis)))
     editor_stage = "selected"
-    editor_hint = string.format("Rotated the blueprint %d° around the %s axis. Aim at the target and press F7 to place it.", degrees, string.upper(axis))
-    if publish_editor_state then publish_editor_state() end
+    set_editor_message("selected", string.format("Rotation set to %d°. Aim at the target and press F7 to place the blueprint.", degrees))
 end
 
 local function finite_number(value)
@@ -120,6 +121,12 @@ publish_editor_state = function()
     end
     last_published_editor_state = text
     return true
+end
+
+set_editor_message = function(stage, message)
+    if stage then editor_stage = stage end
+    editor_hint = message
+    if publish_editor_state then publish_editor_state() end
 end
 
 local function get_voxel_grid_spec()
@@ -304,19 +311,22 @@ local function require_world_feature(operation, action)
     local reason = status and status.reason or (operation .. " is unavailable")
     if world_feature_pending(reason) then
         if pending_world_action then
+            set_editor_message(nil, "A world operation is already running. Wait for it to finish, then try again.")
             shroudforge.log.warn("World Editor is already waiting for the live world context")
             return false
         end
         pending_world_action = {operation = operation, action = action}
-        shroudforge.log.debug("World Editor is waiting for the validated world context; the requested action will continue automatically")
+        set_editor_message(nil, "Waiting for the live world to become ready. The requested action will continue automatically.")
+        shroudforge.log.debug("World Editor is waiting for the validated world context. The requested action will continue automatically.")
         return false
     end
     feature(operation)
     return false
 end
 
-local function request_cursor_action(action)
+local function request_cursor_action(action, waiting_hint)
     if pending_cursor_action then
+        set_editor_message(nil, "A cursor request is already running. Wait for its instruction to update, then try again.")
         shroudforge.log.warn("World Editor is already waiting for its live cursor query")
         return
     end
@@ -324,8 +334,10 @@ local function request_cursor_action(action)
     if point then action(point); return end
     if query_is_pending(reason) then
         pending_cursor_action = action
-        shroudforge.log.debug("World Editor is resolving the live cursor; the requested action will continue automatically")
+        set_editor_message(nil, waiting_hint or "Reading the aimed cursor position…")
+        shroudforge.log.debug("World Editor is resolving the live cursor. The requested action will continue automatically.")
     else
+        set_editor_message(nil, "Could not read the aimed cursor position. Aim at a surface and try again.")
         shroudforge.log.warn("World Editor cursor is unavailable: " .. tostring(reason))
     end
 end
@@ -408,7 +420,7 @@ local function resolve_placeable_items()
             local feedback
             for _, collider in ipairs(equipment.placementColliders or {}) do
                 for _, entry in ipairs(collider.dataArray or {}) do
-                    -- KFC variants expose their contained typed value as `.value`;
+                    -- KFC variants expose their contained typed value as `.value`.
                     -- `$value` exists only in the raw JSON representation.
                     local candidate = entry.value.materialFeedbackId
                     feedback = item_id(candidate)
@@ -548,7 +560,7 @@ local function voxel_target_region(plan, anchor)
         local coordinate = (low[axis] - grid.origin[axis]) / grid.cellSize[axis]
         local nearest = math.floor(coordinate + 0.5)
         if not finite_number(coordinate) or math.abs(coordinate - nearest) > 1e-6 then
-            return nil, "paste anchor would place the voxel channel off-grid; choose a cursor point aligned to the voxel grid"
+            return nil, "paste anchor would place the voxel channel off-grid. Choose a cursor point aligned to the voxel grid"
         end
         region[({"x", "y", "z"})[axis]] = nearest
     end
@@ -580,7 +592,7 @@ local function capture_region_props(region)
     end
     local maximum = maximum_copyable_props()
     if #live_props > maximum then
-        return nil, string.format("selection contains %d props, above the configured maximum of %d; increase Maximum props per blueprint in the mod settings", #live_props, maximum)
+        return nil, string.format("selection contains %d props, above the configured maximum of %d. Increase Maximum props per blueprint in mod settings", #live_props, maximum)
     end
     local props = {}
     for _, live_prop in ipairs(live_props) do
@@ -632,9 +644,10 @@ local function request_prop_capture(region, callback)
     if props then callback(props); return end
     if query_is_pending(reason) then
         pending_prop_capture = {region = region, callback = callback}
-        shroudforge.log.debug("World Editor is scanning live props; the requested action will continue automatically")
+        shroudforge.log.debug("World Editor is scanning live props. The requested action will continue automatically.")
         return
     end
+    set_editor_message(nil, "Could not read props in the selected area. Check the runtime status and try again.")
     shroudforge.log.warn("World Editor could not capture props: " .. tostring(reason or "live prop query unavailable"))
 end
 
@@ -761,6 +774,7 @@ end
 local function finish_capture(region, cells, props, save_and_select, anchor, extent, voxel_offset)
     local maximum = maximum_copyable_props()
     if #(props or {}) > maximum then
+        set_editor_message("ready", string.format("Capture stopped. It found %d props, above your limit of %d. Raise the limit in mod settings or select a smaller area.", #props, maximum))
         shroudforge.log.warn(string.format("World Editor refused capture: %d props exceed the configured maximum of %d", #props, maximum))
         return
     end
@@ -782,7 +796,7 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
         shroudforge.log.info(string.format("World Editor captured %d verified voxel cells (%d occupied) and %d resolved props from %d,%d,%d",
             #cells, occupied, #props, region.x, region.y, region.z))
     else
-        shroudforge.log.info(string.format("World Editor captured a props-only region (%d props; extent %.3f, %.3f, %.3f)",
+        shroudforge.log.info(string.format("World Editor captured a props-only region (%d props, extent %.3f, %.3f, %.3f)",
             #props, extent[1], extent[2], extent[3]))
     end
     if save_and_select then
@@ -792,21 +806,22 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
             local path = "world-editor/blueprints/" .. candidate .. ".sfbp"
             local ok, exists = pcall(io.export_exists, path)
             if not ok then
+                set_editor_message("ready", "Capture stopped. The blueprint folder could not be checked. Check the export folder and try F8 again.")
                 shroudforge.log.error("World Editor cannot safely choose a capture name because export storage could not be inspected: " .. tostring(exists))
                 return
             end
             if exists == false then name = candidate; break end
         end
         if not name or not save_blueprint_named(name) then
+            set_editor_message("ready", "Capture is ready, but the blueprint could not be saved. Check the export folder and try F8 again.")
             shroudforge.log.error("World Editor captured the region but could not save a unique persistent blueprint")
             return
         end
         active_blueprint_name = name
         editor_stage = "selected"
-        editor_hint = "Saved and selected blueprint ‘" .. name .. "’. Click to select; double-click to manage. Press F7 to place it at the target."
-        if publish_editor_state then publish_editor_state() end
+        set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press F7 to place it. Open Manage to add a cover from F12 screenshots.")
         if refresh_blueprint_library then refresh_blueprint_library() end
-        shroudforge.log.info("World Editor help: blueprint saved as '" .. name .. "' and selected. Click selects; double-click manages it. Press F7 only when you want to place it.")
+        shroudforge.log.info("World Editor help: blueprint saved as '" .. name .. "' and selected. Click to select or double-click to manage it. Press F7 to place it.")
     end
 end
 
@@ -826,16 +841,25 @@ local function copy_voxels(save_and_select)
     if not export_ready_for_capture(save_and_select) then return end
     if not require_world_feature("runtime.world.voxel.read", function() copy_voxels(save_and_select) end) then return end
     local region, reason = voxel_region(true)
-    if not region then shroudforge.log.warn("World Editor: " .. reason); return end
+    if not region then
+        set_editor_message("ready", "Capture stopped. " .. tostring(reason) .. " Choose a smaller or valid selection, then try again.")
+        shroudforge.log.warn("World Editor: " .. reason)
+        return
+    end
     local cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
         region.sx, region.sy, region.sz)
     if not cells then
+        set_editor_message("ready", "Capture stopped because terrain data could not be read. Check runtime status, then try F8 again.")
         runtime.report_effect("waiting", read_reason or "voxel read failed")
         shroudforge.log.warn("World Editor voxel copy failed: " .. tostring(read_reason))
         return
     end
     local grid = get_voxel_grid_spec()
-    if not grid then shroudforge.log.warn("World Editor could not get voxel grid metadata"); return end
+    if not grid then
+        set_editor_message("ready", "Capture stopped because voxel grid information is unavailable. Check runtime status, then try again.")
+        shroudforge.log.warn("World Editor could not get voxel grid metadata")
+        return
+    end
     local anchor, extent
     if selection_a and selection_b then
         anchor = {math.min(selection_a.x, selection_b.x), math.min(selection_a.y, selection_b.y), math.min(selection_a.z, selection_b.z)}
@@ -877,8 +901,7 @@ local function capture_and_save()
     copy_voxels(true)
     if editor_stage == "capturing" and not pending_prop_capture and not pending_world_action then
         editor_stage = "ready"
-        editor_hint = "Capture complete. Press F8 to save the blueprint, F3 to rotate it, and F7 to place it."
-        publish_editor_state()
+        set_editor_message("ready", "Capture complete. Press F8 to save it, F3 to rotate it, or F7 to place the current capture.")
     end
 end
 
@@ -911,15 +934,24 @@ local function blueprint_path(name)
 end
 
 save_blueprint_named = function(name)
-    if not clipboard then shroudforge.log.warn("World Editor: capture a region before saving a blueprint"); return end
+    if not clipboard then
+        set_editor_message("need_a", "There is no capture to save. Mark both corners with F5 first.")
+        shroudforge.log.warn("World Editor: capture a region before saving a blueprint")
+        return
+    end
     local prop_count = #(clipboard.props or {})
     local maximum = maximum_copyable_props()
     if prop_count > maximum then
+        set_editor_message("ready", string.format("Save stopped. This capture has %d props, above your limit of %d. Raise the limit in mod settings or capture a smaller area.", prop_count, maximum))
         shroudforge.log.warn(string.format("World Editor: cannot save %d props because the configured blueprint maximum is %d", prop_count, maximum))
         return false
     end
     local path, reason = blueprint_path(name)
-    if not path then shroudforge.log.warn("World Editor: " .. reason); return end
+    if not path then
+        set_editor_message("ready", "Save stopped. " .. tostring(reason) .. ". Use letters, numbers, underscores, or hyphens in the blueprint name.")
+        shroudforge.log.warn("World Editor: " .. reason)
+        return
+    end
     local region, values = clipboard.region, clipboard.cells
     local extent = clipboard.extent
     local body = {"SHROUDFORGE_WORLD_BLUEPRINT_V7",
@@ -937,11 +969,13 @@ save_blueprint_named = function(name)
     end
     local content = table.concat(body, "\n")
     if #content > maximum_blueprint_bytes then
+        set_editor_message("ready", "Save stopped. This blueprint is larger than the 256 MiB file limit.")
         shroudforge.log.warn("World Editor: blueprint exceeds the 256 MiB file limit")
         return
     end
     local ok, err = pcall(io.export, path, content)
     if not ok then
+        set_editor_message("ready", "Save failed. Check that export storage is enabled, then try again.")
         shroudforge.log.error("World Editor could not save persistent blueprint (enable export): " .. tostring(err))
         return false
     end
@@ -955,7 +989,11 @@ end
 
 local function save_blueprint()
     local name = setting("blueprintName")
-    if save_blueprint_named(name) then active_blueprint_name = name end
+    if save_blueprint_named(name) then
+        active_blueprint_name = name
+        set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press F7 to place it. Open Manage to add a cover from F12 screenshots.")
+        if refresh_blueprint_library then refresh_blueprint_library() end
+    end
 end
 
 local function load_blueprint(name)
@@ -1104,9 +1142,8 @@ local function load_blueprint(name)
     placement_preview = nil
     active_blueprint_name = name
     editor_stage = "selected"
-    editor_hint = "Loaded and selected blueprint ‘" .. name .. "’. Aim at the target, rotate with F3, and place with F7."
-    publish_editor_state()
-    shroudforge.log.info(string.format("World Editor loaded blueprint '%s' (%d cells, %d props). It is selected, not placed; aim with the build hammer and use F7 to place it.", active_blueprint_name, #cells, #props))
+    set_editor_message("selected", "Blueprint " .. name .. " loaded and selected. Press F7 to place it. Open Manage to add a cover from F12 screenshots.")
+    shroudforge.log.info(string.format("World Editor loaded blueprint '%s' (%d cells, %d props). It is selected and ready for F7 placement.", active_blueprint_name, #cells, #props))
 end
 
 local blueprint_library = {}
@@ -1165,8 +1202,16 @@ local function rename_library_blueprint(value)
         return
     end
     if not old_name or not new_name then return end
-    if old_name == new_name then shroudforge.log.warn("World Editor: source and new blueprint names are identical"); return end
-    if io.export_exists(new_path) then shroudforge.log.warn("World Editor: a blueprint with that name already exists"); return end
+    if old_name == new_name then
+        set_editor_message(nil, "Rename stopped. Enter a different blueprint name.")
+        shroudforge.log.warn("World Editor: source and new blueprint names are identical")
+        return
+    end
+    if io.export_exists(new_path) then
+        set_editor_message(nil, "Rename stopped. A blueprint with that name already exists.")
+        shroudforge.log.warn("World Editor: a blueprint with that name already exists")
+        return
+    end
     local old_image, new_image = "world-editor/blueprints/" .. old_name .. ".png",
         "world-editor/blueprints/" .. new_name .. ".png"
     local old_thumb, new_thumb = "world-editor/blueprints/" .. old_name .. ".thumb.png",
@@ -1174,12 +1219,16 @@ local function rename_library_blueprint(value)
     local has_image = io.export_exists(old_image)
     local has_thumb = io.export_exists(old_thumb)
     local ok, reason = pcall(io.export_rename, old_path, new_path)
-    if not ok then shroudforge.log.error("World Editor could not rename blueprint: " .. tostring(reason)); return end
+    if not ok then
+        set_editor_message(nil, "Rename failed. Check the export folder and try again.")
+        shroudforge.log.error("World Editor could not rename blueprint: " .. tostring(reason))
+        return
+    end
     if has_image then
         local image_ok, image_reason = pcall(io.export_rename, old_image, new_image)
         if not image_ok then
             pcall(io.export_rename, new_path, old_path)
-            shroudforge.log.error("World Editor could not rename the blueprint image; the blueprint rename was rolled back: " .. tostring(image_reason))
+            shroudforge.log.error("World Editor could not rename the blueprint image. The rename was rolled back: " .. tostring(image_reason))
             return
         end
     end
@@ -1188,7 +1237,7 @@ local function rename_library_blueprint(value)
         if not thumb_ok then
             if has_image then pcall(io.export_rename, new_image, old_image) end
             pcall(io.export_rename, new_path, old_path)
-            shroudforge.log.error("World Editor could not rename the blueprint thumbnail; the rename was rolled back: " .. tostring(thumb_reason))
+            shroudforge.log.error("World Editor could not rename the blueprint thumbnail. The rename was rolled back: " .. tostring(thumb_reason))
             return
         end
     end
@@ -1197,6 +1246,7 @@ local function rename_library_blueprint(value)
         publish_editor_state()
     end
     refresh_blueprint_library()
+    set_editor_message(nil, "Blueprint renamed to " .. new_name .. ".")
     shroudforge.log.info("World Editor renamed blueprint " .. old_name .. " to " .. new_name)
 end
 
@@ -1209,10 +1259,22 @@ local function duplicate_library_blueprint(value)
         return
     end
     if not source_name or not new_name then return end
-    if source_name == new_name then shroudforge.log.warn("World Editor: choose a different name for the duplicate"); return end
-    if io.export_exists(destination) then shroudforge.log.warn("World Editor: a blueprint with that name already exists"); return end
+    if source_name == new_name then
+        set_editor_message(nil, "Duplicate stopped. Enter a different name for the copy.")
+        shroudforge.log.warn("World Editor: choose a different name for the duplicate")
+        return
+    end
+    if io.export_exists(destination) then
+        set_editor_message(nil, "Duplicate stopped. A blueprint with that name already exists.")
+        shroudforge.log.warn("World Editor: a blueprint with that name already exists")
+        return
+    end
     local ok, reason = pcall(io.export_copy, source_path, destination)
-    if not ok then shroudforge.log.error("World Editor could not duplicate blueprint: " .. tostring(reason)); return end
+    if not ok then
+        set_editor_message(nil, "Duplicate failed. Check the export folder and try again.")
+        shroudforge.log.error("World Editor could not duplicate blueprint: " .. tostring(reason))
+        return
+    end
     local source_image, destination_image = "world-editor/blueprints/" .. source_name .. ".png",
         "world-editor/blueprints/" .. new_name .. ".png"
     local source_thumb, destination_thumb = "world-editor/blueprints/" .. source_name .. ".thumb.png",
@@ -1221,7 +1283,7 @@ local function duplicate_library_blueprint(value)
         local image_ok, image_reason = pcall(io.export_copy, source_image, destination_image)
         if not image_ok then
             pcall(io.export_delete, destination)
-            shroudforge.log.error("World Editor could not duplicate the blueprint image; the duplicate was rolled back: " .. tostring(image_reason))
+            shroudforge.log.error("World Editor could not duplicate the blueprint image. The duplicate was rolled back: " .. tostring(image_reason))
             return
         end
     end
@@ -1230,24 +1292,37 @@ local function duplicate_library_blueprint(value)
         if not thumb_ok then
             pcall(io.export_delete, destination)
             pcall(io.export_delete, destination_image)
-            shroudforge.log.error("World Editor could not duplicate the blueprint thumbnail; the duplicate was rolled back: " .. tostring(thumb_reason))
+            shroudforge.log.error("World Editor could not duplicate the blueprint thumbnail. The duplicate was rolled back: " .. tostring(thumb_reason))
             return
         end
     end
     refresh_blueprint_library()
+    set_editor_message(nil, "Blueprint duplicated as " .. new_name .. ".")
     shroudforge.log.info("World Editor duplicated blueprint " .. source_name .. " as " .. new_name)
 end
 
 local function delete_library_blueprint(name)
     name = name or setting("blueprintName")
     local path = blueprint_path(name)
-    if not path then shroudforge.log.warn("World Editor: invalid blueprint name"); return end
+    if not path then
+        set_editor_message(nil, "Delete stopped because the blueprint name is invalid.")
+        shroudforge.log.warn("World Editor: invalid blueprint name")
+        return
+    end
     if not name then return end
-    if not io.export_exists(path) then shroudforge.log.warn("World Editor: blueprint file does not exist: " .. path); return end
+    if not io.export_exists(path) then
+        set_editor_message(nil, "Delete stopped because this blueprint file no longer exists.")
+        shroudforge.log.warn("World Editor: blueprint file does not exist: " .. path)
+        return
+    end
     local image = "world-editor/blueprints/" .. name .. ".png"
     local thumbnail = "world-editor/blueprints/" .. name .. ".thumb.png"
     local ok, reason = pcall(io.export_delete, path)
-    if not ok then shroudforge.log.error("World Editor could not delete blueprint: " .. tostring(reason)); return end
+    if not ok then
+        set_editor_message(nil, "Delete failed. Check the export folder and try again.")
+        shroudforge.log.error("World Editor could not delete blueprint: " .. tostring(reason))
+        return
+    end
     if io.export_exists(image) then
         local image_ok, image_reason = pcall(io.export_delete, image)
         if not image_ok then shroudforge.log.warn("World Editor deleted the blueprint but could not delete its image: " .. tostring(image_reason)) end
@@ -1262,18 +1337,25 @@ local function delete_library_blueprint(name)
         publish_editor_state()
     end
     refresh_blueprint_library()
+    set_editor_message(nil, "Blueprint " .. name .. " deleted.")
     shroudforge.log.info("World Editor deleted blueprint " .. name)
 end
 
 local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
-    if not clipboard then shroudforge.log.warn("World Editor: capture or load a blueprint before pasting"); return end
+    if not clipboard then
+        set_editor_message("need_a", "No blueprint is active. Press F5 to create one or select a saved blueprint.")
+        shroudforge.log.warn("World Editor: capture or load a blueprint before pasting")
+        return
+    end
     local maximum = maximum_copyable_props()
     local prop_count = #(clipboard.props or {})
     if prop_count > maximum then
+        set_editor_message("selected", string.format("Placement stopped. This blueprint has %d props, above your limit of %d. Raise the limit in mod settings or choose a smaller blueprint.", prop_count, maximum))
         shroudforge.log.warn(string.format("World Editor: paste refused because the blueprint has %d props and the configured maximum is %d", prop_count, maximum))
         return
     end
     if undo_state and undo_state.recovery_required then
+        set_editor_message("recovery", "Placement is paused. Press F4 to finish undoing the previous placement first.")
         shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before starting another paste")
         return
     end
@@ -1292,29 +1374,43 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
             request_cursor_action(function(point) paste_voxels(true, point) end)
             return
         end
-        if not anchor then shroudforge.log.warn("World Editor: " .. tostring(reason)); return end
+        if not anchor then
+            set_editor_message("selected", "Placement stopped. " .. tostring(reason) .. " Aim at a valid target and try again.")
+            shroudforge.log.warn("World Editor: " .. tostring(reason))
+            return
+        end
         local turns = rotation_turns()
         local rotated = rotated_blueprint(clipboard, turns)
         local axis = clipboard.region.rotationAxis or setting("rotationAxis")
         if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
         local target
         target, reason = voxel_target_region(rotated, anchor)
-        if clipboard.hasVoxels and not target then shroudforge.log.warn("World Editor: " .. tostring(reason)); return end
+        if clipboard.hasVoxels and not target then
+            set_editor_message("selected", "Placement stopped. " .. tostring(reason) .. " Aim at a grid-aligned target and try again.")
+            shroudforge.log.warn("World Editor: " .. tostring(reason))
+            return
+        end
         context = {anchor = anchor, plan = rotated, target = target,
             bounds = plan_world_bounds(rotated, anchor), turns = turns, axis = axis, blueprint = clipboard}
     end
     local anchor, target = context.anchor, context.target
     local rotated = context.plan
-    if not anchor or not rotated then shroudforge.log.warn("World Editor: placement plan is incomplete"); return end
+    if not anchor or not rotated then
+        set_editor_message("selected", "Placement stopped because its plan is incomplete. Aim again, then press F7.")
+        shroudforge.log.warn("World Editor: placement plan is incomplete")
+        return
+    end
     local turns = rotation_turns()
     local axis = clipboard.region.rotationAxis or setting("rotationAxis")
     if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
     if context.blueprint ~= clipboard or context.turns ~= turns or context.axis ~= axis or
        context.plan.hasVoxels ~= clipboard.hasVoxels then
-        shroudforge.log.warn("World Editor: placement settings changed while the prop query was pending; preview again")
+        set_editor_message("selected", "Placement settings changed while preparing. Aim again and press F7.")
+        shroudforge.log.warn("World Editor: placement settings changed while the prop query was pending. Prepare the preview again.")
         return
     end
     if not clipboard.hasVoxels and #rotated.props == 0 and setting("targetPropMode") ~= "replace" then
+        set_editor_message("selected", "This blueprint has no props to place. Enable target prop replacement or choose another blueprint.")
         shroudforge.log.warn("World Editor: empty props-only blueprint has nothing to paste unless target props are set to replace")
         return
     end
@@ -1325,10 +1421,12 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         local maximum_scale = 3.402823466e38
         if not finite_number(prop.sx) or not finite_number(prop.sy) or not finite_number(prop.sz) or
            math.abs(prop.sx) > maximum_scale or math.abs(prop.sy) > maximum_scale or math.abs(prop.sz) > maximum_scale then
+            set_editor_message("selected", "Placement stopped because a prop has invalid scale data. Check the blueprint file.")
             shroudforge.log.warn("World Editor: blueprint prop scale is outside the native transform range")
             return
         end
         if not recipes or not recipes[prop.itemId] then
+            set_editor_message("selected", "Placement stopped because a prop has no current placement recipe. Check the blueprint or game assets.")
             shroudforge.log.warn("World Editor: blueprint prop has no current native ItemInfo placement recipe")
             return
         end
@@ -1338,6 +1436,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         local read_reason
         previous_cells, read_reason = runtime.world.voxel.read(target.x, target.y, target.z, target.sx, target.sy, target.sz)
         if not previous_cells then
+            set_editor_message("selected", "Placement stopped because the target terrain could not be backed up. Aim at another target and retry.")
             shroudforge.log.warn("World Editor could not snapshot the target before paste: " .. tostring(read_reason))
             return
         end
@@ -1408,8 +1507,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         voxel_written = false, recovery_required = true, hasVoxels = clipboard.hasVoxels,
     }
     editor_stage = "placing"
-    editor_hint = "Placing the blueprint at the aimed target…"
-    publish_editor_state()
+    set_editor_message("placing", "Placing " .. (active_blueprint_name or "the blueprint") .. ". Keep the target clear until placement finishes.")
     for _, prop in ipairs(removed_props) do
         local removed, remove_reason = runtime.world.entity.destroy(prop.entityHandle,
             prop.recipe.bounds, prop.recipe.id, prop.recipe.feedback)
@@ -1458,7 +1556,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
             position, rotation, recipe.id, 0)
         if not entity_handle then
             runtime.report_effect("write-failed", spawn_reason or "entity spawn was not verified")
-            shroudforge.log.error("World Editor stopped after partial paste; entity spawn failed for item " ..
+            shroudforge.log.error("World Editor stopped after partial paste. Entity spawn failed for item " ..
                 tostring(prop.itemId) .. ": " .. tostring(spawn_reason))
             undo_state.entities, undo_state.entity_index = spawned, #spawned
             rollback_partial_paste()
@@ -1493,17 +1591,19 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
     undo_state.entities, undo_state.entity_index = spawned, #spawned
     undo_state.recovery_required = false
     placement_preview = nil
-    editor_stage = "selected"
-    editor_hint = "Blueprint placed. Press F4 to undo the last placement or F7 to place it again."
-    publish_editor_state()
-    runtime.report_effect("write-confirmed", string.format("Wrote and verified %d voxel cells and %d new props in live ECS; save persistence is not verified",
+    set_editor_message("selected", "Blueprint placed successfully. Press F4 to undo it or F7 to place it again.")
+    runtime.report_effect("write-confirmed", string.format("Wrote and verified %d voxel cells and %d new props in live ECS. Save persistence is not verified.",
         #(clipboard.cells or {}), #spawned))
     shroudforge.log.info(string.format("World Editor placed blueprint with %d voxel cells and %d props at %.3f,%.3f,%.3f",
         #(clipboard.cells or {}), #spawned, anchor[1], anchor[2], anchor[3]))
 end
 
 undo_voxels = function()
-    if not undo_state then shroudforge.log.warn("World Editor: there is no verified blueprint placement to undo"); return end
+    if not undo_state then
+        set_editor_message(nil, "Nothing to undo. Place a blueprint with F7 first.")
+        shroudforge.log.warn("World Editor: there is no verified blueprint placement to undo")
+        return
+    end
     if #(undo_state.removed_props or {}) > 0 and
        (not feature("runtime.world.entity.spawn") or not feature("runtime.world.entity.set_scale")) then return end
     if undo_state.hasVoxels and not require_world_feature("runtime.world.voxel.write", undo_voxels) then return end
@@ -1515,12 +1615,14 @@ undo_voxels = function()
             local current_cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
                 region.sx, region.sy, region.sz)
             if not current_cells then
+                set_editor_message("recovery", "Undo paused. The terrain snapshot could not be read. Press F4 to retry.")
                 shroudforge.log.warn("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
                 return
             end
             local expected_cells = undo_state.voxel_written and undo_state.expected_cells or undo_state.cells
             if not same_cells(current_cells, expected_cells) then
-                shroudforge.log.warn("World Editor paused undo because the target voxels changed after the paste; no later changes were overwritten")
+                set_editor_message("recovery", "Undo paused because the terrain changed after placement. Restore those changes manually, then press F4 to retry.")
+                shroudforge.log.warn("World Editor paused undo because the target voxels changed after the paste. No later changes were overwritten.")
                 return
             end
         end
@@ -1531,11 +1633,13 @@ undo_voxels = function()
         local entity = entities[entity_index]
         local current = entity.entityHandle and runtime.world.entity.get_transform(entity.entityHandle)
         if not current then
+            set_editor_message("recovery", "Undo paused because a placed prop is missing. Check the world, then press F4 to retry.")
             runtime.report_effect("write-failed", "a pasted prop disappeared before undo")
             shroudforge.log.warn("World Editor refused undo because a pasted prop is no longer present at its recorded handle")
             return
         end
         if not undo_state.automaticRollback and not transform_matches(current, entity.expected_transform) then
+            set_editor_message("recovery", "Undo paused because a placed prop was moved or changed. Restore it to its pasted state, then press F4 to retry.")
             runtime.report_effect("write-failed", "a pasted prop changed after paste")
             shroudforge.log.warn("World Editor refused undo because a pasted prop changed after paste")
             return
@@ -1545,14 +1649,17 @@ undo_voxels = function()
     for prop_index = 1, removed_index do
         local prop = undo_state.removed_props[prop_index]
         if not undo_state.automaticRollback and prop.entityHandle and runtime.world.entity.get_transform(prop.entityHandle) then
+            set_editor_message("recovery", "Undo paused because a replaced prop is already present. Check the world, then press F4 to retry.")
             runtime.report_effect("write-failed", "a replaced prop reappeared before undo")
             shroudforge.log.warn("World Editor refused undo because a replaced prop is already live again")
             return
         end
     end
+    set_editor_message("placing", undo_state.automaticRollback and "Restoring the world after the failed placement…" or "Undo in progress. Removing placed props and restoring the previous world state…")
     while index >= 1 do
         local entity = entities[index]
         if not entity.entityHandle then
+            set_editor_message("recovery", "Undo paused because a prop handle is missing. Press F4 to retry recovery.")
             runtime.report_effect("write-failed", "pasted prop has no live entity handle")
             shroudforge.log.warn("World Editor paused undo because live prop state could not be inspected")
             return
@@ -1564,6 +1671,7 @@ undo_voxels = function()
             undo_state.entity_index = index
         else
             local detail = remove_reason or "the exact pasted ECS handle is still present after the destroy call"
+            set_editor_message("recovery", "Undo paused because a placed prop could not be removed. " .. tostring(detail) .. ". Press F4 to retry.")
             runtime.report_effect("write-failed", detail)
             shroudforge.log.error("World Editor paused undo and preserved its progress: " .. tostring(detail))
             return
@@ -1573,6 +1681,7 @@ undo_voxels = function()
         local ok, reason = runtime.world.voxel.write(region.x, region.y, region.z,
             region.sx, region.sy, region.sz, undo_state.cells)
         if not ok then
+            set_editor_message("recovery", "Undo paused because the previous terrain could not be restored. Press F4 to retry.")
             runtime.report_effect("write-failed", reason or "voxel undo failed")
             shroudforge.log.error("World Editor voxel undo failed: " .. tostring(reason))
             return
@@ -1593,6 +1702,7 @@ undo_voxels = function()
         if entity_handle then
             local scaled, scale_reason = runtime.world.entity.set_scale(entity_handle, prop.scale)
             if not scaled then
+                set_editor_message("recovery", "Undo paused while restoring a replaced prop's scale. Press F4 to retry.")
                 shroudforge.log.error("World Editor paused undo while restoring a replaced prop's scale: " ..
                     tostring(scale_reason or "native scale update failed"))
                 return
@@ -1600,6 +1710,7 @@ undo_voxels = function()
         end
         local restored = entity_handle and runtime.world.entity.get_transform(entity_handle)
         if not restored or not transform_matches(restored, prop.expected_transform) then
+            set_editor_message("recovery", "Undo paused while restoring a replaced prop. Press F4 to retry.")
             shroudforge.log.error("World Editor paused undo while restoring a replaced target prop: " ..
                 tostring(spawn_reason or "spawn could not be verified by entity handle"))
             return
@@ -1610,6 +1721,8 @@ undo_voxels = function()
     end
     local had_voxels = undo_state.hasVoxels
     undo_state = nil
+    set_editor_message("selected", had_voxels and "Undo completed successfully. The previous terrain and prop state was restored." or
+        "Undo completed successfully. The placed props were removed and replaced props were restored.")
     runtime.report_effect("write-confirmed", had_voxels and
         "Restored the previous voxel snapshot and removed/restored verified props" or
         "Removed pasted props and restored replaced props")
@@ -1622,15 +1735,14 @@ rollback_partial_paste = function()
     shroudforge.log.warn("World Editor is rolling back the changes completed before the paste failure")
     undo_state.automaticRollback = true
     undo_voxels()
-        if undo_state then
+    if undo_state then
         undo_state.automaticRollback = nil
-        shroudforge.log.error("World Editor rollback is incomplete; use F4 again after resolving the reported recovery issue")
-            editor_stage = "recovery"
+        shroudforge.log.error("World Editor rollback is incomplete. Press F4 again after resolving the recovery issue.")
+        set_editor_message("recovery", "Rollback is incomplete. Press F4 to continue restoring the previous world state.")
     else
         shroudforge.log.info("World Editor automatically restored the pre-paste snapshot")
-            editor_stage = "selected"
+        set_editor_message("selected", "Placement failed, and the previous world state was restored.")
     end
-        publish_editor_state()
 end
 
 local function mark_cursor(which)
@@ -1652,7 +1764,11 @@ local function mark_cursor(which)
 end
 
 local function preview_paste_at(point)
-    if not clipboard then shroudforge.log.warn("World Editor: copy or load a blueprint before previewing"); return end
+    if not clipboard then
+        set_editor_message("need_a", "No blueprint is active. Press F5 to create one or select a saved blueprint.")
+        shroudforge.log.warn("World Editor: copy or load a blueprint before previewing")
+        return
+    end
     if undo_state and undo_state.recovery_required then
         shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before preparing another placement")
         return
@@ -1664,25 +1780,31 @@ local function preview_paste_at(point)
     local anchor = {point.x, point.y, point.z}
     local target, reason = voxel_target_region(plan, anchor)
     if clipboard.hasVoxels and not target then
+        set_editor_message("selected", "Preview could not use that target. " .. tostring(reason) .. " Aim at another point.")
         shroudforge.log.warn("World Editor preview rejected: " .. tostring(reason))
         return
     end
     local occupied = 0
     for _, cell in ipairs(plan.cells or {}) do if cell ~= 0 then occupied = occupied + 1 end end
     placement_preview = {blueprint = clipboard, target = target, anchor = anchor, turns = turns, axis = axis, plan = plan}
+    set_editor_message("selected", "Preview ready. No world changes were made. Press F7 to place the blueprint.")
     shroudforge.log.info(string.format(
-        "World Editor placement plan prepared: axis=%s turns=%d anchor=%.3f,%.3f,%.3f voxels=%s size=%d,%d,%d occupied=%d props=%d; no world changes made",
+        "World Editor placement plan prepared: axis=%s turns=%d anchor=%.3f,%.3f,%.3f voxels=%s size=%d,%d,%d occupied=%d props=%d. No world changes were made.",
         axis, turns, anchor[1], anchor[2], anchor[3], tostring(plan.hasVoxels), plan.sx, plan.sy, plan.sz, occupied, #plan.props))
 end
 
 local function preview_paste()
-    if not clipboard then shroudforge.log.warn("World Editor: copy or load a blueprint before previewing"); return end
-    request_cursor_action(preview_paste_at)
+    if not clipboard then
+        set_editor_message("need_a", "No blueprint is active. Press F5 to create one or select a saved blueprint.")
+        shroudforge.log.warn("World Editor: copy or load a blueprint before previewing")
+        return
+    end
+    request_cursor_action(preview_paste_at, "Reading the cursor to prepare a placement preview…")
 end
 
 local function clear_cursor_selection()
     selection_a, selection_b, selection_target = nil, nil, nil
-    shroudforge.log.info("World Editor cursor marks cleared; manual coordinates are active")
+    shroudforge.log.info("World Editor cursor marks cleared. Manual coordinates are active.")
 end
 
 local function mark_cursor_next()
@@ -1717,10 +1839,10 @@ local function mark_cursor_next()
             editor_stage = "ready"
             editor_hint = "Both corners are marked. Press F8 to capture and save the blueprint."
             publish_editor_state()
-            shroudforge.log.info(string.format("World Editor help: second corner marked at %.3f, %.3f, %.3f. Selection is ready; press F8 to capture and save.",
+            shroudforge.log.info(string.format("World Editor help: second corner marked at %.3f, %.3f, %.3f. Selection is ready. Press F8 to capture and save.",
                 point.x, point.y, point.z))
         end
-    end)
+    end, starting_new_capture and "Reading the first selection corner…" or "Reading the second selection corner…")
 end
 
 local function start_new_blueprint()
@@ -1735,7 +1857,7 @@ local function start_new_blueprint()
     editor_stage = "need_a"
     editor_hint = "New blueprint selected. Aim at the first corner and press F5 to mark it."
     publish_editor_state()
-    shroudforge.log.info("World Editor: new blueprint capture selected; press F5 to mark the first corner")
+    shroudforge.log.info("World Editor: new blueprint capture selected. Press F5 to mark the first corner.")
 end
 
 local function reset_editor()
@@ -1797,8 +1919,8 @@ local function destroy_selected_prop()
         shroudforge.log.error("World Editor could not remove selected prop handle " .. tostring(handle) .. ": " .. tostring(reason))
         return
     end
-    runtime.report_effect("write-confirmed", "The selected live ECS handle disappeared; save persistence is not verified")
-    shroudforge.log.info("World Editor removed the selected prop at its live transform; persistence is not verified")
+    runtime.report_effect("write-confirmed", "The selected live ECS handle disappeared. Save persistence is not verified.")
+    shroudforge.log.info("World Editor removed the selected prop at its live transform. Persistence is not verified.")
 end
 
 local function report_recipe_catalog()
@@ -1842,7 +1964,7 @@ local function spawn_entity()
         shroudforge.log.error("World Editor could not resolve the spawned entity handle")
         return
     end
-    runtime.report_effect("write-confirmed", "Spawn returned live ECS entity handle " .. tostring(entity_handle) .. "; save persistence is not verified")
+    runtime.report_effect("write-confirmed", "Spawn returned live ECS entity handle " .. tostring(entity_handle) .. ". Save persistence is not verified.")
     shroudforge.log.info("World Editor verified spawned entity handle=" .. tostring(entity_handle))
 end
 
@@ -1887,7 +2009,7 @@ local function placement_operation(destroy)
     end
     if destroy then
         if not runtime.world.entity.get_transform(before_handles[1]) then
-            runtime.report_effect("write-confirmed", "Matching live prop count decreased; save persistence is not verified")
+            runtime.report_effect("write-confirmed", "Matching live prop count decreased. Save persistence is not verified.")
             shroudforge.log.info("World Editor verified exact-handle removal in the live ECS")
         else
             runtime.report_effect("write-failed", reason or "native destroy call did not reduce the matching live prop count")
@@ -1896,12 +2018,12 @@ local function placement_operation(destroy)
     else
         local after_count, after_reason = count_prop_at(tracking, position)
         if after_count == nil then
-            runtime.report_effect("no-change", "Native operation returned " .. tostring(ok) .. "; live ECS result could not be read: " .. tostring(after_reason))
+            runtime.report_effect("no-change", "Native operation returned " .. tostring(ok) .. ". Live ECS result could not be read: " .. tostring(after_reason))
             shroudforge.log.warn("World Editor operation is unconfirmed because the live ECS could not be read: " .. tostring(after_reason))
             return
         end
         if after_count > before_count then
-            runtime.report_effect("write-confirmed", "Matching live prop count increased after placement; save persistence is not verified")
+            runtime.report_effect("write-confirmed", "Matching live prop count increased after placement. Save persistence is not verified.")
             shroudforge.log.info("World Editor verified native placement in the live ECS")
         else
             runtime.report_effect("no-change", reason or "placement returned without a matching live prop appearing")
@@ -1913,6 +2035,7 @@ end
 feature = function(feature_name)
     if runtime.has(feature_name) then return true end
     local status = runtime.status(feature_name)
+    set_editor_message(nil, "Waiting for " .. feature_name .. ". " .. tostring(status and status.reason or "Runtime feature unavailable."))
     shroudforge.log.warn("World Editor: " .. feature_name .. " unavailable: " ..
         tostring(status and status.reason or "feature unavailable"))
     return false
@@ -1953,7 +2076,7 @@ shroudforge.ui.on_action("resolveRecipes", report_recipe_catalog)
 return {
     update_interval_ms = 30,
     on_load = function()
-        shroudforge.log.info("World Editor loaded; checking native world API readiness")
+        shroudforge.log.info("World Editor loaded. Checking native world API readiness.")
         shroudforge.log.info("World Editor help: to create a blueprint, select the building hammer, choose a single voxel, aim at the first corner and press F5. Then mark the opposite corner with F5 and capture with F8.")
         refresh_blueprint_library()
         publish_editor_state()
@@ -1972,8 +2095,8 @@ return {
                 local cursor = runtime.status("runtime.world.cursor.get")
                 local spawn = runtime.status("runtime.world.entity.spawn")
                 shroudforge.log.info("World Editor waiting for runtime readiness: cursor=" .. tostring(cursor and cursor.reason or "ready") ..
-                    "; props=" .. tostring(props and props.reason or "ready") ..
-                    "; spawn=" .. tostring(spawn and spawn.reason or "ready"))
+                    ", props=" .. tostring(props and props.reason or "ready") ..
+                    ", spawn=" .. tostring(spawn and spawn.reason or "ready"))
             end
         end
         local rotate = key_pressed("F3")

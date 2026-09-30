@@ -38,6 +38,8 @@ const empty:Snapshot = {
   catalog:{state:'idle',query:'',items:[]},
 }
 const post=(command:string,payload:Record<string,unknown>={})=>window.ipc?.postMessage(JSON.stringify({command,...payload}))
+const readUiStorage=(key:string,fallback:string)=>{try{return window.localStorage.getItem(key)??fallback}catch{return fallback}}
+const writeUiStorage=(key:string,value:string)=>{try{window.localStorage.setItem(key,value)}catch{/* about:blank WebView origins may deny storage */}}
 let requestSequence=0
 const postRequest=(command:string,payload:Record<string,unknown>={})=>{const requestId=`${Date.now()}-${++requestSequence}`;post(command,{...payload,requestId});return requestId}
 const formatTime=(value:number,locale:Locale)=>value<1000000000?new Date(value*1000).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}):new Intl.DateTimeFormat(locale,{dateStyle:'short',timeStyle:'short'}).format(new Date(value*1000))
@@ -46,7 +48,7 @@ class UiErrorBoundary extends Component<{children:React.ReactNode},{hasError:boo
   state={hasError:false}
   static getDerivedStateFromError(){return {hasError:true}}
   componentDidCatch(error:Error,info:ErrorInfo){post('ui-error',{message:`React render failed: ${error.stack||error.message}\n${info.componentStack||''}`})}
-  render(){return this.state.hasError?<main className="ui-fatal-error"><h1>ShroudForge UI konnte diese Ansicht nicht anzeigen</h1><p>Der Fehler wurde in shroudforge.log protokolliert. Bitte starte den Modloader neu.</p></main>:this.props.children}
+  render(){return this.state.hasError?<main className="ui-fatal-error"><h1>ShroudForge could not display this view</h1><p>The error was recorded in shroudforge.log. Restart the Modloader after fixing the reported cause.</p></main>:this.props.children}
 }
 
 window.addEventListener('error',event=>post('ui-error',{message:`${event.message} (${event.filename}:${event.lineno}:${event.colno})`}))
@@ -69,7 +71,7 @@ function App(){
   const previousStartPage=useRef<string|undefined>(undefined)
   const pendingStartPage=useRef<string|undefined>(undefined)
   const previousWindowVisible=useRef<boolean|undefined>(undefined)
-  const handledSettingsRequest=useRef<number>(Number(localStorage.getItem('shroudforge-world-editor-settings-request')||0))
+  const handledSettingsRequest=useRef<number>(Number(readUiStorage('shroudforge-world-editor-settings-request','0')))
   const localeHydrated=useRef(false)
   const dataRef=useRef(data)
   useEffect(()=>{dataRef.current=data},[data])
@@ -77,7 +79,7 @@ function App(){
   useEffect(()=>{
     post('ui-ready')
     window.__shroudforgeUpdate=(next)=>{const snapshot=next as Snapshot;const start=snapshot.settings.modulePreferences?.modloaderUi?.startPage;const validStart=["activity","news","discover","installed","updates","compatibility","settings"].includes(start);const visible=Boolean(snapshot.windows?.modloaderUi?.visible);if(!localeHydrated.current&&snapshot.locale){localeHydrated.current=true;setLocale(snapshot.locale);if(validStart)setPage(start)}else if(start&&previousStartPage.current&&start!==previousStartPage.current&&visible){pendingStartPage.current=start}if(previousWindowVisible.current===false&&visible){const nextPage=pendingStartPage.current||start;if(nextPage&&["activity","news","discover","installed","updates","compatibility","settings"].includes(nextPage))setPage(nextPage);pendingStartPage.current=undefined}if(start)previousStartPage.current=start;previousWindowVisible.current=visible;setData(snapshot);setSettings(current=>JSON.stringify(current)===JSON.stringify(dataRef.current.settings)?snapshot.settings:current);setRead(snapshot.readNoticeIds||[])}
-    window.__shroudforgeWindowState=(state)=>{const windows=state as Snapshot['windows'];const moduleWindow=windows?.modloaderUi;const requestId=moduleWindow?.focusRequestId||0;if(moduleWindow?.focusTarget==='worldEditorSettings'&&requestId>handledSettingsRequest.current){handledSettingsRequest.current=requestId;localStorage.setItem('shroudforge-world-editor-settings-request',String(requestId));if(!moduleWindow.visible)pendingStartPage.current='settings';setSelectedMod(null);setPage('settings');window.setTimeout(()=>document.getElementById('settings-module-worldEditor')?.scrollIntoView({behavior:'smooth',block:'center'}),120)}setData(current=>({...current,windows}))}
+    window.__shroudforgeWindowState=(state)=>{const windows=state as Snapshot['windows'];const moduleWindow=windows?.modloaderUi;const requestId=moduleWindow?.focusRequestId||0;if(moduleWindow?.focusTarget==='worldEditorSettings'&&requestId>handledSettingsRequest.current){handledSettingsRequest.current=requestId;writeUiStorage('shroudforge-world-editor-settings-request',String(requestId));if(!moduleWindow.visible)pendingStartPage.current='settings';setSelectedMod(null);setPage('settings');window.setTimeout(()=>document.getElementById('settings-module-worldEditor')?.scrollIntoView({behavior:'smooth',block:'center'}),120)}setData(current=>({...current,windows}))}
     window.__shroudforgeCommandResult=(result)=>{
       if(!result.success&&result.restoreSettings)setSettings(dataRef.current.settings)
       let message=result.message

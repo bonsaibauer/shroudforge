@@ -292,6 +292,16 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
             if (bytes.size() < 5 || bytes.size() > 32) throw std::runtime_error(std::string("invalid overwritten bytes: ") + key);
             for (const auto byte : bytes) if (byte > 255) throw std::runtime_error(std::string("invalid original byte: ") + key);
         }
+        if (hooks.contains("world_building_dispatch")) {
+            const auto& hook = hooks.at("world_building_dispatch");
+            if (parse_pattern(hook.at("signature").get<std::string>()).size() < 7)
+                throw std::runtime_error("invalid hook signature: world_building_dispatch");
+            const auto bytes = hook.at("original").get<std::vector<unsigned>>();
+            if (bytes.size() < 5 || bytes.size() > 32)
+                throw std::runtime_error("invalid overwritten bytes: world_building_dispatch");
+            for (const auto byte : bytes) if (byte > 255)
+                throw std::runtime_error("invalid original byte: world_building_dispatch");
+        }
         if (hooks.at("world_cursor").at("captureOffset").get<std::uint64_t>() > 0x10000)
             throw std::runtime_error("native cursor capture offset out of range");
         const auto& placement = profile.at("worldContexts").at("entityPlacement");

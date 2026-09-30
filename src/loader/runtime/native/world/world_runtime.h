@@ -2,16 +2,19 @@
 #include "ecs_runtime.h"
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace WorldRuntime {
 void OnPropUpdate(void* execution_view, void* actor_frame);
 void OnActorPlacement(void* execution_view, void* actor_frame);
+void OnBuildingDispatch(void* placement_context);
 void OnCursorUpdate(const void* cursor);
 void SetCursorHookReady(bool ready);
 bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t* sequence);
 bool OperationAvailable(const char* name);
 bool ActiveContextAvailable();
 bool EntityContextReady();
+std::string EntityHookStatus();
 bool ReadVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3],
                 std::uint16_t* values, std::size_t capacity, std::size_t* actual);
 bool GetGridSpec(const char* grid_id, KfcRuntimeGridSpec* spec);

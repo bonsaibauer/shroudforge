@@ -232,6 +232,15 @@
             "original": { "type": "array", "minItems": 5, "maxItems": 32, "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
           }
         },
+        "world_building_dispatch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signature", "original"],
+          "properties": {
+            "signature": { "type": "string", "minLength": 14 },
+            "original": { "type": "array", "minItems": 5, "maxItems": 32, "items": { "type": "integer", "minimum": 0, "maximum": 255 } }
+          }
+        },
         "world_cursor": {
           "type": "object",
           "additionalProperties": false,

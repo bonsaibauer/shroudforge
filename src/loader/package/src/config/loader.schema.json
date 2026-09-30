@@ -892,6 +892,16 @@
                 },
                 "includePrereleases": {
                   "type": "boolean"
+                },
+                "lastCheckAt": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "latestRelease": {
+                  "$ref": "#/properties/catalog/properties/provider/oneOf/1/properties/latestRelease"
                 }
               },
               "additionalProperties": false

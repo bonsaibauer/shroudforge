@@ -195,6 +195,13 @@ bool Load() {
         world_prop_update_original = hooks.at("world_prop_update").at("original").get<std::vector<std::uint8_t>>();
         world_actor_placement_signature = hooks.at("world_actor_placement").at("signature").get<std::string>();
         world_actor_placement_original = hooks.at("world_actor_placement").at("original").get<std::vector<std::uint8_t>>();
+        if (hooks.contains("world_building_dispatch")) {
+            world_building_dispatch_signature = hooks.at("world_building_dispatch").at("signature").get<std::string>();
+            world_building_dispatch_original = hooks.at("world_building_dispatch").at("original").get<std::vector<std::uint8_t>>();
+        } else {
+            world_building_dispatch_signature.clear();
+            world_building_dispatch_original.clear();
+        }
         if (world_prop_update_original.size() < 5 || world_prop_update_original.size() > 32 ||
             world_actor_placement_original.size() < 5 || world_actor_placement_original.size() > 32)
             throw std::runtime_error("invalid world context hook length");

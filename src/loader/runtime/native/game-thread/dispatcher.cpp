@@ -290,16 +290,40 @@ std::vector<std::uint8_t> cursor_callback_code(void* callback, std::size_t captu
     return code;
 }
 
+std::vector<std::uint8_t> context_callback_code(void* callback) {
+    // This profile hook is at the native building-dispatch entry. Preserve the
+    // caller registers, then forward its original RCX context to the callback.
+    std::vector<std::uint8_t> code{0x9c,0x50,0x51,0x52,0x41,0x50,0x41,0x51,0x41,0x52,0x41,0x53,
+        0x48,0x81,0xec,0x88,0,0,0};
+    for (unsigned index = 0; index < 6; ++index) {
+        const std::uint8_t store[]{0xf3,0x0f,0x7f,static_cast<std::uint8_t>(0x44+index*8),0x24,
+            static_cast<std::uint8_t>(0x20+index*16)};
+        code.insert(code.end(), std::begin(store), std::end(store));
+    }
+    code.insert(code.end(), {0x48,0x8b,0x8c,0x24,0xb0,0,0,0,0x31,0xd2,0x48,0xb8});
+    const auto address = reinterpret_cast<std::uintptr_t>(callback);
+    for (unsigned index = 0; index < 8; ++index) code.push_back(static_cast<std::uint8_t>(address >> (index*8)));
+    code.insert(code.end(), {0xff,0xd0});
+    for (unsigned index = 0; index < 6; ++index) {
+        const std::uint8_t restore[]{0xf3,0x0f,0x6f,static_cast<std::uint8_t>(0x44+index*8),0x24,
+            static_cast<std::uint8_t>(0x20+index*16)};
+        code.insert(code.end(), std::begin(restore), std::end(restore));
+    }
+    code.insert(code.end(), {0x48,0x81,0xc4,0x88,0,0,0,0x41,0x5b,0x41,0x5a,0x41,0x59,0x41,0x58,
+        0x5a,0x59,0x58,0x9d});
+    return code;
+}
+
 
 bool install_hook(std::uint8_t* base, std::string_view signature,
                   const std::uint8_t* original, std::size_t original_size, void* callback,
-                  bool cursor_callback = false) {
+                  bool cursor_callback = false, bool context_callback = false) {
     if (!original || original_size < 5) return false;
     const auto target = find_unique_executable_signature(base, signature);
     if (!target || std::memcmp(reinterpret_cast<void*>(target), original, original_size)) return false;
     auto payload = cursor_callback
         ? cursor_callback_code(callback, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_capture_offset)
-        : callback_code(callback);
+        : context_callback ? context_callback_code(callback) : callback_code(callback);
     payload.insert(payload.end(), original, original + original_size);
     payload.push_back(0xe9);
     const auto return_offset = payload.size();
@@ -363,7 +387,12 @@ bool Initialize() {
         KfcRuntimeCompatibility::EnshroudedClient::world_actor_placement_original.data(),
         KfcRuntimeCompatibility::EnshroudedClient::world_actor_placement_original.size(),
         reinterpret_cast<void*>(&WorldRuntime::OnActorPlacement));
-    entity_context_hooks_ready.store(prop_hook && placement_hook, std::memory_order_release);
+    const bool building_dispatch_hook = !KfcRuntimeCompatibility::EnshroudedClient::world_building_dispatch_signature.empty() &&
+        install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::world_building_dispatch_signature,
+            KfcRuntimeCompatibility::EnshroudedClient::world_building_dispatch_original.data(),
+            KfcRuntimeCompatibility::EnshroudedClient::world_building_dispatch_original.size(),
+            reinterpret_cast<void*>(&WorldRuntime::OnBuildingDispatch), false, true);
+    entity_context_hooks_ready.store(prop_hook && placement_hook && building_dispatch_hook, std::memory_order_release);
     const bool cursor_hook = install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_signature,
         KfcRuntimeCompatibility::EnshroudedClient::world_cursor_original.data(),
         KfcRuntimeCompatibility::EnshroudedClient::world_cursor_original.size(),

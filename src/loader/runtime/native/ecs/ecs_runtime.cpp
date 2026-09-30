@@ -949,7 +949,8 @@ std::string Status() {
          << ",templates=" << template_layout_samples.size()
          << ",restarts=" << discovery_restarts << ')'
          << " profile=" << KfcRuntimeCompatibility::EnshroudedClient::status
-         << " game_thread=" << GameThreadDispatcher::Status();
+         << " game_thread=" << GameThreadDispatcher::Status()
+         << " entity_hooks{" << WorldRuntime::EntityHookStatus() << '}';
     for (const auto& operation : KfcRuntimeCompatibility::EnshroudedClient::runtime_operations)
         text << " world{" << operation.name << '=' << (operation.available ? operation.status : "unavailable") << '}';
     text << " voxel_context=" << (WorldRuntime::ActiveContextAvailable() ? "ready" : "waiting");
@@ -1032,6 +1033,7 @@ std::string Diagnostics() {
         {"worldOperations",std::move(world_operations)},
         {"voxelContextActive",WorldRuntime::ActiveContextAvailable()},
         {"entityContextReady",WorldRuntime::EntityContextReady()},
+        {"entityHookStatus",WorldRuntime::EntityHookStatus()},
         {"configuredTypes",configured_types.size()}, {"resolvedTypes",types.size()},
         {"layoutReady",layout_ready}, {"layoutEpoch",layout_epoch},
         {"componentDiscovery",nlohmann::json{

@@ -41,6 +41,8 @@ inline std::string game_thread_signature, entity_manager_signature, status{"not-
 inline std::string world_prop_update_signature, world_actor_placement_signature;
 inline std::vector<std::uint8_t> game_thread_original, entity_manager_original;
 inline std::vector<std::uint8_t> world_prop_update_original, world_actor_placement_original;
+inline std::string world_building_dispatch_signature;
+inline std::vector<std::uint8_t> world_building_dispatch_original;
 inline std::string world_cursor_signature;
 inline std::vector<std::uint8_t> world_cursor_original;
 inline std::size_t world_cursor_capture_offset{};

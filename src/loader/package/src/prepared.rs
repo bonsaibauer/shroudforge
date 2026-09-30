@@ -27,12 +27,7 @@ pub fn fingerprint(env: &ModEnvironment, server: bool, api: &str) -> Result<Stri
             .to_le_bytes(),
     );
     for item in env.plan(server, api) {
-        if !item
-            .info()
-            .capabilities
-            .iter()
-            .any(|capability| capability.requires_pregame())
-        {
+        if !item.info().requires_pregame() {
             continue;
         }
         hash.update(serde_json::to_vec(item.info()).map_err(|e| e.to_string())?);

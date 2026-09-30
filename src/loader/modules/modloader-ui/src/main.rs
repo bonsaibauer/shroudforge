@@ -6,7 +6,10 @@ mod windows {
         os::windows::ffi::OsStrExt,
         path::{Component, Path, PathBuf},
         process::Child,
-        sync::{Arc, Mutex, mpsc},
+        sync::{
+            Arc, Mutex, mpsc,
+            atomic::{AtomicU32, Ordering},
+        },
         thread,
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
@@ -18,7 +21,7 @@ mod windows {
     use tao::{
         dpi::LogicalSize,
         event::{Event, StartCause, WindowEvent},
-        event_loop::{ControlFlow, EventLoop},
+        event_loop::{ControlFlow, EventLoopBuilder},
         window::WindowBuilder,
     };
     use windows::{
@@ -40,9 +43,9 @@ mod windows {
         },
         System::Threading::{CreateMutexW, GetCurrentProcessId, OpenEventW, WaitForSingleObject},
         UI::{
-            Input::KeyboardAndMouse::GetAsyncKeyState,
+            Input::KeyboardAndMouse::{GetAsyncKeyState, VK_F9},
             Shell::ShellExecuteW,
-            WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
+            WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId},
         },
     };
     use wry::{WebContext, WebViewBuilder};
@@ -210,6 +213,11 @@ mod windows {
         Diagnostics(String, String),
         UiReady,
         UiError(String),
+    }
+
+    #[derive(Clone, Copy)]
+    enum UiEvent {
+        Toggle,
     }
 
     struct AsyncUiResult {
@@ -761,7 +769,7 @@ mod windows {
             .as_deref()
             .map(open_event)
             .unwrap_or(std::ptr::null_mut());
-        let event_loop = EventLoop::new();
+        let event_loop = EventLoopBuilder::<UiEvent>::with_user_event().build();
         let modloader_height = event_loop
             .primary_monitor()
             .map(|monitor| {
@@ -796,6 +804,32 @@ mod windows {
                 .clone();
         position_window(&window, &saved_position, false);
         let (sender, receiver) = mpsc::channel();
+        let hotkey_proxy = event_loop.create_proxy();
+        let hotkey_key = Arc::new(AtomicU32::new(module_config.toggle_key));
+        let hotkey_key_watcher = hotkey_key.clone();
+        let game_pid = arguments.game_pid;
+        let desktop = arguments.desktop;
+        thread::spawn(move || {
+            let mut was_down = false;
+            loop {
+                let down = unsafe {
+                    GetAsyncKeyState(hotkey_key_watcher.load(Ordering::Relaxed) as i32)
+                        | GetAsyncKeyState(VK_F9 as i32)
+                } < 0;
+                if down && !was_down {
+                    let foreground = foreground_process();
+                    let focused = desktop
+                        || foreground == game_pid
+                        || foreground == unsafe { GetCurrentProcessId() }
+                        || foreground_is_shroudforge_window();
+                    if focused && hotkey_proxy.send_event(UiEvent::Toggle).is_err() {
+                        break;
+                    }
+                }
+                was_down = down;
+                thread::sleep(Duration::from_millis(5));
+            }
+        });
         let control_sender = sender.clone();
         let (async_sender, async_receiver) = mpsc::channel::<AsyncUiResult>();
         let handler = move |message: wry::http::Request<String>| {
@@ -846,7 +880,6 @@ mod windows {
                 false,
             );
         }
-        let mut key_down = false;
         let mut next_refresh = Instant::now();
         let mut next_visibility_poll = Instant::now();
         let mut next_window_state_refresh = Instant::now();
@@ -897,6 +930,7 @@ mod windows {
                         if current_settings_revision != loaded_settings_revision {
                             if let Ok(updated_module_config) = load_module_config(&arguments.root) {
                                 module_config = updated_module_config;
+                                hotkey_key.store(module_config.toggle_key, Ordering::Relaxed);
                                 active_provider = effective_provider(
                                     &module_config,
                                     &load_user_config(&arguments.root),
@@ -1714,22 +1748,8 @@ mod windows {
                     }
                     let foreground = foreground_process();
                     let game_focused = arguments.desktop || foreground == arguments.game_pid;
-                    let ui_focused = foreground == unsafe { GetCurrentProcessId() };
-                    let down = unsafe { GetAsyncKeyState(module_config.toggle_key as i32) } < 0;
-                    if (game_focused || ui_focused) && down && !key_down {
-                        shown = !shown;
-                        window.set_visible(shown);
-                        let _ = shroudforge_package::config::publish_window_visibility(
-                            &arguments.root,
-                            "modloaderUi",
-                            shown,
-                        );
-                        next_refresh = Instant::now();
-                        if shown {
-                            window.set_focus();
-                        }
-                    }
-                    key_down = down;
+                    let ui_focused = foreground == unsafe { GetCurrentProcessId() }
+                        || foreground_is_shroudforge_window();
                     if !arguments.desktop && shown && !game_focused && !ui_focused {
                         window.set_visible(false);
                     } else if shown && (game_focused || ui_focused) && !window.is_visible() {
@@ -1816,6 +1836,21 @@ mod windows {
                             let _ = webview.evaluate_script(&format!(
                                 "window.__shroudforgeUpdate({payload});"
                             ));
+                        }
+                    }
+                }
+                Event::UserEvent(UiEvent::Toggle) => {
+                    if !arguments.server {
+                        shown = !shown;
+                        window.set_visible(shown);
+                        let _ = shroudforge_package::config::publish_window_visibility(
+                            &arguments.root,
+                            "modloaderUi",
+                            shown,
+                        );
+                        if shown {
+                            next_refresh = Instant::now();
+                            window.set_focus();
                         }
                     }
                 }
@@ -5352,6 +5387,19 @@ mod windows {
         let mut pid = 0;
         unsafe { GetWindowThreadProcessId(GetForegroundWindow(), &mut pid) };
         pid
+    }
+
+    fn foreground_is_shroudforge_window() -> bool {
+        let window = unsafe { GetForegroundWindow() };
+        if window.is_null() {
+            return false;
+        }
+        let mut title = [0u16; 256];
+        let length = unsafe { GetWindowTextW(window, title.as_mut_ptr(), title.len() as i32) };
+        if length <= 0 {
+            return false;
+        }
+        String::from_utf16_lossy(&title[..length as usize]).starts_with("ShroudForge")
     }
 
     fn open_url(url: &str) -> Result<(), String> {

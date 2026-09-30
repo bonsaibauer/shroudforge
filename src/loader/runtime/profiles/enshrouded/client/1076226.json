@@ -83,6 +83,10 @@
         0
       ]
     },
+    "world_building_dispatch": {
+      "signature": "48 89 5C 24 10 48 89 6C 24 18 56 57 41 56 48 83 EC 20 4C 8B F1 48 8B 89 D8 00 00 00",
+      "original": [72, 137, 92, 36, 16]
+    },
     "world_cursor": {
       "signature": "41 8B 96 F8 02 00 00 0F B6 CA 41 0F 10 8E F0 02 00 00 84 D2",
       "original": [
