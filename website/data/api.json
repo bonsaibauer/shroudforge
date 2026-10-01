@@ -14145,25 +14145,10 @@
       "kind": "function",
       "namespace": "runtime",
       "name": "runtime.world.entity.destroy",
-      "signature": "runtime.world.entity.destroy(entity_handle, bounds, tracking_id, feedback_id)",
+      "signature": "runtime.world.entity.destroy(entity_handle)",
       "params": [
         {
           "name": "entity_handle",
-          "type": "integer",
-          "description": ""
-        },
-        {
-          "name": "bounds",
-          "type": "number[]",
-          "description": ""
-        },
-        {
-          "name": "tracking_id",
-          "type": "integer",
-          "description": ""
-        },
-        {
-          "name": "feedback_id",
           "type": "integer",
           "description": ""
         }
@@ -14172,7 +14157,7 @@
         "boolean",
         "string?"
       ],
-      "description": "Remove the prop identified by its current live handle. The native operation resolves the transform, dispatches the engine removal, and verifies that this exact handle disappeared.",
+      "description": "Remove the prop identified by its current live handle. The native operation resolves its transform and registered ItemInfo placement recipe, dispatches removal, and verifies that this exact handle disappeared, matching Shroudtopia's WorldApi handle-only contract.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
