@@ -3,7 +3,7 @@ use mod_loader::{Capability, Mod};
 use shroudforge_compatibility::Availability;
 use std::rc::Rc;
 
-const KFC_RUNTIME_ABI_VERSION: u32 = 11;
+const KFC_RUNTIME_ABI_VERSION: u32 = 12;
 
 use crate::{
     RuntimePhase,
@@ -611,7 +611,8 @@ fn lua_world_entity_register_prop_recipes(
                 Some(format!("invalid placement recipe at index {index}")),
             ));
         }
-        recipes.push(runtime_provider::PropRecipe { item_id, bounds });
+        let feedback = item.raw_get::<u32>("feedback")?;
+        recipes.push(runtime_provider::PropRecipe { item_id, bounds, feedback });
     }
     match runtime_provider::world_entity_register_prop_recipes(&recipes) {
         Ok(()) => Ok((LuaValue::Boolean(true), None)),
@@ -829,19 +830,13 @@ fn lua_world_entity_destroy(
     args: FunctionArgs,
     r#mod: &Mod,
 ) -> mlua::Result<(bool, Option<String>)> {
-    if args.len() == 4 {
+    if args.len() == 1 {
         let state = lua.app_data_ref::<AppState>().unwrap();
         if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.world.entity.destroy") {
             return Ok((false, Some(reason)));
         }
         let handle = args.get::<u32>(0)?;
-        let bounds =
-            lua_vec::<6>(args.get::<mlua::Table>(1)?.clone(), "bounds")?.map(|value| value as f32);
-        let tracking = args.get::<u32>(2)?;
-        let feedback = args.get::<u32>(3)?;
-        return match runtime_provider::world_entity_destroy_handle(
-            handle, bounds, tracking, feedback,
-        ) {
+        return match runtime_provider::world_entity_destroy_handle(handle) {
             Ok(()) => Ok((true, None)),
             Err(reason) => Ok((false, Some(reason))),
         };
@@ -1652,6 +1647,7 @@ mod runtime_provider {
     pub struct PropRecipe {
         pub item_id: u32,
         pub bounds: [f32; 6],
+        pub feedback: u32,
     }
 
     type Ready = unsafe extern "C" fn() -> bool;
@@ -1711,8 +1707,7 @@ mod runtime_provider {
     ) -> bool;
     type WorldEntityPlacement =
         unsafe extern "C" fn(*const f64, *const f64, *const f32, u32, u32, *mut u32) -> bool;
-    type WorldEntityDestroyHandle =
-        unsafe extern "C" fn(u32, *const f32, u32, u32, *mut u32) -> bool;
+    type WorldEntityDestroyHandle = unsafe extern "C" fn(u32, *mut u32) -> bool;
     type WorldEntityFinish = unsafe extern "C" fn(bool, *mut u32) -> bool;
     type RuntimePatchAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type RuntimePatchSetEnabled = unsafe extern "C" fn(*const c_char, bool, *mut u32) -> bool;
@@ -2256,22 +2251,13 @@ mod runtime_provider {
     }
     pub fn world_entity_destroy_handle(
         handle: u32,
-        bounds: [f32; 6],
-        tracking: u32,
-        feedback: u32,
     ) -> Result<(), String> {
         let Some(provider) = provider() else {
             return Err("KFC Runtime provider unavailable".into());
         };
         let mut outcome = 1u32;
         let ok = unsafe {
-            (provider.world_entity_destroy_handle)(
-                handle,
-                bounds.as_ptr(),
-                tracking,
-                feedback,
-                &mut outcome,
-            )
+            (provider.world_entity_destroy_handle)(handle, &mut outcome)
         };
         if ok {
             Ok(())
@@ -2484,6 +2470,7 @@ mod runtime_provider {
     pub struct PropRecipe {
         pub item_id: u32,
         pub bounds: [f32; 6],
+        pub feedback: u32,
     }
     #[derive(Clone, Copy)]
     pub struct Component {
@@ -2561,7 +2548,7 @@ mod runtime_provider {
     pub fn world_grid_get_spec(_: &str) -> Option<GridSpecResult> {
         None
     }
-    pub fn world_entity_destroy_handle(_: u32, _: [f32; 6], _: u32, _: u32) -> Result<(), String> {
+    pub fn world_entity_destroy_handle(_: u32) -> Result<(), String> {
         Err("native world runtime is available on Windows only".into())
     }
     pub fn world_entity_finish_building(_: bool) -> Result<(), String> {

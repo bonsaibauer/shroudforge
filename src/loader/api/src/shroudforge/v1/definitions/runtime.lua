@@ -144,7 +144,7 @@ runtime.world.entity = {}
 function runtime.world.entity.query_props(bounds, padding) end
 
 --- Register ItemInfo placement AABBs for native prop-bound filtering.
---- @param recipes table[] Entries with itemId and bounds[6].
+--- @param recipes table[] Entries with itemId, bounds[6], and feedback.
 --- @return boolean? registered
 --- @return string? reason
 function runtime.world.entity.register_prop_recipes(recipes) end
@@ -194,15 +194,13 @@ function runtime.world.entity.spawn(template_uuid_high_hex, template_uuid_low_he
 --- @return string? reason
 function runtime.world.entity.place(position, rotation, bounds, tracking_id, feedback_id) end
 
---- Remove the prop identified by its current live handle. The native operation resolves the
---- transform, dispatches the engine removal, and verifies that this exact handle disappeared.
+--- Remove the prop identified by its current live handle. The native operation resolves its
+--- transform and registered ItemInfo placement recipe, dispatches removal, and verifies that
+--- this exact handle disappeared, matching Shroudtopia's WorldApi handle-only contract.
 --- @param entity_handle integer Handle returned by query_props or spawn.
---- @param bounds number[] AABB min xyz followed by max xyz.
---- @param tracking_id integer
---- @param feedback_id integer Kept for parity with the shared placement recipe.
 --- @return boolean ok
 --- @return string? reason
-function runtime.world.entity.destroy(entity_handle, bounds, tracking_id, feedback_id) end
+function runtime.world.entity.destroy(entity_handle) end
 
 --- Legacy spatial destroy overload. Prefer the handle overload for editor operations.
 --- This operation does not establish save persistence or collision updates.

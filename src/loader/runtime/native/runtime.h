@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 /* Stable C ABI for native modloader hosts. Query KfcRuntimeAbi before use. */
-#define KFC_RUNTIME_ABI_VERSION 11u
+#define KFC_RUNTIME_ABI_VERSION 12u
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeAbi(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeInitialize(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
@@ -56,6 +56,7 @@ typedef struct KfcRuntimePropRecord {
 typedef struct KfcRuntimePropRecipe {
     uint32_t item_id;
     float bounds[6];
+    uint32_t feedback;
 } KfcRuntimePropRecipe;
 typedef struct KfcRuntimeGridSpec {
     char id[16];
@@ -69,6 +70,8 @@ KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeWorldEntityQueryPropsInBounds(
     const double* bounds, KfcRuntimePropRecord* props, size_t capacity);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityRegisterPropRecipes(
     const KfcRuntimePropRecipe* recipes, size_t count);
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityGetPropRecipe(
+    uint32_t item_id, KfcRuntimePropRecipe* recipe);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityGetTransform(
     uint32_t entity_handle, KfcRuntimePropRecord* prop);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntitySetScale(
@@ -104,8 +107,7 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityDestroy(
     const double* position, const double* rotation, const float* bounds,
     uint32_t tracking, uint32_t feedback, uint32_t* outcome);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityDestroyHandle(
-    uint32_t entity_handle, const float* bounds, uint32_t tracking,
-    uint32_t feedback, uint32_t* outcome);
+    uint32_t entity_handle, uint32_t* outcome);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityFinishBuilding(
     bool complete, uint32_t* outcome);
 

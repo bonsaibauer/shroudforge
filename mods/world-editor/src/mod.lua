@@ -448,7 +448,7 @@ local function resolve_placeable_items()
     end
     local native_recipes = {}
     for id, recipe in pairs(resolved) do
-        native_recipes[#native_recipes + 1] = {itemId = id, bounds = recipe.bounds}
+        native_recipes[#native_recipes + 1] = {itemId = id, bounds = recipe.bounds, feedback = recipe.feedback}
     end
     local registered, reason = runtime.world.entity.register_prop_recipes(native_recipes)
     if not registered then
@@ -1509,8 +1509,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
     editor_stage = "placing"
     set_editor_message("placing", "Placing " .. (active_blueprint_name or "the blueprint") .. ". Keep the target clear until placement finishes.")
     for _, prop in ipairs(removed_props) do
-        local removed, remove_reason = runtime.world.entity.destroy(prop.entityHandle,
-            prop.recipe.bounds, prop.recipe.id, prop.recipe.feedback)
+        local removed, remove_reason = runtime.world.entity.destroy(prop.entityHandle)
         local still_present = runtime.world.entity.get_transform(prop.entityHandle)
         local handle_gone = still_present == nil
         if handle_gone then
@@ -1664,8 +1663,7 @@ undo_voxels = function()
             shroudforge.log.warn("World Editor paused undo because live prop state could not be inspected")
             return
         end
-        local removed, remove_reason = runtime.world.entity.destroy(entity.entityHandle,
-            entity.recipe.bounds, entity.recipe.id, entity.recipe.feedback)
+        local removed, remove_reason = runtime.world.entity.destroy(entity.entityHandle)
         if not runtime.world.entity.get_transform(entity.entityHandle) then
             index = index - 1
             undo_state.entity_index = index
@@ -1913,7 +1911,7 @@ local function destroy_selected_prop()
         shroudforge.log.warn("World Editor cannot safely delete this selection: its handle is stale")
         return
     end
-    local ok, reason = runtime.world.entity.destroy(handle, recipe.bounds, recipe.id, recipe.feedback)
+    local ok, reason = runtime.world.entity.destroy(handle)
     if runtime.world.entity.get_transform(handle) then
         runtime.report_effect("write-failed", "the selected live ECS handle remains after the destroy call")
         shroudforge.log.error("World Editor could not remove selected prop handle " .. tostring(handle) .. ": " .. tostring(reason))
@@ -2003,7 +2001,7 @@ local function placement_operation(destroy)
     end
     local ok, reason
     if destroy then
-        ok, reason = runtime.world.entity.destroy(before_handles[1], bounds, tracking, feedback or 0)
+        ok, reason = runtime.world.entity.destroy(before_handles[1])
     else
         ok, reason = runtime.world.entity.place(position, rotation, bounds, tracking, feedback)
     end

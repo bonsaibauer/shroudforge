@@ -22,7 +22,7 @@
 #include <vector>
 
 static_assert(sizeof(KfcRuntimePropRecord) == 80);
-static_assert(sizeof(KfcRuntimePropRecipe) == 28);
+static_assert(sizeof(KfcRuntimePropRecipe) == 32);
 static_assert(offsetof(KfcRuntimePropRecord, position) == 8);
 static_assert(offsetof(KfcRuntimePropRecord, orientation) == 32);
 static_assert(offsetof(KfcRuntimePropRecord, scale) == 48);
@@ -130,7 +130,8 @@ std::uint32_t next_handle{1};
 std::uint64_t layout_epoch{1};
 std::mutex write_mutex;
 std::mutex prop_recipe_mutex;
-std::unordered_map<std::uint32_t, std::array<float, 6>> prop_recipes;
+struct RegisteredPropRecipe { std::array<float, 6> bounds{}; std::uint32_t feedback{}; };
+std::unordered_map<std::uint32_t, RegisteredPropRecipe> prop_recipes;
 bool prop_recipe_catalog_ready{};
 std::mutex prop_query_call_mutex;
 struct PropQueryResultCache {
@@ -532,7 +533,7 @@ void query_props_native(PropQueryOperation& operation) {
     if (!layout_snapshot(layout)) return;
     std::vector<std::uintptr_t> pointers;
     if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return;
-    std::unordered_map<std::uint32_t, std::array<float, 6>> recipes;
+    std::unordered_map<std::uint32_t, RegisteredPropRecipe> recipes;
     if (operation.exact_recipe_bounds) {
         std::scoped_lock lock(prop_recipe_mutex);
         if (!prop_recipe_catalog_ready) return;
@@ -561,7 +562,7 @@ void query_props_native(PropQueryOperation& operation) {
         std::copy_n(transform.scale, 3, prop.scale);
         if (operation.exact_recipe_bounds) {
             const auto recipe = recipes.find(item_id);
-            if (recipe == recipes.end() || !recipe_bounds_intersect(prop, recipe->second, operation.bounds)) continue;
+            if (recipe == recipes.end() || !recipe_bounds_intersect(prop, recipe->second.bounds, operation.bounds)) continue;
             // UUIDs are needed by the editor only for props inside the selected
             // region. Reading them before the spatial test made every capture
             // touch the template definition of every UsedItem in the world.
@@ -1270,7 +1271,7 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryPropsInBounds(
 extern "C" bool __cdecl KfcRuntimeWorldEntityRegisterPropRecipes(
     const KfcRuntimePropRecipe* recipes, std::size_t count) {
     if ((!recipes && count) || count > 1'000'000) return false;
-    std::unordered_map<std::uint32_t, std::array<float, 6>> resolved;
+    std::unordered_map<std::uint32_t, RegisteredPropRecipe> resolved;
     resolved.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
         const auto& recipe = recipes[index];
@@ -1278,13 +1279,25 @@ extern "C" bool __cdecl KfcRuntimeWorldEntityRegisterPropRecipes(
                 [](float value) { return std::isfinite(value); }) ||
             recipe.bounds[0] > recipe.bounds[3] || recipe.bounds[1] > recipe.bounds[4] ||
             recipe.bounds[2] > recipe.bounds[5]) return false;
-        if (!resolved.emplace(recipe.item_id, std::to_array(recipe.bounds)).second) return false;
+        if (!resolved.emplace(recipe.item_id,
+                RegisteredPropRecipe{std::to_array(recipe.bounds), recipe.feedback}).second) return false;
     }
     {
         std::scoped_lock lock(prop_recipe_mutex);
         prop_recipes = std::move(resolved);
         prop_recipe_catalog_ready = true;
     }
+    return true;
+}
+extern "C" bool __cdecl KfcRuntimeWorldEntityGetPropRecipe(
+    std::uint32_t item_id, KfcRuntimePropRecipe* recipe) {
+    if (!item_id || !recipe) return false;
+    std::scoped_lock lock(prop_recipe_mutex);
+    const auto found = prop_recipes.find(item_id);
+    if (found == prop_recipes.end()) return false;
+    recipe->item_id = item_id;
+    std::copy(found->second.bounds.begin(), found->second.bounds.end(), recipe->bounds);
+    recipe->feedback = found->second.feedback;
     return true;
 }
 extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, KfcRuntimePropRecord* prop) {
