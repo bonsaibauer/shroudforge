@@ -674,8 +674,9 @@ struct WriteOperation {
     const void* value{};
     std::size_t size{};
     bool result{};
+    bool conflict{};
     std::string owned_name;
-    std::vector<std::uint8_t> mask_bytes, destination;
+    std::vector<std::uint8_t> mask_bytes, destination, expected;
 };
 void write_on_game_thread(void* opaque) {
     if (stop_requested.load(std::memory_order_acquire)) return;
@@ -692,6 +693,10 @@ void write_on_game_thread(void* opaque) {
     if (stop_requested.load(std::memory_order_acquire)) return;
     std::vector<std::uint8_t> before(operation.size), verified(operation.size);
     if (!read_bytes(address, before.data(), operation.size)) return;
+    if (!operation.expected.empty() && before != operation.expected) {
+        operation.conflict = true;
+        return;
+    }
     auto merged = before;
     const auto* mask = static_cast<const std::uint8_t*>(operation.mask);
     const auto* value = static_cast<const std::uint8_t*>(operation.value);
@@ -1135,7 +1140,8 @@ std::string Diagnostics() {
             {"observedIndexCandidates",observed_indices},
             {"templateLayoutSamples",std::move(template_layouts)},
             {"templateLayoutSamplesDropped",template_layout_samples_dropped},
-            {"mappingMethod",component_registry_ready ? "live engine registration, reflection and parallel arrays" : "exact build profile"},
+            {"mappingMethod",component_registry_ready ? "live engine registration, reflection and parallel arrays" :
+                KfcRuntimeCompatibility::EnshroudedClient::runtime_components.empty() ? "waiting for live engine registration" : "exact build profile"},
             {"registrationReady",component_registry_ready}, {"registrationReason",component_registry_error},
             {"registrationCount",component_registry.entries.size()},
             {"resolved",std::move(resolved_mappings)},
@@ -1575,6 +1581,26 @@ extern "C" bool __cdecl KfcRuntimeEcsWrite(std::uint32_t handle, const char* nam
     else operation_counters.write_failures.fetch_add(1, std::memory_order_relaxed);
     return written;
 }
+extern "C" std::uint32_t __cdecl KfcRuntimeEcsCompareExchange(std::uint32_t handle, const char* name,
+    const void* expected, const void* mask, const void* value, std::size_t size) {
+    if (!name || !expected || !mask || !value || !size || size > (1u << 20) || !KfcRuntimeEcsCanWrite()) return 0;
+    auto operation = std::make_shared<WriteOperation>();
+    operation->handle = handle;
+    operation->owned_name = name;
+    operation->name = operation->owned_name.c_str();
+    const auto first = static_cast<const std::uint8_t*>(mask);
+    const auto last = static_cast<const std::uint8_t*>(value);
+    const auto before = static_cast<const std::uint8_t*>(expected);
+    operation->mask_bytes.assign(first, first + size);
+    operation->destination.assign(last, last + size);
+    operation->expected.assign(before, before + size);
+    operation->mask = operation->mask_bytes.data();
+    operation->value = operation->destination.data();
+    operation->size = size;
+    if (!GameThreadDispatcher::Invoke(write_on_game_thread, operation)) return 0;
+    return operation->result ? 1 : operation->conflict ? 2 : 0;
+}
+
 extern "C" bool __cdecl KfcRuntimePatchAvailable(const char* name) {
     if (name && std::strcmp(name, "runtime.gameplay.patch") == 0) return PatchRuntime::AnyAvailable();
     return PatchRuntime::Available(name);

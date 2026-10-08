@@ -14,7 +14,7 @@ struct RuntimeOperation {
     std::ptrdiff_t context_pointer_offset{}, world_offset{};
     std::vector<std::uint8_t> guard_bytes;
     std::string abi, thread, context, status;
-    bool available{};
+    bool available{}, actor_context{};
 };
 struct RuntimeWorldContextLayout {
     std::size_t actor_frame_service_view{}, service_view_world{}, placement_context{};
@@ -26,15 +26,19 @@ struct RuntimeWorldGrid {
     std::uint64_t maximum[3]{};
 };
 struct RuntimePatch {
+    struct InlineReference { std::size_t displacement{}, next{}, data{}, size{}; };
     std::string name, signature, kind;
+    std::string modifier_json;
     std::string function_id;
     std::vector<std::uint8_t> payload;
+    std::vector<InlineReference> inline_references;
     std::uintptr_t function_begin_rva{}, function_end_rva{};
     std::size_t overwrite{}, return_rel32_offset{}, target_offset{};
 };
 inline std::uint32_t image_timestamp{}, image_size{};
 inline std::string image_sha256, image_target;
 inline bool exact_build_match{};
+inline std::string attribute_calculation_model;
 inline std::size_t entity_manager_count{}, entity_manager_table{}, component_offsets{}, component_strides{};
 inline std::size_t entity_id{}, entity_generation{}, entity_layout{}, entity_storage{}, entity_definition{}, entity_row{}, component_bits{}, lookup_manager{};
 inline std::size_t definition_uuid{}, definition_name{}, definition_name_size{};

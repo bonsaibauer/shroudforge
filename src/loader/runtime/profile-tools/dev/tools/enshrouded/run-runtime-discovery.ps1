@@ -6,7 +6,8 @@ param(
     [string]$OutputDirectory,
     [switch]$Offline,
     [string]$NativeVerifier,
-    [switch]$VerifyBufferAdapters
+    [switch]$VerifyBufferAdapters,
+    [switch]$InspectModOrigins
 )
 $ErrorActionPreference = 'Stop'
 $profileTools = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -20,6 +21,13 @@ if (-not $Offline -and -not (Test-Path -LiteralPath $NativeVerifier)) {
 }
 if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $profileTools ('devdata/discovery-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+}
+if ($InspectModOrigins) {
+    Push-Location -LiteralPath $repositoryRoot
+    try {
+        & cargo build -p shroudforge-api --example inspect_attribute_resources --offline
+        if ($LASTEXITCODE -ne 0) { throw 'Attribute/knowledge resource inspector build failed' }
+    } finally { Pop-Location }
 }
 foreach ($kind in @('client', 'server')) {
     if ($Target -ne 'both' -and $Target -ne $kind) { continue }
@@ -42,13 +50,30 @@ foreach ($kind in @('client', 'server')) {
     }
     & $Python @arguments
     if ($LASTEXITCODE -ne 0) { throw "$kind discovery failed with exit code $LASTEXITCODE" }
+    $capture = [IO.Path]::GetFullPath((Join-Path $OutputDirectory $kind))
+    $sha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+    $matchingProfiles = @($profiles | Where-Object {
+        (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).image.sha256 -eq $sha256
+    })
+    if ($InspectModOrigins) {
+        & (Join-Path $repositoryRoot 'target/debug/examples/inspect_attribute_resources.exe') $exe (Join-Path $capture 'resources.json')
+        if ($LASTEXITCODE -ne 0) { throw "$kind KFC resource inspection failed" }
+        if ($matchingProfiles.Count -eq 1) {
+            & $Python (Join-Path $PSScriptRoot 'audit-mod-origins.py') $exe --profile $matchingProfiles[0].FullName `
+                --functions (Join-Path $capture 'functions.json') --resources (Join-Path $capture 'resources.json') `
+                --out (Join-Path $capture 'mod-origins.json')
+            if ($LASTEXITCODE -ne 0) { throw "$kind mod origin audit failed" }
+        } else { Write-Warning "$kind has no unique exact profile; original resources and function descriptors are captured, mod interventions remain unverified" }
+    }
     if (-not $Offline) {
         $capture = [IO.Path]::GetFullPath((Join-Path $OutputDirectory $kind))
         $components = Get-Content -LiteralPath (Join-Path $capture 'components.json') -Raw | ConvertFrom-Json
         $managers = @($components.registries | ForEach-Object { $_.managers } | Sort-Object distinctLayouts -Descending)
         if ($managers.Count -eq 0) { throw "$kind has no validated live registry manager; the partial capture is retained at $capture" }
         $verification = Join-Path $capture 'provider-verification.json'
-        & $NativeVerifier ([string]$processes[0].Id) ($managers[0].address -replace '^0x', '') $verification
+        $verifierArguments = @([string]$processes[0].Id, ($managers[0].address -replace '^0x', ''), $verification)
+        if ($matchingProfiles.Count -eq 1) { $verifierArguments += $matchingProfiles[0].FullName }
+        & $NativeVerifier @verifierArguments
         if ($LASTEXITCODE -ne 0) { throw "$kind production registry verification failed" }
         if ($VerifyBufferAdapters) {
             $previousCorpus = $env:SHROUDFORGE_TEST_FUNCTIONS

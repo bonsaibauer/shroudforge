@@ -166,6 +166,10 @@ bool resolve(PatchState& state, std::uint8_t* base) {
     }
 
     std::vector<std::uint8_t> trampoline = spec.payload;
+    for (const auto& reference : spec.inline_references) {
+        const auto displacement = static_cast<std::int32_t>(reference.data) - static_cast<std::int32_t>(reference.next);
+        std::memcpy(trampoline.data() + reference.displacement, &displacement, sizeof(displacement));
+    }
     std::int32_t return_delta{};
     const auto trampoline_size = trampoline.size() + 16;
     auto* allocation = static_cast<std::uint8_t*>(allocate_near(state.target, trampoline_size));

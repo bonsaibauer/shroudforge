@@ -2,6 +2,7 @@
 #include <bcrypt.h>
 #include <tlhelp32.h>
 #include <nlohmann/json.hpp>
+#include "../../../../native/runtime.h"
 
 #include <algorithm>
 #include <array>
@@ -286,6 +287,7 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
             if (definition.at(key).get<std::uint64_t>() > 0x10000) throw std::runtime_error(std::string("entity definition offset out of range: ") + key);
         const auto& hooks = profile.at("hooks");
         for (const char* key : {"game_thread", "entity_manager", "world_prop_update", "world_actor_placement", "world_cursor"}) {
+            if (std::string_view(key) == "world_cursor" && !hooks.contains(key)) continue;
             const auto& hook = hooks.at(key);
             if (parse_pattern(hook.at("signature").get<std::string>()).size() < 7) throw std::runtime_error(std::string("invalid hook signature: ") + key);
             const auto bytes = hook.at("original").get<std::vector<unsigned>>();
@@ -302,7 +304,7 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
             for (const auto byte : bytes) if (byte > 255)
                 throw std::runtime_error("invalid original byte: world_building_dispatch");
         }
-        if (hooks.at("world_cursor").at("captureOffset").get<std::uint64_t>() > 0x10000)
+        if (hooks.contains("world_cursor") && hooks.at("world_cursor").at("captureOffset").get<std::uint64_t>() > 0x10000)
             throw std::runtime_error("native cursor capture offset out of range");
         const auto& placement = profile.at("worldContexts").at("entityPlacement");
         for (const char* key : {"actorFrameServiceViewOffset", "serviceViewWorldOffset", "placementContextOffset",
@@ -326,7 +328,8 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
             const auto& operation = item.value();
             if (!item.key().starts_with("runtime.world.") || operation.at("abi").get<std::string>().empty() ||
                 operation.at("thread") != "game" || operation.at("context").get<std::string>().empty() ||
-                (operation.contains("functionRva") == operation.contains("globalRva")))
+                (operation.value("validated", true) && operation.at("abi") != "actor-world-context" && operation.contains("functionRva") == operation.contains("globalRva")) ||
+                (operation.contains("functionRva") && operation.contains("globalRva")))
                 throw std::runtime_error("invalid world operation entry: " + item.key());
             for (const auto byte : operation.value("guardBytes", std::vector<unsigned>{}))
                 if (byte > 255) throw std::runtime_error("invalid world operation guard bytes: " + item.key());
@@ -342,7 +345,11 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
         }
         std::unordered_set<std::string> names;
         std::unordered_set<unsigned> indices;
+        const bool live_components = profile.value("componentResolution", std::string{}) == "live-registration";
+        if (live_components && profile.contains("components")) throw std::runtime_error("live registration profile must not duplicate component mappings");
+        const auto empty_components = json::array();
         const json* components = profile.contains("components") ? &profile.at("components") : external_components;
+        if (live_components) components = &empty_components;
         if (!components && profile.contains("componentCatalog")) throw std::runtime_error("external component catalog must be supplied for validation");
         if (!components || !components->is_array()) throw std::runtime_error("component catalog is missing or invalid");
         for (const auto& component : *components) {
@@ -352,7 +359,7 @@ bool validate_profile(const json& profile, std::string& error, const json* exter
             if (!name.starts_with("keen::ecs::") || index >= 1024 || !size || size > 65535 ||
                 !names.insert(name).second || !indices.insert(index).second) throw std::runtime_error("invalid or duplicate component mapping");
         }
-        if (names.empty()) throw std::runtime_error("component catalog is empty");
+        if (names.empty() && !live_components) throw std::runtime_error("component catalog is empty");
         return true;
     } catch (const std::exception& exception) { error = exception.what(); return false; }
 }
@@ -719,6 +726,8 @@ int inspect_provider_command(int argc, char** argv) {
         "KfcRuntimeStatus", "KfcRuntimeDiagnostics", "KfcRuntimeEcsConfigure",
         "KfcRuntimeEcsReady", "KfcRuntimeEcsCanWrite", "KfcRuntimeEcsDescribe",
         "KfcRuntimeEcsQuery", "KfcRuntimeEcsResolve", "KfcRuntimeEcsRead", "KfcRuntimeEcsWrite",
+        "KfcRuntimeEcsCompareExchange", "KfcRuntimeEcsRegistry", "KfcRuntimeEcsResolveType",
+        "KfcRuntimeFunctions", "KfcRuntimeFunctionCode",
         "KfcRuntimePatchAvailable", "KfcRuntimePatchSetEnabled",
         "KfcRuntimeWorldOperationAvailable", "KfcRuntimeWorldContextActive",
         "KfcRuntimeWorldEntityContextReady", "KfcRuntimeWorldCursorRead",
@@ -735,12 +744,12 @@ int inspect_provider_command(int argc, char** argv) {
     const auto abi = abi_function ? abi_function() : 0;
     FreeLibrary(module);
     const json report = {{"schemaVersion", 1}, {"provider", path.string()}, {"providerAbi", abi},
-        {"expectedAbi", 5}, {"expectedExportsPresent", complete}, {"exports", std::move(exports)}};
+        {"expectedAbi", KFC_RUNTIME_ABI_VERSION}, {"expectedExportsPresent", complete}, {"exports", std::move(exports)}};
     if (const auto out = option(argc, argv, "--out")) {
         if (!write_json(*out, report)) return 2;
         std::cout << "provider inventory: " << fs::absolute(*out).string() << '\n';
     } else std::cout << report.dump(2) << '\n';
-    return complete && abi == 5 ? 0 : 3;
+    return complete && abi == KFC_RUNTIME_ABI_VERSION ? 0 : 3;
 }
 
 int validate_command(const fs::path& path, const std::optional<fs::path>& component_path = std::nullopt) {
@@ -852,6 +861,8 @@ int generate_command(int argc, char** argv) {
     if (!out_path || !components_path) { std::cerr << "generate-profile requires --components and --out\n"; return 2; }
     try {
         auto profile = json::parse(std::ifstream(base_path));
+        // A relocated signature does not prove calculation semantics in a new build.
+        profile.erase("attributeCalculationModel");
         const auto image = json::parse(std::ifstream(image_path));
         const auto scan = json::parse(std::ifstream(scan_path));
         const auto observed_components = json::parse(std::ifstream(*components_path));
@@ -903,7 +914,8 @@ int generate_command(int argc, char** argv) {
                 function["targetOffset"] = rva - containing->at("beginRva").get<std::uint32_t>();
             }
         }
-        profile["components"] = observed_components.at("components");
+        if (profile.value("componentResolution", std::string{}) != "live-registration")
+            profile["components"] = observed_components.at("components");
         const json component_catalog = {{"schemaVersion", 1}, {"id", profile.at("id")}, {"target", profile.at("target")},
             {"image", profile.at("image")}, {"components", observed_components.at("components")}};
         profile["allowStructuralRevalidation"] = false;

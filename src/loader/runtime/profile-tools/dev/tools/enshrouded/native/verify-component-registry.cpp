@@ -7,8 +7,8 @@
 #include <fstream>
 #include <iostream>
 
-int main(int argc, char** argv) {
-    if (argc != 4) { std::cerr << "usage: verify-component-registry PID manager-hex output.json\n"; return 2; }
+int main(int argc, char** argv) try {
+    if (argc != 4 && argc != 5) { std::cerr << "usage: verify-component-registry PID manager-hex output.json [matching-profile.json]\n"; return 2; }
     const auto pid = static_cast<DWORD>(std::stoul(argv[1]));
     const auto manager = static_cast<std::uintptr_t>(std::stoull(argv[2], nullptr, 16));
     const auto process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
@@ -96,6 +96,38 @@ int main(int argc, char** argv) {
     }
     KfcRuntimeCompatibility::EnshroudedClient::image_size = module.modBaseSize;
     KfcRuntimeCompatibility::EnshroudedClient::image_timestamp = nt->FileHeader.TimeDateStamp;
+    if (argc == 5) {
+        using namespace KfcRuntimeCompatibility::EnshroudedClient;
+        const auto profile = nlohmann::json::parse(std::ifstream(argv[4]));
+        if (profile.at("image").at("size") != image_size || profile.at("image").at("timestamp") != image_timestamp) return 10;
+        // The caller additionally verifies disk SHA256. This executable never loads
+        // the profile into the game and never allocates or executes trampolines.
+        exact_build_match = true;
+        image_sha256 = profile.at("image").at("sha256");
+        for (const auto& [name, entry] : profile.at("runtimePatches").items()) {
+            RuntimePatch patch{};
+            patch.name = name;
+            patch.modifier_json = entry.at("modifier").dump();
+            patch.function_begin_rva = entry.at("function").at("beginRva");
+            patch.target_offset = entry.at("function").at("targetOffset");
+            runtime_patches.push_back(std::move(patch));
+        }
+        for (const auto& [name, entry] : profile.at("worldOperations").items()) {
+            RuntimeOperation operation{};
+            operation.name = name;
+            operation.function_rva = entry.value("functionRva", std::uintptr_t{});
+            operation.abi = entry.at("abi");
+            operation.thread = entry.at("thread");
+            operation.context = entry.at("context");
+            const auto guard = entry.value("guardBytes", std::vector<std::uint8_t>{});
+            const auto rva = entry.value("guardRva", std::size_t{});
+            operation.available = entry.value("validated", true) && !guard.empty() && rva < image.size() &&
+                guard.size() <= image.size() - rva && !std::memcmp(image.data() + rva, guard.data(), guard.size());
+            operation.status = entry.value("validated", true) ? "instruction-guard-checked" :
+                "unresolved:" + entry.at("unresolvedReason").get<std::string>();
+            runtime_operations.push_back(std::move(operation));
+        }
+    }
     const auto functions = nlohmann::json::parse(FunctionInventory::Build(image.data(), base));
     std::ofstream function_output(std::string(argv[3]) + ".functions.json");
     function_output << functions.dump() << '\n';
@@ -103,4 +135,7 @@ int main(int argc, char** argv) {
         << " unwind groups, " << functions.at("pointer_target_count") << " pointer targets, " << functions.at("range_count") << " ranges\n";
     CloseHandle(process);
     return output ? 0 : 6;
+} catch (const std::exception& error) {
+    std::cerr << error.what() << '\n';
+    return 11;
 }

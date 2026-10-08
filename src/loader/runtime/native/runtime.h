@@ -96,6 +96,11 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsRead(
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsWrite(
     uint32_t entity, const char* qualified_name, const void* mask,
     const void* value, size_t size);
+/* Optional ABI 12 extension: 0 rejected/failed, 1 written, 2 snapshot changed.
+   Comparison and masked write run in the same game-thread dispatch. */
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeEcsCompareExchange(
+    uint32_t entity, const char* qualified_name, const void* expected,
+    const void* mask, const void* value, size_t size);
 
 /* World operations are profile-backed and dispatched with runtime checks. */
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldOperationAvailable(const char* name);

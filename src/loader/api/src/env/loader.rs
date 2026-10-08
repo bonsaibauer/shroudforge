@@ -132,7 +132,7 @@ fn create_functions(
 ) -> mlua::Result<mlua::Table> {
     let result = lua.create_table()?;
     add_function_with_mod(lua, &result, "get_operations", r#mod, lua_get_operations)?;
-    crate::env::runtime_functions::attach(lua, &result)?;
+    crate::env::runtime_functions::attach(lua, &result, &runtime.raw_get::<mlua::Table>("patch")?)?;
     // Capture existing checked wrappers. No second calling convention/dispatcher.
     let bindings = lua.create_table()?;
     let catalog: serde_json::Value =
@@ -158,6 +158,39 @@ fn create_functions(
         }
     }
     let native_get = result.raw_get::<mlua::Function>("get")?;
+    let operation_get = native_get.clone();
+    let operation_bindings = bindings.clone();
+    let operation_mod = r#mod.clone();
+    result.raw_set(
+        "get",
+        lua.create_function(move |lua, selector: LuaValue| {
+            let (descriptor, reason): (Option<mlua::Table>, Option<String>) =
+                operation_get.call(selector.clone())?;
+            if let (Some(descriptor), LuaValue::String(id)) = (&descriptor, &selector) {
+                let id = id.to_str()?;
+                if let Some(call) =
+                    operation_bindings.raw_get::<Option<mlua::Function>>(id.as_ref())?
+                {
+                    let state = lua.app_data_ref::<AppState>().unwrap();
+                    let ready = runtime_denial_reason(&state, &operation_mod, &id).is_none()
+                        && available(&state, &operation_mod, &id);
+                    descriptor.raw_set("operation_id", id.as_ref())?;
+                    descriptor.raw_set("callable", ready)?;
+                    descriptor.raw_set("execution", "checked-runtime-operation")?;
+                    descriptor.raw_set("call", call)?;
+                    descriptor.raw_set(
+                        "reason",
+                        if ready {
+                            None
+                        } else {
+                            Some("operation context/capability is currently unavailable")
+                        },
+                    )?;
+                }
+            }
+            Ok((descriptor, reason))
+        })?,
+    )?;
     let r#mod = r#mod.clone();
     result.raw_set(
         "bind",
@@ -444,6 +477,7 @@ fn create_ecs(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &table, "read", r#mod, lua_ecs_read)?;
     add_function_with_mod(lua, &table, "read_bytes", r#mod, lua_ecs_read_bytes)?;
     add_function_with_mod(lua, &table, "write", r#mod, lua_ecs_write)?;
+    crate::env::runtime_attributes::attach(lua, &table, r#mod)?;
 
     Ok(table)
 }
@@ -1926,7 +1960,11 @@ fn has_capability_for_feature(r#mod: &Mod, feature: &str) -> bool {
     }
 }
 
-fn runtime_denial_reason(state: &AppState, r#mod: &Mod, feature: &str) -> Option<String> {
+pub(crate) fn runtime_denial_reason(
+    state: &AppState,
+    r#mod: &Mod,
+    feature: &str,
+) -> Option<String> {
     if state.phase() != RuntimePhase::Ingame {
         return Some("runtime APIs are available only during the ingame phase".into());
     }
@@ -1998,6 +2036,14 @@ pub(super) mod runtime_provider {
     type Read = unsafe extern "C" fn(u32, *const c_char, *mut c_void, usize) -> bool;
     type Write =
         unsafe extern "C" fn(u32, *const c_char, *const c_void, *const c_void, usize) -> bool;
+    type CompareExchange = unsafe extern "C" fn(
+        u32,
+        *const c_char,
+        *const c_void,
+        *const c_void,
+        *const c_void,
+        usize,
+    ) -> u32;
     type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type WorldContextActive = unsafe extern "C" fn() -> bool;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
@@ -2058,6 +2104,7 @@ pub(super) mod runtime_provider {
         resolve_entity: ResolveEntity,
         read: Read,
         write: Write,
+        compare_exchange: Option<CompareExchange>,
         world_operation_available: WorldOperationAvailable,
         world_context_active: WorldContextActive,
         world_entity_context_ready: WorldEntityContextReady,
@@ -2168,6 +2215,15 @@ pub(super) mod runtime_provider {
                             resolve_entity: symbol!("KfcRuntimeEcsResolve", ResolveEntity),
                             read: symbol!("KfcRuntimeEcsRead", Read),
                             write: symbol!("KfcRuntimeEcsWrite", Write),
+                            compare_exchange: {
+                                let pointer = GetProcAddress(
+                                    module,
+                                    c"KfcRuntimeEcsCompareExchange".as_ptr(),
+                                );
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, CompareExchange>(pointer)
+                                })
+                            },
                             world_operation_available: symbol!(
                                 "KfcRuntimeWorldOperationAvailable",
                                 WorldOperationAvailable
@@ -2868,6 +2924,38 @@ pub(super) mod runtime_provider {
             )
         }
     }
+
+    pub fn compare_exchange(
+        entity: u32,
+        name: &str,
+        expected: &[u8],
+        mask: &[u8],
+        bytes: &[u8],
+    ) -> Result<(), String> {
+        let function = provider()
+            .and_then(|p| p.compare_exchange)
+            .ok_or("native runtime lacks guarded attribute updates")?;
+        let name = CString::new(name).map_err(|e| e.to_string())?;
+        if expected.len() != bytes.len() || mask.len() != bytes.len() {
+            return Err("attribute update buffer sizes disagree".into());
+        }
+        match unsafe {
+            function(
+                entity,
+                name.as_ptr(),
+                expected.as_ptr().cast(),
+                mask.as_ptr().cast(),
+                bytes.as_ptr().cast(),
+                bytes.len(),
+            )
+        } {
+            1 => Ok(()),
+            2 => Err(
+                "attribute snapshot changed before update; read current values and retry".into(),
+            ),
+            _ => Err("guarded attribute update failed".into()),
+        }
+    }
 }
 
 #[cfg(not(windows))]
@@ -3009,5 +3097,8 @@ pub(super) mod runtime_provider {
     }
     pub fn write(_: u32, _: &str, _: &[u8], _: &[u8]) -> bool {
         false
+    }
+    pub fn compare_exchange(_: u32, _: &str, _: &[u8], _: &[u8], _: &[u8]) -> Result<(), String> {
+        Err("native ECS runtime is available on Windows only".into())
     }
 }

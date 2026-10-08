@@ -33,16 +33,19 @@ Das Serverprofil ist auf die geprÃ¼fte `enshrouded_server.exe` festgelegt:
 - Alle sechs enthaltenen Gameplay-Patchsignaturen haben je einen eindeutigen
   Treffer. Die gefundenen Server-Funktionsgrenzen und Patchoffsets wurden ins
   Serverprofil Ã¼bernommen.
-- Beim Flugpatch wurde der RIP-relativen Wert aus den Serverbytes eingetragen;
-  der kopierte Clientwert war im Serverbinary anders.
-- `world_prop_update` und `world_cursor` wurden im Serverbinary nicht gefunden.
-  Der World Editor bleibt deshalb client-only.
+- Der Flugpatch verwendet seinen eigenen Inline-Wert; ein ursprünglicher
+  EXE-relativer Displacement darf nicht in einen Trampolinpuffer kopiert werden.
+- Die live gelesene Serverregistrierung bestätigt 598 Registrierungen und 517
+  Entity-Speicherlayouts. Das ausgelieferte Profil enthält keine zweite Tabelle.
+- World-Funktionsadressen, Finish-Aufruf und Actor-Kontext sind serverspezifisch
+  aufgelöst. Ein Client-Singleton und ein Cursor-Hook sind nicht erforderlich.
+  Die neue Server-Ausführung ist gebaut, aber noch nicht im Spiel getestet.
 
-`kfc-runtime.dll` baut mit dem eingebetteten Serverprofil. Das belegt Profil-
-und Buildintegration sowie statische Signaturtreffer. Es belegt noch keinen
-Live-Start des Dedicated Servers und keine ECS-Layout- oder Patchwirkung im
-laufenden Serverprozess. Das kopierte ECS-Layout muss im Serverprozess weiter
-geprÃ¼ft werden, bevor ECS-Mods fÃ¼r den Server freigegeben werden.
+Client-Lua und Server-Lua sind getrennte Mod-Instanzen. Gemeinsame API-Namen
+stellen keine Nachrichtenverbindung her. Der World Editor kann eine
+Client-Oberfläche und einen Server-Teil besitzen; sein derzeitiges Paket ist
+wegen der Oberfläche weiter client-only, und die Client/Server-Modkommunikation
+fehlt. Details und Beispiele stehen in [runtime-registry.md](runtime-registry.md).
 
 Der Windows-Bootstrap startet im Dedicated-Serverprozess keine Modloader-,
 World-Editor- oder Debug-Console-Fenster mehr. Datei-Logging und Runtime-Logs
@@ -62,19 +65,14 @@ bleiben aktiv.
 
 ## Noch offen
 
-- Einen echten Serverstart und kontrollierten Shutdown auf einer isolierten
-  Serverkopie prÃ¼fen. Das wurde bewusst nicht gestartet, weil der Prozess
-  Serverports Ã¶ffnen und Weltdaten erzeugen kann.
-- Im Live-Server den Profilstatus, die Dispatcher-Initialisierung, die sechs
-  Patch-AuflÃ¶sungen und die Lua-Lifecycle-Callbacks kontrollieren.
-- ECS-Layouts und ECS-Komponentenoffsets am Dedicated Server validieren. Bis
-  dahin sollten Mods mit ECS-/World-APIs nicht fÃ¼r `server` markiert werden.
-- Die fehlenden World-Hooks im Serverprofil lassen World-Editor-Funktionen auf
-  dem Server nicht verfÃ¼gbar; das Paket ist aktuell client-only markiert.
-- Alte Installationen, die mit einer frÃ¼heren Version bereits
-  `.kfc_resources` verÃ¤ndert haben, besitzen mÃ¶glicherweise noch kein
-  Ressourcen-Backup. Die neue Sicherung kann frÃ¼here Originalbytes nicht
-  rekonstruieren.
+- Die neu gebauten DLLs installieren, Client und Server neu starten und die
+  neuen Berechnungs- und World-Bindings mit kontrollierten Spielaktionen prüfen.
+- Für jeden Mod Autorität, Replikation und mögliche Korrekturen durch den Server
+  testen; gleiche Codezuordnung ist kein Beleg gleicher Netzwerkwirkung.
+- Den World Editor in Client-Oberfläche und Server-Ausführung mit geprüften
+  Mod-Anfragen aufteilen. Das bloße Ändern von `targets` stellt dies nicht her.
+- Historische Installationen ohne ursprüngliches Ressourcen-Backup können
+  frühere Originalbytes nicht aus einem späteren Backup rekonstruieren.
 
 ## Relevante Dateien
 
@@ -85,5 +83,5 @@ bleiben aktiv.
 - `src/loader/workflow/pregame.rs`: Server-KFC-Ziel und Asset-Backup.
 - `src/loader/api/src/load.rs`: Sicherung und Wiederherstellung der
   KFC-Ressourcendatei.
-- `src/loader/runtime/profiles/enshrouded/server/1076226.json`: Serverprofil
+- `src/loader/runtime/profiles/enshrouded/server/1024233.json`: Serverprofil (Build aus der tatsÃ¤chlichen KFC-Version)
   fÃ¼r das geprÃ¼fte Executable.

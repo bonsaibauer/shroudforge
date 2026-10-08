@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::{fs::File, io::BufReader, rc::Rc};
 
 use kfc::{
@@ -283,9 +284,11 @@ pub fn load_type_registry(
     let identity_path = cache_dir.join(format!("types-{file_name}.identity.json"));
     let exe_path = game_dir.join(file_name).with_extension("exe");
     let kfc_path = game_dir.join(file_name).with_extension("kfc");
-    let identity = std::fs::metadata(&exe_path).ok().and_then(|metadata| {
-        let modified = metadata.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?;
-        Some(serde_json::json!({"schemaVersion": 1, "length": metadata.len(), "modified": modified.as_nanos().to_string()}))
+    // File length and mtime are not an executable identity (restores and
+    // repackaging can preserve both). Schema 2 invalidates the old cache once.
+    let identity = std::fs::read(&exe_path).ok().map(|bytes| {
+        serde_json::json!({"schemaVersion": 2, "executableSha256": format!("{:x}", Sha256::digest(bytes)),
+            "reflectionExtractor": "kfc-933c11a68854894dd75414812f275543c4ee2faa"})
     });
     let cached_identity = std::fs::read(&identity_path)
         .ok()

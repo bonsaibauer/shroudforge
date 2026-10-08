@@ -8,7 +8,29 @@ local recipe_type = game.types.get("keen::RecipeRegistryResource")
 if recipe_type == nil then
     error("API type unavailable: keen::RecipeRegistryResource")
 end
-local knowledge_id = 1715248921
+-- Use the engine's named query/action relation. The old numeric constant was
+-- a knowledge ID for the first Flame base hint, not a universal unlock flag.
+local query_type = assert(game.types.get("keen::GameKnowledgeQueryResourceDb"),
+    "API type unavailable: keen::GameKnowledgeQueryResourceDb")
+local knowledge_id
+for _, resource in ipairs(game.assets.get_resources_by_type(query_type)) do
+    for _, query in ipairs(resource.data.queries) do
+        if query.name == "Unlock_Flame_Altar_PK" then
+            for _, action in ipairs(query.actions) do
+                if action.name == "NPC_Flame_Hint01" then
+                    local id = action.query.knowledgeOrQueryId.value
+                    if knowledge_id and knowledge_id ~= id then
+                        error("Conflicting Flame hint knowledge IDs in this build")
+                    end
+                    knowledge_id = id
+                end
+            end
+        end
+    end
+end
+if not knowledge_id then
+    error("Engine query Unlock_Flame_Altar_PK / NPC_Flame_Hint01 is missing")
+end
 
 local changed_recipes = 0
 local changed_registries = 0

@@ -134,7 +134,32 @@ impl Catalog {
                     rva.parse::<u32>()
                         .map_err(|_| "invalid native binding ID".to_owned())?
                 } else {
-                    return Err("expected operation ID, native:<decimal RVA>, unclear_<hex RVA>, or integer RVA".into());
+                    let matches: Vec<u32> = self
+                        .indices
+                        .iter()
+                        .filter_map(|(rva, index)| {
+                            (self.base.unwrap()["entries"][*index]["engine_descriptors"]
+                                .as_array()
+                                .is_some_and(|descriptors| {
+                                    descriptors.iter().any(|v| v["name"] == text)
+                                })
+                                || self.base.unwrap()["entries"][*index]["operations"]
+                                    .as_array()
+                                    .is_some_and(|operations| {
+                                        operations.iter().any(|v| v["id"] == text)
+                                    }))
+                            .then_some(*rva)
+                        })
+                        .collect();
+                    match matches.as_slice() {
+                        [rva] => *rva,
+                        [] => return Err(format!("engine function name not found: {text}")),
+                        _ => {
+                            return Err(format!(
+                                "ambiguous engine function name: {text}; select a build-scoped RVA"
+                            ));
+                        }
+                    }
                 }
             }
             _ => return Err("expected binding name or integer RVA".into()),
@@ -155,7 +180,18 @@ impl Catalog {
         }
         let mut entry = self.indices.get(&rva).map(|i| self.base.unwrap()["entries"][*i].clone())
             .unwrap_or_else(|| json!({"id":format!("native:{rva}"),"rva":rva,"ranges":[],"code_bytes":null,"chain_resolved":null}));
-        let name = format!("unclear_{rva:08x}");
+        let names: std::collections::BTreeSet<_> = entry["engine_descriptors"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|v| v["name"].as_str().map(str::to_owned))
+            .collect();
+        let name = if names.len() == 1 {
+            names.first().unwrap().clone()
+        } else {
+            format!("unclear_{rva:08x}")
+        };
+        entry["name_provisional"] = json!(names.len() != 1);
         entry["name"] = json!(name);
         entry["key"] = json!(format!(
             "{}/{}",
@@ -234,7 +270,7 @@ fn binding(lua: &Lua, descriptor: &Value, plan: Option<Plan>) -> mlua::Result<Ta
     Ok(table)
 }
 
-pub(crate) fn attach(lua: &Lua, table: &Table) -> mlua::Result<()> {
+pub(crate) fn attach(lua: &Lua, table: &Table, patch: &Table) -> mlua::Result<()> {
     let catalog = Rc::new(RefCell::new(Catalog::default()));
     let list_catalog = catalog.clone();
     let list = lua.create_function(move |lua, (offset, limit): (Option<usize>, Option<usize>)| {
@@ -256,6 +292,86 @@ pub(crate) fn attach(lua: &Lua, table: &Table) -> mlua::Result<()> {
     })?;
     table.raw_set("list", list.clone())?;
     table.raw_set("list_native", list)?;
+    let modifiers_catalog = catalog.clone();
+    let checked_available = patch.raw_get::<mlua::Function>("available")?;
+    let checked_set = patch.raw_get::<mlua::Function>("set_enabled")?;
+    table.raw_set(
+        "bind_modifier",
+        lua.create_function(move |lua, id: String| {
+            let mut catalog = modifiers_catalog.borrow_mut();
+            if let Err(reason) = catalog.refresh() {
+                return Ok((None, Some(reason)));
+            }
+            let matches: Vec<_> = catalog.base.unwrap()["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|entry| {
+                    entry["modifiers"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter(|m| m["id"] == id)
+                        .map(|m| (entry["rva"].as_u64().unwrap() as u32, m.clone()))
+                })
+                .collect();
+            let [(rva, modifier)] = matches.as_slice() else {
+                return Ok((
+                    None,
+                    Some(format!(
+                        "modifier has no unique verified function association: {id}"
+                    )),
+                ));
+            };
+            if let Some(requirements) = modifier["attribute_requirements"].as_array() {
+                let state = lua.app_data_ref::<super::AppState>().unwrap();
+                let attributes = match state.attribute_catalog() {
+                    Ok(c) => c,
+                    Err(reason) => return Ok((None, Some(reason))),
+                };
+                for required in requirements {
+                    let selector = LuaValue::Integer(required["hash"].as_i64().unwrap());
+                    let valid = attributes.get(&selector).is_ok_and(|actual| {
+                        ["name", "index", "root_hash"]
+                            .iter()
+                            .all(|key| actual[*key] == required[*key])
+                            && actual["storage_writable"] == true
+                    });
+                    if !valid {
+                        return Ok((
+                            None,
+                            Some(format!(
+                                "KFC attribute definition no longer proves modifier {id}: {}",
+                                required["name"]
+                            )),
+                        ));
+                    }
+                }
+            }
+            let operation = modifier["backend_operation"].as_str().unwrap().to_owned();
+            let descriptor = catalog.describe(*rva, false);
+            let LuaValue::Table(bound) = json_to_lua(lua, modifier)? else {
+                unreachable!()
+            };
+            bound.raw_set("owner", json_to_lua(lua, &descriptor)?)?;
+            let available = checked_available.clone();
+            let available_operation = operation.clone();
+            bound.raw_set(
+                "available",
+                lua.create_function(move |_, ()| {
+                    available.call::<bool>(available_operation.clone())
+                })?,
+            )?;
+            let set = checked_set.clone();
+            bound.raw_set(
+                "set_enabled",
+                lua.create_function(move |_, enabled: bool| {
+                    set.call::<(bool, Option<String>)>((operation.clone(), enabled))
+                })?,
+            )?;
+            Ok((Some(bound), None))
+        })?,
+    )?;
     let get = lua.create_function(move |lua, selector: LuaValue| {
         let mut catalog = catalog.borrow_mut();
         if let Err(reason) = catalog.refresh() {
@@ -277,6 +393,137 @@ pub(crate) fn attach(lua: &Lua, table: &Table) -> mlua::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn original_engine_names_are_resolved_without_inventing_helper_names() {
+        let base = Box::leak(Box::new(json!({"image":{"sha256":"fixture"},"entries":[
+            {"rva":16,"engine_descriptors":[{"name":"network_player_attributes"}]},
+            {"rva":32,"engine_descriptors":[{"name":"shared_name"}]},
+            {"rva":48,"engine_descriptors":[{"name":"shared_name"}]}
+        ]})));
+        let mut catalog = Catalog {
+            base: Some(base),
+            ..Default::default()
+        };
+        for (i, rva) in [16, 32, 48].into_iter().enumerate() {
+            catalog.indices.insert(rva, i);
+        }
+        let lua = Lua::new();
+        assert_eq!(
+            catalog
+                .selector(LuaValue::String(
+                    lua.create_string("network_player_attributes").unwrap()
+                ))
+                .unwrap(),
+            16
+        );
+        assert!(
+            catalog
+                .selector(LuaValue::String(lua.create_string("shared_name").unwrap()))
+                .is_err()
+        );
+        let descriptor = catalog.describe(16, false);
+        assert_eq!(descriptor["name"], "network_player_attributes");
+        assert_eq!(descriptor["name_provisional"], false);
+        assert_eq!(descriptor["native_callable"], false);
+    }
+
+    #[test]
+    fn bundled_mods_bind_profile_modifiers_and_restore_on_unload() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        for target in ["client", "server"] {
+            let directory = root.join(format!("src/loader/runtime/profiles/enshrouded/{target}"));
+            let profile = std::fs::read_dir(directory)
+                .unwrap()
+                .find_map(|entry| {
+                    let path = entry.ok()?.path();
+                    (path.extension()?.to_str()? == "json").then(|| {
+                        serde_json::from_slice::<Value>(&std::fs::read(path).unwrap()).unwrap()
+                    })
+                })
+                .unwrap();
+            for patch in profile["runtimePatches"].as_object().unwrap().values() {
+                let lua = Lua::new();
+                lua.globals()
+                    .set(
+                        "expected_modifier",
+                        patch["modifier"]["id"].as_str().unwrap(),
+                    )
+                    .unwrap();
+                lua.load(r#"
+                    calls = {}; state = false
+                    runtime = {require=function() end, report_effect=function() end,
+                        functions={bind_modifier=function(id)
+                            assert(id == expected_modifier)
+                            return {available=function() return true end,
+                                set_enabled=function(value) state=value; calls[#calls+1]=value; return true end}
+                        end}}
+                    shroudforge={settings={get=function() return true end},
+                        log={error=function(message) error(message) end,info=function() end},
+                        ui={on_action=function() end}}
+                "#).exec().unwrap();
+                let alias = profile["runtimePatches"]
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .find(|(_, v)| *v == patch)
+                    .unwrap()
+                    .0;
+                let slug = format!(
+                    "sf-{}",
+                    alias
+                        .strip_prefix("runtime.patch.")
+                        .unwrap()
+                        .replace('_', "-")
+                );
+                let source =
+                    std::fs::read_to_string(root.join(format!("mods/{slug}/src/mod.lua"))).unwrap();
+                let module: Table = lua.load(source).eval().unwrap();
+                module
+                    .get::<mlua::Function>("on_load")
+                    .unwrap()
+                    .call::<()>(())
+                    .unwrap();
+                assert!(
+                    lua.globals().get::<bool>("state").unwrap(),
+                    "{target}/{slug}"
+                );
+                if let Some(update) = module.get::<Option<mlua::Function>>("on_update").unwrap() {
+                    update.call::<()>(()).unwrap();
+                }
+                module
+                    .get::<mlua::Function>("on_unload")
+                    .unwrap()
+                    .call::<()>(())
+                    .unwrap();
+                assert!(
+                    !lua.globals().get::<bool>("state").unwrap(),
+                    "{target}/{slug}"
+                );
+                assert!(lua.globals().get::<Table>("calls").unwrap().len().unwrap() >= 2);
+            }
+        }
+    }
+
+    #[test]
+    fn blueprint_mod_resolves_original_query_action_instead_of_fixed_id() {
+        let lua = Lua::new();
+        lua.load(r#"
+            loader={features={patch=true}}
+            recipes={data={recipes={{knowledgeRequirement={knowledgeOrQueryId={value=999}}}}}}
+            game={types={get=function(name) return name end},assets={get_resources_by_type=function(name)
+                if name=='keen::GameKnowledgeQueryResourceDb' then
+                    return {{data={queries={{name='Unlock_Flame_Altar_PK',actions={{name='NPC_Flame_Hint01',query={knowledgeOrQueryId={value=123456}}}}}}}}}
+                end
+                return {recipes}
+            end}}
+        "#).exec().unwrap();
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../mods/sf-unlock-blueprints/src/mod.lua");
+        lua.load(std::fs::read_to_string(path).unwrap())
+            .exec()
+            .unwrap();
+        lua.load("assert(recipes.data.recipes[1].knowledgeRequirement.knowledgeOrQueryId.value == 123456)").exec().unwrap();
+    }
     #[test]
     #[ignore = "set SHROUDFORGE_TEST_FUNCTIONS to a production-reader verification JSON"]
     fn production_callback_binding_corpus() {

@@ -85,8 +85,15 @@ def main():
             for r in components['registries']]
     if args.functions:
         functions = discover(pe, reflection, progress=lambda text: print(text, flush=True))
+        from discovery.systems import discover as discover_systems
+        descriptors = discover_systems(pe, functions)
+        by_rva = {group['beginRva']: group for group in functions['functionGroups']}
+        for descriptor in descriptors:
+            by_rva[descriptor['functionRva']].setdefault('engineDescriptors', []).append(descriptor)
+        functions['engineDescriptorCount'] = len(descriptors)
         write(args.out / 'functions.json', dict(common, **functions))
         summary['codeCoverage'] = functions['coverage']
+        summary['engineDescriptorCount'] = len(descriptors)
     write(args.out / 'summary.json', summary)
     print(json.dumps({k: v for k, v in summary.items() if k != 'profileAudit'}, indent=2))
     return 0

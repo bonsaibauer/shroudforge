@@ -45,6 +45,7 @@ pub struct AppState {
     config: AppConfig,
 
     type_registry: Rc<TypeRegistry>,
+    attribute_catalog: OnceCell<Result<super::runtime_attributes::Catalog, String>>,
 
     ref_file: Rc<KFCFile>,
     reader: RefCell<KFCCursor<KFCReader>>,
@@ -247,6 +248,7 @@ impl AppState {
             config,
 
             type_registry,
+            attribute_catalog: OnceCell::new(),
 
             ref_file,
             reader: RefCell::new(reader),
@@ -694,6 +696,19 @@ impl AppState {
     #[inline]
     pub fn type_registry(&self) -> &Rc<TypeRegistry> {
         &self.type_registry
+    }
+
+    pub(crate) fn attribute_catalog(&self) -> Result<&super::runtime_attributes::Catalog, String> {
+        self.attribute_catalog
+            .get_or_init(|| {
+                super::runtime_attributes::Catalog::load(
+                    &self.type_registry,
+                    &self.ref_file,
+                    &mut self.reader.borrow_mut(),
+                )
+            })
+            .as_ref()
+            .map_err(Clone::clone)
     }
 
     #[inline]

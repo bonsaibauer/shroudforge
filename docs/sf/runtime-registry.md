@@ -161,11 +161,13 @@ examined snapshots contain **52,150 client / 38,565 server code candidates**;
 an internal label; its presence alone does not prove a complete function.
 Unreferenced leaf functions and inlined code can still be absent.
 
-Every candidate has a provisional `unclear_<eight-hex-digit-RVA>` name, an
+Candidates without a unique original engine descriptor have an
+`unclear_<eight-hex-digit-RVA>` name. Every entry has an
 executable-scoped `key` (`SHA256/name`), ownership evidence, and separate
 validation fields for address, signature, engine context and gameplay effects.
-`list` and `get` are the canonical names; `list_native` and `get_native` are
-aliases. Listings include partial entries. `get` returns a binding even if its
+`list` and `get` are the canonical names; `get_native` selects the native
+descriptor directly, while `get(operation_id)` also attaches the existing checked
+operation wrapper. Listings include partial entries. `get` returns a binding even if its
 native ABI remains unknown. All provisional native contracts remain incomplete.
 
 ```lua
@@ -209,6 +211,167 @@ bindings, `bind` returns `nil,reason`; their descriptors remain available via
 `get`. Native signatures, server operation contexts, and calculations using
 unproved instructions remain unresolved.
 
+## Original engine identities and existing mods
+
+The 2026-10-09 readers find **689 client / 552 server** named execution
+descriptors in the loaded executable. These names enrich the existing function
+entries; there is no separate system catalog in the Lua API. Dependency lists
+retain their raw descriptor offsets because their access-mode semantics are not
+fully established. An original name does not prove a callable native signature.
+
+```lua
+local fn = assert(runtime.functions.get("network_player_attributes"))
+print(fn.name, fn.rva, fn.name_provisional) -- original engine name, false
+local modifier = assert(runtime.functions.bind_modifier("refill_stamina"))
+print(modifier.owner.name, modifier.effect, modifier.scope)
+assert(modifier.set_enabled(true))
+-- Restore this intervention when your mod unloads:
+assert(modifier.set_enabled(false))
+```
+
+A modifier ID describes a ShroudForge intervention, not an invented engine
+function name. Its owner is the actual unwind root and, where present, the
+original named execution descriptor. The existing guarded code writer remains
+the backend. `runtime.patch` is a compatibility interface to that same backend.
+Modifiers require an exact image, the matching function/byte guards and, for
+attribute interventions, matching current KFC IDs and storage indices.
+
+| Bundled mod | Proven origin and resulting intervention |
+| --- | --- |
+| `sf-no-stamina-loss` | `network_player_attributes`: `Stamina` (`0x04b6aa8b`) is assigned `Stamina_Max` (`0xf443c410`) before the network snapshot. This is replenishment, not proof that depletion calculations are skipped. Modifier `refill_stamina`. |
+| `sf-no-fall-damage` | `fall_damage_infliction`: preserve `Health` (`0x8eb84995`) by suppressing its store and retaining the subsequent recalculation. The previous payload added the calculated value to Health. Modifier `preserve_health_on_fall`. |
+| `sf-unlimited-flight` | `actor_rotation`: replace one scalar load with `-1.57f`. The original variable name remains unresolved. The server's invalid RIP-relative constant reference is fixed and represented explicitly in the payload profile. Modifier `override_rotation_constant`. |
+| `sf-no-resource-cost` | Shared helper: force its sixth integer argument to zero. Proven callers include `actor_apply_buff`, `player_crafting`, `inventory_actions` and building systems. It affects every execution of the shared site. Modifier `zero_resource_argument`. |
+| `sf-infinite-item-use` | Shared helper: forward false in place of its sixth boolean argument. Call paths include `inventory_actions`, `actor_pay_usage_cost`, `equipment_actions` and `actor_spawn_entity`. Modifier `clear_item_use_argument`. |
+| `sf-infinite-item-split` | Shared helper: suppress the source-stack subtraction at `[rsi+4]`. Multiple inventory, equipment, crafting and spawn systems reach it. Modifier `preserve_split_source`. |
+| `sf-unlock-blueprints` | Reads `GameKnowledgeQueryResourceDb`, query `Unlock_Flame_Altar_PK`, action `NPC_Flame_Hint01`, and uses the stored knowledge ID in `RecipeRegistryResource.recipes[].knowledgeRequirement`. Both current targets resolve `1715248921`; this is a Flame base-hint knowledge condition, not an unconditional unlock flag. No numeric ID remains in the mod. |
+| `world-editor` | Existing checked `runtime.world.*` wrappers and ECS access remain canonical. Verified native operations are linked into their function descriptors. The editor manifest targets the client. Dedicated-server native addresses and actor-frame bindings are now present, including finish_building. They still require a live matching context; server gameplay effects and client/server mod RPC have not been tested or implemented respectively. |
+
+The unnamed shared helpers retain provisional names. Their static caller paths
+are evidence of reachability, not a complete dynamic call graph. Lua lifecycle
+tests cover all six modifier mods on both profile contracts, including unload
+restoration. These tests do not assert a fresh live gameplay test of every mod.
+
+## Attribute IDs, storage and calculation programs
+
+`runtime.ecs.get_attributes()` resolves **304 original IDs in 56 roots** from
+both current KFC containers. All 304 now have a unique component association.
+Root IDs use FNV-1a over the **16 definition-GUID bytes** (zero GUID maps to
+zero), as implemented by the native initializers. They are not hashes of the
+visible names or reflection type hashes. This resolves container-only
+`ManaRechargeMod` without inventing a standalone resource.
+
+All EXE types and the 59 relevant attribute/balancing/knowledge resources were
+read freshly for each target, including the `.bak` resource pair. Current and
+backup values agree for these resources. `BodyHeat` and `FreezingResistance`
+still have different KFC and reflected signedness. This is not a stale-cache
+finding. Type-cache identity now includes EXE SHA256 and extractor revision.
+
+```lua
+local stamina = assert(runtime.ecs.get_attribute("Stamina"))
+local same = assert(runtime.ecs.get_attribute(stamina.hash))
+local entities = assert(runtime.ecs.query("keen::ecs::Stamina"))
+for _, entity in ipairs(entities) do
+    local snapshot = assert(runtime.ecs.read_attributes(entity, "Stamina"))
+    snapshot.values.Stamina_Max_Base = 200
+    local preview = assert(runtime.ecs.evaluate_attributes("Stamina", snapshot.values))
+    print(preview.values.Stamina_Max, preview.values.Stamina)
+    -- Uses a new live snapshot, recalculates the whole root, then rejects a
+    -- changed snapshot before writing on the game thread.
+    local applied, reason = runtime.ecs.update_attribute(entity, "Stamina_Max_Base", 200)
+    if not applied then print(reason) end
+end
+```
+
+`read_attribute` reads one value. `read_attributes` reads the related root.
+`evaluate_attributes` operates on owned values and returns values plus a trace
+of each calculation's `before_bits` and `after_bits`, ordered by root index.
+`update_attribute` uses the same calculation model, checks the entity handle,
+root, GUID, initialized flag, inline layout and scalar domain, and compares the
+entire component snapshot before the masked write. A conflict returns an error;
+it does not silently overwrite a newer calculation. The optional native
+`KfcRuntimeEcsCompareExchange` export is required; older providers reject the
+new update call. Writes and comparisons share one game-thread dispatch, not a
+CPU atomic transaction against arbitrary engine worker threads.
+
+The model covers **all 65 nonempty calculation programs** in the current
+304-entry corpus. Roots run in descending index order. `LoadRef` is an actual
+reference consumed by `ScaleToNewMax`, which can change another entry before
+its own calculation runs. Integer operations wrap at 32 bits. Float operations
+round at f32 precision, and float `Push` converts an unsigned integer literal
+instead of interpreting its bits as IEEE float data. Original `AttributeOps`
+names, stored words and references remain available on the descriptor.
+Unsupported instructions, stack underflow, invalid references, excessive
+programs and non-finite numbers are rejected. This is not an implementation of
+all possible future AttributeOps programs or the rest of the engine VM.
+
+Validation uses **4,160 differential vectors** against both original x64
+interpreters inside Unicorn. In addition, **53 client / 54 server** live
+attribute-root snapshots passed the production Lua storage validator, including
+BodyHeat and FreezingResistance; malformed roots/offsets were rejected. The game EXEs are read-only emulator data, never
+loaded as host code. The native recompute loop establishes descending order.
+`attributeCalculationModel` authorizes live updates only on an exact SHA256
+profile. Generating a profile for another build removes this authorization
+until its calculations are independently checked.
+
+`FreezingResistance` is initialized through the signed native interpreter.
+Its current `Base + Heat_Source` program uses identical 32-bit arithmetic in
+both integer variants, so it supports the general update API. Conflicting
+signedness permits inputs only in the common range `0..2147483647`:
+
+```lua
+local updated, reason = runtime.ecs.update_attribute(entity, "FreezingResistance_Base", 30)
+```
+
+This sets an attribute and recomputes its root; it does not establish that 30
+means immunity, seconds, or any particular in-game protection. The consuming
+systems and gameplay effect still need validation. **296 entries** support
+root updates. The **8 BodyHeat entries** have signedness-dependent calculations
+and remain blocked for that operation: initialization calls the unsigned helper,
+while `body_heat_max_scaling` calls the signed helper. All 304 entries remain
+readable; the explicitly low-level `write_attribute_storage` supports validated
+scalar writes, with the common-range restriction for the 11 conflicting entries.
+It does not recalculate or publish events. `storage_writable`,
+`calculation_writable`, `write_value_domain` and reasons distinguish these cases.
+
+## Client/server execution and module boundaries
+
+The same Lua names bind to the **current process**, using its executable profile,
+fresh KFC data and live registrations. That is not an RPC connection. A local
+write is not a guarantee of an authoritative or persistent multiplayer change.
+Original `server_only` component metadata is exposed as `engine_server_only`.
+
+| Existing mod | Client/server consequence |
+| --- | --- |
+| Stamina / fall damage | Same stored attribute IDs and named owner systems on both builds. Server-owned state and later snapshots can overwrite a remote client's local changes. |
+| Flight | Same rotation system intervention; prediction and authoritative movement can still disagree when configured on only one side. |
+| Resource cost / item use / item split | Shared helper sites are mapped separately per executable. The process handling the inventory transaction governs its result; matching code does not prove end-to-end network equivalence. |
+| Blueprints | KFC asset transformation resolves the same original query/action on both targets. Client UI and server recipe/knowledge checks must use compatible data. |
+| World Editor | Client cursor/UI remains client-side. Native world backends exist for both targets. A server backend can edit server-owned state, but the editor still lacks a mod transport to request those operations from the client. |
+
+Server world context now comes from `player_building_place_prop`'s execution
+frame, not a copied client singleton. Its pointer is bounded/checked at use,
+expires after 500 ms without a fresh observation, and is reset when the entity
+manager changes or the runtime shuts down. Place, Destroy and both voxel bodies
+match the client's instruction structure after relocation; Spawn has equivalent
+operand flow. Server finish is RVA `0x1c2dc0`, with the original event slot at
+`0xb57140`. Zero is a valid supplied event value on both targets. The fallback
+Destroy path now forwards the material feedback ID rather than the tracking ID.
+The server has no cursor hook. Native code/ABI checks do not replace a live
+server gameplay test after installation.
+
+| Responsibility | Source |
+| --- | --- |
+| Shipped build evidence | `src/loader/runtime/profiles/`: executable identity, engine layouts/hooks, checked native operations and interventions. No duplicated 517-component tables. |
+| Automatic resolution | `api/src/runtime_resolution/`: GUID/ID/definition joining, type traversal and owned calculation model. No Lua, process access or diagnostic file I/O. Native `component_registry.h` reads the actual engine registrations. |
+| Lua and execution | `api/src/env/runtime_*`: one public runtime API, permission/lifecycle checks and adapters to the native game-thread dispatcher. |
+| Developer diagnostics | `runtime/profile-tools/dev/`: extraction, audits and differential emulation. Never required by a user's modloader installation. |
+
+Both profiles use `componentResolution: live-registration`. ECS access waits for
+the proven engine registry instead of guessing from stale inline indices. Legacy
+profile fallback is still readable for compatibility. EML/KFC pregame APIs retain
+their existing separate namespace; this change does not add a second mod API.
+
 ## Build and verification
 
 Build both parts together:
@@ -236,5 +399,8 @@ small committed indexes are
 `profile-tools/dev/function-catalogs/enshrouded/client/1076226.runtime-index.json`
 and `profile-tools/dev/function-catalogs/enshrouded/server/1024233.json`. Their
 `catalog` paths lead to the complete local generated artifacts. These discovery
-indexes are not executable compatibility profiles. The legacy server profile
-filename `1076226.json` is not used to identify the server's KFC data version.
+indexes are not executable compatibility profiles. The executable server profile is now
+`src/loader/runtime/profiles/enshrouded/server/1024233.json`, matching its actual
+KFC version. When replacing an external installed profile, remove the obsolete
+server `1076226.json`; retaining both produces an ambiguous exact match. The
+client profile remains `client/1076226.json`. Both are pinned by executable SHA256.

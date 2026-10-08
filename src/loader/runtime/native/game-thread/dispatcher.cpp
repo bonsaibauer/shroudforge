@@ -229,8 +229,10 @@ void __cdecl capture_entity_manager(void* lookup_context, void*) {
         if (!root) return;
         const auto manager = *reinterpret_cast<std::uintptr_t*>(root + KfcRuntimeCompatibility::EnshroudedClient::lookup_manager);
         if (manager) {
-            if (entity_manager.exchange(manager, std::memory_order_acq_rel) != manager)
+            if (entity_manager.exchange(manager, std::memory_order_acq_rel) != manager) {
                 manager_changes.fetch_add(1, std::memory_order_relaxed);
+                WorldRuntime::ResetContext();
+            }
             last_manager_observation_ms.store(GetTickCount64(), std::memory_order_relaxed);
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {}
@@ -393,7 +395,8 @@ bool Initialize() {
             KfcRuntimeCompatibility::EnshroudedClient::world_building_dispatch_original.size(),
             reinterpret_cast<void*>(&WorldRuntime::OnBuildingDispatch), false, true);
     entity_context_hooks_ready.store(prop_hook && placement_hook && building_dispatch_hook, std::memory_order_release);
-    const bool cursor_hook = install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_signature,
+    const bool cursor_hook = !KfcRuntimeCompatibility::EnshroudedClient::world_cursor_signature.empty() &&
+        install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_signature,
         KfcRuntimeCompatibility::EnshroudedClient::world_cursor_original.data(),
         KfcRuntimeCompatibility::EnshroudedClient::world_cursor_original.size(),
         reinterpret_cast<void*>(&WorldRuntime::OnCursorUpdate), true);
@@ -404,6 +407,7 @@ bool Initialize() {
 }
 
 void Shutdown() {
+    WorldRuntime::ResetContext();
     PatchRuntime::Shutdown();
     accepting.store(false, std::memory_order_release);
     entity_context_hooks_ready.store(false, std::memory_order_release);

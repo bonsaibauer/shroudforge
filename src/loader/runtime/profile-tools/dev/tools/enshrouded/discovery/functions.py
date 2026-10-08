@@ -73,7 +73,8 @@ def profile_audit(pe, profile):
             matches = False
         row = dict(id=name, kind='world-operation', functionRva=rva, guardRva=guard_rva,
                    guardMatches=matches, abi=operation.get('abi'), thread=operation.get('thread'),
-                   status='guard-match' if identity_matches and matches else 'unresolved')
+                   status='guard-match' if identity_matches and matches and operation.get('validated', True) else 'unresolved',
+                   unresolvedReason=operation.get('unresolvedReason'))
         if rva is not None:
             idx = pe.containing_function(rva)
             if idx is not None:

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "enshrouded-client-1076226",
-  "target": "enshrouded.exe",
+  "id": "enshrouded-server-1024233",
+  "target": "enshrouded_server.exe",
   "image": {
-    "timestamp": 1782724296,
-    "size": 47869952,
-    "sha256": "af2f5a1227911d8aa06b3908d6bd0211838211cae14ea91099cb57d0df990781"
+    "timestamp": 1778248905,
+    "size": 31092736,
+    "sha256": "001c1b40ed091d8c1aee583adde3800d7c858ae2c7f4dff54fca2938b2be1637"
   },
   "allowStructuralRevalidation": true,
   "ecsLayout": {
@@ -57,7 +57,7 @@
       ]
     },
     "world_prop_update": {
-      "signature": "33 D2 48 8D 4C 24 30 E8 4E AA 52 00 48 8D 54 24 30 49 8B CF",
+      "signature": "33 D2 48 8D 4C 24 30 E8 7E 47 42 00 48 8D 54 24 30 49 8B CF",
       "original": [
         51,
         210,
@@ -85,27 +85,14 @@
       ]
     },
     "world_building_dispatch": {
-      "signature": "48 89 5C 24 10 48 89 6C 24 18 56 57 41 56 48 83 EC 20 4C 8B F1 48 8B 89 D8 00 00 00",
+      "signature": "48 89 5C 24 18 55 57 41 56 48 83 EC 30 48 89 74 24 58 4C 8B F1 48 8B 89 D8 00 00 00 41 0F B6 E9 41 8B F8 48 8B DA 45 84 C9 0F 84 22 01 00 00 48",
       "original": [
         72,
         137,
         92,
         36,
-        16
+        24
       ]
-    },
-    "world_cursor": {
-      "signature": "41 8B 96 F8 02 00 00 0F B6 CA 41 0F 10 8E F0 02 00 00 84 D2",
-      "original": [
-        65,
-        139,
-        150,
-        248,
-        2,
-        0,
-        0
-      ],
-      "captureOffset": 624
     }
   },
   "worldContexts": {
@@ -141,21 +128,40 @@
   },
   "worldOperations": {
     "runtime.world.context.active": {
-      "abi": "global-pointer-chain",
+      "abi": "actor-world-context",
       "thread": "game",
-      "context": "active context singleton to voxel world",
-      "globalRva": 41153928,
-      "guardBytes": [],
-      "contextPointerOffset": 200,
-      "worldOffset": -1448,
+      "context": "world from server player_building_place_prop execution frame; no client singleton",
+      "validated": true,
+      "guardRva": 638453,
+      "guardBytes": [
+        72,
+        139,
+        69,
+        16,
+        72,
+        137,
+        133,
+        136,
+        2,
+        0,
+        0,
+        72,
+        139,
+        69,
+        48,
+        72,
+        137,
+        133
+      ],
       "validationOffset": 4624
     },
     "runtime.world.entity.spawn": {
       "abi": "uint32(executionView, templateUuid, position, rotation, tracking, flags, auxiliary)",
       "thread": "game",
-      "context": "prop update execution view",
-      "functionRva": 4067616,
-      "guardRva": 4067616,
+      "context": "server actor execution view",
+      "validated": true,
+      "functionRva": 1820320,
+      "guardRva": 1820320,
       "guardBytes": [
         72,
         137,
@@ -168,68 +174,96 @@
         65,
         86,
         65,
-        87
+        87,
+        72,
+        141,
+        108,
+        36
       ]
     },
     "runtime.world.entity.place": {
       "abi": "void(placementContext, transform, bounds, tracking, feedback)",
       "thread": "game",
-      "context": "live actor placement context",
-      "functionRva": 4111216,
-      "guardRva": 4111490,
+      "context": "server actor placement context",
+      "validated": true,
+      "functionRva": 1864128,
+      "guardRva": 1864128,
       "guardBytes": [
-        65,
-        139,
-        134,
-        52,
-        1,
-        0,
-        0,
+        72,
         137,
-        67,
-        68
+        108,
+        36,
+        24,
+        72,
+        137,
+        116,
+        36,
+        32,
+        87,
+        65,
+        86,
+        65,
+        87,
+        72
       ]
     },
     "runtime.world.entity.destroy": {
       "abi": "void(placementContext, transform, bounds, feedback)",
       "thread": "game",
-      "context": "live actor placement context",
-      "functionRva": 4111536,
-      "guardRva": 4111794,
-      "guardBytes": [
-        65,
-        139,
-        134,
-        52,
-        1,
-        0,
-        0,
-        137,
-        67,
-        64
-      ]
-    },
-    "runtime.world.entity.finish_building": {
-      "abi": "void(placementContext, reserved, eventId, complete)",
-      "thread": "game",
-      "context": "live actor placement context",
-      "functionRva": 4093936,
-      "guardRva": 4093936,
+      "context": "server actor placement context",
+      "validated": true,
+      "functionRva": 1864448,
+      "guardRva": 1864448,
       "guardBytes": [
         72,
         137,
         92,
         36,
-        16
-      ],
-      "eventIdRva": 20980324
+        16,
+        72,
+        137,
+        108,
+        36,
+        24,
+        72,
+        137,
+        116,
+        36,
+        32,
+        87
+      ]
+    },
+    "runtime.world.entity.finish_building": {
+      "abi": "void(placementContext, reserved, eventId, complete)",
+      "thread": "game",
+      "context": "server actor placement context",
+      "validated": true,
+      "functionRva": 1846720,
+      "eventIdRva": 11891008,
+      "guardRva": 1846720,
+      "guardBytes": [
+        72,
+        137,
+        92,
+        36,
+        24,
+        85,
+        87,
+        65,
+        86,
+        72,
+        131,
+        236,
+        48
+      ]
     },
     "runtime.world.voxel.read": {
       "abi": "bool(CellSpan*, dimensions, world, mode, origin)",
       "thread": "game",
-      "context": "resolved voxel world",
-      "functionRva": 15210960,
-      "guardRva": 15210960,
+      "context": "server voxel world from actor frame",
+      "validated": true,
+      "functionRva": 7436784,
+      "guardRva": 7436784,
       "guardBytes": [
         68,
         137,
@@ -240,16 +274,23 @@
         137,
         68,
         36,
-        24
+        24,
+        72,
+        137,
+        76,
+        36,
+        8,
+        85
       ],
       "mode": 6
     },
     "runtime.world.voxel.write": {
       "abi": "void(world, CellSpan*, dimensions, origin)",
       "thread": "game",
-      "context": "resolved voxel world",
-      "functionRva": 15256352,
-      "guardRva": 15256352,
+      "context": "server voxel world from actor frame",
+      "validated": true,
+      "functionRva": 7482656,
+      "guardRva": 7482656,
       "guardBytes": [
         76,
         139,
@@ -261,7 +302,12 @@
         77,
         137,
         67,
-        24
+        24,
+        73,
+        137,
+        83,
+        16,
+        73
       ]
     }
   },
@@ -271,8 +317,8 @@
       "signature": "29 6E 04 EB C5",
       "function": {
         "id": "patch_owner.infinite_item_split",
-        "beginRva": 3712372,
-        "endRva": 3712389,
+        "beginRva": 1491252,
+        "endRva": 1491269,
         "targetOffset": 0
       },
       "overwriteBytes": 3,
@@ -284,7 +330,7 @@
       "modifier": {
         "id": "preserve_split_source",
         "name_source": "shroudforge-intervention",
-        "function_rva": 3711952,
+        "function_rva": 1490832,
         "effect": "Suppress SUB dword [rsi+4], ebp in a shared inventory helper.",
         "attributes": {},
         "scope": "all executions of this code site",
@@ -292,128 +338,120 @@
           {
             "name": "actor_spawn_entity",
             "path_rvas": [
-              2000672,
-              1990432,
-              3711952
+              209472,
+              199232,
+              1490832
             ]
           },
           {
             "name": "actor_interaction",
             "path_rvas": [
-              2259056,
-              3693952,
-              3711952
-            ]
-          },
-          {
-            "name": "player_ui",
-            "path_rvas": [
-              2517888,
-              3693952,
-              3711952
+              398992,
+              1472832,
+              1490832
             ]
           },
           {
             "name": "swap_equipment_set_actions",
             "path_rvas": [
-              3195136,
-              3694976,
-              3711952
+              1062928,
+              1473856,
+              1490832
             ]
           },
           {
             "name": "inventory_actions",
             "path_rvas": [
-              3636080,
-              3610640,
-              3689456,
-              3711952
+              1421552,
+              1395088,
+              1468336,
+              1490832
             ]
           },
           {
             "name": "apply_charactersetup",
             "path_rvas": [
-              2607616,
-              3696256,
-              3692496,
-              3711952
+              614032,
+              1475136,
+              1471376,
+              1490832
             ]
           },
           {
             "name": "equipment_actions",
             "path_rvas": [
-              3190224,
-              3179328,
-              3694976,
-              3711952
+              1060240,
+              1052448,
+              1473856,
+              1490832
             ]
           },
           {
             "name": "default_inventory",
             "path_rvas": [
-              3632432,
-              3600096,
-              3712400,
-              3711952
+              1417904,
+              1384176,
+              1491280,
+              1490832
             ]
           },
           {
             "name": "inventory_setup",
             "path_rvas": [
-              3641440,
-              3628464,
-              3712400,
-              3711952
+              1426912,
+              1413936,
+              1491280,
+              1490832
             ]
           },
           {
             "name": "actor_pay_usage_cost",
             "path_rvas": [
-              2000256,
-              1985280,
-              3696256,
-              3692496,
-              3711952
+              209056,
+              194080,
+              1475136,
+              1471376,
+              1490832
             ]
           },
           {
             "name": "player_control_action_sequence",
             "path_rvas": [
-              2638384,
-              2550768,
-              3696256,
-              3692496,
-              3711952
+              644800,
+              555648,
+              1475136,
+              1471376,
+              1490832
             ]
           },
           {
             "name": "area_deposit_trigger",
             "path_rvas": [
-              2297552,
-              3687136,
-              3690592,
-              3693952,
-              3711952
+              435840,
+              1466016,
+              1469472,
+              1472832,
+              1490832
             ]
           },
           {
             "name": "player_crafting",
             "path_rvas": [
-              2664672,
-              2563952,
-              3591008,
-              3695552,
-              3711952
+              671088,
+              568832,
+              1375072,
+              1474432,
+              1490832
             ]
           },
           {
             "name": "player_items_loot",
             "path_rvas": [
-              3649344,
-              3595248,
-              3695728,
-              3712400,
-              3711952
+              1434816,
+              1379312,
+              1474608,
+              1491280,
+              1490832
             ]
           }
         ],
@@ -426,8 +464,8 @@
       "signature": "0F B6 85 ?? ?? 00 00 48 8D 4C 24 40 88 44 24 30 44 8B CE 8B 85 ?? ?? 00 00 4C 8B C3",
       "function": {
         "id": "patch_owner.infinite_item_use",
-        "beginRva": 3692729,
-        "endRva": 3693862,
+        "beginRva": 1471609,
+        "endRva": 1472742,
         "targetOffset": 881
       },
       "overwriteBytes": 7,
@@ -443,7 +481,7 @@
       "modifier": {
         "id": "clear_item_use_argument",
         "name_source": "shroudforge-intervention",
-        "function_rva": 3692496,
+        "function_rva": 1471376,
         "effect": "Forward false instead of the sixth boolean argument to a downstream shared inventory helper.",
         "attributes": {},
         "scope": "all executions of this code site",
@@ -451,61 +489,61 @@
           {
             "name": "inventory_actions",
             "path_rvas": [
-              3636080,
-              3610640,
-              3692496
+              1421552,
+              1395088,
+              1471376
             ]
           },
           {
             "name": "apply_charactersetup",
             "path_rvas": [
-              2607616,
-              3696256,
-              3692496
+              614032,
+              1475136,
+              1471376
             ]
           },
           {
             "name": "swap_equipment_set_actions",
             "path_rvas": [
-              3195136,
-              3696256,
-              3692496
+              1062928,
+              1475136,
+              1471376
             ]
           },
           {
             "name": "actor_pay_usage_cost",
             "path_rvas": [
-              2000256,
-              1985280,
-              3696256,
-              3692496
+              209056,
+              194080,
+              1475136,
+              1471376
             ]
           },
           {
             "name": "actor_spawn_entity",
             "path_rvas": [
-              2000672,
-              1990432,
-              3696256,
-              3692496
+              209472,
+              199232,
+              1475136,
+              1471376
             ]
           },
           {
             "name": "player_control_action_sequence",
             "path_rvas": [
-              2638384,
-              2550768,
-              3696256,
-              3692496
+              644800,
+              555648,
+              1475136,
+              1471376
             ]
           },
           {
             "name": "equipment_actions",
             "path_rvas": [
-              3190224,
-              3178784,
-              3696256,
-              3692496
+              1060240,
+              1051904,
+              1475136,
+              1471376
             ]
           }
         ],
@@ -519,8 +557,8 @@
       "signature": "45 89 0C 88 48 8B CB",
       "function": {
         "id": "patch_owner.no_fall_damage",
-        "beginRva": 2302926,
-        "endRva": 2303903,
+        "beginRva": 440798,
+        "endRva": 441775,
         "targetOffset": 468
       },
       "overwriteBytes": 7,
@@ -542,7 +580,7 @@
       "modifier": {
         "id": "preserve_health_on_fall",
         "name_source": "shroudforge-intervention",
-        "function_rva": 2302864,
+        "function_rva": 440736,
         "effect": "Skip the Health store in fall_damage_infliction; keep the existing recalculation call.",
         "attributes": {
           "reads": [],
@@ -573,8 +611,8 @@
       "signature": "44 8B A5 08 01 00 00 4C 8B F9",
       "function": {
         "id": "patch_owner.no_resource_cost",
-        "beginRva": 3678896,
-        "endRva": 3679006,
+        "beginRva": 1457776,
+        "endRva": 1457886,
         "targetOffset": 33
       },
       "overwriteBytes": 7,
@@ -595,7 +633,7 @@
       "modifier": {
         "id": "zero_resource_argument",
         "name_source": "shroudforge-intervention",
-        "function_rva": 3678896,
+        "function_rva": 1457776,
         "effect": "Force the sixth Windows x64 argument, a 32-bit value, to zero in a shared inventory helper.",
         "attributes": {},
         "scope": "all executions of this code site",
@@ -603,180 +641,171 @@
           {
             "name": "actor_apply_buff",
             "path_rvas": [
-              2236016,
-              3678896
+              377760,
+              1457776
             ]
           },
           {
             "name": "actor_pay_usage_cost",
             "path_rvas": [
-              2000256,
-              1985280,
-              3678896
+              209056,
+              194080,
+              1457776
             ]
           },
           {
             "name": "actor_spawn_entity",
             "path_rvas": [
-              2000672,
-              1990432,
-              3678896
+              209472,
+              199232,
+              1457776
             ]
           },
           {
             "name": "inventory_actions",
             "path_rvas": [
-              3636080,
-              3620816,
-              3678896
+              1421552,
+              1405264,
+              1457776
             ]
           },
           {
             "name": "interaction_lock",
             "path_rvas": [
-              2468656,
-              3678848,
-              3678896
+              533920,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "server_player_fishing",
             "path_rvas": [
-              3267472,
-              3272512,
-              3213088,
-              3678896
+              1123952,
+              1128352,
+              1077744,
+              1457776
             ]
           },
           {
             "name": "animal_food_consumption",
             "path_rvas": [
-              2024464,
-              2005472,
-              3678848,
-              3678896
+              232736,
+              214272,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_cooking",
             "path_rvas": [
-              2660512,
-              2568560,
-              3678848,
-              3678896
+              666928,
+              573440,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "equipment_actions",
             "path_rvas": [
-              3190224,
-              3179328,
-              3678848,
-              3678896
-            ]
-          },
-          {
-            "name": "player_ui",
-            "path_rvas": [
-              2517888,
-              3588720,
-              3678848,
-              3678896
+              1060240,
+              1052448,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_crafting",
             "path_rvas": [
-              2664672,
-              2563952,
-              3588720,
-              3678848,
-              3678896
+              671088,
+              568832,
+              1372784,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_skilltree",
             "path_rvas": [
-              2672944,
-              2590016,
-              3593072,
-              3678848,
-              3678896
+              679360,
+              594896,
+              1377136,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_building_blueprints",
             "path_rvas": [
-              2623376,
-              4106352,
-              3593072,
-              3678848,
-              3678896
+              629792,
+              1859200,
+              1377136,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_building_dismantle",
             "path_rvas": [
-              2625792,
-              4106352,
-              3593072,
-              3678848,
-              3678896
+              632208,
+              1859200,
+              1377136,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_building_place_prop",
             "path_rvas": [
-              2630528,
-              4106352,
-              3593072,
-              3678848,
-              3678896
+              636944,
+              1859200,
+              1377136,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "player_building_undo",
             "path_rvas": [
-              2633040,
-              4106352,
-              3593072,
-              3678848,
-              3678896
+              639456,
+              1859200,
+              1377136,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "handle_crafting_events",
             "path_rvas": [
-              2304912,
-              3997664,
-              3594640,
-              3593072,
-              3678848,
-              3678896
+              442784,
+              1751696,
+              1378704,
+              1377136,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "animal_behavior",
             "path_rvas": [
-              2023008,
-              2022496,
-              2038720,
-              2033600,
-              2004960,
-              3678848,
-              3678896
+              231328,
+              230816,
+              245872,
+              240752,
+              213760,
+              1457728,
+              1457776
             ]
           },
           {
             "name": "factory_station",
             "path_rvas": [
-              2892528,
-              2840672,
-              2863296,
-              2849776,
-              3593072,
-              3678848,
-              3678896
+              768048,
+              715248,
+              740272,
+              725344,
+              1377136,
+              1457728,
+              1457776
             ]
           }
         ],
@@ -790,8 +819,8 @@
       "signature": "8B 04 91 89 44 24 40",
       "function": {
         "id": "patch_owner.no_stamina_loss",
-        "beginRva": 2309284,
-        "endRva": 2317879,
+        "beginRva": 447156,
+        "endRva": 455751,
         "targetOffset": 1450
       },
       "overwriteBytes": 7,
@@ -822,7 +851,7 @@
       "modifier": {
         "id": "refill_stamina",
         "name_source": "shroudforge-intervention",
-        "function_rva": 2309216,
+        "function_rva": 447088,
         "effect": "Copy Stamina_Max to Stamina before the network attribute snapshot is written.",
         "attributes": {
           "reads": [
@@ -864,8 +893,8 @@
       "signature": "F3 0F 10 05 ?? ?? ?? ?? F2 0F 11 4C",
       "function": {
         "id": "patch_owner.unlimited_flight",
-        "beginRva": 2271259,
-        "endRva": 2289472,
+        "beginRva": 409547,
+        "endRva": 427760,
         "targetOffset": 1990
       },
       "overwriteBytes": 8,
@@ -892,7 +921,7 @@
       "modifier": {
         "id": "override_rotation_constant",
         "name_source": "shroudforge-intervention",
-        "function_rva": 2271136,
+        "function_rva": 409424,
         "effect": "Replace one actor_rotation scalar constant with -1.57f; the original variable name is unresolved.",
         "attributes": {},
         "scope": "all executions of this code site",

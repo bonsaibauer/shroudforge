@@ -42,7 +42,11 @@ function runtime.values.new(type) end
 runtime.functions = {}
 ---@class RuntimeNativeBinding
 ---@field id string native:<decimal RVA>
----@field name string unclear_<eight hexadecimal RVA digits>
+---@field name string Original engine descriptor name when unique; otherwise unclear_<hex RVA>.
+---@field name_provisional boolean False only for an original engine name.
+---@field engine_descriptors table[] Original names and raw dependency-slot offsets from the executable.
+---@field modifiers table[] Checked interventions attached to their owning native function.
+---@field operations table[] Existing checked runtime wrappers attached to the same function.
 ---@field key string Executable SHA256/name; rejects use with another executable.
 ---@field rva integer
 ---@field provisional boolean
@@ -70,11 +74,11 @@ function runtime.functions.list_native(offset, limit) end
 ---@return table? page
 ---@return string? reason
 function runtime.functions.list(offset, limit) end
----@param selector integer|string RVA, native:<decimal>, unclear_<hex>, or SHA256/unclear_<hex>.
+---@param selector integer|string Original engine name, checked operation ID, RVA, native:<decimal>, unclear_<hex>, or SHA256/name.
 ---@return RuntimeNativeBinding? binding Includes unresolved bindings and their explicit failure reason.
 ---@return string? reason
 function runtime.functions.get(selector) end
---- Alias of get(). An RVA must have unwind, code-pointer or registration evidence.
+--- Native descriptor/owned-buffer adapter only; does not attach typed world-operation wrappers.
 ---@param rva integer|string
 ---@return RuntimeNativeBinding? binding
 ---@return string? reason
@@ -87,6 +91,20 @@ function runtime.functions.get_native(rva) end
 function runtime.functions.bind(operation) end
 ---@return table<string, RuntimeFeatureStatus>
 function runtime.functions.get_operations() end
+
+---@class RuntimeFunctionModifier
+---@field id string ShroudForge intervention ID, not an original engine name.
+---@field owner RuntimeNativeBinding Exact owning function, original name when evidenced.
+---@field effect string Instruction-level effect and scope.
+---@field scope string Shared helpers affect all callers of the code site.
+---@field callers table[] Static call paths to named engine systems; not a complete dynamic call graph.
+---@field available fun():boolean Rechecks the existing capability and native byte guards.
+---@field set_enabled fun(enabled:boolean):boolean,string? Same checked backend as legacy runtime.patch.
+--- Resolve an intervention through its verified function and current KFC attribute definitions.
+---@param id string
+---@return RuntimeFunctionModifier? modifier
+---@return string? reason
+function runtime.functions.bind_modifier(id) end
 
 --- Known features: `game.assets.write`, `export`, `runtime.lifecycle`, ECS operations,
 --- and build-verified `runtime.world.*` operations.
@@ -142,6 +160,71 @@ function runtime.ecs.get_registry() end
 ---@return RuntimeComponentRegistration? component
 ---@return string? reason
 function runtime.ecs.get_component(selector) end
+
+---@class RuntimeAttribute
+---@field name string Original KFC debugNames entry.
+---@field hash integer Stored engine attribute ID; not a type hash or FNV(name).
+---@field root_hash integer
+---@field index integer Zero-based element index within the root's storage.
+---@field scalar_type string? KFC calculation scalar type.
+---@field components table[] Definition GUID, reflected storage scalar type, size and offsets.
+---@field structure table Original parent/child/sibling links and calculation words.
+---@field calculation_words integer[] Original program words.
+---@field calculation table Decoded AttributeOps instructions, attribute references and Push literals.
+---@field storage_writable boolean Static layout agreement, independent of current entity/permissions.
+---@field storage_reason string? Missing ownership or contradictory layout evidence.
+---@field calculation_scalar_type string Effective model scalar; unresolved paths retain the KFC declaration.
+---@field calculation_writable boolean Root program has a consistent or sign-independent scalar interpretation.
+---@field calculation_reason string? Why a root update is blocked.
+---@field write_value_domain string Scalar range restriction, including common integer range for signedness conflicts.
+---@return {version:string,count:integer,entries:RuntimeAttribute[]}? attributes
+---@return string? reason
+function runtime.ecs.get_attributes() end
+---@param selector string|integer Original attribute name or stored ID.
+---@return RuntimeAttribute? attribute
+---@return string? reason
+function runtime.ecs.get_attribute(selector) end
+---@param entity integer Entity handle from runtime.ecs.query.
+---@param selector string|integer
+---@return number? value Interpreted according to the reflected storage scalar type.
+---@return string? reason
+function runtime.ecs.read_attribute(entity, selector) end
+--- Write exactly one checked storage element on the existing ECS dispatcher.
+--- Does not execute attribute calculation programs, publish events or recalculate dependencies.
+--- Conflicting integer signedness permits only the common nonnegative range; incompatible scalar representations reject writes.
+---@param entity integer
+---@param selector string|integer
+---@param value number
+---@return boolean ok
+---@return string? reason
+function runtime.ecs.write_attribute_storage(entity, selector, value) end
+
+---Read the entire related attribute root as {root_hash, scalar_type, values={original_name=value}}.
+---@param entity integer
+---@param selector string|integer Original attribute name or stored attribute ID.
+---@return table? result
+---@return string? reason
+function runtime.ecs.read_attributes(entity, selector) end
+
+---Evaluate a detached root in native descending order. values must contain every original name in the root.
+---Returns named values and a per-program trace with before_bits/after_bits in root index order.
+---Does not write game state. Unsupported programs and non-finite values are rejected.
+---@param selector string|integer
+---@param values table<string, number>
+---@return table? result
+---@return string? reason
+function runtime.ecs.evaluate_attributes(selector, values) end
+
+---Set one attribute and recalculate its complete root. Requires an exact verified executable profile.
+---The game-thread write rejects a changed snapshot and checks the entity generation and component layout.
+---Applies locally; the engine owns replication. Does not forward client calls to the server.
+---Signedness conflicts permit only common nonnegative input values and type-independent calculations.
+---@param entity integer
+---@param selector string|integer
+---@param value number
+---@return table? result Updated values and calculation trace, or nil on failure.
+---@return string? reason
+function runtime.ecs.update_attribute(entity, selector, value) end
 
 --- Return every type that is registered as a component in the live Keen ECS.
 --- The returned Type objects expose their exact names, sizes and fields through `game.types`.

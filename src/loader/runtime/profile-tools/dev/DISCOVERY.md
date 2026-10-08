@@ -185,7 +185,7 @@ for measured client/server results and the remaining gaps.
 
 The native production reader now inventories unwind groups plus code pointers in
 loaded data sections. Lua merges in all live component callbacks and exposes every
-candidate through `runtime.functions.list/get` with `unclear_<RVA>` names and
+candidate through `runtime.functions.list/get` with original descriptor names where proven, otherwise `unclear_<RVA>`, and
 separate signature/context/effect validation. Code pointers can be internal labels.
 The bounded proof checker can provide owned-buffer adapters without making an
 unresolved native ABI callable. See [the public schema](../../../../../docs/sf/runtime-registry.md).
@@ -208,5 +208,71 @@ The differential verifier executes only the accepted straight-line copy bodies i
 its own process with owned buffers. It never writes to a game process. Generated
 full exports include all reflected types and all registrations; small indexes
 point at them without checking large generated data into source control. Current
-server index: `function-catalogs/enshrouded/server/1024233.json`. The legacy server
-compatibility profile filename `1076226.json` does not define the observed build.
+server index: `function-catalogs/enshrouded/server/1024233.json`. The server executable
+profile has also been corrected to `profiles/enshrouded/server/1024233.json`.
+
+## Original attributes and bundled mod origins
+
+The discovery runner can now include KFC attribute/knowledge resources and the
+origin audit of all eight bundled mods:
+
+```powershell
+./src/loader/runtime/profile-tools/dev/tools/enshrouded/run-runtime-discovery.ps1 `
+  -Python ./target/runtime-discovery-venv/Scripts/python.exe -InspectModOrigins
+```
+
+`-Offline -InspectModOrigins` performs the same EXE/KFC analysis without opening
+either process. An exact SHA256 profile is required to validate modifier origins;
+unrecognized builds still expose their resource and function discoveries.
+Results include `resources.json`, `mod-origins.json`, and original execution
+descriptors inside `functions.json`. These are evidence, not another production
+API catalog. Lua discovers names from the loaded image and attributes from the
+active KFC container directly.
+
+To recheck an existing full function capture without rescanning memory:
+
+```powershell
+cargo run -p shroudforge-api --example inspect_attribute_resources --offline -- $executable "$capture/resources.json"
+& $python src/loader/runtime/profile-tools/dev/tools/enshrouded/audit-mod-origins.py $executable `
+  --profile $profile --functions "$capture/functions.json" --resources "$capture/resources.json" `
+  --out "$capture/mod-origins.json"
+$env:SHROUDFORGE_TEST_EXE = $executable
+cargo test -p shroudforge-api --lib --offline installed_attributes -- --ignored --nocapture
+```
+
+The optional fourth verifier argument is the exact matching profile. The runner
+checks its SHA256 before passing it. This verifies the production reader's
+modifier-to-function joins without enabling any modifier in the game. Test
+`test_mod_origins.py` rejects the old server Flight displacement and the old
+Health addition payload. Current API semantics and remaining unresolved entries
+are in [runtime-registry.md](../../../../../docs/sf/runtime-registry.md).
+
+
+### Fresh resources and calculation semantics (2026-10-09)
+
+`inspect_attribute_resources` always extracts types freshly from the EXE; it
+never loads the installed JSON cache. Its optional `--backup` switch reads the
+matched `.kfc.bak` / `.kfc_resources.bak` pair. Run both variants per target to
+compare the 59 relevant resources, not just container timestamps.
+
+```powershell
+cargo run -p shroudforge-api --example inspect_attribute_resources --offline -- $exe target/fresh-resources.json
+cargo run -p shroudforge-api --example inspect_attribute_resources --offline -- $exe target/backup-resources.json --backup
+& $python verify-attribute-vm.py --exe $exe --resources target/fresh-resources.json --out target/vm-vectors.json
+$env:SHROUDFORGE_TEST_VM = "$PWD/target/vm-vectors.json"
+cargo test -p shroudforge-api --lib original_engine_differential --offline -- --ignored --nocapture
+```
+
+Use the script's absolute path under `tools/enshrouded` or run from that folder.
+The Python environment requires the pinned Unicorn package in
+`requirements-discovery.txt`. It emulates the original signed, unsigned and
+float interpreter code with read-only image memory, bounded steps and private
+scratch pages; it never opens a game process. Current output is 65 nonempty KFC
+programs × 32 inputs = 2,080 vectors per executable, all matching the Rust model.
+
+Shipped profiles now select `componentResolution: live-registration`; component
+captures stay in diagnostics rather than being copied into the runtime profile.
+`attributeCalculationModel` is an exact-build semantic authorization. The
+profile generator deliberately removes it; relocating a code signature does
+not establish VM equivalence in a new build. The public API and its remaining
+limits are maintained in [runtime-registry.md](../../../../../docs/sf/runtime-registry.md).

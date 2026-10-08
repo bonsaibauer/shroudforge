@@ -77,6 +77,7 @@ RemovalRequest pending_removal;
 std::mutex removal_mutex;
 thread_local bool inside_building_dispatch{};
 std::atomic<std::uintptr_t> observed_actor_world{};
+std::atomic<std::uint64_t> observed_actor_world_ms{};
 // Pin the actual editable grid world after a successful read/write, matching
 // Shroudtopia. The actor-placement hook also sees transient preview worlds.
 std::atomic<std::uintptr_t> preferred_voxel_world{};
@@ -116,7 +117,7 @@ const KfcRuntimeCompatibility::EnshroudedClient::RuntimeOperation* find_operatio
 bool valid_world_context(std::uintptr_t world) {
     const auto* profile = find_operation("runtime.world.context.active");
     std::uintptr_t store{};
-    return world && profile && profile->validation_offset &&
+    return world && profile && profile->available && profile->validation_offset &&
         read_memory(world + profile->validation_offset, &store, sizeof(store)) && store;
 }
 
@@ -124,8 +125,16 @@ bool resolve_voxel_world(std::uintptr_t& world) {
     const auto* profile = find_operation("runtime.world.context.active");
     const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
     std::uintptr_t singleton{}, context{};
-    if (!profile || !profile->available || !profile->global_rva || !profile->context_pointer_offset ||
-        !profile->world_offset) return false;
+    if (!profile || !profile->available) return false;
+    // Dedicated servers have no client singleton. Their context must come
+    // from a recently observed engine execution frame on this world.
+    if (profile->actor_context) {
+        if (GetTickCount64() - observed_actor_world_ms.load(std::memory_order_acquire) > 500) return false;
+        const auto current = observed_actor_world.load(std::memory_order_acquire);
+        if (!valid_world_context(current)) return false;
+        world = current;
+        return true;
+    }
 
     const auto preferred = preferred_voxel_world.load(std::memory_order_acquire);
     if (valid_world_context(preferred)) { world = preferred; return true; }
@@ -137,7 +146,8 @@ bool resolve_voxel_world(std::uintptr_t& world) {
     const auto actor_candidate = observed_actor_world.load(std::memory_order_acquire);
     if (valid_world_context(actor_candidate)) { world = actor_candidate; return true; }
 
-    if (read_memory(base + profile->global_rva, &singleton, sizeof(singleton)) && singleton) {
+    if (profile->global_rva && profile->context_pointer_offset && profile->world_offset &&
+        read_memory(base + profile->global_rva, &singleton, sizeof(singleton)) && singleton) {
         const auto context_slot = static_cast<std::uintptr_t>(static_cast<std::intptr_t>(singleton) + profile->context_pointer_offset);
         if (read_memory(context_slot, &context, sizeof(context)) && context) {
             const auto signed_world = static_cast<std::intptr_t>(context) + profile->world_offset;
@@ -160,6 +170,7 @@ void observe_actor_world(void* actor_frame) {
         !read_memory(service_view + layout.service_view_world, &candidate, sizeof(candidate)) ||
         !valid_world_context(candidate)) return;
     observed_actor_world.store(candidate, std::memory_order_release);
+    observed_actor_world_ms.store(GetTickCount64(), std::memory_order_release);
 }
 
 bool actor_frame_matches_active_world(void* actor_frame) {
@@ -229,7 +240,9 @@ bool native_finish(void* context, bool complete) {
     std::uint32_t event_id{};
     const auto base = image_base();
     if (!context || !profile || !profile->available || !event_rva ||
-        !read_memory(base + event_rva, &event_id, sizeof(event_id)) || !event_id) return false;
+        !read_memory(base + event_rva, &event_id, sizeof(event_id))) return false;
+    // The original client and server call sites pass this value even when it
+    // is zero. Zero is not a missing event/address sentinel.
     auto function = reinterpret_cast<NativeFinish>(base + profile->function_rva);
     __try { function(context, nullptr, event_id, complete); return true; }
     __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
@@ -609,6 +622,13 @@ bool GetGridSpec(const char* grid_id, KfcRuntimeGridSpec* spec) {
     return get_grid_spec_native(grid_id, spec);
 }
 
+void ResetContext() {
+    observed_actor_world_ms.store(0, std::memory_order_release);
+    observed_actor_world.store(0, std::memory_order_release);
+    preferred_voxel_world.store(0, std::memory_order_release);
+    observed_execution_view.store(0, std::memory_order_release);
+}
+
 bool OperationAvailable(const char* name) {
     if (name && std::strcmp(name, "runtime.world.cursor.get") == 0)
         return InterlockedCompareExchange(&cursor_mailbox.hook_ready, 0, 0) != 0;
@@ -617,8 +637,8 @@ bool OperationAvailable(const char* name) {
 }
 
 bool EntityContextReady() {
-    const auto actor_world = observed_actor_world.load(std::memory_order_acquire);
-    return actor_world && valid_world_context(actor_world) &&
+    std::uintptr_t world{};
+    return GameThreadDispatcher::EntityContextReady() && resolve_voxel_world(world) &&
         OperationAvailable("runtime.world.entity.spawn") &&
         OperationAvailable("runtime.world.entity.place") &&
         OperationAvailable("runtime.world.entity.destroy") &&
@@ -688,7 +708,7 @@ void OnBuildingDispatch(void* placement_context) {
     std::copy_n(request->bounds + 3, 3, bounds.maximum);
     auto function = reinterpret_cast<NativeDestroy>(image_base() + operation->function_rva);
     inside_building_dispatch = true;
-    bool called = safe_destroy(function, placement_context, &transform, bounds.minimum, request->tracking);
+    bool called = safe_destroy(function, placement_context, &transform, bounds.minimum, request->feedback);
     if (called) called = native_finish(placement_context, true);
     inside_building_dispatch = false;
     complete_entity_request(request, called);

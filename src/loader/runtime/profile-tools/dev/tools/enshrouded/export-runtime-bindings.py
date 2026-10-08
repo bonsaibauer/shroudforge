@@ -28,7 +28,9 @@ def export(pe, capture):
         raise ValueError('adapter verification belongs to another executable')
     verified_adapters = {entry['rva'] for entry in differential['results'] if entry['bufferEffectsMatch']} if differential else set()
     for entry in entries.values():
-        entry.update(name=f"unclear_{entry['rva']:08x}", owners=[])
+        names = {d['name'] for d in entry.get('engine_descriptors', [])}
+        entry.update(name=next(iter(names)) if len(names) == 1 else f"unclear_{entry['rva']:08x}",
+                     name_provisional=len(names) != 1, owners=[])
     callback_rvas = set()
     for row in verified['entries']:
         for callback in row['callbacks']:

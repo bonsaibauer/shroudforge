@@ -5,6 +5,7 @@
 #include <string>
 
 namespace WorldRuntime {
+void ResetContext();
 void OnPropUpdate(void* execution_view, void* actor_frame);
 void OnActorPlacement(void* execution_view, void* actor_frame);
 void OnBuildingDispatch(void* placement_context);

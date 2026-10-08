@@ -207,13 +207,18 @@ bool Load() {
         if (world_prop_update_original.size() < 5 || world_prop_update_original.size() > 32 ||
             world_actor_placement_original.size() < 5 || world_actor_placement_original.size() > 32)
             throw std::runtime_error("invalid world context hook length");
-        const auto& cursor_hook = hooks.at("world_cursor");
-        world_cursor_signature = cursor_hook.at("signature").get<std::string>();
-        world_cursor_original = cursor_hook.at("original").get<std::vector<std::uint8_t>>();
-        world_cursor_capture_offset = cursor_hook.at("captureOffset").get<std::size_t>();
-        if (world_cursor_signature.empty() || world_cursor_signature.size() > 256 ||
-            world_cursor_original.size() != 7 || world_cursor_capture_offset > 0x10000)
-            throw std::runtime_error("invalid native world cursor hook profile");
+        world_cursor_signature.clear();
+        world_cursor_original.clear();
+        world_cursor_capture_offset = 0;
+        if (hooks.contains("world_cursor")) {
+            const auto& cursor_hook = hooks.at("world_cursor");
+            world_cursor_signature = cursor_hook.at("signature").get<std::string>();
+            world_cursor_original = cursor_hook.at("original").get<std::vector<std::uint8_t>>();
+            world_cursor_capture_offset = cursor_hook.at("captureOffset").get<std::size_t>();
+            if (world_cursor_signature.empty() || world_cursor_signature.size() > 256 ||
+                world_cursor_original.size() != 7 || world_cursor_capture_offset > 0x10000)
+                throw std::runtime_error("invalid native world cursor hook profile");
+        }
         const auto& entity_context = selected.at("worldContexts").at("entityPlacement");
         auto context_offset = [&](const char* key) {
             const auto value = entity_context.at(key).get<std::size_t>();
@@ -249,11 +254,16 @@ bool Load() {
         runtime_components.clear();
         std::unordered_set<std::string> names;
         std::unordered_set<unsigned> indices;
+        const bool live_components = selected.value("componentResolution", std::string{}) == "live-registration";
+        const auto no_components = nlohmann::json::array();
         const nlohmann::json* component_entries{};
         if (selected.contains("components")) {
+            if (live_components) throw std::runtime_error("live registration profile must not duplicate component mappings");
             component_entries = &selected.at("components");
+        } else if (live_components) {
+            component_entries = &no_components;
         } else {
-            throw std::runtime_error("selected build profile has no inline ECS components");
+            throw std::runtime_error("profile must select live registration or an explicit component fallback");
         }
         if (!component_entries || !component_entries->is_array())
             throw std::runtime_error("profile component catalog is not an array");
@@ -265,8 +275,12 @@ bool Load() {
                 !names.insert(name).second || !indices.insert(index).second) throw std::runtime_error("invalid component mapping");
             if (exact) runtime_components.push_back({name, static_cast<std::uint16_t>(index), size});
         }
-        if (exact && runtime_components.empty()) throw std::runtime_error("empty component profile");
+        if (exact && !live_components && runtime_components.empty()) throw std::runtime_error("empty component profile");
         runtime_operations.clear();
+        attribute_calculation_model = exact && selected.at("image").contains("sha256")
+            ? selected.value("attributeCalculationModel", std::string{}) : std::string{};
+        if (!attribute_calculation_model.empty() && attribute_calculation_model != "attribute-command-v1")
+            throw std::runtime_error("unknown attribute calculation model");
         runtime_patches.clear();
         world_finish_event_id_rva = 0;
         const auto operations = selected.find("worldOperations");
@@ -287,21 +301,25 @@ bool Load() {
                     world_finish_event_id_rva = value.value("eventIdRva", std::uintptr_t{});
                 operation.guard_bytes = value.value("guardBytes", std::vector<std::uint8_t>{});
                 operation.abi = value.at("abi").get<std::string>();
+                operation.actor_context = operation.name == "runtime.world.context.active" && operation.abi == "actor-world-context";
                 operation.thread = value.at("thread").get<std::string>();
                 operation.context = value.at("context").get<std::string>();
+                const bool explicitly_unresolved = !value.value("validated", true);
                 if (!operation.name.starts_with("runtime.world.") ||
                     !operation_names.insert(operation.name).second ||
                     operation.abi.empty() || operation.abi.size() > 256 ||
                     operation.thread != "game" || operation.context.empty() || operation.context.size() > 256 ||
-                    (operation.function_rva == 0) == (operation.global_rva == 0) ||
+                    (!explicitly_unresolved && !operation.actor_context && (operation.function_rva == 0) == (operation.global_rva == 0)) ||
+                    (operation.actor_context && (operation.function_rva || operation.global_rva || !operation.validation_offset || operation.guard_bytes.empty())) ||
+                    (operation.function_rva != 0 && operation.global_rva != 0) ||
                     operation.guard_bytes.size() > 64)
                     throw std::runtime_error("invalid world operation profile entry: " + operation.name);
-                if (operation.name == "runtime.world.context.active" &&
+                if (!explicitly_unresolved && !operation.actor_context && operation.name == "runtime.world.context.active" &&
                     (!operation.global_rva || !operation.context_pointer_offset || !operation.world_offset))
                     throw std::runtime_error("active world context requires a validated pointer chain");
 
                 const auto selected_image_size = static_cast<std::size_t>(nt->OptionalHeader.SizeOfImage);
-                const bool target_in_image = operation.function_rva
+                const bool target_in_image = operation.actor_context ? exact : operation.function_rva
                     ? operation.function_rva < selected_image_size
                     : operation.global_rva < selected_image_size;
                 const bool guard_in_image = operation.guard_bytes.empty() ||
@@ -322,6 +340,10 @@ bool Load() {
                     !event_id_valid ? "finish-event-id-outside-image" :
                     !exact ? "build-diff-guard-verified" :
                     operation.global_rva ? "runtime-pointer-validation-required" : "verified";
+                if (explicitly_unresolved) {
+                    operation.available = false;
+                    operation.status = "unresolved:" + value.value("unresolvedReason", std::string("native ABI or context is not proven"));
+                }
                 runtime_operations.push_back(std::move(operation));
             }
         }
@@ -332,6 +354,7 @@ bool Load() {
                 const auto& value = item.value();
                 RuntimePatch patch{};
                 patch.name = item.key();
+                if (value.contains("modifier")) patch.modifier_json = value.at("modifier").dump();
                 patch.signature = value.at("signature").get<std::string>();
                 patch.kind = value.at("kind").get<std::string>();
                 const auto& function = value.at("function");
@@ -342,6 +365,15 @@ bool Load() {
                 patch.overwrite = value.at("overwriteBytes").get<std::size_t>();
                 patch.payload = value.at("payload").get<std::vector<std::uint8_t>>();
                 patch.return_rel32_offset = value.value("returnRel32Offset", std::size_t{});
+                for (const auto& entry : value.value("inlineReferences", nlohmann::json::array())) {
+                    RuntimePatch::InlineReference ref{entry.at("displacementOffset"), entry.at("nextInstructionOffset"), entry.at("dataOffset"), entry.at("dataSize")};
+                    const auto length = patch.payload.size();
+                    if (patch.kind != "detour" || ref.displacement > length || length - ref.displacement < 4 ||
+                        ref.next != ref.displacement + 4 || !ref.size || ref.data > length || ref.size > length - ref.data ||
+                        ref.data < patch.return_rel32_offset + 4)
+                        throw std::runtime_error("invalid inline payload reference: " + patch.name);
+                    patch.inline_references.push_back(ref);
+                }
                 if (!patch.name.starts_with("runtime.patch.") || !patch_names.insert(patch.name).second ||
                     patch.function_id.empty() || patch.function_id.size() > 128 ||
                     patch.function_begin_rva >= patch.function_end_rva ||

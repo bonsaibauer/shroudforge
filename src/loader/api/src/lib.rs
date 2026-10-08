@@ -23,6 +23,7 @@ mod load;
 mod log;
 mod lua;
 mod runner;
+mod runtime_resolution;
 mod util;
 
 pub const API_VERSION: &str = env!("CARGO_PKG_VERSION");

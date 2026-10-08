@@ -3654,6 +3654,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "sha2",
  "shroudforge-compatibility",
  "shroudforge-package",
  "shroudforge-parser",
