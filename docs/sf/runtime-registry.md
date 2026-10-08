@@ -5,7 +5,7 @@ registry. Client and dedicated server expose the same API shape.
 
 | Namespace | Contract |
 | --- | --- |
-| `runtime.types` | All reflected types, hashes, inheritance, fields, enums, attributes, flags and default bytes. This is the same object as `game.types`. |
+| `runtime.types` | All reflected types, inheritance, fields, enums, attributes, flags and default bytes. This is the same object as `game.types`. |
 | `runtime.values` | Decode, validate and encode owned KFC values using those layouts. |
 | `runtime.ecs` | Engine registrations, their runtime/template layouts, and checked access to entity storage. |
 | `runtime.functions` | Typed operations and build-scoped provisional bindings for all evidenced native code candidates. |
@@ -20,9 +20,7 @@ parameters, side effects and DS allocation contracts remain unresolved.
 
 ```lua
 local ty = assert(runtime.types.resolve("keen::ecs::CurrentTransform"))
-assert(runtime.types.resolve(ty.qualified_hash) == ty)
-local same = assert(runtime.types.resolve({hash = ty.qualified_hash, domain = "qualified"}))
-local collisions = runtime.types.find_by_hash(ty.internal_hash, "internal")
+assert(runtime.types.resolve(ty) == ty)
 
 for _, field in ipairs(ty.fields) do
     print(field.declaring_type.qualified_name, field.name,
@@ -30,10 +28,9 @@ for _, field in ipairs(ty.fields) do
 end
 ```
 
-Selectors accepted by type/value/ECS APIs are a qualified name, a `Type`, an
-unsigned qualified hash, or `{hash, domain}`. Domains are `qualified`, `internal`,
-`name`, and `impact`. Ambiguous hashes never select the first match. Bare
-integers always mean a qualified hash, never a pointer or component index.
+The supported selectors for type/value/ECS APIs are a qualified name or a
+`Type` returned by the current process registry. This keeps build-specific
+identity details out of mods while preserving exact type ownership checks.
 
 `runtime.types.get_all()` includes DS types. `get_all(false)` preserves the old
 non-DS enumeration. `find({prefix="keen::ecs::", attribute="server_only"})`
@@ -56,7 +53,7 @@ local component, reason = runtime.ecs.get_component("keen::ecs::ActiveNpcState")
 if not component then return end -- provider/world may still be starting
 
 -- On the examined builds: registration ActiveNpcState, storage DynamicActiveNpcState.
-print(component.index, component.qualified_hash)
+print(component.index, component.qualified_name)
 print(component.runtime_type and component.runtime_type.qualified_name)
 print(component.template_type and component.template_type.qualified_name)
 
@@ -83,7 +80,7 @@ create a mapping. Existing exact-build component profiles remain a fallback
 until an engine registry has been validated.
 
 `query`, `query_bounds`, `read`, and `write` accept the original registration name
-or hash and select its actual runtime layout. A template-only registration has
+or its returned `Type` and select its actual runtime layout. A template-only registration has
 no entity column, so it cannot be read or written through entity storage calls.
 Its configuration can be inspected through reflection and the existing KFC asset
 API; this change does not implement live template replacement or engine allocation.

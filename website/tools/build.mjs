@@ -62,7 +62,7 @@ for (const file of files) {
     const doc = line.match(/^---\s?(.*)$/);
     if (doc) {
       const value = doc[1].trim();
-      const classMatch = value.match(/^@class\s+(\S+)/);
+      const classMatch = value.match(/^@class\s+([^\s:]+)/);
       if (classMatch) currentClass = classMatch[1];
       const fieldMatch = value.match(/^@field\s+(\S+)\s+(\S+\([^)]*\)|[^\s]+)(?:\s+--\s*(.*))?/);
       if (fieldMatch && currentClass) {
@@ -143,8 +143,8 @@ function publicClassName(name) {
 }
 
 function namespaceOf(name) {
-  if (name.startsWith("game.") || /^(Type|StructField|EnumField|Attribute|Resource|Content)[:.]/.test(name)) return "game";
-  if (name.startsWith("runtime.")) return "runtime";
+  if (name.startsWith("game.") || /^(Type|ResolvedStructField|StructField|EnumField|Attribute|Resource|Content)[:.]/.test(name)) return "game";
+  if (name.startsWith("runtime.") || /^Runtime[A-Z][^.:]*[.:]/.test(name)) return "runtime";
   if (name.startsWith("shroudforge.")) return "shroudforge";
   if (name.startsWith("Buffer:") || name.startsWith("Image:")) return "shroudforge";
   return "other";

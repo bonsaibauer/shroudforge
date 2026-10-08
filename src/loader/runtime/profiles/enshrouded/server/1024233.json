@@ -182,7 +182,7 @@
       ]
     },
     "runtime.world.entity.place": {
-      "abi": "void(placementContext, transform, bounds, tracking, feedback)",
+      "abi": "void(placementContext, transform, bounds, materialFeedbackId, trackingItemId)",
       "thread": "game",
       "context": "server actor placement context",
       "validated": true,

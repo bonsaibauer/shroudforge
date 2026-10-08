@@ -59,10 +59,10 @@ Maintainer tools live under **src/loader/runtime/profile-tools/**. Start with th
 
 The [runtime discovery tools](../../src/loader/runtime/profile-tools/dev/DISCOVERY.md)
 extract all reflected types and inspect client/server code and live tables per
-executable SHA-256. Lua can look up `game.types.get_by_qualified_hash(hash)` and
-pass qualified hashes to ECS query/read/write operations. `runtime.ecs.get_catalog()`
+executable SHA-256. Lua resolves reflected types by qualified name and can pass
+those names or returned `Type` objects to ECS query/read/write operations. `runtime.ecs.get_catalog()`
 reports reflected candidates and their current mapping/access status, including
-unresolved components. Discovering a type hash does not establish a native
+unresolved components. Discovering a reflected type does not establish a native
 function's calling convention or effects.
 
 ## Where the source lives

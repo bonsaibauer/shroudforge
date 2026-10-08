@@ -13128,6 +13128,108 @@
       "source": "eml/v1/definitions/loader.lua"
     },
     {
+      "kind": "field",
+      "namespace": "game",
+      "name": "game.types.count",
+      "signature": "game.types.count: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
+      "name": "game.types.version",
+      "signature": "game.types.version: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "game",
+      "name": "game.types.resolve",
+      "signature": "game.types.resolve(selector)",
+      "params": [
+        {
+          "name": "selector",
+          "type": "TypeSelector",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "Type?",
+        "string?"
+      ],
+      "description": "Native storage descriptions, not Lua-owned or automatically writable containers. Resolve against the current process registry. Ambiguous hashes return nil and a reason.",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "game",
+      "name": "game.types.get_by_index",
+      "signature": "game.types.get_by_index(index)",
+      "params": [
+        {
+          "name": "index",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "Type?"
+      ],
+      "description": "Registry indices are zero-based and valid only within this registry/build.",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "game",
+      "name": "game.types.find_by_hash",
+      "signature": "game.types.find_by_hash(hash, domain)",
+      "params": [
+        {
+          "name": "hash",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "domain",
+          "type": "'qualified'|'internal'|'name'|'impact'?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "Type[]"
+      ],
+      "description": "Return all collisions instead of selecting an arbitrary matching type.",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "game",
+      "name": "game.types.find",
+      "signature": "game.types.find(options)",
+      "params": [
+        {
+          "name": "options",
+          "type": "{prefix:string?,attribute:string?,primitive_type:PrimitiveType?,has_ds:boolean?}?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "Type[]"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
       "kind": "function",
       "namespace": "game",
       "name": "game.types.get",
@@ -13185,12 +13287,18 @@
       "kind": "function",
       "namespace": "game",
       "name": "game.types.get_all",
-      "signature": "game.types.get_all()",
-      "params": [],
+      "signature": "game.types.get_all(include_ds)",
+      "params": [
+        {
+          "name": "include_ds",
+          "type": "boolean?",
+          "description": ""
+        }
+      ],
       "returns": [
         "Type[]"
       ],
-      "description": "",
+      "description": "Includes every reflected type by default. Pass false for the historical non-DS view.",
       "source": "eml/v1/definitions/types.lua"
     },
     {
@@ -13207,6 +13315,18 @@
       ],
       "returns": [
         "Type"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
+      "name": "Type.index",
+      "signature": "Type.index: integer",
+      "params": [],
+      "returns": [
+        "integer"
       ],
       "description": "",
       "source": "eml/v1/definitions/types.lua"
@@ -13346,11 +13466,47 @@
     {
       "kind": "field",
       "namespace": "game",
+      "name": "Type.flags_bits",
+      "signature": "Type.flags_bits: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
+      "name": "Type.has_ds",
+      "signature": "Type.has_ds: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
       "name": "Type.struct_fields",
       "signature": "Type.struct_fields: table<string,",
       "params": [],
       "returns": [
         "table<string,"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
+      "name": "Type.fields",
+      "signature": "Type.fields: ResolvedStructField[]",
+      "params": [],
+      "returns": [
+        "ResolvedStructField[]"
       ],
       "description": "",
       "source": "eml/v1/definitions/types.lua"
@@ -13382,13 +13538,43 @@
     {
       "kind": "field",
       "namespace": "game",
-      "name": "Type.default_value",
-      "signature": "Type.default_value: unknown",
+      "name": "Type.default_bytes",
+      "signature": "Type.default_bytes: string?",
       "params": [],
       "returns": [
-        "unknown"
+        "string?"
       ],
-      "description": "TODO: This needs a custom implementation and must be an ObjectValue",
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "game",
+      "name": "Type:is_a",
+      "signature": "Type:is_a(parent)",
+      "params": [
+        {
+          "name": "parent",
+          "type": "TypeSelector",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean"
+      ],
+      "description": "Checks struct/typedef inheritance; an array is not a subtype of its element.",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
+      "name": "ResolvedStructField.declaring_type",
+      "signature": "ResolvedStructField.declaring_type: Type",
+      "params": [],
+      "returns": [
+        "Type"
+      ],
+      "description": "",
       "source": "eml/v1/definitions/types.lua"
     },
     {
@@ -13466,6 +13652,18 @@
     {
       "kind": "field",
       "namespace": "game",
+      "name": "EnumField.value_hex",
+      "signature": "EnumField.value_hex: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "game",
       "name": "Attribute.name",
       "signature": "Attribute.name: string",
       "params": [],
@@ -13510,6 +13708,30 @@
       ],
       "description": "",
       "source": "eml/v1/definitions/types.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.schema_version",
+      "signature": "runtime.schema_version: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.types",
+      "signature": "runtime.types: TypeRegistry",
+      "params": [],
+      "returns": [
+        "TypeRegistry"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
       "kind": "field",
@@ -13610,6 +13832,509 @@
     {
       "kind": "function",
       "namespace": "runtime",
+      "name": "runtime.values.decode",
+      "signature": "runtime.values.decode(type, bytes)",
+      "params": [
+        {
+          "name": "type",
+          "type": "TypeSelector",
+          "description": ""
+        },
+        {
+          "name": "bytes",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "any?",
+        "string?"
+      ],
+      "description": "Decode an owned KFC byte string. This does not dereference engine pointers.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.values.encode",
+      "signature": "runtime.values.encode(type, value)",
+      "params": [
+        {
+          "name": "type",
+          "type": "TypeSelector",
+          "description": ""
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "string?",
+        "string?"
+      ],
+      "description": "Validate and serialize a Lua value using the current type layout.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.values.new",
+      "signature": "runtime.values.new(type)",
+      "params": [
+        {
+          "name": "type",
+          "type": "TypeSelector",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "any?",
+        "string?"
+      ],
+      "description": "Decode the exact reflected default. Never invent zero defaults when none are present. DS containers requiring engine allocation return nil with an explicit reason.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.id",
+      "signature": "RuntimeNativeBinding.id: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.name",
+      "signature": "RuntimeNativeBinding.name: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.name_provisional",
+      "signature": "RuntimeNativeBinding.name_provisional: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.engine_descriptors",
+      "signature": "RuntimeNativeBinding.engine_descriptors: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.modifiers",
+      "signature": "RuntimeNativeBinding.modifiers: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.operations",
+      "signature": "RuntimeNativeBinding.operations: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.key",
+      "signature": "RuntimeNativeBinding.key: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.rva",
+      "signature": "RuntimeNativeBinding.rva: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.provisional",
+      "signature": "RuntimeNativeBinding.provisional: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.callable",
+      "signature": "RuntimeNativeBinding.callable: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.native_callable",
+      "signature": "RuntimeNativeBinding.native_callable: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.execution",
+      "signature": "RuntimeNativeBinding.execution: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.owners",
+      "signature": "RuntimeNativeBinding.owners: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.signature",
+      "signature": "RuntimeNativeBinding.signature: table",
+      "params": [],
+      "returns": [
+        "table"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.validation",
+      "signature": "RuntimeNativeBinding.validation: table",
+      "params": [],
+      "returns": [
+        "table"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.buffer_transform",
+      "signature": "RuntimeNativeBinding.buffer_transform: table?",
+      "params": [],
+      "returns": [
+        "table?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.reason",
+      "signature": "RuntimeNativeBinding.reason: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNativeBinding.call",
+      "signature": "RuntimeNativeBinding.call: fun(source_bytes:string,destination_bytes:string)",
+      "params": [],
+      "returns": [
+        "fun(source_bytes:string,destination_bytes:string)"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.list_native",
+      "signature": "runtime.functions.list_native(offset, limit)",
+      "params": [
+        {
+          "name": "offset",
+          "type": "integer?",
+          "description": ""
+        },
+        {
+          "name": "limit",
+          "type": "integer?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Pages of all observed native code candidates: unwind groups, image code pointers, and live registration callbacks, including provisional/uncallable entries. Code pointers can target internal labels. Unreferenced leaf/inlined code may be absent.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.list",
+      "signature": "runtime.functions.list(offset, limit)",
+      "params": [
+        {
+          "name": "offset",
+          "type": "integer?",
+          "description": ""
+        },
+        {
+          "name": "limit",
+          "type": "integer?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Alias of list_native.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.get",
+      "signature": "runtime.functions.get(selector)",
+      "params": [
+        {
+          "name": "selector",
+          "type": "integer|string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeNativeBinding?",
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.get_native",
+      "signature": "runtime.functions.get_native(rva)",
+      "params": [
+        {
+          "name": "rva",
+          "type": "integer|string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeNativeBinding?",
+        "string?"
+      ],
+      "description": "Native descriptor/owned-buffer adapter only; does not attach typed world-operation wrappers.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.bind",
+      "signature": "runtime.functions.bind(operation)",
+      "params": [
+        {
+          "name": "operation",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "function?",
+        "string?"
+      ],
+      "description": "Return a checked operation wrapper or a proven owned-buffer adapter. Use get() to inspect incomplete bindings; bind() returns nil,reason for those.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.get_operations",
+      "signature": "runtime.functions.get_operations()",
+      "params": [],
+      "returns": [
+        "table<string,"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.id",
+      "signature": "RuntimeFunctionModifier.id: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.owner",
+      "signature": "RuntimeFunctionModifier.owner: RuntimeNativeBinding",
+      "params": [],
+      "returns": [
+        "RuntimeNativeBinding"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.effect",
+      "signature": "RuntimeFunctionModifier.effect: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.scope",
+      "signature": "RuntimeFunctionModifier.scope: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.callers",
+      "signature": "RuntimeFunctionModifier.callers: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.available",
+      "signature": "RuntimeFunctionModifier.available: fun()",
+      "params": [],
+      "returns": [
+        "fun()"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeFunctionModifier.set_enabled",
+      "signature": "RuntimeFunctionModifier.set_enabled: fun(enabled:boolean)",
+      "params": [],
+      "returns": [
+        "fun(enabled:boolean)"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.functions.bind_modifier",
+      "signature": "runtime.functions.bind_modifier(id)",
+      "params": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeFunctionModifier?",
+        "string?"
+      ],
+      "description": "Resolve an intervention through its verified function and current KFC attribute definitions.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
       "name": "runtime.has",
       "signature": "runtime.has(feature)",
       "params": [
@@ -13686,6 +14411,560 @@
     {
       "kind": "function",
       "namespace": "runtime",
+      "name": "runtime.get_operations",
+      "signature": "runtime.get_operations()",
+      "params": [],
+      "returns": [
+        "table<string,"
+      ],
+      "description": "Enumerate declared runtime operations and current phase, mod and provider availability. Unknown native candidates in development catalogs are not executable operations.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.index",
+      "signature": "RuntimeComponentRegistration.index: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.qualified_name",
+      "signature": "RuntimeComponentRegistration.qualified_name: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.runtime_type",
+      "signature": "RuntimeComponentRegistration.runtime_type: Type?",
+      "params": [],
+      "returns": [
+        "Type?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.template_type",
+      "signature": "RuntimeComponentRegistration.template_type: Type?",
+      "params": [],
+      "returns": [
+        "Type?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.runtime_size",
+      "signature": "RuntimeComponentRegistration.runtime_size: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.storage",
+      "signature": "RuntimeComponentRegistration.storage: 'entity'|'template-only'",
+      "params": [],
+      "returns": [
+        "'entity'|'template-only'"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.flags_bits",
+      "signature": "RuntimeComponentRegistration.flags_bits: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.storage_flags_bits",
+      "signature": "RuntimeComponentRegistration.storage_flags_bits: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.callbacks",
+      "signature": "RuntimeComponentRegistration.callbacks: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.read_available",
+      "signature": "RuntimeComponentRegistration.read_available: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.write_available",
+      "signature": "RuntimeComponentRegistration.write_available: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.partial_value",
+      "signature": "RuntimeComponentRegistration.partial_value: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.value_reason",
+      "signature": "RuntimeComponentRegistration.value_reason: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeComponentRegistration.reason",
+      "signature": "RuntimeComponentRegistration.reason: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.get_registry",
+      "signature": "runtime.ecs.get_registry()",
+      "params": [],
+      "returns": [
+        "{schema_version:integer,layout_version:integer,source:string,count:integer,runtime_type_count:integer,entries:RuntimeComponentRegistration[]}?",
+        "string?"
+      ],
+      "description": "All registrations from the validated live engine registry, including template-only entries. Does not require a per-build component hash/index profile. Engine hook/layout compatibility is still required.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.get_component",
+      "signature": "runtime.ecs.get_component(selector)",
+      "params": [
+        {
+          "name": "selector",
+          "type": "TypeSelector",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeComponentRegistration?",
+        "string?"
+      ],
+      "description": "Resolve an original registration or its runtime storage type by qualified name or Type.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.name",
+      "signature": "RuntimeAttribute.name: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.hash",
+      "signature": "RuntimeAttribute.hash: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.root_hash",
+      "signature": "RuntimeAttribute.root_hash: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.index",
+      "signature": "RuntimeAttribute.index: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.scalar_type",
+      "signature": "RuntimeAttribute.scalar_type: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.components",
+      "signature": "RuntimeAttribute.components: table[]",
+      "params": [],
+      "returns": [
+        "table[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.structure",
+      "signature": "RuntimeAttribute.structure: table",
+      "params": [],
+      "returns": [
+        "table"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.calculation_words",
+      "signature": "RuntimeAttribute.calculation_words: integer[]",
+      "params": [],
+      "returns": [
+        "integer[]"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.calculation",
+      "signature": "RuntimeAttribute.calculation: table",
+      "params": [],
+      "returns": [
+        "table"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.storage_writable",
+      "signature": "RuntimeAttribute.storage_writable: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.storage_reason",
+      "signature": "RuntimeAttribute.storage_reason: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.calculation_scalar_type",
+      "signature": "RuntimeAttribute.calculation_scalar_type: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.calculation_writable",
+      "signature": "RuntimeAttribute.calculation_writable: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.calculation_reason",
+      "signature": "RuntimeAttribute.calculation_reason: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeAttribute.write_value_domain",
+      "signature": "RuntimeAttribute.write_value_domain: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.get_attributes",
+      "signature": "runtime.ecs.get_attributes()",
+      "params": [],
+      "returns": [
+        "{version:string,count:integer,entries:RuntimeAttribute[]}?",
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.get_attribute",
+      "signature": "runtime.ecs.get_attribute(selector)",
+      "params": [
+        {
+          "name": "selector",
+          "type": "string|integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeAttribute?",
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.read_attribute",
+      "signature": "runtime.ecs.read_attribute(entity, selector)",
+      "params": [
+        {
+          "name": "entity",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "selector",
+          "type": "string|integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "number?",
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.write_attribute_storage",
+      "signature": "runtime.ecs.write_attribute_storage(entity, selector, value)",
+      "params": [
+        {
+          "name": "entity",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "selector",
+          "type": "string|integer",
+          "description": ""
+        },
+        {
+          "name": "value",
+          "type": "number",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean",
+        "string?"
+      ],
+      "description": "Write exactly one checked storage element on the existing ECS dispatcher. Does not execute attribute calculation programs, publish events or recalculate dependencies. Conflicting integer signedness permits only the common nonnegative range; incompatible scalar representations reject writes.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.read_attributes",
+      "signature": "runtime.ecs.read_attributes(entity, selector)",
+      "params": [
+        {
+          "name": "entity",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "selector",
+          "type": "string|integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Read the entire related attribute root as {root_hash, scalar_type, values={original_name=value}}.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.evaluate_attributes",
+      "signature": "runtime.ecs.evaluate_attributes(selector, values)",
+      "params": [
+        {
+          "name": "selector",
+          "type": "string|integer",
+          "description": ""
+        },
+        {
+          "name": "values",
+          "type": "table<string,",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Evaluate a detached root in native descending order. values must contain every original name in the root. Returns named values and a per-program trace with before_bits/after_bits in root index order. Does not write game state. Unsupported programs and non-finite values are rejected.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.update_attribute",
+      "signature": "runtime.ecs.update_attribute(entity, selector, value)",
+      "params": [
+        {
+          "name": "entity",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "selector",
+          "type": "string|integer",
+          "description": ""
+        },
+        {
+          "name": "value",
+          "type": "number",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "table?",
+        "string?"
+      ],
+      "description": "Set one attribute and recalculate its complete root. Requires an exact verified executable profile. The game-thread write rejects a changed snapshot and checks the entity generation and component layout. Applies locally; the engine owns replication. Does not forward client calls to the server. Signedness conflicts permit only common nonnegative input values and type-independent calculations.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
       "name": "runtime.ecs.get_components",
       "signature": "runtime.ecs.get_components()",
       "params": [],
@@ -13694,6 +14973,18 @@
         "string?"
       ],
       "description": "Return every type that is registered as a component in the live Keen ECS. The returned Type objects expose their exact names, sizes and fields through `game.types`. Reflection-only ECS helpers, enums and resources are intentionally not included.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.get_catalog",
+      "signature": "runtime.ecs.get_catalog()",
+      "params": [],
+      "returns": [
+        "table"
+      ],
+      "description": "List every reflected component candidate, including unresolved types. Availability also depends on the current phase, mod capabilities and provider. A resolved entry does not imply that a matching entity exists or every field is writable.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -13766,6 +15057,30 @@
         "string?"
       ],
       "description": "Read one live ECS component by an opaque entity handle and real `keen::ecs::*` type. Returns `nil, reason` until the current game build has a verified ECS provider.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.ecs.read_bytes",
+      "signature": "runtime.ecs.read_bytes(entity, component)",
+      "params": [
+        {
+          "name": "entity",
+          "type": "integer",
+          "description": ""
+        },
+        {
+          "name": "component",
+          "type": "TypeSelector",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "string?",
+        "string?"
+      ],
+      "description": "Read an owned snapshot of the complete entity storage bytes, including opaque DS descriptors. Does not follow pointers. The same runtime.ecs.read capability and entity checks apply.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {

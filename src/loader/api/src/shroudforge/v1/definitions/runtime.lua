@@ -135,7 +135,6 @@ runtime.ecs = {}
 ---@class RuntimeComponentRegistration
 ---@field index integer Engine registration index, distinct from Type.index.
 ---@field qualified_name string Original engine registration name.
----@field qualified_hash integer Hash of the original registration name.
 ---@field runtime_type Type? Actual entity storage layout, possibly Dynamic*.
 ---@field template_type Type? Configuration layout, separate from entity bytes.
 ---@field runtime_size integer Zero for template-only registrations.
@@ -155,7 +154,7 @@ runtime.ecs = {}
 ---@return string? reason
 function runtime.ecs.get_registry() end
 
---- Resolve an original registration or its runtime storage type by name, hash or Type.
+--- Resolve an original registration or its runtime storage type by qualified name or Type.
 ---@param selector TypeSelector
 ---@return RuntimeComponentRegistration? component
 ---@return string? reason
@@ -236,12 +235,12 @@ function runtime.ecs.get_components() end
 --- List every reflected component candidate, including unresolved types.
 --- Availability also depends on the current phase, mod capabilities and provider.
 --- A resolved entry does not imply that a matching entity exists or every field is writable.
---- @return table catalog {version, entries={type, qualified_name, qualified_hash, size, resolved, read_available, write_available, reason, read_reason, write_reason}[]}
+--- @return table catalog {version, entries={type, qualified_name, size, resolved, read_available, write_available, reason, read_reason, write_reason}[]}
 function runtime.ecs.get_catalog() end
 
 --- Query live entities by real `keen::ecs::*` component type names or Type objects.
 --- Returns `nil, reason` until the current game build has a verified ECS provider.
---- @param ... string|Type|integer Qualified type hash, qualified name, or Type.
+--- @param ... string|Type Qualified type name or Type from the current registry.
 --- @return integer[]? entities Opaque, generation-checked ShroudForge entity handles.
 --- @return string? reason
 function runtime.ecs.query(...) end
@@ -259,7 +258,7 @@ function runtime.ecs.resolve(keen_entity_id) end
 --- Read one live ECS component by an opaque entity handle and real `keen::ecs::*` type.
 --- Returns `nil, reason` until the current game build has a verified ECS provider.
 --- @param entity integer
---- @param component string|Type|integer Qualified type hash, qualified name, or Type.
+--- @param component string|Type Qualified type name or Type from the current registry.
 --- @return table? value
 --- @return string? reason
 function runtime.ecs.read(entity, component) end
@@ -276,7 +275,7 @@ function runtime.ecs.read_bytes(entity, component) end
 --- by readback and restored on failure.
 --- Returns `false, reason` until the current game build has a verified ECS provider.
 --- @param entity integer
---- @param component string|Type|integer Qualified type hash, qualified name, or Type.
+--- @param component string|Type Qualified type name or Type from the current registry.
 --- @param value table
 --- @return boolean ok
 --- @return string? reason

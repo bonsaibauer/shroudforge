@@ -199,13 +199,14 @@ bool safe_write(NativeWrite function, void* world, CellSpan* span,
 
 using NativeCreate = std::uint32_t (__fastcall*)(void*, const std::uint64_t*, const float*, const float*,
                                                   std::uint32_t, std::uint32_t, const std::uint64_t*);
-using NativePlace = void (__fastcall*)(void*, const EngineTransform*, const float*, std::uint32_t, std::uint32_t);
+using NativePlace = void (__fastcall*)(void*, const EngineTransform*, const float*,
+                                       std::uint32_t material_feedback_id, std::uint32_t tracking_item_id);
 using NativeDestroy = void (__fastcall*)(void*, const EngineTransform*, const float*, std::uint32_t);
 using NativeFinish = void (__fastcall*)(void*, void*, std::uint32_t, bool);
 
 bool safe_destroy(NativeDestroy function, void* context, const EngineTransform* transform,
-                  const float* bounds, std::uint32_t tracking) {
-    __try { function(context, transform, bounds, tracking); return true; }
+                  const float* bounds, std::uint32_t feedback) {
+    __try { function(context, transform, bounds, feedback); return true; }
     __except(EXCEPTION_EXECUTE_HANDLER) { return false; }
 }
 
@@ -321,7 +322,10 @@ void execute_entity_request(const std::shared_ptr<EntityRequest>& request, void*
         std::copy_n(request->bounds + 3, 3, bounds.maximum);
         if (request->kind == EntityRequest::Kind::Place) {
             auto function = reinterpret_cast<NativePlace>(base + place_profile->function_rva);
-            __try { function(reinterpret_cast<void*>(native_address), &transform, bounds.minimum, request->tracking, request->feedback); }
+            // Original code writes argument 4 to BuildingPlaceEvent.material
+            // (MaterialFeedbackId), argument 5 to trackingItemId (ItemId).
+            // The public Lua/C ABI keeps its existing tracking, feedback order.
+            __try { function(reinterpret_cast<void*>(native_address), &transform, bounds.minimum, request->feedback, request->tracking); }
             __except(EXCEPTION_EXECUTE_HANDLER) { called = false; }
         } else {
             auto function = reinterpret_cast<NativeDestroy>(base + place_profile->function_rva);

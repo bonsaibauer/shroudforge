@@ -152,7 +152,7 @@
       "thread": "game"
     },
     {
-      "callingConvention": "void(placementContext, transform, bounds, tracking, feedback)",
+      "callingConvention": "void(placementContext, transform, bounds, materialFeedbackId, trackingItemId)",
       "evidence": [
         "source profile guard bytes and RVA"
       ],

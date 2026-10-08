@@ -172,7 +172,7 @@
       ]
     },
     "runtime.world.entity.place": {
-      "abi": "void(placementContext, transform, bounds, tracking, feedback)",
+      "abi": "void(placementContext, transform, bounds, materialFeedbackId, trackingItemId)",
       "thread": "game",
       "context": "live actor placement context",
       "functionRva": 4111216,

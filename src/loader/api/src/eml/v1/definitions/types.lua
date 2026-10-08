@@ -13,7 +13,7 @@ local TypeRegistry = {}
 ---@class NativeDsOptional<T>
 ---@class NativeDsVariant<T>
 
----@alias TypeSelector string|integer|Type|{hash:integer,domain:'qualified'|'internal'|'name'|'impact'}
+---@alias TypeSelector string|Type
 
 --- Resolve against the current process registry. Ambiguous hashes return nil and a reason.
 ---@param selector TypeSelector
@@ -48,18 +48,6 @@ function TypeRegistry.get_by_qualified_name(qualified_name) end
 --- @return Type
 function TypeRegistry.get_by_impact_name(impact_name) end
 
---- Resolve an unsigned 32-bit qualified hash in the current executable's registry.
---- @param hash integer
---- @return Type? type
---- @return string? reason Missing and ambiguous hashes return nil with a reason.
-function TypeRegistry.get_by_qualified_hash(hash) end
-
---- Internal hashes describe layouts and can be shared by several types.
---- @param hash integer
---- @return Type? type
---- @return string? reason Ambiguous hashes require a qualified name/hash.
-function TypeRegistry.get_by_internal_hash(hash) end
-
 --- Includes every reflected type by default. Pass false for the historical non-DS view.
 --- @param include_ds boolean? Default true.
 --- @return Type[]
@@ -75,10 +63,6 @@ function TypeRegistry.of(value) end
 --- @field name string
 --- @field impact_name string
 --- @field qualified_name string
---- @field qualified_hash integer
---- @field internal_hash integer
---- @field name_hash integer
---- @field impact_hash integer
 --- @field namespace string[]
 --- @field inner_type Type?
 --- @field size u32
