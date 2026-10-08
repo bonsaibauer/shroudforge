@@ -2,6 +2,11 @@
 
 The native runtime is a built-in part of ShroudForge. It provides a small set of approved operations for mods while Enshrouded is running. Players do not install it separately.
 
+The [registry API](runtime-registry.md) exposes the complete reflected type
+registry, owned value codecs, engine component registrations and native procedure
+metadata. Component identity can now be resolved directly from the live engine
+registry; typed native operations still require a verified calling contract.
+
 This guide brings the runtime, its shared interface, and game profile workflow together. It is for contributors working on the loader.
 
 ## How the pieces fit together
@@ -51,6 +56,14 @@ Only reviewed information needed by approved operations belongs in a release pro
 Before approval, check the game and build identity, where the information came from, the component map, and the required observations from the live game. The launcher installs profile files under `shroudforge/runtime/profiles/`, selects the matching profile automatically, and lets the player choose another profile. A different detected build produces a warning that problems may occur; verified signatures and live layout checks still decide which operations work.
 
 Maintainer tools live under **src/loader/runtime/profile-tools/**. Start with the [profile development guide](../../src/loader/runtime/profile-tools/dev/README.md).
+
+The [runtime discovery tools](../../src/loader/runtime/profile-tools/dev/DISCOVERY.md)
+extract all reflected types and inspect client/server code and live tables per
+executable SHA-256. Lua can look up `game.types.get_by_qualified_hash(hash)` and
+pass qualified hashes to ECS query/read/write operations. `runtime.ecs.get_catalog()`
+reports reflected candidates and their current mapping/access status, including
+unresolved components. Discovering a type hash does not establish a native
+function's calling convention or effects.
 
 ## Where the source lives
 

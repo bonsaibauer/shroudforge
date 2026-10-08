@@ -108,6 +108,12 @@ target_include_directories(kfc-runtime-audit-live-component-registry PRIVATE
 set_property(TARGET kfc-runtime-audit-live-component-registry PROPERTY MSVC_RUNTIME_LIBRARY
     "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+add_executable(kfc-runtime-verify-component-registry EXCLUDE_FROM_ALL
+    ../profile-tools/dev/tools/enshrouded/native/verify-component-registry.cpp)
+target_compile_features(kfc-runtime-verify-component-registry PRIVATE cxx_std_20)
+target_include_directories(kfc-runtime-verify-component-registry PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include")
+
 foreach(tool_target
     kfc-runtime-dev
     kfc-runtime-capture-ecs
@@ -115,7 +121,8 @@ foreach(tool_target
     kfc-runtime-live-entity-manager-sample
     kfc-runtime-live-entity-managers
     kfc-runtime-live-type-references
-    kfc-runtime-audit-live-component-registry)
+    kfc-runtime-audit-live-component-registry
+    kfc-runtime-verify-component-registry)
     foreach(configuration DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
         set_target_properties(${tool_target} PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY_${configuration} "${CMAKE_BINARY_DIR}/tools")

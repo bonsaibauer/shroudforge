@@ -13,7 +13,7 @@ pub fn generate(type_registry: &TypeRegistry) -> String {
 
     for r#type in type_registry.iter() {
         if r#type.flags.contains(TypeFlags::HAS_DS) {
-            continue;
+            output.push_str("--- Native DS layout: metadata is available; allocation/ownership is engine-managed.\n");
         }
 
         match r#type.primitive_type {
@@ -116,10 +116,20 @@ fn append_type_name(output: &mut String, r#type: &TypeMetadata, type_registry: &
             output.push_str(&r#type.field_count.to_string());
             output.push('>');
         }
-        PrimitiveType::DsArray => unimplemented!(),
-        PrimitiveType::DsString => unimplemented!(),
-        PrimitiveType::DsOptional => unimplemented!(),
-        PrimitiveType::DsVariant => unimplemented!(),
+        PrimitiveType::DsString => output.push_str("NativeDsString"),
+        PrimitiveType::DsArray | PrimitiveType::DsOptional | PrimitiveType::DsVariant => {
+            output.push_str(match r#type.primitive_type {
+                PrimitiveType::DsArray => "NativeDsArray<",
+                PrimitiveType::DsOptional => "NativeDsOptional<",
+                _ => "NativeDsVariant<",
+            });
+            if let Some(inner) = type_registry.get_inner_type(r#type) {
+                append_type_name(output, inner, type_registry);
+            } else {
+                output.push_str("unknown");
+            }
+            output.push('>');
+        }
         PrimitiveType::BlobArray => {
             output.push_str("Array<");
             let inner_type = type_registry

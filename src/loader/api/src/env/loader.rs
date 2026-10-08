@@ -9,14 +9,14 @@ use crate::{
     RuntimePhase,
     alias::MappedValue,
     env::{
-        AppFeatures, AppState, Type,
+        AppFeatures, AppState,
         game::value::{
             convert_lua_to_value, convert_value_to_lua, mapped_source_bytes,
             validate_and_clone_lua_value,
         },
         util::add_function_with_mod,
     },
-    lua::{Either, FunctionArgs, LuaError, LuaValue},
+    lua::{FunctionArgs, LuaError, LuaValue},
 };
 
 fn is_component_type(registry: &TypeRegistry, metadata: &TypeMetadata) -> bool {
@@ -46,7 +46,7 @@ fn is_runtime_component_type(registry: &TypeRegistry, metadata: &TypeMetadata) -
     }
     // Dynamic ECS columns are serialized as flat runtime structs instead of
     // deriving from Component. The provider still requires a verified
-    // build-profile mapping or a unique live archetype stride before resolving one.
+    // build-profile mapping or a validated live registration before resolving one.
     metadata.qualified_name.starts_with("keen::ecs::Dynamic")
         || is_component_type(registry, metadata)
 }
@@ -78,7 +78,9 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
             .count();
         let contract: Vec<_> = registry
             .iter()
-            .filter(|metadata| metadata.size > 0 && is_runtime_component_type(registry, metadata))
+            .filter(|metadata| {
+                metadata.size > 0 && metadata.qualified_name.starts_with("keen::ecs::")
+            })
             .map(|metadata| (metadata.qualified_name.clone(), metadata.size))
             .collect();
         tracing::debug!(
@@ -106,18 +108,86 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     }
     let table = lua.create_table()?;
     table.raw_set("phase", app_state.phase().as_str())?;
+    table.raw_set("schema_version", 1)?;
     table.raw_set("is_client", app_state.is_client())?;
     table.raw_set("is_server", app_state.is_server())?;
     add_function_with_mod(lua, &table, "has", &r#mod, lua_has)?;
     add_function_with_mod(lua, &table, "require", &r#mod, lua_require)?;
     add_function_with_mod(lua, &table, "status", &r#mod, lua_status)?;
+    add_function_with_mod(lua, &table, "get_operations", &r#mod, lua_get_operations)?;
     add_function_with_mod(lua, &table, "report_effect", &r#mod, lua_report_effect)?;
 
     table.raw_set("ecs", create_ecs(lua, &r#mod)?)?;
     table.raw_set("world", create_world(lua, &r#mod)?)?;
     table.raw_set("patch", create_patch(lua, &r#mod)?)?;
+    table.raw_set("functions", create_functions(lua, &table, &r#mod)?)?;
 
     Ok(table)
+}
+
+fn create_functions(
+    lua: &mlua::Lua,
+    runtime: &mlua::Table,
+    r#mod: &Mod,
+) -> mlua::Result<mlua::Table> {
+    let result = lua.create_table()?;
+    add_function_with_mod(lua, &result, "get_operations", r#mod, lua_get_operations)?;
+    crate::env::runtime_functions::attach(lua, &result)?;
+    // Capture existing checked wrappers. No second calling convention/dispatcher.
+    let bindings = lua.create_table()?;
+    let catalog: serde_json::Value =
+        serde_json::from_str(include_str!("../shroudforge/v1/runtime-operations.json"))
+            .map_err(LuaError::external)?;
+    for id in catalog["runtimeOperations"].as_array().unwrap() {
+        let id = id.as_str().unwrap();
+        let path = match id {
+            "runtime.world.context.active" => "runtime.world.context_active",
+            "runtime.world.voxel.grid_spec" => "runtime.world.voxel.get_grid_spec",
+            "runtime.lifecycle" | "runtime.gameplay.patch" => continue,
+            id => id,
+        };
+        let mut value = LuaValue::Table(runtime.clone());
+        for part in path.split('.').skip(1) {
+            value = match value {
+                LuaValue::Table(table) => table.raw_get::<LuaValue>(part)?,
+                _ => LuaValue::Nil,
+            };
+        }
+        if matches!(value, LuaValue::Function(_)) {
+            bindings.raw_set(id, value)?;
+        }
+    }
+    let native_get = result.raw_get::<mlua::Function>("get")?;
+    let r#mod = r#mod.clone();
+    result.raw_set(
+        "bind",
+        lua.create_function(move |lua, id: String| {
+            let state = lua.app_data_ref::<AppState>().unwrap();
+            let function = bindings.raw_get::<Option<mlua::Function>>(id.as_str())?;
+            if function.is_none() {
+                let (descriptor, reason): (Option<mlua::Table>, Option<String>) =
+                    native_get.call(id.clone())?;
+                let Some(descriptor) = descriptor else {
+                    return Ok((None, reason));
+                };
+                if descriptor.raw_get::<bool>("callable")? {
+                    return Ok((Some(descriptor.raw_get::<mlua::Function>("call")?), None));
+                }
+                return Ok((None, descriptor.raw_get::<Option<String>>("reason")?));
+            }
+            if let Some(reason) = runtime_denial_reason(&state, &r#mod, &id) {
+                return Ok((None, Some(reason)));
+            }
+            if !available(&state, &r#mod, &id) {
+                return Ok((
+                    None,
+                    Some(format!("operation is currently unavailable: {id}")),
+                ));
+            }
+            Ok((function, None))
+        })?,
+    )?;
+    Ok(result)
 }
 
 fn has_capability(r#mod: &Mod, capability: Capability) -> bool {
@@ -215,8 +285,41 @@ fn lua_has(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<boo
 }
 
 fn lua_status(lua: &mlua::Lua, args: FunctionArgs, r#mod: &Mod) -> mlua::Result<mlua::Table> {
-    let state = lua.app_data_ref::<AppState>().unwrap();
     let feature = args.get::<String>(0)?;
+    operation_status(lua, &feature, r#mod)
+}
+
+fn lua_get_operations(
+    lua: &mlua::Lua,
+    _args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<mlua::Table> {
+    let catalog: serde_json::Value =
+        serde_json::from_str(include_str!("../shroudforge/v1/runtime-operations.json"))
+            .map_err(LuaError::external)?;
+    let operations: Vec<String> =
+        serde_json::from_value(catalog["runtimeOperations"].clone()).map_err(LuaError::external)?;
+    let result = lua.create_table()?;
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    for name in operations {
+        let status = operation_status(lua, &name, r#mod)?;
+        // Include phase/provider readiness from has(), plus lifecycle access.
+        // status() alone also describes operations supported in a later phase.
+        let denial = runtime_denial_reason(&state, r#mod, &name);
+        let ready = available(&state, r#mod, &name) && denial.is_none();
+        status.raw_set("available", ready)?;
+        if let Some(reason) = denial {
+            status.raw_set("reason", reason)?;
+        } else if !ready && status.raw_get::<Option<String>>("reason")?.is_none() {
+            status.raw_set("reason", "runtime provider is not ready for this operation")?;
+        }
+        result.raw_set(name, status)?;
+    }
+    Ok(result)
+}
+
+fn operation_status(lua: &mlua::Lua, feature: &str, r#mod: &Mod) -> mlua::Result<mlua::Table> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
     if !has_capability_for_feature(r#mod, &feature) {
         return availability_to_lua(
             lua,
@@ -332,10 +435,14 @@ fn create_ecs(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
     let table = lua.create_table()?;
 
     add_function_with_mod(lua, &table, "get_components", r#mod, lua_ecs_get_components)?;
+    add_function_with_mod(lua, &table, "get_catalog", r#mod, lua_ecs_get_catalog)?;
+    add_function_with_mod(lua, &table, "get_registry", r#mod, lua_ecs_get_registry)?;
+    add_function_with_mod(lua, &table, "get_component", r#mod, lua_ecs_get_component)?;
     add_function_with_mod(lua, &table, "query", r#mod, lua_ecs_query)?;
     add_function_with_mod(lua, &table, "query_bounds", r#mod, lua_ecs_query_bounds)?;
     add_function_with_mod(lua, &table, "resolve", r#mod, lua_ecs_resolve)?;
     add_function_with_mod(lua, &table, "read", r#mod, lua_ecs_read)?;
+    add_function_with_mod(lua, &table, "read_bytes", r#mod, lua_ecs_read_bytes)?;
     add_function_with_mod(lua, &table, "write", r#mod, lua_ecs_write)?;
 
     Ok(table)
@@ -612,7 +719,11 @@ fn lua_world_entity_register_prop_recipes(
             ));
         }
         let feedback = item.raw_get::<u32>("feedback")?;
-        recipes.push(runtime_provider::PropRecipe { item_id, bounds, feedback });
+        recipes.push(runtime_provider::PropRecipe {
+            item_id,
+            bounds,
+            feedback,
+        });
     }
     match runtime_provider::world_entity_register_prop_recipes(&recipes) {
         Ok(()) => Ok((LuaValue::Boolean(true), None)),
@@ -1194,6 +1305,208 @@ fn lua_ecs_get_components(
     Ok((LuaValue::Table(result), None))
 }
 
+/// Expose unresolved reflected candidates as well as the provider's usable mappings.
+/// Being reflected alone never makes a component readable or writable.
+fn lua_ecs_get_catalog(
+    lua: &mlua::Lua,
+    _args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<mlua::Table> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let registry = state.type_registry();
+    let result = lua.create_table()?;
+    result.raw_set("version", registry.version.clone())?;
+    let entries = lua.create_table()?;
+    let ready = runtime_provider::ready();
+    let can_write = runtime_provider::can_write();
+    let read_denial = runtime_denial_reason(&state, r#mod, "runtime.ecs.read");
+    let write_denial = runtime_denial_reason(&state, r#mod, "runtime.ecs.write");
+    for metadata in registry
+        .iter()
+        .filter(|ty| is_runtime_component_type(registry, ty))
+    {
+        let entry = lua.create_table()?;
+        entry.raw_set("type", state.get_type(lua, metadata.index)?)?;
+        entry.raw_set("qualified_name", metadata.qualified_name.clone())?;
+        entry.raw_set("qualified_hash", metadata.qualified_hash)?;
+        entry.raw_set("size", metadata.size)?;
+        let resolved = ready
+            && runtime_provider::resolve(&metadata.qualified_name)
+                .is_some_and(|component| component.size == metadata.size);
+        entry.raw_set("resolved", resolved)?;
+        let codec_reason =
+            crate::env::runtime_values::validate_owned_type(registry, metadata.index).err();
+        entry.raw_set("partial_value", codec_reason.is_some())?;
+        entry.raw_set("value_reason", codec_reason.clone())?;
+        entry.raw_set(
+            "read_available",
+            resolved
+                && read_denial.is_none()
+                && matches!(
+                    state.api().runtime("runtime.ecs.read"),
+                    Availability::Available
+                ),
+        )?;
+        entry.raw_set(
+            "write_available",
+            resolved
+                && codec_reason.is_none()
+                && can_write
+                && write_denial.is_none()
+                && matches!(
+                    state.api().runtime("runtime.ecs.write"),
+                    Availability::Available
+                ),
+        )?;
+        entry.raw_set("read_reason", read_denial.clone())?;
+        entry.raw_set(
+            "write_reason",
+            write_denial.clone().or(codec_reason).or_else(|| {
+                (!can_write).then(|| "runtime write dispatcher is not ready".to_owned())
+            }),
+        )?;
+        entry.raw_set(
+            "reason",
+            if !ready {
+                Some("KFC Runtime is not ready")
+            } else if !resolved {
+                Some("no runtime mapping with matching reflected size")
+            } else {
+                None
+            },
+        )?;
+        entries.push(entry)?;
+    }
+    result.raw_set("entries", entries)?;
+    Ok(result)
+}
+
+fn ecs_registry_entry(
+    lua: &mlua::Lua,
+    row: &serde_json::Value,
+    r#mod: &Mod,
+) -> mlua::Result<mlua::Table> {
+    let LuaValue::Table(entry) = crate::env::registry::json_to_lua(lua, row)? else {
+        unreachable!()
+    };
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let mut codec_reason = None;
+    for key in ["runtime_type", "template_type"] {
+        if let Some(name) = row[key]["qualified_name"].as_str() {
+            let ty = state
+                .type_registry()
+                .get_by_name(kfc::reflection::LookupKey::Qualified(name))
+                .filter(|ty| {
+                    ty.qualified_name == name && row[key]["size"].as_u64() == Some(ty.size as u64)
+                })
+                .ok_or_else(|| {
+                    LuaError::generic("engine component registry and parser disagree")
+                })?;
+            entry.raw_set(key, state.get_type(lua, ty.index)?)?;
+            if key == "runtime_type" {
+                codec_reason = crate::env::runtime_values::validate_owned_type(
+                    state.type_registry(),
+                    ty.index,
+                )
+                .err();
+            }
+        }
+    }
+    let has_storage = !row["runtime_type"].is_null();
+    for (key, operation) in [
+        ("read_available", "runtime.ecs.read"),
+        ("write_available", "runtime.ecs.write"),
+    ] {
+        entry.raw_set(
+            key,
+            has_storage
+                && (operation != "runtime.ecs.write" || codec_reason.is_none())
+                && available(&state, r#mod, operation)
+                && runtime_denial_reason(&state, r#mod, operation).is_none(),
+        )?;
+    }
+    entry.raw_set("partial_value", codec_reason.is_some())?;
+    entry.raw_set("value_reason", codec_reason.clone())?;
+    entry.raw_set("write_reason", codec_reason)?;
+    if !has_storage {
+        entry.raw_set(
+            "reason",
+            "template-only registration has no entity storage column",
+        )?;
+    }
+    Ok(entry)
+}
+
+fn lua_ecs_get_registry(
+    lua: &mlua::Lua,
+    _args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let report = match runtime_provider::registry() {
+        Ok(report) => report,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason))),
+    };
+    if report["available"] != true {
+        return Ok((
+            LuaValue::Nil,
+            Some(
+                report["reason"]
+                    .as_str()
+                    .unwrap_or("component registry unavailable")
+                    .into(),
+            ),
+        ));
+    }
+    let result = lua.create_table()?;
+    for key in [
+        "schema_version",
+        "layout_version",
+        "source",
+        "count",
+        "runtime_type_count",
+    ] {
+        result.raw_set(key, crate::env::registry::json_to_lua(lua, &report[key])?)?;
+    }
+    let entries = lua.create_table()?;
+    for row in report["entries"]
+        .as_array()
+        .ok_or_else(|| LuaError::generic("invalid provider registry"))?
+    {
+        entries.push(ecs_registry_entry(lua, row, r#mod)?)?;
+    }
+    result.raw_set("entries", entries)?;
+    Ok((LuaValue::Table(result), None))
+}
+
+fn lua_ecs_get_component(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let index = match crate::env::registry::resolve(state.type_registry(), args.get::<LuaValue>(0)?)
+    {
+        Ok(index) => index,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason))),
+    };
+    let name = &state.type_registry().get(index).unwrap().qualified_name;
+    let report = match runtime_provider::registry() {
+        Ok(report) => report,
+        Err(reason) => return Ok((LuaValue::Nil, Some(reason))),
+    };
+    for row in report["entries"].as_array().into_iter().flatten() {
+        if row["qualified_name"].as_str() == Some(name)
+            || row["runtime_type"]["qualified_name"].as_str() == Some(name)
+        {
+            return Ok((LuaValue::Table(ecs_registry_entry(lua, row, r#mod)?), None));
+        }
+    }
+    Ok((
+        LuaValue::Nil,
+        Some(format!("no engine component registration for {name}")),
+    ))
+}
+
 fn lua_ecs_query(
     lua: &mlua::Lua,
     args: FunctionArgs,
@@ -1297,6 +1610,23 @@ fn lua_ecs_read(
     args: FunctionArgs,
     r#mod: &Mod,
 ) -> mlua::Result<(LuaValue, Option<String>)> {
+    lua_ecs_read_impl(lua, args, r#mod, false)
+}
+
+fn lua_ecs_read_bytes(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(LuaValue, Option<String>)> {
+    lua_ecs_read_impl(lua, args, r#mod, true)
+}
+
+fn lua_ecs_read_impl(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    r#mod: &Mod,
+    raw: bool,
+) -> mlua::Result<(LuaValue, Option<String>)> {
     let state = lua.app_data_ref::<AppState>().unwrap();
     if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.ecs.read") {
         return Ok((LuaValue::Nil, Some(reason)));
@@ -1339,6 +1669,9 @@ fn lua_ecs_read(
             Some(format!("component read failed: {component_name}")),
         ));
     };
+    if raw {
+        return Ok((LuaValue::String(lua.create_string(&bytes)?), None));
+    }
     let bytes: Rc<[u8]> = bytes.into();
     let mapped = MappedValue::from_bytes(state.type_registry(), metadata, &bytes)
         .map_err(LuaError::external)?;
@@ -1387,6 +1720,9 @@ fn lua_ecs_write(
                 metadata.size, component.size
             )),
         ));
+    }
+    if let Err(reason) = crate::env::runtime_values::validate_owned_type(registry, metadata.index) {
+        return Ok((false, Some(reason)));
     }
     let Some(source) = mapped_source_bytes(&lua_value)? else {
         return Ok((
@@ -1538,18 +1874,10 @@ fn collect_changed_ranges(
 
 fn runtime_type_name(lua: &mlua::Lua, args: &FunctionArgs, index: usize) -> mlua::Result<String> {
     let state = lua.app_data_ref::<AppState>().unwrap();
-    let value = args.get::<Either<String, &Type>>(index)?;
-    let name = match value {
-        Either::A(name) => name,
-        Either::B(r#type) => r#type.qualified_name.clone(),
-    };
-
-    let Some(r#type) = state
-        .type_registry()
-        .get_by_name(kfc::reflection::LookupKey::Qualified(&name))
-    else {
-        return Err(LuaError::generic(format!("runtime type not found: {name}")));
-    };
+    let type_index =
+        crate::env::registry::resolve(state.type_registry(), args.get::<LuaValue>(index)?)
+            .map_err(LuaError::generic)?;
+    let r#type = state.type_registry().get(type_index).unwrap();
 
     if !r#type.qualified_name.starts_with("keen::ecs::") {
         return Err(LuaError::generic(format!(
@@ -1558,7 +1886,8 @@ fn runtime_type_name(lua: &mlua::Lua, args: &FunctionArgs, index: usize) -> mlua
         )));
     }
 
-    Ok(r#type.qualified_name.clone())
+    Ok(runtime_provider::resolve_type(&r#type.qualified_name)
+        .unwrap_or_else(|| r#type.qualified_name.clone()))
 }
 
 fn unavailable_runtime_result(
@@ -1619,7 +1948,7 @@ fn runtime_denial_reason(state: &AppState, r#mod: &Mod, feature: &str) -> Option
 }
 
 #[cfg(windows)]
-mod runtime_provider {
+pub(super) mod runtime_provider {
     use super::KFC_RUNTIME_ABI_VERSION;
     use std::{
         ffi::{CString, c_char, c_void},
@@ -1653,6 +1982,9 @@ mod runtime_provider {
     type Ready = unsafe extern "C" fn() -> bool;
     type Configure = unsafe extern "C" fn(*const *const c_char, *const u32, usize) -> bool;
     type Describe = unsafe extern "C" fn(*const c_char, *mut u32) -> bool;
+    type Registry = unsafe extern "C" fn(*mut c_char, usize) -> usize;
+    type FunctionCode = unsafe extern "C" fn(u32, *mut u8, usize) -> usize;
+    type ResolveType = unsafe extern "C" fn(*const c_char, *mut c_char, usize) -> bool;
     type Query = unsafe extern "C" fn(*const *const c_char, usize, *mut u32, usize) -> usize;
     type QueryBounds = unsafe extern "C" fn(
         *const *const c_char,
@@ -1717,6 +2049,10 @@ mod runtime_provider {
         prop_query_ready: Option<Ready>,
         can_write: Ready,
         describe: Describe,
+        registry: Option<Registry>,
+        functions: Option<Registry>,
+        function_code: Option<FunctionCode>,
+        resolve_type: Option<ResolveType>,
         query: Query,
         query_bounds: Option<QueryBounds>,
         resolve_entity: ResolveEntity,
@@ -1793,6 +2129,34 @@ mod runtime_provider {
                             },
                             can_write: symbol!("KfcRuntimeEcsCanWrite", Ready),
                             describe: symbol!("KfcRuntimeEcsDescribe", Describe),
+                            registry: {
+                                let pointer =
+                                    GetProcAddress(module, c"KfcRuntimeEcsRegistry".as_ptr());
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, Registry>(pointer)
+                                })
+                            },
+                            functions: {
+                                let pointer =
+                                    GetProcAddress(module, c"KfcRuntimeFunctions".as_ptr());
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, Registry>(pointer)
+                                })
+                            },
+                            function_code: {
+                                let pointer =
+                                    GetProcAddress(module, c"KfcRuntimeFunctionCode".as_ptr());
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, FunctionCode>(pointer)
+                                })
+                            },
+                            resolve_type: {
+                                let pointer =
+                                    GetProcAddress(module, c"KfcRuntimeEcsResolveType".as_ptr());
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, ResolveType>(pointer)
+                                })
+                            },
                             query: symbol!("KfcRuntimeEcsQuery", Query),
                             query_bounds: {
                                 let pointer =
@@ -2249,16 +2613,12 @@ mod runtime_provider {
             ))
         }
     }
-    pub fn world_entity_destroy_handle(
-        handle: u32,
-    ) -> Result<(), String> {
+    pub fn world_entity_destroy_handle(handle: u32) -> Result<(), String> {
         let Some(provider) = provider() else {
             return Err("KFC Runtime provider unavailable".into());
         };
         let mut outcome = 1u32;
-        let ok = unsafe {
-            (provider.world_entity_destroy_handle)(handle, &mut outcome)
-        };
+        let ok = unsafe { (provider.world_entity_destroy_handle)(handle, &mut outcome) };
         if ok {
             Ok(())
         } else {
@@ -2331,6 +2691,63 @@ mod runtime_provider {
         let name = CString::new(name).ok()?;
         let mut size = 0;
         unsafe { (provider.describe)(name.as_ptr(), &mut size) }.then_some(Component { size })
+    }
+    pub fn resolve_type(name: &str) -> Option<String> {
+        let resolve = provider()?.resolve_type?;
+        let name = CString::new(name).ok()?;
+        let mut buffer = [0u8; 512];
+        if !unsafe { resolve(name.as_ptr(), buffer.as_mut_ptr().cast(), buffer.len()) } {
+            return None;
+        }
+        let length = buffer.iter().position(|byte| *byte == 0)?;
+        String::from_utf8(buffer[..length].to_vec()).ok()
+    }
+    pub fn registry() -> Result<serde_json::Value, String> {
+        let fetch = provider().and_then(|p| p.registry).ok_or(
+            "native provider lacks the component registry extension; install the matching provider",
+        )?;
+        fetch_json(fetch, 8 * 1024 * 1024)
+    }
+    pub fn functions() -> Result<&'static serde_json::Value, String> {
+        static CATALOG: OnceLock<serde_json::Value> = OnceLock::new();
+        if let Some(catalog) = CATALOG.get() {
+            return Ok(catalog);
+        }
+        let fetch = provider()
+            .and_then(|p| p.functions)
+            .ok_or("native provider lacks the function inventory extension")?;
+        let value = fetch_json(fetch, 32 * 1024 * 1024)?;
+        let _ = CATALOG.set(value);
+        Ok(CATALOG.get().unwrap())
+    }
+    pub fn function_code(rva: u32) -> Option<Vec<u8>> {
+        let fetch = provider()?.function_code?;
+        let mut code = vec![0; 512];
+        let count = unsafe { fetch(rva, code.as_mut_ptr(), code.len()) };
+        if count == 0 || count > code.len() {
+            return None;
+        }
+        code.truncate(count);
+        Some(code)
+    }
+    fn fetch_json(fetch: Registry, maximum: usize) -> Result<serde_json::Value, String> {
+        let mut size = unsafe { fetch(std::ptr::null_mut(), 0) };
+        for _ in 0..3 {
+            if !(2..=maximum).contains(&size) {
+                return Err("invalid native catalog response size".into());
+            }
+            let mut buffer = vec![0u8; size];
+            let required = unsafe { fetch(buffer.as_mut_ptr().cast(), buffer.len()) };
+            if required > size {
+                size = required;
+                continue;
+            }
+            if required < 2 || buffer[required - 1] != 0 {
+                return Err("invalid component registry response".into());
+            }
+            return serde_json::from_slice(&buffer[..required - 1]).map_err(|e| e.to_string());
+        }
+        Err("component registry changed repeatedly during read".into())
     }
     pub fn query(components: &[String]) -> Result<Vec<u32>, &'static str> {
         let Some(provider) = provider() else {
@@ -2454,7 +2871,7 @@ mod runtime_provider {
 }
 
 #[cfg(not(windows))]
-mod runtime_provider {
+pub(super) mod runtime_provider {
     #[repr(C)]
     #[derive(Clone, Copy, Default)]
     pub struct PropRecord {
@@ -2562,6 +2979,18 @@ mod runtime_provider {
     }
     pub fn report() -> serde_json::Value {
         serde_json::json!({"available":false,"reason":"windows-runtime-only"})
+    }
+    pub fn registry() -> Result<serde_json::Value, String> {
+        Err("native component registry is available on Windows only".into())
+    }
+    pub fn functions() -> Result<&'static serde_json::Value, String> {
+        Err("native function inventory is available on Windows only".into())
+    }
+    pub fn function_code(_: u32) -> Option<Vec<u8>> {
+        None
+    }
+    pub fn resolve_type(_: &str) -> Option<String> {
+        None
     }
     pub fn resolve(_: &str) -> Option<Component> {
         None

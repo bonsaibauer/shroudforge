@@ -3,7 +3,7 @@ use std::ops::Deref;
 use indexmap::IndexMap;
 use kfc::reflection::{
     Attribute, EnumFieldMetadata, LookupKey, PrimitiveType, StructFieldMetadata, TypeFlags,
-    TypeMetadata,
+    TypeIndex, TypeMetadata,
 };
 use mlua::{IntoLua, Table, UserData};
 use once_cell::unsync::OnceCell;
@@ -26,8 +26,27 @@ pub fn create(lua: &mlua::Lua) -> mlua::Result<mlua::Table> {
         lua_get_by_qualified_name,
     )?;
     add_function(lua, &table, "get_by_impact_name", lua_get_by_impact_name)?;
+    add_function(
+        lua,
+        &table,
+        "get_by_qualified_hash",
+        lua_get_by_qualified_hash,
+    )?;
+    add_function(
+        lua,
+        &table,
+        "get_by_internal_hash",
+        lua_get_by_internal_hash,
+    )?;
     add_function(lua, &table, "get_all", lua_get_all)?;
+    add_function(lua, &table, "resolve", lua_resolve)?;
+    add_function(lua, &table, "find_by_hash", lua_find_by_hash)?;
+    add_function(lua, &table, "get_by_index", lua_get_by_index)?;
+    add_function(lua, &table, "find", lua_find)?;
     add_function(lua, &table, "of", lua_of)?;
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    table.raw_set("version", state.type_registry().version.clone())?;
+    table.raw_set("count", state.type_registry().len())?;
 
     Ok(table)
 }
@@ -50,12 +69,41 @@ fn lua_get_by_impact_name(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<O
     get_by_name(lua, LookupKey::Impact(&name))
 }
 
-fn lua_get_all(lua: &mlua::Lua, _args: FunctionArgs) -> mlua::Result<Table> {
+fn get_by_hash(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+    kind: crate::env::type_lookup::HashKind,
+) -> mlua::Result<(Option<LuaValue>, Option<String>)> {
+    let hash = args.get::<u32>(0)?;
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    match crate::env::type_lookup::by_hash(state.type_registry(), hash, kind) {
+        Ok(Some(metadata)) => Ok((state.get_type(lua, metadata.index)?, None)),
+        Ok(None) => Ok((None, Some(format!("type hash not found: 0x{hash:08x}")))),
+        Err(reason) => Ok((None, Some(reason))),
+    }
+}
+
+fn lua_get_by_qualified_hash(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+) -> mlua::Result<(Option<LuaValue>, Option<String>)> {
+    get_by_hash(lua, args, crate::env::type_lookup::HashKind::Qualified)
+}
+
+fn lua_get_by_internal_hash(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+) -> mlua::Result<(Option<LuaValue>, Option<String>)> {
+    get_by_hash(lua, args, crate::env::type_lookup::HashKind::Internal)
+}
+
+fn lua_get_all(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Table> {
+    let include_ds = args.get::<Option<bool>>(0)?.unwrap_or(true);
     let app_state = lua.app_data_ref::<AppState>().unwrap();
     let result = lua.create_table_with_capacity(app_state.type_registry().len(), 0)?;
 
     for r#type in app_state.type_registry().iter() {
-        if r#type.flags.contains(TypeFlags::HAS_DS) {
+        if !include_ds && r#type.flags.contains(TypeFlags::HAS_DS) {
             continue;
         }
 
@@ -66,6 +114,84 @@ fn lua_get_all(lua: &mlua::Lua, _args: FunctionArgs) -> mlua::Result<Table> {
         result.push(value)?;
     }
 
+    Ok(result)
+}
+
+fn lua_resolve(
+    lua: &mlua::Lua,
+    args: FunctionArgs,
+) -> mlua::Result<(Option<LuaValue>, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    match crate::env::registry::resolve(state.type_registry(), args.get::<LuaValue>(0)?) {
+        Ok(index) => Ok((state.get_type(lua, index)?, None)),
+        Err(reason) => Ok((None, Some(reason))),
+    }
+}
+
+fn lua_get_by_index(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Option<LuaValue>> {
+    lua.app_data_ref::<AppState>()
+        .unwrap()
+        .get_type(lua, TypeIndex::new(args.get::<usize>(0)?))
+}
+
+fn lua_find_by_hash(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Table> {
+    let hash = args.get::<u32>(0)?;
+    let domain = args
+        .get::<Option<String>>(1)?
+        .unwrap_or_else(|| "qualified".into());
+    let kind = crate::env::type_lookup::HashKind::parse(&domain).map_err(mlua::Error::runtime)?;
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let result = lua.create_table()?;
+    for ty in state
+        .type_registry()
+        .iter()
+        .filter(|ty| kind.value(ty) == hash)
+    {
+        result.push(state.get_type(lua, ty.index)?)?;
+    }
+    Ok(result)
+}
+
+fn lua_find(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Table> {
+    let options = args.get::<Option<Table>>(0)?;
+    let prefix = options
+        .as_ref()
+        .map(|o| o.get::<Option<String>>("prefix"))
+        .transpose()?
+        .flatten();
+    let attribute = options
+        .as_ref()
+        .map(|o| o.get::<Option<String>>("attribute"))
+        .transpose()?
+        .flatten();
+    let primitive = options
+        .as_ref()
+        .map(|o| o.get::<Option<String>>("primitive_type"))
+        .transpose()?
+        .flatten();
+    let ds = options
+        .as_ref()
+        .map(|o| o.get::<Option<bool>>("has_ds"))
+        .transpose()?
+        .flatten();
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    let result = lua.create_table()?;
+    for ty in state.type_registry().iter() {
+        if prefix
+            .as_ref()
+            .is_some_and(|p| !ty.qualified_name.starts_with(p))
+            || attribute
+                .as_ref()
+                .is_some_and(|a| !ty.attributes.contains_key(a))
+            || primitive
+                .as_ref()
+                .is_some_and(|p| p != primitive_type_to_string(ty.primitive_type))
+            || ds.is_some_and(|ds| ds != ty.flags.contains(TypeFlags::HAS_DS))
+        {
+            continue;
+        }
+        result.push(state.get_type(lua, ty.index)?)?;
+    }
     Ok(result)
 }
 
@@ -84,7 +210,14 @@ fn lua_of(lua: &mlua::Lua, args: FunctionArgs) -> mlua::Result<LuaValue> {
 
 fn get_by_name(lua: &mlua::Lua, name: LookupKey<&str>) -> mlua::Result<Option<LuaValue>> {
     let context = lua.app_data_ref::<AppState>().unwrap();
-    let type_index = context.type_registry().get_by_name(name).map(|t| t.index);
+    let type_index = context
+        .type_registry()
+        .get_by_name(name)
+        .filter(|ty| match name {
+            LookupKey::Qualified(name) => ty.qualified_name == name,
+            LookupKey::Impact(name) => ty.impact_name == name,
+        })
+        .map(|t| t.index);
 
     let type_index = match type_index {
         Some(index) => index,
@@ -124,9 +257,14 @@ impl Deref for Type {
 
 impl UserData for Type {
     fn add_fields<F: mlua::UserDataFields<Self>>(fields: &mut F) {
+        fields.add_field_method_get("index", |_, this| Ok(this.index.as_usize()));
         fields.add_field_method_get("name", |_, this| Ok(this.name.clone()));
         fields.add_field_method_get("impact_name", |_, this| Ok(this.impact_name.clone()));
         fields.add_field_method_get("qualified_name", |_, this| Ok(this.qualified_name.clone()));
+        fields.add_field_method_get("qualified_hash", |_, this| Ok(this.qualified_hash));
+        fields.add_field_method_get("internal_hash", |_, this| Ok(this.internal_hash));
+        fields.add_field_method_get("name_hash", |_, this| Ok(this.name_hash));
+        fields.add_field_method_get("impact_hash", |_, this| Ok(this.impact_hash));
         fields.add_field_method_get("namespace", |_, this| Ok(this.namespace.clone()));
         fields.add_field_method_get("inner_type", |lua, this| {
             this.inner_type
@@ -145,7 +283,38 @@ impl UserData for Type {
         fields.add_field_method_get("primitive_type", |_, this| {
             Ok(primitive_type_to_string(this.primitive_type))
         });
-        // fields.add_field_method_get("flags", |_, this| Ok(this.flags));
+        fields.add_field_method_get("flags_bits", |_, this| Ok(this.flags.bits()));
+        fields.add_field_method_get("flags", |lua, this| {
+            lua.create_sequence_from(this.flags.iter_names().map(|(name, _)| name))
+        });
+        fields.add_field_method_get("has_ds", |_, this| {
+            Ok(this.flags.contains(TypeFlags::HAS_DS))
+        });
+        fields.add_field_method_get("default_bytes", |lua, this| {
+            this.default_value
+                .as_ref()
+                .map(|bytes| lua.create_string(bytes))
+                .transpose()
+        });
+        fields.add_field_method_get("fields", |lua, this| {
+            let state = lua.app_data_ref::<AppState>().unwrap();
+            let result = lua.create_table()?;
+            for (owner, field) in crate::env::registry::fields(state.type_registry(), this.index)
+                .map_err(mlua::Error::runtime)?
+            {
+                let entry = lua.create_table()?;
+                entry.raw_set("name", field.name.clone())?;
+                entry.raw_set("type", state.get_type(lua, field.r#type)?)?;
+                entry.raw_set("declaring_type", state.get_type(lua, owner)?)?;
+                entry.raw_set("data_offset", field.data_offset)?;
+                entry.raw_set(
+                    "attributes",
+                    attributes_to_lua(lua, &state, &field.attributes)?,
+                )?;
+                result.push(entry)?;
+            }
+            Ok(result)
+        });
 
         fields.add_field_method_get("struct_fields", |lua, this| {
             this.struct_field_cache
@@ -157,7 +326,6 @@ impl UserData for Type {
                 .get_or_try_init(|| enum_fields_to_lua(lua, this))
                 .cloned()
         });
-        // fields.add_field_method_get("default_value", |_, this| { });
         fields.add_field_method_get("attributes", |lua, this| {
             this.attribute_cache
                 .get_or_try_init(|| {
@@ -166,9 +334,22 @@ impl UserData for Type {
                 .cloned()
         });
     }
+
+    fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_method("is_a", |lua, this, selector: LuaValue| {
+            let state = lua.app_data_ref::<AppState>().unwrap();
+            let parent = crate::env::registry::resolve(state.type_registry(), &selector)
+                .map_err(mlua::Error::runtime)?;
+            Ok(
+                crate::env::registry::inheritance(state.type_registry(), this.index)
+                    .map_err(mlua::Error::runtime)?
+                    .contains(&parent),
+            )
+        });
+    }
 }
 
-fn primitive_type_to_string(primitive_type: PrimitiveType) -> &'static str {
+pub(crate) fn primitive_type_to_string(primitive_type: PrimitiveType) -> &'static str {
     match primitive_type {
         PrimitiveType::None => "None",
         PrimitiveType::Bool => "Bool",
@@ -328,6 +509,10 @@ fn enum_field_to_lua(lua: &mlua::Lua, field: &EnumFieldMetadata) -> mlua::Result
 
     map.insert(name_key, name);
     map.insert(value_key, value);
+    map.insert(
+        lua.create_string("value_hex")?,
+        LuaValue::String(lua.create_string(format!("0x{:016x}", field.value))?),
+    );
 
     ReadOnlyMap::new(map).into_lua(lua)
 }

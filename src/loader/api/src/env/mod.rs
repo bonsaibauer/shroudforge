@@ -2,6 +2,7 @@ use mlua::Table;
 use mod_loader::Mod;
 
 mod buffer;
+mod buffer_transform;
 mod game;
 mod hasher;
 mod image;
@@ -9,9 +10,13 @@ mod integer;
 mod io;
 pub(crate) mod loader;
 mod log;
+mod registry;
+mod runtime_functions;
+mod runtime_values;
 #[path = "../shroudforge/v1/shroudforge.rs"]
 pub(crate) mod shroudforge;
 mod table;
+mod type_lookup;
 
 mod app_state;
 mod util;
@@ -35,6 +40,17 @@ pub fn register(lua: &mlua::Lua, env: &Table, r#mod: &Mod) -> mlua::Result<()> {
     let lua_buffer = buffer::create(lua)?;
     let lua_hasher = hasher::create(lua)?;
     let lua_runtime = loader::create(lua, r#mod.clone())?;
+    lua_runtime.raw_set("types", lua_game.raw_get::<Table>("types")?)?;
+    lua_runtime.raw_set(
+        "values",
+        runtime_values::create(
+            lua,
+            lua.app_data_ref::<AppState>()
+                .unwrap()
+                .type_registry()
+                .clone(),
+        )?,
+    )?;
     let lua_loader = crate::eml::v1::create_loader(lua, r#mod)?;
     let lua_shroudforge = shroudforge::create(lua, r#mod)?;
     let lua_image = image::create(lua)?;

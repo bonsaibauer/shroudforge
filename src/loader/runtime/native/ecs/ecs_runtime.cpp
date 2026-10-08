@@ -1,4 +1,5 @@
 #include "ecs_runtime.h"
+#include "component_registry.h"
 #include "dispatcher.h"
 #include <nlohmann/json.hpp>
 #include "profile.h"
@@ -40,7 +41,10 @@ struct OperationCounters {
 OperationCounters operation_counters;
 std::atomic<std::uint64_t> active_query_cursor{}, active_query_total{}, active_query_matches{};
 
-struct ComponentType { std::uint16_t index; std::uint32_t size; };
+struct ComponentType {
+    std::uint16_t index; std::uint32_t size;
+    bool operator==(const ComponentType&) const = default;
+};
 struct ResolvedLayout {
     std::uintptr_t count_address{};
     std::uintptr_t table_address{};
@@ -80,6 +84,13 @@ struct HandleRecord {
 std::mutex state_mutex;
 std::unordered_map<std::string, ComponentType> types;
 std::unordered_map<std::string, std::uint32_t> configured_types;
+ComponentRegistry::Snapshot component_registry;
+bool component_registry_ready{};
+bool component_registry_seen{};
+std::string component_registry_error{"awaiting entity manager"};
+std::uint64_t component_registry_last_read{};
+std::uintptr_t component_registry_manager{};
+std::string component_registry_json;
 std::unordered_map<std::uint32_t, std::unordered_set<std::uint16_t>> observed_indices_by_size;
 std::unordered_set<std::uintptr_t> discovered_layouts;
 std::unordered_map<std::uintptr_t, std::vector<ComponentSlot>> discovered_layout_components;
@@ -262,17 +273,12 @@ bool SnapshotEntityIds(std::vector<std::uint32_t>& ids) {
 bool ResolvePropEntityId(std::uint32_t entity_id, KfcRuntimePropRecord* prop) {
     if (!entity_id || !prop) return false;
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
-    const auto item_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
-    if (transform_type == runtime_components.end() || transform_type->size != 0x38 ||
-        item_type == runtime_components.end() || item_type->size != sizeof(std::uint32_t)) return false;
+    ComponentType transform_component{}, item_component{};
+    if (!resolve_component("keen::ecs::CurrentTransform", transform_component) || transform_component.size != 0x38 ||
+        !resolve_component("keen::ecs::UsedItem", item_component) || item_component.size != sizeof(std::uint32_t)) return false;
     ResolvedLayout layout{};
     std::vector<std::uintptr_t> pointers;
     if (!layout_snapshot(layout) || !entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return false;
-    const ComponentType transform_component{transform_type->index, transform_type->size};
-    const ComponentType item_component{item_type->index, item_type->size};
     for (const auto pointer : pointers) {
         EntityView entity{};
         if (!entity_view(pointer, layout, entity) || entity.id != entity_id) continue;
@@ -524,11 +530,9 @@ bool recipe_bounds_intersect(const KfcRuntimePropRecord& prop,
 }
 void query_props_native(PropQueryOperation& operation) {
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
-    const auto item_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
-    if (transform_type == runtime_components.end() || item_type == runtime_components.end()) return;
+    ComponentType transform_component{}, item_component{};
+    if (!resolve_component("keen::ecs::CurrentTransform", transform_component) || transform_component.size != 0x38 ||
+        !resolve_component("keen::ecs::UsedItem", item_component) || item_component.size != 4) return;
     ResolvedLayout layout{};
     if (!layout_snapshot(layout)) return;
     std::vector<std::uintptr_t> pointers;
@@ -542,8 +546,6 @@ void query_props_native(PropQueryOperation& operation) {
     operation.output.clear();
     std::unordered_set<std::uint64_t> seen;
     seen.reserve(pointers.size());
-    ComponentType transform_component{transform_type->index, transform_type->size};
-    ComponentType item_component{item_type->index, item_type->size};
     for (const auto pointer : pointers) {
         EntityView entity{};
         if (!entity_view(pointer, layout, entity) || !seen.insert(identity_key(entity.id, entity.generation)).second) continue;
@@ -729,9 +731,17 @@ void reset_component_discovery() {
 
 bool collect_layout_component_candidates(const EntityView& entity, const ResolvedLayout& layout,
                                          std::vector<ComponentSlot>& components) {
+    std::size_t count{};
+    {
+        std::scoped_lock lock(state_mutex);
+        if (component_registry_ready) count = component_registry.entries.size();
+        else for (const auto& component : KfcRuntimeCompatibility::EnshroudedClient::runtime_components)
+            count = (std::max)(count, static_cast<std::size_t>(component.index) + 1);
+    }
+    if (!count || count > max_components) return false;
     std::uint64_t component_bits[16]{};
-    if (!read_bytes(entity.layout + layout.component_bits, component_bits, sizeof(component_bits))) return false;
-    for (std::size_t index = 0; index < max_components; ++index) {
+    if (!read_bytes(entity.layout + layout.component_bits, component_bits, ((count + 63) / 64) * 8)) return false;
+    for (std::size_t index = 0; index < count; ++index) {
         if (!(component_bits[index / 64] & (std::uint64_t{1} << (index % 64)))) continue;
         std::uint16_t stride{}, offset{};
         if (!read(entity.layout + layout.component_strides + index * sizeof(stride), stride) || !stride ||
@@ -786,11 +796,10 @@ void publish_discovered_component_indices() {
     std::unordered_map<std::string, ComponentType> previously_resolved;
     {
         std::scoped_lock lock(state_mutex);
+        if (component_registry_seen) return;
         contract = configured_types;
         previously_resolved = types;
     }
-    std::unordered_map<std::uint32_t, std::vector<std::string>> names_by_size;
-    for (const auto& [name, size] : contract) names_by_size[size].push_back(name);
     std::unordered_map<std::string, ComponentType> discovered;
     for (const auto& component : KfcRuntimeCompatibility::EnshroudedClient::runtime_components) {
         const auto known = contract.find(component.qualified_name);
@@ -802,21 +811,97 @@ void publish_discovered_component_indices() {
         if (configured != contract.end() && configured->second == component.size)
             discovered.emplace(name, component);
     }
-    for (const auto& [size, names] : names_by_size) {
-        // Size can identify a component only when this build's reflected
-        // component catalog contains exactly one component of that size.
-        if (names.size() != 1) continue;
-        const auto candidates = observed_indices_by_size.find(size);
-        if (candidates == observed_indices_by_size.end() || candidates->second.size() != 1) continue;
-        const auto index = *candidates->second.begin();
-        const auto occupied = std::find_if(discovered.begin(), discovered.end(), [index](const auto& entry) {
-            return entry.second.index == index;
-        });
-        if (occupied == discovered.end()) discovered.emplace(names.front(), ComponentType{index, size});
-    }
+    // Strides remain useful evidence, but a matching size cannot prove identity.
+    // Only an engine registration or an exact build profile may publish a mapping.
     std::scoped_lock lock(state_mutex);
     if (configured_types != contract) return;
     types = std::move(discovered);
+}
+
+void read_component_registry(std::uintptr_t manager) {
+    const auto now = GetTickCount64();
+    std::unordered_map<std::string, std::uint32_t> contract;
+    {
+        std::scoped_lock lock(state_mutex);
+        if (manager == component_registry_manager && now - component_registry_last_read < 1000) return;
+        component_registry_manager = manager;
+        component_registry_last_read = now;
+        contract = configured_types;
+    }
+    if (contract.empty()) return;
+    ComponentRegistry::Snapshot snapshot;
+    std::string error;
+    bool valid = ComponentRegistry::Read(manager, image_base,
+        KfcRuntimeCompatibility::EnshroudedClient::image_size, read_bytes, snapshot, error);
+    std::unordered_map<std::string, ComponentType> resolved;
+    nlohmann::json entries = nlohmann::json::array();
+    auto type_json = [](const ComponentRegistry::Type& type) -> nlohmann::json {
+        if (type.name.empty()) return nullptr;
+        return {{"qualified_name",type.name},{"qualified_hash",type.hash},
+            {"size",type.size},{"metadata_rva",type.metadata_rva}};
+    };
+    if (valid) for (const auto& entry : snapshot.entries) {
+        for (const auto* type : {&entry.storage, &entry.configuration}) {
+            if (type->name.empty()) continue;
+            const auto found = contract.find(type->name);
+            if (found == contract.end() || found->second != type->size) {
+                valid = false;
+                error = "engine registration disagrees with the parser type contract: " + type->name;
+                break;
+            }
+        }
+        if (!valid) break;
+        if (!entry.storage.name.empty())
+            resolved.emplace(entry.storage.name, ComponentType{entry.index, entry.size});
+        nlohmann::json callbacks = nlohmann::json::array();
+        for (const auto& callback : entry.callbacks) {
+            std::array<std::uint8_t, 512> code{};
+            std::string code_hex;
+            const auto code_address = image_base + callback.function_rva;
+            if (callback.function_rva <= KfcRuntimeCompatibility::EnshroudedClient::image_size - code.size() &&
+                read_bytes(code_address, code.data(), code.size())) {
+                static constexpr char digits[] = "0123456789abcdef";
+                for (const auto byte : code) { code_hex += digits[byte >> 4]; code_hex += digits[byte & 15]; }
+                std::array<std::uint8_t, 512> again{};
+                if (!read_bytes(code_address, again.data(), again.size()) || again != code) code_hex.clear();
+            }
+            callbacks.push_back({{"slot_offset",callback.slot_offset},{"function_rva",callback.function_rva},
+                {"origin",callback.in_record ? "registration-record" : "parallel-callback-table"},
+                {"code_hex",std::move(code_hex)},
+                {"callable",false},{"reason","native callback ABI and effects are not resolved"}});
+        }
+        entries.push_back({{"index",entry.index},{"qualified_name",entry.name},
+            {"qualified_hash",entry.hash},{"runtime_type",type_json(entry.storage)},
+            {"template_type",type_json(entry.configuration)}, {"runtime_size",entry.size},
+            {"flags_bits",entry.flags},{"storage_flags_bits",entry.storage_flags},
+            {"storage",entry.storage.name.empty() ? "template-only" : "entity"},
+            {"callbacks",std::move(callbacks)}});
+    }
+    std::scoped_lock lock(state_mutex);
+    if (configured_types != contract) return;
+    component_registry_error = error;
+    if (!valid) {
+        if (component_registry_ready) types.clear();
+        component_registry_ready = false;
+        component_registry_json.clear();
+        return;
+    }
+    const bool changed = component_registry.owner != snapshot.owner ||
+        component_registry.records != snapshot.records || !component_registry_ready || types != resolved;
+    types = std::move(resolved);
+    component_registry = std::move(snapshot);
+    component_registry_ready = true;
+    component_registry_seen = true;
+    component_registry_json = nlohmann::json({{"schema_version",1},{"layout_version",1},
+        {"available",true},{"source","live-engine-registration"},{"count",entries.size()},
+        {"runtime_type_count",types.size()},{"entries",std::move(entries)}}).dump();
+    if (changed) {
+        ++layout_epoch;
+        handles.clear();
+        reverse_handles.clear();
+        query_scans.clear();
+        query_cache.clear();
+    }
 }
 
 void component_discovery_tick(std::uintptr_t manager) {
@@ -930,6 +1015,7 @@ void Tick() {
             reverse_handles.clear();
         }
     }
+    read_component_registry(manager);
     component_discovery_tick(manager);
 }
 std::string Status() {
@@ -943,7 +1029,7 @@ std::string Status() {
     const auto component_candidates = configured_types.size() - dynamic_candidates;
     std::ostringstream text;
     text << "types=" << types.size() << '/' << configured_types.size()
-         << "{component=" << component_candidates << ",dynamic=" << dynamic_candidates << '}'
+         << "{other_ecs_types=" << component_candidates << ",dynamic_name_types=" << dynamic_candidates << '}'
          << " component_index_discovery=" << (discovery_complete ? "complete" : "scanning")
          << '(' << discovery_cursor << '/' << discovery_entities.size()
          << ",layouts=" << discovered_layouts.size()
@@ -993,7 +1079,7 @@ std::string Diagnostics() {
     }
     for (const auto& [name, component] : types) {
         resolved_mappings.push_back({{"name",name},{"index",component.index},{"size",component.size},
-            {"source",profile_names.contains(name) ? "exact-build-profile" : "unique-live-stride"}});
+            {"source",component_registry_ready ? "live-engine-registration" : "exact-build-profile"}});
     }
     for (const auto& [size, names] : names_by_size) {
         const auto candidate_set = observed_indices_by_size.find(size);
@@ -1026,8 +1112,9 @@ std::string Diagnostics() {
         {"profile",KfcRuntimeCompatibility::EnshroudedClient::status},
         {"candidateTypeBreakdown",nlohmann::json{
             {"total",configured_types.size()},
-            {"componentTypes",configured_types.size() - dynamic_candidates},
-            {"dynamicRuntimeStructs",dynamic_candidates},
+            {"otherEcsTypes",configured_types.size() - dynamic_candidates},
+            {"dynamicNameTypes",dynamic_candidates},
+            {"engineRegistrations",component_registry_ready ? component_registry.entries.size() : 0},
             {"resolved",types.size()},
             {"unresolved",configured_types.size() - types.size()}
         }},
@@ -1048,7 +1135,9 @@ std::string Diagnostics() {
             {"observedIndexCandidates",observed_indices},
             {"templateLayoutSamples",std::move(template_layouts)},
             {"templateLayoutSamplesDropped",template_layout_samples_dropped},
-            {"mappingMethod","exact profile entries plus unique reflected size and unique live archetype stride"},
+            {"mappingMethod",component_registry_ready ? "live engine registration, reflection and parallel arrays" : "exact build profile"},
+            {"registrationReady",component_registry_ready}, {"registrationReason",component_registry_error},
+            {"registrationCount",component_registry.entries.size()},
             {"resolved",std::move(resolved_mappings)},
             {"unresolved",std::move(unresolved_types)},
             {"strideCandidates",std::move(stride_candidates)}
@@ -1084,6 +1173,11 @@ void Shutdown() {
     std::scoped_lock lock(state_mutex);
     types.clear();
     configured_types.clear();
+    component_registry = {};
+    component_registry_ready = false;
+    component_registry_seen = false;
+    component_registry_json.clear();
+    component_registry_error = "runtime stopped";
     live_layout = {};
     layout_ready = false;
     handles.clear();
@@ -1110,6 +1204,11 @@ extern "C" bool __cdecl KfcRuntimeEcsConfigure(const char* const* names,
         std::scoped_lock lock(state_mutex);
         if (configured_types == contract) return true;
         configured_types = std::move(contract);
+        component_registry = {};
+        component_registry_ready = false;
+        component_registry_seen = false;
+        component_registry_last_read = 0;
+        component_registry_json.clear();
         types.clear();
         for (const auto& component : KfcRuntimeCompatibility::EnshroudedClient::runtime_components) {
             const auto configured = configured_types.find(std::string(component.qualified_name));
@@ -1136,12 +1235,9 @@ extern "C" bool __cdecl KfcRuntimeEcsReady() {
 extern "C" bool __cdecl KfcRuntimeEcsPropQueryReady() {
     ResolvedLayout layout{};
     if (!layout_snapshot(layout)) return false;
-    using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    const auto transform = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
-    const auto item = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
-    return transform != runtime_components.end() && item != runtime_components.end();
+    ComponentType transform{}, item{};
+    return resolve_component("keen::ecs::CurrentTransform", transform) && transform.size == 0x38 &&
+        resolve_component("keen::ecs::UsedItem", item) && item.size == 4;
 }
 extern "C" bool __cdecl KfcRuntimeEcsCanWrite() {
     std::scoped_lock lock(state_mutex);
@@ -1151,6 +1247,38 @@ extern "C" bool __cdecl KfcRuntimeEcsDescribe(const char* name, std::uint32_t* s
     ComponentType component{};
     if (!size || !resolve_component(name, component)) return false;
     *size = component.size;
+    return true;
+}
+
+extern "C" std::size_t __cdecl KfcRuntimeEcsRegistry(char* buffer, std::size_t capacity) {
+    try {
+    std::scoped_lock lock(state_mutex);
+    const auto json = component_registry_ready ? component_registry_json : nlohmann::json({
+        {"schema_version",1},{"available",false},{"reason",component_registry_error},
+        {"entries",nlohmann::json::array()}}).dump();
+    const auto required = json.size() + 1;
+    if (buffer && capacity >= required) std::memcpy(buffer, json.c_str(), required);
+    return required;
+    } catch (...) { return 0; }
+}
+
+extern "C" bool __cdecl KfcRuntimeEcsResolveType(const char* name, char* runtime_name, std::size_t capacity) {
+    if (!name || !runtime_name || !capacity) return false;
+    std::scoped_lock lock(state_mutex);
+    const std::string* resolved{};
+    if (component_registry_ready) {
+        for (const auto& entry : component_registry.entries) {
+            if (entry.name == name || entry.storage.name == name) {
+                resolved = &entry.storage.name;
+                break;
+            }
+        }
+    } else {
+        const auto found = types.find(name);
+        if (found != types.end()) resolved = &found->first;
+    }
+    if (!resolved || resolved->empty() || resolved->size() + 1 > capacity) return false;
+    std::memcpy(runtime_name, resolved->c_str(), resolved->size() + 1);
     return true;
 }
 extern "C" std::size_t __cdecl KfcRuntimeEcsQuery(const char* const* names, std::size_t count,
@@ -1312,15 +1440,11 @@ extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, 
     ResolvedLayout layout{};
     if (!layout_snapshot(layout)) return false;
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
-    const auto item_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::UsedItem"; });
-    if (transform_type == runtime_components.end() || item_type == runtime_components.end()) return false;
+    ComponentType transform_component{}, item_component{};
+    if (!resolve_component("keen::ecs::CurrentTransform", transform_component) || transform_component.size != 0x38 ||
+        !resolve_component("keen::ecs::UsedItem", item_component) || item_component.size != 4) return false;
     std::vector<std::uintptr_t> pointers;
     if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return false;
-    const ComponentType transform_component{transform_type->index, transform_type->size};
-    const ComponentType item_component{item_type->index, item_type->size};
     for (const auto pointer : pointers) {
         EntityView entity{};
         if (!entity_view(pointer, layout, entity) || entity.id != record.id || entity.generation != record.generation) continue;
@@ -1355,13 +1479,11 @@ struct SetEntityScaleOperation {
 void set_entity_scale_on_game_thread(void* opaque) {
     auto& operation = *static_cast<SetEntityScaleOperation*>(opaque);
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
-    const auto transform_type = std::find_if(runtime_components.begin(), runtime_components.end(),
-        [](const auto& component) { return component.qualified_name == "keen::ecs::CurrentTransform"; });
-    if (transform_type == runtime_components.end() || transform_type->size != 0x38) return;
+    ComponentType component{};
+    if (!resolve_component("keen::ecs::CurrentTransform", component) || component.size != 0x38) return;
     ResolvedLayout layout{};
     EntityView entity{};
     std::uintptr_t address{};
-    const ComponentType component{transform_type->index, transform_type->size};
     if (!layout_snapshot(layout) || !entity_for_handle(operation.handle, layout, entity) ||
         !component_address(entity, layout, component, address)) return;
     struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; };

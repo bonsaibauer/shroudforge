@@ -33,6 +33,7 @@ struct RuntimePatch {
     std::size_t overwrite{}, return_rel32_offset{}, target_offset{};
 };
 inline std::uint32_t image_timestamp{}, image_size{};
+inline std::string image_sha256, image_target;
 inline bool exact_build_match{};
 inline std::size_t entity_manager_count{}, entity_manager_table{}, component_offsets{}, component_strides{};
 inline std::size_t entity_id{}, entity_generation{}, entity_layout{}, entity_storage{}, entity_definition{}, entity_row{}, component_bits{}, lookup_manager{};

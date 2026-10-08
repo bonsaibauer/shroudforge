@@ -30,6 +30,12 @@ KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeShutdown(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capacity);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
+/* Optional ABI-12 code inventory extension. Same complete-buffer convention as
+ * EcsRegistry. Code entries explicitly have no inferred calling ABI. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeFunctions(char* buffer, size_t capacity);
+/* Optional ABI-12 bounded, read-only code evidence. Never calls the address.
+ * At most 512 bytes, only from executable sections; zero means unavailable. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeFunctionCode(uint32_t rva, unsigned char* buffer, size_t capacity);
 
 /* ECS values are opaque byte layouts described by the active game profile. */
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsConfigure(
@@ -39,6 +45,14 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsPropQueryReady(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsCanWrite(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsDescribe(
     const char* qualified_name, uint32_t* size);
+/* Optional ABI-12 extensions. Registry JSON contains every engine registration,
+ * including template-only entries. Returns required bytes including NUL; copies
+ * only when the entire document fits. No partial JSON is returned. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeEcsRegistry(char* buffer, size_t capacity);
+/* Resolve a registration name or storage type name to its entity storage layout.
+ * Template-only registrations return false. This does not convert template bytes. */
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsResolveType(
+    const char* name, char* runtime_name, size_t capacity);
 KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeEcsQuery(
     const char* const* qualified_names, size_t component_count,
     uint32_t* entities, size_t capacity);

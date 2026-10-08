@@ -1,5 +1,10 @@
 # Runtime profile maintainer workflow
 
+For complete reflected-registry extraction, live client/server table discovery,
+hash lookups and cross-build code comparison, start with
+[Runtime discovery](DISCOVERY.md). This complements the reviewed operation
+catalogs below and records unresolved coverage explicitly.
+
 This guide covers support for new Enshrouded executable builds. The runtime is
 an internal ShroudForge loader component. The player build includes the native
 provider DLL; capture tools and draft data are maintainer-only.

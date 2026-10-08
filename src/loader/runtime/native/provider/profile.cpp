@@ -162,6 +162,8 @@ bool Load() {
         // matches and exact overwritten instructions before any patch is made.
         image_timestamp = nt->FileHeader.TimeDateStamp;
         image_size = nt->OptionalHeader.SizeOfImage;
+        image_sha256 = process_hash;
+        image_target = process;
         const auto& layout = selected.at("ecsLayout");
         auto offset = [&](const char* key) {
             const auto value = layout.at(key).get<std::size_t>();

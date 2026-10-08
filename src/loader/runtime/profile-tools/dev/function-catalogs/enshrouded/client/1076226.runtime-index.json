@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "image": {
+    "target": "enshrouded.exe",
+    "sha256": "af2f5a1227911d8aa06b3908d6bd0211838211cae14ea91099cb57d0df990781",
+    "timestamp": 1782724296,
+    "size": 47869952
+  },
+  "version": "1076226|^/game38/branches/ea_update_08|2026-06-29T10:27:39.052394Z",
+  "counts": {
+    "types": 14398,
+    "registrations": 598,
+    "runtimeLayouts": 517,
+    "templateOnly": 81,
+    "codeCandidates": 52150,
+    "unwindGroups": 38906,
+    "distinctRegisteredCallbacks": 49,
+    "provenOwnedBufferAdapters": 2
+  },
+  "completeEngineApi": false,
+  "limitations": [
+    "unreferenced leaf and inlined functions can be absent",
+    "code pointers can target internal labels; an entry point is not implied",
+    "code extents do not establish function signatures",
+    "native signatures and gameplay effects are incomplete",
+    "captured heap addresses are evidence only; Lua resolves the current process dynamically"
+  ],
+  "kind": "runtime-discovery-index",
+  "catalog": "../../../../devdata/registry-complete-20261008/client/runtime-bindings.json",
+  "regeneration": "profile-tools/dev/tools/enshrouded/export-runtime-bindings.py",
+  "runtimeApi": "runtime.types / runtime.values / runtime.ecs / runtime.functions",
+  "productionProfile": false
+}

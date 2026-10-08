@@ -3,6 +3,8 @@
 --- The execution-facing part of the single ShroudForge API.
 --- Its shape is identical before and inside the game; `phase` and `has()` report availability.
 --- @class RuntimeApi
+--- @field schema_version integer
+--- @field types TypeRegistry Same registry object as game.types; includes all reflection entries.
 --- @field phase "pregame"|"ingame"
 --- @field is_client boolean
 --- @field is_server boolean
@@ -15,6 +17,76 @@
 --- @field on_unload fun()?
 --- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
+
+--- @class RuntimeValuesApi
+runtime.values = {}
+--- Decode an owned KFC byte string. This does not dereference engine pointers.
+---@param type TypeSelector
+---@param bytes string
+---@return any? value
+---@return string? reason
+function runtime.values.decode(type, bytes) end
+--- Validate and serialize a Lua value using the current type layout.
+---@param type TypeSelector
+---@param value any
+---@return string? bytes
+---@return string? reason
+function runtime.values.encode(type, value) end
+--- Decode the exact reflected default. Never invent zero defaults when none are present.
+--- DS containers requiring engine allocation return nil with an explicit reason.
+---@param type TypeSelector
+---@return any? value
+---@return string? reason
+function runtime.values.new(type) end
+
+runtime.functions = {}
+---@class RuntimeNativeBinding
+---@field id string native:<decimal RVA>
+---@field name string unclear_<eight hexadecimal RVA digits>
+---@field key string Executable SHA256/name; rejects use with another executable.
+---@field rva integer
+---@field provisional boolean
+---@field callable boolean True only when this descriptor has a verified owned-buffer adapter.
+---@field native_callable boolean Raw engine calls are not exposed by provisional bindings.
+---@field execution string? Adapter implementation, when available.
+---@field owners table[] Registration names/hashes, slot offsets and pointer origins.
+---@field signature table Known adapter contract plus explicit unresolved native contract.
+---@field validation table Separate address, type ownership, signature, context and effect evidence.
+---@field buffer_transform table? Minimum source/destination lengths, exact copies, optional constant result.
+---@field reason string?
+---@field call fun(source_bytes:string,destination_bytes:string):string?,string?,integer? Uses owned bytes; unknown bindings return nil,reason.
+
+--- Pages of all observed native code candidates: unwind groups, image code pointers,
+--- and live registration callbacks, including provisional/uncallable entries.
+--- Code pointers can target internal labels. Unreferenced leaf/inlined code may be absent.
+---@param offset integer? Zero-based, default 0.
+---@param limit integer? 1..4096, default 256.
+---@return table? page Descriptors contain evidence; use get() to obtain a binding with call().
+---@return string? reason
+function runtime.functions.list_native(offset, limit) end
+--- Alias of list_native.
+---@param offset integer?
+---@param limit integer?
+---@return table? page
+---@return string? reason
+function runtime.functions.list(offset, limit) end
+---@param selector integer|string RVA, native:<decimal>, unclear_<hex>, or SHA256/unclear_<hex>.
+---@return RuntimeNativeBinding? binding Includes unresolved bindings and their explicit failure reason.
+---@return string? reason
+function runtime.functions.get(selector) end
+--- Alias of get(). An RVA must have unwind, code-pointer or registration evidence.
+---@param rva integer|string
+---@return RuntimeNativeBinding? binding
+---@return string? reason
+function runtime.functions.get_native(rva) end
+--- Return a checked operation wrapper or a proven owned-buffer adapter.
+--- Use get() to inspect incomplete bindings; bind() returns nil,reason for those.
+---@param operation string Operation ID or provisional binding name/key.
+---@return function? binding
+---@return string? reason
+function runtime.functions.bind(operation) end
+---@return table<string, RuntimeFeatureStatus>
+function runtime.functions.get_operations() end
 
 --- Known features: `game.assets.write`, `export`, `runtime.lifecycle`, ECS operations,
 --- and build-verified `runtime.world.*` operations.
@@ -34,8 +106,42 @@ function runtime.require(feature) end
 --- @return RuntimeFeatureStatus
 function runtime.status(feature) end
 
+--- Enumerate declared runtime operations and current phase, mod and provider availability.
+--- Unknown native candidates in development catalogs are not executable operations.
+--- @return table<string, RuntimeFeatureStatus>
+function runtime.get_operations() end
+
 --- @class RuntimeEcsApi
 runtime.ecs = {}
+
+---@class RuntimeComponentRegistration
+---@field index integer Engine registration index, distinct from Type.index.
+---@field qualified_name string Original engine registration name.
+---@field qualified_hash integer Hash of the original registration name.
+---@field runtime_type Type? Actual entity storage layout, possibly Dynamic*.
+---@field template_type Type? Configuration layout, separate from entity bytes.
+---@field runtime_size integer Zero for template-only registrations.
+---@field storage 'entity'|'template-only'
+---@field flags_bits integer Raw engine flags, semantics not assumed.
+---@field storage_flags_bits integer Raw packed flags adjacent to the 16-bit storage size.
+---@field callbacks table[] Code ownership evidence with origin/slot_offset/function_rva; resolve via runtime.functions.get(callback.function_rva).
+---@field read_available boolean
+---@field write_available boolean
+---@field partial_value boolean Some nested values require an unsupported native container codec.
+---@field value_reason string?
+---@field reason string?
+
+--- All registrations from the validated live engine registry, including template-only entries.
+--- Does not require a per-build component hash/index profile. Engine hook/layout compatibility is still required.
+---@return {schema_version:integer,layout_version:integer,source:string,count:integer,runtime_type_count:integer,entries:RuntimeComponentRegistration[]}? registry
+---@return string? reason
+function runtime.ecs.get_registry() end
+
+--- Resolve an original registration or its runtime storage type by name, hash or Type.
+---@param selector TypeSelector
+---@return RuntimeComponentRegistration? component
+---@return string? reason
+function runtime.ecs.get_component(selector) end
 
 --- Return every type that is registered as a component in the live Keen ECS.
 --- The returned Type objects expose their exact names, sizes and fields through `game.types`.
@@ -44,9 +150,15 @@ runtime.ecs = {}
 --- @return string? reason
 function runtime.ecs.get_components() end
 
+--- List every reflected component candidate, including unresolved types.
+--- Availability also depends on the current phase, mod capabilities and provider.
+--- A resolved entry does not imply that a matching entity exists or every field is writable.
+--- @return table catalog {version, entries={type, qualified_name, qualified_hash, size, resolved, read_available, write_available, reason, read_reason, write_reason}[]}
+function runtime.ecs.get_catalog() end
+
 --- Query live entities by real `keen::ecs::*` component type names or Type objects.
 --- Returns `nil, reason` until the current game build has a verified ECS provider.
---- @param ... string|Type
+--- @param ... string|Type|integer Qualified type hash, qualified name, or Type.
 --- @return integer[]? entities Opaque, generation-checked ShroudForge entity handles.
 --- @return string? reason
 function runtime.ecs.query(...) end
@@ -64,17 +176,24 @@ function runtime.ecs.resolve(keen_entity_id) end
 --- Read one live ECS component by an opaque entity handle and real `keen::ecs::*` type.
 --- Returns `nil, reason` until the current game build has a verified ECS provider.
 --- @param entity integer
---- @param component string|Type
+--- @param component string|Type|integer Qualified type hash, qualified name, or Type.
 --- @return table? value
 --- @return string? reason
 function runtime.ecs.read(entity, component) end
+--- Read an owned snapshot of the complete entity storage bytes, including opaque DS descriptors.
+--- Does not follow pointers. The same runtime.ecs.read capability and entity checks apply.
+---@param entity integer
+---@param component TypeSelector
+---@return string? bytes
+---@return string? reason
+function runtime.ecs.read_bytes(entity, component) end
 
 --- Write changed reflected fields from a value previously returned by `read`.
 --- Padding and concurrently updated fields are retained; the write is verified
 --- by readback and restored on failure.
 --- Returns `false, reason` until the current game build has a verified ECS provider.
 --- @param entity integer
---- @param component string|Type
+--- @param component string|Type|integer Qualified type hash, qualified name, or Type.
 --- @param value table
 --- @return boolean ok
 --- @return string? reason
