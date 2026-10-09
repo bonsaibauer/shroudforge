@@ -640,7 +640,8 @@ mod scheduled {
         let mut last_progress = std::time::Instant::now();
         let mut last_bytes = 0u64;
         write_download_progress(root, version, 0, content_length, Some(0));
-        let mut buffer = [0u8; 1024 * 1024];
+        // Keep the 1 MiB transfer buffer off the Windows worker's limited stack.
+        let mut buffer = vec![0u8; 1024 * 1024];
         loop {
             check_update_cancelled(root)?;
             let count = response.read(&mut buffer).map_err(|e| e.to_string())?;
