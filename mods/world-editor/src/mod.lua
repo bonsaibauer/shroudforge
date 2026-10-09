@@ -2315,13 +2315,31 @@ local function configured_client_steam_ids()
     return ids
 end
 
-local server_undo_export_path = "world-editor/server-undo-token.txt"
-local server_undo_export_header = "SHROUDFORGE_WORLD_EDITOR_SERVER_UNDO_V1"
-
 local function valid_peer_id(value)
     return type(value) == "string" and #value >= 16 and #value <= 20 and
         value:match("^%d+$") ~= nil and value ~= "0"
 end
+
+local function server_peer_ids()
+    local configured = configured_client_steam_ids()
+    if #configured > 0 then return configured end
+    if not editor_is_server or not runtime.network or not runtime.network.connected_peers then return {} end
+    local peers, reason = runtime.network.connected_peers()
+    if type(peers) ~= "table" then
+        if reason then shroudforge.log.debug("World Editor could not read authenticated server players: " .. tostring(reason)) end
+        return {}
+    end
+    local ids, seen = {}, {}
+    for _, peer in ipairs(peers) do
+        if valid_peer_id(peer) and not seen[peer] then
+            ids[#ids + 1], seen[peer] = peer, true
+        end
+    end
+    return ids
+end
+
+local server_undo_export_path = "world-editor/server-undo-token.txt"
+local server_undo_export_header = "SHROUDFORGE_WORLD_EDITOR_SERVER_UNDO_V1"
 
 local function persist_server_undo_token()
     if not editor_ui_available or not io.export then return false end
@@ -2440,7 +2458,7 @@ local function create_p2p_bridge()
     if not runtime.network then return nil end
     return require("p2p")(network_api(), {
         is_allowed_peer = function(peer)
-            for _, allowed in ipairs(configured_client_steam_ids()) do
+            for _, allowed in ipairs(server_peer_ids()) do
                 if allowed == peer then return true end
             end
             return false
@@ -2456,10 +2474,10 @@ paste_remote = function(use_current_cursor, cursor_override)
         set_editor_message("selected", "Steam P2P is unavailable in this client runtime.")
         return
     end
-    if remote_undo then
-        set_editor_message("recovery", "Undo the previous server placement with F4 before sending another blueprint.")
-        return
-    end
+    -- The persisted token can outlive a successful server-side undo when its
+    -- acknowledgement is lost. The server owns the authoritative journal and
+    -- rejects F7 while that journal is genuinely unresolved, so a stale client
+    -- token must not permanently lock placement.
     local peer, discovered_local_server = configured_server_steam_id()
     if not peer then
         set_editor_message("selected", "Set the dedicated server's SteamID64 in World Editor → Server P2P before using F7 online.")
@@ -2607,7 +2625,7 @@ local function update_server_remote_undo(delta_seconds)
 end
 
 local function create_server_peer_list()
-    return configured_client_steam_ids()
+    return server_peer_ids()
 end
 
 p2p_bridge = create_p2p_bridge()
@@ -2671,7 +2689,9 @@ return {
                 shroudforge.log.info("World Editor dedicated-server SteamID64: " .. tostring(status.local_steam_id))
             end
             if #configured_client_steam_ids() == 0 then
-                shroudforge.log.warn("World Editor server P2P is locked: add authorized client SteamID64 values to allowedClientSteamIds.")
+                shroudforge.log.info("World Editor server P2P authorization follows Enshrouded's authenticated connected-player list; no client SteamID64 entry is required.")
+            else
+                shroudforge.log.info("World Editor server P2P uses the explicitly configured allowedClientSteamIds list.")
             end
             if not status or not status.available then
                 shroudforge.log.warn("World Editor server P2P is unavailable: " .. tostring(status and status.reason or "network runtime missing"))

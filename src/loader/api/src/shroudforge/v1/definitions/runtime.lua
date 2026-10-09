@@ -53,6 +53,10 @@ function runtime.network.send_mod(peer_steam_id, target_mod_id, payload, options
 ---@return boolean accepted
 ---@return string? reason
 function runtime.network.accept(peer_steam_id) end
+--- Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server.
+---@return string[]|nil peers
+---@return string|nil reason
+function runtime.network.connected_peers() end
 ---@class RuntimeNetworkReceiveOptions
 ---@field channel integer? Local channel to read, default 0.
 ---@field limit integer? Maximum messages to return in one call, 1..32, default 16.

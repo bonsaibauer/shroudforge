@@ -35,6 +35,10 @@ KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkStatus(uint64_t* local
 /* Optional local-host discovery. A dedicated server publishes its current
  * Steam identity through a session-scoped mapping; clients read it here. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkLocalServer(uint64_t* server_steam_id);
+/* Authenticated, currently connected Dedicated Server clients from the server's
+ * active Enshrouded session log. Returns 1 when the list was read. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkConnectedPeers(
+    uint64_t* peer_steam_ids, size_t capacity, size_t* count);
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkSend(
     uint64_t peer_steam_id, const unsigned char* payload, size_t size,
     int32_t channel, int32_t reliable);

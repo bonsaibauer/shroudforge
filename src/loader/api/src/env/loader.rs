@@ -153,6 +153,7 @@ fn create_functions(
             "runtime.network.receive" => "runtime.network.receive",
             "runtime.network.receive_mod" => "runtime.network.receive_mod",
             "runtime.network.accept" => "runtime.network.accept",
+            "runtime.network.connected_peers" => "runtime.network.connected_peers",
             "runtime.lifecycle" | "runtime.gameplay.patch" => continue,
             id => id,
         };
@@ -273,7 +274,8 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
         | "runtime.network.send_mod"
         | "runtime.network.receive"
         | "runtime.network.receive_mod"
-        | "runtime.network.accept" => {
+        | "runtime.network.accept"
+        | "runtime.network.connected_peers" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)

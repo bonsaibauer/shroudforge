@@ -2,8 +2,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <iterator>
+#include <map>
+#include <set>
 #include <string>
+#include <vector>
 #include <windows.h>
 
 namespace {
@@ -135,6 +139,75 @@ bool ready(const Interfaces& api) {
     return api.messages && api.send && api.receive && api.accept && api.release;
 }
 
+bool server_log_path(std::wstring& path) {
+    if (!is_dedicated_server()) return false;
+    wchar_t executable[32768]{};
+    const auto length = GetModuleFileNameW(nullptr, executable, static_cast<DWORD>(std::size(executable)));
+    if (!length || length >= std::size(executable)) return false;
+    path.assign(executable, length);
+    const auto separator = path.find_last_of(L"\\/");
+    if (separator == std::wstring::npos) return false;
+    path.resize(separator + 1);
+    path += L"logs\\enshrouded_server.log";
+    return true;
+}
+
+bool parse_peer_key(const std::string& line, const char* marker, std::string& key) {
+    const auto start = line.find(marker);
+    if (start == std::string::npos) return false;
+    const auto value = start + std::strlen(marker);
+    const auto end = line.find(' ', value);
+    if (end == std::string::npos || end == value) return false;
+    key.assign(line, value, end - value);
+    return true;
+}
+
+bool parse_steam_id(const std::string& value, size_t start, uint64_t& id) {
+    while (start < value.size() && (value[start] < '0' || value[start] > '9')) ++start;
+    const auto end = start;
+    while (start < value.size() && value[start] >= '0' && value[start] <= '9') ++start;
+    if (end == start) return false;
+    try { id = std::stoull(value.substr(end, start - end)); }
+    catch (...) { return false; }
+    return id != 0;
+}
+
+bool read_authenticated_server_peers(std::vector<uint64_t>& peers) {
+    std::wstring path;
+    if (!server_log_path(path)) return false;
+    std::ifstream log(path);
+    if (!log) return false;
+    std::map<std::string, uint64_t> live;
+    std::set<uint64_t> authenticated;
+    std::string line;
+    while (std::getline(log, line)) {
+        std::string key;
+        if (parse_peer_key(line, "[online] Added peer ", key)) {
+            const auto steam = line.find("(steamid:");
+            uint64_t id{};
+            if (steam != std::string::npos && parse_steam_id(line, steam + 9, id)) live[key] = id;
+        } else if (line.find("authenticated by steam") != std::string::npos &&
+                   line.find("not authenticated by steam") == std::string::npos) {
+            const auto client = line.find("Client '");
+            uint64_t id{};
+            if (client != std::string::npos && parse_steam_id(line, client + 8, id)) authenticated.insert(id);
+        } else if (line.find("not authenticated by steam") != std::string::npos) {
+            const auto client = line.find("Client '");
+            uint64_t id{};
+            if (client != std::string::npos && parse_steam_id(line, client + 8, id)) authenticated.erase(id);
+        } else if (parse_peer_key(line, "[online] Removed peer ", key)) {
+            live.erase(key);
+        }
+    }
+    std::set<uint64_t> active;
+    for (const auto& [key, id] : live) {
+        (void)key;
+        if (authenticated.contains(id)) active.insert(id);
+    }
+    peers.assign(active.begin(), active.end());
+    return true;
+}
+
 SteamNetworkingIdentity identity(uint64_t steam_id) {
     SteamNetworkingIdentity result{};
     result.type = k_steam_identity_type;
@@ -196,6 +269,19 @@ KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkLocalServer(uint64_t* server_st
         !steam_id || !process_id || now < updated_at || now - updated_at > k_server_identity_max_age_ms) return 0;
     *server_steam_id = steam_id;
     return 1;
+}
+
+KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkConnectedPeers(
+    uint64_t* peer_steam_ids, size_t capacity, size_t* count) {
+    if (!count || (capacity && !peer_steam_ids) || capacity > 256 || !is_dedicated_server()) return 0;
+    *count = 0;
+    try {
+        std::vector<uint64_t> peers;
+        if (!read_authenticated_server_peers(peers) || peers.size() > capacity) return 0;
+        for (size_t index = 0; index < peers.size(); ++index) peer_steam_ids[index] = peers[index];
+        *count = peers.size();
+        return 1;
+    } catch (...) { return 0; }
 }
 
 KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkSend(

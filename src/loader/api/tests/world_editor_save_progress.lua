@@ -198,3 +198,14 @@ assert(upvalue(actions.undoVoxels,'undo_state')==nil,
     'F4 in local singleplayer must undo the local journal before prompting for a remote token')
 assert(upvalue(actions.undoVoxels,'remote_undo')==server_token,
     'completing local undo must retain the server recovery token')
+
+-- A locally persisted remote token can be stale after the server completed
+-- undo but its acknowledgement was lost. F7 must reach the server, whose own
+-- transaction journal is authoritative about whether another paste is safe.
+context_kind='client-read-only'
+local remote_paste_calls=0
+upvalue(actions.pasteVoxels,'clipboard',{props={}})
+upvalue(actions.pasteVoxels,'paste_remote',function() remote_paste_calls=remote_paste_calls+1 end)
+actions.pasteVoxels(true)
+assert(remote_paste_calls==1,
+    'a stale remote undo token must not permanently block the next server F7 request')

@@ -110,6 +110,25 @@ pub fn accept(peer_steam_id: u64) -> Result<bool, String> {
     Err("Steam Networking Messages is supported only by the Windows game runtime".into())
 }
 
+/// Steam IDs authenticated by Enshrouded and still connected to this Dedicated Server.
+pub fn connected_peers() -> Result<Vec<String>, String> {
+    #[cfg(windows)]
+    unsafe {
+        type NetworkPeers = unsafe extern "C" fn(*mut u64, usize, *mut usize) -> i32;
+        let address = symbol(b"KfcRuntimeNetworkConnectedPeers\0")
+            .ok_or_else(|| "authenticated server peer discovery is unavailable".to_owned())?;
+        let read: NetworkPeers = std::mem::transmute(address);
+        let mut peers = [0u64; 64];
+        let mut count = 0usize;
+        if read(peers.as_mut_ptr(), peers.len(), &mut count) != 1 || count > peers.len() {
+            return Err("could not read authenticated Enshrouded server peers".into());
+        }
+        return Ok(peers[..count].iter().map(u64::to_string).collect());
+    }
+    #[cfg(not(windows))]
+    Err("authenticated server peer discovery is supported only on Windows".into())
+}
+
 pub fn receive(channel: i32) -> Result<Option<Message>, String> {
     validate_channel(channel)?;
     #[cfg(windows)]

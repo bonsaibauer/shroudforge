@@ -14,16 +14,24 @@ client discovers the server's current SteamID64 automatically. Enshrouded can
 assign a new ID after a server restart, so the client reads the live ID from the
 running server instead of relying on a stale saved value. For remote servers,
 the client's **Dedicated server SteamID64 fallback** field remains available.
-The client log prints its SteamID64; add it to the server's comma-separated
-**Authorized client SteamID64 list**. The server accepts P2P requests only from
-that allowlist. Steam P2P identifies the process peer; it does not prove which
-in-game character owns that Steam account. The P2P transfer limit is 32 MiB per
+The server automatically accepts P2P sessions only for players Enshrouded has
+authenticated and still lists as connected. The native server runtime derives
+that live set from the Dedicated Server's active `logs/enshrouded_server.log`
+join, authentication, and removal events; the World Editor receives only the
+resulting SteamID64 list and calls `runtime.network.accept` before its P2P
+receiver polls. **Authorized client SteamID64 list** remains an optional strict
+override for administrators. This ties P2P access to the server's logged Steam
+authentication lifecycle; it does not infer authorization from a client hello.
+The P2P transfer limit is 32 MiB per
 blueprint; local blueprint files keep their existing 256 MiB limit. Capturing
 and saving remain on the client; F7 sends the same V7 blueprint body to the
 server. F4 sends the server-issued undo token back, so process-local entity
 handles never cross the network. Switching between local and server worlds
 changes the route automatically. The dedicated server keeps one in-memory undo
-journal; restarting it discards that journal.
+journal; restarting it discards that journal. A stale client undo token cannot
+permanently block F7: the client may submit the next paste, and the server
+accepts it only after its own prior undo journal is complete. If an undo is
+still active, the server keeps rejecting edits until it reports completion.
 
 The P2P transport, SFBP validation, authorization, and duplicate-request guards
 are covered by isolated tests. **Live dedicated-server replication and save

@@ -170,6 +170,34 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
         })?,
     )?;
 
+    let peers_owner = owner.clone();
+    network.set(
+        "connected_peers",
+        lua.create_function(move |lua, ()| {
+            if let Some(reason) = denied(lua, &peers_owner, "runtime.network.connected_peers") {
+                return Ok((None::<Table>, Some(reason)));
+            }
+            let state = lua.app_data_ref::<AppState>().unwrap();
+            if !state.is_server() {
+                return Ok((
+                    None,
+                    Some(
+                        "connected_peers is available only in the Dedicated Server runtime".into(),
+                    ),
+                ));
+            }
+            let peers = match steam_network::connected_peers() {
+                Ok(peers) => peers,
+                Err(reason) => return Ok((None, Some(reason))),
+            };
+            let result = lua.create_table()?;
+            for (index, peer) in peers.iter().enumerate() {
+                result.raw_set(index + 1, peer.as_str())?;
+            }
+            Ok((Some(result), None))
+        })?,
+    )?;
+
     let receive_owner = owner.clone();
     network.set(
         "receive",

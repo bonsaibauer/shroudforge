@@ -9,6 +9,7 @@
     "runtime.network.receive",
     "runtime.network.receive_mod",
     "runtime.network.accept",
+    "runtime.network.connected_peers",
     "runtime.ecs.query",
     "runtime.ecs.resolve",
     "runtime.ecs.read",

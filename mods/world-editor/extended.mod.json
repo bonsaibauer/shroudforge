@@ -35,7 +35,7 @@
     },
     "allowedClientSteamIds": {
       "value": "",
-      "label": "Authorized client SteamID64 list (server; comma separated)"
+      "label": "Optional authorized client SteamID64 list (empty = authenticated players)"
     },
     "panelWidth": {
       "value": 1180,

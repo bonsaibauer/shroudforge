@@ -2,7 +2,7 @@ local client_id, server_id = "76561198000000001", "76561198000000002"
 local to_server, to_client = {}, {}
 local voxels = {0}
 local writes = {}
-local settings = {serverSteamId = server_id, allowedClientSteamIds = client_id,
+local settings = {serverSteamId = server_id, allowedClientSteamIds = "",
     rotationQuarterTurns = 0, rotationAxis = "y", maximumCopyableProps = 60000,
     pasteVoxelMode = "replace", targetPropMode = "keep"}
 local function push(queue, message) queue[#queue + 1] = message end
@@ -26,6 +26,9 @@ local function endpoint(role)
             return true
         end,
         accept = function() return true end,
+        connected_peers = function()
+            return role == "server" and {client_id} or {}
+        end,
         receive_mod = function(limit) return receive(role == "server" and to_server or to_client, limit) end,
     }
 end
@@ -89,3 +92,17 @@ for _ = 1, 8 do
 end
 assert(voxels[1] == 0 and writes[2] == 0, "F4 must restore the server-owned voxel snapshot")
 assert(last_client_result[1] == "undo" and last_client_result[2] == true)
+
+-- A client may retain a stale local undo token if the success response was
+-- lost. The server's completed journal is authoritative; the next F7 must work.
+assert(client.start_paste(server_id, blueprint, {anchor = {0, 0, 0}, turns = 0,
+    voxelMode = "replace", targetPropMode = "keep"}))
+for _ = 1, 8 do
+    client.tick(.03)
+    server_editor.on_update(.03)
+    client.tick(.03)
+end
+assert(voxels[1] == 192 and writes[3] == 192,
+    "a completed server undo must not leave the client-side queue blocking F7")
+assert(last_client_result[1] == "paste" and last_client_result[2] == true,
+    "server must accept the next paste once its prior undo completed")
