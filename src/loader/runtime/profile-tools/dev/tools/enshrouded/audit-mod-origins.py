@@ -110,6 +110,10 @@ def audit(pe, profile, functions, resources):
     mods.append(dict(mod='sf-unlock-blueprints', source_type='keen::GameKnowledgeQueryResourceDb',
                      query='Unlock_Flame_Altar_PK', action='NPC_Flame_Hint01', knowledge_id=next(iter(knowledge)),
                      destination='keen::RecipeRegistryResource.recipes[].knowledgeRequirement'))
+    mods.append(dict(mod='sf-production-time', source_type='keen::RecipeRegistryResource',
+                     destination='recipes[].craftingDuration.value', unit='nanoseconds',
+                     selection='positive duration only', native_patch=False,
+                     note='Absolute duration through the existing asset API; identical settings required in both installations.'))
     world = []
     for name, operation in profile['worldOperations'].items():
         actor_context = operation['abi'] == 'actor-world-context'
@@ -166,6 +170,12 @@ def audit_packages(result, root, target):
         elif row['mod'] == 'sf-unlock-blueprints':
             assert all(name in source for name in (row['query'], row['action'], 'recipe.knowledgeRequirement'))
             assert 'patch' in manifest['capabilities']
+            row['phase'] = 'pregame-assets'
+        elif row['mod'] == 'sf-production-time':
+            assert all(name in source for name in (row['source_type'], 'recipe.craftingDuration',
+                                                  'time.value > 0', 'seconds * 1000000000'))
+            assert manifest['capabilities'] == ['patch']
+            assert extended['targets'] == ['client', 'server']
             row['phase'] = 'pregame-assets'
         else:
             assert extended['targets'] == ['client']

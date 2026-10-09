@@ -1,0 +1,11 @@
+{
+  "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
+  "id": "sf-production-time",
+  "name": "SF Production Time",
+  "version": "1.0.0",
+  "description": "Sets timed production recipes to a chosen base duration. World speed settings still apply.",
+  "authors": ["bonsaibauer"],
+  "icon": "icon.svg",
+  "dependencies": [],
+  "capabilities": ["patch"]
+}

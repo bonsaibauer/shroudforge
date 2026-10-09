@@ -3,7 +3,7 @@
   "id": "sf-no-resource-cost",
   "name": "SF No Resource Cost",
   "version": "1.1.1",
-  "description": "Sets the sixth argument of a shared inventory helper to zero in the current process. Verified callers include building, crafting, item usage and other systems; this is not restricted to recipe costs.",
+  "description": "Removes resource consumption in supported building, crafting, and item-use actions.",
   "authors": [
     "bonsaibauer"
   ],

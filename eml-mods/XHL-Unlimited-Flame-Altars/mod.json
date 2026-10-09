@@ -5,7 +5,7 @@
   "capabilities": [
     "patch"
   ],
-  "description": "Removes the Flame Altar limit by dynamically handling the PlayerBases area registry and the 32-slot BuildingZones receiver array.",
+  "description": "Removes the limit on Flame Altars.",
   "authors": [
     "XHL"
   ],

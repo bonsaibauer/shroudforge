@@ -10,7 +10,7 @@ local function set_enabled(value)
         reason = reason or "build-specific stamina patch failed"
         if reason ~= last_error then
             runtime.report_effect("write-failed", reason)
-            shroudforge.log.error("No Stamina Loss: " .. tostring(reason))
+            shroudforge.log.error("Auto Stamina Refill: " .. tostring(reason))
             last_error = reason
         end
         return false
@@ -22,7 +22,7 @@ local function set_enabled(value)
 end
 
 local function apply_setting()
-    local wanted = shroudforge.settings.get("preventDepletion") ~= false
+    local wanted = shroudforge.settings.get("autoRefill") ~= false
     set_enabled(wanted)
 end
 
@@ -33,10 +33,10 @@ return {
         local reason
         modifier, reason = runtime.functions.bind_modifier(modifier_id)
         if not modifier or not modifier.available() then
-            error("No Stamina Loss patch is not validated for this game build")
+            error("Auto Stamina Refill patch is not validated for this game build")
         end
-        if not set_enabled(shroudforge.settings.get("preventDepletion") ~= false) then
-            error("No Stamina Loss could not apply its configured state; see the runtime error log")
+        if not set_enabled(shroudforge.settings.get("autoRefill") ~= false) then
+            error("Auto Stamina Refill could not apply its configured state; see the runtime error log")
         end
     end,
     on_update = apply_setting,

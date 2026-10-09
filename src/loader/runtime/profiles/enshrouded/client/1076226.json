@@ -837,11 +837,11 @@
         "argument_index": 6
       }
     },
-    "runtime.patch.no_stamina_loss": {
+    "runtime.patch.auto_stamina_refill": {
       "kind": "detour",
       "signature": "8B 04 91 89 44 24 40",
       "function": {
-        "id": "patch_owner.no_stamina_loss",
+        "id": "patch_owner.auto_stamina_refill",
         "beginRva": 2309284,
         "endRva": 2317879,
         "targetOffset": 1450

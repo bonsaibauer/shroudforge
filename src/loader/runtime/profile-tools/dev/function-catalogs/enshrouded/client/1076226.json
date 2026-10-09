@@ -336,9 +336,9 @@
         "source profile patch signature and function range"
       ],
       "expectedRva": 2310734,
-      "id": "runtime.patch.no_stamina_loss",
+      "id": "runtime.patch.auto_stamina_refill",
       "operationKind": "detour",
-      "purpose": "Guarded runtime patch: runtime.patch.no_stamina_loss",
+      "purpose": "Guarded runtime patch: runtime.patch.auto_stamina_refill",
       "semanticStatus": "candidate",
       "sideEffects": [
         "code-patch"

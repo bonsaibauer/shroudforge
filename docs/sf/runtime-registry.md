@@ -235,7 +235,7 @@ attribute interventions, matching current KFC IDs and storage indices.
 
 | Bundled mod | Proven origin and resulting intervention |
 | --- | --- |
-| `sf-no-stamina-loss` | `network_player_attributes`: `Stamina` (`0x04b6aa8b`) is assigned `Stamina_Max` (`0xf443c410`) before the network snapshot. This is replenishment, not proof that depletion calculations are skipped. Modifier `refill_stamina`. |
+| `sf-auto-stamina-refill` | `network_player_attributes`: `Stamina` (`0x04b6aa8b`) is assigned `Stamina_Max` (`0xf443c410`) before the network snapshot. This is replenishment, not proof that depletion calculations are skipped. Modifier `refill_stamina`. |
 | `sf-no-fall-damage` | `fall_damage_infliction`: preserve `Health` (`0x8eb84995`) by suppressing its store and retaining the subsequent recalculation. The previous payload added the calculated value to Health. Modifier `preserve_health_on_fall`. |
 | `sf-unlimited-flight` | `actor_rotation`: replace one scalar load with `-1.57f`. The original variable name remains unresolved. The server's invalid RIP-relative constant reference is fixed and represented explicitly in the payload profile. Modifier `override_rotation_constant`. |
 | `sf-no-resource-cost` | Shared helper: force its sixth integer argument to zero. Proven callers include `actor_apply_buff`, `player_crafting`, `inventory_actions` and building systems. It affects every execution of the shared site. Modifier `zero_resource_argument`. |

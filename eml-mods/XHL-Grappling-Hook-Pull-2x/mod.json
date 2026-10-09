@@ -5,7 +5,7 @@
   "capabilities": [
     "patch"
   ],
-  "description": "Doubles the actual pull distance of all grappling hooks; swing distance remains unchanged.",
+  "description": "Doubles grappling hook pull distance.",
   "authors": [
     "XHL"
   ],

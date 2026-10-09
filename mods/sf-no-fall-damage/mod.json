@@ -3,7 +3,7 @@
   "id": "sf-no-fall-damage",
   "name": "SF No Fall Damage",
   "version": "1.1.1",
-  "description": "Applies the build-profile-verified native fall-damage patch.",
+  "description": "Prevents health loss from falling.",
   "authors": [
     "bonsaibauer"
   ],

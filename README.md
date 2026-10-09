@@ -86,7 +86,7 @@ The build checks mod folders for **mod.json**, a mod ID, and **src/mod.lua**, th
 | **SF Infinite Item Use** | Prevents item use from consuming the item. | ✅ Proven |
 | **SF No Fall Damage** | Prevents fall damage. | ✅ Proven |
 | **SF No Resource Cost** | Removes supported crafting costs. | ✅ Proven |
-| **SF No Stamina Loss** | Prevents stamina from running out. | ✅ Proven |
+| **SF Auto Stamina Refill** | Repeatedly refills stamina to maximum. | ✅ Proven |
 | **SF Unlimited Flight** | Applies the supported change to flight. | ✅ Proven |
 | **SF Unlock Blueprints** | Unlocks supported crafting recipes. | ✅ Proven |
 | **World Editor** | Adds shortcuts for marking areas, undoing, and saving or placing blueprints. | ✅ Proven |

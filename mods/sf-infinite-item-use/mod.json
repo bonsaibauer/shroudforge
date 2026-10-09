@@ -3,7 +3,7 @@
   "id": "sf-infinite-item-use",
   "name": "SF Infinite Item Use",
   "version": "1.1.1",
-  "description": "Changes the item-use consumption argument in the current client or server process through an exact-build function modifier. Enabling it on a client does not patch the connected server.",
+  "description": "Prevents items from being consumed when used.",
   "authors": [
     "bonsaibauer"
   ],

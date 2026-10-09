@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="clock" x1="37" y1="37" x2="85" y2="91" gradientUnits="userSpaceOnUse"><stop stop-color="#ffe8a6"/><stop offset="1" stop-color="#c48636"/></linearGradient>
+    <linearGradient id="ingot" x1="70" y1="80" x2="100" y2="103" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0bd"/><stop offset="1" stop-color="#d99d4c"/></linearGradient>
+  </defs>
+  <rect x="5" y="5" width="118" height="118" rx="29" fill="#1c1915" stroke="#62513b" stroke-width="2"/>
+  <path d="M57 29h12m-6 0v9m20 3 6-6" stroke="#fff0bf" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="63" cy="64" r="27" fill="url(#clock)" stroke="#fff0bf" stroke-width="3"/>
+  <circle cx="63" cy="64" r="20" fill="#34291e" stroke="#ffe8a6" stroke-width="2"/>
+  <path d="M63 49v15l10 6" stroke="#fff4d3" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="63" cy="64" r="3" fill="#fff0bd"/>
+  <path d="M30 54h-8m8 10H19m11 10h-8" stroke="#d99d4c" stroke-width="3" stroke-linecap="round"/>
+  <path d="m73 82 21-4 11 13-5 12H69l-5-11 9-10Z" fill="url(#ingot)" stroke="#fff0c6" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="m73 82 5 11 27-2M64 92l14 1-9 10" stroke="#fff4d3" stroke-width="2" stroke-linejoin="round"/>
+</svg>

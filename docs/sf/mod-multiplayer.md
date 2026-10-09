@@ -1,6 +1,6 @@
 # Mod-Ausführung: lokal, Client und Server
 
-Stand 2026-10-09. Alle acht Pakete wurden gegen ihren Lua-Einstieg, ihr Manifest,
+Stand 2026-10-09. Die ursprünglich acht Pakete wurden gegen ihren Lua-Einstieg, ihr Manifest,
 die aktuellen EXE-Profile, vollständige Aufrufinventare und frisch extrahierte
 KFC-Ressourcen geprüft. Codezuordnung und Ingame-Multiplayerwirkung sind getrennte
 Nachweise. Der Prüfer führt keine Spielaktionen aus.
@@ -27,13 +27,14 @@ Spieltransaktion muss bei verbundenem Client beobachtet werden.
 
 | Mod | Tatsächlicher Eingriff | Lokal / Host | Beigetretener Client | Dedicated Server / beide installiert |
 | --- | --- | --- | --- | --- |
-| `sf-no-stamina-loss` | `network_player_attributes`: `Stamina = Stamina_Max`, vor dem Netzwerk-Attributsnapshot | Binding vorhanden; ursprüngliche Verbrauchsberechnung wird damit nicht entfernt | Ändert diesen Client-Prozess; spätere Snapshots können Werte ersetzen | Separates Server-Binding vorhanden. Beide Instanzen ändern ihre eigene Ausführung; keine automatische Kopplung der Schalter |
+| `sf-auto-stamina-refill` | `network_player_attributes`: `Stamina = Stamina_Max`, vor dem Netzwerk-Attributsnapshot | Binding vorhanden; ursprüngliche Verbrauchsberechnung wird damit nicht entfernt | Ändert diesen Client-Prozess; spätere Snapshots können Werte ersetzen | Separates Server-Binding vorhanden. Beide Instanzen ändern ihre eigene Ausführung; keine automatische Kopplung der Schalter |
 | `sf-no-fall-damage` | `fall_damage_infliction`: Health-Schreibzugriff überspringen, Neuberechnung erhalten | Binding vorhanden | Lokale Aktivierung beweist keine Entscheidung des Hosts | Server-Binding vorhanden; für serverseitig berechneten Fallschaden ist dessen Ausführung maßgeblich |
 | `sf-unlimited-flight` | `actor_rotation`: einen Skalar durch `-1.57f` ersetzen; ursprünglicher Variablenname unbekannt | Binding vorhanden, Abhängigkeit von Stamina-Mod bleibt | Bewegungsprognose und Serverkorrekturen müssen zusammen geprüft werden | Eigenes Server-Binding vorhanden. Beide installieren bedeutet zwei Modifikationen derselben Systemart, keine verdoppelte RPC-Aktion |
 | `sf-no-resource-cost` | Sechstes Argument einer gemeinsam verwendeten Inventarfunktion auf null setzen | Erreicht u. a. Bauen, Crafting, Nutzung und weitere Aufrufer | Client-UI und lokale Aufrufe können reagieren; entfernt keine Prüfung in einem anderen Prozess | Der Prozess, der den Inventarvorgang abwickelt, muss den Eingriff ausführen. Wirkung ist breiter als nur Rezepte |
 | `sf-infinite-item-use` | Sechstes boolesches Argument einer gemeinsamen Inventarfunktion auf false setzen | Binding vorhanden | Kein Nachweis serverseitig unendlicher Nutzung durch lokale Aktivierung allein | Server-Binding vorhanden; Nutzung, Ausrüstung und weitere Aufrufer teilen sich diesen Pfad |
 | `sf-infinite-item-split` | Subtraktion vom Quellbestand in gemeinsamem Inventarhelfer unterdrücken | Binding vorhanden, nicht auf Teilen beschränkt | Inventartransaktion und Rückabgleich entscheiden über das Ergebnis | Server-Binding vorhanden. Aufrufer umfassen Crafting, Ausrüstung, Loot und andere Systeme; frühere Aussage „split-spezifisch“ korrigiert |
 | `sf-unlock-blueprints` | Beim Assetstart Rezeptbedingungen auf `Unlock_Flame_Altar_PK / NPC_Flame_Hint01` umstellen | KFC-Transformation im gestarteten Spiel | Verändert Rezeptdaten dieser Installation; Anzeige ist keine serverseitige Freigabe | Für übereinstimmende Rezeptbedingungen auf beiden Installationen vorbereiten. Kein direkter Spielstand-Unlock und kein Runtime-Mod |
+| `sf-production-time` | Positive `RecipeInfo.craftingDuration` auf eine feste Basisdauer setzen | Vor Spielstart vorbereiten; Weltfaktor gilt zusätzlich | Gleiche Einstellung wie beim Host für passende Anzeige verwenden | Vor Serverstart separat vorbereiten. Keine automatische Übertragung der Mod-Einstellung; standardmäßig deaktiviert |
 | `world-editor` | Client-Cursor/Dateien/UI; wahlweise direkte Welt-API oder normale `ClientPlayerInput`-Baueingaben | Direkter Modus vorhanden; Spieleingabemodus ebenfalls clientseitig | Neuer Spieleingabemodus implementiert; folgt dem vorhandenen Baupfad und prüft beobachtete Änderungen | Kein Editor-Mod auf dem Server erforderlich für diesen Eingabepfad. Die Annahme durch die Engine, Replikation und Speicherung sind noch nicht end-to-end nachgewiesen |
 
 ## Tatsächlich laufender Stand bei der Prüfung
@@ -90,7 +91,7 @@ Client und Bestand nach Wiederverbinden/Neustart bleiben separate Spieltests.
 
 ## Wiederholbare Prüfung
 
-- `profile-tools/dev/tools/enshrouded/audit-mod-origins.py`: alle acht tatsächlichen
+- `profile-tools/dev/tools/enshrouded/audit-mod-origins.py`: alle neun tatsächlichen
   Lua-Einstiege, Prozessziele, Modifier-Ursprünge und nativen Guards; Aufruf mit
   `--help`. Ausgabe kennzeichnet `multiplayer_gameplay_verified: false`.
 - `verify-building-input.py`: Original-Eingabelayouts, Aktionsbits, Hookregister
@@ -107,3 +108,15 @@ Client und Bestand nach Wiederverbinden/Neustart bleiben separate Spieltests.
 
 Die ausführbaren Profile bleiben unter `src/loader/runtime/profiles/enshrouded/`.
 Diagnoseausgaben unter `target/` sind keine ausgelieferten Bindings.
+
+## Schmelzen: aktueller Live-Nachweis
+
+Am 09.10.2026 wurde auf dem aktiven Server ein Kupferlauf beobachtet: zehn
+Ausgabebarren, unveränderte Zutatenbestände, kein Kupfererz im erfassten Eingang.
+Der Produktionszyklus dauerte 300,0167 Sekunden. Die Nullkosten-Modifikation
+funktionierte in diesem Lauf. Der Zeitunterschied entstand durch 320 um Faktor
+400 abweichende Rezeptdauern in Client und Server, einschließlich ihrer Backups.
+`sf-production-time` macht die Basisdauer nun über die vorhandene Lua-Asset-API
+ausdrücklich einstellbar; gleiche Werte sind auf beiden Installationen nötig.
+Der echte KFC-Schreib-/Lesezyklus wurde auf isolierten Kopien beider Builds
+geprüft. Siehe [Messung und Aufrufpfad](../../src/loader/runtime/profile-tools/dev/investigations/2026-10-09-smelter-production.md).

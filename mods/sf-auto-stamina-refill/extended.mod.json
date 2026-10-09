@@ -15,14 +15,14 @@
     "Deduplicates repeated patch errors and fails activation if the configured patch state cannot be applied."
   ],
   "settings": {
-    "preventDepletion": true
+    "autoRefill": true
   },
   "groups": [
     {
       "label": "Stamina behavior",
-      "description": "Uses the build-specific runtime patch.",
+      "description": "Repeatedly refills stamina to maximum.",
       "settings": [
-        "preventDepletion"
+        "autoRefill"
       ]
     }
   ]

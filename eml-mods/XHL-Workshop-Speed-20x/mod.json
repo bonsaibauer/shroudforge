@@ -5,7 +5,7 @@
   "capabilities": [
     "patch"
   ],
-  "description": "Increases the production speed of all timed workshop recipes by 20x while preserving the current world workshop speed setting.",
+  "description": "Makes timed workshop recipes produce 20 times faster.",
   "authors": [
     "XHL"
   ],

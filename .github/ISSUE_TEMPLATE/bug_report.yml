@@ -34,7 +34,7 @@ body:
     attributes:
       label: Which component is affected?
       description: Optional. Name the module or mod as precisely as possible.
-      placeholder: "For example: Debug Console, Updater, or No Stamina Loss"
+      placeholder: "For example: Debug Console, Updater, or Auto Stamina Refill"
 
   - type: textarea
     id: problem

@@ -30,8 +30,7 @@ struct EntityHeader {
     std::uintptr_t layout;
     std::uintptr_t storage;
     std::uintptr_t definition;
-    std::uint64_t row;
-    std::uint64_t component_count;
+    std::uint32_t row;
 };
 
 bool validate_manager(HANDLE process, std::uintptr_t candidate,
@@ -61,13 +60,20 @@ bool validate_manager(HANDLE process, std::uintptr_t candidate,
         ++occupied;
         EntityHeader header{};
         if (!read(process, pointer, header) || !header.id || !header.layout ||
-            !header.storage || !header.definition || !header.component_count ||
-            header.component_count > 1024 || header.row > (1u << 24)) continue;
-        std::uintptr_t definition_name{};
-        std::uint64_t definition_name_size{};
-        if (!read(process, header.definition + 0x10, definition_name) ||
-            !read(process, header.definition + 0x18, definition_name_size) ||
-            !definition_name || !definition_name_size || definition_name_size > 512) continue;
+            !header.storage || header.row > (1u << 24)) continue;
+        std::array<std::uint64_t, 16> bits{};
+        std::array<std::uint16_t, 1024> strides{}, registered_sizes{};
+        const auto words = static_cast<std::size_t>((registrations + 63) / 64);
+        if (!read_bytes(process, header.layout, bits.data(), words * sizeof(bits[0])) ||
+            !read_bytes(process, header.layout + 2692, strides.data(), registrations * sizeof(strides[0])) ||
+            !read_bytes(process, sizes, registered_sizes.data(), registrations * sizeof(strides[0]))) continue;
+        bool has_component = false, consistent = true;
+        for (std::size_t index = 0; index < registrations; ++index) {
+            if (!(bits[index / 64] & (std::uint64_t{1} << (index % 64)))) continue;
+            has_component = true;
+            if (!strides[index] || strides[index] != registered_sizes[index]) { consistent = false; break; }
+        }
+        if (!has_component || !consistent) continue;
         if (std::find(ids.begin(), ids.end(), header.id) != ids.end()) continue;
         ids.push_back(header.id);
         ++valid;

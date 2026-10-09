@@ -3,7 +3,7 @@
   "id": "sf-infinite-item-split",
   "name": "SF Infinite Item Split",
   "version": "1.4.0",
-  "description": "Suppresses a source-count subtraction in a shared inventory helper in the current process. Its verified callers include splitting, crafting, equipment and other inventory operations; the modifier is not restricted to splitting.",
+  "description": "Keeps the original stack when splitting items. Also affects other inventory operations.",
   "authors": [
     "bonsaibauer"
   ],

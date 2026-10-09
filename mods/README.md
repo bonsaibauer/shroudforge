@@ -37,11 +37,11 @@ The SF gameplay packages use the same two-file format. EML data tools only need
 | Packages | Capabilities | Reason |
 | --- | --- | --- |
 | `fishing-exporter`, `item-translator`, `kfc-parser-mimic` | `export` | Write generated reports through `io.export`; asset reads do not need `patch`. |
-| `sf-infinite-item-split`, `sf-infinite-item-use`, `sf-no-fall-damage`, `sf-no-resource-cost`, `sf-no-stamina-loss`, `sf-unlimited-flight` | `runtime` | Use approved in-game runtime patch operations. |
-| `sf-unlock-blueprints` | `patch` | Write EML game assets during startup preparation. |
+| `sf-infinite-item-split`, `sf-infinite-item-use`, `sf-no-fall-damage`, `sf-no-resource-cost`, `sf-auto-stamina-refill`, `sf-unlimited-flight` | `runtime` | Use approved in-game runtime patch operations. |
+| `sf-unlock-blueprints`, `sf-production-time` | `patch` | Write reflected game assets during startup preparation. |
 | `world-editor` | `runtime`, `export` | Standalone Lua world editor using the public runtime API and export storage. |
 
-The gameplay patch mods and `sf-unlock-blueprints` declare
+The gameplay patch mods, `sf-unlock-blueprints` and `sf-production-time` declare
 `targets: ["client", "server"]`. `world-editor` declares `targets: ["client"]` because it depends on the local
 cursor and keyboard UI.
 

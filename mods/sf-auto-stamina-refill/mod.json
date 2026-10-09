@@ -1,9 +1,9 @@
 {
   "$schema": "../../src/loader/package/src/registry/manifest.schema.json",
-  "id": "sf-no-stamina-loss",
-  "name": "SF No Stamina Loss",
+  "id": "sf-auto-stamina-refill",
+  "name": "SF Auto Stamina Refill",
   "version": "1.1.1",
-  "description": "Prevents stamina depletion with the build-profile-verified native patch.",
+  "description": "Repeatedly refills stamina to maximum.",
   "authors": [
     "bonsaibauer"
   ],

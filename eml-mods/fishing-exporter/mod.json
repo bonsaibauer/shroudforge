@@ -3,7 +3,7 @@
   "id": "FishingExporter",
   "name": "Fishing Data Exporter",
   "version": "0.0.1",
-  "description": "This mod extracts, calculates, and correlates Enshrouded fishing spawn tables, rod statistics, bait data, and localized English item names into structured CSV reports designed to update the Official Enshrouded Wiki pages.",
+  "description": "Exports fishing locations, rods, bait, and English item names to CSV files.",
   "authors": [
     "madduma"
   ],
