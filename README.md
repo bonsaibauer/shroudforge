@@ -79,17 +79,17 @@ The release build validates each mod's manifest, ID, Lua entry point, and Lua sy
 
 **Target support** means the package can be installed for that process. In multiplayer, the game process that handles an action determines where its effect must run. A checkmark does not by itself confirm that every gameplay effect has been verified end to end on a live server.
 
-| Mod | Description | Version | Client install | Dedicated server install | Singleplayer | Multiplayer |
-| --- | --- | ---: |:---:|:---:|:---:|:---:|
-| <img src="mods/sf-auto-stamina-refill/icon.svg" width="28" alt="SF Auto Stamina Refill icon"> **SF Auto Stamina Refill** | Repeatedly refills stamina to maximum. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-infinite-item-split/icon.svg" width="28" alt="SF Infinite Item Split icon"> **SF Infinite Item Split** | Keeps the original stack when splitting items. It also affects other inventory operations. | 1.4.0 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-infinite-item-use/icon.svg" width="28" alt="SF Infinite Item Use icon"> **SF Infinite Item Use** | Prevents items from being consumed when used. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-no-fall-damage/icon.svg" width="28" alt="SF No Fall Damage icon"> **SF No Fall Damage** | Prevents health loss from falling. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-no-resource-cost/icon.svg" width="28" alt="SF No Resource Cost icon"> **SF No Resource Cost** | Removes resource consumption in supported building, crafting, and item-use actions. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-production-time/icon.svg" width="28" alt="SF Production Time icon"> **SF Production Time** | Sets timed production recipes to a chosen base duration. World speed settings still apply. | 1.0.0 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-unlimited-flight/icon.svg" width="28" alt="SF Unlimited Flight icon"> **SF Unlimited Flight** | Lets you keep flying without a time limit. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-unlock-blueprints/icon.svg" width="28" alt="SF Unlock Blueprints icon"> **SF Unlock Blueprints** | Changes supported recipe unlock requirements to the first Flame Altar hint. | 1.0.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/world-editor/icon.svg" width="28" alt="World Editor icon"> **World Editor** | Captures, saves, rotates, and places voxel-and-prop blueprints. Uses direct world access in singleplayer and Steam P2P to send edits to a Dedicated Server in multiplayer. | 0.3.0 | ✅ | ✅ | ✅ | ⚠️ |
+| Icon | Mod | Description | Version | Client install | Dedicated server install | Singleplayer | Multiplayer |
+| --- | --- | --- | ---: |:---:|:---:|:---:|:---:|
+| <img src="mods/sf-auto-stamina-refill/icon.svg" width="28" alt="SF Auto Stamina Refill"> | **SF Auto Stamina Refill** | Repeatedly refills stamina to maximum. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-infinite-item-split/icon.svg" width="28" alt="SF Infinite Item Split"> | **SF Infinite Item Split** | Keeps the original stack when splitting items. It also affects other inventory operations. | 1.4.0 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-infinite-item-use/icon.svg" width="28" alt="SF Infinite Item Use"> | **SF Infinite Item Use** | Prevents items from being consumed when used. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-no-fall-damage/icon.svg" width="28" alt="SF No Fall Damage"> | **SF No Fall Damage** | Prevents health loss from falling. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-no-resource-cost/icon.svg" width="28" alt="SF No Resource Cost"> | **SF No Resource Cost** | Removes resource consumption in supported building, crafting, and item-use actions. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-production-time/icon.svg" width="28" alt="SF Production Time"> | **SF Production Time** | Sets timed production recipes to a chosen base duration. World speed settings still apply. | 1.0.0 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-unlimited-flight/icon.svg" width="28" alt="SF Unlimited Flight"> | **SF Unlimited Flight** | Lets you keep flying without a time limit. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-unlock-blueprints/icon.svg" width="28" alt="SF Unlock Blueprints"> | **SF Unlock Blueprints** | Changes supported recipe unlock requirements to the first Flame Altar hint. | 1.0.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/world-editor/icon.svg" width="28" alt="World Editor"> | **World Editor** | Captures, saves, rotates, and places voxel-and-prop blueprints. | 0.3.0 | ✅ | ✅ | ✅ | ⚠️ |
 
 \* Multiplayer support depends on installing and enabling the mod in the process that handles the relevant game action. For asset changes such as recipe data or production time, prepare both client and server before starting them. A client-side change alone does not prove that the server accepted or persisted the result.
 
