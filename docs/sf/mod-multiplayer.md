@@ -35,9 +35,9 @@ Spieltransaktion muss bei verbundenem Client beobachtet werden.
 | `sf-infinite-item-split` | Subtraktion vom Quellbestand in gemeinsamem Inventarhelfer unterdrücken | Binding vorhanden, nicht auf Teilen beschränkt | Inventartransaktion und Rückabgleich entscheiden über das Ergebnis | Server-Binding vorhanden. Aufrufer umfassen Crafting, Ausrüstung, Loot und andere Systeme; frühere Aussage „split-spezifisch“ korrigiert |
 | `sf-unlock-blueprints` | Beim Assetstart Rezeptbedingungen auf `Unlock_Flame_Altar_PK / NPC_Flame_Hint01` umstellen | KFC-Transformation im gestarteten Spiel | Verändert Rezeptdaten dieser Installation; Anzeige ist keine serverseitige Freigabe | Für übereinstimmende Rezeptbedingungen auf beiden Installationen vorbereiten. Kein direkter Spielstand-Unlock und kein Runtime-Mod |
 | `sf-production-time` | Positive `RecipeInfo.craftingDuration` auf eine feste Basisdauer setzen | Vor Spielstart vorbereiten; Weltfaktor gilt zusätzlich | Gleiche Einstellung wie beim Host für passende Anzeige verwenden | Vor Serverstart separat vorbereiten. Keine automatische Übertragung der Mod-Einstellung; standardmäßig deaktiviert |
-| `world-editor` | Client-Cursor/Dateien/UI; wahlweise direkte Welt-API oder normale `ClientPlayerInput`-Baueingaben | Direkter Modus vorhanden; Spieleingabemodus ebenfalls clientseitig | Neuer Spieleingabemodus implementiert; folgt dem vorhandenen Baupfad und prüft beobachtete Änderungen | Kein Editor-Mod auf dem Server erforderlich für diesen Eingabepfad. Die Annahme durch die Engine, Replikation und Speicherung sind noch nicht end-to-end nachgewiesen |
+| `world-editor` | Client-Cursor, UI und Blueprintdateien; direkte native Welt-API im Singleplayer; SFBP-V7-Transport per Steam P2P im beigetretenen Multiplayer | Direkte Platzierung und Undo bleiben lokal | Sendet denselben V7-Blueprinttext samt Cursoranker an die konfigurierte Server-Peer-ID; F4 sendet nur das Undo-Token zurück | Derselbe Mod läuft headless als Serverziel, validiert die Peer-Allowlist und führt Paste, Snapshot, Readback und Undo in seinem eigenen nativen World-Editor-Journal aus. Replikation und Persistenz bleiben Liveprüfungen |
 
-## Tatsächlich laufender Stand bei der Prüfung
+## Tatsächlich laufender Stand der früheren Prüfung (vor dem P2P-Ziel)
 
 Client PID **12660**, Server PID **6576**: beide Loader meldeten die sechs
 Funktions-Mods als aktiv, ohne Aktivierungsfehler, jeweils mit
@@ -54,40 +54,34 @@ Die neuen BuildingInput-Exporte sind nicht Bestandteil der bei dieser Prüfung
 geladenen DLL. Eine aktive alte Installation wird durch einen Repo-Build nicht
 aktualisiert.
 
-## World Editor bedienen
+## World Editor: integrierter P2P-Ablauf
 
-Unter **World Editor → World edit execution** ist `Game building input
-(multiplayer)` der neue Pfad für einen beigetretenen Client. Der Mod wählt
-einen aktuellen ItemInfo-Baueintrag, wartet auf die Auswahl im NetworkCursor,
-sendet eine Baueingabe und prüft danach Props oder Voxel. `dispatched` ist
-ausdrücklich keine Annahmebestätigung des Servers. Direkte Diagnoseknöpfe werden
-in diesem Modus nicht ausgeführt.
+Der Editor ist jetzt für `client` und `server` deklariert. Der Client behält
+Cursor, UI, Capture und lokalen Blueprintspeicher. Im Singleplayer wählt er
+weiter den direkten nativen Pfad; **Lokal / Singleplayer** ist der
+Standardmodus. Für den Beitritt zu einem Dedicated Server wird ausdrücklich
+**Dedicated server world (Steam P2P)** gewählt. Client-exe und Laufzeit-API
+unterscheiden lokale und beigetretene Welten derzeit nicht zuverlässig.
+P2P überträgt dieselbe `.sfbp`-V7-Datei; es gibt keinen zweiten
+Zell-/Prop-Befehlskatalog und keine ECS-Handles im Netzwerk. Der Server lädt
+den Mod ohne UI, prüft das vorhandene V7-Format und nutzt denselben
+`paste_voxels`/`undo_voxels`-Pfad wie lokale native Änderungen.
 
-Der Bauhammer muss ausgestattet bleiben. Normale Reichweite, Baurechte,
-Inventar- und Rezeptprüfungen gelten weiter. Ein Auftrag umfasst maximal
-4096 Einzelaktionen und läuft schrittweise. F4 stoppt zuerst einen laufenden
-Auftrag; danach kann es die beobachteten Änderungen durch inverse Baueingaben
-rückgängig machen. Bei unklarem Ausgang wird nicht erneut gesendet. Späte
-beobachtete Änderungen werden ins Journal übernommen. Bleibt eine Antwort aus,
-bleibt der Auftrag unbestätigt; lokale Rücklesung ersetzt keine Serverquittung.
+Der Server gibt beim Start seine SteamID64 im Log aus. Diese ID wird in
+`serverSteamId` auf dem Client eingetragen. Die Client-SteamID64 steht im
+Clientlog und muss in `allowedClientSteamIds` auf dem Server stehen. Der Server
+nimmt nur gelistete Peers und Nachrichten des `world-editor`-Modkanals an.
+Steam-Peer-Autorisierung ordnet einen Prozess zu; sie beweist keine
+Ingame-Spieleridentität. Transfers sind auf 32 MiB begrenzt und werden mit
+Größe, Chunkfolge und Prüfsumme validiert.
 
-Für Voxel werden aus den aktuellen KFC-Daten exakt passende Ein-Zellen-Rezepte
-ermittelt: im geprüften Client **66 Materialien**. Terrain-/Dichtezellen ohne
-solches Rezept werden vor dem ersten Eingriff abgelehnt. Sie werden nicht
-näherungsweise durch Baublöcke ersetzt. Capture sieht die im Client geladenen
-Weltbereiche; es ist kein Fernzugriff auf ungeladene Server-Chunks.
-
-Beim Entfernen muss das Spiel tatsächlich das betreffende Objekt anvisieren;
-der Editor zeigt die Zielkoordinaten an und wartet auf den passenden Cursor.
-Eine reine Transformänderung setzt das Interaktionsziel nicht zuverlässig um.
-Für Props hält der Adapter anschließend die reflektierten Eingaben
-`ContextualAction` und `ContextualAction_Hold` 1,2 Sekunden; der getrennte
-`SecondaryBuildingAction` bleibt auf Voxelabbau begrenzt. Ein bereits manuell
-abgebautes Paste-Prop gilt beim Undo als erledigt, während ein wiederverwendeter
-oder veränderter Handle weiterhin als Konflikt stoppt. Prop-Ersetzung und
-Prop-Undo bleiben wegen der Cursorzielprüfung keine unbeaufsichtigten
-Massenlöschungen. Serverseitige Skalierungsannahme, Sichtbarkeit beim zweiten
-Client und Bestand nach Wiederverbinden/Neustart bleiben separate Spieltests.
+Der Server hält vorübergehend genau ein Undo-Journal, wie der vorhandene lokale
+Editor ebenfalls nur den letzten Paste speichert. F7 wird bis zum Abschluss
+quittiert; F4 enthält ausschließlich das Server-Token. Native Readback ist
+noch kein Beleg für Sichtbarkeit bei einem zweiten Client oder Persistenz nach
+Wiederbeitritt. Dafür sind weiterhin ein Server-Canary, ein zweiter Client und
+ein Save/Rejoin-Test nötig. Die P2P-Transport- und Server-Undo-Lua-Pfade haben
+isolierte Integrationstests; ein Live-Spieltest ist damit nicht vorgetäuscht.
 
 ## Wiederholbare Prüfung
 
@@ -96,9 +90,10 @@ Client und Bestand nach Wiederverbinden/Neustart bleiben separate Spieltests.
   `--help`. Ausgabe kennzeichnet `multiplayer_gameplay_verified: false`.
 - `verify-building-input.py`: Original-Eingabelayouts, Aktionsbits, Hookregister
   und originaler Versionshelfer aus EXE und Reflection.
-- `cargo test -p shroudforge-api --test world_editor_building --offline`:
-  Auswahlbestätigung, verzögerte Effekte, Abbruch, konfliktsensitives Undo,
-  vollständige Vorprüfung, Rezeptplanung und Kompilierung aller Mod-Lua-Dateien.
+- `cargo test -p shroudforge-api --test world_editor_p2p --offline`:
+  P2P-Chunk-Reassembly, Integritäts- und Allowlistprüfungen, Deduplizierung,
+  Server-Paste samt Snapshot/Undo über gemockte native World-APIs, Blueprintspeicher
+  und Kompilierung aller Mod-Lua-Dateien.
 - `inspect_building_inputs` liest die Ressourcen erneut aus EXE/KFC ohne Typcache.
   Mit `SF_BUILDING_RESOURCE_SNAPSHOT` und `-- --include-ignored` prüft derselbe
   Lua-Planer zusätzlich diesen frischen Export.

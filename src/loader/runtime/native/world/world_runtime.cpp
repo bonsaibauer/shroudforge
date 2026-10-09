@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_set>
+#include <nlohmann/json.hpp>
 
 namespace WorldRuntime {
 namespace {
@@ -34,6 +35,7 @@ struct Operation {
     bool result{};
     bool write_attempted{};
     bool rollback_verified{};
+    std::uint64_t context_generation{};
 };
 
 struct EngineTransform {
@@ -86,10 +88,17 @@ std::atomic<std::uint64_t> actor_placement_hook_hits{}, actor_placement_request_
 std::atomic<std::uint64_t> building_dispatch_hook_hits{}, building_dispatch_request_hits{};
 std::atomic<std::uint64_t> entity_dispatch_completions{};
 std::atomic<std::uintptr_t> observed_execution_view{};
+std::atomic<std::uint64_t> prop_update_hook_hits{}, cursor_hook_hits{}, context_resets{};
+std::atomic<std::uintptr_t> local_execution_root{};
+std::atomic<std::uintptr_t> client_read_world{}, client_read_manager{};
+std::atomic<std::uint64_t> client_read_ms{}, client_read_generation{};
+enum class ActorProbe { Never, MissingFrame, MissingLayout, MissingService, InvalidWorld, Valid };
+std::atomic<ActorProbe> actor_probe{ActorProbe::Never};
 struct CursorMailbox {
     volatile long lock{};
     volatile long hook_ready{};
     std::uint64_t sequence{};
+    std::uint64_t context_generation{};
     std::array<std::uint8_t, NativeCursorSize> bytes{};
 };
 CursorMailbox cursor_mailbox;
@@ -161,15 +170,49 @@ bool resolve_voxel_world(std::uintptr_t& world) {
     return false;
 }
 
-void observe_actor_world(void* actor_frame) {
-    if (!actor_frame) return;
+bool resolve_client_read_world(std::uintptr_t& world) {
+    const auto generation = context_resets.load(std::memory_order_acquire);
+    const auto observed = client_read_ms.load(std::memory_order_acquire);
+    const auto candidate = client_read_world.load(std::memory_order_acquire);
+    if (!observed || GetTickCount64() - observed > 500 ||
+        client_read_generation.load(std::memory_order_acquire) != generation ||
+        client_read_manager.load(std::memory_order_acquire) != GameThreadDispatcher::EntityManager() ||
+        !valid_world_context(candidate) || context_resets.load(std::memory_order_acquire) != generation) return false;
+    world = candidate;
+    return true;
+}
+
+void observe_client_read_world(void* cursor_frame, void* execution_view) {
     const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
-    if (!layout.actor_frame_service_view || !layout.service_view_world) return;
+    if (!cursor_frame || !layout.client_cursor_service_view || !layout.client_cursor_service_world) return;
+    std::uintptr_t service{}, world{}, root{}, frame_manager{};
+    std::uint64_t count{};
+    const auto manager = GameThreadDispatcher::EntityManager();
+    if (!manager || !read_memory(reinterpret_cast<std::uintptr_t>(execution_view), &root, sizeof(root)) || !root ||
+        !read_memory(root + KfcRuntimeCompatibility::EnshroudedClient::lookup_manager, &frame_manager, sizeof(frame_manager)) || frame_manager != manager ||
+        !read_memory(manager + KfcRuntimeCompatibility::EnshroudedClient::entity_manager_count, &count, sizeof(count)) || !count || count > (1u<<20) ||
+        !read_memory(reinterpret_cast<std::uintptr_t>(cursor_frame) + layout.client_cursor_service_view, &service, sizeof(service)) ||
+        !read_memory(service + layout.client_cursor_service_world, &world, sizeof(world)) || !valid_world_context(world)) return;
+    client_read_world.store(world, std::memory_order_release);
+    client_read_manager.store(manager, std::memory_order_release);
+    client_read_generation.store(context_resets.load(std::memory_order_acquire), std::memory_order_release);
+    client_read_ms.store(GetTickCount64(), std::memory_order_release);
+}
+
+void observe_actor_world(void* actor_frame) {
+    if (!actor_frame) { actor_probe.store(ActorProbe::MissingFrame); return; }
+    const auto& layout = KfcRuntimeCompatibility::EnshroudedClient::world_context_layout;
+    if (!layout.actor_frame_service_view || !layout.service_view_world) {
+        actor_probe.store(ActorProbe::MissingLayout); return;
+    }
     const auto frame = reinterpret_cast<std::uintptr_t>(actor_frame);
     std::uintptr_t service_view{}, candidate{};
-    if (!read_memory(frame + layout.actor_frame_service_view, &service_view, sizeof(service_view)) || !service_view ||
-        !read_memory(service_view + layout.service_view_world, &candidate, sizeof(candidate)) ||
-        !valid_world_context(candidate)) return;
+    if (!read_memory(frame + layout.actor_frame_service_view, &service_view, sizeof(service_view)) || !service_view) {
+        actor_probe.store(ActorProbe::MissingService); return;
+    }
+    if (!read_memory(service_view + layout.service_view_world, &candidate, sizeof(candidate)) ||
+        !valid_world_context(candidate)) { actor_probe.store(ActorProbe::InvalidWorld); return; }
+    actor_probe.store(ActorProbe::Valid);
     observed_actor_world.store(candidate, std::memory_order_release);
     observed_actor_world_ms.store(GetTickCount64(), std::memory_order_release);
 }
@@ -489,7 +532,9 @@ bool verify_destroy(const EntityRequest& request, std::size_t previous_matches) 
 void execute(void* opaque) {
     auto& op = *static_cast<Operation*>(opaque);
     std::uintptr_t world{};
-    if (!resolve_voxel_world(world)) return;
+    const bool direct_context = resolve_voxel_world(world);
+    if (!direct_context && (op.kind != Operation::Kind::Read || !resolve_client_read_world(world))) return;
+    if (op.kind == Operation::Kind::Read && op.context_generation != context_resets.load(std::memory_order_acquire)) return;
     const auto* read_profile = find_operation("runtime.world.voxel.read");
     const auto* write_profile = find_operation("runtime.world.voxel.write");
     const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
@@ -498,7 +543,7 @@ void execute(void* opaque) {
     CellSpan span{op.cells.data(), op.cells.size()};
     if (op.kind == Operation::Kind::Read) {
         op.result = safe_read(read_fn, &span, op.dimensions.data(), reinterpret_cast<void*>(world), read_profile->mode, op.origin.data());
-        if (op.result) {
+        if (op.result && direct_context) {
             std::uintptr_t unset{};
             preferred_voxel_world.compare_exchange_strong(unset, world, std::memory_order_acq_rel);
         }
@@ -633,6 +678,12 @@ void ResetContext() {
     observed_actor_world.store(0, std::memory_order_release);
     preferred_voxel_world.store(0, std::memory_order_release);
     observed_execution_view.store(0, std::memory_order_release);
+    local_execution_root.store(0, std::memory_order_release);
+    actor_probe.store(ActorProbe::Never);
+    context_resets.fetch_add(1, std::memory_order_relaxed);
+    client_read_ms.store(0, std::memory_order_release);
+    client_read_world.store(0, std::memory_order_release);
+    client_read_manager.store(0, std::memory_order_release);
 }
 
 bool OperationAvailable(const char* name) {
@@ -640,6 +691,11 @@ bool OperationAvailable(const char* name) {
         return BuildingInput::Available();
     if (name && std::strcmp(name, "runtime.world.cursor.get") == 0)
         return InterlockedCompareExchange(&cursor_mailbox.hook_ready, 0, 0) != 0;
+    if (name && std::strcmp(name, "runtime.world.voxel.write") == 0) {
+        std::uintptr_t world{};
+        const auto* operation = find_operation(name);
+        return operation && operation->available && resolve_voxel_world(world);
+    }
     const auto* operation = find_operation(name);
     return operation && operation->available;
 }
@@ -654,6 +710,7 @@ bool EntityContextReady() {
 }
 
 void OnPropUpdate(void* execution_view, void* actor_frame) {
+    prop_update_hook_hits.fetch_add(1, std::memory_order_relaxed);
     if (execution_view) observed_execution_view.store(reinterpret_cast<std::uintptr_t>(execution_view), std::memory_order_release);
     observe_actor_world(actor_frame);
     const auto request = pending_entity_request.load(std::memory_order_acquire);
@@ -739,7 +796,7 @@ void SetCursorHookReady(bool ready) {
     InterlockedExchange(&cursor_mailbox.hook_ready, ready ? 1 : 0);
 }
 
-void OnCursorUpdate(void* cursor, void* execution_view) {
+void OnCursorUpdate(void* cursor, void* execution_view, void* cursor_frame) {
     std::array<std::uint8_t, NativeCursorSize> sample{};
     if (!copy_cursor_safely(cursor, sample.data()) || sample[0x98] > 1) return;
     for (const auto base : {std::size_t{0}, std::size_t{0x38}}) {
@@ -754,9 +811,17 @@ void OnCursorUpdate(void* cursor, void* execution_view) {
     // at the profiled cursor call site). The entity lookup hook need not run
     // again when entering a remote world; refresh through this recurring hook.
     GameThreadDispatcher::ObserveExecutionView(execution_view, true);
+    observe_client_read_world(cursor_frame, execution_view);
+    // Evidence only: this root belongs to client_cursor, unlike the two
+    // player_building_place_prop callbacks. No unverified world offset is used.
+    std::uintptr_t root{};
+    if (read_memory(reinterpret_cast<std::uintptr_t>(execution_view), &root, sizeof(root)))
+        local_execution_root.store(root, std::memory_order_release);
+    cursor_hook_hits.fetch_add(1, std::memory_order_relaxed);
     BuildingInput::Observe(cursor, execution_view);
     if (InterlockedCompareExchange(&cursor_mailbox.lock, 1, 0) != 0) return;
     cursor_mailbox.bytes = sample;
+    cursor_mailbox.context_generation = context_resets.load(std::memory_order_acquire);
     ++cursor_mailbox.sequence;
     InterlockedExchange(&cursor_mailbox.lock, 0);
 }
@@ -767,8 +832,9 @@ bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t
     if (InterlockedCompareExchange(&cursor_mailbox.lock, 1, 0) != 0) return false;
     const auto current_sequence = cursor_mailbox.sequence;
     const auto sample = cursor_mailbox.bytes;
+    const auto sample_generation = cursor_mailbox.context_generation;
     InterlockedExchange(&cursor_mailbox.lock, 0);
-    if (!current_sequence) return false;
+    if (!current_sequence || sample_generation != context_resets.load(std::memory_order_acquire)) return false;
     std::memcpy(bytes, sample.data(), sample.size());
     *sequence = current_sequence;
     return true;
@@ -776,7 +842,71 @@ bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t
 
 bool ActiveContextAvailable() {
     std::uintptr_t world{};
-    return GameThreadDispatcher::Ready() && resolve_voxel_world(world);
+    return GameThreadDispatcher::Ready() && (resolve_voxel_world(world) || resolve_client_read_world(world));
+}
+
+std::string ContextDiagnostics() {
+    const auto* profile = find_operation("runtime.world.context.active");
+    std::uintptr_t world{}, singleton{}, context{}, candidate{};
+    const bool direct = resolve_voxel_world(world);
+    const bool client_read = !direct && resolve_client_read_world(world);
+    const bool resolved = direct || client_read;
+    const char* global_reason = "profile-unavailable";
+    if (profile && profile->available) {
+        global_reason = "not-configured";
+        if (profile->global_rva && profile->context_pointer_offset && profile->world_offset) {
+            const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+            global_reason = "singleton-unreadable";
+            if (read_memory(base + profile->global_rva, &singleton, sizeof(singleton))) {
+                global_reason = "singleton-null";
+                if (singleton) {
+                    global_reason = "context-unreadable";
+                    if (read_memory(singleton + profile->context_pointer_offset, &context, sizeof(context))) {
+                        global_reason = "context-null";
+                        if (context) {
+                            const auto address = static_cast<std::intptr_t>(context) + profile->world_offset;
+                            candidate = address > 0 ? static_cast<std::uintptr_t>(address) : 0;
+                            global_reason = valid_world_context(candidate) ? "valid" : "voxel-store-invalid";
+                        }
+                    }
+                }
+            }
+        }
+    }
+    const auto actor = observed_actor_world.load(std::memory_order_acquire);
+    const auto preferred = preferred_voxel_world.load(std::memory_order_acquire);
+    const auto observed = observed_actor_world_ms.load(std::memory_order_acquire);
+    const char* actor_reason = "not-observed";
+    switch (actor_probe.load()) {
+    case ActorProbe::MissingFrame: actor_reason = "frame-null"; break;
+    case ActorProbe::MissingLayout: actor_reason = "layout-unavailable"; break;
+    case ActorProbe::MissingService: actor_reason = "service-view-unavailable"; break;
+    case ActorProbe::InvalidWorld: actor_reason = "voxel-store-invalid"; break;
+    case ActorProbe::Valid: actor_reason = "validated-at-observation"; break;
+    default: break;
+    }
+    const char* source = !resolved ? "none" : client_read ? "client-cursor-read" : world == preferred ? "pinned-world" :
+        world == actor ? "actor-frame" : "client-singleton";
+    return nlohmann::json({{"revision", "world-context-session-20261009-a2"}, {"resolved", resolved}, {"source", source},
+        {"directWorldAvailable", direct}, {"clientReadWorld", client_read_world.load()},
+        {"processRole", KfcRuntimeCompatibility::EnshroudedClient::image_target == "enshrouded_server.exe" ? "dedicated-server" : "client"},
+        // Process role and context source cannot identify a client's network mode.
+        {"clientSessionMode", "unknown"}, {"resets", context_resets.load()},
+        {"global", {{"reason", global_reason}, {"singleton", singleton}, {"context", context}, {"candidate", candidate}}},
+        {"actor", {{"reason", actor_reason}, {"candidate", actor},
+            {"ageMs", observed ? nlohmann::json(GetTickCount64() - observed) : nlohmann::json(nullptr)}}},
+        {"hooks", {{"propUpdate", prop_update_hook_hits.load()}, {"actorPlacement", actor_placement_hook_hits.load()},
+            {"cursor", cursor_hook_hits.load()}, {"localExecutionRoot", local_execution_root.load()}}}
+    }).dump();
+}
+
+std::string ContextStatus() {
+    const auto evidence = nlohmann::json::parse(ContextDiagnostics());
+    return "revision=world-context-session-20261009-a2,source=" + evidence["source"].get<std::string>() +
+        ",global=" + evidence["global"]["reason"].get<std::string>() +
+        ",actor=" + evidence["actor"]["reason"].get<std::string>() +
+        ",prop-updates=" + std::to_string(prop_update_hook_hits.load()) +
+        ",cursor=" + std::to_string(cursor_hook_hits.load());
 }
 
 bool ReadVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3],
@@ -786,6 +916,7 @@ bool ReadVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3],
         !OperationAvailable("runtime.world.voxel.read") || !GameThreadDispatcher::Ready()) return false;
     auto op = std::make_shared<Operation>();
     op->kind = Operation::Kind::Read;
+    op->context_generation = context_resets.load(std::memory_order_acquire);
     std::copy_n(origin, 3, op->origin.begin());
     std::copy_n(dimensions, 3, op->dimensions.begin());
     op->cells.resize(count);

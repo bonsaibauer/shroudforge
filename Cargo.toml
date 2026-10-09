@@ -11,6 +11,7 @@ members = [
     "src/loader/modules/modloader-ui",
     "src/loader/modules/updater",
     "src/loader/modules/runtime-diagnostics",
+    "src/loader/modules/steam-networking",
 ]
 exclude = [
     "src/parser/kfc-parser",

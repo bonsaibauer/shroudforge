@@ -6,6 +6,8 @@
 using namespace WorldRuntime;
 namespace {
 unsigned checks{}, destroys{}, finishes{};
+unsigned voxel_reads{};
+std::uintptr_t expected_read_world{};
 std::uint32_t event_id=73;
 void check(bool ok) { ++checks; if(!ok) { std::fprintf(stderr,"world context check %u failed\n",checks); std::exit(1); } }
 void __fastcall destroy(void* context,const EngineTransform*,const float*,std::uint32_t feedback) {
@@ -14,6 +16,12 @@ void __fastcall destroy(void* context,const EngineTransform*,const float*,std::u
 }
 void __fastcall finish(void*,void*,std::uint32_t id,bool complete) {
     ++finishes; check(id==event_id && complete);
+}
+bool __fastcall read_cells(CellSpan* cells, const std::uint32_t*, const void* world, std::uint32_t, const std::int32_t*) {
+    check(reinterpret_cast<std::uintptr_t>(world)==expected_read_world);
+    ++voxel_reads;
+    for (std::size_t i=0;i<cells->size;++i) cells->data[i]={7,8};
+    return true;
 }
 }
 int main() {
@@ -38,18 +46,60 @@ int main() {
     context.remove=0; OnBuildingDispatch(&context);
     check(pending_removal.phase==1 && destroys==0); // incomplete engine context
     context.remove=1; OnBuildingDispatch(&context);
-    check(pending_removal.phase==3 && pending_removal.success);
-    check(destroys==1 && finishes==0); // hook must NOT call finish recursively
-    finish(&context,nullptr,event_id,true); // original engine body resumes once
-    check(actor_placement_hook_hits.load()==0); // reported live regression
+    // R9 deliberately does NOT consume the POD removal request from the
+    // building dispatcher. The reverted R10 consumer caused live hangs.
+    check(pending_removal.phase==1 && destroys==0);
+    check(finishes==0 && actor_placement_hook_hits.load()==0);
     OnBuildingDispatch(&context);
-    check(destroys==1 && finishes==1); // completed work cannot run twice
+    check(destroys==0 && finishes==0);
     pending_removal.phase=1; ResetContext();
-    check(pending_removal.phase==3 && !pending_removal.success);
-    OnBuildingDispatch(&context); check(destroys==1); // canceled at world transition
+    check(pending_removal.phase==1);
+    OnBuildingDispatch(&context); check(destroys==0);
     pending_removal.phase=2; ResetContext();
     check(pending_removal.phase==2); // never interrupt an executing native call
     pending_removal.phase=0;
+
+    // Existing local singleton route, actor route and missing-context evidence.
+    struct World { std::uintptr_t padding{}, store{1}; } local_world, actor_world;
+    struct Singleton { std::uintptr_t padding{}, context{}; } singleton;
+    auto singleton_pointer=reinterpret_cast<std::uintptr_t>(&singleton);
+    singleton.context=reinterpret_cast<std::uintptr_t>(&local_world)+8;
+    Profile::RuntimeOperation active;
+    active.name="runtime.world.context.active"; active.available=true;
+    active.global_rva=reinterpret_cast<std::uintptr_t>(&singleton_pointer)-image_base();
+    active.context_pointer_offset=offsetof(Singleton,context);
+    active.world_offset=-8; active.validation_offset=offsetof(World,store);
+    Profile::runtime_operations={active};
+    std::uintptr_t resolved{};
+    check(resolve_voxel_world(resolved) && resolved==reinterpret_cast<std::uintptr_t>(&local_world));
+    auto diagnostics=nlohmann::json::parse(ContextDiagnostics());
+    check(diagnostics["source"]=="client-singleton" && diagnostics["global"]["reason"]=="valid");
+    singleton_pointer=0;
+    check(!resolve_voxel_world(resolved));
+    diagnostics=nlohmann::json::parse(ContextDiagnostics());
+    check(diagnostics["global"]["reason"]=="singleton-null" && diagnostics["clientSessionMode"]=="unknown");
+    struct Service { std::uintptr_t padding{}, world{}; } service{0,reinterpret_cast<std::uintptr_t>(&actor_world)};
+    struct Frame { std::uintptr_t padding{}, service{}; } frame{0,reinterpret_cast<std::uintptr_t>(&service)};
+    Profile::world_context_layout.actor_frame_service_view=offsetof(Frame,service);
+    Profile::world_context_layout.service_view_world=offsetof(Service,world);
+    observe_actor_world(&frame);
+    check(resolve_voxel_world(resolved) && resolved==service.world);
+    check(nlohmann::json::parse(ContextDiagnostics())["source"]=="actor-frame");
+    preferred_voxel_world.store(service.world);
+    ResetContext();
+    check(!resolve_voxel_world(resolved));
+    check(preferred_voxel_world.load()==0 && observed_actor_world.load()==0);
+    observe_actor_world(reinterpret_cast<void*>(1));
+    check(nlohmann::json::parse(ContextDiagnostics())["actor"]["reason"]=="service-view-unavailable");
+    SetCursorHookReady(true);
+    std::array<std::uint8_t, NativeCursorSize> cursor{}, snapshot{};
+    std::uint64_t sequence{};
+    OnCursorUpdate(cursor.data(),nullptr);
+    check(ReadCursorSnapshot(snapshot.data(),snapshot.size(),&sequence));
+    ResetContext();
+    check(!ReadCursorSnapshot(snapshot.data(),snapshot.size(),&sequence));
+    OnCursorUpdate(cursor.data(),nullptr);
+    check(ReadCursorSnapshot(snapshot.data(),snapshot.size(),&sequence));
 
     // The same current execution-view chain is observed after switching worlds.
     struct Manager { std::uint64_t count; std::uintptr_t table; };
@@ -90,5 +140,46 @@ int main() {
     GameThreadDispatcher::ObserveExecutionView(&view,true);
     check(GameThreadDispatcher::EntityManager()==reinterpret_cast<std::uintptr_t>(&first));
     check(KfcRuntimeWorldSessionId()==0);
+    // The cursor-derived replica supports reads only. A successful read cannot
+    // promote its pointer into the direct write/spawn context.
+    Profile::world_context_layout.client_cursor_service_view=offsetof(Frame,service);
+    Profile::world_context_layout.client_cursor_service_world=offsetof(Service,world);
+    Profile::RuntimeOperation read,write;
+    read.name="runtime.world.voxel.read"; read.available=true;
+    read.function_rva=reinterpret_cast<std::uintptr_t>(&read_cells)-image_base();
+    write.name="runtime.world.voxel.write"; write.available=true;
+    Profile::runtime_operations={active,read,write};
+    OnCursorUpdate(cursor.data(),&view,&frame);
+    check(resolve_client_read_world(resolved) && resolved==service.world);
+    check(!resolve_voxel_world(resolved));
+    check(!OperationAvailable("runtime.world.voxel.write"));
+    check(nlohmann::json::parse(ContextDiagnostics())["source"]=="client-cursor-read");
+    Operation read_op;
+    read_op.kind=Operation::Kind::Read; read_op.dimensions={1,1,1}; read_op.cells.resize(1);
+    read_op.context_generation=context_resets.load();
+    expected_read_world=service.world;
+    execute(&read_op);
+    check(read_op.result && voxel_reads==1 && preferred_voxel_world.load()==0);
+    Operation write_op;
+    write_op.kind=Operation::Kind::Write;
+    execute(&write_op);
+    check(!write_op.result && !write_op.write_attempted);
+    client_read_ms.store(GetTickCount64()-501);
+    check(!resolve_client_read_world(resolved));
+    OnCursorUpdate(cursor.data(),&view,&frame);
+    ResetContext();
+    check(!resolve_client_read_world(resolved));
+    read_op.result=false;
+    execute(&read_op);
+    check(!read_op.result && voxel_reads==1);
+    // The existing local singleton retains precedence and direct capability.
+    singleton_pointer=reinterpret_cast<std::uintptr_t>(&singleton);
+    OnCursorUpdate(cursor.data(),&view,&frame);
+    check(OperationAvailable("runtime.world.voxel.write"));
+    check(resolve_voxel_world(resolved) && resolved==reinterpret_cast<std::uintptr_t>(&local_world));
+    read_op.context_generation=context_resets.load();
+    expected_read_world=reinterpret_cast<std::uintptr_t>(&local_world);
+    execute(&read_op);
+    check(read_op.result && voxel_reads==2 && preferred_voxel_world.load()==expected_read_world);
     std::printf("%u world context checks passed; no game process opened\n",checks);
 }

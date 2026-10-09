@@ -344,7 +344,7 @@ Original `server_only` component metadata is exposed as `engine_server_only`.
 | Flight | Same rotation system intervention; prediction and authoritative movement can still disagree when configured on only one side. |
 | Resource cost / item use / item split | Shared helper sites are mapped separately per executable. The process handling the inventory transaction governs its result; matching code does not prove end-to-end network equivalence. |
 | Blueprints | KFC asset transformation resolves the same original query/action on both targets. Client UI and server recipe/knowledge checks must use compatible data. |
-| World Editor | Client cursor/UI remains client-side. In addition to direct world calls, `runtime.world.building.input` now queues ordinary ClientPlayerInput actions through the game's existing input path. This requires no separate mod transport; network acceptance, replication and persistence remain unverified with the new adapter. See [the complete per-mod audit](mod-multiplayer.md). |
+| World Editor | Client cursor/UI, capture and blueprint storage remain client-side. Singleplayer uses the existing direct native path; a client explicitly targeting a dedicated server sends the existing SFBP V7 blueprint over `runtime.network.send_mod`, and the headless server target executes native paste/undo locally. Replication and persistence remain live-test requirements. See [the complete per-mod audit](mod-multiplayer.md). |
 
 Server world context now comes from `player_building_place_prop`'s execution
 frame, not a copied client singleton. Its pointer is bounded/checked at use,

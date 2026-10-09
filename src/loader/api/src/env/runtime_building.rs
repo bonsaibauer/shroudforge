@@ -111,7 +111,15 @@ fn submit(
         };
     }
     let _ = (
-        player, kind, item, material, slot, target_entity_id, position, rotation, scale,
+        player,
+        kind,
+        item,
+        material,
+        slot,
+        target_entity_id,
+        position,
+        rotation,
+        scale,
     );
     0
 }
@@ -182,7 +190,10 @@ pub(crate) fn attach(lua: &Lua, world: &Table, owner: &Mod) -> mlua::Result<()> 
             let slot = input.raw_get::<Option<u32>>("slot")?.unwrap_or(0);
             let target_entity_id = input.raw_get::<Option<u32>>("targetEntityId")?.unwrap_or(0);
             if (kind == 4) != (target_entity_id != 0) {
-                return Ok((None, Some("dismantle requires an exact targetEntityId".into())));
+                return Ok((
+                    None,
+                    Some("dismantle requires an exact targetEntityId".into()),
+                ));
             }
             let position = vector(&input, "position", [0.; 3])?;
             let rotation = vector(&input, "rotation", [0., 0., 0., 1.])?;
@@ -194,7 +205,15 @@ pub(crate) fn attach(lua: &Lua, world: &Table, owner: &Mod) -> mlua::Result<()> 
                 ));
             }
             let id = submit(
-                player, kind, item, material, slot, target_entity_id, position, rotation, scale,
+                player,
+                kind,
+                item,
+                material,
+                slot,
+                target_entity_id,
+                position,
+                rotation,
+                scale,
             );
             if id == 0 {
                 if submit_owner.request.load(Ordering::Relaxed) == 0 {

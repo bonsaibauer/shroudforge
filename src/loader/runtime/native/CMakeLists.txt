@@ -50,6 +50,7 @@ add_library(kfc-runtime SHARED
     game-thread/dispatcher.cpp
     provider/profile.cpp
     provider/provider.cpp
+    provider/steam_network.cpp
     world/world_runtime.cpp
     world/building_input.cpp
     patch/patch_runtime.cpp

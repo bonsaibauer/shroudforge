@@ -1085,6 +1085,7 @@ std::string Status() {
     for (const auto& operation : KfcRuntimeCompatibility::EnshroudedClient::runtime_operations)
         text << " world{" << operation.name << '=' << (operation.available ? operation.status : "unavailable") << '}';
     text << " voxel_context=" << (WorldRuntime::ActiveContextAvailable() ? "ready" : "waiting");
+    text << " context_probe{" << WorldRuntime::ContextStatus() << '}';
     if (types.empty()) return text.str() + " registry=unresolved layout=unavailable";
     if (!layout_ready) return text.str() + " registry=ready layout=discovering";
     text << " layout=ready"
@@ -1164,6 +1165,7 @@ std::string Diagnostics() {
         }},
         {"worldOperations",std::move(world_operations)},
         {"voxelContextActive",WorldRuntime::ActiveContextAvailable()},
+        {"worldContext",nlohmann::json::parse(WorldRuntime::ContextDiagnostics())},
         {"entityContextReady",WorldRuntime::EntityContextReady()},
         {"entityHookStatus",WorldRuntime::EntityHookStatus()},
         {"configuredTypes",configured_types.size()}, {"resolvedTypes",types.size()},

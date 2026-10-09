@@ -14,6 +14,7 @@ mod registry;
 mod runtime_attributes;
 mod runtime_building;
 mod runtime_functions;
+mod runtime_networking;
 mod runtime_values;
 #[path = "../shroudforge/v1/shroudforge.rs"]
 pub(crate) mod shroudforge;

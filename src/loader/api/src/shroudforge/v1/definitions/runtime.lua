@@ -8,6 +8,7 @@
 --- @field phase "pregame"|"ingame"
 --- @field is_client boolean
 --- @field is_server boolean
+--- @field network RuntimeNetworkApi Steam Networking Messages P2P channel on the current client or dedicated-server process.
 --- Report observed status from a runtime mod's ECS work. A confirmed write reports a typed-memory write, not an independently verified gameplay effect.
 --- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string?
 
@@ -17,6 +18,63 @@
 --- @field on_unload fun()?
 --- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
+
+---@class RuntimeNetworkApi
+runtime.network = {}
+---@class RuntimeNetworkStatus
+---@field available boolean Steam Networking Messages is initialized in this process and the mod has runtime access.
+---@field role 'client'|'server'
+---@field local_steam_id string? Decimal Steam ID of this process, when Steam exposes it.
+---@field reason string?
+--- Report whether this process can use the built-in Steam P2P message channel.
+---@return RuntimeNetworkStatus status
+function runtime.network.status() end
+---@class RuntimeNetworkSendOptions
+---@field channel integer? Destination channel, default 0; use the same channel on receive.
+---@field reliable boolean? Reliable, ordered delivery on this peer/channel; default true.
+--- Send raw bytes to a Steam peer. This is a separate Steam P2P session, not an Enshrouded game packet. True means Steam accepted the send request, not that the peer acknowledged it.
+---@param peer_steam_id string Decimal SteamID64 from runtime.network.status().local_steam_id on the remote process.
+---@param payload string Binary-safe Lua string, maximum 512 KiB.
+---@param options RuntimeNetworkSendOptions?
+---@return boolean ok
+---@return string? reason
+function runtime.network.send(peer_steam_id, payload, options) end
+--- Send a UTF-8 text message from this mod to a named mod on a specific Steam peer. The destination mod receives it through receive_mod; this does not broadcast or identify the human player beyond their SteamID64.
+---@param peer_steam_id string Decimal SteamID64 of the specific client or server process.
+---@param target_mod_id string Mod ID installed on the receiving process.
+---@param payload string UTF-8 text, maximum 512 KiB including protocol envelope.
+---@param options RuntimeNetworkSendOptions? Only reliable is used; destination channel is derived from target_mod_id.
+---@return boolean ok
+---@return string? reason
+function runtime.network.send_mod(peer_steam_id, target_mod_id, payload, options) end
+--- Accept an incoming session request from a known peer before receiving its first message.
+---@param peer_steam_id string Decimal SteamID64.
+---@return boolean accepted
+---@return string? reason
+function runtime.network.accept(peer_steam_id) end
+---@class RuntimeNetworkReceiveOptions
+---@field channel integer? Local channel to read, default 0.
+---@field limit integer? Maximum messages to return in one call, 1..32, default 16.
+---@class RuntimeNetworkMessage
+---@field peer_steam_id string
+---@field payload string Binary-safe Lua string.
+---@field reliable boolean
+--- Read currently queued messages from one channel. Call from the mod's runtime update callback.
+---@param options RuntimeNetworkReceiveOptions?
+---@return RuntimeNetworkMessage[]? messages
+---@return string? reason
+function runtime.network.receive(options) end
+--- Receive messages addressed to this mod. Call from runtime on_update; each message includes the sender mod ID and Steam peer ID. The mod must accept a new peer with runtime.network.accept(peer_steam_id) before its first incoming session.
+---@param limit integer? Maximum messages, 1..32, default 16.
+---@return RuntimeModNetworkMessage[]? messages
+---@return string? reason
+function runtime.network.receive_mod(limit) end
+---@class RuntimeModNetworkMessage
+---@field peer_steam_id string SteamID64 of the specific remote process.
+---@field from_mod string Sender mod ID claimed in the protocol envelope.
+---@field to_mod string This receiving mod ID.
+---@field payload string UTF-8 text payload.
+---@field reliable boolean
 
 --- @class RuntimeValuesApi
 runtime.values = {}

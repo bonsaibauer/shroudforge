@@ -30,6 +30,15 @@ KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeShutdown(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capacity);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
+/* Optional Steam Networking Messages transport used by runtime.network. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkStatus(uint64_t* local_steam_id);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkSend(
+    uint64_t peer_steam_id, const unsigned char* payload, size_t size,
+    int32_t channel, int32_t reliable);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkAccept(uint64_t peer_steam_id);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkReceive(
+    int32_t channel, unsigned char* payload, size_t capacity,
+    uint64_t* peer_steam_id, size_t* actual, uint32_t* reliable);
 /* Optional ABI-12 code inventory extension. Same complete-buffer convention as
  * EcsRegistry. Code entries explicitly have no inferred calling ABI. */
 KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeFunctions(char* buffer, size_t capacity);

@@ -2,7 +2,7 @@
 
 The folders here contain parts of ShroudForge itself. They are built with the loader and are not mods that players need to install.
 
-There are **six Rust module crates**. The **ui-shared** folder contains shared styles for the user interfaces; it is not a seventh running module.
+There are **seven Rust module crates**. The **ui-shared** folder contains shared styles for the user interfaces; it is not another running module.
 
 Other loader parts, such as the API, package reader, compatibility checks, parser, and startup workflow, live in neighboring folders under **src/loader/**.
 
@@ -14,6 +14,7 @@ Other loader parts, such as the API, package reader, compatibility checks, parse
 | **debug-console/** | Opens a window for viewing and filtering Enshrouded and ShroudForge log messages. The in-game shortcut is **F10**. |
 | **modloader-ui/** | Shows installed and discoverable mods, settings, notices, compatibility details, and update controls. The in-game shortcut is **F9**. |
 | **runtime-diagnostics/** | Collects optional, time-limited runtime health and mod activity details. Its controls are in the Modloader settings. |
+| **steam-networking/** | Provides the built-in Steam Networking Messages P2P transport used by the `runtime.network` Lua API on game clients and dedicated servers. It does not replace Enshrouded's game connection. |
 | **updater/** | Queues mod installation and update work, and applies staged ShroudForge updates. |
 | **world-editor-ui/** | Currently contains the World Editor window, blueprint-state reading and screenshot/cover handling for the separate `mods/world-editor` package. The refactor plan replaces this special coupling with a generic mod UI host and moves editor-specific behavior into the mod package. |
 

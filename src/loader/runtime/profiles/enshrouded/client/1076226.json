@@ -109,6 +109,11 @@
     }
   },
   "worldContexts": {
+    "clientCursorRead": {
+      "frameServiceViewOffset": 592,
+      "serviceWorldOffset": 8,
+      "evidence": "client_cursor 0x24984d: [rbp+0x250] -> [rbp+0x4e8]; 0x249f59 -> 0x99e530 ([rcx+8]) -> 0xe8b710 -> voxel read 0xe819d0; read-only fallback"
+    },
     "entityPlacement": {
       "actorFrameServiceViewOffset": 32,
       "serviceViewWorldOffset": 8,

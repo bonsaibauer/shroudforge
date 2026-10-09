@@ -3,7 +3,8 @@
   "schemaVersion": 1,
   "enabled": true,
   "targets": [
-    "client"
+    "client",
+    "server"
   ],
   "links": {
     "source-github": "https://github.com/bonsaibauer/shroudforge",
@@ -11,8 +12,10 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
-    "Uses the reflected held contextual action for prop dismantling while keeping secondary building input for voxel removal.",
-    "Treats manually removed pasted props as completed undo work and falls back from an unavailable direct destroy hook to verified game input.",
+    "Makes the world target explicit: local/singleplayer stays on the direct client path; dedicated-server edits use Steam P2P.",
+    "Routes multiplayer blueprint placement and undo over Steam P2P to the dedicated server's native world runtime; preserves direct singleplayer edits.",
+    "Runs the same World Editor module headless on dedicated servers with an explicit SteamID64 allowlist and server-owned undo journal.",
+    "Removes the experimental client game-input blueprint paste path; retains the existing SFBP V7 format and native direct planner.",
     "Moves rotated and scaled ItemInfo placement-bound filtering into the registered native world query.",
     "Preserves the native entity-template UUID through prop capture, blueprint files, and paste.",
     "Preserves captured prop scale with a dedicated verified native transform update.",
@@ -25,11 +28,19 @@
   "settings": {
     "executionMode": {
       "value": "direct",
-      "label": "World edit execution",
+      "label": "World edit target",
       "options": {
-        "direct": "Direct world API (local/host)",
-        "game": "Game building input (multiplayer)"
+        "direct": "Local / singleplayer world",
+        "p2p": "Dedicated server world (Steam P2P)"
       }
+    },
+    "serverSteamId": {
+      "value": "",
+      "label": "Dedicated server SteamID64 (client)"
+    },
+    "allowedClientSteamIds": {
+      "value": "",
+      "label": "Authorized client SteamID64 list (server; comma separated)"
     },
     "panelWidth": {
       "value": 1180,
@@ -312,10 +323,18 @@
       ]
     },
     {
+      "label": "World target and Server P2P",
+      "description": "Keep Local / singleplayer world selected for local edits. Select Dedicated server world (Steam P2P) only after joining that server. Install the server target on the Dedicated Server EXE; enter its logged SteamID64 on the client and authorize the client's SteamID64 on the server.",
+      "settings": [
+        "executionMode",
+        "serverSteamId",
+        "allowedClientSteamIds"
+      ]
+    },
+    {
       "label": "World Editor",
       "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
       "settings": [
-        "executionMode",
         "sourceX",
         "sourceY",
         "sourceZ",

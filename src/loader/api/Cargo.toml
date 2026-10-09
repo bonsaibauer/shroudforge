@@ -7,6 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 shroudforge-runtime-diagnostics = { path = "../modules/runtime-diagnostics" }
+shroudforge-steam-networking = { path = "../modules/steam-networking" }
 shroudforge-parser = { path = "../../parser" }
 shroudforge-compatibility = { path = "../compatibility" }
 kfc = { git = "https://github.com/bonsaibauer/kfc-parser.git", rev = "933c11a68854894dd75414812f275543c4ee2faa", features = ["resource", "content"] }

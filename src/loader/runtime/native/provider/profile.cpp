@@ -233,6 +233,17 @@ bool Load() {
         world_context_layout.publish_state = context_offset("publishStateOffset");
         world_context_layout.publish_commands = context_offset("publishCommandsOffset");
         world_context_layout.owner = context_offset("ownerOffset");
+        world_context_layout.client_cursor_service_view = 0;
+        world_context_layout.client_cursor_service_world = 0;
+        if (exact_build_match && image_target == "enshrouded.exe" && selected.at("worldContexts").contains("clientCursorRead")) {
+            const auto& cursor = selected.at("worldContexts").at("clientCursorRead");
+            const auto frame = cursor.at("frameServiceViewOffset").get<std::size_t>();
+            const auto world = cursor.at("serviceWorldOffset").get<std::size_t>();
+            if (!frame || !world || frame > 0x10000 || world > 0x10000)
+                throw std::runtime_error("invalid client cursor read context layout");
+            world_context_layout.client_cursor_service_view = frame;
+            world_context_layout.client_cursor_service_world = world;
+        }
         runtime_world_grids.clear();
         const auto& grids = selected.at("worldGrids");
         if (!grids.is_object() || grids.empty()) throw std::runtime_error("world grid catalog is missing or empty");

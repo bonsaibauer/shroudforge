@@ -1,32 +1,36 @@
 # World Editor mod
 
-**Multiplayer input mode:** choose **World edit execution → Game building input (multiplayer)**
-in the mod settings. This new path queues ordinary player building input through
-`runtime.world.building.submit/status/cancel`, waits for item selection and then
-observes each requested change. It does not require a second editor instance on
-the dedicated server. The default **Direct world API (local/host)** keeps the
-existing direct operations described below. Running both EXEs is not enough:
-the client must join the intended server.
+**Singleplayer** keeps the existing client-side native read/write path and is
+the default. For a **dedicated-server world**, select **World Editor → World
+edit target → Dedicated server world (Steam P2P)** on the client, then install
+and enable World Editor on both the client and server. This explicit target is
+necessary because Enshrouded uses the same client executable for local and
+joined worlds, while the runtime does not expose a trustworthy joined-server
+identity to the editor. The server target runs the same mod headlessly; it has
+no UI or keyboard hook. The client sends the existing SFBP V7 text through
+`runtime.network.send_mod`, and the server parses it and invokes the same native
+paste, snapshot, verification, and undo journal used by direct edits.
 
-The input adapter and job logic are built and checked against original layouts,
-code guards and isolated tests. **End-to-end multiplayer acceptance, replication
-and persistence have not yet been verified with the new DLL.** See the
-[per-mod execution audit](../../docs/sf/mod-multiplayer.md) for exact scope and
-the distinction between active patches and gameplay effects.
+Configure **Server P2P** once per installation. The server log prints its
+SteamID64; enter that value in the client's **Dedicated server SteamID64** field.
+The client log prints its SteamID64; add it to the server's comma-separated
+**Authorized client SteamID64 list**. The server accepts P2P requests only from
+that allowlist. Steam P2P identifies the process peer; it does not prove which
+in-game character owns that Steam account. The P2P transfer limit is 32 MiB per
+blueprint; local blueprint files keep their existing 256 MiB limit. Capturing
+and saving remain on the client; F7 sends the same V7 blueprint body to the
+server. F4 sends the server-issued undo token back, so process-local entity
+handles never cross the network. Return the target setting to **Local /
+singleplayer world** before editing a local world. The dedicated server keeps
+one in-memory undo journal; restarting it discards that journal.
 
-The game-input path resolves exact one-cell building material recipes from
-current KFC assets and preserves normal game permissions and resource checks.
-Terrain without an exact recipe is refused before submission. Jobs allow at
-most 4096 actions. F4 undoes the last World Editor blueprint paste and F7 pastes
-the selected blueprint; neither action requires clicking in the world. Prop undo
-uses the saved entity handle and transform to issue the held dismantle input at
-the copied prop's coordinates, without waiting for the player's cursor or
-requiring the building hammer to be reselected. Voxel undo restores the saved
-terrain snapshot independently before prop dismantling, so a pending prop cannot
-block walls or terrain from being restored. A pending input is never sent twice;
-temporary ECS unavailability pauses confirmation while retaining the session's
-undo journal. Closing the mod cannot undo an already dispatched action, and
-journals are session-local.
+The P2P transport, SFBP validation, authorization, and duplicate-request guards
+are covered by isolated tests. **Live dedicated-server replication and save
+persistence still require an in-game canary test.** A confirmed native readback
+means the server runtime observed its world write; another client seeing the
+change and the world retaining it after rejoin are separate checks. See the
+[per-mod execution audit](../../docs/sf/mod-multiplayer.md) for the broader
+runtime evidence.
 
 This independent Lua mod implements its editor, blueprint format, selection, rotation, preview plan, paste, and undo behavior itself. It uses ShroudForge's public Lua APIs only for game/runtime access: `runtime.world.cursor.get`, native prop recipe registration and bounds queries, voxel operations, entity operations, asset reads, settings, logging, and export storage. Native engine access stays behind those APIs; the mod has no private loader hook or built-in editor implementation.
 
@@ -51,6 +55,6 @@ Set **Maximum props per blueprint** in the mod settings to control the per-bluep
 
 Prop capture scans incrementally: each native scan slice checks at most 512 entity pointers and yields after approximately 2 ms of scan time. Initialization and individual memory reads are outside a hard real-time guarantee. Lua continues pending scans on subsequent updates; incomplete results never become a saved blueprint. A changed ECS epoch, unavailable world, or 30 seconds without native scan progress aborts the capture; a scan that continues advancing is not cancelled merely because its total duration exceeds 30 seconds. F6 discards the pending editor callback. This bounds enumeration work; recipe loading and voxel/file operations have separate execution paths. Capture stage messages in the log distinguish recipe resolution, pending enumeration, and completion.
 
-The standalone mod implements its editor and V7 blueprint format itself. Direct world operations use the registered native Lua APIs. The game-input queue additionally reads ClientPlayerInput, NetworkCursor and SlotSelection through the shared ECS API to identify the local player and observe selection; it does not write arbitrary ECS fields. Runtime behavior that depends on the live game, including recipe acceptance, collision, replication and save persistence, requires in-game verification.
+The standalone mod implements its editor and V7 blueprint format itself. Direct world operations use the registered native Lua APIs. In multiplayer, the server executes those same APIs; the client never writes a replicated read-only grid or sends runtime entity handles. Runtime behavior that depends on the live game, including collision, replication and save persistence, requires in-game verification.
 
 The library header shows overall blueprint-save progress through four confirmed milestones: capture, encoding, file export, and library refresh. The small bar counts completed steps, not bytes or estimated remaining time; the current phase and observed elapsed time remain visible while work is pending. An export error never completes the bar. If the file was written but library refresh fails, the status explicitly says so.

@@ -5,7 +5,7 @@
     "id":{"type":"string","minLength":1,"maxLength":200},
     "title":{"type":"string","maxLength":120},"message":{"type":"string","maxLength":2000},
     "level":{"enum":["info","warning","error","success","update"]},
-    "modId":{"type":"string"},"updatedAt":{"type":"integer","minimum":0},
+    "modId":{"type":"string"},"ecosystem":{"enum":["SF","EML"]},"updatedAt":{"type":"integer","minimum":0},
     "actionUrl":{"type":["string","null"],"pattern":"^https://"},"actionLabelKey":{"type":["string","null"],"maxLength":120},
     "kind":{"type":["string","null"]},"values":{"type":["object","null"]},
     "changelog":{"type":"array","items":{"type":"string"},"maxItems":50},

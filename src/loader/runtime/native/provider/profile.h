@@ -19,6 +19,7 @@ struct RuntimeOperation {
 struct RuntimeWorldContextLayout {
     std::size_t actor_frame_service_view{}, service_view_world{}, placement_context{};
     std::size_t place_queue{}, remove_queue{}, publish_state{}, publish_commands{}, owner{};
+    std::size_t client_cursor_service_view{}, client_cursor_service_world{};
 };
 struct RuntimeWorldGrid {
     std::string id;

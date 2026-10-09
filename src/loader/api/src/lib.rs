@@ -270,6 +270,47 @@ struct Lifecycle {
     active: bool,
 }
 
+/// Compare a newly parsed manifest with the applied one while treating a
+/// changed setting value as a live setting update. The package reader derives
+/// each setting definition's `default` from the current value in
+/// `extended.mod.json`, so those defaults move alongside `settingValues` and
+/// must not make a value-only edit look like a structural package change.
+fn settings_only_manifest_change(desired: &serde_json::Value, applied: &serde_json::Value) -> bool {
+    let mut metadata = desired.clone();
+    metadata["settingValues"] = applied["settingValues"].clone();
+    metadata["enabled"] = applied["enabled"].clone();
+
+    let Some(desired_settings) = metadata
+        .get_mut("settings")
+        .and_then(serde_json::Value::as_array_mut)
+    else {
+        return false;
+    };
+    let Some(applied_settings) = applied
+        .get("settings")
+        .and_then(serde_json::Value::as_array)
+    else {
+        return false;
+    };
+
+    for desired_setting in desired_settings {
+        let Some(key) = desired_setting.get("key") else {
+            return false;
+        };
+        let Some(applied_setting) = applied_settings
+            .iter()
+            .find(|setting| setting.get("key") == Some(key))
+        else {
+            continue;
+        };
+        if let Some(default) = applied_setting.get("default") {
+            desired_setting["default"] = default.clone();
+        }
+    }
+
+    metadata == *applied
+}
+
 /// Long-lived in-game execution of the same ShroudForge Lua API used pregame.
 pub struct IngameRuntime {
     diagnostics: shroudforge_runtime_diagnostics::Session,
@@ -1006,9 +1047,7 @@ impl IngameRuntime {
                 }
                 continue;
             }
-            let mut metadata = desired.clone();
-            metadata["settingValues"] = applied["settingValues"].clone();
-            metadata["enabled"] = applied["enabled"].clone();
+            let metadata_unchanged = settings_only_manifest_change(&desired, applied);
             let runtime_mod = manifest
                 .capabilities
                 .iter()
@@ -1017,7 +1056,6 @@ impl IngameRuntime {
                 && !manifest
                     .capabilities
                     .contains(&mod_loader::Capability::Patch);
-            let metadata_unchanged = metadata == *applied;
             let wanted_enabled = manifest.enabled;
             let was_enabled = applied["enabled"].as_bool().unwrap_or(false);
             if metadata_unchanged && live_mod && wanted_enabled != was_enabled {
@@ -1125,6 +1163,7 @@ impl IngameRuntime {
                 {
                     Ok(()) => {
                         applied["settingValues"] = desired_settings;
+                        applied["settings"] = desired["settings"].clone();
                         tracing::info!(target:"shroudforge::runtime", mod_id=%id,"Runtime settings applied live");
                     }
                     Err(error) => {
@@ -1138,12 +1177,8 @@ impl IngameRuntime {
             }
             let now_applied = serde_json::to_value(&manifest).expect("manifest is serializable");
             let changed_but_deferred = now_applied != *applied;
-            let deferred_is_only_enable_or_settings = {
-                let mut comparable = now_applied.clone();
-                comparable["enabled"] = applied["enabled"].clone();
-                comparable["settingValues"] = applied["settingValues"].clone();
-                comparable == *applied
-            };
+            let deferred_is_only_enable_or_settings =
+                settings_only_manifest_change(&now_applied, applied);
             if changed_but_deferred && !deferred_is_only_enable_or_settings {
                 tracing::info!(target:"shroudforge::runtime", mod_id=%id, "Mod changes require the next game start");
             } else if changed_but_deferred && !runtime_mod {
@@ -1246,4 +1281,70 @@ pub fn restore(game_dir: impl AsRef<Path>, file_name: &str) -> bool {
 
 pub fn backup_companion_file(path: impl AsRef<std::path::Path>) -> bool {
     load::create_companion_backup(path).is_ok()
+}
+
+#[cfg(test)]
+mod live_setting_reload_tests {
+    use super::settings_only_manifest_change;
+    use serde_json::json;
+
+    #[test]
+    fn setting_value_change_does_not_look_like_package_metadata_change() {
+        let applied = json!({
+            "enabled": true,
+            "settingValues": {"executionMode": "direct"},
+            "settings": [{
+                "key": "executionMode",
+                "type": "string",
+                "default": "direct",
+                "label": "World edit target",
+                "options": [
+                    {"value": "direct", "label": "Local / singleplayer world"},
+                    {"value": "p2p", "label": "Dedicated server world (Steam P2P)"}
+                ]
+            }]
+        });
+        let desired = json!({
+            "enabled": true,
+            "settingValues": {"executionMode": "p2p"},
+            "settings": [{
+                "key": "executionMode",
+                "type": "string",
+                "default": "p2p",
+                "label": "World edit target",
+                "options": [
+                    {"value": "direct", "label": "Local / singleplayer world"},
+                    {"value": "p2p", "label": "Dedicated server world (Steam P2P)"}
+                ]
+            }]
+        });
+
+        assert!(settings_only_manifest_change(&desired, &applied));
+    }
+
+    #[test]
+    fn setting_definition_change_still_requires_restart() {
+        let applied = json!({
+            "enabled": true,
+            "settingValues": {"executionMode": "direct"},
+            "settings": [{
+                "key": "executionMode",
+                "type": "string",
+                "default": "direct",
+                "label": "World edit target"
+            }]
+        });
+        let desired = json!({
+            "enabled": true,
+            "settingValues": {"executionMode": "p2p"},
+            "settings": [{
+                "key": "executionMode",
+                "type": "string",
+                "default": "p2p",
+                "label": "World edit target (changed)"
+            }]
+        });
+
+        assert!(!settings_only_manifest_change(&desired, &applied));
+    }
 }

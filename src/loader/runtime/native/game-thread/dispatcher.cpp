@@ -302,7 +302,9 @@ std::vector<std::uint8_t> cursor_callback_code(void* callback, std::size_t captu
     const auto offset = static_cast<std::uint32_t>(capture_offset);
     for (unsigned index = 0; index < sizeof(offset); ++index)
         code.push_back(static_cast<std::uint8_t>(offset >> (index * 8)));
-    code.insert(code.end(), {0x49,0x8b,0xd5,0x48,0xb8}); // rdx = r13, live execution view
+    // Third argument is the same RBP frame used by client_cursor's own voxel
+    // reads. R8 is already saved/restored above/below; stack layout is unchanged.
+    code.insert(code.end(), {0x49,0x8b,0xd5,0x49,0x89,0xe8,0x48,0xb8}); // rdx=r13, r8=rbp
     const auto address = reinterpret_cast<std::uintptr_t>(callback);
     for (unsigned index = 0; index < 8; ++index) code.push_back(static_cast<std::uint8_t>(address >> (index*8)));
     code.insert(code.end(), {0xff,0xd0});

@@ -9,11 +9,13 @@ void ResetContext();
 void OnPropUpdate(void* execution_view, void* actor_frame);
 void OnActorPlacement(void* execution_view, void* actor_frame);
 void OnBuildingDispatch(void* placement_context);
-void OnCursorUpdate(void* cursor, void* execution_view);
+void OnCursorUpdate(void* cursor, void* execution_view, void* cursor_frame = nullptr);
 void SetCursorHookReady(bool ready);
 bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t* sequence);
 bool OperationAvailable(const char* name);
 bool ActiveContextAvailable();
+std::string ContextDiagnostics();
+std::string ContextStatus();
 bool EntityContextReady();
 std::string EntityHookStatus();
 bool ReadVoxels(const std::int32_t origin[3], const std::uint32_t dimensions[3],

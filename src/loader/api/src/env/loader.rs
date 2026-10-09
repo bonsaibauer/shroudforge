@@ -119,6 +119,10 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
 
     table.raw_set("ecs", create_ecs(lua, &r#mod)?)?;
     table.raw_set("world", create_world(lua, &r#mod)?)?;
+    table.raw_set(
+        "network",
+        crate::env::runtime_networking::create(lua, &r#mod)?,
+    )?;
     table.raw_set("patch", create_patch(lua, &r#mod)?)?;
     table.raw_set("functions", create_functions(lua, &table, &r#mod)?)?;
 
@@ -143,6 +147,12 @@ fn create_functions(
         let path = match id {
             "runtime.world.context.active" => "runtime.world.context_active",
             "runtime.world.voxel.grid_spec" => "runtime.world.voxel.get_grid_spec",
+            "runtime.network.status" => "runtime.network.status",
+            "runtime.network.send" => "runtime.network.send",
+            "runtime.network.send_mod" => "runtime.network.send_mod",
+            "runtime.network.receive" => "runtime.network.receive",
+            "runtime.network.receive_mod" => "runtime.network.receive_mod",
+            "runtime.network.accept" => "runtime.network.accept",
             "runtime.lifecycle" | "runtime.gameplay.patch" => continue,
             id => id,
         };
@@ -258,6 +268,17 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && has_capability(r#mod, Capability::Runtime)
                 && runtime_provider::runtime_patch_available("runtime.gameplay.patch")
         }
+        "runtime.network.status"
+        | "runtime.network.send"
+        | "runtime.network.send_mod"
+        | "runtime.network.receive"
+        | "runtime.network.receive_mod"
+        | "runtime.network.accept" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && shroudforge_steam_networking::status().available
+        }
         "runtime.world.context.active" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
@@ -370,6 +391,17 @@ fn operation_status(lua: &mlua::Lua, feature: &str, r#mod: &Mod) -> mlua::Result
             lua,
             Availability::Unavailable {
                 reason: "KFC Runtime is waiting for the live Keen ECS world".into(),
+            },
+        );
+    }
+    if feature.starts_with("runtime.network.")
+        && matches!(availability, Availability::Available)
+        && !shroudforge_steam_networking::status().available
+    {
+        return availability_to_lua(
+            lua,
+            Availability::Unavailable {
+                reason: "Steam Networking Messages is not initialized in this process".into(),
             },
         );
     }
@@ -679,7 +711,10 @@ fn lua_world_entity_query_props(
     for (index, prop) in props.into_iter().enumerate() {
         let item = lua.create_table()?;
         item.raw_set("handle", prop.entity_handle)?;
-        item.raw_set("entityId", runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id))?;
+        item.raw_set(
+            "entityId",
+            runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id),
+        )?;
         item.raw_set("itemId", prop.item_id)?;
         item.raw_set(
             "templateUuidHighHex",
@@ -809,7 +844,10 @@ fn lua_world_entity_query_props_in_bounds(
     for (index, prop) in props.into_iter().enumerate() {
         let item = lua.create_table()?;
         item.raw_set("handle", prop.entity_handle)?;
-        item.raw_set("entityId", runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id))?;
+        item.raw_set(
+            "entityId",
+            runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id),
+        )?;
         item.raw_set("itemId", prop.item_id)?;
         item.raw_set(
             "templateUuidHighHex",
@@ -869,7 +907,10 @@ fn lua_world_entity_get_transform(
     };
     let item = lua.create_table()?;
     item.raw_set("handle", prop.entity_handle)?;
-    item.raw_set("entityId", runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id))?;
+    item.raw_set(
+        "entityId",
+        runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id),
+    )?;
     item.raw_set("itemId", prop.item_id)?;
     item.raw_set(
         "templateUuidHighHex",
@@ -2278,7 +2319,10 @@ pub(super) mod runtime_provider {
                                 "KfcRuntimeWorldEntityGetTransform",
                                 WorldEntityGetTransform
                             ),
-                            world_entity_identity: symbol!("KfcRuntimeEcsEntityIdentity", WorldEntityIdentity),
+                            world_entity_identity: symbol!(
+                                "KfcRuntimeEcsEntityIdentity",
+                                WorldEntityIdentity
+                            ),
                             world_entity_set_scale: symbol!(
                                 "KfcRuntimeWorldEntitySetScale",
                                 WorldEntitySetScale
@@ -3089,7 +3133,9 @@ pub(super) mod runtime_provider {
     pub fn world_entity_get_transform(_: u32) -> Option<PropRecord> {
         None
     }
-    pub fn world_entity_identity(_: u32) -> Option<u32> { None }
+    pub fn world_entity_identity(_: u32) -> Option<u32> {
+        None
+    }
     pub fn world_entity_set_scale(_: u32, _: [f64; 3]) -> Result<(), String> {
         Err("native world runtime is available on Windows only".into())
     }

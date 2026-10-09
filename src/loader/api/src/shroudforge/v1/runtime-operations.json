@@ -3,6 +3,12 @@
   "schemaVersion": 1,
   "runtimeOperations": [
     "runtime.lifecycle",
+    "runtime.network.status",
+    "runtime.network.send",
+    "runtime.network.send_mod",
+    "runtime.network.receive",
+    "runtime.network.receive_mod",
+    "runtime.network.accept",
     "runtime.ecs.query",
     "runtime.ecs.resolve",
     "runtime.ecs.read",
