@@ -963,6 +963,16 @@ void component_discovery_tick(std::uintptr_t manager) {
 }
 
 namespace EcsRuntime {
+bool MatchesComponentAddress(std::uint32_t handle, const char* name, const void* expected) {
+    ComponentType component{};
+    ResolvedLayout layout{};
+    EntityView entity{};
+    std::uintptr_t address{};
+    return resolve_component(name, component) && layout_snapshot(layout) &&
+        entity_for_handle(handle, layout, entity) &&
+        component_address(entity, layout, component, address) &&
+        address == reinterpret_cast<std::uintptr_t>(expected);
+}
 bool SnapshotEntityIds(std::vector<std::uint32_t>& ids) {
     return ::SnapshotEntityIds(ids);
 }

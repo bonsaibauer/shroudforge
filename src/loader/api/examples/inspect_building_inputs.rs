@@ -1,5 +1,5 @@
 //! Read-only inspection through the same KFC parser used by the Lua API.
-//! Usage: cargo run -p shroudforge-api --example inspect_attribute_resources -- EXE OUTPUT.json [--backup] [--type QUALIFIED_NAME ...]
+//! Usage: cargo run -p shroudforge-api --example inspect_building_inputs -- EXE OUTPUT.json [--backup]
 use kfc::{
     container::{KFCFile, KFCReader, KFCReaderOptions},
     reflection::{LookupKey, TypeRegistry},
@@ -13,38 +13,8 @@ use std::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    if args.len() < 2 {
-        return Err("expected EXE OUTPUT.json [--backup] [--type QUALIFIED_NAME ...]".into());
-    }
-    let mut backup = false;
-    let mut selected_types = Vec::new();
-    let mut extra = args[2..].iter();
-    while let Some(argument) = extra.next() {
-        if argument == "--backup" {
-            backup = true;
-        } else if argument == "--type" {
-            selected_types.push(
-                extra
-                    .next()
-                    .ok_or("--type requires a qualified name")?
-                    .to_str()
-                    .ok_or("invalid type name")?
-                    .to_owned(),
-            );
-        } else {
-            return Err(format!("unknown argument {}", argument.to_string_lossy()).into());
-        }
-    }
-    if selected_types.is_empty() {
-        selected_types = [
-            "keen::AttributeContainerResource",
-            "keen::BaseAttributeResource",
-            "keen::BalancingTable",
-            "keen::GameKnowledgeResource",
-            "keen::GameKnowledgeQueryResourceDb",
-        ]
-        .map(str::to_owned)
-        .to_vec();
+    if !(args.len() == 2 || (args.len() == 3 && args[2] == "--backup")) {
+        return Err("expected EXE OUTPUT.json [--backup]".into());
     }
     let exe = PathBuf::from(&args[0]);
     let directory = exe.parent().ok_or("missing game directory")?;
@@ -53,6 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_then(|v| v.to_str())
         .ok_or("invalid executable name")?;
     let registry = TypeRegistry::load_from_executable(&exe)?;
+    let backup = args.len() == 3;
     let options = if backup {
         KFCReaderOptions {
             kfc_extension: "kfc.bak",
@@ -67,7 +38,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let version = KFCFile::get_version_tag(&kfc_path)?;
     let mut reader = KFCReader::new_with_options(directory, stem, options)?.into_cursor()?;
     let mut resources = Vec::new();
-    for name in &selected_types {
+    for name in [
+        "keen::ItemInfo",
+        "keen::VoxelBlueprintItemRegistryResource",
+        "keen::VoxelMaterialResolvedList",
+        "keen::VoxelBlueprintMaterialPoolRegistryResource",
+    ] {
         let Some(ty) = registry.get_by_name(LookupKey::Qualified(name)) else {
             continue;
         };
@@ -77,6 +53,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err(format!("missing resource {id}").into());
             }
             let value = Value::from_bytes(&registry, ty, &bytes)?;
+            let mut value = serde_json::to_value(value)?;
+            if name == "keen::ItemInfo" {
+                value = serde_json::json!({"itemId":value["itemId"],"debugName":value["debugName"],"equipment":value["equipment"]});
+            }
             resources.push(serde_json::json!({"id":id.to_string(),"qualifiedType":name,"typeHash":ty.qualified_hash,"value":value}));
         }
     }
@@ -88,14 +68,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     serde_json::to_writer_pretty(
         &mut output,
         &serde_json::json!({"version":version,"executable":exe,"container":kfc_path,
-            "type_source":"fresh executable extraction; no type cache", "resources":resources,
-            "attribute_component_types":registry.iter().filter(|ty| ty.qualified_name.starts_with("keen::ecs::") &&
-                registry.get_inheritance_chain(ty).iter().any(|t| t.qualified_name == "keen::ecs::AttributeComponent"))
-                .collect::<Vec<_>>()}),
+            "type_source":"fresh executable extraction; no type cache", "resources":resources}),
     )?;
     output.flush()?;
     println!(
-        "Read {} resources; no game files or memory changed",
+        "Read {} building input resources; no game files or memory changed",
         resources.len()
     );
     Ok(())

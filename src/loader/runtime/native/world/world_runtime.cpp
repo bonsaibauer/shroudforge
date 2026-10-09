@@ -1,4 +1,5 @@
 #include "world_runtime.h"
+#include "building_input.h"
 #include "profile.h"
 #include "dispatcher.h"
 #include <windows.h>
@@ -627,6 +628,7 @@ bool GetGridSpec(const char* grid_id, KfcRuntimeGridSpec* spec) {
 }
 
 void ResetContext() {
+    BuildingInput::Reset();
     observed_actor_world_ms.store(0, std::memory_order_release);
     observed_actor_world.store(0, std::memory_order_release);
     preferred_voxel_world.store(0, std::memory_order_release);
@@ -634,6 +636,8 @@ void ResetContext() {
 }
 
 bool OperationAvailable(const char* name) {
+    if (name && std::strcmp(name, "runtime.world.building.input") == 0)
+        return BuildingInput::Available();
     if (name && std::strcmp(name, "runtime.world.cursor.get") == 0)
         return InterlockedCompareExchange(&cursor_mailbox.hook_ready, 0, 0) != 0;
     const auto* operation = find_operation(name);
@@ -735,7 +739,7 @@ void SetCursorHookReady(bool ready) {
     InterlockedExchange(&cursor_mailbox.hook_ready, ready ? 1 : 0);
 }
 
-void OnCursorUpdate(const void* cursor) {
+void OnCursorUpdate(void* cursor, void* execution_view) {
     std::array<std::uint8_t, NativeCursorSize> sample{};
     if (!copy_cursor_safely(cursor, sample.data()) || sample[0x98] > 1) return;
     for (const auto base : {std::size_t{0}, std::size_t{0x38}}) {
@@ -746,6 +750,7 @@ void OnCursorUpdate(const void* cursor) {
             if (!std::isfinite(value)) return;
         }
     }
+    BuildingInput::Observe(cursor, execution_view);
     if (InterlockedCompareExchange(&cursor_mailbox.lock, 1, 0) != 0) return;
     cursor_mailbox.bytes = sample;
     ++cursor_mailbox.sequence;

@@ -3,7 +3,7 @@
   "id": "sf-infinite-item-split",
   "name": "SF Infinite Item Split",
   "version": "1.4.0",
-  "description": "Prevents the selected split amount from being removed from the source stack with a build-profile-verified, split-specific runtime patch.",
+  "description": "Suppresses a source-count subtraction in a shared inventory helper in the current process. Its verified callers include splitting, crafting, equipment and other inventory operations; the modifier is not restricted to splitting.",
   "authors": [
     "bonsaibauer"
   ],

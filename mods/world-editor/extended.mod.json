@@ -11,6 +11,8 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
+    "Uses the reflected held contextual action for prop dismantling while keeping secondary building input for voxel removal.",
+    "Treats manually removed pasted props as completed undo work and falls back from an unavailable direct destroy hook to verified game input.",
     "Moves rotated and scaled ItemInfo placement-bound filtering into the registered native world query.",
     "Preserves the native entity-template UUID through prop capture, blueprint files, and paste.",
     "Preserves captured prop scale with a dedicated verified native transform update.",
@@ -21,6 +23,14 @@
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo. F1 remains available to the game."
   ],
   "settings": {
+    "executionMode": {
+      "value": "direct",
+      "label": "World edit execution",
+      "options": {
+        "direct": "Direct world API (local/host)",
+        "game": "Game building input (multiplayer)"
+      }
+    },
     "panelWidth": {
       "value": 1180,
       "min": 760,
@@ -305,6 +315,7 @@
       "label": "World Editor",
       "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
       "settings": [
+        "executionMode",
         "sourceX",
         "sourceY",
         "sourceZ",

@@ -42,6 +42,9 @@ local voxel_grid_spec = nil
 local editor_stage = "need_a"
 local editor_hint = "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
 local last_published_editor_state = nil
+local game_building
+local game_undo = {}
+local game_uncertain = false
 
 local function key_pressed(key)
     local down = shroudforge.input.is_key_down(key)
@@ -1341,11 +1344,91 @@ local function delete_library_blueprint(name)
     shroudforge.log.info("World Editor deleted blueprint " .. name)
 end
 
+local function game_backend()
+    if not game_building then game_building = require("game_building")(runtime, set_editor_message) end
+    return game_building
+end
+
+local function paste_through_game(use_current_cursor, cursor_override, captured_props, prepared)
+    if game_uncertain then
+        set_editor_message("recovery", "A previous game action has an unconfirmed outcome. Reconcile that placement before sending another job.")
+        return
+    end
+    if game_backend().busy() then return end
+    local anchor, reason
+    if prepared then
+        if prepared.blueprint~=clipboard or prepared.turns~=rotation_turns() then
+            set_editor_message("selected","Blueprint changed during preparation. Start placement again."); return
+        end
+        anchor=prepared.anchor
+    else anchor,reason=target_anchor(use_current_cursor,cursor_override) end
+    if not anchor and use_current_cursor and query_is_pending(reason) then
+        request_cursor_action(function(point) paste_through_game(true, point) end)
+        return
+    end
+    if not anchor then set_editor_message("selected", tostring(reason)); return end
+    local plan = rotated_blueprint(clipboard, rotation_turns())
+    if setting("targetPropMode")=="replace" and not captured_props then
+        local context={anchor=anchor,blueprint=clipboard,turns=rotation_turns()}
+        request_prop_capture({queryBounds=plan_world_bounds(plan,anchor),anchor=anchor},function(props)
+            paste_through_game(false,nil,props,context)
+        end)
+        return
+    end
+    local commands = {}
+    if plan.hasVoxels then
+        local target,target_reason=voxel_target_region(plan,anchor)
+        if not target then set_editor_message("selected",tostring(target_reason)); return end
+        local grid=get_voxel_grid_spec()
+        if not grid then return end
+        local before,read_reason=runtime.world.voxel.read(target.x,target.y,target.z,target.sx,target.sy,target.sz)
+        if not before then set_editor_message("selected",tostring(read_reason)); return end
+        local planner=require("building_plan")
+        local recipes,recipe_reason=planner.catalog(game.assets.get_resources_by_type("keen::ItemInfo"),
+            game.assets.get_resources_by_type("keen::VoxelBlueprintItemRegistryResource"),grid.cellSize)
+        if not recipes then set_editor_message("selected",tostring(recipe_reason)); return end
+        commands,reason=planner.voxels(plan,target,grid,before,recipes,setting("pasteVoxelMode"))
+        if not commands then set_editor_message("selected",tostring(reason)); return end
+    end
+    local removals={}
+    for _, prop in ipairs(captured_props or {}) do
+        removals[#removals+1]={action="dismantle",itemId=prop.itemId,handle=prop.entityHandle,
+            position={anchor[1]+prop.x,anchor[2]+prop.y,anchor[3]+prop.z},
+            rotation={prop.qx,prop.qy,prop.qz,prop.qw},scale={prop.sx,prop.sy,prop.sz},
+            templateUuidHighHex=prop.templateUuidHighHex,templateUuidLowHex=prop.templateUuidLowHex}
+    end
+    for _, command in ipairs(commands) do removals[#removals+1]=command end
+    commands=removals
+    local recipes=resolve_placeable_items()
+    for _, prop in ipairs(plan.props or {}) do
+        if not recipes or not recipes[prop.itemId] then
+            set_editor_message("selected","A prop has no current placement recipe; no input was sent"); return
+        end
+        commands[#commands+1] = {action="place", itemId=prop.itemId,
+            position={anchor[1]+prop.x, anchor[2]+prop.y, anchor[3]+prop.z},
+            rotation={prop.qx,prop.qy,prop.qz,prop.qw}, scale={prop.sx,prop.sy,prop.sz},
+            templateUuidHighHex=prop.templateUuidHighHex,templateUuidLowHex=prop.templateUuidLowHex}
+    end
+    local ok, start_reason = game_backend().start(commands, function(success, failure, completed, uncertain)
+        for _, command in ipairs(completed) do game_undo[#game_undo+1]=command end
+        game_uncertain = uncertain == true
+        set_editor_message(success and "selected" or "recovery", success and
+            ("Observed "..#completed.." building changes. F4 sends their inverse actions.") or tostring(failure))
+        runtime.report_effect(success and "write-confirmed" or "write-failed",
+            success and "Observed game-input placements in client world state; save/rejoin validation remains separate." or tostring(failure))
+    end)
+    if not ok then set_editor_message("selected", tostring(start_reason)) end
+end
+
 local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
     if not clipboard then
         set_editor_message("need_a", "No blueprint is active. Press F5 to create one or select a saved blueprint.")
         shroudforge.log.warn("World Editor: capture or load a blueprint before pasting")
         return
+    end
+    if game_building and game_building.busy() then return end
+    if game_uncertain then
+        set_editor_message("recovery","A game input is still unconfirmed. Waiting for its world effect without resending."); return
     end
     local maximum = maximum_copyable_props()
     local prop_count = #(clipboard.props or {})
@@ -1358,6 +1441,13 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         set_editor_message("recovery", "Placement is paused. Press F4 to finish undoing the previous placement first.")
         shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before starting another paste")
         return
+    end
+    if setting("executionMode") == "game" then
+        paste_through_game(use_current_cursor, cursor_override)
+        return
+    end
+    if #game_undo>0 then
+        set_editor_message("selected","Undo the previous game-input job with F4 before switching to direct edits."); return
     end
     if clipboard.hasVoxels and not require_world_feature("runtime.world.voxel.write", function()
         paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
@@ -1598,6 +1688,27 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
 end
 
 undo_voxels = function()
+    if game_building and game_building.busy() then game_building.cancel(); return end
+    if #game_undo > 0 or game_uncertain then
+        if game_uncertain then
+            game_backend().reconcile()
+            set_editor_message("recovery", "Checking the last game action without resending it. Undo waits for an observed outcome.")
+            return
+        end
+        local commands = {}
+        for index=#game_undo,1,-1 do
+            local c=game_undo[index]
+            commands[#commands+1]=require("building_plan").inverse(c)
+        end
+        local ok, reason = game_backend().start(commands,function(success,failure,completed,uncertain)
+            for _=1,#completed do table.remove(game_undo) end
+            game_uncertain=uncertain==true
+            set_editor_message(success and "selected" or "recovery",success and
+                "Observed the inverse building actions through the game connection." or tostring(failure))
+        end)
+        if not ok then set_editor_message("recovery",tostring(reason)) end
+        return
+    end
     if not undo_state then
         set_editor_message(nil, "Nothing to undo. Place a blueprint with F7 first.")
         shroudforge.log.warn("World Editor: there is no verified blueprint placement to undo")
@@ -1631,13 +1742,7 @@ undo_voxels = function()
     for entity_index = 1, index do
         local entity = entities[entity_index]
         local current = entity.entityHandle and runtime.world.entity.get_transform(entity.entityHandle)
-        if not current then
-            set_editor_message("recovery", "Undo paused because a placed prop is missing. Check the world, then press F4 to retry.")
-            runtime.report_effect("write-failed", "a pasted prop disappeared before undo")
-            shroudforge.log.warn("World Editor refused undo because a pasted prop is no longer present at its recorded handle")
-            return
-        end
-        if not undo_state.automaticRollback and not transform_matches(current, entity.expected_transform) then
+        if current and not undo_state.automaticRollback and not transform_matches(current, entity.expected_transform) then
             set_editor_message("recovery", "Undo paused because a placed prop was moved or changed. Restore it to its pasted state, then press F4 to retry.")
             runtime.report_effect("write-failed", "a pasted prop changed after paste")
             shroudforge.log.warn("World Editor refused undo because a pasted prop changed after paste")
@@ -1663,16 +1768,51 @@ undo_voxels = function()
             shroudforge.log.warn("World Editor paused undo because live prop state could not be inspected")
             return
         end
+        local current = runtime.world.entity.get_transform(entity.entityHandle)
+        if not current then
+            index = index - 1
+            undo_state.entity_index = index
+            shroudforge.log.info("World Editor undo accepted an already absent pasted prop handle " .. tostring(entity.entityHandle))
+        else
         local removed, remove_reason = runtime.world.entity.destroy(entity.entityHandle)
         if not runtime.world.entity.get_transform(entity.entityHandle) then
             index = index - 1
             undo_state.entity_index = index
         else
             local detail = remove_reason or "the exact pasted ECS handle is still present after the destroy call"
+            if not undo_state.automaticRollback and feature("runtime.world.building.input") then
+                local command = {
+                    action = "dismantle", itemId = entity.recipe.id, handle = entity.entityHandle,
+                    position = entity.position, rotation = entity.rotation, scale = entity.scale,
+                    templateUuidHighHex = entity.expected_transform and entity.expected_transform.templateUuidHighHex,
+                    templateUuidLowHex = entity.expected_transform and entity.expected_transform.templateUuidLowHex,
+                }
+                local started, fallback_reason = game_backend().start({command}, function(success, failure, completed, uncertain)
+                    game_uncertain = uncertain == true
+                    if success or #completed > 0 then
+                        game_uncertain = false
+                        if undo_state then
+                            undo_state.entity_index = index - 1
+                            shroudforge.log.info("World Editor removed pasted prop through held contextual game input after the direct destroy hook was unavailable")
+                            undo_voxels()
+                        end
+                    else
+                        set_editor_message("recovery", "Undo is waiting for the prop dismantle result. " .. tostring(failure) .. " Press F4 to reconcile it.")
+                    end
+                end)
+                if started then
+                    set_editor_message("placing", string.format("Direct removal was unavailable. Aim at the pasted prop near %.2f, %.2f, %.2f; Undo will hold the dismantle action.",
+                        entity.position[1], entity.position[2], entity.position[3]))
+                    shroudforge.log.warn("World Editor direct destroy was unavailable; falling back to verified held contextual input for handle " .. tostring(entity.entityHandle))
+                    return
+                end
+                detail = detail .. "; contextual input fallback failed: " .. tostring(fallback_reason)
+            end
             set_editor_message("recovery", "Undo paused because a placed prop could not be removed. " .. tostring(detail) .. ". Press F4 to retry.")
             runtime.report_effect("write-failed", detail)
             shroudforge.log.error("World Editor paused undo and preserved its progress: " .. tostring(detail))
             return
+        end
         end
     end
     if undo_state.hasVoxels and undo_state.voxel_written then
@@ -1891,7 +2031,17 @@ local function list_props()
     end)
 end
 
+local function direct_edit_allowed()
+    if setting("executionMode")=="game" or game_uncertain or #game_undo>0 or
+        (game_building and game_building.busy()) then
+        set_editor_message("selected","Direct diagnostic edits are disabled during game-input editing. Use blueprint paste and F4 undo.")
+        return false
+    end
+    return true
+end
+
 local function destroy_selected_prop()
+    if not direct_edit_allowed() then return end
     if not feature("runtime.world.entity.query_props") or not feature("runtime.world.entity.destroy") then return end
     local handle = tonumber(setting("entityHandle"))
     if not handle or handle < 1 or handle % 1 ~= 0 then
@@ -1942,6 +2092,7 @@ local function entity_bounds()
 end
 
 local function spawn_entity()
+    if not direct_edit_allowed() then return end
     if not feature("runtime.world.entity.spawn") then return end
     local tracking = tonumber(setting("trackingId"))
     if not tracking or tracking < 1 or tracking % 1 ~= 0 then
@@ -1967,6 +2118,7 @@ local function spawn_entity()
 end
 
 local function placement_operation(destroy)
+    if not direct_edit_allowed() then return end
     local operation = destroy and "runtime.world.entity.destroy" or "runtime.world.entity.place"
     if not feature(operation) or not feature("runtime.world.entity.finish_building") then return end
     if not feature("runtime.world.entity.query_props") then return end
@@ -2080,10 +2232,12 @@ return {
         publish_editor_state()
     end,
     on_update = function(_delta_seconds)
+        if game_building then game_building.tick(_delta_seconds) end
         if not readiness_logged then
             local props_ready = runtime.has("runtime.world.entity.query_props_in_bounds")
             local cursor_ready = runtime.has("runtime.world.cursor.get")
-            local spawn_ready = runtime.has("runtime.world.entity.spawn")
+            local write_feature=setting("executionMode")=="game" and "runtime.world.building.input" or "runtime.world.entity.spawn"
+            local spawn_ready = runtime.has(write_feature)
             if props_ready and cursor_ready and spawn_ready then
                 readiness_logged = true
                 shroudforge.log.info("World Editor native entity APIs ready: F3 rotate, F4 undo, F5 mark A/B, F6 reset, F7 paste, F8 capture/save.")
@@ -2091,7 +2245,7 @@ return {
                 readiness_wait_logged = true
                 local props = runtime.status("runtime.world.entity.query_props_in_bounds")
                 local cursor = runtime.status("runtime.world.cursor.get")
-                local spawn = runtime.status("runtime.world.entity.spawn")
+                local spawn = runtime.status(write_feature)
                 shroudforge.log.info("World Editor waiting for runtime readiness: cursor=" .. tostring(cursor and cursor.reason or "ready") ..
                     ", props=" .. tostring(props and props.reason or "ready") ..
                     ", spawn=" .. tostring(spawn and spawn.reason or "ready"))
@@ -2113,6 +2267,7 @@ return {
         publish_editor_state()
     end,
     on_unload = function()
+        if game_building then game_building.close() end
         pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
         live_prop_cache = {}
     shroudforge.log.debug("World Editor Lua runtime unloaded")

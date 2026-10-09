@@ -9,6 +9,7 @@
     "runtime.ecs.write",
     "runtime.world.context.active",
     "runtime.world.cursor.get",
+    "runtime.world.building.input",
     "runtime.world.voxel.read",
     "runtime.world.voxel.write",
     "runtime.world.voxel.grid_spec",

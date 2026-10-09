@@ -265,7 +265,7 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && runtime_provider::world_operation_available(feature)
                 && runtime_provider::world_context_active()
         }
-        "runtime.world.cursor.get" => {
+        "runtime.world.cursor.get" | "runtime.world.building.input" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
@@ -384,7 +384,9 @@ fn operation_status(lua: &mlua::Lua, feature: &str, r#mod: &Mod) -> mlua::Result
             },
         );
     }
-    let world_ready = if feature == "runtime.world.cursor.get" {
+    let world_ready = if feature == "runtime.world.cursor.get"
+        || feature == "runtime.world.building.input"
+    {
         runtime_provider::world_operation_available(&feature)
     } else if feature == "runtime.world.voxel.grid_spec" {
         runtime_provider::world_operation_available("runtime.world.voxel.read")
@@ -547,6 +549,7 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
         lua_world_entity_finish_building,
     )?;
     world.raw_set("entity", entity)?;
+    crate::env::runtime_building::attach(lua, &world, r#mod)?;
     Ok(world)
 }
 

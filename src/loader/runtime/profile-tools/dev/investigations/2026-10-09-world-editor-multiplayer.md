@@ -88,47 +88,26 @@ zusätzlichen Dirty-Aufruf als zwingend erforderlich zu behaupten.
   in dieser Prüfung nicht installiert oder live ausgeführt. Die verschiedenen
   KFC-Builds sind kein Beleg kompatibler Spiel-Netzwerkprotokolle.
 
-## Ein gemeinsamer Ausführungspfad
+## Aktualisierung: vorhandene Baueingabe statt zusätzlichem Modtransport
 
-1. Der Client behält Cursor, Auswahl, Vorschau und Blueprint-Dateien. Er sendet
-   semantische Aufträge: Bereich erfassen, Blueprint platzieren, Auftrag rückgängig
-   machen. Keine Adressen, Registry-Pointer oder lokalen Entity-Handles senden.
-2. Ein wiederverwendbarer Modtransport im Loader verbindet Client-Mod und
-   Server-Mod. Zunächst ist ein separater authentifizierter Transport technisch
-   möglich. Die Nutzung des bestehenden Spielkanals setzt dessen weitere
-   Auflösung voraus; aus ECS-Ereignishashes folgt kein frei nutzbarer RPC-Kanal.
-3. Der Server ordnet die Verbindung dem tatsächlichen Spieler und dessen
-   Baurechten zu. Eine vom Client behauptete `ownerId` reicht nicht. Er löst
-   Templates/Rezepte selbst auf und führt begrenzte Jobs im passenden
-   Game-Thread-/Actor-Kontext aus. Wiederholte Nachrichten müssen denselben
-   Auftrag erkennen, statt einen Blueprint doppelt zu platzieren.
-4. Capture, Änderungen und Undo-Journal liegen bei der autoritativen Welt.
-   Undo prüft zwischenzeitliche Änderungen anderer Spieler. Große Blueprints
-   werden über mehrere Ticks verarbeitet; die aktuelle Obergrenze von bis zu
-   einer Million Props ist kein akzeptables synchrones Netzwerkjob-Limit.
-5. Bestehende `runtime.world.*`-Bindings bleiben der lokale Engine-Adapter.
-   Der World Editor erhält einen gemeinsamen Auftragskern für lokale und
-   serverseitige Ausführung. Profile enthalten weiter ausschließlich
-   buildabhängige Bindings, keine Netzwerk- oder Editorlogik.
+Die frühere Empfehlung eines separaten Modtransports ist für normale Bauaktionen
+überholt. Der Client besitzt `ClientPlayerInputData`, der Server das gleich
+aufgebaute `PlayerInput.fromClient`. Der neue, exakt auf den Clientbuild
+begrenzte Adapter schreibt einen Auftrag im ursprünglichen `client_cursor`-Hook
+in diesen Eingabepfad. Er verwendet den originalen Versionshelfer, trennt
+Press/Release über verschiedene Eingabeversionen und lässt Baurechte sowie
+Ressourcenprüfungen der Engine bestehen.
 
-Unmodifizierte Mitspieler könnten Änderungen über die normale Spielreplikation
-sehen, sofern die serverseitigen Eingriffe diesen Pfad vollständig bedienen.
-Bewiesen ist das noch nicht. Der bedienende Remote-Client braucht die
-Editor-Oberfläche und den Modtransport. Ein rein serverseitiger Importjob ohne
-Client-UI ist ebenfalls möglich, ersetzt aber keinen interaktiven Editor.
+Die Lua-API ist `runtime.world.building.submit/status/cancel`; der Editor löst
+ItemInfo und Ein-Zellen-Rezepte aus den aktuellen Assets auf, wartet auf Auswahl
+und beobachtete Änderungen und sendet fehlgeschlagene Aufträge nicht blind
+nochmals. Prop-Abbau verlangt zusätzlich ein passendes tatsächliches
+Interaktionsziel. Vollständiger Netzwerkablauf und Speicherung wurden mit der
+neuen DLL noch nicht ausgeführt. Die obigen Belege für den direkten Serveradapter
+bleiben von diesem alternativen Client-Eingabepfad getrennt.
 
-## Nächster belastbarer Spieltest
-
-Zunächst auf einer Weltkopie den Serveradapter lokal ansteuern, bevor ein
-vollständiges Editorprotokoll gebaut wird: je ein Prop erzeugen, platzieren,
-löschen, skalieren und einen kleinen Voxelbereich ändern. Für jede Aktion
-separat Server-Rücklesung, Sicht eines verbundenen Clients, erneutes Verbinden
-und Save/Neustart prüfen. Danach zwei Spieler gleichzeitig testen: korrekter
-Owner, getrennte Aufträge und konfliktbewusstes Undo. Der Serverkontext ist
-zusätzlich mit und ohne aktiven Bauvorgang zu prüfen.
-
-Erst das beantwortet, welche nativen Publikationswege noch ergänzt werden
-müssen. Ein reiner Transporttest würde diese zentrale Frage offenlassen.
+Aktueller Umfang, Bedienung, alle acht Mods und wiederholbare Prüfungen stehen
+in [mod-multiplayer.md](../../../../../../docs/sf/mod-multiplayer.md).
 
 ## Validierung dieser Änderung
 

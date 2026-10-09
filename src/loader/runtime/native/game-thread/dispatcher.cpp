@@ -278,7 +278,7 @@ std::vector<std::uint8_t> cursor_callback_code(void* callback, std::size_t captu
     const auto offset = static_cast<std::uint32_t>(capture_offset);
     for (unsigned index = 0; index < sizeof(offset); ++index)
         code.push_back(static_cast<std::uint8_t>(offset >> (index * 8)));
-    code.insert(code.end(), {0x31,0xd2,0x48,0xb8});
+    code.insert(code.end(), {0x49,0x8b,0xd5,0x48,0xb8}); // rdx = r13, live execution view
     const auto address = reinterpret_cast<std::uintptr_t>(callback);
     for (unsigned index = 0; index < 8; ++index) code.push_back(static_cast<std::uint8_t>(address >> (index*8)));
     code.insert(code.end(), {0xff,0xd0});

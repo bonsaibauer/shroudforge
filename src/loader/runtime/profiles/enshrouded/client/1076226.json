@@ -263,6 +263,58 @@
         67,
         24
       ]
+    },
+    "runtime.world.building.input": {
+      "abi": "client-player-input-v1",
+      "thread": "game",
+      "context": "ClientPlayerInput through the ordinary game input path",
+      "validated": true,
+      "functionRva": 2396208,
+      "guardRva": 2396208,
+      "guardBytes": [
+        72,
+        137,
+        76,
+        36,
+        8,
+        85,
+        65,
+        85,
+        72,
+        141,
+        172,
+        36,
+        24,
+        219,
+        255,
+        255
+      ]
+    },
+    "runtime.world.building.version": {
+      "abi": "uint32(executionView)",
+      "thread": "game",
+      "context": "ClientPlayerInput through the ordinary game input path",
+      "validated": true,
+      "functionRva": 9246016,
+      "guardRva": 9246016,
+      "guardBytes": [
+        72,
+        139,
+        1,
+        139,
+        64,
+        108,
+        195,
+        204,
+        204,
+        204,
+        204,
+        204,
+        204,
+        204,
+        204,
+        204
+      ]
     }
   },
   "runtimePatches": {

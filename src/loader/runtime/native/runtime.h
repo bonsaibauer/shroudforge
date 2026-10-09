@@ -108,6 +108,14 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldContextActive(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityContextReady(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldCursorRead(
     uint8_t* cursor, size_t capacity, uint64_t* sequence);
+/* Optional ABI-12 client input extension. Exact build only. Dispatch is not a
+   replicated-world acknowledgement. kind: select=0, place=1, remove=2, undo=3.
+   Status: unknown=0, queued=1, pressed=2, dispatched=3, timeout=4, cancelled=5. */
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldBuildingInput(
+    uint32_t player, uint32_t kind, uint32_t item, uint32_t material, uint32_t slot,
+    const double* position, const double* rotation, const double* scale);
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldBuildingInputStatus(uint32_t id);
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldBuildingInputCancel(uint32_t id);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldVoxelRead(
     const int32_t* origin, const uint32_t* dimensions, uint16_t* values,
     size_t capacity, size_t* actual);

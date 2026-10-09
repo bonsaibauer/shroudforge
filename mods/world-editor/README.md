@@ -1,5 +1,40 @@
 # World Editor mod
 
+**Multiplayer input mode:** choose **World edit execution → Game building input (multiplayer)**
+in the mod settings. This new path queues ordinary player building input through
+`runtime.world.building.submit/status/cancel`, waits for item selection and then
+observes each requested change. It does not require a second editor instance on
+the dedicated server. The default **Direct world API (local/host)** keeps the
+existing direct operations described below. Running both EXEs is not enough:
+the client must join the intended server.
+
+The input adapter and job logic are built and checked against original layouts,
+code guards and isolated tests. **End-to-end multiplayer acceptance, replication
+and persistence have not yet been verified with the new DLL.** See the
+[per-mod execution audit](../../docs/sf/mod-multiplayer.md) for exact scope and
+the distinction between active patches and gameplay effects.
+
+The game-input path keeps the building hammer equipped, resolves exact one-cell
+building material recipes from current KFC assets, and preserves normal game
+permissions and resource checks. Terrain without an exact recipe is refused
+before submission. Jobs allow at most 4096 actions. Removing a prop additionally
+waits for the game's cursor to target that prop; changing the transform alone
+does not prove the correct interaction target. Once targeted, the editor emits
+the reflected `ContextualAction` and `ContextualAction_Hold` inputs for 1.2
+seconds, matching the held interaction used to dismantle workbenches and other
+props. Voxel removal continues to use `SecondaryBuildingAction`. The editor
+displays the target coordinates. F4 stops a running queue, then undoes observed
+actions through inverse input. A prop already dismantled manually counts as an
+already completed inverse action. Late effects are observed without retrying the original action;
+an unconfirmed outcome pauses further writes. Closing the mod cancels pending
+input but cannot undo an already dispatched action. Journals are session-local.
+
+In direct mode, F4 first tries the checked native destroy operation. If the
+current client never enters its profiled destroy hook, the editor keeps the
+exact handle and transform guard and falls back to the same held contextual
+input. It asks the player to aim at that prop, observes its disappearance, and
+then continues the remaining prop and voxel rollback automatically.
+
 This independent Lua mod implements its editor, blueprint format, selection, rotation, preview plan, paste, and undo behavior itself. It uses ShroudForge's public Lua APIs only for game/runtime access: `runtime.world.cursor.get`, native prop recipe registration and bounds queries, voxel operations, entity operations, asset reads, settings, logging, and export storage. Native engine access stays behind those APIs; the mod has no private loader hook or built-in editor implementation.
 
 While the game window is focused, the World Editor polls **F3–F8**: F3 rotates the active blueprint by 90° around its stored up axis, F4 undo, F5 mark selection corner A/B, F6 reset editor state, F7 paste at the live cursor, and F8 capture, save, and select a blueprint. **F1 remains available to Enshrouded.** The dashed **New blueprint** tile stays at the far left. Starting a new capture with F5 automatically makes that tile active and disarms the prior blueprint; after F8, the new saved blueprint becomes active. Selecting any saved blueprint makes it ready for F7 immediately; F6 is not required to switch blueprints. The active card has a persistent gold border and an **ACTIVE** badge, while a card being loaded has a separate blue **LOADING** state. The library opens as a single row; the chevron expands it downward, showing up to six rows before vertical scrolling reveals additional rows. Selecting an item collapses the grid. The most recently selected or created blueprint appears first after the permanent New blueprint tile. Double-click or use the card’s **Edit** button to manage it. The manager can browse a screenshot folder, select a screenshot, and apply it as the blueprint cover. The screenshot folder is remembered; common Enshrouded screenshot folders are detected on first use. The **Settings** button opens the Modloader UI at the World Editor module settings. **F2 opens or hides the single World Editor window**; the red **×** button also hides it. **F9 remains the Modloader UI shortcut; F10 remains the Debug Console shortcut.** The same editor actions are available as buttons in the mod settings.
@@ -21,4 +56,4 @@ Mark selection corners A and B, then use **Capture props only from A/B selection
 
 Set **Maximum props per blueprint** in the mod settings to control the per-blueprint prop count (default 60,000; supported range 1–1,000,000). Capture, save, load, and paste all enforce the current value; captures above it are refused instead of silently truncated.
 
-The standalone mod implements its editor and V7 blueprint format itself. All game-facing editor operations go through dedicated registered Lua world APIs backed by native runtime operations, following ShroudEdit's `WorldApi` pattern. Generic ECS component discovery, reads, queries, and writes are not part of the mod. Runtime behavior that depends on the live game, including cursor decoding, asset-reference byte order, recipe completeness, collision, and save persistence, still requires in-game verification.
+The standalone mod implements its editor and V7 blueprint format itself. Direct world operations use the registered native Lua APIs. The game-input queue additionally reads ClientPlayerInput, NetworkCursor and SlotSelection through the shared ECS API to identify the local player and observe selection; it does not write arbitrary ECS fields. Runtime behavior that depends on the live game, including recipe acceptance, collision, replication and save persistence, requires in-game verification.

@@ -245,7 +245,7 @@ function Updates({data,settings,setSettings}:{data:Snapshot;settings:Settings;se
   const [tab,setTab]=useState('all')
   const save=()=>postRequest('save-settings',{settings})
   const queue=data.updateQueue||{items:[]}
-  const queuedSystem=queue.items.some(item=>item.kind==='system'&&item.version===data.release.latestVersion&&item.state!=='cancelled')
+  const queuedSystem=queue.items.some(item=>item.kind==='system'&&item.version===data.release.latestVersion&&!['complete','cancelled'].includes(item.state))
   return <><PageHeader eyebrow={t('nav.mods')} title={t('updates.title')} subtitle={t('updates.subtitle')} actions={<button className="button" onClick={()=>postRequest('check-updates')} disabled={data.release.state==='checking'}><Icon name="refresh"/>{data.release.state==='checking'?t('updates.checking'):t('updates.check')}</button>}/><Segmented value={tab} onChange={setTab} items={[["all",t('common.all')],["system",t('updates.system')],["mods",t('updates.mods')],["history",t('updates.history')],["preferences",t('updates.automation')]]}/>
     {tab!=='preferences'&&tab!=='history'&&<UpdateQueuePanel queue={queue} mode={data.mode} release={data.release}/>}
     {tab==='preferences'?<Card title={t('updates.automation')}><Toggle label={t('updates.automation.catalog')} checked={settings.updateEnabled} onChange={value=>setSettings({...settings,updateEnabled:value})}/><Field label={t('updates.automation.interval')}><select value={settings.checkMinutes} onChange={e=>setSettings({...settings,checkMinutes:Number(e.target.value)})}><option value="15">{t('updates.interval.15')}</option><option value="30">{t('updates.interval.30')}</option><option value="60">{t('updates.interval.60')}</option><option value="360">{t('updates.interval.360')}</option></select></Field><p className="hint">{t('updates.automation.note')}</p><button className="button" onClick={save}>{t('common.save')}</button></Card>:tab==='mods'?<Empty title={t('updates.mods.empty.title')} text={t('updates.mods.empty.text')} icon="updates"/>:tab==='history'?<Empty title={t('updates.history.empty.title')} text={t('updates.history.empty.text')} icon="activity"/>:<SystemUpdate release={data.release} queued={queuedSystem}/>}</>
@@ -258,12 +258,13 @@ function SystemUpdate({release,queued}:{release:Release;queued:boolean}){
   return <Empty title={t('updates.none.title')} text={message} icon="check"/>
 }
 
-function UpdateQueuePanel({queue,mode,release}:{queue:UpdateQueue;mode:string;release:Release}){
+function UpdateQueuePanel({queue,mode,release,hideWhenEmpty=false}:{queue:UpdateQueue;mode:string;release:Release;hideWhenEmpty?:boolean}){
   const {t}=useI18n()
-  const items=queue.items||[]
+  const items=(queue.items||[]).filter(item=>item.state!=='complete')
   const actionable=items.filter(item=>!['complete','downloading','installing'].includes(item.state))
   const selected=actionable.filter(item=>item.selected).map(item=>item.id)
   const running=queue.run?.state==='running'
+  if(hideWhenEmpty&&!items.length&&!running)return null
   const desktopMode=mode==='DESKTOP'||mode==='UPDATER'
   const allSelected=actionable.length>0&&actionable.every(item=>item.selected)
   const stateLabel=(state:string)=>{
@@ -324,7 +325,7 @@ function UpdaterWindow({release,version,queue,mode}:{release:Release;version:str
   const active=queue.run?.state==='running'||['queued','downloading','verifying','extracting','staged','waitingForGame','installing'].includes(release.state)
   const complete=release.state==='installed'
   const failed=release.state==='error'
-  const queuedSystem=queue.items.some(item=>item.kind==='system'&&item.version===release.latestVersion&&item.state!=='cancelled')
+  const queuedSystem=queue.items.some(item=>item.kind==='system'&&item.version===release.latestVersion&&!['complete','cancelled'].includes(item.state))
   return <main className="updater-shell">
     <header className="updater-topbar" data-drag-region><div className="updater-brand"><span className="brand-mark">SF</span><span><strong>SHROUDFORGE</strong><small>UPDATER</small></span></div><button className="window-close" onClick={()=>postRequest('hide')} aria-label={t('common.close')}>×</button></header>
     <section className="updater-content">
@@ -335,7 +336,7 @@ function UpdaterWindow({release,version,queue,mode}:{release:Release;version:str
       {complete&&<div className="updater-result success"><i>✓</i><span>{t('updater.completeDetail')}</span></div>}
 
 
-      <UpdateQueuePanel queue={queue} mode={mode} release={release}/>
+      <UpdateQueuePanel queue={queue} mode={mode} release={release} hideWhenEmpty/>
       <footer className="updater-footer"><span>{t('updater.installedVersion',{version})}</span>{failed&&<button className="button ghost" onClick={()=>postRequest('check-updates')}>{t('updater.retry')}</button>}{release.state==='ready'&&!release.updateAvailable&&<button className="button ghost" onClick={()=>postRequest('check-updates')}>{t('updater.checkAgain')}</button>}</footer>
     </section>
   </main>

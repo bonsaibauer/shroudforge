@@ -12,6 +12,7 @@ pub(crate) mod loader;
 mod log;
 mod registry;
 mod runtime_attributes;
+mod runtime_building;
 mod runtime_functions;
 mod runtime_values;
 #[path = "../shroudforge/v1/shroudforge.rs"]

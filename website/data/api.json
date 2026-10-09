@@ -15126,6 +15126,157 @@
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.player",
+      "signature": "runtime.world.building.Input.player: integer",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.action",
+      "signature": "runtime.world.building.Input.action: 'select'|'place'|'remove'|'dismantle'|'undo'",
+      "params": [],
+      "returns": [
+        "'select'|'place'|'remove'|'dismantle'|'undo'"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.itemId",
+      "signature": "runtime.world.building.Input.itemId: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.materialItemId",
+      "signature": "runtime.world.building.Input.materialItemId: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.slot",
+      "signature": "runtime.world.building.Input.slot: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.position",
+      "signature": "runtime.world.building.Input.position: number[]?",
+      "params": [],
+      "returns": [
+        "number[]?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.rotation",
+      "signature": "runtime.world.building.Input.rotation: number[]?",
+      "params": [],
+      "returns": [
+        "number[]?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "runtime.world.building.Input.scale",
+      "signature": "runtime.world.building.Input.scale: number[]?",
+      "params": [],
+      "returns": [
+        "number[]?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.building.submit",
+      "signature": "runtime.world.building.submit(input)",
+      "params": [
+        {
+          "name": "input",
+          "type": "BuildingInput",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "integer?",
+        "string?"
+      ],
+      "description": "The first accepted request reserves the shared input sequence for this Lua API instance. Call cancel(latest_id) when the whole sequence ends, including after successful observation, so another mod can use the building tool.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.building.status",
+      "signature": "runtime.world.building.status(request_id)",
+      "params": [
+        {
+          "name": "request_id",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "'unknown'|'queued'|'pressed'|'dispatched'|'timeout'|'cancelled'"
+      ],
+      "description": "Only the latest request owned by this Lua API instance can be queried. 'dispatched' means input emitted, NOT accepted/replicated/persisted.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.building.cancel",
+      "signature": "runtime.world.building.cancel(request_id)",
+      "params": [
+        {
+          "name": "request_id",
+          "type": "integer",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean"
+      ],
+      "description": "Stops pending input. A pressed action is released on the next input tick; already dispatched changes cannot be undone by cancelling.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
       "kind": "function",
       "namespace": "runtime",
       "name": "runtime.world.voxel.get_grid_spec",

@@ -51,6 +51,7 @@ add_library(kfc-runtime SHARED
     provider/profile.cpp
     provider/provider.cpp
     world/world_runtime.cpp
+    world/building_input.cpp
     patch/patch_runtime.cpp
     "${profile_resource_rc}")
 target_include_directories(kfc-runtime PRIVATE
@@ -78,6 +79,13 @@ endif()
 
 # Development tools never run from the game or from the modloader.
 add_executable(kfc-runtime-dev EXCLUDE_FROM_ALL ../profile-tools/dev/tools/dev-console/main.cpp)
+add_executable(kfc-runtime-test-building-input EXCLUDE_FROM_ALL
+    ../profile-tools/dev/tools/tests/building_input_test.cpp world/building_input.cpp)
+target_compile_features(kfc-runtime-test-building-input PRIVATE cxx_std_20)
+target_include_directories(kfc-runtime-test-building-input PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/world"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ecs" "${CMAKE_CURRENT_SOURCE_DIR}/provider")
+target_compile_definitions(kfc-runtime-test-building-input PRIVATE KFC_RUNTIME_BUILD NOMINMAX WIN32_LEAN_AND_MEAN)
 target_compile_features(kfc-runtime-dev PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-dev PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_include_directories(kfc-runtime-dev PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include")

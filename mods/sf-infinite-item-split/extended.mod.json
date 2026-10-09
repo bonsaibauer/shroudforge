@@ -12,6 +12,6 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
-    "Replaces unreliable ECS inventory writes with the split-specific runtime patch used by Shroudtopia."
+    "Uses the verified shared inventory subtraction modifier. The discovered call graph includes operations beyond splitting."
   ]
 }

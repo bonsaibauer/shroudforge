@@ -3,7 +3,7 @@
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
   "version": "1.0.1",
-  "description": "Unlocks crafting blueprints globally for the world. Once activated, this progress is saved to the world and cannot be undone by disabling this mod.",
+  "description": "Changes recipe knowledge requirements to the first Flame base hint during asset preparation in each installed process. Multiplayer visibility and acceptance depend on the client and host/server assets; this is not a save-game unlock operation.",
   "authors": [
     "bonsaibauer"
   ],

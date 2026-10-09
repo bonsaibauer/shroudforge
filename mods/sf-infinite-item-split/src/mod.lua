@@ -33,7 +33,7 @@ return {
             error("Infinite Item Split could not enable its function modifier; see the runtime error log")
         end
         shroudforge.log.info(
-            "Infinite Item Split enabled the build-verified split-specific function modifier"
+            "Infinite Item Split enabled a shared inventory subtraction modifier in this process; other inventory callers are also affected"
         )
     end,
     on_unload = function()

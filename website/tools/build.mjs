@@ -18,6 +18,7 @@ const files = walk(definitions).filter(file => file.endsWith(".lua")).sort();
 const symbols = [];
 const classAliases = {
   AssetManager: "game.assets",
+  BuildingInput: "runtime.world.building.Input",
   BufferFactory: "shroudforge.buffer",
   Game: "game",
   GuidHelper: "game.guid",

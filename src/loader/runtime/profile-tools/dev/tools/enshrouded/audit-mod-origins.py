@@ -141,9 +141,37 @@ def audit(pe, profile, functions, resources):
         instructions = list(Cs(CS_ARCH_X86,CS_MODE_64).disasm(bytes(hook['original']), matches[0]))
         assert sum(i.size for i in instructions) == len(hook['original']), f'{name}: partial instruction overwrite'
     mods.append(dict(mod='world-editor', manifest_target='client', operations=world,
-                     note='Client cursor/UI. Native server wrappers use guarded actor contexts; live effects and a client/server mod transport are not established by this static audit.'))
+                     note='Client cursor/UI; direct world calls and optional ordinary ClientPlayerInput queue. Dispatch, replication and persistence are distinct; this static audit does not execute gameplay.'))
     return dict(image=pe.identity(), attribute_ids=len(attributes), engine_descriptors=len(descriptors),
                 mods=mods, complete_engine_api=False)
+
+
+def audit_packages(result, root, target):
+    """Join actual Lua entrypoints to verified native origins, not mod titles."""
+    package_ids = {json.loads(p.read_text(encoding='utf-8-sig'))['id'] for p in root.glob('*/mod.json')}
+    assert package_ids == {row['mod'] for row in result['mods']}, 'audit must cover every bundled mod'
+    for row in result['mods']:
+        directory = root / row['mod']
+        manifest = json.loads((directory / 'mod.json').read_text(encoding='utf-8-sig'))
+        extended = json.loads((directory / 'extended.mod.json').read_text(encoding='utf-8-sig'))
+        source = (directory / 'src/mod.lua').read_text(encoding='utf-8-sig')
+        row.update(targets=extended['targets'], runs_on_target=target in extended['targets'],
+                   scope='this-process', multiplayer_gameplay_verified=False)
+        if 'modifier' in row:
+            modifier_id = re.search(r'local modifier_id = "([^"]+)"', source)
+            assert modifier_id and modifier_id[1] == row['modifier']['id']
+            assert 'runtime.functions.bind_modifier(modifier_id)' in source
+            assert 'runtime' in manifest['capabilities']
+            row['phase'] = 'ingame'
+        elif row['mod'] == 'sf-unlock-blueprints':
+            assert all(name in source for name in (row['query'], row['action'], 'recipe.knowledgeRequirement'))
+            assert 'patch' in manifest['capabilities']
+            row['phase'] = 'pregame-assets'
+        else:
+            assert extended['targets'] == ['client']
+            assert 'executionMode' in extended['settings'] and 'paste_through_game' in source
+            row['phase'] = 'ingame'
+    return result
 
 
 def main():
@@ -153,9 +181,11 @@ def main():
     p.add_argument('--functions', type=Path, required=True)
     p.add_argument('--resources', type=Path, required=True)
     p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--mods', type=Path, default=Path(__file__).resolve().parents[7] / 'mods')
     args = p.parse_args()
     read = lambda path: json.loads(path.read_text(encoding='utf-8-sig'))
     result = audit(PE(args.executable), read(args.profile), read(args.functions), read(args.resources))
+    audit_packages(result, args.mods, 'server' if 'server' in args.executable.stem.lower() else 'client')
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print(f"Verified {len(result['mods'])} mod origins, {result['attribute_ids']} attribute IDs, {result['engine_descriptors']} engine descriptors")

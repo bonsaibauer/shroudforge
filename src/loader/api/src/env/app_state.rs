@@ -341,6 +341,8 @@ impl AppState {
     pub(crate) fn report_runtime_effect(&self, id: &str, state: &str, detail: &str) {
         let value = serde_json::json!({
             "state": state,
+            "processTarget": if self.is_server() { "server" } else { "client" },
+            "scope": "this-process",
             "detail": detail.chars().take(240).collect::<String>(),
             "updatedAt": std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

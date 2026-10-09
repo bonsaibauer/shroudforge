@@ -37,6 +37,20 @@ struct EntityHeader {
 bool validate_manager(HANDLE process, std::uintptr_t candidate,
                       std::uint64_t count, std::uintptr_t table) {
     if (count < 16 || count > (1u << 20) || table < 0x10000) return false;
+    // A table containing entity pointers alone also matches unrelated vectors.
+    // Require the manager's component registry and its parallel storage arrays.
+    std::uintptr_t owner{}, records{}, sizes{}, types{}, callbacks{};
+    std::uint64_t registrations{}, capacity{}, size_count{}, type_count{}, callback_count{};
+    if (!read(process, candidate, owner) || owner < 0x10000 ||
+        !read(process, owner + 8, records) || !records ||
+        !read(process, owner + 16, registrations) || registrations < 16 || registrations > 1024 ||
+        !read(process, owner + 24, capacity) || capacity < registrations || capacity > 4096 ||
+        !read(process, owner + 232, sizes) || !sizes ||
+        !read(process, owner + 240, size_count) || size_count != registrations ||
+        !read(process, owner + 256, types) || !types ||
+        !read(process, owner + 264, type_count) || type_count != registrations ||
+        !read(process, owner + 280, callbacks) || !callbacks ||
+        !read(process, owner + 288, callback_count) || callback_count != registrations) return false;
     const auto sample_count = static_cast<std::size_t>((std::min)(count, std::uint64_t{4096}));
     std::vector<std::uintptr_t> pointers(sample_count);
     if (!read_bytes(process, table, pointers.data(), pointers.size() * sizeof(pointers[0]))) return false;
@@ -98,7 +112,7 @@ int main(int argc, char** argv) {
                     std::uint64_t count{};
                     std::uintptr_t table{};
                     std::memcpy(&count, bytes.data() + local + 0x158, sizeof(count));
-                    if (count < 16 || count > 100'000) continue;
+                    if (count < 16 || count > (1u << 20)) continue;
                     std::memcpy(&table, bytes.data() + local + 0x188, sizeof(table));
                     if (table < 0x1'0000'0000ULL || table >= 0x0000'8000'0000'0000ULL || (table & 7)) continue;
                     candidates.push_back({region + offset + local, count, table});

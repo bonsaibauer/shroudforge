@@ -291,6 +291,37 @@ runtime.world.cursor = {}
 --- @return string? reason
 function runtime.world.cursor.get() end
 
+--- Ordinary local player building input; availability: runtime.world.building.input.
+--- Exact client build only; follows the existing game input path. The server
+--- still checks permissions/resources/range. No server mod RPC is created.
+runtime.world.building = {}
+--- @class BuildingInput
+--- @field player integer Process-local ClientPlayerInput entity handle.
+--- @field action 'select'|'place'|'remove'|'dismantle'|'undo' `remove` is the secondary building action for voxels; `dismantle` holds the contextual action for props.
+--- @field itemId integer? Required for select; current KFC ItemInfo item ID.
+--- @field materialItemId integer? Optional stock cycle material item ID.
+--- @field slot integer? Current actionbar slot for select.
+--- @field position number[]? Required for place/remove/dismantle, world units.
+--- @field rotation number[]? Quaternion x,y,z,w, normalized by the provider.
+--- @field scale number[]? Positive x,y,z, defaults to 1,1,1.
+--- @param input BuildingInput
+--- The first accepted request reserves the shared input sequence for this Lua
+--- API instance. Call cancel(latest_id) when the whole sequence ends, including
+--- after successful observation, so another mod can use the building tool.
+--- @return integer? request_id
+--- @return string? reason
+function runtime.world.building.submit(input) end
+--- Only the latest request owned by this Lua API instance can be queried.
+--- 'dispatched' means input emitted, NOT accepted/replicated/persisted.
+--- @param request_id integer
+--- @return 'unknown'|'queued'|'pressed'|'dispatched'|'timeout'|'cancelled'
+function runtime.world.building.status(request_id) end
+--- Stops pending input. A pressed action is released on the next input tick;
+--- already dispatched changes cannot be undone by cancelling.
+--- @param request_id integer
+--- @return boolean
+function runtime.world.building.cancel(request_id) end
+
 --- @class RuntimeWorldVoxelApi
 runtime.world.voxel = {}
 

@@ -45,6 +45,12 @@ The gameplay patch mods and `sf-unlock-blueprints` declare
 `targets: ["client", "server"]`. `world-editor` declares `targets: ["client"]` because it depends on the local
 cursor and keyboard UI.
 
+Process targets describe where a package can execute. They do **not** promise
+multiplayer replication. See [the per-mod multiplayer audit](../docs/sf/mod-multiplayer.md)
+for local hosting, joined clients, dedicated servers and simultaneous installation.
+Runtime effect reports include `processTarget` and `scope: "this-process"`;
+`write-confirmed` on a modifier means its code change was verified in that process.
+
 Inline `shroudforge` data is not part of the current manifest contract and is
 rejected. ShroudForge state belongs in the neighboring `extended.mod.json`.
 
