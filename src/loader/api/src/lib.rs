@@ -1292,30 +1292,22 @@ mod live_setting_reload_tests {
     fn setting_value_change_does_not_look_like_package_metadata_change() {
         let applied = json!({
             "enabled": true,
-            "settingValues": {"executionMode": "direct"},
+            "settingValues": {"maximumCopyableProps": 60000},
             "settings": [{
-                "key": "executionMode",
-                "type": "string",
-                "default": "direct",
-                "label": "World edit target",
-                "options": [
-                    {"value": "direct", "label": "Local / singleplayer world"},
-                    {"value": "p2p", "label": "Dedicated server world (Steam P2P)"}
-                ]
+                "key": "maximumCopyableProps",
+                "type": "number",
+                "default": 60000,
+                "label": "Maximum captured props"
             }]
         });
         let desired = json!({
             "enabled": true,
-            "settingValues": {"executionMode": "p2p"},
+            "settingValues": {"maximumCopyableProps": 120000},
             "settings": [{
-                "key": "executionMode",
-                "type": "string",
-                "default": "p2p",
-                "label": "World edit target",
-                "options": [
-                    {"value": "direct", "label": "Local / singleplayer world"},
-                    {"value": "p2p", "label": "Dedicated server world (Steam P2P)"}
-                ]
+                "key": "maximumCopyableProps",
+                "type": "number",
+                "default": 60000,
+                "label": "Maximum captured props"
             }]
         });
 
@@ -1326,22 +1318,22 @@ mod live_setting_reload_tests {
     fn setting_definition_change_still_requires_restart() {
         let applied = json!({
             "enabled": true,
-            "settingValues": {"executionMode": "direct"},
+            "settingValues": {"maximumCopyableProps": 60000},
             "settings": [{
-                "key": "executionMode",
-                "type": "string",
-                "default": "direct",
-                "label": "World edit target"
+                "key": "maximumCopyableProps",
+                "type": "number",
+                "default": 60000,
+                "label": "Maximum captured props"
             }]
         });
         let desired = json!({
             "enabled": true,
-            "settingValues": {"executionMode": "p2p"},
+            "settingValues": {"maximumCopyableProps": 120000},
             "settings": [{
-                "key": "executionMode",
-                "type": "string",
-                "default": "p2p",
-                "label": "World edit target (changed)"
+                "key": "maximumCopyableProps",
+                "type": "number",
+                "default": 120000,
+                "label": "Maximum captured props (changed)"
             }]
         });
 

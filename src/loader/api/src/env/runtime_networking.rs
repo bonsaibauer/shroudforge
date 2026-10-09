@@ -55,6 +55,7 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                 steam_network::Status {
                     available: false,
                     local_steam_id: None,
+                    local_dedicated_server_steam_id: None,
                 }
             };
             let state = lua.app_data_ref::<AppState>().unwrap();
@@ -70,6 +71,10 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                 },
             )?;
             result.raw_set("local_steam_id", native.local_steam_id)?;
+            result.raw_set(
+                "local_dedicated_server_steam_id",
+                native.local_dedicated_server_steam_id,
+            )?;
             result.raw_set(
                 "reason",
                 reason.or_else(|| {

@@ -75,73 +75,52 @@ To look up functions or Enshrouded game information, open the [searchable API re
 
 ## Mods included in the release
 
-The build checks mod folders for **mod.json**, a mod ID, and **src/mod.lua**, then checks the Lua files before packaging them. These are the 17 packages included in the release build today:
+The release build validates each mod's manifest, ID, Lua entry point, and Lua syntax. The table below lists the ShroudForge mods included in the release and the targets declared by each mod.
 
-| Mod | What it does | Status |
-| --- | --- | --- |
-| **Fishing Data Exporter** | Exports fishing data and English item names to CSV files for community research. | 🚧 Beta |
-| **Item Exporter and English Translator** | Exports item information and English names to CSV files. | 🚧 Beta |
-| **KFC Parser Mimic** | Exports Enshrouded game data in a format similar to the KFC Parser tool. | 🚧 Beta |
-| **SF Infinite Item Split** | Keeps the selected amount from being removed from the original stack when splitting items. | ✅ Proven |
-| **SF Infinite Item Use** | Prevents item use from consuming the item. | ✅ Proven |
-| **SF No Fall Damage** | Prevents fall damage. | ✅ Proven |
-| **SF No Resource Cost** | Removes supported crafting costs. | ✅ Proven |
-| **SF Auto Stamina Refill** | Repeatedly refills stamina to maximum. | ✅ Proven |
-| **SF Unlimited Flight** | Applies the supported change to flight. | ✅ Proven |
-| **SF Unlock Blueprints** | Unlocks supported crafting recipes. | ✅ Proven |
-| **World Editor** | Adds shortcuts for marking areas, undoing, and saving or placing blueprints. | ✅ Proven |
-| **Auto Loot** | Automatically collects nearby harvest drops that match the configured whitelist. | 🚧 Beta |
-| **2x Grappling Hook Pull Distance** | Doubles grappling hook pull distance; swing distance stays unchanged. | 🚧 Beta |
-| **Item Stack Limit 65535** | Raises the stack limit of stackable items to 65,535. | 🚧 Beta |
-| **Unlimited Flame Altars** | Removes the Flame Altar limit. | 🚧 Beta |
-| **Vein Mining** | Mines matching ore in an area around the hit point. | 🚧 Beta |
-| **20x Workshop Production Speed** | Increases timed workshop recipe production speed by 20×. | 🚧 Beta |
+**Target support** means the package can be installed for that process. In multiplayer, the game process that handles an action determines where its effect must run. A checkmark does not by itself confirm that every gameplay effect has been verified end to end on a live server.
+
+| Mod | Description | Version | Client install | Dedicated server install | Singleplayer | Multiplayer |
+| --- | --- | ---: |:---:|:---:|:---:|:---:|
+| <img src="mods/sf-auto-stamina-refill/icon.svg" width="28" alt="SF Auto Stamina Refill icon"> **SF Auto Stamina Refill** | Repeatedly refills stamina to maximum. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-infinite-item-split/icon.svg" width="28" alt="SF Infinite Item Split icon"> **SF Infinite Item Split** | Keeps the original stack when splitting items. It also affects other inventory operations. | 1.4.0 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-infinite-item-use/icon.svg" width="28" alt="SF Infinite Item Use icon"> **SF Infinite Item Use** | Prevents items from being consumed when used. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-no-fall-damage/icon.svg" width="28" alt="SF No Fall Damage icon"> **SF No Fall Damage** | Prevents health loss from falling. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-no-resource-cost/icon.svg" width="28" alt="SF No Resource Cost icon"> **SF No Resource Cost** | Removes resource consumption in supported building, crafting, and item-use actions. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-production-time/icon.svg" width="28" alt="SF Production Time icon"> **SF Production Time** | Sets timed production recipes to a chosen base duration. World speed settings still apply. | 1.0.0 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-unlimited-flight/icon.svg" width="28" alt="SF Unlimited Flight icon"> **SF Unlimited Flight** | Lets you keep flying without a time limit. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/sf-unlock-blueprints/icon.svg" width="28" alt="SF Unlock Blueprints icon"> **SF Unlock Blueprints** | Changes supported recipe unlock requirements to the first Flame Altar hint. | 1.0.1 | ✅ | ✅ | ✅ | ✅* |
+| <img src="mods/world-editor/icon.svg" width="28" alt="World Editor icon"> **World Editor** | Captures, saves, rotates, and places voxel-and-prop blueprints. Uses direct world access in singleplayer and Steam P2P to send edits to a Dedicated Server in multiplayer. | 0.3.0 | ✅ | ✅ | ✅ | ⚠️ |
+
+\* Multiplayer support depends on installing and enabling the mod in the process that handles the relevant game action. For asset changes such as recipe data or production time, prepare both client and server before starting them. A client-side change alone does not prove that the server accepted or persisted the result.
+
+### World Editor
+
+![World Editor blueprint library](assets/worldeditor_bar.png)
+
+The World Editor can be installed on the client and Dedicated Server. The client provides the editor window, cursor selection, capture, and blueprint library. In singleplayer it uses the local world runtime; in a joined Dedicated Server world it sends the existing blueprint format over Steam P2P for the server to apply.
+
+Blueprint placement has been observed on the Dedicated Server. **Undo for placed props is still unreliable**: the server can fail to remove a prop through the native destroy operation. Treat prop undo as experimental until it has been fixed and verified in a live session. Voxel undo and prop undo should be reported separately.
+
+See the [World Editor guide](mods/world-editor/README.md) for controls and setup, and the [multiplayer execution notes](docs/sf/mod-multiplayer.md) for current validation details.
 
 ## Development roadmap
 
-This table describes the current state of ShroudForge itself. **Proven** means the workflow is in place for the supported build; **Beta** means it exists but still has known reliability or coverage limits; **Open** means more implementation or validation is needed. A mod being included in the release does not make every runtime feature it uses proven.
+This table describes the current state of ShroudForge itself. **Proven** means the workflow has been verified for the stated scope. **Beta** means it is available but still has known reliability or coverage limits. **Open** means implementation or validation remains.
 
 | Area | Current state | Status |
 | --- | --- | --- |
 | **Release build and mod checks** | Release packaging checks each mod's manifest, ID, Lua entry point, and Lua syntax. | ✅ Proven |
-| **Build profiles** | Profiles are kept per Enshrouded build and target. The current profile is for client build **1076226**. Supporting another game build usually means reviewing and updating its profile; mods do not need per-build copies unless game behavior or the mod API changes. | ✅ Proven |
-| **Asset changes before launch** | Supported asset edits are prepared before the game starts, so changes take effect on the next launch. Coverage and compatibility still depend on the resource and game build. | ✅ Proven |
-| **KFC runtime and ECS** | The native runtime and ECS API are present, but live ECS discovery, queries, reads, and writes are not reliable enough to treat as a stable foundation yet. Keep this path experimental while it is being corrected. | 🚧 Beta |
-| **Runtime hooks and patches** | Build-profiled hooks and guarded runtime patches provide the current route for many live gameplay changes. They depend on executable signatures and game behavior, so a game update can make individual operations unavailable or require new native work. | 🚧 Beta |
-| **Current gameplay mods** | Several runtime mods rely on targeted hooks or runtime patches while the ECS path is incomplete. Their status is specific to the supported build and does not guarantee compatibility with every game update or mod combination. | 🚧 Beta |
-| **EML mod support** | ShroudForge reads EML-style packages and implements EML v1 APIs, including supported export, asset-patch, runtime, and package-local DLL flows. Compatibility depends on which APIs and native behavior an individual EML mod uses. | 🚧 Beta |
-| **Mod discovery and updater** | The Modloader can find and install catalog mods, queue mod updates, and stage ShroudForge updates for after the game closes. System updates verify the download and keep a backup for rollback; the complete range of release and recovery scenarios still needs broader validation. | 🚧 Beta |
-| **Runtime diagnostics** | Bounded runtime snapshots, mod activity, callback timings, and logs are available to help investigate failures. Diagnostics report observations; they do not certify that a game operation or mod is safe. | 🚧 Beta |
-| **More game builds and server profiles** | Add and validate profiles for further Enshrouded builds and targets, with live checks for the operations each profile enables. | 🕓 Open |
-| **Stable ECS-backed mod API** | Make ECS discovery and access dependable, verify gameplay effects in live sessions, and document which operations are supported before moving mods away from their current hooks and patches. | 🕓 Open |
-
-## What is inside the modules folder?
-
-The folder **src/loader/modules/** contains five built-in Rust modules. They are parts of ShroudForge; they are not separate mods you need to install.
-
-| Module | What it does |
-| --- | --- |
-| **Commands** | Provides a command-module entry point and reports whether it is available. |
-| **Debug Console** | Shows and filters messages from Enshrouded and ShroudForge. Press **F10** in game. |
-| **Modloader UI** | Lets you find, install, manage, and update mods. It also shows settings, notices, and compatibility details. Press **F9** in game. |
-| **Runtime Diagnostics** | An optional, time-limited view of runtime health and mod activity. |
-| **Updater** | Queues mod install and update work, and applies ShroudForge updates after Enshrouded closes. |
-
-There is also **ui-shared**, a small folder of shared visual styles used by the user interfaces. It is not a separate running module.
-
-The loader also has major parts outside this folder, including its API, mod package handling, compatibility checks, parser, and startup workflow. See the [developer architecture guide](docs/sf/Architecture.md) for the full map.
-
-## For contributors
-
-The [developer documentation](docs/sf/README.md) explains how the repository is organized and where to find the mod, runtime, parser, and Modloader content guides.
-
-## Help and community
-
-If something goes wrong, check the [guide](https://bonsaibauer.github.io/shroudforge/en/) and the mod creator's instructions first. If you still need help, [open an issue](https://github.com/bonsaibauer/shroudforge/issues/new). Tell us what you expected, what happened, and which game, ShroudForge, and mod versions you use. The **F10** messages can help explain the problem. Please remove private information before sharing them.
-
-- [Report a bug](https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml)
-- [Suggest a feature](https://github.com/bonsaibauer/shroudforge/issues/new?template=feature_request.yml)
-- [Report a compatibility problem](https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml)
+| **Build profiles** | Profiles are maintained per Enshrouded build and target. The current client profile is for build **1076226**. Supporting another build requires reviewing its profile and the operations it enables. | ✅ Proven |
+| **Asset changes before launch** | Supported asset edits are prepared before the game starts. Coverage depends on the resource and game build; client and server may need matching settings. | ✅ Proven |
+| **Runtime hooks and gameplay mods** | The included gameplay mods use profile-backed hooks, patches, or asset changes. Their multiplayer effect depends on which process handles the action and has not been verified end to end for every mod. | 🚧 Beta |
+| **KFC runtime and ECS** | Native runtime and ECS operations are available, but live world-context detection and some read/write paths still have reliability limits. | 🚧 Beta |
+| **World Editor: capture and placement** | Blueprint capture and local placement are available. Dedicated Server placement over Steam P2P has been observed. Saving and persistence still need separate live-session checks. | 🚧 Beta |
+| **World Editor: prop undo** | Undo can fail when the native runtime cannot remove a placed prop. Preserve the undo journal and report the operation as incomplete; do not describe prop undo as proven. | 🕓 Open |
+| **World Editor: automatic world targeting** | The client selects the local or Dedicated Server route from the detected world context. Startup, reconnect, and world-switch cases need continued live validation. | 🚧 Beta |
+| **EML mod support** | ShroudForge supports documented EML-style package and API flows. Compatibility depends on the APIs and native behavior used by each mod. | 🚧 Beta |
+| **Mod discovery and updater** | The Modloader can find and install catalog mods, queue mod updates, and stage ShroudForge updates with backups. Broader recovery scenarios still need validation. | 🚧 Beta |
+| **More game builds and server profiles** | Add and validate profiles for further Enshrouded builds and targets. | 🕓 Open |
+| **Stable ECS-backed mod API** | Make world-context detection and ECS access dependable, then document supported operations based on live verification. | 🕓 Open |
 
 ## License and support
 

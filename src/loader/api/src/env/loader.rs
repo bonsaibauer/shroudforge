@@ -531,6 +531,7 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
         r#mod,
         lua_world_context_active,
     )?;
+    add_function_with_mod(lua, &world, "context_kind", r#mod, lua_world_context_kind)?;
     add_function_with_mod(lua, &world, "session_id", r#mod, lua_world_session_id)?;
     let voxel = lua.create_table()?;
     add_function_with_mod(lua, &voxel, "read", r#mod, lua_world_voxel_read)?;
@@ -1145,6 +1146,25 @@ fn lua_world_context_active(
         active,
         (!active).then(|| "active voxel world context is not available".into()),
     ))
+}
+
+fn lua_world_context_kind(
+    lua: &mlua::Lua,
+    _args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<String> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if runtime_denial_reason(&state, r#mod, "runtime.world.context.active").is_some()
+        || !runtime_provider::world_operation_available("runtime.world.context.active")
+    {
+        return Ok("unknown".into());
+    }
+    Ok(match runtime_provider::world_context_kind() {
+        1 => "direct",
+        2 => "client-read-only",
+        _ => "unknown",
+    }
+    .into())
 }
 
 fn lua_world_cursor_get(
@@ -2102,6 +2122,7 @@ pub(super) mod runtime_provider {
     ) -> u32;
     type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type WorldContextActive = unsafe extern "C" fn() -> bool;
+    type WorldContextKind = unsafe extern "C" fn() -> u32;
     type WorldSessionId = unsafe extern "C" fn() -> u64;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
     type WorldEntityQueryProps =
@@ -2165,6 +2186,7 @@ pub(super) mod runtime_provider {
         compare_exchange: Option<CompareExchange>,
         world_operation_available: WorldOperationAvailable,
         world_context_active: WorldContextActive,
+        world_context_kind: Option<WorldContextKind>,
         world_session_id: Option<WorldSessionId>,
         world_entity_context_ready: WorldEntityContextReady,
         world_entity_query_props: WorldEntityQueryProps,
@@ -2299,6 +2321,13 @@ pub(super) mod runtime_provider {
                                 "KfcRuntimeWorldContextActive",
                                 WorldContextActive
                             ),
+                            world_context_kind: {
+                                let pointer =
+                                    GetProcAddress(module, c"KfcRuntimeWorldContextKind".as_ptr());
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, WorldContextKind>(pointer)
+                                })
+                            },
                             world_entity_context_ready: symbol!(
                                 "KfcRuntimeWorldEntityContextReady",
                                 WorldEntityContextReady
@@ -2458,6 +2487,11 @@ pub(super) mod runtime_provider {
     }
     pub fn world_context_active() -> bool {
         provider().is_some_and(|value| unsafe { (value.world_context_active)() })
+    }
+    pub fn world_context_kind() -> u32 {
+        provider()
+            .and_then(|value| value.world_context_kind)
+            .map_or(0, |get| unsafe { get() })
     }
     pub fn world_entity_context_ready() -> bool {
         provider().is_some_and(|value| unsafe { (value.world_entity_context_ready)() })
@@ -3087,6 +3121,9 @@ pub(super) mod runtime_provider {
     }
     pub fn world_context_active() -> bool {
         false
+    }
+    pub fn world_context_kind() -> u32 {
+        0
     }
     pub fn world_entity_context_ready() -> bool {
         false

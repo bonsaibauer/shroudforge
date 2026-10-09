@@ -1,17 +1,19 @@
 local actions, states, latest = {}, {}, {}
 local fail_write, fail_library = false, false
 local writes = 0
-local execution_mode = 'direct'
+local context_kind = 'direct'
 local function noop() end
 shroudforge = {
     ui = {on_action = function(name, callback) actions[name] = callback end},
     settings = {get = function(name)
         if name == 'blueprintName' then return 'test' end
-        if name == 'executionMode' then return execution_mode end
     end},
     log = {info = noop, warn = noop, error = noop, debug = noop},
 }
-runtime = {require = noop, world = {session_id = function() return 21 end}}
+runtime = {require = noop, world = {
+    session_id = function() return 21 end,
+    context_kind = function() return context_kind end,
+}}
 io.read_export_to_string = function()
     return table.concat({'SHROUDFORGE_WORLD_BLUEPRINT_V7', 'y', '1,1,1', 'voxel',
         '1,1,1', '0,0,0', '0.5,0.5,0.5', '128', '2', '0'}, '\n')
@@ -108,7 +110,10 @@ request({}, function() error('failed scan must not deliver results') end)
 assert(latest.stage == 'ready')
 
 -- A journal from another world must not consume missing handles or write voxels.
-runtime.world={session_id=function() return 22 end}
+runtime.world={
+    session_id=function() return 22 end,
+    context_kind=function() return context_kind end,
+}
 journal.session=21
 local retained=upvalue(actions.undoVoxels,'undo_state')
 upvalue(actions.undoVoxels,'callback')()
@@ -154,13 +159,42 @@ assert(upvalue(update,'pending_world_action')==nil)
 transition()
 assert(#retired==1, 'stable session must not repeatedly archive state')
 
--- Target selection must not infer a remote server from transient read-only ECS
--- access: the client executable also hosts local worlds. Direct remains the
--- safe default; only explicit dedicated-server targeting selects P2P.
+-- Target selection follows the native validated world source. The client
+-- executable remains direct in local worlds and uses P2P only for a confirmed
+-- cursor-derived read-only server context. Unknown context must stop safely.
 local backend=upvalue(actions.pasteVoxels,'execution_backend')
 runtime.has=function(name) return name~='runtime.world.voxel.write' end
-assert(backend()=='direct', 'read-only runtime state must not redirect a local world to a server')
-execution_mode='p2p'
-assert(backend()=='p2p', 'explicit server target must route through P2P when client world APIs are unavailable')
-execution_mode='direct'
-assert(backend()=='direct')
+context_kind='direct'
+assert(backend()=='direct', 'validated local world must use native direct writes')
+context_kind='client-read-only'
+assert(backend()=='p2p', 'validated joined-client world must route through P2P')
+context_kind='unknown'
+assert(backend()=='unknown', 'unknown world target must never default to direct writes')
+context_kind='direct'
+runtime.world.session_id=function() return 0 end
+assert(backend()=='unknown', 'an unavailable world session must block both routes')
+runtime.world.session_id=function() return 32 end
+context_kind='unknown'
+local voxel_reads=0
+runtime.world.voxel={read=function() voxel_reads=voxel_reads+1; return nil, 'unexpected-direct-read' end}
+actions.pasteVoxels(true)
+assert(voxel_reads==0, 'F7 must not fall through to local APIs while world target detection is unknown')
+local voxel_writes=0
+runtime.world.voxel.write=function() voxel_writes=voxel_writes+1; return false end
+actions.undoVoxels()
+assert(voxel_writes==0, 'F4 must not issue a local undo while world target detection is unknown')
+
+-- A recovered remote-server token must not shadow a newer local undo while
+-- the client is back in singleplayer.
+context_kind='direct'
+runtime.has=function() return true end
+runtime.report_effect=noop
+local server_token={peer='76561198842033148',transaction='tx_76561198842033148-4-31f8a360-0-3'}
+local local_journal={session=32,hasVoxels=false,entities={},removed_props={}}
+upvalue(actions.undoVoxels,'remote_undo',server_token)
+upvalue(actions.undoVoxels,'undo_state',local_journal)
+actions.undoVoxels()
+assert(upvalue(actions.undoVoxels,'undo_state')==nil,
+    'F4 in local singleplayer must undo the local journal before prompting for a remote token')
+assert(upvalue(actions.undoVoxels,'remote_undo')==server_token,
+    'completing local undo must retain the server recovery token')

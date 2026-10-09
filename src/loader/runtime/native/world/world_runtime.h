@@ -14,6 +14,7 @@ void SetCursorHookReady(bool ready);
 bool ReadCursorSnapshot(std::uint8_t* bytes, std::size_t capacity, std::uint64_t* sequence);
 bool OperationAvailable(const char* name);
 bool ActiveContextAvailable();
+std::uint32_t ContextKind();
 std::string ContextDiagnostics();
 std::string ContextStatus();
 bool EntityContextReady();

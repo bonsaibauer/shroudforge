@@ -5,6 +5,7 @@ return function(api, callbacks)
     local mod_id = "world-editor"
     local chunk_bytes = 384 * 1024
     local maximum_blueprint_bytes = 32 * 1024 * 1024
+    local client_response_timeout_seconds = 60
     local uploads, completed = {}, {}
     local completed_order, active_upload_peer = {}, nil
     local outgoing = {}
@@ -224,7 +225,7 @@ return function(api, callbacks)
             outgoing[#outgoing + 1] = {peer = peer,
                 payload = "C|" .. request_id .. "|" .. index .. "|v1\n" .. content:sub(first, first + chunk_bytes - 1)}
         end
-        client_pending = {request_id = request_id, operation = "paste", peer = peer}
+        client_pending = {request_id = request_id, operation = "paste", peer = peer, elapsed = 0}
         return true, request_id
     end
 
@@ -233,7 +234,7 @@ return function(api, callbacks)
         if not valid_id(transaction) then return false, "The server undo token is invalid." end
         local request_id = make_request_id()
         outgoing[#outgoing + 1] = {peer = peer, payload = table.concat({"U", request_id, transaction, "v1"}, "|")}
-        client_pending = {request_id = request_id, operation = "undo", peer = peer}
+        client_pending = {request_id = request_id, operation = "undo", peer = peer, elapsed = 0}
         return true, request_id
     end
 
@@ -241,6 +242,15 @@ return function(api, callbacks)
 
     function M.tick(delta_seconds, peer_list)
         local delta = math.max(0, tonumber(delta_seconds) or 0)
+        if client_pending then
+            client_pending.elapsed = client_pending.elapsed + delta
+            if client_pending.elapsed >= client_response_timeout_seconds then
+                local pending = client_pending
+                outgoing = {}
+                queue_result(pending.request_id, pending.operation, false, nil,
+                    "no-response-from-server-peer-after-60-seconds; outcome is unknown, verify the server world before retrying")
+            end
+        end
         for peer, upload in pairs(uploads) do
             upload.elapsed = upload.elapsed + delta
             if upload.elapsed >= 60 then
@@ -252,6 +262,10 @@ return function(api, callbacks)
             accept_elapsed = accept_elapsed + delta
             if accept_elapsed >= 1 then
                 accept_elapsed = 0
+                -- Publish the server's current (ephemeral) Steam identity for
+                -- the local client runtime. Enshrouded assigns a new ID after
+                -- a dedicated-server restart.
+                if api.network.status then pcall(api.network.status) end
                 for _, peer in ipairs(peer_list and peer_list() or {}) do
                     pcall(api.network.accept, peer)
                 end

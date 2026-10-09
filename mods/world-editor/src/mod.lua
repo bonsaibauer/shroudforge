@@ -48,6 +48,7 @@ local voxel_grid_spec = nil
 local editor_stage = "need_a"
 local editor_hint = "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
 local last_published_editor_state = nil
+local last_execution_backend = nil
 local p2p_bridge = nil
 local remote_undo = nil
 local remote_request_pending = false
@@ -64,11 +65,32 @@ local function current_session()
 end
 local function execution_backend()
     if editor_is_server then return "direct" end
-    -- The client executable also runs local worlds, so runtime readiness alone
-    -- cannot reliably distinguish singleplayer from a joined server session.
-    -- Keep the historical local path as the default and make server targeting
-    -- an explicit user choice instead of guessing from transient ECS access.
-    return setting("executionMode") == "p2p" and "p2p" or "direct"
+    -- Route only from the native, build-profiled context source. The client EXE
+    -- can be local or joined to a dedicated server, so process role and general
+    -- runtime readiness are not sufficient evidence for selecting a writer.
+    if not runtime.world or not runtime.world.context_kind then return "unknown" end
+    local session = current_session()
+    if not session or session == 0 then return "unknown" end
+    local kind = runtime.world.context_kind()
+    if kind == "direct" then return "direct" end
+    if kind == "client-read-only" then return "p2p" end
+    return "unknown"
+end
+
+local function execution_backend_label(backend)
+    if backend == "direct" then return "native-direct" end
+    if backend == "p2p" then return "server-p2p" end
+    return "detecting"
+end
+
+local function require_execution_backend(backend, operation)
+    if backend ~= "unknown" then return true end
+    local message = "Automatic world target detection is waiting for a validated world session. " ..
+        tostring(operation or "No world change was sent.")
+    set_editor_message(nil, message)
+    shroudforge.log.warn("World Editor blocked " .. tostring(operation or "world change") ..
+        ": native world target is unknown; no local write or P2P request was sent")
+    return false
 end
 -- Overall save milestones, not a prop count or an estimated byte percentage.
 local save_progress = {state = "idle", completed = 0, phase = "", sequence = 0}
@@ -164,7 +186,7 @@ publish_editor_state = function()
         "panelPositionX=" .. tostring(panel_position_x),
         "panelPositionY=" .. tostring(panel_position_y),
         "processRole=" .. (runtime.is_server and "dedicated-server" or "client"),
-        "executionBackend=" .. (execution_backend() == "p2p" and "server-p2p" or "native-direct"),
+        "executionBackend=" .. execution_backend_label(execution_backend()),
         "sessionGeneration=" .. tostring(current_session()),
         "archivedSessions=" .. tostring(#retired_sessions),
     }, "\n") .. "\n"
@@ -1504,7 +1526,9 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before starting another paste")
         return
     end
-    if execution_backend() == "p2p" then
+    local backend = execution_backend()
+    if not require_execution_backend(backend, "F7 placement") then return end
+    if backend == "p2p" then
         if paste_remote then paste_remote(use_current_cursor, cursor_override) end
         return
     end
@@ -1753,10 +1777,22 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
 end
 
 undo_voxels = function()
-    if execution_backend() == "p2p" then
-        if undo_remote then undo_remote() else
+    local backend = execution_backend()
+    if not require_execution_backend(backend, "F4 undo") then return end
+    if backend == "p2p" then
+        if remote_undo and undo_remote then
+            undo_remote()
+        elseif remote_undo then
+            set_editor_message("recovery", "The server undo token is retained, but Steam P2P is unavailable.")
+        else
             set_editor_message(nil, "There is no server placement to undo. Place a blueprint on the server with F7 first.")
         end
+        return
+    end
+    -- A recovered server token belongs to a different process/world. Let a
+    -- newer local singleplayer placement keep its normal F4 priority.
+    if not undo_state and remote_undo then
+        set_editor_message("recovery", "A server undo token is retained. Rejoin its Dedicated Server world and press F4 to resume that undo.")
         return
     end
     local expected = undo_state and undo_state.session
@@ -2098,7 +2134,12 @@ local function list_props()
 end
 
 local function direct_edit_allowed()
-    if execution_backend()=="p2p" or remote_request_pending or (p2p_bridge and p2p_bridge.pending()) then
+    local backend = execution_backend()
+    if backend == "unknown" then
+        require_execution_backend(backend, "direct entity operation")
+        return false
+    end
+    if backend == "p2p" or remote_request_pending or (p2p_bridge and p2p_bridge.pending()) then
         set_editor_message("selected","Use blueprint paste and F4 undo for server edits.")
         return false
     end
@@ -2248,11 +2289,18 @@ local function placement_operation(destroy)
 end
 
 local function configured_server_steam_id()
+    if runtime.network and runtime.network.status then
+        local ok, status = pcall(runtime.network.status)
+        local discovered = ok and status and tostring(status.local_dedicated_server_steam_id or "") or ""
+        if #discovered >= 16 and #discovered <= 20 and discovered:match("^%d+$") and discovered ~= "0" then
+            return discovered, true
+        end
+    end
     local value = tostring(setting("serverSteamId") or ""):gsub("%s", "")
     if value == "" or #value < 16 or #value > 20 or not value:match("^%d+$") or value == "0" then
         return nil
     end
-    return value
+    return value, false
 end
 
 local function configured_client_steam_ids()
@@ -2267,10 +2315,55 @@ local function configured_client_steam_ids()
     return ids
 end
 
+local server_undo_export_path = "world-editor/server-undo-token.txt"
+local server_undo_export_header = "SHROUDFORGE_WORLD_EDITOR_SERVER_UNDO_V1"
+
+local function valid_peer_id(value)
+    return type(value) == "string" and #value >= 16 and #value <= 20 and
+        value:match("^%d+$") ~= nil and value ~= "0"
+end
+
+local function persist_server_undo_token()
+    if not editor_ui_available or not io.export then return false end
+    local peer, transaction = "none", "none"
+    if remote_undo then
+        peer, transaction = tostring(remote_undo.peer or ""), tostring(remote_undo.transaction or "")
+        if not valid_peer_id(peer) or not transaction:match("^tx_[%w_-]+$") then
+            shroudforge.log.error("World Editor refused to persist an invalid server undo token")
+            return false
+        end
+    end
+    local contents = table.concat({server_undo_export_header, peer, transaction, ""}, "\n")
+    local ok, reason = pcall(io.export, server_undo_export_path, contents)
+    if not ok then
+        shroudforge.log.error("World Editor could not persist the server undo token: " .. tostring(reason))
+        return false
+    end
+    return true
+end
+
+local function recover_server_undo_token()
+    if not editor_ui_available or not io.read_export_to_string then return false end
+    local ok, contents = pcall(io.read_export_to_string, server_undo_export_path)
+    if not ok or type(contents) ~= "string" then return false end
+    contents = contents:gsub("\r\n", "\n")
+    local header, peer, transaction = contents:match("^([^\n]+)\n([^\n]+)\n([^\n]+)\n?$")
+    if header ~= server_undo_export_header or peer == "none" or transaction == "none" then return false end
+    if not valid_peer_id(peer) or not transaction:match("^tx_[%w_-]+$") then
+        shroudforge.log.warn("World Editor ignored an invalid persisted server undo token")
+        return false
+    end
+    remote_undo = {peer = peer, transaction = transaction}
+    return true
+end
+
 local function on_p2p_result(operation, ok, transaction, reason, peer)
     remote_request_pending = false
     if operation == "paste" then
-        if transaction then remote_undo = {peer = peer, transaction = transaction} end
+        if transaction then
+            remote_undo = {peer = peer, transaction = transaction}
+            persist_server_undo_token()
+        end
         if ok then
             set_editor_message("selected", "Server placed the blueprint through its native world runtime. Press F4 to undo.")
             shroudforge.log.info("World Editor P2P paste confirmed by dedicated server; undo token=" .. tostring(transaction))
@@ -2283,6 +2376,7 @@ local function on_p2p_result(operation, ok, transaction, reason, peer)
     elseif operation == "undo" then
         if ok then
             remote_undo = nil
+            persist_server_undo_token()
             set_editor_message("selected", "The server confirmed undo through its native world runtime.")
             shroudforge.log.info("World Editor P2P undo confirmed by dedicated server")
         else
@@ -2366,7 +2460,7 @@ paste_remote = function(use_current_cursor, cursor_override)
         set_editor_message("recovery", "Undo the previous server placement with F4 before sending another blueprint.")
         return
     end
-    local peer = configured_server_steam_id()
+    local peer, discovered_local_server = configured_server_steam_id()
     if not peer then
         set_editor_message("selected", "Set the dedicated server's SteamID64 in World Editor → Server P2P before using F7 online.")
         return
@@ -2383,7 +2477,8 @@ paste_remote = function(use_current_cursor, cursor_override)
         if not ok then set_editor_message("selected", tostring(request)); return end
         remote_request_pending = true
         set_editor_message("building", "Sending the existing V7 blueprint to the dedicated server. Its runtime performs the placement; wait for confirmation before pressing F4.")
-        shroudforge.log.info("World Editor queued P2P blueprint request " .. tostring(request) .. " to server Steam peer " .. peer)
+        shroudforge.log.info("World Editor queued P2P blueprint request " .. tostring(request) .. " to server Steam peer " .. peer ..
+            (discovered_local_server and " (discovered from the running Dedicated Server)" or " (configured fallback)"))
     end
     local anchor, reason = target_anchor(use_current_cursor, cursor_override)
     if not anchor and use_current_cursor and query_is_pending(reason) then
@@ -2582,8 +2677,17 @@ return {
                 shroudforge.log.warn("World Editor server P2P is unavailable: " .. tostring(status and status.reason or "network runtime missing"))
             end
         else
-            shroudforge.log.info("World Editor client target loaded. World edit target is " ..
-                (execution_backend() == "p2p" and "Dedicated Server P2P" or "Local / singleplayer direct"))
+            local backend = execution_backend()
+            last_execution_backend = backend
+            local target = backend == "p2p" and "Dedicated Server P2P" or
+                backend == "direct" and "local / singleplayer direct" or "waiting for a validated world context"
+            shroudforge.log.info("World Editor client target detection is automatic; current target: " .. target)
+            if recover_server_undo_token() then
+                shroudforge.log.warn("World Editor recovered a pending server undo token from the local journal")
+                set_editor_message("recovery", backend == "p2p" and
+                    "Recovered an unfinished server undo. Press F4 to resume it; F7 stays paused until the server confirms." or
+                    "Recovered an unfinished server undo. Rejoin that Dedicated Server world and press F4 to resume it.")
+            end
             local status = runtime.network and runtime.network.status and runtime.network.status() or nil
             if status and status.local_steam_id then
                 shroudforge.log.info("World Editor client SteamID64 (add this to the server allowlist): " .. tostring(status.local_steam_id))
@@ -2602,6 +2706,18 @@ return {
             update_server_remote_paste(_delta_seconds)
             update_server_remote_undo(_delta_seconds)
             return
+        end
+        local backend = execution_backend()
+        if backend ~= last_execution_backend then
+            last_execution_backend = backend
+            publish_editor_state()
+            if backend == "direct" then
+                shroudforge.log.info("World Editor automatic target selected: local native world")
+            elseif backend == "p2p" then
+                shroudforge.log.info("World Editor automatic target selected: dedicated server via Steam P2P")
+            else
+                shroudforge.log.debug("World Editor automatic target is waiting for a validated world session")
+            end
         end
         if not readiness_logged then
             local props_ready = runtime.has("runtime.world.entity.query_props_in_bounds")

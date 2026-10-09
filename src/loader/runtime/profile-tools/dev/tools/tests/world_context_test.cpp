@@ -152,6 +152,7 @@ int main() {
     OnCursorUpdate(cursor.data(),&view,&frame);
     check(resolve_client_read_world(resolved) && resolved==service.world);
     check(!resolve_voxel_world(resolved));
+    check(ContextKind()==2); // joined-client world is validated but read-only here
     check(!OperationAvailable("runtime.world.voxel.write"));
     check(nlohmann::json::parse(ContextDiagnostics())["source"]=="client-cursor-read");
     Operation read_op;
@@ -177,9 +178,44 @@ int main() {
     OnCursorUpdate(cursor.data(),&view,&frame);
     check(OperationAvailable("runtime.world.voxel.write"));
     check(resolve_voxel_world(resolved) && resolved==reinterpret_cast<std::uintptr_t>(&local_world));
+    check(ContextKind()==1); // direct context wins even while cursor samples exist
     read_op.context_generation=context_resets.load();
     expected_read_world=reinterpret_cast<std::uintptr_t>(&local_world);
     execute(&read_op);
     check(read_op.result && voxel_reads==2 && preferred_voxel_world.load()==expected_read_world);
+
+    // Headless server prop undo is consumed from the profiled prop-update
+    // frame. It must not wait for client actor/input hooks, and the native
+    // destroy callback may re-enter the building dispatcher.
+    struct ServerActorFrame {
+        std::array<std::uint8_t, 32> prefix{};
+        std::uintptr_t service{};
+        std::array<std::uint8_t, 608 - 40> padding{};
+        Context placement{};
+    } server_frame;
+    static_assert(offsetof(ServerActorFrame, service)==32);
+    static_assert(offsetof(ServerActorFrame, placement)==608);
+    Profile::world_context_layout.actor_frame_service_view=offsetof(ServerActorFrame,service);
+    Profile::world_context_layout.service_view_world=offsetof(Service,world);
+    Profile::world_context_layout.placement_context=offsetof(ServerActorFrame,placement);
+    server_frame.service=reinterpret_cast<std::uintptr_t>(&service);
+    server_frame.placement={reinterpret_cast<std::uintptr_t>(&view),1,2,3,4};
+    active.actor_context=true;
+    Profile::runtime_operations={active,remove,done};
+    Profile::world_finish_event_id_rva=reinterpret_cast<std::uintptr_t>(&event_id)-image_base();
+    auto server_destroy=std::make_shared<EntityRequest>();
+    server_destroy->kind=EntityRequest::Kind::Destroy;
+    server_destroy->feedback=42;
+    server_destroy->has_exact_transform=true;
+    server_destroy->exact_transform.rotation[3]=1;
+    server_destroy->exact_transform.scale[0]=server_destroy->exact_transform.scale[1]=server_destroy->exact_transform.scale[2]=1;
+    pending_entity_request.store(server_destroy);
+    const auto destroys_before_server_request=destroys;
+    const auto finishes_before_server_request=finishes;
+    OnPropUpdate(&view,&server_frame);
+    check(server_destroy->done.load() && server_destroy->success.load());
+    check(destroys==destroys_before_server_request+1 && finishes==finishes_before_server_request+1);
+    check(prop_update_request_hits.load()==1);
+
     std::printf("%u world context checks passed; no game process opened\n",checks);
 }

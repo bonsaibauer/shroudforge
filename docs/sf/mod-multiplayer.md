@@ -56,20 +56,25 @@ aktualisiert.
 
 ## World Editor: integrierter P2P-Ablauf
 
-Der Editor ist jetzt für `client` und `server` deklariert. Der Client behält
-Cursor, UI, Capture und lokalen Blueprintspeicher. Im Singleplayer wählt er
-weiter den direkten nativen Pfad; **Lokal / Singleplayer** ist der
-Standardmodus. Für den Beitritt zu einem Dedicated Server wird ausdrücklich
-**Dedicated server world (Steam P2P)** gewählt. Client-exe und Laufzeit-API
-unterscheiden lokale und beigetretene Welten derzeit nicht zuverlässig.
+Der Editor ist für `client` und `server` deklariert. Der Client behält Cursor,
+UI, Capture und lokalen Blueprintspeicher. Er wählt den Schreibpfad automatisch
+aus der nativen Weltquelle: ein bestätigter direkter Kontext verwendet die
+lokale Runtime; ein bestätigter cursor-abgeleiteter read-only Kontext verwendet
+Steam P2P zum Dedicated Server. Ist der Kontext nicht sicher verfügbar, sendet
+F7/F4 weder einen lokalen Schreibaufruf noch einen P2P-Auftrag. Der Server lädt
+den Mod headless und führt angeforderte Änderungen mit seiner nativen Runtime
+aus.
 P2P überträgt dieselbe `.sfbp`-V7-Datei; es gibt keinen zweiten
 Zell-/Prop-Befehlskatalog und keine ECS-Handles im Netzwerk. Der Server lädt
 den Mod ohne UI, prüft das vorhandene V7-Format und nutzt denselben
 `paste_voxels`/`undo_voxels`-Pfad wie lokale native Änderungen.
 
-Der Server gibt beim Start seine SteamID64 im Log aus. Diese ID wird in
-`serverSteamId` auf dem Client eingetragen. Die Client-SteamID64 steht im
-Clientlog und muss in `allowedClientSteamIds` auf dem Server stehen. Der Server
+Wenn Client und Dedicated Server in derselben Windows-Sitzung laufen, ermittelt
+der Client die aktuelle Server-SteamID64 automatisch. Enshrouded kann die
+Server-ID nach einem Neustart ändern; deshalb wird die Live-ID des laufenden
+Servers verwendet. Für entfernte Server bleibt `serverSteamId` auf dem Client
+der manuelle Fallback. Die Client-SteamID64 steht im Clientlog und muss in
+`allowedClientSteamIds` auf dem Server stehen. Der Server
 nimmt nur gelistete Peers und Nachrichten des `world-editor`-Modkanals an.
 Steam-Peer-Autorisierung ordnet einen Prozess zu; sie beweist keine
 Ingame-Spieleridentität. Transfers sind auf 32 MiB begrenzt und werden mit

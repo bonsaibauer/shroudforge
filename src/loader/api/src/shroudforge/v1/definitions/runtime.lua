@@ -25,6 +25,7 @@ runtime.network = {}
 ---@field available boolean Steam Networking Messages is initialized in this process and the mod has runtime access.
 ---@field role 'client'|'server'
 ---@field local_steam_id string? Decimal Steam ID of this process, when Steam exposes it.
+---@field local_dedicated_server_steam_id string? Current Steam ID of a ShroudForge Dedicated Server running in this Windows session, if one publishes it.
 ---@field reason string?
 --- Report whether this process can use the built-in Steam P2P message channel.
 ---@return RuntimeNetworkStatus status
@@ -422,6 +423,12 @@ function runtime.world.operation_available(operation) end
 --- @return boolean active
 --- @return string? reason
 function runtime.world.context_active() end
+--- Return the validated native target for automatic editor routing.
+--- direct means this process can write the active world; client-read-only means
+--- this client has only the cursor-derived world replica and must use the host.
+--- unknown means no context has been validated yet.
+--- @return 'direct'|'client-read-only'|'unknown' kind
+function runtime.world.context_kind() end
 --- Conservative process-local world/ECS lifetime marker; zero when unavailable.
 --- Not a persistent world ID or a singleplayer/multiplayer indicator.
 ---@return integer

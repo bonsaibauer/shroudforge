@@ -12,6 +12,42 @@ constexpr int32_t k_steam_identity_type = 16;
 constexpr int32_t k_steam_identity_size = 8;
 constexpr int32_t k_steam_send_reliable = 8;
 constexpr size_t k_max_message_bytes = 512u * 1024u;
+constexpr wchar_t k_server_identity_mapping[] = L"Local\\ShroudForge.WorldEditor.ServerIdentity.v1";
+constexpr uint64_t k_server_identity_magic = 0x5346574544494431ull;
+constexpr ULONGLONG k_server_identity_max_age_ms = 10000;
+
+struct LocalServerIdentity {
+    uint64_t magic{};
+    uint64_t steam_id{};
+    ULONGLONG updated_at_ms{};
+    DWORD process_id{};
+    DWORD size{};
+};
+static_assert(sizeof(LocalServerIdentity) == 32);
+
+HANDLE g_server_identity_mapping{};
+
+void publish_local_server_identity(uint64_t steam_id) {
+    if (!steam_id) return;
+    if (!g_server_identity_mapping) {
+        g_server_identity_mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE,
+            0, sizeof(LocalServerIdentity), k_server_identity_mapping);
+    }
+    if (!g_server_identity_mapping) return;
+    auto* identity = static_cast<LocalServerIdentity*>(MapViewOfFile(g_server_identity_mapping,
+        FILE_MAP_WRITE, 0, 0, sizeof(LocalServerIdentity)));
+    if (!identity) return;
+    InterlockedExchange64(reinterpret_cast<volatile LONG64*>(&identity->magic), 0);
+    InterlockedExchange64(reinterpret_cast<volatile LONG64*>(&identity->steam_id), static_cast<LONG64>(steam_id));
+    InterlockedExchange64(reinterpret_cast<volatile LONG64*>(&identity->updated_at_ms),
+        static_cast<LONG64>(GetTickCount64()));
+    InterlockedExchange(reinterpret_cast<volatile LONG*>(&identity->process_id),
+        static_cast<LONG>(GetCurrentProcessId()));
+    InterlockedExchange(reinterpret_cast<volatile LONG*>(&identity->size), static_cast<LONG>(sizeof(LocalServerIdentity)));
+    InterlockedExchange64(reinterpret_cast<volatile LONG64*>(&identity->magic), static_cast<LONG64>(k_server_identity_magic));
+    FlushViewOfFile(identity, sizeof(LocalServerIdentity));
+    UnmapViewOfFile(identity);
+}
 
 struct SteamNetworkingIdentity {
     int32_t type;
@@ -120,11 +156,46 @@ KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkStatus(uint64_t* local_steam_id
                 if (api.get_identity(sockets, &local) && local.type == k_steam_identity_type &&
                     local.size == k_steam_identity_size) {
                     *local_steam_id = local.data.steam_id;
+                    if (is_dedicated_server()) publish_local_server_identity(local.data.steam_id);
                 }
             }
         }
         return k_ready;
     } catch (...) { return 0; }
+}
+
+KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkLocalServer(uint64_t* server_steam_id) {
+    if (!server_steam_id || is_dedicated_server()) return 0;
+    *server_steam_id = 0;
+    HANDLE mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, k_server_identity_mapping);
+    if (!mapping) return 0;
+    const auto* identity = static_cast<const LocalServerIdentity*>(MapViewOfFile(mapping,
+        FILE_MAP_READ, 0, 0, sizeof(LocalServerIdentity)));
+    if (!identity) {
+        CloseHandle(mapping);
+        return 0;
+    }
+    // This view is deliberately opened with FILE_MAP_READ only. Interlocked
+    // compare/exchange is a read-modify-write operation, even when exchange is
+    // zero, so using it here faults on the read-only view. On x64, aligned
+    // 64-bit loads are atomic; the publisher clears/reinstates the magic around
+    // its writes, and the barriers plus second magic read reject torn snapshots.
+    const volatile auto* fields = reinterpret_cast<const volatile LocalServerIdentity*>(identity);
+    const auto magic_before = fields->magic;
+    MemoryBarrier();
+    const auto steam_id = fields->steam_id;
+    const auto updated_at = fields->updated_at_ms;
+    const auto process_id = fields->process_id;
+    const auto size = fields->size;
+    MemoryBarrier();
+    const auto magic_after = fields->magic;
+    UnmapViewOfFile(identity);
+    CloseHandle(mapping);
+    const auto now = GetTickCount64();
+    if (magic_before != magic_after || magic_after != k_server_identity_magic || size != sizeof(LocalServerIdentity) ||
+        !steam_id || !process_id || now < updated_at || now - updated_at > k_server_identity_max_age_ms) return 0;
+    *server_steam_id = steam_id;
+    return 1;
 }
 
 KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkSend(

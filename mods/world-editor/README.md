@@ -1,18 +1,19 @@
 # World Editor mod
 
-**Singleplayer** keeps the existing client-side native read/write path and is
-the default. For a **dedicated-server world**, select **World Editor → World
-edit target → Dedicated server world (Steam P2P)** on the client, then install
-and enable World Editor on both the client and server. This explicit target is
-necessary because Enshrouded uses the same client executable for local and
-joined worlds, while the runtime does not expose a trustworthy joined-server
-identity to the editor. The server target runs the same mod headlessly; it has
-no UI or keyboard hook. The client sends the existing SFBP V7 text through
+The client automatically uses the native direct path in a validated local
+world and Steam P2P in a validated read-only server world. While the native
+world context is unknown, F7 and F4 pause without sending a local write or a
+P2P request. Install and enable World Editor on both the client and the
+Dedicated Server. The server runs the same mod headlessly; it has no UI or
+keyboard hook. The client sends the existing SFBP V7 text through
 `runtime.network.send_mod`, and the server parses it and invokes the same native
 paste, snapshot, verification, and undo journal used by direct edits.
 
-Configure **Server P2P** once per installation. The server log prints its
-SteamID64; enter that value in the client's **Dedicated server SteamID64** field.
+For a client and Dedicated Server running in the same Windows session, the
+client discovers the server's current SteamID64 automatically. Enshrouded can
+assign a new ID after a server restart, so the client reads the live ID from the
+running server instead of relying on a stale saved value. For remote servers,
+the client's **Dedicated server SteamID64 fallback** field remains available.
 The client log prints its SteamID64; add it to the server's comma-separated
 **Authorized client SteamID64 list**. The server accepts P2P requests only from
 that allowlist. Steam P2P identifies the process peer; it does not prove which
@@ -20,9 +21,9 @@ in-game character owns that Steam account. The P2P transfer limit is 32 MiB per
 blueprint; local blueprint files keep their existing 256 MiB limit. Capturing
 and saving remain on the client; F7 sends the same V7 blueprint body to the
 server. F4 sends the server-issued undo token back, so process-local entity
-handles never cross the network. Return the target setting to **Local /
-singleplayer world** before editing a local world. The dedicated server keeps
-one in-memory undo journal; restarting it discards that journal.
+handles never cross the network. Switching between local and server worlds
+changes the route automatically. The dedicated server keeps one in-memory undo
+journal; restarting it discards that journal.
 
 The P2P transport, SFBP validation, authorization, and duplicate-request guards
 are covered by isolated tests. **Live dedicated-server replication and save

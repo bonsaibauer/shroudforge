@@ -32,6 +32,9 @@ KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capa
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
 /* Optional Steam Networking Messages transport used by runtime.network. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkStatus(uint64_t* local_steam_id);
+/* Optional local-host discovery. A dedicated server publishes its current
+ * Steam identity through a session-scoped mapping; clients read it here. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkLocalServer(uint64_t* server_steam_id);
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkSend(
     uint64_t peer_steam_id, const unsigned char* payload, size_t size,
     int32_t channel, int32_t reliable);
@@ -117,6 +120,9 @@ KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeEcsCompareExchange(
 /* World operations are profile-backed and dispatched with runtime checks. */
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldOperationAvailable(const char* name);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldContextActive(void);
+/* Optional ABI-12 extension: 0=unknown, 1=validated direct writable world,
+   2=validated client cursor world that is read-only from this process. */
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldContextKind(void);
 KFC_RUNTIME_API uint64_t KFC_RUNTIME_CALL KfcRuntimeWorldSessionId(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityContextReady(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldCursorRead(

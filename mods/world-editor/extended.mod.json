@@ -12,6 +12,9 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
+    "Discovers the current SteamID of a local Dedicated Server after every restart and reports unanswered P2P requests after 60 seconds with an explicit unknown-outcome warning.",
+    "Persists the server-issued undo token across client restarts and automatically resumes it instead of losing the server's unresolved journal.",
+    "Automatically selects local native writes or Dedicated Server Steam P2P from the validated live world context; pauses edits while that context is unknown.",
     "Makes the world target explicit: local/singleplayer stays on the direct client path; dedicated-server edits use Steam P2P.",
     "Routes multiplayer blueprint placement and undo over Steam P2P to the dedicated server's native world runtime; preserves direct singleplayer edits.",
     "Runs the same World Editor module headless on dedicated servers with an explicit SteamID64 allowlist and server-owned undo journal.",
@@ -26,17 +29,9 @@
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo. F1 remains available to the game."
   ],
   "settings": {
-    "executionMode": {
-      "value": "direct",
-      "label": "World edit target",
-      "options": {
-        "direct": "Local / singleplayer world",
-        "p2p": "Dedicated server world (Steam P2P)"
-      }
-    },
     "serverSteamId": {
       "value": "",
-      "label": "Dedicated server SteamID64 (client)"
+      "label": "Dedicated server SteamID64 fallback (remote server)"
     },
     "allowedClientSteamIds": {
       "value": "",
@@ -324,9 +319,8 @@
     },
     {
       "label": "World target and Server P2P",
-      "description": "Keep Local / singleplayer world selected for local edits. Select Dedicated server world (Steam P2P) only after joining that server. Install the server target on the Dedicated Server EXE; enter its logged SteamID64 on the client and authorize the client's SteamID64 on the server.",
+      "description": "The client selects local native edits or Dedicated Server Steam P2P from the live world context. A local server SteamID is discovered automatically; serverSteamId is a fallback for remote servers. Authorize the client's SteamID64 on the server.",
       "settings": [
-        "executionMode",
         "serverSteamId",
         "allowedClientSteamIds"
       ]

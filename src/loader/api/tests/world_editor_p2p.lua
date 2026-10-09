@@ -80,6 +80,15 @@ end
 assert(undo_calls == 1 and #client_results == 2)
 assert(client_results[2][1] == "undo" and client_results[2][2] == true)
 
+-- A missing peer response must not leave the editor permanently stuck. The
+-- timeout is deliberately marked as an unknown outcome so the UI warns users
+-- to verify the server world before retrying.
+assert(client.start_undo(server_id, "tx_server_9_1"))
+client.tick(61)
+assert(not client.pending(), "a server that never responds must not block the editor forever")
+assert(#client_results == 3 and client_results[3][1] == "undo" and client_results[3][2] == false)
+assert(client_results[3][4]:find("outcome is unknown", 1, true))
+
 -- Steam peer authorization and sender-mod identity are both checked before
 -- any server callback is reached.
 push(server_queue, {peer_steam_id = "76561198000000099", from_mod = "world-editor", payload = "U|bad_1|tx_server_9_1|v1"})

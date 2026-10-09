@@ -13,6 +13,7 @@ static RECEIVE_BUFFER: std::sync::OnceLock<std::sync::Mutex<Vec<u8>>> = std::syn
 pub struct Status {
     pub available: bool,
     pub local_steam_id: Option<String>,
+    pub local_dedicated_server_steam_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,9 +35,17 @@ pub fn status() -> Status {
         if status(&mut local_id) != 1 {
             return unavailable();
         }
+        type LocalServer = unsafe extern "C" fn(*mut u64) -> i32;
+        let local_dedicated_server_steam_id =
+            symbol(b"KfcRuntimeNetworkLocalServer\0").and_then(|address| {
+                let discover: LocalServer = std::mem::transmute(address);
+                let mut server_id = 0;
+                (discover(&mut server_id) == 1 && server_id != 0).then(|| server_id.to_string())
+            });
         return Status {
             available: true,
             local_steam_id: (local_id != 0).then(|| local_id.to_string()),
+            local_dedicated_server_steam_id,
         };
     }
     #[cfg(not(windows))]
@@ -113,10 +122,11 @@ pub fn receive(channel: i32) -> Result<Option<Message>, String> {
         // Idle polling is common for Lua mods. Keep the 512 KiB native receive
         // buffer across calls and allocate an owned payload only when a packet
         // actually arrives.
-        let shared = RECEIVE_BUFFER.get_or_init(|| {
-            std::sync::Mutex::new(vec![0u8; MAX_MESSAGE_BYTES])
-        });
-        let mut payload = shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let shared =
+            RECEIVE_BUFFER.get_or_init(|| std::sync::Mutex::new(vec![0u8; MAX_MESSAGE_BYTES]));
+        let mut payload = shared
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut peer_steam_id = 0;
         let mut actual = 0;
         let mut reliable = 0;
@@ -129,13 +139,11 @@ pub fn receive(channel: i32) -> Result<Option<Message>, String> {
             &mut reliable,
         ) {
             0 => Ok(None),
-            1 if peer_steam_id != 0 && actual <= payload.len() => {
-                Ok(Some(Message {
-                    peer_steam_id: peer_steam_id.to_string(),
-                    payload: payload[..actual].to_vec(),
-                    reliable: reliable != 0,
-                }))
-            }
+            1 if peer_steam_id != 0 && actual <= payload.len() => Ok(Some(Message {
+                peer_steam_id: peer_steam_id.to_string(),
+                payload: payload[..actual].to_vec(),
+                reliable: reliable != 0,
+            })),
             _ => Err("Steam Networking receive failed or returned an invalid message".into()),
         }
     }
@@ -154,6 +162,7 @@ fn unavailable() -> Status {
     Status {
         available: false,
         local_steam_id: None,
+        local_dedicated_server_steam_id: None,
     }
 }
 
