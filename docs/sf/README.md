@@ -9,6 +9,8 @@ For player instructions, start with the [English website guide](https://bonsaiba
 | If you want to… | Read… |
 | --- | --- |
 | See how the repository and mod loading fit together | [Architecture](Architecture.md) |
+| See the concrete refactor plan and target file paths | [Refactor master plan](refactor-masterplan.md) |
+| Inspect each file's proposed owner, target and actual review coverage | [Refactor file inventory](refactor-file-inventory.csv) |
 | Understand mod files and settings | [Mod packages](mod-packages.md) |
 | Work on the native runtime or its game profiles | [Native runtime](runtime.md) |
 | Change how Enshrouded game data is read | [Game data parser](parser.md) |

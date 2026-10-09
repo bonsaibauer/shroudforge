@@ -100,6 +100,10 @@ mod windows {
     #[serde(rename_all = "camelCase")]
     struct ViewState {
         blueprints: Vec<BlueprintCard>,
+        save_state: String,
+        save_completed: u8,
+        save_phase: String,
+        save_sequence: u64,
         stage: String,
         hint: String,
         selected: String,
@@ -274,6 +278,19 @@ mod windows {
         let mut toggle_down = false;
         let mut next_visibility_poll = Instant::now();
         let mut next_settings_poll = Instant::now();
+        // Keep disk enumeration and thumbnail reads off the window thread.
+        // Bound the channel so slow rendering cannot accumulate snapshots.
+        let (state_sender, state_updates) = mpsc::sync_channel(1);
+        let state_root = arguments.root.clone();
+        std::thread::spawn(move || loop {
+            if let Ok(state) = view_state(&state_root) {
+                match state_sender.try_send(state) {
+                    Ok(()) | Err(mpsc::TrySendError::Full(_)) => {}
+                    Err(mpsc::TrySendError::Disconnected(_)) => break,
+                }
+            }
+            std::thread::sleep(Duration::from_millis(refresh_ms));
+        });
         let mut next_refresh = Instant::now();
         let mut last_payload = String::new();
         let mut last_ui_ack = String::new();
@@ -544,7 +561,7 @@ mod windows {
                         window.set_visible(native_visible);
                     }
                     if Instant::now() >= next_refresh {
-                        if let Ok(state) = view_state(&arguments.root) {
+                        if let Some(state) = state_updates.try_iter().last() {
                             if let Ok(payload) = serde_json::to_string(&state) {
                                 let state_changed = payload != last_payload;
                                 if state_changed {
@@ -592,6 +609,30 @@ mod windows {
                                             }}
                                         }} catch (error) {{
                                             console.error('World Editor render failed', error);
+                                        }}
+                                        // Keep the save indicator working in the native fallback renderer too.
+                                        // A state-applied acknowledgement does not prove the page script ran.
+                                        const savePanel = document.getElementById('saveProgress');
+                                        const saveBar = document.getElementById('saveBar');
+                                        const saveLabel = document.getElementById('saveLabel');
+                                        const saveElapsed = document.getElementById('saveElapsed');
+                                        if (savePanel && saveBar && saveLabel && saveElapsed) {{
+                                            const status = state.saveState || 'idle';
+                                            const completed = Math.max(0, Math.min(4, Number(state.saveCompleted) || 0));
+                                            savePanel.hidden = false;
+                                            savePanel.dataset.status = status;
+                                            saveBar.value = completed;
+                                            saveLabel.textContent = state.savePhase || 'Blueprint save · Ready';
+                                            const detail = `${{completed}}/4 steps complete: capture, encode, write file, update library`;
+                                            savePanel.title = status === 'error' ? `${{detail}}. ${{state.hint}}` : detail;
+                                            saveBar.setAttribute('aria-valuetext', `${{saveLabel.textContent}}; ${{detail}}`);
+                                            if (window.__sfSaveSequence !== state.saveSequence) {{
+                                                window.__sfSaveSequence = state.saveSequence;
+                                                window.__sfSaveStarted = performance.now();
+                                            }}
+                                            saveElapsed.textContent = status === 'saving'
+                                                ? `${{completed}}/4 · ${{Math.floor((performance.now() - window.__sfSaveStarted) / 1000)}}s`
+                                                : status === 'complete' ? '✓' : status === 'idle' ? '' : `${{completed}}/4`;
                                         }}
                                         const count = document.getElementById('blueprintCount');
                                         const help = document.getElementById('help');
@@ -842,6 +883,10 @@ mod windows {
     fn view_state(root: &Path) -> Result<ViewState, Box<dyn std::error::Error>> {
         let exports = shroudforge_package::paths::export_dir(root);
         let directory = exports.join("world-editor/blueprints");
+        let mut save_state = "idle".to_owned();
+        let mut save_completed = 0;
+        let mut save_phase = String::new();
+        let mut save_sequence = 0;
         let mut stage = "idle".to_owned();
         let mut hint =
             "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
@@ -855,7 +900,15 @@ mod windows {
         let mut panel_position_y = TOP_OFFSET as u32;
         if let Ok(contents) = fs::read_to_string(exports.join("world-editor/editor-state.txt")) {
             for line in contents.lines() {
-                if let Some(value) = line.strip_prefix("stage=") {
+                if let Some(value) = line.strip_prefix("saveState=") {
+                    save_state = value.to_owned();
+                } else if let Some(value) = line.strip_prefix("saveCompleted=") {
+                    save_completed = value.parse::<u8>().unwrap_or(0).min(4);
+                } else if let Some(value) = line.strip_prefix("savePhase=") {
+                    save_phase = value.to_owned();
+                } else if let Some(value) = line.strip_prefix("saveSequence=") {
+                    save_sequence = value.parse::<u64>().unwrap_or(0);
+                } else if let Some(value) = line.strip_prefix("stage=") {
                     stage = value.to_owned();
                 } else if let Some(value) = line.strip_prefix("hint=") {
                     hint = value.to_owned();
@@ -921,6 +974,10 @@ mod windows {
         }
         blueprints.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
         Ok(ViewState {
+            save_state,
+            save_completed,
+            save_phase,
+            save_sequence,
             blueprints,
             stage,
             hint,
@@ -937,6 +994,10 @@ mod windows {
     fn empty_state() -> ViewState {
         ViewState {
             blueprints: Vec::new(),
+            save_state: "idle".into(),
+            save_completed: 0,
+            save_phase: String::new(),
+            save_sequence: 0,
             stage: "idle".into(),
             hint: "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
                 .into(),

@@ -14,26 +14,19 @@ and persistence have not yet been verified with the new DLL.** See the
 [per-mod execution audit](../../docs/sf/mod-multiplayer.md) for exact scope and
 the distinction between active patches and gameplay effects.
 
-The game-input path keeps the building hammer equipped, resolves exact one-cell
-building material recipes from current KFC assets, and preserves normal game
-permissions and resource checks. Terrain without an exact recipe is refused
-before submission. Jobs allow at most 4096 actions. Removing a prop additionally
-waits for the game's cursor to target that prop; changing the transform alone
-does not prove the correct interaction target. Once targeted, the editor emits
-the reflected `ContextualAction` and `ContextualAction_Hold` inputs for 1.2
-seconds, matching the held interaction used to dismantle workbenches and other
-props. Voxel removal continues to use `SecondaryBuildingAction`. The editor
-displays the target coordinates. F4 stops a running queue, then undoes observed
-actions through inverse input. A prop already dismantled manually counts as an
-already completed inverse action. Late effects are observed without retrying the original action;
-an unconfirmed outcome pauses further writes. Closing the mod cancels pending
-input but cannot undo an already dispatched action. Journals are session-local.
-
-In direct mode, F4 first tries the checked native destroy operation. If the
-current client never enters its profiled destroy hook, the editor keeps the
-exact handle and transform guard and falls back to the same held contextual
-input. It asks the player to aim at that prop, observes its disappearance, and
-then continues the remaining prop and voxel rollback automatically.
+The game-input path resolves exact one-cell building material recipes from
+current KFC assets and preserves normal game permissions and resource checks.
+Terrain without an exact recipe is refused before submission. Jobs allow at
+most 4096 actions. F4 undoes the last World Editor blueprint paste and F7 pastes
+the selected blueprint; neither action requires clicking in the world. Prop undo
+uses the saved entity handle and transform to issue the held dismantle input at
+the copied prop's coordinates, without waiting for the player's cursor or
+requiring the building hammer to be reselected. Voxel undo restores the saved
+terrain snapshot independently before prop dismantling, so a pending prop cannot
+block walls or terrain from being restored. A pending input is never sent twice;
+temporary ECS unavailability pauses confirmation while retaining the session's
+undo journal. Closing the mod cannot undo an already dispatched action, and
+journals are session-local.
 
 This independent Lua mod implements its editor, blueprint format, selection, rotation, preview plan, paste, and undo behavior itself. It uses ShroudForge's public Lua APIs only for game/runtime access: `runtime.world.cursor.get`, native prop recipe registration and bounds queries, voxel operations, entity operations, asset reads, settings, logging, and export storage. Native engine access stays behind those APIs; the mod has no private loader hook or built-in editor implementation.
 
@@ -56,4 +49,8 @@ Mark selection corners A and B, then use **Capture props only from A/B selection
 
 Set **Maximum props per blueprint** in the mod settings to control the per-blueprint prop count (default 60,000; supported range 1–1,000,000). Capture, save, load, and paste all enforce the current value; captures above it are refused instead of silently truncated.
 
+Prop capture scans incrementally: each native scan slice checks at most 512 entity pointers and yields after approximately 2 ms of scan time. Initialization and individual memory reads are outside a hard real-time guarantee. Lua continues pending scans on subsequent updates; incomplete results never become a saved blueprint. A changed ECS epoch, unavailable world, or 30 seconds without native scan progress aborts the capture; a scan that continues advancing is not cancelled merely because its total duration exceeds 30 seconds. F6 discards the pending editor callback. This bounds enumeration work; recipe loading and voxel/file operations have separate execution paths. Capture stage messages in the log distinguish recipe resolution, pending enumeration, and completion.
+
 The standalone mod implements its editor and V7 blueprint format itself. Direct world operations use the registered native Lua APIs. The game-input queue additionally reads ClientPlayerInput, NetworkCursor and SlotSelection through the shared ECS API to identify the local player and observe selection; it does not write arbitrary ECS fields. Runtime behavior that depends on the live game, including recipe acceptance, collision, replication and save persistence, requires in-game verification.
+
+The library header shows overall blueprint-save progress through four confirmed milestones: capture, encoding, file export, and library refresh. The small bar counts completed steps, not bytes or estimated remaining time; the current phase and observed elapsed time remain visible while work is pending. An export error never completes the bar. If the file was written but library refresh fails, the status explicitly says so.

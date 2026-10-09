@@ -2,6 +2,7 @@
 
 #include "runtime_bridge.h"
 #include "logging_config.h"
+#include "startup_gate.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -442,6 +443,17 @@ void start_pending_update(const std::filesystem::path& root) {
 }
 
 DWORD WINAPI run(void*) {
+    // Never touch KFC files until the main thread is parked outside loader lock.
+    // A late-loaded proxy cannot safely prepare assets for an already running game.
+    if (WaitForSingleObject(StartupGate::entered, 30000) != WAIT_OBJECT_0) {
+        StartupGate::Complete(false);
+        return 1;
+    }
+    struct CompleteStartup {
+        bool released = false;
+        ~CompleteStartup() { if (!released) StartupGate::Complete(false); }
+        void release() { released = true; StartupGate::Complete(true); }
+    } startup;
     const auto root = module_directory();
     if (root.empty()) {
         log('E', "Bootstrap failed: loader directory is unavailable");
@@ -480,12 +492,18 @@ DWORD WINAPI run(void*) {
     start_world_editor_ui(root);
     startup_stage(root, "startup-assets");
     if (!prepare_startup(root.c_str())) {
-        log('W', "Automatic startup asset application did not complete; runtime mods will still start");
+        startup_failed(root, "startup-assets", "Asset preparation and baseline recovery failed; game startup stopped before loading inconsistent assets");
+        FreeLibrary(runtime);
+        return 1;
     }
+    // Install native hooks while the executable entrypoint is still parked.
+    // Releasing it first races hook writes against short-lived startup threads.
     startup_stage(root, "native-provider-init");
     if (!EcsRuntime::Initialize()) {
         log('W', "KFC Runtime initialization failed: " + EcsRuntime::Status());
     }
+    log("Startup assets and native-provider setup complete; releasing game entrypoint");
+    startup.release();
     startup_stage(root, "runtime-create");
     std::mutex create_watchdog_mutex;
     std::condition_variable create_watchdog_condition;
@@ -585,6 +603,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
         if (!is_supported_game_process()) return TRUE;
         stop_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         if (!stop_event) return FALSE;
+        if (!StartupGate::Install()) return FALSE;
         runtime_thread = CreateThread(nullptr, 0, run, nullptr, 0, nullptr);
         return runtime_thread != nullptr;
     }

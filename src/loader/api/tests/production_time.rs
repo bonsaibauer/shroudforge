@@ -189,12 +189,34 @@ fn production_time_real_kfc_roundtrip_on_isolated_copy() -> Result<(), Box<dyn s
         }
     }
     assert!(count > 0);
+    let runtime_package = root.join("mods/runtime-export-regression");
+    std::fs::create_dir_all(runtime_package.join("src"))?;
+    std::fs::write(
+        runtime_package.join("mod.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "id":"runtime-export-regression","name":"Runtime export regression","version":"1.0.0",
+            "capabilities":["runtime","export"]
+        }))?,
+    )?;
+    std::fs::write(
+        runtime_package.join("extended.mod.json"),
+        r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"]}"#,
+    )?;
+    std::fs::write(
+        runtime_package.join("src/mod.lua"),
+        "error('runtime export entrypoint executed during asset preparation')",
+    )?;
     let environment =
         mod_loader::ModEnvironment::load(root.to_str().unwrap()).map_err(|e| format!("{e:?}"))?;
     let (plan, errors) = environment.plan_report(server, shroudforge_api::API_VERSION);
     assert!(errors.is_empty(), "{errors:?}");
-    assert_eq!(plan.len(), 1);
-    assert!(plan[0].info().requires_pregame());
+    assert_eq!(plan.len(), 2);
+    assert_eq!(
+        plan.iter()
+            .filter(|item| item.info().requires_pregame())
+            .count(),
+        1
+    );
     let files = if server {
         GameFiles::server(&root)
     } else {
@@ -210,6 +232,7 @@ fn production_time_real_kfc_roundtrip_on_isolated_copy() -> Result<(), Box<dyn s
             file_name: stem.into(),
             options: RunOptions {
                 patch: true,
+                export: true,
                 force_patch: true,
                 skip_cache: true,
                 is_server: Some(server),

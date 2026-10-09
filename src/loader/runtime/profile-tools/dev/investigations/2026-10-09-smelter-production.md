@@ -1,5 +1,85 @@
 # Schmelze: Rezeptdauer und Rohstoffverbrauch
 
+## Aktueller Client: 09.10.2026, Start 04:42:41 MESZ, PID 15556
+
+Diese Nachprüfung betrifft ausschließlich den lokalen Client. Der Benutzer hat
+ausdrücklich klargestellt, dass Production Time auf dem Server für diesen Test
+nicht aktiv ist. Serverbeobachtungen sind kein Wirkungsnachweis für diesen Test.
+
+Die installierte Client-Einstellung ist `enabled: true`, `seconds: 1`. Der neue
+Assetstart bricht nicht mehr beim World Editor ab: Er meldet eine geänderte
+Ressource und einen abgeschlossenen Durchlauf in 3036 ms. Eine erneute direkte
+KFC-Auslesung (`target/production-client-15556-disk.json`) bestätigt für das
+Eisenrezept 3802269334 / `Material_T4_Factory_IronBar_SM` 1.000.000.000 ns.
+
+Der ausschließlich lesende Speicherscan desselben Clients findet dagegen zwei
+vollständige RecipeInfo-Datensätze mit 600.000.000.000 ns. Validiert wurden
+Rezept-ID, Werkstatt-ID 4121605386, zwei Inputs und ein Output anhand der frischen
+Reflection. Adressen: `0x200191b9ac8`, `0x260ce810b08`. Auf den ersten Datensatz
+zeigen vier Pointer in Rezept-Pointertabellen (`0x30044f8a9c0`,
+`0x30044f99878`, `0x300c1cd8500`, `0x300c1ce74a8`). Artefakte:
+`target/production-live-recipes.json`,
+`target/production-client-recipe-references.json`. Ein vollständiger Aufruftrace
+der laufenden Factory-Funktion wurde nicht aufgenommen; Speicherfunde sind
+nicht als gemessener kompletter Produktionszyklus zu bezeichnen.
+
+Im Startpfad wurde eine konkrete Ursache für wiederholte Baseline-Rücksetzungen
+gefunden: `export_pass_needed()` berücksichtigte auch Runtime-Mods mit Exportrecht.
+Mit aktiviertem World Editor und global aktivierten Exporten umging jeder Start
+deshalb die Abkürzung für bereits korrekt vorbereitete Assets. `run_inner()`
+stellt zunächst die Original-Baseline her und patcht sie anschließend erneut.
+Dies geschieht auf dem asynchronen Bootstrap-Thread, ohne das Assetladen des Spiels
+zu synchronisieren. Ein erfolgreicher Datei-Commit bestätigt deshalb keine
+Übernahme durch die bereits laufende Engine. Die beobachtete Datei-/Speicher-
+Abweichung passt zu diesem Startproblem; die einzelnen Dateiöffnungszeitpunkte
+der Engine wurden nicht getraced.
+
+Korrektur: Nur Mods mit `requires_pregame()` und Exportrecht dürfen einen weiteren
+Pregame-Exportdurchlauf erzwingen. Regression prüft den echten `run_startup()`-
+Pfad mit bereits vorbereitetem Fingerprint, unterschiedlicher Original-Baseline
+und gleichzeitig aktiver Patch-Mod sowie Runtime-/Export-Mod. Ein echter
+Export-only-Mod muss weiterhin einen Exportdurchlauf anfordern.
+
+Diese Änderung beseitigt das unnötige Zurücksetzen bei unveränderter Konfiguration.
+Sie synchronisiert noch nicht die erstmalige Anwendung geänderter Asset-Mods
+beim direkten Spielstart. Für diese bleibt der vor Prozessstart ausgeführte
+Prepare-/Launch-Pfad die sichere Reihenfolge. Keine Live-Speicherschreibzugriffe,
+keine automatischen Prozessneustarts und keine Serveränderungen in dieser Prüfung.
+
+## Nachprüfung des lokalen Clients: 09.10.2026, 04:15–04:25 MESZ
+
+Die frühere Aussage, die zusätzliche Produktions-Mod behebe die Abweichung nach
+einem Neustart, war unvollständig. Zwei unabhängige Probleme wurden nachgewiesen:
+
+1. Die Client-Arbeitsbaseline enthält schon beschleunigte Zeiten. Frisch ausgelesen:
+   Eisen 1.500.000.000 ns, Kupfer 750.000.000 ns. Ausschalten einer späteren Mod
+   stellt nur diese Baseline wieder her, keine unveränderten Originalzeiten.
+2. Der Assetstart von PID 3740 und später PID 29320 brach bei `world-editor` mit
+   `ShroudForge feature is unavailable: runtime.lifecycle` ab. Der Pregame-Runner
+   führte Runtime-Mods mit Exportrecht aus, weil er Exportrecht fälschlich als
+   Auftrag zur Assetausführung wertete. Die Oberfläche übersetzte den gespeicherten
+   Vorbereitungsfehler in eine weitere Neustartaufforderung.
+
+Die installierte Einstellung von `sf-production-time` stand bei dieser Prüfung
+auf `enabled: true`; die Assetausführung war dennoch fehlgeschlagen. Die eine
+Sekunde dieser Mod wurde in diesem Start nicht angewendet. Im offenen Client
+war die Eisen-Schmelze als FactoryStation Entity 1454 mit Rezept 3802269334
+lesbar. Die Live-Beobachtung wurde durch einen weiteren Client-Neustart beendet.
+
+Korrektur im Code: Der Pregame-Runner führt ausschließlich Mods aus, deren
+Manifest `requires_pregame()` erfüllt. Ein fehlgeschlagener Assetstart wird im
+Modstatus und Gesamtstatus als `asset-preparation-failed` mit dem tatsächlichen
+Fehler gemeldet. Regressionstests bestanden: echter KFC-Schreib-/Lesezyklus auf
+einer Client-Dateikopie mit gleichzeitig aktivierter Runtime-/Export-Mod und
+eingeschalteten Exporten; außerdem Statusprüfung für fehlgeschlagene Vorbereitung.
+Release-Build erfolgreich. Diese Korrektur wurde in dieser Nachprüfung nicht in
+den laufenden Client geladen. Die bereits veränderte Arbeitsbaseline wurde nicht
+als Original neu deklariert oder anhand vermuteter Originalwerte überschrieben.
+
+Die zusätzliche Mod ist optional, wenn eine explizite neue Produktionsdauer
+gewünscht ist. Sie repariert keine früher veränderte Baseline. Für die Behebung
+der beiden oben genannten Fehler ist keine weitere Mod erforderlich.
+
 ## Ergebnis
 
 Die Installationen enthalten unterschiedliche Zeitwerte in denselben Rezepten.

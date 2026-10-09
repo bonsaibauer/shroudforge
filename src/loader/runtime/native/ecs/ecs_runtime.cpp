@@ -22,12 +22,13 @@
 #include <unordered_set>
 #include <vector>
 
-static_assert(sizeof(KfcRuntimePropRecord) == 80);
+static_assert(sizeof(KfcRuntimePropRecord) == 88);
 static_assert(sizeof(KfcRuntimePropRecipe) == 32);
 static_assert(offsetof(KfcRuntimePropRecord, position) == 8);
 static_assert(offsetof(KfcRuntimePropRecord, orientation) == 32);
 static_assert(offsetof(KfcRuntimePropRecord, scale) == 48);
 static_assert(offsetof(KfcRuntimePropRecord, template_uuid) == 64);
+static_assert(offsetof(KfcRuntimePropRecord, entity_id) == 80);
 
 namespace {
 constexpr std::size_t max_components = 1024;
@@ -220,7 +221,7 @@ bool entity_view(std::uintptr_t pointer, const ResolvedLayout& layout, EntityVie
     return true;
 }
 bool component_address(const EntityView& entity, const ResolvedLayout& layout,
-                       const ComponentType& component, std::uintptr_t& address) {
+                       const ComponentType& component, std::uintptr_t& address, bool check_page = true) {
     std::uint64_t bits{};
     std::uint16_t offset{}, stride{};
     if (component.index >= max_components ||
@@ -229,7 +230,10 @@ bool component_address(const EntityView& entity, const ResolvedLayout& layout,
         !read(entity.layout + KfcRuntimeCompatibility::EnshroudedClient::component_offsets + component.index * 2, offset) ||
         !read(entity.layout + KfcRuntimeCompatibility::EnshroudedClient::component_strides + component.index * 2, stride) || stride != component.size) return false;
     address = entity.storage + offset + static_cast<std::uintptr_t>(entity.row) * stride;
-    return readable(address, component.size);
+    // Read-only scan callers immediately copy through guarded_copy (SEH).
+    // Re-querying the page for every component doubles kernel transitions for
+    // every prop in the world; writes and address-only queries keep the check.
+    return !check_page || readable(address, component.size);
 }
 bool resolve_component(const char* name, ComponentType& component) {
     if (!name) return false;
@@ -294,6 +298,7 @@ bool ResolvePropEntityId(std::uint32_t entity_id, KfcRuntimePropRecord* prop) {
             !(template_uuid[0] || template_uuid[1])) return false;
         *prop = {};
         prop->entity_handle = handle_for(entity);
+        prop->entity_id = entity.id;
         prop->item_id = item_id;
         std::copy_n(transform.position, 3, prop->position);
         std::copy_n(transform.rotation, 4, prop->orientation);
@@ -343,7 +348,14 @@ struct PropQueryOperation {
     bool exact_recipe_bounds{};
     std::vector<KfcRuntimePropRecord> output;
     std::size_t result{SIZE_MAX};
+    std::vector<std::uintptr_t> pointers;
+    std::unordered_set<std::uint64_t> seen;
+    std::unordered_map<std::uint32_t, RegisteredPropRecipe> recipes;
+    std::size_t cursor{};
+    std::uint64_t epoch{}, started_ms{}, touched_ms{}, progressed_ms{};
+    bool initialized{};
 };
+std::shared_ptr<PropQueryOperation> pending_prop_query;
 std::string query_key(const QueryOperation& operation) {
     std::string key;
     for (const auto& name : operation.owned_names) {
@@ -403,7 +415,7 @@ void query_on_game_thread(void* opaque) {
     progress.touched_ms = now_ms;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1);
     std::size_t visited = 0;
-    for (; progress.cursor < progress.pointers.size() && visited < 256; ++progress.cursor, ++visited) {
+    for (; progress.cursor < progress.pointers.size() && visited < 8192; ++progress.cursor, ++visited) {
         const auto pointer = progress.pointers[progress.cursor];
         EntityView entity{};
         if (entity_view(pointer, layout, entity)) {
@@ -535,23 +547,31 @@ void query_props_native(PropQueryOperation& operation) {
         !resolve_component("keen::ecs::UsedItem", item_component) || item_component.size != 4) return;
     ResolvedLayout layout{};
     if (!layout_snapshot(layout)) return;
-    std::vector<std::uintptr_t> pointers;
-    if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return;
-    std::unordered_map<std::uint32_t, RegisteredPropRecipe> recipes;
-    if (operation.exact_recipe_bounds) {
-        std::scoped_lock lock(prop_recipe_mutex);
-        if (!prop_recipe_catalog_ready) return;
-        recipes = prop_recipes;
+    if (!operation.initialized) {
+        if (!entity_pointers(layout, operation.pointers) || operation.pointers.size() > (1u << 20)) return;
+        if (operation.exact_recipe_bounds) {
+            std::scoped_lock lock(prop_recipe_mutex);
+            if (!prop_recipe_catalog_ready) return;
+            operation.recipes = prop_recipes;
+        }
+        operation.seen.reserve(operation.pointers.size());
+        operation.initialized = true;
     }
-    operation.output.clear();
-    std::unordered_set<std::uint64_t> seen;
-    seen.reserve(pointers.size());
-    for (const auto pointer : pointers) {
+    const auto slice_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(2);
+    std::size_t visited{};
+    while (operation.cursor < operation.pointers.size()) {
+        if (operation.exact_recipe_bounds &&
+            (visited >= 8192 || (visited > 0 && std::chrono::steady_clock::now() >= slice_deadline))) {
+            operation.result = SIZE_MAX - 1;
+            return;
+        }
+        const auto pointer = operation.pointers[operation.cursor++];
+        ++visited;
         EntityView entity{};
-        if (!entity_view(pointer, layout, entity) || !seen.insert(identity_key(entity.id, entity.generation)).second) continue;
+        if (!entity_view(pointer, layout, entity) || !operation.seen.insert(identity_key(entity.id, entity.generation)).second) continue;
         std::uintptr_t transform_address{}, item_address{};
-        if (!component_address(entity, layout, transform_component, transform_address) ||
-            !component_address(entity, layout, item_component, item_address)) continue;
+        if (!component_address(entity, layout, transform_component, transform_address, false) ||
+            !component_address(entity, layout, item_component, item_address, false)) continue;
         struct NativeTransform { std::int64_t position[3]; float rotation[4]; float scale[3]; std::uint32_t padding; } transform{};
         static_assert(sizeof(NativeTransform) == 0x38);
         std::uint32_t item_id{};
@@ -563,8 +583,8 @@ void query_props_native(PropQueryOperation& operation) {
         std::copy_n(transform.rotation, 4, prop.orientation);
         std::copy_n(transform.scale, 3, prop.scale);
         if (operation.exact_recipe_bounds) {
-            const auto recipe = recipes.find(item_id);
-            if (recipe == recipes.end() || !recipe_bounds_intersect(prop, recipe->second.bounds, operation.bounds)) continue;
+            const auto recipe = operation.recipes.find(item_id);
+            if (recipe == operation.recipes.end() || !recipe_bounds_intersect(prop, recipe->second.bounds, operation.bounds)) continue;
             // UUIDs are needed by the editor only for props inside the selected
             // region. Reading them before the spatial test made every capture
             // touch the template definition of every UsedItem in the world.
@@ -585,6 +605,7 @@ void query_props_native(PropQueryOperation& operation) {
             if (!inside) continue;
         }
         prop.entity_handle = handle_for(entity);
+        prop.entity_id = entity.id;
         if (prop.entity_handle) operation.output.push_back(prop);
     }
     operation.result = operation.output.size();
@@ -963,6 +984,14 @@ void component_discovery_tick(std::uintptr_t manager) {
 }
 
 namespace EcsRuntime {
+bool EntityIdentity(std::uint32_t handle, std::uint32_t* entity_id) {
+    if (!handle || !entity_id) return false;
+    ResolvedLayout layout{};
+    EntityView entity{};
+    if (!layout_snapshot(layout) || !entity_for_handle(handle, layout, entity)) return false;
+    *entity_id = entity.id;
+    return entity.id != 0;
+}
 bool MatchesComponentAddress(std::uint32_t handle, const char* name, const void* expected) {
     ComponentType component{};
     ResolvedLayout layout{};
@@ -1244,6 +1273,18 @@ extern "C" bool __cdecl KfcRuntimeEcsConfigure(const char* const* names,
     return true;
 }
 
+extern "C" std::uint64_t __cdecl KfcRuntimeWorldSessionId() {
+    std::scoped_lock lock(state_mutex);
+    const auto manager = GameThreadDispatcher::EntityManager();
+    std::uint64_t count{};
+    std::uintptr_t table{};
+    if (!manager || !layout_ready ||
+        live_layout.count_address != manager + KfcRuntimeCompatibility::EnshroudedClient::entity_manager_count ||
+        !read(live_layout.count_address, count) || !count || count > (1u << 20) ||
+        !read(live_layout.table_address, table) || !table || table != live_table) return 0;
+    // Conservative identity: rebuilding ECS layouts also invalidates old journals.
+    return layout_epoch + 1;
+}
 extern "C" bool __cdecl KfcRuntimeEcsReady() {
     std::scoped_lock lock(state_mutex);
     return GameThreadDispatcher::Ready() && layout_ready && !types.empty();
@@ -1376,7 +1417,8 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryProps(const double* bou
 extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryPropsInBounds(
     const double* bounds, KfcRuntimePropRecord* props, std::size_t capacity) {
     if (!bounds || capacity > (1u << 20) || (!props && capacity)) return SIZE_MAX;
-    std::scoped_lock query_lock(prop_query_call_mutex);
+    std::unique_lock query_lock(prop_query_call_mutex, std::try_to_lock);
+    if (!query_lock.owns_lock()) return SIZE_MAX - 1;
     auto operation = std::make_shared<PropQueryOperation>();
     operation->exact_recipe_bounds = true;
     for (int axis = 0; axis < 3; ++axis) {
@@ -1398,7 +1440,36 @@ extern "C" std::size_t __cdecl KfcRuntimeWorldEntityQueryPropsInBounds(
         std::vector<KfcRuntimePropRecord>().swap(prop_query_result_cache.props);
         return count;
     }
+    const auto now = GetTickCount64();
+    if (pending_prop_query) {
+        const bool same = std::equal(std::begin(operation->bounds), std::end(operation->bounds),
+            std::begin(pending_prop_query->bounds));
+        if (pending_prop_query->epoch != epoch || now - pending_prop_query->progressed_ms > 30000 ||
+            now - pending_prop_query->started_ms > 120000) {
+            pending_prop_query.reset();
+            prop_query_result_cache.ready = false;
+            return SIZE_MAX; // changed world, stalled scan, or exceeded capture deadline; never publish partial results
+        }
+        if (same) operation = pending_prop_query;
+        else if (now - pending_prop_query->touched_ms < 2000) return SIZE_MAX - 1;
+        else pending_prop_query.reset();
+    }
+    if (!pending_prop_query) {
+        operation->epoch = epoch;
+        operation->started_ms = operation->progressed_ms = now;
+        pending_prop_query = operation;
+    }
+    operation->touched_ms = now;
+    operation->result = SIZE_MAX;
+    const auto previous_cursor = operation->cursor;
     query_props_native(*operation);
+    if (operation->cursor > previous_cursor) operation->progressed_ms = GetTickCount64();
+    if (current_epoch() != epoch) {
+        pending_prop_query.reset();
+        return SIZE_MAX;
+    }
+    if (operation->result == SIZE_MAX - 1) return operation->result;
+    pending_prop_query.reset();
     if (operation->result == SIZE_MAX) return SIZE_MAX;
     if (!props && capacity == 0 && !operation->output.empty()) {
         prop_query_result_cache.ready = true;
@@ -1461,6 +1532,11 @@ extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, 
         !resolve_component("keen::ecs::UsedItem", item_component) || item_component.size != 4) return false;
     std::vector<std::uintptr_t> pointers;
     if (!entity_pointers(layout, pointers) || pointers.size() > (1u << 20)) return false;
+    // Keep table membership and live id/generation validation, but inspect the
+    // captured pointer first. Undo used to decode every preceding world entity
+    // again for each prop and each verification pass (O(props * world entities)).
+    const auto cached = std::find(pointers.begin(), pointers.end(), record.pointer);
+    if (cached != pointers.end()) std::iter_swap(pointers.begin(), cached);
     for (const auto pointer : pointers) {
         EntityView entity{};
         if (!entity_view(pointer, layout, entity) || entity.id != record.id || entity.generation != record.generation) continue;
@@ -1475,6 +1551,7 @@ extern "C" bool __cdecl KfcRuntimeWorldEntityGetTransform(std::uint32_t handle, 
         if (current_handle != handle) return false;
         *prop = {};
         prop->entity_handle = handle;
+        prop->entity_id = entity.id;
         prop->item_id = item_id;
         std::copy_n(transform.position, 3, prop->position);
         std::copy_n(transform.rotation, 4, prop->orientation);
@@ -1611,6 +1688,9 @@ extern "C" std::uint32_t __cdecl KfcRuntimeEcsCompareExchange(std::uint32_t hand
     return operation->result ? 1 : operation->conflict ? 2 : 0;
 }
 
+extern "C" bool __cdecl KfcRuntimeEcsEntityIdentity(std::uint32_t handle, std::uint32_t* entity_id) {
+    return EcsRuntime::EntityIdentity(handle, entity_id);
+}
 extern "C" bool __cdecl KfcRuntimePatchAvailable(const char* name) {
     if (name && std::strcmp(name, "runtime.gameplay.patch") == 0) return PatchRuntime::AnyAvailable();
     return PatchRuntime::Available(name);

@@ -750,6 +750,10 @@ void OnCursorUpdate(void* cursor, void* execution_view) {
             if (!std::isfinite(value)) return;
         }
     }
+    // R13 is the live execution view passed to this engine system (verified
+    // at the profiled cursor call site). The entity lookup hook need not run
+    // again when entering a remote world; refresh through this recurring hook.
+    GameThreadDispatcher::ObserveExecutionView(execution_view, true);
     BuildingInput::Observe(cursor, execution_view);
     if (InterlockedCompareExchange(&cursor_mailbox.lock, 1, 0) != 0) return;
     cursor_mailbox.bytes = sample;

@@ -14,7 +14,9 @@ fn game_building_queue_and_recipe_planner() -> mlua::Result<()> {
     lua.load(std::fs::read_to_string(module_dir.join("mod.lua")).unwrap())
         .set_name("world-editor")
         .into_function()?;
-    lua.load(include_str!("world_editor_building.lua")).exec()
+    lua.load(include_str!("world_editor_building.lua"))
+        .set_name("world_editor_building.lua")
+        .exec()
 }
 
 #[test]
@@ -86,4 +88,14 @@ fn fresh_building_assets_resolve_without_hardcoded_item_ids() -> mlua::Result<()
         assert(count>0,'fresh assets yielded no exact one-cell recipes')
         print('Fresh KFC: '..count..' exact one-cell building recipes, no fixed item IDs')
     "#).exec()
+}
+
+#[test]
+fn blueprint_save_progress_confirms_write_and_library() -> mlua::Result<()> {
+    // Debug upvalues are used only by this isolated regression fixture.
+    let lua = unsafe { Lua::unsafe_new() };
+    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../mods/world-editor/src/mod.lua");
+    lua.globals().set("editor_source", std::fs::read_to_string(source).unwrap())?;
+    lua.load(include_str!("world_editor_save_progress.lua")).exec()
 }

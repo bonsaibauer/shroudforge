@@ -3699,6 +3699,7 @@ dependencies = [
 name = "shroudforge-modloader"
 version = "1.0.0"
 dependencies = [
+ "kfc",
  "mlua",
  "semver",
  "serde",

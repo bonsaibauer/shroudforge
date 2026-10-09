@@ -1,4 +1,5 @@
 #include "building_input.h"
+#include "ecs_runtime.h"
 #include "profile.h"
 #include <windows.h>
 #include <array>
@@ -8,7 +9,8 @@
 #include <limits>
 
 extern "C" std::uint32_t __cdecl KfcRuntimeWorldBuildingInput(std::uint32_t, std::uint32_t,
-    std::uint32_t, std::uint32_t, std::uint32_t, const double*, const double*, const double*);
+    std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t,
+    const double*, const double*, const double*);
 extern "C" std::uint32_t __cdecl KfcRuntimeWorldBuildingInputStatus(std::uint32_t);
 extern "C" bool __cdecl KfcRuntimeWorldBuildingInputCancel(std::uint32_t);
 namespace { const void* expected; unsigned checks; bool enabled = true;
@@ -31,7 +33,7 @@ int main() {
     std::array<unsigned char,1392> input{}; expected = input.data();
     double position[]{1,2,3}, rotation[]{0,0,0,1}, scale[]{1,2,3};
     auto request = [&](unsigned player, unsigned kind, unsigned item=42) {
-        return KfcRuntimeWorldBuildingInput(player,kind,item,88,4,position,rotation,scale);
+        return KfcRuntimeWorldBuildingInput(player,kind,item,88,4,kind==4?99u:0u,position,rotation,scale);
     };
     auto id = request(7,0); check(id != 0);
     BuildingInput::Observe(input.data()+624, input.data());

@@ -293,6 +293,16 @@ impl ModEnvironment {
         let mut order = Vec::new();
         let mut errors = Vec::new();
         for id in ids {
+            // A package for the other process is installed correctly; it simply
+            // has no work in this process. Keep target mismatches as errors when
+            // reached through a dependency of an applicable root mod.
+            if self
+                .mod_registry()
+                .get(&id)
+                .is_some_and(|item| !item.info().target.supports_process(is_server))
+            {
+                continue;
+            }
             if let Err(error) = visit(
                 self,
                 &blocked,
@@ -355,6 +365,41 @@ mod tests {
         assert!(environment.mod_registry().contains_key("mod.example"));
         assert!(!environment.is_mod_enabled("mod.example"));
         assert_eq!(environment.enabled_mods().count(), 0);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn client_only_root_mod_is_skipped_without_a_server_plan_error() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("shroudforge-target-plan-{suffix}"));
+        let package = crate::paths::mods_dir(&root).join("client-only");
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::create_dir_all(crate::paths::config_dir(&root)).unwrap();
+        fs::write(
+            package.join("mod.json"),
+            br#"{"id":"client-only","name":"Client only","version":"1.0.0","dependencies":[],"capabilities":["runtime"]}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("extended.mod.json"),
+            br#"{"schemaVersion":1,"enabled":true,"targets":["client"]}"#,
+        )
+        .unwrap();
+        fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
+        fs::write(
+            crate::paths::config_dir(&root).join("modloader-config.json"),
+            br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{}}"#,
+        )
+        .unwrap();
+
+        let environment = ModEnvironment::load(root.to_str().unwrap()).unwrap();
+        let (plan, issues) = environment.runtime_plan_report_detailed(true, "1.0.0");
+        assert!(plan.is_empty());
+        assert!(issues.is_empty());
 
         fs::remove_dir_all(root).unwrap();
     }

@@ -78,6 +78,16 @@ if(MSVC)
 endif()
 
 # Development tools never run from the game or from the modloader.
+get_target_property(prop_test_sources kfc-runtime SOURCES)
+list(REMOVE_ITEM prop_test_sources ecs/ecs_runtime.cpp)
+add_executable(kfc-runtime-test-prop-query EXCLUDE_FROM_ALL
+    ../profile-tools/dev/tools/tests/prop_query_test.cpp ${prop_test_sources})
+get_target_property(prop_test_includes kfc-runtime INCLUDE_DIRECTORIES)
+target_include_directories(kfc-runtime-test-prop-query PRIVATE ${prop_test_includes})
+target_compile_features(kfc-runtime-test-prop-query PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-prop-query PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(kfc-runtime-test-prop-query PRIVATE bcrypt)
+set_property(TARGET kfc-runtime-test-prop-query PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_executable(kfc-runtime-dev EXCLUDE_FROM_ALL ../profile-tools/dev/tools/dev-console/main.cpp)
 add_executable(kfc-runtime-test-building-input EXCLUDE_FROM_ALL
     ../profile-tools/dev/tools/tests/building_input_test.cpp world/building_input.cpp)
@@ -137,3 +147,12 @@ foreach(tool_target
     endforeach()
 endforeach()
 
+get_target_property(world_context_test_sources kfc-runtime SOURCES)
+list(REMOVE_ITEM world_context_test_sources world/world_runtime.cpp)
+add_executable(kfc-runtime-test-world-context EXCLUDE_FROM_ALL
+    ../profile-tools/dev/tools/tests/world_context_test.cpp ${world_context_test_sources})
+target_include_directories(kfc-runtime-test-world-context PRIVATE ${prop_test_includes})
+target_compile_features(kfc-runtime-test-world-context PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-world-context PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(kfc-runtime-test-world-context PRIVATE bcrypt)
+set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

@@ -25,8 +25,8 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
 
 /// Applies asset mods from the early in-process bootstrap. The bootstrap calls
 /// this before creating the live ECS runtime, matching Shroudtopia's startup
-/// activation model. The transaction publishes atomically; a direct launch
-/// cannot pause the game while this bootstrap worker runs.
+/// activation model. The bootstrap holds the executable entrypoint until this
+/// pass completes, so the game cannot read the baseline or half-published assets.
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     let file_name = process_target_name(game_directory)?;
@@ -58,7 +58,9 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
         file_name == "enshrouded_server",
         shroudforge_api::API_VERSION,
     );
-    let has_startup_mods = startup_plan.iter().any(|item| item.info().requires_pregame());
+    let has_startup_mods = startup_plan
+        .iter()
+        .any(|item| item.info().requires_pregame());
     let has_previous_apply = shroudforge_package::config::read_document(game_directory, "applied")
         .ok()
         .is_some_and(|value| {
@@ -88,6 +90,63 @@ fn ensure_original_gamefiles(game_directory: &Path, file_name: &str) {
     }
 }
 
+/// A broken asset mod must not prevent playing with the saved baseline. Return
+/// true only after both files are restored; the entrypoint remains parked here.
+pub(crate) fn recover_failed_startup(game_directory: &Path, detail: &str) -> bool {
+    let result = (|| -> Result<(), LoaderError> {
+        let target = process_target_name(game_directory)?;
+        let _lease = startup_asset_lease(&shroudforge_package::paths::startup_asset_lock(
+            game_directory,
+        ))?;
+        shroudforge_package::config::write_document(game_directory, "applied", &serde_json::json!({
+            "schemaVersion": 1, "status": "failed", "phase": "startup", "target": target,
+            "completedAt": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+            "error": detail
+        })).map_err(LoaderError::Pregame)?;
+        shroudforge_parser::transaction::recover(game_directory, target)
+            .map_err(|error| LoaderError::Pregame(error.to_string()))?;
+        for extension in ["kfc.bak", "kfc_resources.bak"] {
+            if !game_directory
+                .join(format!("{target}.{extension}"))
+                .is_file()
+            {
+                return Err(LoaderError::Pregame(format!(
+                    "missing {target}.{extension}; cannot restore asset baseline"
+                )));
+            }
+        }
+        let game_utf8 = game_directory
+            .to_str()
+            .ok_or_else(|| LoaderError::Environment("game directory is not valid UTF-8".into()))?;
+        if !shroudforge_api::restore(game_utf8, target) {
+            return Err(LoaderError::Pregame(
+                "could not restore both baseline asset files".into(),
+            ));
+        }
+        Ok(())
+    })();
+    match result {
+        Ok(()) => {
+            let _ = shroudforge_package::logging::append(
+                game_directory,
+                'W',
+                "startup-assets",
+                "Asset mods failed; saved baseline restored. Continuing game startup without asset patches.",
+            );
+            true
+        }
+        Err(error) => {
+            let _ = shroudforge_package::logging::append(
+                game_directory,
+                'E',
+                "startup-assets",
+                &format!("Asset baseline recovery failed: {error}"),
+            );
+            false
+        }
+    }
+}
+
 fn export_pass_needed(game_directory: &Path, file_name: &str) -> Result<bool, LoaderError> {
     let config =
         shroudforge_package::config::read_loader(game_directory).map_err(LoaderError::Pregame)?;
@@ -113,9 +172,11 @@ fn export_pass_needed(game_directory: &Path, file_name: &str) -> Result<bool, Lo
         )
         .iter()
         .any(|item| {
-            item.info()
-                .capabilities
-                .contains(&shroudforge_package::Capability::Export)
+            item.info().requires_pregame()
+                && item
+                    .info()
+                    .capabilities
+                    .contains(&shroudforge_package::Capability::Export)
         }))
 }
 
@@ -442,4 +503,217 @@ fn format_report(report: &shroudforge_package::ModEnvironmentErrorReport) -> Str
         .map(|value| format!("{}: {}", value.path, value.error))
         .collect::<Vec<_>>()
         .join("; ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires SF_BLUEPRINT_GAME_SOURCE; runs only on a private copy of the game assets"]
+    fn blueprint_startup_matches_legacy_and_recovers_from_mod_failure() {
+        fn recipe_bytes(root: &Path, stem: &str) -> Vec<u8> {
+            use kfc::{
+                container::{KFCFile, KFCReader},
+                reflection::TypeRegistry,
+            };
+            let registry =
+                TypeRegistry::load_from_executable(root.join(format!("{stem}.exe"))).unwrap();
+            let file = KFCFile::from_path(root.join(format!("{stem}.kfc")), false).unwrap();
+            let ids = shroudforge_parser::kfc_format::resources_by_type(
+                &file,
+                &registry,
+                "keen::RecipeRegistryResource",
+            );
+            assert_eq!(ids.len(), 1);
+            let mut reader = KFCReader::new(root, stem).unwrap().into_cursor().unwrap();
+            let mut bytes = Vec::new();
+            assert!(reader.read_resource_into(&ids[0], &mut bytes).unwrap());
+            bytes
+        }
+        let source = std::path::PathBuf::from(std::env::var("SF_BLUEPRINT_GAME_SOURCE").unwrap());
+        let stem = if source.join("enshrouded_server.exe").is_file() {
+            "enshrouded_server"
+        } else {
+            "enshrouded"
+        };
+        let root = std::env::temp_dir().join(format!(
+            "sf-blueprint-startup-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        std::fs::create_dir_all(&root).unwrap();
+        let _cleanup = Cleanup(root.clone());
+        std::fs::copy(
+            source.join(format!("{stem}.exe")),
+            root.join(format!("{stem}.exe")),
+        )
+        .unwrap();
+        for extension in ["kfc", "kfc_resources"] {
+            let baseline = source.join(format!("{stem}.{extension}.bak"));
+            std::fs::copy(&baseline, root.join(format!("{stem}.{extension}"))).unwrap();
+            std::fs::copy(&baseline, root.join(format!("{stem}.{extension}.bak"))).unwrap();
+        }
+        let package = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../mods/sf-unlock-blueprints");
+        let destination = root.join("mods/sf-unlock-blueprints");
+        std::fs::create_dir_all(destination.join("src")).unwrap();
+        for file in ["mod.json", "src/mod.lua"] {
+            std::fs::copy(package.join(file), destination.join(file)).unwrap();
+        }
+        std::fs::write(
+            destination.join("extended.mod.json"),
+            r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"]}"#,
+        )
+        .unwrap();
+        let runtime = root.join("mods/runtime-export");
+        std::fs::create_dir_all(runtime.join("src")).unwrap();
+        std::fs::write(runtime.join("mod.json"),
+            r#"{"id":"runtime-export","name":"Runtime export","version":"1.0.0","capabilities":["runtime","export"]}"#).unwrap();
+        std::fs::write(
+            runtime.join("extended.mod.json"),
+            r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            runtime.join("src/mod.lua"),
+            "error('runtime export must not run during preparation')",
+        )
+        .unwrap();
+        let baseline = recipe_bytes(&root, stem);
+        run_startup(&root).unwrap();
+        let patched = recipe_bytes(&root, stem);
+        assert!(
+            patched != baseline,
+            "blueprint preparation did not change recipe data"
+        );
+
+        // Compare real serialized output against the pre-2a8f8ac fixed-ID logic.
+        let mut legacy = std::fs::read_to_string(destination.join("src/mod.lua")).unwrap();
+        let start = legacy
+            .find("-- Use the engine's named query/action relation.")
+            .unwrap();
+        let end = legacy.find("local changed_recipes").unwrap();
+        legacy.replace_range(start..end, "local knowledge_id = 1715248921\n\n");
+        std::fs::write(destination.join("src/mod.lua"), legacy).unwrap();
+        run_startup(&root).unwrap();
+        // Container table order can change on serialization; compare the actual
+        // recipe resource bytes, independent of container bookkeeping.
+        assert!(
+            patched == recipe_bytes(&root, stem),
+            "current and historical blueprint recipe patches differ"
+        );
+
+        std::fs::write(
+            destination.join("src/mod.lua"),
+            "error('intentional broken asset mod')",
+        )
+        .unwrap();
+        let failure = run_startup(&root).unwrap_err();
+        assert!(failure.to_string().contains("intentional broken asset mod"));
+        assert!(recover_failed_startup(&root, &failure.to_string()));
+        for extension in ["kfc", "kfc_resources"] {
+            assert!(
+                std::fs::read(root.join(format!("{stem}.{extension}"))).unwrap()
+                    == std::fs::read(root.join(format!("{stem}.{extension}.bak"))).unwrap(),
+                "baseline not restored: {extension}"
+            );
+        }
+        let status = shroudforge_package::config::read_document(&root, "applied").unwrap();
+        assert_eq!(status["status"], "failed");
+        assert!(
+            status["error"]
+                .as_str()
+                .unwrap()
+                .contains("intentional broken asset mod")
+        );
+        std::fs::remove_file(root.join(format!("{stem}.kfc_resources.bak"))).unwrap();
+        assert!(!recover_failed_startup(&root, "missing companion backup"));
+    }
+
+    #[test]
+    fn runtime_exports_do_not_restore_prepared_assets_during_startup() {
+        let root = std::env::temp_dir().join(format!(
+            "sf-startup-export-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(root.clone());
+        for (id, capabilities) in [
+            ("production", serde_json::json!(["patch"])),
+            ("editor", serde_json::json!(["runtime", "export"])),
+        ] {
+            let package = root.join("mods").join(id);
+            std::fs::create_dir_all(package.join("src")).unwrap();
+            std::fs::write(
+                package.join("mod.json"),
+                serde_json::to_vec(&serde_json::json!({
+                    "id": id, "name": id, "version": "1.0.0", "capabilities": capabilities
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            std::fs::write(
+                package.join("extended.mod.json"),
+                r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"]}"#,
+            )
+            .unwrap();
+            std::fs::write(
+                package.join("src/mod.lua"),
+                "error('prepared assets must not be reapplied')",
+            )
+            .unwrap();
+        }
+        std::fs::write(root.join("enshrouded.exe"), b"test executable identity").unwrap();
+        std::fs::write(root.join("enshrouded.kfc"), b"already prepared recipe data").unwrap();
+        std::fs::write(root.join("enshrouded.kfc.bak"), b"original recipe data").unwrap();
+        shroudforge_package::config::initialize_loader_config(&root).unwrap();
+        let environment =
+            shroudforge_package::ModEnvironment::load(root.to_str().unwrap()).unwrap();
+        assert_eq!(
+            environment.plan(false, shroudforge_api::API_VERSION).len(),
+            2
+        );
+        let fingerprint = shroudforge_package::prepared::fingerprint(
+            &environment,
+            false,
+            shroudforge_api::API_VERSION,
+        )
+        .unwrap();
+        shroudforge_package::config::write_document(&root, "applied", &serde_json::json!({
+            "schemaVersion": 1, "status": "applied", "target": "enshrouded", "fingerprint": fingerprint,
+            "phase": "prepare", "completedAt": 1, "mods": [{"id":"production","version":"1.0.0"}]
+        })).unwrap();
+        assert!(!export_pass_needed(&root, "enshrouded").unwrap());
+        run_startup(&root).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("enshrouded.kfc")).unwrap(),
+            b"already prepared recipe data"
+        );
+        // A real pregame exporter must still request its export pass.
+        std::fs::write(
+            root.join("mods/editor/mod.json"),
+            r#"{"id":"editor","name":"editor","version":"1.0.0","capabilities":["export"]}"#,
+        )
+        .unwrap();
+        assert!(export_pass_needed(&root, "enshrouded").unwrap());
+    }
 }

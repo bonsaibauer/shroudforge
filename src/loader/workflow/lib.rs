@@ -135,7 +135,7 @@ pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
                     "startup-assets",
                     &error.to_string(),
                 );
-                false
+                pregame::recover_failed_startup(&game, &error.to_string())
             }
         }
     }) {
@@ -147,6 +147,13 @@ pub unsafe extern "C" fn shroudforge_prepare_startup(game: *const u16) -> bool {
                     &game,
                     'E',
                     "startup-assets",
+                    &format!(
+                        "Rust panic during startup asset preparation: {}",
+                        panic_detail(&*payload)
+                    ),
+                );
+                return pregame::recover_failed_startup(
+                    &game,
                     &format!(
                         "Rust panic during startup asset preparation: {}",
                         panic_detail(&*payload)

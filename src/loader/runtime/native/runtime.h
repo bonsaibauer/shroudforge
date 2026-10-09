@@ -45,6 +45,8 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsPropQueryReady(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsCanWrite(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsDescribe(
     const char* qualified_name, uint32_t* size);
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeEcsEntityIdentity(
+    uint32_t entity_handle, uint32_t* entity_id);
 /* Optional ABI-12 extensions. Registry JSON contains every engine registration,
  * including template-only entries. Returns required bytes including NUL; copies
  * only when the entire document fits. No partial JSON is returned. */
@@ -66,6 +68,7 @@ typedef struct KfcRuntimePropRecord {
     float orientation[4];
     float scale[3];
     uint64_t template_uuid[2];
+    uint32_t entity_id;
 } KfcRuntimePropRecord;
 typedef struct KfcRuntimePropRecipe {
     uint32_t item_id;
@@ -105,6 +108,7 @@ KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeEcsCompareExchange(
 /* World operations are profile-backed and dispatched with runtime checks. */
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldOperationAvailable(const char* name);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldContextActive(void);
+KFC_RUNTIME_API uint64_t KFC_RUNTIME_CALL KfcRuntimeWorldSessionId(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityContextReady(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldCursorRead(
     uint8_t* cursor, size_t capacity, uint64_t* sequence);
@@ -113,7 +117,7 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldCursorRead(
    Status: unknown=0, queued=1, pressed=2, dispatched=3, timeout=4, cancelled=5. */
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldBuildingInput(
     uint32_t player, uint32_t kind, uint32_t item, uint32_t material, uint32_t slot,
-    const double* position, const double* rotation, const double* scale);
+    uint32_t target_entity_id, const double* position, const double* rotation, const double* scale);
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldBuildingInputStatus(uint32_t id);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldBuildingInputCancel(uint32_t id);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldVoxelRead(

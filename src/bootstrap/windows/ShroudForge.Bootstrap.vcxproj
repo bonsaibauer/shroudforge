@@ -48,6 +48,7 @@
   <ItemGroup>
     <ClInclude Include="runtime_bridge.h" />
     <ClInclude Include="logging_config.h" />
+    <ClInclude Include="startup_gate.h" />
     <ClInclude Include="..\..\loader\runtime\native\runtime.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

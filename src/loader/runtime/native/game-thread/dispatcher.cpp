@@ -36,6 +36,7 @@ std::atomic<bool> accepting{};
 std::atomic<bool> entity_context_hooks_ready{};
 std::atomic<std::uint32_t> engine_thread{};
 std::atomic<std::uintptr_t> entity_manager{};
+std::atomic<std::uint64_t> local_player_manager_ms{};
 std::atomic<bool> command_observed{};
 std::atomic<std::uint64_t> last_drain_ms{}, drain_count{}, completed_count{}, timeout_count{}, rejected_count{};
 std::atomic<std::uint64_t> manager_changes{}, last_manager_observation_ms{}, last_operation_us{}, maximum_operation_us{};
@@ -45,6 +46,7 @@ struct InstalledHook {
     std::vector<std::uint8_t> original;
 };
 std::vector<InstalledHook> hooks;
+std::string initialization_error;
 
 bool supported_image(std::uint8_t*& base, std::size_t& size) {
     base = reinterpret_cast<std::uint8_t*>(GetModuleHandleW(nullptr));
@@ -222,13 +224,31 @@ void __cdecl drain(void*, void*) {
     }
 }
 
-void __cdecl capture_entity_manager(void* lookup_context, void*) {
+void observe_execution_view(void* lookup_context, bool local_player) {
     if (!lookup_context) return;
     __try {
         const auto root = *static_cast<std::uintptr_t*>(lookup_context);
         if (!root) return;
         const auto manager = *reinterpret_cast<std::uintptr_t*>(root + KfcRuntimeCompatibility::EnshroudedClient::lookup_manager);
         if (manager) {
+            // A released world retains a readable manager with an empty table.
+            // Do not replace a current manager with that loading/preview context.
+            const auto count = *reinterpret_cast<const std::uint64_t*>(manager + KfcRuntimeCompatibility::EnshroudedClient::entity_manager_count);
+            const auto table = *reinterpret_cast<const std::uintptr_t*>(manager + KfcRuntimeCompatibility::EnshroudedClient::entity_manager_table);
+            if (!count || count > (1u << 20) || !table) return;
+            // Probe both ends under SEH before publishing the borrowed manager.
+            const volatile auto first = *reinterpret_cast<const std::uintptr_t*>(table);
+            const volatile auto last = *reinterpret_cast<const std::uintptr_t*>(table + (count - 1) * sizeof(std::uintptr_t));
+            (void)first; (void)last;
+            const auto now = GetTickCount64();
+            const auto local_observation = local_player_manager_ms.load(std::memory_order_acquire);
+            // Generic lookups also run for preview worlds. While the local
+            // player's recurring cursor callback is live, it is authoritative.
+            // Otherwise these two hooks alternate managers and invalidate every
+            // ECS handle/scan on successive frames (observed in the live test).
+            if (!local_player && local_observation && now - local_observation < 1000 &&
+                entity_manager.load(std::memory_order_acquire) != manager) return;
+            if (local_player) local_player_manager_ms.store(now, std::memory_order_release);
             if (entity_manager.exchange(manager, std::memory_order_acq_rel) != manager) {
                 manager_changes.fetch_add(1, std::memory_order_relaxed);
                 WorldRuntime::ResetContext();
@@ -236,6 +256,10 @@ void __cdecl capture_entity_manager(void* lookup_context, void*) {
             last_manager_observation_ms.store(GetTickCount64(), std::memory_order_relaxed);
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {}
+}
+
+void __cdecl capture_entity_manager(void* lookup_context, void*) {
+    observe_execution_view(lookup_context, false);
 }
 
 std::vector<std::uint8_t> callback_code(void* callback) {
@@ -320,9 +344,11 @@ std::vector<std::uint8_t> context_callback_code(void* callback) {
 bool install_hook(std::uint8_t* base, std::string_view signature,
                   const std::uint8_t* original, std::size_t original_size, void* callback,
                   bool cursor_callback = false, bool context_callback = false) {
-    if (!original || original_size < 5) return false;
+    const auto fail = [](const char* reason) { initialization_error = reason; return false; };
+    if (!original || original_size < 5) return fail("invalid-overwrite-length");
     const auto target = find_unique_executable_signature(base, signature);
-    if (!target || std::memcmp(reinterpret_cast<void*>(target), original, original_size)) return false;
+    if (!target) return fail("signature-not-unique-or-missing");
+    if (std::memcmp(reinterpret_cast<void*>(target), original, original_size)) return fail("original-bytes-mismatch");
     auto payload = cursor_callback
         ? cursor_callback_code(callback, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_capture_offset)
         : context_callback ? context_callback_code(callback) : callback_code(callback);
@@ -331,7 +357,7 @@ bool install_hook(std::uint8_t* base, std::string_view signature,
     const auto return_offset = payload.size();
     payload.insert(payload.end(), 4, 0);
     auto allocation = allocate_near(target, payload.size());
-    if (!allocation) return false;
+    if (!allocation) return fail("near-allocation-failed");
     std::int32_t return_jump{};
     if (!relative(reinterpret_cast<std::uintptr_t>(allocation) + return_offset - 1,
         target + original_size, return_jump)) { VirtualFree(allocation, 0, MEM_RELEASE); return false; }
@@ -346,9 +372,17 @@ bool install_hook(std::uint8_t* base, std::string_view signature,
         return false;
     }
     std::memcpy(detour.data() + 1, &branch, sizeof(branch));
-    if (!write_code(target, detour.data(), detour.size())) {
+    bool installed = false;
+    for (unsigned attempt = 0; attempt < 8; ++attempt) {
+        // Revalidate originals on every attempt. An exiting thread or an occupied
+        // instruction may reject a snapshot; never relax those safety checks.
+        if (write_code(target, detour.data(), detour.size(), original)) { installed = true; break; }
+        if (std::memcmp(reinterpret_cast<void*>(target), original, original_size)) break;
+        Sleep(2);
+    }
+    if (!installed) {
         VirtualFree(allocation, 0, MEM_RELEASE);
-        return false;
+        return fail("safe-code-write-rejected");
     }
     hooks.push_back(InstalledHook{target, allocation,
         std::vector<std::uint8_t>(original, original + original_size)});
@@ -357,6 +391,10 @@ bool install_hook(std::uint8_t* base, std::string_view signature,
 }
 
 namespace GameThreadDispatcher {
+void ObserveExecutionView(void* execution_view, bool local_player) {
+    observe_execution_view(execution_view, local_player);
+}
+
 bool Initialize() {
     if (!hooks.empty()) return accepting.load(std::memory_order_acquire);
     // Published trampolines and their callbacks remain mapped until process exit.
@@ -373,11 +411,16 @@ bool Initialize() {
     if (!install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::game_thread_signature,
             KfcRuntimeCompatibility::EnshroudedClient::game_thread_original.data(),
             KfcRuntimeCompatibility::EnshroudedClient::game_thread_original.size(),
-            reinterpret_cast<void*>(&drain)) ||
-        !install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::entity_manager_signature,
+            reinterpret_cast<void*>(&drain))) {
+        initialization_error = "game-thread:" + initialization_error;
+        Shutdown();
+        return false;
+    }
+    if (!install_hook(base, KfcRuntimeCompatibility::EnshroudedClient::entity_manager_signature,
             KfcRuntimeCompatibility::EnshroudedClient::entity_manager_original.data(),
             KfcRuntimeCompatibility::EnshroudedClient::entity_manager_original.size(),
             reinterpret_cast<void*>(&capture_entity_manager))) {
+        initialization_error = "entity-manager:" + initialization_error;
         Shutdown();
         return false;
     }
@@ -443,7 +486,8 @@ bool EntityContextReady() {
 std::uint32_t ThreadId() { return engine_thread.load(std::memory_order_acquire); }
 std::uintptr_t EntityManager() { return entity_manager.load(std::memory_order_acquire); }
 std::string Status() {
-    if (!accepting.load(std::memory_order_acquire)) return "unavailable";
+    if (!accepting.load(std::memory_order_acquire)) return initialization_error.empty()
+        ? "unavailable" : "unavailable(" + initialization_error + ")";
     const auto thread = engine_thread.load(std::memory_order_acquire);
     if (!thread || !Ready()) {
         const auto drain = last_drain_ms.load(std::memory_order_acquire);
@@ -516,6 +560,13 @@ std::string Diagnostics() {
     }).dump();
 }
 bool WriteCode(std::uintptr_t address, const void* expected, const void* replacement, std::size_t size) {
-    return address && expected && replacement && size && write_code(address, replacement, size, expected);
+    if (!address || !expected || !replacement || !size || size > 32) return false;
+    for (unsigned attempt = 0; attempt < 8; ++attempt) {
+        if (write_code(address, replacement, size, expected)) return true;
+        // A different patch or changed build is not a transient thread race.
+        if (std::memcmp(reinterpret_cast<void*>(address), expected, size)) return false;
+        Sleep(2);
+    }
+    return false;
 }
 }

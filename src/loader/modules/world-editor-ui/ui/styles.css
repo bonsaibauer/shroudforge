@@ -49,7 +49,7 @@ button,input{color:inherit}
 .expand-button{font-size:17px;line-height:1}
 .help{min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden;color:var(--sf-text)}
 .mod-icon{width:22px;height:22px;flex:none;object-fit:contain}
-.help-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.help-text{display:-webkit-box;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:normal;line-height:15px;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
 .actions{flex:none;margin-left:auto;color:var(--sf-muted);font-size:9px;white-space:nowrap}
 .notice{position:absolute;z-index:6;top:61px;left:50%;transform:translateX(-50%);padding:7px 12px;border:1px solid var(--sf-line-strong);border-radius:8px;background:#101e21;color:var(--sf-text);box-shadow:var(--sf-shadow-soft);opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap}
 .notice.show{opacity:1}
@@ -80,3 +80,15 @@ button,input{color:inherit}
 .keys div{margin:3px 0}
 body.capturing .shell:after{content:"";position:absolute;left:8px;right:8px;bottom:5px;height:2px;background:linear-gradient(90deg,transparent,var(--sf-gold),var(--sf-blue),transparent);background-size:220% 100%;animation:scan 1s linear infinite}
 @keyframes scan{to{background-position:-220% 0}}
+
+.save-progress{width:174px;min-width:140px;flex:0 1 174px;color:var(--sf-muted);font-size:9px}
+.save-progress[hidden]{display:none}
+.save-caption{display:flex;justify-content:space-between;gap:6px;margin-bottom:4px;white-space:nowrap}
+#saveLabel{overflow:hidden;text-overflow:ellipsis}
+#saveElapsed{flex:none;font-variant-numeric:tabular-nums}
+.save-progress progress{display:block;width:100%;height:5px;border:0;border-radius:3px;overflow:hidden;background:#24363c;appearance:none}
+.save-progress progress::-webkit-progress-bar{background:#24363c;border-radius:3px}
+.save-progress progress::-webkit-progress-value{background:var(--sf-gold);border-radius:3px}
+.save-progress[data-status="complete"] progress::-webkit-progress-value{background:var(--sf-green)}
+.save-progress[data-status="error"]{color:#ef7078}
+.save-progress[data-status="error"] progress::-webkit-progress-value{background:#ef7078}

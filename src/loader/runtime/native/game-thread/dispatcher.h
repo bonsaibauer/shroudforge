@@ -14,6 +14,9 @@ bool Ready();
 bool EntityContextReady();
 std::uint32_t ThreadId();
 std::uintptr_t EntityManager();
+// Observe a current engine execution view; never retain its stack address.
+// Used by the continuous local-player callback after a world transition.
+void ObserveExecutionView(void* execution_view, bool local_player = false);
 std::string Status();
 std::string Diagnostics();
 bool WriteCode(std::uintptr_t address, const void* expected, const void* replacement, std::size_t size);

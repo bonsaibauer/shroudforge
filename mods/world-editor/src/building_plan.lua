@@ -65,8 +65,35 @@ end
 function M.inverse(command)
     local inverse_action = command.action=="place" and (command.cell and "remove" or "dismantle") or "place"
     return {action=inverse_action,itemId=command.itemId,
-        handle=command.resultHandle,position=command.position,rotation=command.rotation,scale=command.scale,
+        handle=command.resultHandle,entityId=command.resultEntityId,position=command.position,rotation=command.rotation,scale=command.scale,
         templateUuidHighHex=command.templateUuidHighHex,templateUuidLowHex=command.templateUuidLowHex,
         cell=command.cell,before=command.after,after=command.before}
+end
+function M.dismantle_command(entity)
+    return {action="dismantle", itemId=entity.recipe.id, handle=entity.entityHandle,
+        entityId=entity.entityId, position=entity.position, rotation=entity.rotation, scale=entity.scale,
+        templateUuidHighHex=entity.expected_transform and entity.expected_transform.templateUuidHighHex,
+        templateUuidLowHex=entity.expected_transform and entity.expected_transform.templateUuidLowHex}
+end
+function M.undo_batch(journal)
+    local voxels,props={},{}
+    for index=#journal,1,-1 do
+        local inverse=M.inverse(journal[index])
+        local group=inverse.cell and voxels or props
+        group[#group+1]={command=inverse,journal_index=index}
+    end
+    local batch={}
+    for _,group in ipairs({voxels,props}) do
+        for _,entry in ipairs(group) do batch[#batch+1]=entry end
+    end
+    return batch
+end
+function M.consume_undo_batch(journal,batch,completed_count)
+    local indexes={}
+    for index=1,math.min(#batch,completed_count or 0) do
+        indexes[#indexes+1]=batch[index].journal_index
+    end
+    table.sort(indexes,function(a,b) return a>b end)
+    for _,index in ipairs(indexes) do table.remove(journal,index) end
 end
 return M

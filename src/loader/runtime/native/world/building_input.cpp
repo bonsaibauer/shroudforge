@@ -23,6 +23,7 @@ struct Command {
     std::uint64_t queued_at{}, pressed_at{};
     std::uintptr_t input{};
     std::uint32_t pressed_version{}, terminal_status{};
+    std::uint32_t target_entity_id{};
 };
 std::mutex mutex;
 Command command;
@@ -97,6 +98,7 @@ bool apply(void* cursor, void* execution_view, Command& cmd) {
                 // Preserve client validity flags. The server still performs its
                 // normal build permissions, range, recipe and placement checks.
             }
+            if (cmd.kind == 4 && !cmd.target_entity_id) return false;
             bits |= cmd.kind == 1 ? 3ull : cmd.kind == 2 ? (1ull << 4) :
                 cmd.kind == 3 ? (1ull << 37) : DismantleMask;
             std::memcpy(input + DigitalOffset, &bits, sizeof(bits));
@@ -127,15 +129,16 @@ void Observe(void* cursor, void* execution_view) {
 void Reset() { std::lock_guard lock(mutex); if (command.status == 1 || command.status == 2) command.status = 5; }
 }
 
-// Optional ABI-12 extension. kind: 0 select, 1 primary, 2 secondary, 3 engine
-// undo, 4 contextual dismantle hold.
-// undo. Status: 1 queued, 2 pressed, 3 dispatched, 4 timeout, 5 cancelled/error.
+// kind: 0 select, 1 primary, 2 secondary, 3 engine undo, 4 exact prop dismantle.
+// Status: 1 queued, 2 pressed, 3 dispatched, 4 timeout, 5 cancelled/error.
 extern "C" __declspec(dllexport) std::uint32_t __cdecl KfcRuntimeWorldBuildingInput(
     std::uint32_t player, std::uint32_t kind, std::uint32_t item, std::uint32_t material, std::uint32_t slot,
-    const double* position, const double* rotation, const double* scale) {
-    if (!player || !available() || kind > 4 || slot > 255 || (kind == 0 && !item)) return 0;
+    std::uint32_t target_entity_id, const double* position, const double* rotation, const double* scale) {
+    if (!player || !available() || kind > 4 || slot > 255 || (kind == 0 && !item) ||
+        (kind == 4) != (target_entity_id != 0)) return 0;
     Command next{};
     next.player = player; next.kind = kind; next.item = item; next.material = material; next.slot = slot;
+    next.target_entity_id = target_entity_id;
     if (kind == 1 || kind == 2 || kind == 4) {
         if (!position || !rotation || !scale) return 0;
         long double norm{};

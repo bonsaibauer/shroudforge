@@ -94,6 +94,11 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
             let applied_assets = crate::prepared::fingerprint(&env, server, api)
                 .ok()
                 .is_some_and(|fingerprint| crate::prepared::matches(root, &fingerprint));
+            let preparation = crate::config::read_document(root, "applied").ok();
+            let preparation_error = preparation.as_ref().filter(|value| {
+                value["status"] == "failed"
+                    && value["target"] == if server { "enshrouded_server" } else { "enshrouded" }
+            }).map(|value| value["error"].as_str().unwrap_or("Asset preparation failed; inspect the startup log."));
             for item in env.mod_registry().values() {
                 let manifest = item.info();
                 let fingerprint =
@@ -115,17 +120,25 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 let dll_still_loaded = native_dll_effect
                     .and_then(|value| value["state"].as_str())
                     .is_some_and(|state| matches!(state, "loading" | "loaded"));
-                let state = if runtime_mod && runtime_error.is_some_and(|reason| reason.starts_with("plan-blocked:") || reason.starts_with("dependency-blocked:")) {
+                let state = if runtime_mod
+                    && runtime_error.is_some_and(|reason| {
+                        reason.starts_with("plan-blocked:")
+                            || reason.starts_with("dependency-blocked:")
+                    }) {
                     let reason = runtime_error.unwrap();
                     json!({"state":"blocked","code":"runtime-plan","detail":reason.split_once(": ").map(|(_, detail)| detail).unwrap_or(reason)})
                 } else if runtime_mod && runtime_error.is_some() {
                     json!({"state":"failed","detail":runtime_error.unwrap()})
-                } else if manifest.enabled && let Some(issue) = plan_issues.get(manifest.id.as_str()) {
+                } else if manifest.enabled
+                    && let Some(issue) = plan_issues.get(manifest.id.as_str())
+                {
                     json!({"state":"blocked","code":issue.code,"detail":issue.detail})
                 } else if !manifest.enabled && dll_still_loaded {
                     json!({"state":"restart-required","code":"native-dll-disable-pending","detail":"The mod is disabled in settings, but its native DLL is still loaded in this game session. It will not load after the next game restart."})
                 } else if !manifest.enabled {
                     json!({"state":"disabled","detail":"The mod is disabled."})
+                } else if pregame_mod && preparation_error.is_some() {
+                    json!({"state":"failed","code":"asset-preparation-failed","detail":preparation_error.unwrap()})
                 } else if runtime_fresh && runtime_mod {
                     let runtime = runtime.as_ref().unwrap();
                     if let Some(reason) = runtime["errors"].get(&manifest.id) {
@@ -221,7 +234,9 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 .count();
             let existing = crate::config::read_document(root, "applied").is_ok();
             if needs_prepare || existing {
-                assets = match crate::prepared::fingerprint(&env, server, api) {
+                assets = if let Some(error) = preparation_error {
+                    json!({"state":"failed","code":"asset-preparation-failed","detail":error})
+                } else { match crate::prepared::fingerprint(&env, server, api) {
                     Ok(fingerprint) => {
                         if crate::prepared::matches(root, &fingerprint) {
                             if blocked_pregame > 0 {
@@ -234,7 +249,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                         }
                     }
                     Err(error) => json!({"state":"unknown","detail":error}),
-                };
+                } };
             } else if blocked_pregame > 0 {
                 assets = json!({"state":"partial","detail":format!("{blocked_pregame} startup mod(s) were skipped because of compatibility or dependency issues.")});
             } else {
@@ -357,6 +372,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn failed_asset_startup_is_not_reported_as_another_restart_request() {
+        let root = tempfile::tempdir().unwrap();
+        let package = root.path().join("mods/asset-test");
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(package.join("mod.json"), serde_json::to_vec(&json!({
+            "id":"asset-test","name":"Asset test","version":"1.0.0","capabilities":["patch"]
+        })).unwrap()).unwrap();
+        fs::write(package.join("extended.mod.json"), r#"{"schemaVersion":1,"enabled":true}"#).unwrap();
+        fs::write(package.join("src/mod.lua"), "return {}").unwrap();
+        crate::config::write_document(root.path(), "applied", &json!({
+            "schemaVersion":1,"status":"failed","target":"enshrouded","phase":"startup",
+            "completedAt":1,"error":"runtime.lifecycle unavailable in world-editor"
+        })).unwrap();
+        let status = configuration(root.path(), false, "1.0.0");
+        let encoded = serde_json::to_string(&status).unwrap();
+        assert!(encoded.contains("asset-preparation-failed"), "{encoded}");
+        assert!(!encoded.contains("restart-required"), "{encoded}");
+    }
+
+    #[test]
     fn native_plugin_lifecycle_effects_pass_runtime_status_validation() {
         for state in ["loading", "loaded", "error"] {
             let document = json!({
@@ -370,6 +405,8 @@ mod tests {
                 "effects": {
                     "community-mod": {
                         "state": state,
+                        "processTarget": "client",
+                        "scope": "this-process",
                         "detail": "sidecar lifecycle test",
                         "updatedAt": 1
                     }
@@ -378,5 +415,55 @@ mod tests {
             crate::config::validate_document(Path::new("."), "mod-status", &document)
                 .unwrap_or_else(|error| panic!("native DLL state '{state}' was rejected: {error}"));
         }
+    }
+
+    #[test]
+    fn restart_required_runtime_effect_passes_runtime_status_validation() {
+        let document = json!({
+            "schemaVersion": 1,
+            "pid": 1,
+            "updatedAt": 1,
+            "running": true,
+            "active": [],
+            "loaded": {},
+            "errors": {},
+            "effects": {
+                "community-mod": {
+                    "state": "restart-required",
+                    "processTarget": "server",
+                    "scope": "this-process",
+                    "detail": "native DLL remains loaded for this game session",
+                    "updatedAt": 1
+                }
+            }
+        });
+        crate::config::validate_document(Path::new("."), "mod-status", &document)
+            .expect("current runtime effect fields must pass mod-status validation");
+    }
+
+    #[test]
+    fn installed_update_state_uses_the_updates_section_schema() {
+        let root = tempfile::tempdir().expect("temporary installation root");
+        crate::config::write_document(
+            root.path(),
+            "window-state",
+            &json!({"debugConsole":{"visible":false,"requestedVisible":false,"requestId":0}}),
+        )
+        .expect("initial window state");
+        let update = json!({
+            "schemaVersion": 1,
+            "status": "installed",
+            "version": "1.6.4",
+            "build": "test",
+            "installedAt": 1,
+            "backup": "backup/1"
+        });
+        crate::config::write_document(root.path(), "state", &update)
+            .expect("installed update state");
+        assert_eq!(
+            crate::config::read_document(root.path(), "state").expect("stored update state"),
+            update
+        );
+        assert!(crate::config::window_state(root.path()).get("debugConsole").is_some());
     }
 }

@@ -4,6 +4,8 @@
 
 The Modloader Updates page and the standalone `shroudforge-updater.exe` use the same queue, update state, labels, and actions. The standalone window is a second view of the same updater, not a separate update flow.
 
+The executable and the window are different things: `shroudforge-updater.exe` starts workers and launches the compact window. The compact window is the same Modloader UI bundle, started from a copy of `shroudforge.exe` with `--updater-window`.
+
 Opening the Modloader UI or updater executable must never start a download by itself. A download starts only after the user chooses update items and presses a start action.
 
 ## Entry points
@@ -12,7 +14,7 @@ Opening the Modloader UI or updater executable must never start a download by it
 | --- | --- | --- |
 | In-game Modloader UI | **Nach Spielende herunterladen** | Add the selected update to the queue. Wait for Enshrouded to exit, then open the updater window and run the explicitly queued action. |
 | Desktop Modloader UI | **Jetzt herunterladen** / **Nach Spielende herunterladen** | The first starts the selected downloads immediately. The second waits for Enshrouded to exit. |
-| Standalone updater EXE | **Jetzt herunterladen** / **Nach Spielende herunterladen** | Open the updater window and show the same queue and choices. Merely opening the EXE does not download anything. |
+| Standalone updater EXE | **Jetzt herunterladen** / **Nach Spielende herunterladen** | Launch the compact Modloader UI and show the same queue and choices. Merely opening the EXE does not download anything. |
 
 The game-file installation step always waits until the game has exited, even if the user chose to download immediately.
 
@@ -39,6 +41,14 @@ An item can also become `Abgebrochen` or `Fehlgeschlagen`. Retry keeps the item 
 
 ## Implementation notes
 
+### Source files and call path
+
+The React `UpdateQueuePanel` in `src/loader/modules/modloader-ui/ui/src/main.tsx` posts UI commands. `src/loader/modules/modloader-ui/src/main.rs` decodes those commands and calls the queue functions exported by `src/loader/modules/updater/src/lib.rs`. Queue persistence, worker launch, system download/staging and installation live in `src/loader/modules/updater/src/main.rs`.
+
+`shroudforge-updater.exe` enters through `src/loader/modules/updater/src/bin.rs`. Its `run_module()` routes `--run-queue` to the worker. With no arguments it launches a copy of `shroudforge.exe` with `--module-ui --desktop --updater-window`; the main executable then displays the compact view from the same React bundle. A system queue item is installed by an `--update-worker`. A catalog mod item is handed to `shroudforge.exe --catalog-install-worker`.
+
+The catalog install worker is currently implemented in `src/loader/modules/modloader-ui/src/main.rs`, even though the updater queue starts it. The [refactor master plan](refactor-masterplan.md) moves this implementation to the updater's `install_mod.rs` and gives UI, CLI and file-based administration one shared command path. It also combines the separate UI and headless GitHub release checks. Existing CLI handoffs need explicit compatibility adapters during that migration.
+
 The current implementation stores system releases and catalog mod operations as individual records in `updates/update-queue.json`. The updater processes an explicitly selected group sequentially. It writes each mod operation into the existing one-item worker request only when that item starts, so the two legacy worker formats are adapters behind the shared queue rather than independent user-facing queues.
 
-Opening the Modloader UI or updater executable does not start a download. In-game mode exposes only the after-game action. Desktop Modloader mode exposes both start choices and opens the compact updater window to show progress. The standalone updater keeps its existing window when a queue is started, avoiding a duplicate window. Cancelling an active transfer preserves unrelated and not-yet-started queue entries and closes the standalone updater; clearing the whole queue is a separate confirmed action. Cancellation is unavailable during installation.
+Opening the Modloader UI or updater executable does not start a download. In-game mode exposes only the after-game action. Desktop Modloader mode exposes both start choices and opens the compact updater window to show progress. When started from that compact view, the queue keeps the existing window open. Cancelling an active transfer preserves unrelated and not-yet-started queue entries and closes the compact window; clearing the whole queue is a separate confirmed action. Cancellation is unavailable during installation.

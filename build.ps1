@@ -64,6 +64,7 @@ if ($LASTEXITCODE -ne 0) { throw 'KFC Runtime build failed.' }
 & cargo build --manifest-path (Join-Path $root 'src\parser\kfc-parser\Cargo.toml') --release -p dbghelp-proxy -p dinput8-proxy --target-dir $cargoTargetPath
 if ($LASTEXITCODE -ne 0) { throw 'EML-compatible Windows proxy build failed.' }
 if (-not $SkipTests) {
+    & (Join-Path $root 'src/bootstrap/windows/tests/run.ps1')
     & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace
     if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }
 }

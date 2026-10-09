@@ -30,6 +30,11 @@ impl LuaModRunner {
         let app_state = self.lua.app_data_ref::<AppState>().unwrap();
 
         for r#mod in self.state.mods().values() {
+            // Runtime mods may export files during play. Export permission does
+            // not make their entrypoints safe to execute during asset preparation.
+            if !r#mod.info().requires_pregame() {
+                continue;
+            }
             let has_patch_capability = r#mod.info().capabilities.contains(&Capability::Patch);
             let has_export_capability = r#mod.info().capabilities.contains(&Capability::Export);
             let should_run = has_patch_capability && app_state.has_feature(AppFeatures::PATCH)

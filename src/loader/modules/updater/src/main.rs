@@ -240,6 +240,47 @@ mod windows {
         }
     }
 
+    pub(super) fn hand_off_installed_worker(root: &Path) -> Result<bool, String> {
+        use std::os::windows::process::CommandExt;
+
+        let args = std::env::args_os().collect::<Vec<_>>();
+        if args.iter().any(|arg| arg == "--ephemeral-worker") {
+            return Ok(false);
+        }
+        if !args
+            .iter()
+            .any(|arg| arg == "--update-worker" || arg == "--run-queue")
+        {
+            return Ok(false);
+        }
+        let current = std::env::current_exe().map_err(|error| error.to_string())?;
+        let installed = shroudforge_package::paths::updater_executable(root);
+        let current = current
+            .canonicalize()
+            .map_err(|error| format!("could not resolve updater executable: {error}"))?;
+        let installed = installed
+            .canonicalize()
+            .map_err(|error| format!("could not resolve installed updater: {error}"))?;
+        if current != installed {
+            return Ok(false);
+        }
+
+        // Windows locks a running executable. Run the installer from the protected
+        // updates directory so the child can replace shroudforge-updater.exe too.
+        let worker = shroudforge_package::paths::updates_dir(root).join("updater-worker.exe");
+        fs::create_dir_all(worker.parent().ok_or("worker path has no parent")?)
+            .map_err(|error| error.to_string())?;
+        fs::copy(&current, &worker)
+            .map_err(|error| format!("could not prepare independent updater worker: {error}"))?;
+        std::process::Command::new(&worker)
+            .args(args.into_iter().skip(1))
+            .arg("--ephemeral-worker")
+            .creation_flags(0x08000000)
+            .spawn()
+            .map_err(|error| format!("could not start independent updater worker: {error}"))?;
+        Ok(true)
+    }
+
     fn validate_roots(root: &Path, staged: &Path) -> Result<(), String> {
         let root = root
             .canonicalize()
@@ -2529,6 +2570,14 @@ pub fn run_scheduled_worker() -> Result<(), String> {
 #[cfg(windows)]
 pub fn run_module() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
+    if let Some(root) = args
+        .windows(2)
+        .find(|pair| pair[0] == "--root")
+        .map(|pair| std::path::PathBuf::from(&pair[1]))
+        && windows::hand_off_installed_worker(&root)?
+    {
+        return Ok(());
+    }
     if args.iter().any(|arg| arg == "--restore-gamefiles-worker") {
         let root = args
             .windows(2)

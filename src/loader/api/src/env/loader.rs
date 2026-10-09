@@ -384,28 +384,27 @@ fn operation_status(lua: &mlua::Lua, feature: &str, r#mod: &Mod) -> mlua::Result
             },
         );
     }
-    let world_ready = if feature == "runtime.world.cursor.get"
-        || feature == "runtime.world.building.input"
-    {
-        runtime_provider::world_operation_available(&feature)
-    } else if feature == "runtime.world.voxel.grid_spec" {
-        runtime_provider::world_operation_available("runtime.world.voxel.read")
-    } else if feature == "runtime.world.entity.query_props"
-        || feature == "runtime.world.entity.query_props_in_bounds"
-        || feature == "runtime.world.entity.register_prop_recipes"
-        || feature == "runtime.world.entity.get_transform"
-        || feature == "runtime.world.entity.set_scale"
-    {
-        runtime_provider::world_entity_query_props_ready()
-    } else if feature.starts_with("runtime.world.entity.") {
-        runtime_provider::world_operation_available(&feature)
-            && runtime_provider::world_entity_context_ready()
-    } else if feature.starts_with("runtime.world.") {
-        runtime_provider::world_operation_available(&feature)
-            && runtime_provider::world_context_active()
-    } else {
-        true
-    };
+    let world_ready =
+        if feature == "runtime.world.cursor.get" || feature == "runtime.world.building.input" {
+            runtime_provider::world_operation_available(&feature)
+        } else if feature == "runtime.world.voxel.grid_spec" {
+            runtime_provider::world_operation_available("runtime.world.voxel.read")
+        } else if feature == "runtime.world.entity.query_props"
+            || feature == "runtime.world.entity.query_props_in_bounds"
+            || feature == "runtime.world.entity.register_prop_recipes"
+            || feature == "runtime.world.entity.get_transform"
+            || feature == "runtime.world.entity.set_scale"
+        {
+            runtime_provider::world_entity_query_props_ready()
+        } else if feature.starts_with("runtime.world.entity.") {
+            runtime_provider::world_operation_available(&feature)
+                && runtime_provider::world_entity_context_ready()
+        } else if feature.starts_with("runtime.world.") {
+            runtime_provider::world_operation_available(&feature)
+                && runtime_provider::world_context_active()
+        } else {
+            true
+        };
     if feature.starts_with("runtime.world.")
         && matches!(availability, Availability::Available)
         && !world_ready
@@ -500,6 +499,7 @@ fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
         r#mod,
         lua_world_context_active,
     )?;
+    add_function_with_mod(lua, &world, "session_id", r#mod, lua_world_session_id)?;
     let voxel = lua.create_table()?;
     add_function_with_mod(lua, &voxel, "read", r#mod, lua_world_voxel_read)?;
     add_function_with_mod(lua, &voxel, "write", r#mod, lua_world_voxel_write)?;
@@ -679,6 +679,7 @@ fn lua_world_entity_query_props(
     for (index, prop) in props.into_iter().enumerate() {
         let item = lua.create_table()?;
         item.raw_set("handle", prop.entity_handle)?;
+        item.raw_set("entityId", runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id))?;
         item.raw_set("itemId", prop.item_id)?;
         item.raw_set(
             "templateUuidHighHex",
@@ -808,6 +809,7 @@ fn lua_world_entity_query_props_in_bounds(
     for (index, prop) in props.into_iter().enumerate() {
         let item = lua.create_table()?;
         item.raw_set("handle", prop.entity_handle)?;
+        item.raw_set("entityId", runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id))?;
         item.raw_set("itemId", prop.item_id)?;
         item.raw_set(
             "templateUuidHighHex",
@@ -867,6 +869,7 @@ fn lua_world_entity_get_transform(
     };
     let item = lua.create_table()?;
     item.raw_set("handle", prop.entity_handle)?;
+    item.raw_set("entityId", runtime_provider::world_entity_identity(prop.entity_handle).unwrap_or(prop.entity_id))?;
     item.raw_set("itemId", prop.item_id)?;
     item.raw_set(
         "templateUuidHighHex",
@@ -1077,6 +1080,14 @@ fn lua_world_operation_available(
         return Ok(false);
     }
     Ok(runtime_provider::world_operation_available(&name))
+}
+
+fn lua_world_session_id(lua: &mlua::Lua, _args: FunctionArgs, r#mod: &Mod) -> mlua::Result<u64> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if runtime_denial_reason(&state, r#mod, "runtime.ecs.query").is_some() {
+        return Ok(0);
+    }
+    Ok(runtime_provider::world_session_id())
 }
 
 fn lua_world_context_active(
@@ -2010,6 +2021,7 @@ pub(super) mod runtime_provider {
         pub orientation: [f32; 4],
         pub scale: [f32; 3],
         pub template_uuid: [u64; 2],
+        pub entity_id: u32,
     }
 
     #[repr(C)]
@@ -2049,6 +2061,7 @@ pub(super) mod runtime_provider {
     ) -> u32;
     type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
     type WorldContextActive = unsafe extern "C" fn() -> bool;
+    type WorldSessionId = unsafe extern "C" fn() -> u64;
     type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
     type WorldEntityQueryProps =
         unsafe extern "C" fn(*const f64, f64, *mut PropRecord, usize) -> usize;
@@ -2056,6 +2069,7 @@ pub(super) mod runtime_provider {
         unsafe extern "C" fn(*const f64, *mut PropRecord, usize) -> usize;
     type WorldEntityRegisterPropRecipes = unsafe extern "C" fn(*const PropRecipe, usize) -> bool;
     type WorldEntityGetTransform = unsafe extern "C" fn(u32, *mut PropRecord) -> bool;
+    type WorldEntityIdentity = unsafe extern "C" fn(u32, *mut u32) -> bool;
     type WorldEntitySetScale = unsafe extern "C" fn(u32, *const f64) -> bool;
     #[repr(C)]
     #[derive(Clone, Copy, Default)]
@@ -2110,11 +2124,13 @@ pub(super) mod runtime_provider {
         compare_exchange: Option<CompareExchange>,
         world_operation_available: WorldOperationAvailable,
         world_context_active: WorldContextActive,
+        world_session_id: Option<WorldSessionId>,
         world_entity_context_ready: WorldEntityContextReady,
         world_entity_query_props: WorldEntityQueryProps,
         world_entity_query_props_in_bounds: WorldEntityQueryPropsInBounds,
         world_entity_register_prop_recipes: WorldEntityRegisterPropRecipes,
         world_entity_get_transform: WorldEntityGetTransform,
+        world_entity_identity: WorldEntityIdentity,
         world_entity_set_scale: WorldEntitySetScale,
         world_cursor_read: Option<WorldCursorRead>,
         world_voxel_read: WorldVoxelRead,
@@ -2231,6 +2247,13 @@ pub(super) mod runtime_provider {
                                 "KfcRuntimeWorldOperationAvailable",
                                 WorldOperationAvailable
                             ),
+                            world_session_id: {
+                                let pointer =
+                                    GetProcAddress(module, c"KfcRuntimeWorldSessionId".as_ptr());
+                                (!pointer.is_null()).then(|| {
+                                    std::mem::transmute::<*const c_void, WorldSessionId>(pointer)
+                                })
+                            },
                             world_context_active: symbol!(
                                 "KfcRuntimeWorldContextActive",
                                 WorldContextActive
@@ -2255,6 +2278,7 @@ pub(super) mod runtime_provider {
                                 "KfcRuntimeWorldEntityGetTransform",
                                 WorldEntityGetTransform
                             ),
+                            world_entity_identity: symbol!("KfcRuntimeEcsEntityIdentity", WorldEntityIdentity),
                             world_entity_set_scale: symbol!(
                                 "KfcRuntimeWorldEntitySetScale",
                                 WorldEntitySetScale
@@ -2382,6 +2406,11 @@ pub(super) mod runtime_provider {
             return false;
         };
         unsafe { (provider.world_operation_available)(name.as_ptr()) }
+    }
+    pub fn world_session_id() -> u64 {
+        provider()
+            .and_then(|value| value.world_session_id)
+            .map_or(0, |get| unsafe { get() })
     }
     pub fn world_context_active() -> bool {
         provider().is_some_and(|value| unsafe { (value.world_context_active)() })
@@ -2562,6 +2591,9 @@ pub(super) mod runtime_provider {
         let count = unsafe {
             (provider.world_entity_query_props_in_bounds)(bounds.as_ptr(), std::ptr::null_mut(), 0)
         };
+        if count == usize::MAX - 1 {
+            return Err("live prop query is still scanning; retry on the next update");
+        }
         if count == usize::MAX {
             return Err("native recipe-bounds prop query failed");
         }
@@ -2579,6 +2611,9 @@ pub(super) mod runtime_provider {
                 props.len(),
             )
         };
+        if actual == usize::MAX - 1 {
+            return Err("live prop query is still scanning; retry on the next update");
+        }
         if actual == usize::MAX {
             return Err("native recipe-bounds prop query failed while retrieving results");
         }
@@ -2593,6 +2628,12 @@ pub(super) mod runtime_provider {
         let mut prop = PropRecord::default();
         let ok = unsafe { (provider.world_entity_get_transform)(handle, &mut prop) };
         ok.then_some(prop)
+    }
+    pub fn world_entity_identity(handle: u32) -> Option<u32> {
+        let provider = provider()?;
+        let mut entity_id = 0;
+        let ok = unsafe { (provider.world_entity_identity)(handle, &mut entity_id) };
+        (ok && entity_id != 0).then_some(entity_id)
     }
     pub fn world_entity_set_scale(handle: u32, scale: [f64; 3]) -> Result<(), String> {
         let Some(provider) = provider() else {
@@ -2972,6 +3013,7 @@ pub(super) mod runtime_provider {
         pub orientation: [f32; 4],
         pub scale: [f32; 3],
         pub template_uuid: [u64; 2],
+        pub entity_id: u32,
     }
     #[repr(C)]
     #[derive(Clone, Copy, Default)]
@@ -2995,6 +3037,9 @@ pub(super) mod runtime_provider {
     }
     pub fn world_operation_available(_: &str) -> bool {
         false
+    }
+    pub fn world_session_id() -> u64 {
+        0
     }
     pub fn world_context_active() -> bool {
         false
@@ -3044,6 +3089,7 @@ pub(super) mod runtime_provider {
     pub fn world_entity_get_transform(_: u32) -> Option<PropRecord> {
         None
     }
+    pub fn world_entity_identity(_: u32) -> Option<u32> { None }
     pub fn world_entity_set_scale(_: u32, _: [f64; 3]) -> Result<(), String> {
         Err("native world runtime is available on Windows only".into())
     }

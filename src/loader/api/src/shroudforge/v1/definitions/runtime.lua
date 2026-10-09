@@ -298,6 +298,7 @@ runtime.world.building = {}
 --- @class BuildingInput
 --- @field player integer Process-local ClientPlayerInput entity handle.
 --- @field action 'select'|'place'|'remove'|'dismantle'|'undo' `remove` is the secondary building action for voxels; `dismantle` holds the contextual action for props.
+--- @field targetEntityId integer? Exact live ECS entity ID required for `dismantle`.
 --- @field itemId integer? Required for select; current KFC ItemInfo item ID.
 --- @field materialItemId integer? Optional stock cycle material item ID.
 --- @field slot integer? Current actionbar slot for select.
@@ -363,6 +364,10 @@ function runtime.world.operation_available(operation) end
 --- @return boolean active
 --- @return string? reason
 function runtime.world.context_active() end
+--- Conservative process-local world/ECS lifetime marker; zero when unavailable.
+--- Not a persistent world ID or a singleplayer/multiplayer indicator.
+---@return integer
+function runtime.world.session_id() end
 
 --- @class RuntimeWorldEntityApi
 runtime.world.entity = {}
@@ -382,14 +387,14 @@ function runtime.world.entity.query_props(bounds, padding) end
 function runtime.world.entity.register_prop_recipes(recipes) end
 
 --- Query props whose native, rotated and scaled ItemInfo placement AABBs intersect bounds.
---- Each result includes templateUuidHighHex/templateUuidLowHex from the live native entity definition.
+--- Each result includes entityId and templateUuidHighHex/templateUuidLowHex from the live native entity definition.
 --- Requires placement recipes registered with register_prop_recipes.
 --- @param bounds number[] World-space min xyz followed by max xyz.
 --- @return table[]? props
 --- @return string? reason
 function runtime.world.entity.query_props_in_bounds(bounds) end
 
---- Resolve the current transform, item ID, and native template UUID for an opaque live prop handle.
+--- Resolve the current transform, ECS entity ID, item ID, and native template UUID for an opaque live prop handle.
 --- @param entity_handle integer Handle returned by query_props or spawn.
 --- @return table? prop
 --- @return string? reason
