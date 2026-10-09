@@ -13772,6 +13772,18 @@
     {
       "kind": "field",
       "namespace": "runtime",
+      "name": "runtime.network",
+      "signature": "runtime.network: RuntimeNetworkApi",
+      "params": [],
+      "returns": [
+        "RuntimeNetworkApi"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
       "name": "runtime.report_effect",
       "signature": "runtime.report_effect: fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?)",
       "params": [],
@@ -13825,6 +13837,342 @@
       "params": [],
       "returns": [
         "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.available",
+      "signature": "RuntimeNetworkStatus.available: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.role",
+      "signature": "RuntimeNetworkStatus.role: 'client'|'server'",
+      "params": [],
+      "returns": [
+        "'client'|'server'"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.local_steam_id",
+      "signature": "RuntimeNetworkStatus.local_steam_id: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.local_dedicated_server_steam_id",
+      "signature": "RuntimeNetworkStatus.local_dedicated_server_steam_id: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.reason",
+      "signature": "RuntimeNetworkStatus.reason: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.status",
+      "signature": "runtime.network.status()",
+      "params": [],
+      "returns": [
+        "RuntimeNetworkStatus"
+      ],
+      "description": "Report whether this process can use the built-in Steam P2P message channel.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkSendOptions.channel",
+      "signature": "RuntimeNetworkSendOptions.channel: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkSendOptions.reliable",
+      "signature": "RuntimeNetworkSendOptions.reliable: boolean?",
+      "params": [],
+      "returns": [
+        "boolean?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.send",
+      "signature": "runtime.network.send(peer_steam_id, payload, options)",
+      "params": [
+        {
+          "name": "peer_steam_id",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "payload",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "options",
+          "type": "RuntimeNetworkSendOptions?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean",
+        "string?"
+      ],
+      "description": "Send raw bytes to a Steam peer. This is a separate Steam P2P session, not an Enshrouded game packet. True means Steam accepted the send request, not that the peer acknowledged it.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.send_mod",
+      "signature": "runtime.network.send_mod(peer_steam_id, target_mod_id, payload, options)",
+      "params": [
+        {
+          "name": "peer_steam_id",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "target_mod_id",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "payload",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "options",
+          "type": "RuntimeNetworkSendOptions?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean",
+        "string?"
+      ],
+      "description": "Send a UTF-8 text message from this mod to a named mod on a specific Steam peer. The destination mod receives it through receive_mod; this does not broadcast or identify the human player beyond their SteamID64.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.accept",
+      "signature": "runtime.network.accept(peer_steam_id)",
+      "params": [
+        {
+          "name": "peer_steam_id",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "boolean",
+        "string?"
+      ],
+      "description": "Accept an incoming session request from a known peer before receiving its first message.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkReceiveOptions.channel",
+      "signature": "RuntimeNetworkReceiveOptions.channel: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkReceiveOptions.limit",
+      "signature": "RuntimeNetworkReceiveOptions.limit: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkMessage.peer_steam_id",
+      "signature": "RuntimeNetworkMessage.peer_steam_id: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkMessage.payload",
+      "signature": "RuntimeNetworkMessage.payload: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkMessage.reliable",
+      "signature": "RuntimeNetworkMessage.reliable: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.receive",
+      "signature": "runtime.network.receive(options)",
+      "params": [
+        {
+          "name": "options",
+          "type": "RuntimeNetworkReceiveOptions?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeNetworkMessage[]?",
+        "string?"
+      ],
+      "description": "Read currently queued messages from one channel. Call from the mod's runtime update callback.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.receive_mod",
+      "signature": "runtime.network.receive_mod(limit)",
+      "params": [
+        {
+          "name": "limit",
+          "type": "integer?",
+          "description": ""
+        }
+      ],
+      "returns": [
+        "RuntimeModNetworkMessage[]?",
+        "string?"
+      ],
+      "description": "Receive messages addressed to this mod. Call from runtime on_update; each message includes the sender mod ID and Steam peer ID. The mod must accept a new peer with runtime.network.accept(peer_steam_id) before its first incoming session.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeModNetworkMessage.peer_steam_id",
+      "signature": "RuntimeModNetworkMessage.peer_steam_id: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeModNetworkMessage.from_mod",
+      "signature": "RuntimeModNetworkMessage.from_mod: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeModNetworkMessage.to_mod",
+      "signature": "RuntimeModNetworkMessage.to_mod: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeModNetworkMessage.payload",
+      "signature": "RuntimeModNetworkMessage.payload: string",
+      "params": [],
+      "returns": [
+        "string"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeModNetworkMessage.reliable",
+      "signature": "RuntimeModNetworkMessage.reliable: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
       ],
       "description": "",
       "source": "shroudforge/v1/definitions/runtime.lua"
@@ -15152,6 +15500,18 @@
     {
       "kind": "field",
       "namespace": "runtime",
+      "name": "runtime.world.building.Input.targetEntityId",
+      "signature": "runtime.world.building.Input.targetEntityId: integer?",
+      "params": [],
+      "returns": [
+        "integer?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
       "name": "runtime.world.building.Input.itemId",
       "signature": "runtime.world.building.Input.itemId: integer?",
       "params": [],
@@ -15422,6 +15782,30 @@
     {
       "kind": "function",
       "namespace": "runtime",
+      "name": "runtime.world.context_kind",
+      "signature": "runtime.world.context_kind()",
+      "params": [],
+      "returns": [
+        "'direct'|'client-read-only'|'unknown'"
+      ],
+      "description": "Return the validated native target for automatic editor routing. direct means this process can write the active world; client-read-only means this client has only the cursor-derived world replica and must use the host. unknown means no context has been validated yet.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.world.session_id",
+      "signature": "runtime.world.session_id()",
+      "params": [],
+      "returns": [
+        "integer"
+      ],
+      "description": "Conservative process-local world/ECS lifetime marker; zero when unavailable. Not a persistent world ID or a singleplayer/multiplayer indicator.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
       "name": "runtime.world.entity.query_props",
       "signature": "runtime.world.entity.query_props(bounds, padding)",
       "params": [
@@ -15478,7 +15862,7 @@
         "table[]?",
         "string?"
       ],
-      "description": "Query props whose native, rotated and scaled ItemInfo placement AABBs intersect bounds. Each result includes templateUuidHighHex/templateUuidLowHex from the live native entity definition. Requires placement recipes registered with register_prop_recipes.",
+      "description": "Query props whose native, rotated and scaled ItemInfo placement AABBs intersect bounds. Each result includes entityId and templateUuidHighHex/templateUuidLowHex from the live native entity definition. Requires placement recipes registered with register_prop_recipes.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -15497,7 +15881,7 @@
         "table?",
         "string?"
       ],
-      "description": "Resolve the current transform, item ID, and native template UUID for an opaque live prop handle.",
+      "description": "Resolve the current transform, ECS entity ID, item ID, and native template UUID for an opaque live prop handle.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {

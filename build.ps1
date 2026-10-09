@@ -109,7 +109,7 @@ function Copy-ShroudForgeMods([string]$Destination) {
         foreach ($luaFile in Get-ChildItem -LiteralPath (Join-Path $directory.FullName 'src') -Filter '*.lua' -Force -Recurse -File) {
             $source = Get-Content -LiteralPath $luaFile.FullName -Raw
             foreach ($token in $forbiddenLuaTokens) {
-                if ($source -match [regex]::Escape($token)) {
+                if ($source -cmatch [regex]::Escape($token)) {
                     throw "Forbidden token '$token' in Lua mod: $($luaFile.FullName)"
                 }
             }
