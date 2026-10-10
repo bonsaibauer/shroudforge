@@ -25,11 +25,11 @@ New to mods? Start with the illustrated guide. It explains everything in simple 
 
 The guide includes separate instructions for your PC and game server, pictures of the Modloader, a first-mod lesson, and an interactive preview for mod settings.
 
-![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)
-
 <p align="center">
   <a href="https://www.youtube.com/watch?v=V57iZcn-hfo"><img src="assets/youtube-logo.svg" width="100%" alt="ShroudForge on YouTube: watch the trailer"></a>
 </p>
+
+![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)
 
 ## Quickstart: use ShroudForge
 
@@ -67,7 +67,49 @@ Enshrouded/
 
 Open the game, press **F9**, find the mod, and switch it on. Some mods need a game restart. Mods that change game files must prepare those changes before the game starts.
 
-Read the full [PC quickstart](https://bonsaibauer.github.io/shroudforge/en/#play) or [server guide](https://bonsaibauer.github.io/shroudforge/en/#server) for screenshots and help with each step.
+Read the full [PC quickstart](https://bonsaibauer.github.io/shroudforge/en/#play) for screenshots and help with each step.
+
+### Multiplayer server quickstart
+
+> [!NOTE]
+> The extra environment setting below is only for the Proton Docker image. It is not needed for the Windows game or the Enshrouded Dedicated Server installed through Steam.
+
+Install ShroudForge and the mod on your PC and on the server.
+
+1. Stop the server and back up your world.
+2. Download the [latest ShroudForge release](https://github.com/bonsaibauer/shroudforge/releases/latest).
+3. Right-click the ZIP file and choose **Extract All**.
+4. Open the server folder containing **enshrouded_server.exe**.
+5. Copy the ShroudForge files from the ZIP into that folder, beside **enshrouded_server.exe**.
+6. Unpack the mod you want to use, then copy its folder into the server's **mods** folder.
+7. If you use the Proton Docker image [`mornedhels/enshrouded-server`](https://github.com/mornedhels/enshrouded-server), add the environment setting below. It lets Proton load ShroudForge's DLLs.
+
+   For an existing `docker run` setup, add this option to its command:
+
+   ```bash
+   -e 'WINEDLLOVERRIDES=dbghelp=native,builtin;winmm=native,builtin' \
+   ```
+
+   For Docker Compose, add the setting under `environment`, as shown in this complete example:
+
+   ```yaml
+   services:
+     enshrouded:
+       image: mornedhels/enshrouded-server:dev-proton
+       restart: unless-stopped
+       ports:
+         - "15637:15637/udp"
+       volumes:
+         - ./gamefiles:/opt/enshrouded
+       environment:
+         - "WINEDLLOVERRIDES=dbghelp=native,builtin;winmm=native,builtin"
+   ```
+
+   Keep your existing image, ports, volume, and other settings. After changing the environment, recreate the Docker container. The normal server port is **15637/udp**.
+
+8. Start the server again.
+
+See the [English server guide](https://bonsaibauer.github.io/shroudforge/en/#server) or the [German server guide](https://bonsaibauer.github.io/shroudforge/de/#server) for the full Docker steps, including how to find and inspect an existing container before recreating it.
 
 ## Make your first mod
 
@@ -93,7 +135,7 @@ The release build validates each mod's manifest, ID, Lua entry point, and Lua sy
 | <img src="mods/sf-production-time/icon.svg" width="28" alt="SF Production Time"> | **SF Production Time** | Sets timed production recipes to a chosen base duration. World speed settings still apply. | 1.0.0 | ✅ | ✅ | ✅ | ✅* |
 | <img src="mods/sf-unlimited-flight/icon.svg" width="28" alt="SF Unlimited Flight"> | **SF Unlimited Flight** | Lets you keep flying without a time limit. | 1.1.1 | ✅ | ✅ | ✅ | ✅* |
 | <img src="mods/sf-unlock-blueprints/icon.svg" width="28" alt="SF Unlock Blueprints"> | **SF Unlock Blueprints** | Changes supported recipe unlock requirements to the first Flame Altar hint. | 1.0.1 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/world-editor/icon.svg" width="28" alt="World Editor"> | **World Editor** | Captures, saves, rotates, and places voxel-and-prop blueprints. | 0.3.0 | ✅ | ✅ | ✅ | ⚠️ |
+| <img src="mods/world-editor/icon.svg" width="28" alt="World Editor"> | **World Editor** | Captures, saves, rotates, and places voxel-and-prop blueprints. | 0.3.0 | ✅ | ✅ | ✅ | ✅* |
 
 \* Multiplayer support depends on installing and enabling the mod in the process that handles the relevant game action. For asset changes such as recipe data or production time, prepare both client and server before starting them. A client-side change alone does not prove that the server accepted or persisted the result.
 
@@ -101,7 +143,7 @@ The release build validates each mod's manifest, ID, Lua entry point, and Lua sy
 
 ![World Editor blueprint library](assets/worldeditor_bar.png)
 
-The World Editor can be installed on the client and Dedicated Server. The client provides the editor window, cursor selection, capture, and blueprint library. In singleplayer it uses the local world runtime. in a joined Dedicated Server world it sends the existing blueprint format over Steam P2P for the server to apply.
+The World Editor can be installed on the client and Dedicated Server. The client provides the editor window, cursor selection, capture, and blueprint library. In singleplayer it uses the local world runtime. In a joined Dedicated Server world it sends the existing blueprint format over Steam P2P for the server to apply.
 
 Blueprint placement has been observed on the Dedicated Server. **Undo for placed props is still unreliable**: the server can fail to remove a prop through the native destroy operation. Treat prop undo as experimental until it has been fixed and verified in a live session. Voxel undo and prop undo should be reported separately.
 
@@ -115,11 +157,11 @@ This table describes the current state of ShroudForge itself. **Proven** means t
 | --- | --- | --- |
 | **Release build and mod checks** | Release packaging checks each mod's manifest, ID, Lua entry point, and Lua syntax. | ✅ Proven |
 | **Build profiles** | Profiles are maintained per Enshrouded build and target. The current client profile is for build **1076226**. Supporting another build requires reviewing its profile and the operations it enables. | ✅ Proven |
-| **Asset changes before launch** | Supported asset edits are prepared before the game starts. Coverage depends on the resource and game build. client and server may need matching settings. | ✅ Proven |
+| **Asset changes before launch** | Supported asset edits are prepared before the game starts. Coverage depends on the resource and game build. Client and server may need matching settings. | ✅ Proven |
 | **Runtime hooks and gameplay mods** | The included gameplay mods use profile-backed hooks, patches, or asset changes. Their multiplayer effect depends on which process handles the action and has not been verified end to end for every mod. | 🚧 Beta |
 | **KFC runtime and ECS** | Native runtime and ECS operations are available, but live world-context detection and some read/write paths still have reliability limits. | 🚧 Beta |
 | **World Editor: capture and placement** | Blueprint capture and local placement are available. Dedicated Server placement over Steam P2P has been observed. Saving and persistence still need separate live-session checks. | 🚧 Beta |
-| **World Editor: prop undo** | Undo can fail when the native runtime cannot remove a placed prop. Preserve the undo journal and report the operation as incomplete. do not describe prop undo as proven. | 🕓 Open |
+| **World Editor: prop undo** | Undo can fail when the native runtime cannot remove a placed prop. Preserve the undo journal and report the operation as incomplete. Do not describe prop undo as proven. | 🕓 Open |
 | **World Editor: automatic world targeting** | The client selects the local or Dedicated Server route from the detected world context. Startup, reconnect, and world-switch cases need continued live validation. | 🚧 Beta |
 | **EML mod support** | ShroudForge supports documented EML-style package and API flows. Compatibility depends on the APIs and native behavior used by each mod. | 🚧 Beta |
 | **Mod discovery and updater** | The Modloader can find and install catalog mods, queue mod updates, and stage ShroudForge updates with backups. Broader recovery scenarios still need validation. | 🚧 Beta |
