@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="160" viewBox="0 0 960 160" role="img" aria-labelledby="title description">
+  <title id="title">Watch the ShroudForge trailer on YouTube</title>
+  <desc id="description">ShroudForge banner with a YouTube play symbol and an arrow to the trailer.</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15272b"/>
+      <stop offset="1" stop-color="#0b1316"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eed49a"/>
+      <stop offset="1" stop-color="#c9ad6e"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="956" height="156" rx="20" fill="url(#panel)" stroke="#385054" stroke-width="2"/>
+  <path d="M22 128h505" stroke="#c9ad6e" stroke-opacity=".25" stroke-width="2"/>
+  <path d="M542 22v116" stroke="#385054" stroke-width="2"/>
+
+  <g transform="translate(24 14) scale(.13)">
+    <path fill="url(#gold)" d="M512 64 960 279.04 852.48 798.72 512 960 171.52 798.72 64 279.04Z"/>
+    <text x="512" y="548" fill="#10191d" font-family="Georgia, 'Times New Roman', serif" font-size="300" font-weight="700" letter-spacing="-14" text-anchor="middle" dominant-baseline="middle">SF</text>
+  </g>
+
+  <text x="186" y="73" fill="#eed49a" font-family="Segoe UI, Arial, sans-serif" font-size="35" font-weight="800" letter-spacing="5">SHROUDFORGE</text>
+  <text x="188" y="105" fill="#a9b9b5" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="600" letter-spacing="2">MOD LOADER FOR ENSHROUDED</text>
+  <text x="188" y="134" fill="#d0ae6d" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">OFFICIAL TRAILER</text>
+
+  <rect x="574" y="39" width="348" height="82" rx="15" fill="#1a3034" stroke="#c9ad6e" stroke-width="2"/>
+  <rect x="594" y="57" width="58" height="46" rx="12" fill="#f00"/>
+  <path d="M617 67v26l21-13z" fill="#fff"/>
+  <text x="671" y="74" fill="#e7eeea" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="1">WATCH THE TRAILER</text>
+  <text x="672" y="98" fill="#91a5a5" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="2">ON YOUTUBE</text>
+  <path d="M878 80h23m-9-9 9 9-9 9" fill="none" stroke="#eed49a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
