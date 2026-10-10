@@ -30,20 +30,20 @@ for (const [name, type] of Object.entries(types)) {
 if (!api.symbols.some(symbol => symbol.name === "runtime.phase")) throw new Error("runtime phase field is missing");
 if (!api.symbols.some(symbol => symbol.name === "runtime.has")) throw new Error("runtime API is missing");
 if (!api.symbols.some(symbol => symbol.name === "runtime.lifecycle.on_load")) throw new Error("runtime lifecycle API is missing");
-if (!api.symbols.some(symbol => symbol.name === "shroudforge.loader.features.export")) throw new Error("EML loader feature API is missing");
-if (!api.symbols.some(symbol => symbol.name === "shroudforge.loader.has_mod")) throw new Error("EML loader registry API is missing");
+if (!api.symbols.some(symbol => symbol.name === "loader.features.export")) throw new Error("EML loader feature API is missing");
+if (!api.symbols.some(symbol => symbol.name === "loader.has_mod")) throw new Error("EML loader registry API is missing");
 if (!api.symbols.some(symbol => symbol.name === "game.types.get")) throw new Error("game type API is missing");
 if (!api.symbols.some(symbol => symbol.name === "game.assets.get_resource")) throw new Error("asset API is missing");
 if (!api.symbols.some(symbol => symbol.name === "shroudforge.log.info")) throw new Error("ShroudForge logging API is missing");
-if (!api.symbols.some(symbol => symbol.name === "shroudforge.io.read")) throw new Error("ShroudForge IO utility API is missing");
-if (!api.symbols.some(symbol => symbol.name === "shroudforge.buffer.create")) throw new Error("ShroudForge buffer utility API is missing");
+if (!api.symbols.some(symbol => symbol.name === "io.read")) throw new Error("EML file API is missing");
+if (!api.symbols.some(symbol => symbol.name === "buffer.create")) throw new Error("EML buffer API is missing");
 for (const forbidden of ["get_by_qualified_hash", "get_by_impact_hash", "name_hash", "impact_hash", "qualified_hash", "internal_hash"]) {
   if (api.symbols.some(symbol => symbol.name.includes(forbidden))) {
     throw new Error(`hash-based public type API remains: ${forbidden}`);
   }
 }
 for (const symbol of api.symbols) {
-  if (!["game", "runtime", "shroudforge"].includes(symbol.namespace)) {
+  if (!["game", "runtime", "shroudforge", "eml"].includes(symbol.namespace)) {
     throw new Error(`unexpected public API namespace '${symbol.namespace}' on ${symbol.name}`);
   }
 }

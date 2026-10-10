@@ -13,5 +13,6 @@
     "en": "Lua API guides"
   },
   "navOrder": 50,
+  "apiPrefixes": ["io.", "buffer.", "Buffer:", "game.assets."],
   "order": 5
 }

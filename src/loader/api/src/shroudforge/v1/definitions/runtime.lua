@@ -3,19 +3,18 @@
 --- The execution-facing part of the single ShroudForge API.
 --- Its shape is identical before and inside the game; `phase` and `has()` report availability.
 --- @class RuntimeApi
---- @field schema_version integer
+--- @field schema_version integer Version of the runtime API schema.
 --- @field types TypeRegistry Same registry object as game.types; includes all reflection entries.
---- @field phase "pregame"|"ingame"
---- @field is_client boolean
---- @field is_server boolean
+--- @field phase "pregame"|"ingame" Whether the game is preparing startup data or is running.
+--- @field is_client boolean True when this mod runs in a player client process.
+--- @field is_server boolean True when this mod runs in a Dedicated Server process.
 --- @field network RuntimeNetworkApi Steam Networking Messages P2P channel on the current client or dedicated-server process.
---- Report observed status from a runtime mod's ECS work. A confirmed write reports a typed-memory write, not an independently verified gameplay effect.
---- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string?
+--- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string? Report an observed ECS action state. A confirmed write means typed memory was written, not that the gameplay effect was independently verified.
 
 --- @class RuntimeLifecycle
---- @field on_load fun()?
---- @field on_update fun(delta_seconds:number)?
---- @field on_unload fun()?
+--- @field on_load fun()? Called when the runtime mod starts.
+--- @field on_update fun(delta_seconds:number)? Called at the configured update interval while the mod is active.
+--- @field on_unload fun()? Called when the runtime mod stops.
 --- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
 
@@ -23,14 +22,14 @@ runtime = {}
 runtime.network = {}
 ---@class RuntimeNetworkStatus
 ---@field available boolean Steam Networking Messages is initialized in this process and the mod has runtime access.
----@field role 'client'|'server'
+---@field role 'client'|'server' Whether this process is a player client or Dedicated Server.
 ---@field local_steam_id string? Decimal Steam ID of this process, when Steam exposes it.
 ---@field local_dedicated_server_steam_id string? Current Steam ID of a ShroudForge Dedicated Server running in this Windows session, if one publishes it.
 ---@field remote_dedicated_server_steam_id string? Dedicated Server SteamID64 learned from its automatic Network health probe.
 ---@field configured_server_steam_id string? Remote Dedicated Server fallback from Settings > Modules > Network.
 ---@field allowed_client_steam_ids string[]? Optional server-side client allowlist; empty means authenticated Enshrouded players.
 ---@field service_ready boolean Whether the built-in Steam session callback is registered for automatic session acceptance.
----@field reason string?
+---@field reason string? Why the network transport is unavailable in this process.
 --- Report whether this process can use the built-in Steam P2P message channel.
 ---@return RuntimeNetworkStatus status
 function runtime.network.status() end
@@ -65,9 +64,9 @@ function runtime.network.connected_peers() end
 ---@field channel integer? Local channel to read, default 0.
 ---@field limit integer? Maximum messages to return in one call, 1..32, default 16.
 ---@class RuntimeNetworkMessage
----@field peer_steam_id string
+---@field peer_steam_id string SteamID64 of the remote process that sent this message.
 ---@field payload string Binary-safe Lua string.
----@field reliable boolean
+---@field reliable boolean Whether Steam used reliable delivery for this message.
 --- Read currently queued messages from one channel. Call from the mod's runtime update callback.
 ---@param options RuntimeNetworkReceiveOptions?
 ---@return RuntimeNetworkMessage[]? messages
@@ -83,7 +82,7 @@ function runtime.network.receive_mod(limit) end
 ---@field from_mod string Sender mod ID claimed in the protocol envelope.
 ---@field to_mod string This receiving mod ID.
 ---@field payload string UTF-8 text payload.
----@field reliable boolean
+---@field reliable boolean Whether Steam used reliable delivery for this message.
 
 --- @class RuntimeValuesApi
 runtime.values = {}
@@ -115,8 +114,8 @@ runtime.functions = {}
 ---@field modifiers table[] Checked interventions attached to their owning native function.
 ---@field operations table[] Existing checked runtime wrappers attached to the same function.
 ---@field key string Executable SHA256/name; rejects use with another executable.
----@field rva integer
----@field provisional boolean
+---@field rva integer Relative virtual address of this candidate in the selected executable.
+---@field provisional boolean True when the candidate name or binding has not been fully verified.
 ---@field callable boolean True only when this descriptor has a verified owned-buffer adapter.
 ---@field native_callable boolean Raw engine calls are not exposed by provisional bindings.
 ---@field execution string? Adapter implementation, when available.
@@ -124,8 +123,8 @@ runtime.functions = {}
 ---@field signature table Known adapter contract plus explicit unresolved native contract.
 ---@field validation table Separate address, type ownership, signature, context and effect evidence.
 ---@field buffer_transform table? Minimum source/destination lengths, exact copies, optional constant result.
----@field reason string?
----@field call fun(source_bytes:string,destination_bytes:string):string?,string?,integer? Uses owned bytes; unknown bindings return nil,reason.
+---@field reason string? Why the candidate cannot be called when it is unresolved.
+---@field call fun(source_bytes:string,destination_bytes:string):string?,string?,integer? Runs the verified adapter on owned bytes. Unknown bindings return nil and a reason.
 
 --- Pages of all observed native code candidates: unwind groups, image code pointers,
 --- and live registration callbacks, including provisional/uncallable entries.
@@ -141,6 +140,8 @@ function runtime.functions.list_native(offset, limit) end
 ---@return table? page
 ---@return string? reason
 function runtime.functions.list(offset, limit) end
+--- Finds a native binding by original name, checked operation ID, RVA, or explicit binding key.
+--- Unresolved candidates are returned with their reason so they can be inspected without calling them.
 ---@param selector integer|string Original engine name, checked operation ID, RVA, native:<decimal>, unclear_<hex>, or SHA256/name.
 ---@return RuntimeNativeBinding? binding Includes unresolved bindings and their explicit failure reason.
 ---@return string? reason
@@ -156,6 +157,7 @@ function runtime.functions.get_native(rva) end
 ---@return function? binding
 ---@return string? reason
 function runtime.functions.bind(operation) end
+--- Lists the checked operations and the current availability of each one.
 ---@return table<string, RuntimeFeatureStatus>
 function runtime.functions.get_operations() end
 
@@ -179,12 +181,14 @@ function runtime.functions.bind_modifier(id) end
 --- @return boolean
 function runtime.has(feature) end
 
---- @param feature string
+--- Raises a Lua error when the named feature is not available to this mod in the current process.
+--- Check runtime.has(feature) first when an unavailable feature should be handled without an error.
+--- @param feature string Feature name such as runtime.lifecycle or runtime.ecs.read.
 function runtime.require(feature) end
 
 --- @class RuntimeFeatureStatus
---- @field available boolean
---- @field reason string?
+--- @field available boolean True when the requested operation can run in this process now.
+--- @field reason string? Explanation when the operation is unavailable.
 
 --- Returns the availability and, if unavailable, the reason for a runtime operation.
 --- @param feature string
@@ -205,15 +209,15 @@ runtime.ecs = {}
 ---@field runtime_type Type? Actual entity storage layout, possibly Dynamic*.
 ---@field template_type Type? Configuration layout, separate from entity bytes.
 ---@field runtime_size integer Zero for template-only registrations.
----@field storage 'entity'|'template-only'
+---@field storage 'entity'|'template-only' Whether this registration owns entity data or only a configuration template.
 ---@field flags_bits integer Raw engine flags, semantics not assumed.
 ---@field storage_flags_bits integer Raw packed flags adjacent to the 16-bit storage size.
 ---@field callbacks table[] Code ownership evidence with origin/slot_offset/function_rva; resolve via runtime.functions.get(callback.function_rva).
----@field read_available boolean
----@field write_available boolean
+---@field read_available boolean True when the validated layout can be read by the current adapter.
+---@field write_available boolean True when the validated layout can be written by the current adapter.
 ---@field partial_value boolean Some nested values require an unsupported native container codec.
----@field value_reason string?
----@field reason string?
+---@field value_reason string? Why a complete component value cannot be decoded.
+---@field reason string? Why this registration or operation is unavailable.
 
 --- All registrations from the validated live engine registry, including template-only entries.
 --- Does not require a per-build component hash/index profile. Engine hook/layout compatibility is still required.
@@ -230,7 +234,7 @@ function runtime.ecs.get_component(selector) end
 ---@class RuntimeAttribute
 ---@field name string Original KFC debugNames entry.
 ---@field hash integer Stored engine attribute ID; not a type hash or FNV(name).
----@field root_hash integer
+---@field root_hash integer Hash identifying the root attribute calculation.
 ---@field index integer Zero-based element index within the root's storage.
 ---@field scalar_type string? KFC calculation scalar type.
 ---@field components table[] Definition GUID, reflected storage scalar type, size and offsets.
@@ -243,15 +247,19 @@ function runtime.ecs.get_component(selector) end
 ---@field calculation_writable boolean Root program has a consistent or sign-independent scalar interpretation.
 ---@field calculation_reason string? Why a root update is blocked.
 ---@field write_value_domain string Scalar range restriction, including common integer range for signedness conflicts.
+--- Lists reflected attributes and their storage or calculation metadata for the current game build.
+--- This describes the available layout and does not mean every value can be read or written.
 ---@return {version:string,count:integer,entries:RuntimeAttribute[]}? attributes
 ---@return string? reason
 function runtime.ecs.get_attributes() end
+--- Finds one reflected attribute by its original name or stored engine ID.
 ---@param selector string|integer Original attribute name or stored ID.
 ---@return RuntimeAttribute? attribute
 ---@return string? reason
 function runtime.ecs.get_attribute(selector) end
+--- Reads one numeric attribute value from an entity using its reflected storage type.
 ---@param entity integer Entity handle from runtime.ecs.query.
----@param selector string|integer
+---@param selector string|integer Original attribute name or stored engine ID.
 ---@return number? value Interpreted according to the reflected storage scalar type.
 ---@return string? reason
 function runtime.ecs.read_attribute(entity, selector) end
@@ -544,20 +552,25 @@ function runtime.patch.set_enabled(name, enabled) end
 
 --- @class ShroudForgeLogApi
 local log = {}
+--- Writes a detailed TRACE-level message to this mod's log.
 --- @param ... unknown
 function log.trace(...) end
+--- Writes a DEBUG-level diagnostic message to this mod's log.
 --- @param ... unknown
 function log.debug(...) end
+--- Writes an INFO-level message about a meaningful mod event.
 --- @param ... unknown
 function log.info(...) end
+--- Writes a WARN-level message about a blocked or uncertain mod operation.
 --- @param ... unknown
 function log.warn(...) end
+--- Writes an ERROR-level message about a failed mod operation.
 --- @param ... unknown
 function log.error(...) end
 
 --- @class ShroudForgeApi
---- @field version string
---- @field mod_id string
---- @field mod_kind "lua"
---- @field log ShroudForgeLogApi
+--- @field version string Version of the ShroudForge API available to this mod.
+--- @field mod_id string Stable ID of the currently running mod.
+--- @field mod_kind "lua" Runtime package kind for the currently running mod.
+--- @field log ShroudForgeLogApi Write messages to this mod's shared ShroudForge log.
 shroudforge = {}

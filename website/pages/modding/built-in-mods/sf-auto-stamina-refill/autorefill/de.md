@@ -15,4 +15,4 @@ Füllt die Ausdauer wiederholt bis zum Maximum auf.
 
 ## Woher die Angaben kommen
 
-Diese Seite basiert auf `mods/sf-auto-stamina-refill/extended.mod.json`. Lua liest den aktuellen Wert mit `shroudforge.settings.get("autoRefill", fallback)`. Spieleränderungen speichert der Modloader in der Erweiterungsdatei. [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/main/mods/sf-auto-stamina-refill/src/mod.lua).
+Diese Seite basiert auf `mods/sf-auto-stamina-refill/extended.mod.json`. Lua liest den aktuellen Wert mit `shroudforge.settings.get("autoRefill", fallback)`. Spieleränderungen speichert der Modloader in der Erweiterungsdatei. [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/sf-auto-stamina-refill/src/mod.lua).

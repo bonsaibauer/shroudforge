@@ -17,4 +17,4 @@ Füllt die Ausdauer wiederholt bis zum Maximum auf.
 
 - [Ausdauer automatisch auffüllen](#doc-builtin-sf-auto-stamina-refill-autorefill)
 
-Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/main/mods/sf-auto-stamina-refill/src/mod.lua).
+Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/sf-auto-stamina-refill/src/mod.lua).

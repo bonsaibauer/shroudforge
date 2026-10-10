@@ -5,8 +5,10 @@
 --- Runtime mods should read values in lifecycle callbacks when changes must apply live.
 shroudforge_settings = {}
 
---- @param key string
---- @param fallback? boolean|string|number|any[]
+--- Returns the current player-configured value for a setting declared in `extended.mod.json`.
+--- Read it when a runtime callback or action runs so saved changes are picked up.
+--- @param key string Setting key declared by the mod.
+--- @param fallback? boolean|string|number|any[] Value to use when the key has no saved value.
 --- @return boolean|string|number|any[]|nil
 function shroudforge_settings.get(key, fallback) end
 
@@ -14,15 +16,17 @@ function shroudforge_settings.get(key, fallback) end
 --- Connects safe declarative UI actions to the current runtime mod.
 shroudforge_ui = {}
 
+--- Registers a Lua callback for a button declared in `extended.mod.json`.
+--- The callback runs when the player activates the matching button in the Modloader.
 --- @param action string Action identifier declared by a button in `extended.mod.json`.
---- @param callback fun()
+--- @param callback fun() Function to run after that button is activated.
 function shroudforge_ui.on_action(action, callback) end
 
 --- A message published to this player's local Modloader news feed.
 --- Reusing the same ID from this mod updates the existing notice.
 --- @class ShroudForgeNotification
 --- @field id string Stable notice ID scoped to the publishing mod.
---- @field level? 'info'|'success'|'warning'|'error'|'update'
+--- @field level? 'info'|'success'|'warning'|'error'|'update' Visual category used for the notice.
 --- @field title string Title shown in the player's local news feed. May contain `{username}`.
 --- @field message string Message shown in the player's local news feed. May contain `{username}`.
 --- @field action_url? string HTTPS URL opened from the notice.
@@ -45,11 +49,11 @@ shroudforge_input = {}
 function shroudforge_input.is_key_down(key) end
 
 --- @class ShroudForge
---- @field version string
---- @field mod_id string
---- @field mod_kind 'lua'
---- @field settings ShroudForgeSettings
---- @field ui ShroudForgeUi
---- @field input ShroudForgeInput
---- @field notifications ShroudForgeNotifications
+--- @field version string Version of the ShroudForge Lua API.
+--- @field mod_id string Stable ID of the currently running mod.
+--- @field mod_kind 'lua' Runtime package kind for the currently running mod.
+--- @field settings ShroudForgeSettings Read the current values from the mod's settings.
+--- @field ui ShroudForgeUi Register callbacks for Modloader buttons.
+--- @field input ShroudForgeInput Read supported function-key states.
+--- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 shroudforge = {}

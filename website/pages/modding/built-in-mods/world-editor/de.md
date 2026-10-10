@@ -66,4 +66,4 @@ Voxel- und Prop-Blueprints oder reine Prop-Blueprints aufnehmen, prüfen, einfü
 - [Weltposition Z für Props-only-Blueprints](#doc-builtin-world-editor-targetworldz)
 - [Interner Entity-Handle](#doc-builtin-world-editor-entityhandle)
 
-Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/main/mods/world-editor/src/mod.lua).
+Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/world-editor/src/mod.lua).

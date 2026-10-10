@@ -9,10 +9,10 @@
 --- @field dll boolean Whether EML package-local DLLs can be loaded in the current game process.
 
 --- @class EmlLoader
---- @field is_client boolean
---- @field is_server boolean
---- @field features EmlLoaderFeatures
---- @field runtime EmlLoaderRuntime
+--- @field is_client boolean True when the current process is a player client.
+--- @field is_server boolean True when the current process is a Dedicated Server.
+--- @field features EmlLoaderFeatures Capabilities granted to this mod by the package permissions.
+--- @field runtime EmlLoaderRuntime Functions available only while the game process is running.
 loader = {}
 
 --- Returns whether a mod with the given ID is present in the current registry.

@@ -13,5 +13,7 @@
     "en": "Lua API guides"
   },
   "navOrder": 50,
+  "apiSymbols": ["runtime.ecs", "runtime.values", "runtime.world"],
+  "apiPrefixes": ["runtime.ecs.", "runtime.values.", "runtime.world.", "game.types.", "RuntimeComponentRegistration.", "RuntimeAttribute.", "BuildingInput."],
   "order": 8
 }

@@ -13,5 +13,6 @@
     "en": "Lua API guides"
   },
   "navOrder": 50,
+  "apiSymbols": ["shroudforge.ui.on_action"],
   "order": 3
 }

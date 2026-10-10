@@ -17,4 +17,4 @@ Lege vor dem Spielstart denselben Wert auf Client und Host oder Server fest. Wel
 
 - [Basis-Produktionszeit in Sekunden](#doc-builtin-sf-production-time-seconds)
 
-Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/main/mods/sf-production-time/src/mod.lua).
+Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/sf-production-time/src/mod.lua).

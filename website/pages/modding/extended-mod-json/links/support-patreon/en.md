@@ -10,4 +10,4 @@ Use this ID in `extended.mod.json → links.support-patreon` and provide an HTTP
 }
 ```
 
-The IDs and their order are defined in [order.json](https://github.com/bonsaibauer/shroudforge/blob/main/src/loader/modules/modloader-ui/ui/src/links/order.json).
+The IDs and their order are defined in [order.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/src/loader/modules/modloader-ui/ui/src/links/order.json).

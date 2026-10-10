@@ -21,4 +21,4 @@ Die ID ist im jeweiligen Mod-Namensraum stabil. Dieselbe ID aktualisiert die vor
 
 ## Wann eine Mitteilung passt
 
-Melde bestätigte Ereignisse. Rufe die Funktion nicht pro Frame oder in schnellen Schleifen auf. Für technische Diagnosen nutze das [Mod-Logging](#doc-api-logging). Details zum gespeicherten Format stehen in [modloader-content.md](https://github.com/bonsaibauer/shroudforge/blob/main/docs/sf/modloader-content.md).
+Melde bestätigte Ereignisse. Rufe die Funktion nicht pro Frame oder in schnellen Schleifen auf. Für technische Diagnosen nutze das [Mod-Logging](#doc-api-logging). Details zum gespeicherten Format stehen in [modloader-content.md](https://github.com/bonsaibauer/shroudforge/blob/HEAD/docs/sf/modloader-content.md).

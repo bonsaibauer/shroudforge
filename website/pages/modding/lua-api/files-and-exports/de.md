@@ -1,6 +1,6 @@
 # Dateien lesen und Exporte speichern
 
-Die `shroudforge.io`-API trennt mitgelieferte Paketdateien von exportierten Spielerdaten. Ein Mod sollte nicht annehmen, dass beide Bereiche denselben Pfad oder dieselbe Schreibberechtigung haben.
+Die globale `io`-API trennt mitgelieferte Paketdateien von exportierten Spielerdaten. Ein Mod sollte nicht annehmen, dass beide Bereiche denselben Pfad oder dieselbe Schreibberechtigung haben.
 
 ## Berechtigung
 

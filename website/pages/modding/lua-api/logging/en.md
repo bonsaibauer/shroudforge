@@ -1,6 +1,6 @@
 # Write useful mod log messages
 
-Use `shroudforge.log` for technical mod activity. A useful message names the action and result, while an error also explains why it failed. The shared policy is in [Logging for mods and the loader](https://github.com/bonsaibauer/shroudforge/blob/main/docs/sf/logging.md).
+Use `shroudforge.log` for technical mod activity. A useful message names the action and result, while an error also explains why it failed. The shared policy is in [Logging for mods and the loader](https://github.com/bonsaibauer/shroudforge/blob/HEAD/docs/sf/logging.md).
 
 ```lua
 shroudforge.log.info("Blueprint export started")

@@ -13,5 +13,6 @@
     "en": "Lua API guides"
   },
   "navOrder": 50,
+  "apiPrefixes": ["runtime.", "RuntimeNativeBinding.", "RuntimeFunctionModifier.", "RuntimeFeatureStatus."],
   "order": 6
 }

@@ -17,6 +17,6 @@ Legt eine Basisdauer für zeitgesteuerte Produktionsrezepte fest. Weltgeschwindi
 
 ## Woher die Angaben kommen
 
-Diese Seite basiert auf `mods/sf-production-time/extended.mod.json`. Lua liest den aktuellen Wert mit `shroudforge.settings.get("seconds", fallback)`. Spieleränderungen speichert der Modloader in der Erweiterungsdatei. [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/main/mods/sf-production-time/src/mod.lua).
+Diese Seite basiert auf `mods/sf-production-time/extended.mod.json`. Lua liest den aktuellen Wert mit `shroudforge.settings.get("seconds", fallback)`. Spieleränderungen speichert der Modloader in der Erweiterungsdatei. [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/sf-production-time/src/mod.lua).
 
-[Mod-Anleitung](https://github.com/bonsaibauer/shroudforge/blob/main/mods/sf-production-time/README.md)
+[Mod-Anleitung](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/sf-production-time/README.md)

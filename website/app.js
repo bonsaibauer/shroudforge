@@ -9,13 +9,19 @@ const staticPageIds = ["home", "play", "server", "server-files", "server-windows
 const docRoutes = docPages.map(page => ({ ...page, route: `doc-${page.id}` }));
 const docPageByRoute = new Map(docRoutes.map(page => [page.route, page]));
 const docPageIds = docRoutes.map(page => page.route);
+const apiGuides = docRoutes.filter(page => page.apiSymbols?.length || page.apiPrefixes?.length);
 const pageIds = [...staticPageIds, ...docPageIds];
 const docNavGroups = groupDocsForNavigation(docRoutes);
-const state = { page: "home", catalog: "api", apiSource: "all", api: [], profile: null, types: {}, resources: {}, manifest: null, extended: null, editor: "mod" };
+const state = { page: "home", catalog: "api", apiSource: "all", api: [], apiVersion: null, apiLoaded: false, profile: null, snapshot: null, types: {}, typesLoaded: false, resources: {}, resourcesLoaded: false, manifest: null, extended: null, editor: "mod" };
 let uploadedIcon = null;
 let editingSettingKey = null;
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const fmt = value => Number(value || 0).toLocaleString(locale === "de" ? "de-DE" : "en-US");
+const apiText = value => esc(value)
+  .replace(/;\s*/g, ", ")
+  .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+  .replace(/`([^`]+)`/g, "<code>$1</code>")
+  .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
 document.documentElement.lang = locale;
 document.title = locale === "de" ? "ShroudForge — Spiel-, Server- und Modding-Guide" : "ShroudForge — Player, server and modding guide";
@@ -23,6 +29,15 @@ document.querySelector('meta[name="description"]')?.setAttribute("content", loca
   ? "ShroudForge für PC und Server einrichten, Mods installieren und verstehen, wie Loader, Lua Runtime und KFC Runtime arbeiten."
   : "Set up ShroudForge for PC and servers, install mods, and learn how the loader, Lua runtime, and KFC Runtime work.");
 localStorage.setItem("sf-language", locale);
+
+function apiGuideFor(item) {
+  const exact = apiGuides.find(page => page.apiSymbols?.includes(item.name));
+  if (exact) return exact;
+  return apiGuides.flatMap(page => (page.apiPrefixes || [])
+    .filter(prefix => item.name.startsWith(prefix))
+    .map(prefix => ({ page, length: prefix.length })))
+    .sort((left, right) => right.length - left.length)[0]?.page;
+}
 
 function groupDocsForNavigation(pages) {
   const groups = new Map();
@@ -37,14 +52,27 @@ function groupDocsForNavigation(pages) {
     .map(group => ({ ...group, items: group.items.sort((left, right) => left.order - right.order || left.label.localeCompare(right.label, locale)) }));
 }
 
-const docNavigation = docNavGroups.map(group => `<details class="nav-doc-group"><summary>${esc(group.label)}</summary><div>${group.items.map(item => `<button class="nav-item nav-child" data-view="${item.id}"><span>${esc(item.label)}</span></button>`).join("")}</div></details>`).join("");
+function apiDescription(item, guide) {
+  const localized = locale === "de" ? item.description_de : "";
+  const fallback = locale === "de"
+    ? item.description || item.owner_description || guide?.summary?.de || guide?.summary?.en
+    : item.description || item.owner_description || guide?.summary?.en;
+  return localized || fallback || (locale === "de"
+    ? "Für diesen Eintrag gibt es noch keine ausführliche Erklärung. Signatur und Rückgabewerte stehen unten."
+    : "A detailed explanation is not available for this entry yet. Its signature and return values are shown below.");
+}
+
+const docNavigation = docNavGroups.map(group => {
+  const label = group.label.split(" · ").at(-1).split(", ").at(-1);
+  return `<section class="nav-doc-group"><div class="nav-doc-label">${esc(label)}</div>${group.items.map(item => `<button class="nav-item nav-child" data-view="${item.id}"><span>${esc(item.label)}</span></button>`).join("")}</section>`;
+}).join("");
 const pageMarkup = pageIds.map(id => docPageByRoute.has(id)
   ? `<section id="view-${id}" class="view doc-view"><article class="markdown-page" data-doc-page="${id}"><div class="doc-loading">${locale === "de" ? "Artikel wird geladen …" : "Loading article …"}</div></article></section>`
   : `<section id="view-${id}" class="view ${id === "home" ? "active" : ""}">${copy[id]}</section>`).join("");
 
 document.querySelector("#app").innerHTML = `
   <header class="topbar"><a href="#home" class="brand" data-view="home" aria-label="ShroudForge home"><img src="../media/shroudforge-mark.svg" alt=""><span><b>SHROUDFORGE</b><small>${copy.brand}</small></span></a><div class="top-actions"><a class="top-link" href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><a class="top-link release-link" href="https://github.com/bonsaibauer/shroudforge/releases/latest" target="_blank" rel="noreferrer">${copy.download} ↗</a><nav class="language-switch" aria-label="${locale === "de" ? "Sprache wählen" : "Choose language"}"><a data-language="de" href="../de/#${location.hash.slice(1) || "home"}" lang="de" title="Deutsch" aria-label="Deutsch" ${locale === "de" ? 'aria-current="page"' : ""}><img src="../media/flag-de.svg" alt=""></a><a data-language="en" href="../en/#${location.hash.slice(1) || "home"}" lang="en" title="English" aria-label="English" ${locale === "en" ? 'aria-current="page"' : ""}><img src="../media/flag-en.svg" alt=""></a></nav><button class="mobile-menu" id="mobile-menu" aria-label="${copy.menu}">☰</button></div></header>
-  <aside class="sidebar"><div class="sidebar-label">${copy.menu}</div><nav>${copy.navGroups.map(group => `<div class="nav-group"><div class="nav-group-title">${group.label}</div>${group.items.map(item => `<button class="nav-item ${item.child ? "nav-child" : ""} ${item.id === "home" ? "active" : ""}" data-view="${item.id}"><span>${item.label}</span>${item.id === "home" ? '<i class="nav-glow"></i>' : ""}</button>${group.items.some(entry => entry.id === "manifests") && item.id === "api" ? docNavigation : ""}`).join("")}</div>`).join("")}</nav><div class="sidebar-bottom"><div class="sidebar-mark"><span class="status-dot"></span><span>ENSHROUDED<br><small>MODDING PLATFORM</small></span></div><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a></div></aside>
+  <aside class="sidebar"><div class="sidebar-label">${copy.menu}</div><nav>${copy.navGroups.map(group => `<div class="nav-group"><div class="nav-group-title">${group.label}</div>${group.items.map(item => `<button class="nav-item ${item.child ? "nav-child" : ""} ${item.id === "home" ? "active" : ""}" data-view="${item.id}"><span>${item.label}</span>${item.id === "home" ? '<i class="nav-glow"></i>' : ""}</button>${group.items.some(entry => entry.id === "manifests") && item.id === "api" ? docNavigation : ""}`).join("")}</div>`).join("")}</nav></aside>
   <main class="main-content"><div class="content-wrap">${pageMarkup}<footer class="site-footer"><span>© SHROUDFORGE · ${copy.footer}</span><span><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><b>·</b><a href="#api" data-view="api">${copy.apiLabel}</a></span></footer></div></main>`;
 
 const $ = selector => document.querySelector(selector);
@@ -134,7 +162,6 @@ function setPage(page, updateHash = true) {
   state.page = page;
   $$(".view").forEach(view => view.classList.toggle("active", view.id === `view-${page}`));
   $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.view === page));
-  $$(".nav-doc-group").forEach(group => { if (group.querySelector(`[data-view="${page}"]`)) group.open = true; });
   if (updateHash) history.replaceState(null, "", `#${page}`);
   $(".sidebar").classList.remove("open");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -287,6 +314,15 @@ document.addEventListener("click", event => {
   if (viewButton) { event.preventDefault(); setPage(viewButton.dataset.view); }
   const catalogButton = event.target.closest("[data-catalog]");
   if (catalogButton) setCatalog(catalogButton.dataset.catalog);
+  const apiQueryButton = event.target.closest("[data-api-query]");
+  if (apiQueryButton) {
+    const search = $("#api-search");
+    search.value = apiQueryButton.dataset.apiQuery;
+    state.apiSource = "all";
+    $$(`[data-api-source]`).forEach(button => button.classList.toggle("active", button.dataset.apiSource === "all"));
+    renderApi(search.value);
+    search.focus();
+  }
   const sourceButton = event.target.closest("[data-api-source]");
   if (sourceButton) {
     state.apiSource = sourceButton.dataset.apiSource;
@@ -890,7 +926,7 @@ function addCopyControls() {
     const wrapper = document.createElement("div"); wrapper.className = "code-block";
     const bar = document.createElement("div"); bar.className = "code-block-bar";
     const label = document.createElement("span"); label.textContent = block.dataset.label || (locale === "de" ? "CODEBEISPIEL" : "CODE EXAMPLE");
-    const button = document.createElement("button"); button.type = "button"; button.className = "reset-button copy-code"; button.textContent = locale === "de" ? "Kopieren" : "Copy";
+    const button = document.createElement("button"); button.type = "button"; button.className = "reset-button copy-code"; button.textContent = block.dataset.copyLabel || (locale === "de" ? "Kopieren" : "Copy");
     button.addEventListener("click", () => copyText(block.innerText, button));
     bar.append(label, button); block.before(wrapper); wrapper.append(bar, block);
   });
@@ -915,48 +951,180 @@ $("#mod-preview").addEventListener("input", event => {
 });
 updatePreview();
 
-let loadPromise;
+let apiLoadPromise;
+let gameProfilePromise;
+const gameDataPromises = {};
 async function loadCatalog() {
-  if (state.profile) { renderApi($("#api-search")?.value || ""); return; }
-  if (loadPromise) return loadPromise;
-  loadPromise = (async () => {
+  if (state.apiLoaded) { renderApi($("#api-search")?.value || ""); return; }
+  if (apiLoadPromise) return apiLoadPromise;
+  setCatalogStatus(locale === "de" ? "Lua-API wird geladen …" : "Loading Lua API …");
+  apiLoadPromise = (async () => {
     try {
-      const current = await fetch(new URL("data/current.json", siteRoot)).then(checkJson);
-      const dataBase = new URL(`data/${current.snapshot}/`, siteRoot);
-      const [profile, api, types, resources] = await Promise.all([
-        fetch(new URL("profile.json", dataBase)).then(checkJson), fetch(new URL("data/api.json", siteRoot)).then(checkJson),
-        fetch(new URL("types.json", dataBase)).then(checkJson), fetch(new URL("resources.json", dataBase)).then(checkJson)
-      ]);
-      Object.assign(state, { profile, api: api.symbols || [], types, resources });
-      $("#catalog-version").textContent = `${locale === "de" ? "API" : "API"} ${api.version} · ${profile.game_version.split("|")[0]}`;
-      $("#build-state").textContent = locale === "de" ? "Spieldaten geladen" : "Game catalog loaded";
-      $("#build-state").parentElement.classList.add("loaded");
-      renderApi($("#api-search").value); renderTypes($("#type-search").value); renderResources($("#resource-search").value);
+      const api = await fetch(new URL("data/api.json", siteRoot)).then(checkJson);
+      if (!Array.isArray(api.symbols)) throw new Error("API response does not contain a symbols list");
+      state.api = api.symbols;
+      state.apiVersion = api.version || null;
+      state.apiLoaded = true;
+      updateCatalogVersion();
+      setCatalogStatus(locale === "de" ? "Lua-API geladen" : "Lua API loaded", "loaded");
+      renderApi($("#api-search").value);
     } catch (error) {
-      $("#build-state").textContent = copy.editor.loadingError;
-      $("#build-state").parentElement.classList.add("failed");
+      apiLoadPromise = null;
+      showCatalogFailure(copy.editor.loadingError, error, loadCatalog);
       console.error(error);
     }
   })();
-  return loadPromise;
+  return apiLoadPromise;
 }
 async function checkJson(response) { if (!response.ok) throw new Error(`${response.status} ${response.url}`); return response.json(); }
+function setCatalogStatus(message, stateName = "") {
+  const status = $("#build-state");
+  if (!status) return;
+  status.textContent = message;
+  const container = status.parentElement;
+  container.classList.remove("loaded", "failed");
+  if (stateName) container.classList.add(stateName);
+  container.querySelector("#catalog-retry")?.remove();
+}
+function showCatalogFailure(message, error, retry) {
+  setCatalogStatus(`${message} ${error.message}`, "failed");
+  const button = document.createElement("button");
+  button.id = "catalog-retry";
+  button.type = "button";
+  button.className = "catalog-retry";
+  button.textContent = locale === "de" ? "Erneut versuchen" : "Retry";
+  button.addEventListener("click", retry, { once: true });
+  $("#build-state").parentElement.append(button);
+}
+function updateCatalogVersion() {
+  const version = [
+    state.apiVersion && `API ${state.apiVersion}`,
+    state.profile?.game_version && state.profile.game_version.split("|")[0],
+  ].filter(Boolean);
+  $("#catalog-version").textContent = version.join(" · ");
+}
+async function loadGameProfile() {
+  if (state.profile && state.snapshot) return state.snapshot;
+  if (!gameProfilePromise) {
+    gameProfilePromise = (async () => {
+      const current = await fetch(new URL("data/current.json", siteRoot)).then(checkJson);
+      const dataBase = new URL(`data/${current.snapshot}/`, siteRoot);
+      state.profile = await fetch(new URL("profile.json", dataBase)).then(checkJson);
+      state.snapshot = current.snapshot;
+      updateCatalogVersion();
+      return state.snapshot;
+    })().catch(error => {
+      gameProfilePromise = null;
+      throw error;
+    });
+  }
+  return gameProfilePromise;
+}
+async function loadGameData(name) {
+  if (!["types", "resources"].includes(name)) return;
+  const loadedKey = `${name}Loaded`;
+  const label = name === "types"
+    ? (locale === "de" ? "Spiel-Details" : "Game details")
+    : (locale === "de" ? "Spieldateien" : "Game files");
+  if (state[loadedKey]) {
+    setCatalogStatus(`${label} ${locale === "de" ? "geladen" : "loaded"}`, "loaded");
+    return;
+  }
+  if (gameDataPromises[name]) return gameDataPromises[name];
+  setCatalogStatus(`${label} ${locale === "de" ? "werden geladen …" : "are loading …"}`);
+  gameDataPromises[name] = (async () => {
+    try {
+      const snapshot = await loadGameProfile();
+      const dataBase = new URL(`data/${snapshot}/`, siteRoot);
+      state[name] = await fetch(new URL(`${name}.json`, dataBase)).then(checkJson);
+      state[loadedKey] = true;
+      if (name === "types") renderTypes($("#type-search").value);
+      else renderResources($("#resource-search").value);
+      setCatalogStatus(`${label} ${locale === "de" ? "geladen" : "loaded"}`, "loaded");
+    } catch (error) {
+      gameDataPromises[name] = null;
+      showCatalogFailure(`${label} ${locale === "de" ? "konnten nicht geladen werden." : "could not be loaded."}`, error, () => loadGameData(name));
+      console.error(error);
+    }
+  })();
+  return gameDataPromises[name];
+}
 function setCatalog(name) {
   state.catalog = name;
   $$("[data-catalog]").forEach(button => button.classList.toggle("active", button.dataset.catalog === name));
   $$(".catalog-section").forEach(section => section.classList.toggle("hidden", section.id !== `catalog-${name}`));
+  if (name === "api") loadCatalog();
+  else loadGameData(name);
 }
 function renderApi(query = "") {
   if (!$("#api-results")) return;
   const needle = query.trim().toLocaleLowerCase();
-  const matches = state.api.filter(item => {
+  const count = $("#api-result-count");
+  if (!needle) {
+    if (count) count.textContent = "";
+    $("#api-results").innerHTML = `<div class="api-search-help"><strong>${locale === "de" ? "Suche nach einer Aufgabe oder einem API-Namen" : "Search for a task or API name"}</strong><span>${locale === "de" ? "Nutze die Beispiele oben oder tippe zum Beispiel shroudforge.settings.get." : "Use one of the examples above or type a name such as shroudforge.settings.get."}</span></div>`;
+    return;
+  }
+
+  const terms = needle.split(/\s+/).filter(Boolean);
+  const filtered = state.api.filter(item => {
     const isEml = item.source?.includes("eml/v1");
     const isSf = item.source?.includes("shroudforge/v1");
     const selected = state.apiSource === "all" || (state.apiSource === "eml" ? isEml : isSf);
-    return selected && `${item.name} ${item.signature} ${item.description} ${item.source}`.toLocaleLowerCase().includes(needle);
-  }).slice(0, 160);
-  $("#api-results").innerHTML = matches.length ? matches.map(item => `<details class="api-result"><summary><code>${esc(item.name)}</code><span>${esc(item.kind === "field" ? (locale === "de" ? "ANGABE" : "VALUE") : (locale === "de" ? "FUNKTION" : "FUNCTION"))}</span><i>⌄</i></summary><div class="api-detail"><pre><code>${esc(item.signature)}</code></pre>${item.description ? `<p>${esc(item.description)}</p>` : ""}${item.params?.length ? `<h4>${esc(copy.editor.params)}</h4><div class="api-mini-table">${item.params.map(param => `<div><code>${esc(param.name)}</code><span>${esc(param.type)}</span><small>${esc(param.description)}</small></div>`).join("")}</div>` : ""}${item.returns?.length ? `<p>${esc(copy.editor.returns)}: <code>${esc(item.returns.join(", "))}</code></p>` : ""}<small>${esc(copy.editor.source)}: <code>${esc(item.source)}</code></small></div></details>`).join("") : `<div class="empty-results">${esc(copy.editor.noSymbols)}</div>`;
+    if (!selected) return false;
+    const guide = apiGuideFor(item);
+    const searchText = [
+      item.name, item.signature, item.description, item.description_de, item.errors, item.example, item.source,
+      ...(item.params || []).flatMap(param => [param.name, param.type, param.description, param.description_de]),
+      ...(item.returns || []), ...(item.returnDetails || []).flatMap(result => [result.name, result.type, result.description]),
+      guide?.title?.[locale], guide?.summary?.[locale],
+    ].join(" ").toLocaleLowerCase();
+    return terms.every(term => searchText.includes(term));
+  });
+  const matches = filtered.slice(0, 160);
+  if (count) count.textContent = filtered.length > 160
+    ? (locale === "de" ? `${fmt(filtered.length)} Treffer, die ersten 160 werden angezeigt. Suche genauer, um die Liste einzugrenzen.` : `${fmt(filtered.length)} results, showing the first 160. Add a word to narrow the list.`)
+    : (locale === "de" ? `${fmt(filtered.length)} ${filtered.length === 1 ? "Treffer" : "Treffer"}` : `${fmt(filtered.length)} ${filtered.length === 1 ? "result" : "results"}`);
+  $("#api-results").innerHTML = matches.length
+    ? matches.map(renderApiResult).join("")
+    : `<div class="empty-results">${locale === "de" ? "Keine Treffer. Prüfe die Schreibweise, wähle Alle oder suche nach einem kürzeren Begriff." : "No results. Check the spelling, choose All, or search for a shorter term."}</div>`;
   addCopyControls();
+}
+
+function renderApiResult(item) {
+  const guide = apiGuideFor(item);
+  const description = apiDescription(item, guide);
+  const kind = item.kind === "field"
+    ? (locale === "de" ? "FELD" : "FIELD")
+    : (locale === "de" ? "FUNKTION" : "FUNCTION");
+  const sourceLabel = item.source?.includes("eml/v1") ? "EML v1" : "ShroudForge v1";
+  const params = item.params?.length
+    ? `<h4>${locale === "de" ? "Eingaben" : "Inputs"}</h4><div class="api-mini-table">${item.params.map(param => {
+      const explanation = (locale === "de" ? param.description_de : "") || param.description || (locale === "de" ? "Typ und Name zeigen, was diese Funktion erwartet." : "The type and name show what this function expects.");
+      return `<div><code>${esc(param.name)}</code><span>${esc(param.type)}</span><small>${apiText(explanation)}</small></div>`;
+    }).join("")}</div>`
+    : "";
+  const returns = item.kind === "field" ? "" : item.returnDetails?.length
+    ? `<h4>${locale === "de" ? "Ergebnis" : "Result"}</h4><div class="api-return-list">${item.returnDetails.map(result => `<div><code>${esc(result.type)}${result.name ? ` ${esc(result.name)}` : ""}</code>${result.description ? `<span>${apiText(result.description)}</span>` : ""}</div>`).join("")}</div>`
+    : item.returns?.length ? `<h4>${locale === "de" ? "Ergebnis" : "Result"}</h4><p><code>${esc(item.returns.join(", "))}</code></p>` : "";
+  const errors = item.errors
+    ? `<div class="api-error-note"><strong>${locale === "de" ? "Fehler und Grenzen" : "Errors and limits"}</strong><span>${apiText(item.errors)}</span></div>`
+    : "";
+  const example = item.example
+    ? `<h4>${locale === "de" ? "Kurzes Beispiel" : "Quick example"}</h4><pre data-label="${locale === "de" ? "LUA-BEISPIEL" : "LUA EXAMPLE"}" data-copy-label="${locale === "de" ? "Beispiel kopieren" : "Copy example"}"><code>${esc(locale === "de" ? item.example_de || item.example : item.example)}</code></pre>`
+    : "";
+  const guideMarkup = guide
+    ? `<div class="api-related-guide"><div><strong>${locale === "de" ? "Schritt-für-Schritt-Anleitung" : "Step-by-step guide"}</strong><span>${esc(guide.title[locale])}</span></div><button type="button" class="text-link" data-view="${esc(guide.route)}">${locale === "de" ? "Anleitung öffnen" : "Open guide"} →</button></div>`
+    : "";
+  const sourceUrl = `https://github.com/bonsaibauer/shroudforge/blob/HEAD/src/loader/api/src/${item.source}`;
+  const sourceMarkup = `<small>${esc(copy.editor.source)}: <a href="${esc(sourceUrl)}" target="_blank" rel="noreferrer"><code>${esc(item.source)}</code></a></small>`;
+  const signatureLabel = item.kind === "field"
+    ? (locale === "de" ? "API-FELD" : "API FIELD")
+    : (locale === "de" ? "API-SIGNATUR" : "API SIGNATURE");
+  const copySignatureLabel = item.kind === "field"
+    ? (locale === "de" ? "Feld kopieren" : "Copy field")
+    : (locale === "de" ? "Signatur kopieren" : "Copy signature");
+  return `<details class="api-result"><summary><div class="api-result-heading"><code>${esc(item.name)}</code><span class="api-source-badge">${esc(sourceLabel)}</span><span class="api-kind-badge">${esc(kind)}</span><i>⌄</i></div><span class="api-summary-text">${apiText(description)}</span></summary><div class="api-detail"><h4>${locale === "de" ? "Was macht das?" : "What does it do?"}</h4><p>${apiText(description)}</p><pre data-label="${signatureLabel}" data-copy-label="${copySignatureLabel}"><code>${esc(item.signature)}</code></pre>${params}${returns}${errors}${example}${guideMarkup}${sourceMarkup}</div></details>`;
 }
 function renderTypes(query = "") {
   if (!$("#type-results")) return;

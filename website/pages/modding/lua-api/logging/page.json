@@ -13,5 +13,6 @@
     "en": "Lua API guides"
   },
   "navOrder": 50,
+  "apiSymbols": ["shroudforge.log", "shroudforge.log.trace", "shroudforge.log.debug", "shroudforge.log.info", "shroudforge.log.warn", "shroudforge.log.error"],
   "order": 4
 }

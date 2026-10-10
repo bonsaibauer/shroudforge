@@ -3,7 +3,7 @@
 --- Provides utility functions for working with GUIDs.
 ---
 --- @class GuidHelper
---- @field NONE Guid
+--- @field NONE Guid The all-zero GUID used when no asset identifier is available.
 local GuidHelper = {}
 
 --- Creates a GUID from the given ContentHash.

@@ -51,6 +51,11 @@ regenerates the navigation index. The application renders Markdown in the
 existing site layout. Use links such as `[Targets](#doc-targets)` to open another
 article and keep examples or assets beside the page that uses them.
 
+Lua API guides can add `apiSymbols` and `apiPrefixes` to `page.json`. The API
+catalog uses these values to link a matching function or field to the relevant
+guide. Use exact names in `apiSymbols` and namespace or type prefixes in
+`apiPrefixes`.
+
 Schema field articles, Modloader preference articles, and built-in mod setting
 articles are individual Markdown pages. Their initial content was seeded from
 the checked-in schemas, defaults, and mod packages by

@@ -27,11 +27,11 @@
       "id": "shroudforge-configuration-2",
       "kind": "notice.configuration",
       "title": "Thinking about making your own mod?",
-      "message": "Every mod starts with mod.json: its name, version, author, dependencies, and the features it needs. ShroudForge-specific switches, settings, buttons, and links live in the optional extended.mod.json. The Modloader can display those settings for players, and your Lua code can read them through the ShroudForge API. You do not need to learn every field at once: start with the working Hello Ember template, then use the interactive guide to see how a setting appears in the UI.",
+      "message": "Every mod starts with mod.json: its name, version, author, dependencies, and the features it needs. ShroudForge-specific switches, settings, buttons, and links live in the optional extended.mod.json. The Modloader can display those settings for players, and your Lua code can read them through the ShroudForge API. You do not need to learn every field at once. Start with the working Hello Ember template, then read the extended.mod.json guide to see how settings are defined and shown in the Modloader.",
       "level": "info",
       "links": [
         { "labelKey": "news.link.firstMod", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#first" },
-        { "labelKey": "news.link.settings", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#manifests" },
+        { "labelKey": "news.link.extendedModJson", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#doc-extended-mod-json-guide" },
         { "labelKey": "news.link.api", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#api" }
       ]
     },
@@ -45,7 +45,7 @@
         { "id": "open-installed-mods", "kind": "open-installed-mods" }
       ],
       "links": [
-        { "labelKey": "news.link.modsGuide", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#play" }
+        { "labelKey": "news.link.modsGuide", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#doc-builtin-mods-guide" }
       ]
     },
     {
@@ -56,7 +56,7 @@
       "level": "info",
       "links": [
         { "labelKey": "news.link.playerGuide", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#play" },
-        { "labelKey": "news.link.settings", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#manifests" }
+        { "labelKey": "news.link.settings", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#doc-setting-controls" }
       ]
     },
     {
@@ -67,7 +67,7 @@
       "level": "info",
       "links": [
         { "labelKey": "news.link.reportIssue", "url": "https://github.com/bonsaibauer/shroudforge/issues/new/choose" },
-        { "labelKey": "news.link.loggingGuide", "url": "https://github.com/bonsaibauer/shroudforge/blob/main/docs/sf/logging.md" }
+        { "labelKey": "news.link.loggingGuide", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#doc-api-logging" }
       ]
     },
     {

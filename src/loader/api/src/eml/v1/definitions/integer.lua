@@ -1,6 +1,8 @@
 --- @meta
 
---- TODO: add documentation
+--- Fixed-width signed and unsigned integer helpers.
+--- Choose u8, u16, u32, or u64 for unsigned values and i8, i16, i32, or i64 for signed values.
+--- Each type includes checked, saturating, wrapping, and overflowing arithmetic where applicable.
 
 --- @class integer
 integer = {}

@@ -1,6 +1,6 @@
 # Verständliche Mod-Meldungen schreiben
 
-Nutze `shroudforge.log` für technische Abläufe des Mods. Eine gute Meldung nennt Aktion und Ergebnis, ein Fehler nennt zusätzlich den Grund. Die genaue gemeinsame Richtlinie steht in [Logging für Mods und Loader](https://github.com/bonsaibauer/shroudforge/blob/main/docs/sf/logging.md).
+Nutze `shroudforge.log` für technische Abläufe des Mods. Eine gute Meldung nennt Aktion und Ergebnis, ein Fehler nennt zusätzlich den Grund. Die genaue gemeinsame Richtlinie steht in [Logging für Mods und Loader](https://github.com/bonsaibauer/shroudforge/blob/HEAD/docs/sf/logging.md).
 
 ```lua
 shroudforge.log.info("Blueprint export started")

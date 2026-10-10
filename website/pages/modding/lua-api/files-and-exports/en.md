@@ -1,6 +1,6 @@
 # Read files and save exports
 
-The `shroudforge.io` API separates bundled package files from player exports. A mod should not assume that these areas use the same path or write permission.
+The global `io` API separates bundled package files from player exports. A mod should not assume that these areas use the same path or write permission.
 
 ## Capability
 

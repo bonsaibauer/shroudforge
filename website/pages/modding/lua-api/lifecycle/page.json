@@ -13,5 +13,7 @@
     "en": "Lua API guides"
   },
   "navOrder": 50,
+  "apiSymbols": ["runtime.lifecycle"],
+  "apiPrefixes": ["runtime.lifecycle."],
   "order": 9
 }

@@ -21,4 +21,4 @@ The ID is stable within the mod's namespace. Reusing it updates the existing not
 
 ## When to publish
 
-Report confirmed events. Do not call it per frame or in a tight loop. Use [mod logging](#doc-api-logging) for technical diagnostics. The stored format is described in [modloader-content.md](https://github.com/bonsaibauer/shroudforge/blob/main/docs/sf/modloader-content.md).
+Report confirmed events. Do not call it per frame or in a tight loop. Use [mod logging](#doc-api-logging) for technical diagnostics. The stored format is described in [modloader-content.md](https://github.com/bonsaibauer/shroudforge/blob/HEAD/docs/sf/modloader-content.md).

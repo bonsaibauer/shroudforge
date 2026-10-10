@@ -66,4 +66,4 @@ Capture voxel-and-prop or props-only blueprints, preview, paste, and undo throug
 - [Props-only target world Z](#doc-builtin-world-editor-targetworldz)
 - [Opaque entity handle](#doc-builtin-world-editor-entityhandle)
 
-Settings are stored in the mod package's `extended.mod.json`. The mod reads them with `shroudforge.settings.get(key, fallback)`. See the [Lua source file](https://github.com/bonsaibauer/shroudforge/blob/main/mods/world-editor/src/mod.lua) for implementation details.
+Settings are stored in the mod package's `extended.mod.json`. The mod reads them with `shroudforge.settings.get(key, fallback)`. See the [Lua source file](https://github.com/bonsaibauer/shroudforge/blob/HEAD/mods/world-editor/src/mod.lua) for implementation details.

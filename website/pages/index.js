@@ -482,6 +482,13 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiSymbols": [
+      "shroudforge.notifications.publish",
+      "shroudforge.notifications"
+    ],
+    "apiPrefixes": [
+      "shroudforge.notifications.Notice."
+    ],
     "order": 1,
     "path": "pages/modding/lua-api/modloader-notifications/"
   },
@@ -752,6 +759,10 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiSymbols": [
+      "shroudforge.settings.get",
+      "shroudforge.settings"
+    ],
     "order": 2,
     "path": "pages/modding/lua-api/settings/"
   },
@@ -968,6 +979,9 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiSymbols": [
+      "shroudforge.ui.on_action"
+    ],
     "order": 3,
     "path": "pages/modding/lua-api/ui-actions/"
   },
@@ -1166,6 +1180,14 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiSymbols": [
+      "shroudforge.log",
+      "shroudforge.log.trace",
+      "shroudforge.log.debug",
+      "shroudforge.log.info",
+      "shroudforge.log.warn",
+      "shroudforge.log.error"
+    ],
     "order": 4,
     "path": "pages/modding/lua-api/logging/"
   },
@@ -1310,6 +1332,12 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiPrefixes": [
+      "io.",
+      "buffer.",
+      "Buffer:",
+      "game.assets."
+    ],
     "order": 5,
     "path": "pages/modding/lua-api/files-and-exports/"
   },
@@ -1454,6 +1482,12 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiPrefixes": [
+      "runtime.",
+      "RuntimeNativeBinding.",
+      "RuntimeFunctionModifier.",
+      "RuntimeFeatureStatus."
+    ],
     "order": 6,
     "path": "pages/modding/lua-api/runtime-and-game/"
   },
@@ -1598,6 +1632,14 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiPrefixes": [
+      "runtime.network.",
+      "RuntimeNetworkStatus.",
+      "RuntimeNetworkSendOptions.",
+      "RuntimeNetworkReceiveOptions.",
+      "RuntimeNetworkMessage.",
+      "RuntimeModNetworkMessage."
+    ],
     "order": 7,
     "path": "pages/modding/lua-api/network-p2p/"
   },
@@ -1724,6 +1766,20 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiSymbols": [
+      "runtime.ecs",
+      "runtime.values",
+      "runtime.world"
+    ],
+    "apiPrefixes": [
+      "runtime.ecs.",
+      "runtime.values.",
+      "runtime.world.",
+      "game.types.",
+      "RuntimeComponentRegistration.",
+      "RuntimeAttribute.",
+      "BuildingInput."
+    ],
     "order": 8,
     "path": "pages/modding/lua-api/game-data/"
   },
@@ -1850,6 +1906,12 @@ export default [
       "en": "Lua API guides"
     },
     "navOrder": 50,
+    "apiSymbols": [
+      "runtime.lifecycle"
+    ],
+    "apiPrefixes": [
+      "runtime.lifecycle."
+    ],
     "order": 9,
     "path": "pages/modding/lua-api/lifecycle/"
   },

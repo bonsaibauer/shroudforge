@@ -10,4 +10,4 @@ Diese ID wird in `extended.mod.json → links.website` verwendet. Trage darunter
 }
 ```
 
-Die IDs und ihre Reihenfolge sind in [order.json](https://github.com/bonsaibauer/shroudforge/blob/main/src/loader/modules/modloader-ui/ui/src/links/order.json) definiert.
+Die IDs und ihre Reihenfolge sind in [order.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/src/loader/modules/modloader-ui/ui/src/links/order.json) definiert.
