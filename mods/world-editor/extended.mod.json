@@ -12,13 +12,14 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
+    "Moves remote server discovery fallback and client authorization into the loader-owned Network module; the editor now uses its automatic health-probe discovery.",
     "Discovers the current SteamID of a local Dedicated Server after every restart and reports unanswered P2P requests after 60 seconds with an explicit unknown-outcome warning.",
     "Persists the server-issued undo token across client restarts and automatically resumes it instead of losing the server's unresolved journal.",
-    "Automatically selects local native writes or Dedicated Server Steam P2P from the validated live world context; pauses edits while that context is unknown.",
-    "Makes the world target explicit: local/singleplayer stays on the direct client path; dedicated-server edits use Steam P2P.",
-    "Routes multiplayer blueprint placement and undo over Steam P2P to the dedicated server's native world runtime; preserves direct singleplayer edits.",
+    "Automatically selects local native writes or Dedicated Server Steam P2P from the validated live world context. Pauses edits while that context is unknown.",
+    "Makes the world target explicit. Local/singleplayer stays on the direct client path. Dedicated-server edits use Steam P2P.",
+    "Routes multiplayer blueprint placement and undo over Steam P2P to the dedicated server's native world runtime. Preserves direct singleplayer edits.",
     "Runs the same World Editor module headless on dedicated servers with an explicit SteamID64 allowlist and server-owned undo journal.",
-    "Removes the experimental client game-input blueprint paste path; retains the existing SFBP V7 format and native direct planner.",
+    "Removes the experimental client game-input blueprint paste path. Retains the existing SFBP V7 format and native direct planner.",
     "Moves rotated and scaled ItemInfo placement-bound filtering into the registered native world query.",
     "Preserves the native entity-template UUID through prop capture, blueprint files, and paste.",
     "Preserves captured prop scale with a dedicated verified native transform update.",
@@ -29,14 +30,6 @@
     "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo. F1 remains available to the game."
   ],
   "settings": {
-    "serverSteamId": {
-      "value": "",
-      "label": "Dedicated server SteamID64 fallback (remote server)"
-    },
-    "allowedClientSteamIds": {
-      "value": "",
-      "label": "Optional authorized client SteamID64 list (empty = authenticated players)"
-    },
     "panelWidth": {
       "value": 1180,
       "min": 760,
@@ -226,7 +219,7 @@
   "groups": [
     {
       "label": "In-game panel",
-      "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel; Y is measured down from the top. Changes apply while the game is running.",
+      "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel. Y is measured down from the top. Changes apply while the game is running.",
       "settings": [
         "panelWidth",
         "panelHeight",
@@ -315,14 +308,6 @@
           "style": "danger",
           "confirm": "Dispatch native removal at these coordinates?"
         }
-      ]
-    },
-    {
-      "label": "World target and Server P2P",
-      "description": "The client selects local native edits or Dedicated Server Steam P2P from the live world context. A local server SteamID is discovered automatically; serverSteamId is a fallback for remote servers. Authorize the client's SteamID64 on the server.",
-      "settings": [
-        "serverSteamId",
-        "allowedClientSteamIds"
       ]
     },
     {

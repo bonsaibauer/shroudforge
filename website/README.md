@@ -31,7 +31,7 @@ setting controls, groups, action buttons, links, and changelog notes, plus two
 always-visible JSON editors with separate copy/download controls and a combined
 Modloader-style preview. Form fields and direct edits stay synchronized. The
 English and German pages show how a declared setting connects to Lua. The
-builder catches JSON syntax errors and common contract mistakes; it is not a
+builder catches JSON syntax errors and common contract mistakes. it is not a
 complete JSON Schema validator. The repository schemas and loader validation
 define the full contract. A runtime Lua example also needs the `runtime`
 capability in `mod.json`.

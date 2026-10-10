@@ -1,7 +1,9 @@
 {
   "schemaVersion": 1,
   "general": {
-    "locale": "de"
+    "locale": "de",
+    "usernameMode": "auto",
+    "messageNameFallback": "Flameborn"
   },
   "logging": {
     "minimumLevel": "INFO"
@@ -223,7 +225,7 @@
     },
     "modloaderUi": {
       "enabled": true,
-      "startPage": "activity",
+      "startPage": "news",
       "toggleKey": 120,
       "refreshMilliseconds": 1000,
       "window": {

@@ -27,7 +27,7 @@ fn supported(
             | PrimitiveType::DsVariant
     ) {
         return Err(format!(
-            "{} requires engine allocation/ownership; the KFC value codec cannot construct it",
+            "{} requires engine allocation and ownership. The KFC value codec cannot construct it",
             ty.qualified_name
         ));
     }

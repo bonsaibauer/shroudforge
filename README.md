@@ -97,7 +97,7 @@ The release build validates each mod's manifest, ID, Lua entry point, and Lua sy
 
 ![World Editor blueprint library](assets/worldeditor_bar.png)
 
-The World Editor can be installed on the client and Dedicated Server. The client provides the editor window, cursor selection, capture, and blueprint library. In singleplayer it uses the local world runtime; in a joined Dedicated Server world it sends the existing blueprint format over Steam P2P for the server to apply.
+The World Editor can be installed on the client and Dedicated Server. The client provides the editor window, cursor selection, capture, and blueprint library. In singleplayer it uses the local world runtime. in a joined Dedicated Server world it sends the existing blueprint format over Steam P2P for the server to apply.
 
 Blueprint placement has been observed on the Dedicated Server. **Undo for placed props is still unreliable**: the server can fail to remove a prop through the native destroy operation. Treat prop undo as experimental until it has been fixed and verified in a live session. Voxel undo and prop undo should be reported separately.
 
@@ -111,11 +111,11 @@ This table describes the current state of ShroudForge itself. **Proven** means t
 | --- | --- | --- |
 | **Release build and mod checks** | Release packaging checks each mod's manifest, ID, Lua entry point, and Lua syntax. | ✅ Proven |
 | **Build profiles** | Profiles are maintained per Enshrouded build and target. The current client profile is for build **1076226**. Supporting another build requires reviewing its profile and the operations it enables. | ✅ Proven |
-| **Asset changes before launch** | Supported asset edits are prepared before the game starts. Coverage depends on the resource and game build; client and server may need matching settings. | ✅ Proven |
+| **Asset changes before launch** | Supported asset edits are prepared before the game starts. Coverage depends on the resource and game build. client and server may need matching settings. | ✅ Proven |
 | **Runtime hooks and gameplay mods** | The included gameplay mods use profile-backed hooks, patches, or asset changes. Their multiplayer effect depends on which process handles the action and has not been verified end to end for every mod. | 🚧 Beta |
 | **KFC runtime and ECS** | Native runtime and ECS operations are available, but live world-context detection and some read/write paths still have reliability limits. | 🚧 Beta |
 | **World Editor: capture and placement** | Blueprint capture and local placement are available. Dedicated Server placement over Steam P2P has been observed. Saving and persistence still need separate live-session checks. | 🚧 Beta |
-| **World Editor: prop undo** | Undo can fail when the native runtime cannot remove a placed prop. Preserve the undo journal and report the operation as incomplete; do not describe prop undo as proven. | 🕓 Open |
+| **World Editor: prop undo** | Undo can fail when the native runtime cannot remove a placed prop. Preserve the undo journal and report the operation as incomplete. do not describe prop undo as proven. | 🕓 Open |
 | **World Editor: automatic world targeting** | The client selects the local or Dedicated Server route from the detected world context. Startup, reconnect, and world-switch cases need continued live validation. | 🚧 Beta |
 | **EML mod support** | ShroudForge supports documented EML-style package and API flows. Compatibility depends on the APIs and native behavior used by each mod. | 🚧 Beta |
 | **Mod discovery and updater** | The Modloader can find and install catalog mods, queue mod updates, and stage ShroudForge updates with backups. Broader recovery scenarios still need validation. | 🚧 Beta |

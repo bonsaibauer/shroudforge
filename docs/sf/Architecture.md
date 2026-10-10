@@ -80,9 +80,9 @@ There is one source folder for the Lua API: **src/loader/api/src/**. EML v1 and 
 
 The [API reference](https://bonsaibauer.github.io/shroudforge/en/#api) is generated from the current function definitions. EML v1 keeps its established names and behavior. A breaking change to the ShroudForge API requires affected mods to be updated.
 
-## The five built-in modules
+## The seven built-in modules
 
-Each folder with a Cargo.toml under **src/loader/modules/** is a built-in ShroudForge module. The root loader Cargo.toml includes five of them:
+Each folder with a Cargo.toml under **src/loader/modules/** is a built-in ShroudForge module. The root loader Cargo.toml includes seven of them:
 
 | Module | What it does |
 | --- | --- |
@@ -90,7 +90,9 @@ Each folder with a Cargo.toml under **src/loader/modules/** is a built-in Shroud
 | **debug-console/** | Shows and filters messages from Enshrouded and ShroudForge. |
 | **modloader-ui/** | Manages mods, settings, notices, compatibility details, and updates. |
 | **runtime-diagnostics/** | Collects optional, time-limited runtime and mod activity details. |
+| **steam-networking/** | Provides Steam Networking Messages transport for the runtime Lua API. |
 | **updater/** | Queues mod install and update work, and applies staged ShroudForge updates. |
+| **world-editor-ui/** | Hosts the World Editor window and its UI-specific state handling. |
 
 The **ui-shared/** folder contains shared visual styles used by the interfaces. It has no Cargo.toml and does not run as its own module.
 
@@ -124,7 +126,7 @@ ShroudForge also creates or updates these working files as you use it:
 | Installed path | What it is for |
 | --- | --- |
 | **shroudforge/state.json** | Saved loader, mod, update, and diagnostic status. |
-| **shroudforge/logs/shroudforge.log** | Current ShroudForge log; rotated logs use timestamped names in this folder. |
+| **shroudforge/logs/shroudforge-client.log** / **shroudforge/logs/shroudforge-server.log** | Current client or dedicated-server ShroudForge log; each process writes to its role-specific file and rotated logs use timestamped names in this folder. |
 | **shroudforge/ui/** | Mod downloads, queued actions, and removed-mod storage. |
 | **shroudforge/updates/** | Update downloads, queued work, and backups. |
 | **shroudforge/runtime/** | Runtime status and requests shared with the running game. |

@@ -21,6 +21,7 @@ base64 = "0.22"
 zip = { version = "4.6", default-features = false, features = ["deflate"] }
 shroudforge-package.workspace = true
 tracing = "0.1"
+zstd = "0.13.3"
 
 [target.'cfg(windows)'.dependencies]
 tao = "0.37.0"

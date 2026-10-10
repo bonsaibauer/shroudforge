@@ -65,5 +65,6 @@ fn blueprint_save_progress_confirms_write_and_library() -> mlua::Result<()> {
     lua.globals()
         .set("editor_source", std::fs::read_to_string(source).unwrap())?;
     lua.load(include_str!("world_editor_save_progress.lua"))
+        .set_name("world_editor_save_progress.lua")
         .exec()
 }

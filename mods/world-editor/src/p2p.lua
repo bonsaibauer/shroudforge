@@ -12,7 +12,6 @@ return function(api, callbacks)
     local next_id = 0
     local client_pending = nil
     local server_busy = false
-    local accept_elapsed = 0
     local receive_elapsed = 0
 
     local function valid_id(value)
@@ -257,7 +256,7 @@ return function(api, callbacks)
 
     function M.pending() return client_pending ~= nil end
 
-    function M.tick(delta_seconds, peer_list)
+    function M.tick(delta_seconds)
         local delta = math.max(0, tonumber(delta_seconds) or 0)
         if client_pending then
             client_pending.elapsed = client_pending.elapsed + delta
@@ -265,7 +264,7 @@ return function(api, callbacks)
                 local pending = client_pending
                 outgoing = {}
                 queue_result(pending.request_id, pending.operation, false, nil,
-                    "no-response-from-server-peer-after-60-seconds; outcome is unknown, verify the server world before retrying")
+                    "no-response-from-server-peer-after-60-seconds, outcome is unknown. Verify the server world before retrying")
             end
         end
         for peer, upload in pairs(uploads) do
@@ -273,25 +272,6 @@ return function(api, callbacks)
             if upload.elapsed >= 60 then
                 uploads[peer], active_upload_peer = nil, nil
                 reply(peer, upload.request_id, "paste", false, nil, "blueprint-upload-expired")
-            end
-        end
-        if api.is_server then
-            accept_elapsed = accept_elapsed + delta
-            if accept_elapsed >= 1 then
-                accept_elapsed = 0
-                -- Publish the server's current (ephemeral) Steam identity for
-                -- the local client runtime. Enshrouded assigns a new ID after
-                -- a dedicated-server restart.
-                if api.network.status then pcall(api.network.status) end
-                for _, peer in ipairs(peer_list and peer_list() or {}) do
-                    pcall(api.network.accept, peer)
-                end
-            end
-        elseif client_pending then
-            accept_elapsed = accept_elapsed + delta
-            if accept_elapsed >= 1 then
-                accept_elapsed = 0
-                if client_pending.peer then pcall(api.network.accept, client_pending.peer) end
             end
         end
         local sent_count = 0

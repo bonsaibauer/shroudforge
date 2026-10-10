@@ -156,7 +156,7 @@ impl Catalog {
                         [] => return Err(format!("engine function name not found: {text}")),
                         _ => {
                             return Err(format!(
-                                "ambiguous engine function name: {text}; select a build-scoped RVA"
+                                "Ambiguous engine function name: {text}. Select a build-scoped RVA"
                             ));
                         }
                     }
@@ -220,7 +220,7 @@ impl Catalog {
             entry["callable"] = json!(false);
             entry["execution"] = Value::Null;
             entry["reason"] = json!(
-                "native arguments, engine context and effects are unresolved; no verified adapter"
+                "Native arguments, engine context and effects are unresolved. No verified adapter"
             );
         }
         entry
@@ -284,7 +284,7 @@ pub(crate) fn attach(lua: &Lua, table: &Table, patch: &Table) -> mlua::Result<()
             "pointer_target_count":catalog.base.unwrap()["pointer_target_count"],"unreadable_pointer_pages":catalog.base.unwrap()["unreadable_pointer_pages"],
             "range_count":catalog.base.unwrap()["range_count"],"source":"unwind-code-pointers-and-live-registration",
             "complete_engine_api":false,"registry_reason":catalog.registry_reason,
-            "limitations":["unreferenced leaf functions and inlined code can be absent", "code pointers can target internal labels; a function boundary is not implied", "provisional names are scoped to the executable SHA256", "native ABI and gameplay effects remain unresolved unless explicitly validated"],
+            "limitations":["unreferenced leaf functions and inlined code can be absent", "code pointers can target internal labels. A function boundary is not implied", "provisional names are scoped to the executable SHA256", "native ABI and gameplay effects remain unresolved unless explicitly validated"],
             "offset":offset,"next_offset":(end < keys.len()).then_some(end)});
         page["entries"] = keys[offset..end].iter().map(|rva| catalog.describe(*rva, false)).collect();
         let LuaValue::Table(page) = json_to_lua(lua, &page)? else { unreachable!() };
@@ -509,6 +509,7 @@ mod tests {
         let lua = Lua::new();
         lua.load(r#"
             loader={features={patch=true}}
+            shroudforge={log={info=function() end}}
             recipes={data={recipes={{knowledgeRequirement={knowledgeOrQueryId={value=999}}}}}}
             game={types={get=function(name) return name end},assets={get_resources_by_type=function(name)
                 if name=='keen::GameKnowledgeQueryResourceDb' then

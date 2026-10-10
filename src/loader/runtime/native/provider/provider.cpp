@@ -1,6 +1,7 @@
 #include "ecs_runtime.h"
 #include "world_runtime.h"
 #include "function_inventory.h"
+#include "runtime.h"
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -41,7 +42,7 @@ KFC_EXPORT bool __cdecl KfcRuntimeInitialize() {
 KFC_EXPORT void __cdecl KfcRuntimeTick() {
     try { EcsRuntime::Tick(); } catch (...) { EcsRuntime::Shutdown(); }
 }
-KFC_EXPORT void __cdecl KfcRuntimeShutdown() { EcsRuntime::Shutdown(); }
+KFC_EXPORT void __cdecl KfcRuntimeShutdown() { KfcRuntimeNetworkServiceShutdown(); EcsRuntime::Shutdown(); }
 KFC_EXPORT void __cdecl KfcRuntimeDiagnostics(char* buffer, std::size_t capacity) {
     if (!buffer || !capacity) return;
     const auto write_error = [buffer, capacity](const char* message, std::size_t required = 0) {

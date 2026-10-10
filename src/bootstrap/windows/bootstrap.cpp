@@ -105,25 +105,31 @@ void begin_log_session(const std::filesystem::path& root) {
         std::filesystem::create_directories(archive);
         const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
-        const auto current = archive / L"shroudforge.log";
+        const auto role = is_dedicated_server_process() ? L"server" : L"client";
+        const auto current = archive / (std::wstring(L"shroudforge-") + role + L".log");
         if (std::filesystem::is_regular_file(current) && std::filesystem::file_size(current) > 0) {
-            auto destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L".log");
+            auto destination = archive / (std::wstring(L"shroudforge-") + role + L"-" +
+                std::to_wstring(stamp) + L".log");
             for (unsigned suffix = 2; std::filesystem::exists(destination); ++suffix) {
-                destination = archive / (L"shroudforge-" + std::to_wstring(stamp) + L"-" +
+                destination = archive / (std::wstring(L"shroudforge-") + role + L"-" +
+                    std::to_wstring(stamp) + L"-" +
                     std::to_wstring(suffix) + L".log");
             }
             std::filesystem::rename(current, destination);
         }
 
-        const auto pending = archive / L"native-proxy.pending";
-        if (std::filesystem::is_regular_file(pending)) {
-            std::ifstream input(pending, std::ios::binary);
+        const auto pending = archive / (std::wstring(L"native-proxy-") + role + L".pending");
+        const auto legacy_pending = archive / L"native-proxy.pending";
+        for (const auto& pending_path : {pending, legacy_pending}) {
+          if (std::filesystem::is_regular_file(pending_path)) {
+            std::ifstream input(pending_path, std::ios::binary);
             std::ofstream output(current, std::ios::binary | std::ios::app);
             if (input && output) {
                 output << input.rdbuf();
                 output.flush();
-                if (output) std::filesystem::remove(pending);
+                if (output) std::filesystem::remove(pending_path);
             }
+          }
         }
     } catch (...) {
         // Logging remains available in append mode if archival is unavailable.
@@ -144,7 +150,9 @@ void log(char level, const std::string& message) {
     if (root.empty()) return;
     LogGuard guard;
     if (!guard.held) return;
-    const auto current = ShroudforgeConfig::Directory(root, "logs", "shroudforge/logs") / L"shroudforge.log";
+    const auto role = is_dedicated_server_process() ? L"server" : L"client";
+    const auto current = ShroudforgeConfig::Directory(root, "logs", "shroudforge/logs") /
+        (std::wstring(L"shroudforge-") + role + L".log");
     std::filesystem::create_directories(current.parent_path());
     std::ofstream stream(current, std::ios::app);
     if (stream) {
@@ -156,6 +164,20 @@ void log(char level, const std::string& message) {
 
 void log(const std::string& message) {
     log('I', message);
+}
+
+void log_shroudforge_banner(bool dedicated_server) {
+    log(R"(   _____ __  ______  ____  __  ______  __________  ____  ____________)");
+    log(R"(  / ___// / / / __ \/ __ \/ / / / __ \/ ____/ __ \/ __ \/ ____/ ____/)");
+    log(R"(  \__ \/ /_/ / /_/ / / / / / / / / / / /_  / / / / /_/ / / __/ __/   )");
+    log(R"( ___/ / __  / _, _/ /_/ / /_/ / /_/ / __/ / /_/ / _, _/ /_/ / /___   )");
+    log(R"(/____/_/ /_/_/ |_|\____/\____/_____/_/    \____/_/ |_|\____/_____/   )");
+    if (dedicated_server) {
+        log(R"(  / ___// ____/ __ \ |  / / ____/ __ \                                )");
+        log(R"(  \__ \/ __/ / /_/ / | / / __/ / /_/ /                                )");
+        log(R"( ___/ / /___/ _, _/| |/ / /___/ _, _/                                 )");
+        log(R"(/____/_____/_/ |_| |___/_____/_/ |_|                                  )");
+    }
 }
 
 void write_runtime_heartbeat(const std::filesystem::path& root) {
@@ -178,7 +200,7 @@ void write_runtime_heartbeat(const std::filesystem::path& root) {
 
 void startup_stage(const std::filesystem::path& root, const char* stage) {
     (void)root;
-    log(std::string("Startup stage: ") + stage);
+    log('D', std::string("Startup stage: ") + stage);
 }
 
 std::string_view status_value(std::string_view status, std::string_view key) {
@@ -217,7 +239,9 @@ void startup_failed(const std::filesystem::path& root, const char* stage,
 void show_startup_error(const std::filesystem::path& root, const std::string& detail) {
     auto text = std::wstring(detail.begin(), detail.end());
     text += L"\n\nShroudForge log:\n";
-    text += (ShroudforgeConfig::Directory(root, "logs", "shroudforge/logs") / L"shroudforge.log").wstring();
+    const auto role = is_dedicated_server_process() ? L"server" : L"client";
+    text += (ShroudforgeConfig::Directory(root, "logs", "shroudforge/logs") /
+        (std::wstring(L"shroudforge-") + role + L".log")).wstring();
     MessageBoxW(nullptr, text.c_str(), L"ShroudForge startup error",
         MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
 }
@@ -229,7 +253,7 @@ void clear_runtime_heartbeat(const std::filesystem::path& root) {
 
 void start_debug_console(const std::filesystem::path& root) {
     if (is_dedicated_server_process()) {
-        log("Dedicated server uses file logging; interactive Debug Console is skipped");
+        log('D', "Dedicated server uses file logging. Interactive Debug Console is skipped");
         return;
     }
     if (!std::filesystem::is_regular_file(root / L"enshrouded.exe") &&
@@ -246,14 +270,14 @@ void start_debug_console(const std::filesystem::path& root) {
     const auto show_name = L"Local\\ShroudForge.DebugConsole.Show." + std::to_wstring(pid);
     console_stop_event = CreateEventW(nullptr, TRUE, FALSE, event_name.c_str());
     if (!console_stop_event) {
-        const auto detail = "Debug Console stop event could not be created; " + windows_error(GetLastError());
+        const auto detail = "Debug Console stop event could not be created. " + windows_error(GetLastError());
         log('E', detail);
         show_startup_error(root, detail);
         return;
     }
     console_show_event = CreateEventW(nullptr, TRUE, FALSE, show_name.c_str());
     if (!console_show_event) {
-        const auto detail = "Debug Console error event could not be created; " + windows_error(GetLastError());
+        const auto detail = "Debug Console error event could not be created. " + windows_error(GetLastError());
         log('E', detail);
         show_startup_error(root, detail);
         CloseHandle(console_stop_event);
@@ -262,7 +286,8 @@ void start_debug_console(const std::filesystem::path& root) {
     }
     std::error_code log_size_error;
     const auto log_start_offset = std::filesystem::file_size(
-        ShroudforgeConfig::Directory(root, "logs", "shroudforge/logs") / L"shroudforge.log", log_size_error);
+        ShroudforgeConfig::Directory(root, "logs", "shroudforge/logs") /
+            (std::wstring(L"shroudforge-") + (is_dedicated_server_process() ? L"server" : L"client") + L".log"), log_size_error);
     const auto start_offset = log_size_error ? 0 : log_start_offset;
     std::wstring command = L"\"" + executable.wstring() + L"\" --debug-console --root \"" +
         root.wstring() + L"\" --game-pid " + std::to_wstring(pid) +
@@ -273,7 +298,7 @@ void start_debug_console(const std::filesystem::path& root) {
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
             CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr, root.c_str(), &startup, &process)) {
         const auto error = GetLastError();
-        const auto detail = "Debug Console process could not be started; " + windows_error(error);
+        const auto detail = "Debug Console process could not be started. " + windows_error(error);
         log('E', detail);
         show_startup_error(root, detail);
         CloseHandle(console_show_event);
@@ -284,14 +309,14 @@ void start_debug_console(const std::filesystem::path& root) {
     }
     CloseHandle(process.hThread);
     console_process = process.hProcess;
-    log("Debug Console module started; press F10 to toggle");
+    log('D', "Debug Console module started. Press F10 to toggle.");
 }
 
 void stop_debug_console() {
     if (console_stop_event) SetEvent(console_stop_event);
     if (console_process) {
         if (WaitForSingleObject(console_process, 3000) != WAIT_OBJECT_0) {
-            log('W', "Debug Console did not stop after its stop event; terminating owned process");
+            log('W', "Debug Console did not stop after its stop event. Terminating the owned process");
             if (TerminateProcess(console_process, 1)) WaitForSingleObject(console_process, 1000);
             else log('E', "Could not terminate the owned Debug Console process");
         }
@@ -310,7 +335,7 @@ void stop_debug_console() {
 
 void start_modloader_ui(const std::filesystem::path& root) {
     if (is_dedicated_server_process()) {
-        log("Modloader UI window is skipped in the Dedicated Server process");
+        log('D', "Modloader UI window is skipped in the Dedicated Server process");
         return;
     }
     if (!ShroudforgeConfig::ModuleEnabled(root,"modloaderUi")) return;
@@ -340,14 +365,14 @@ void start_modloader_ui(const std::filesystem::path& root) {
     }
     CloseHandle(process.hThread);
     modloader_ui_process = process.hProcess;
-    log("Modloader UI module started; press F9 to toggle");
+    log('D', "Modloader UI module started. Press F9 to toggle.");
 }
 
 void stop_modloader_ui() {
     if (modloader_ui_stop_event) SetEvent(modloader_ui_stop_event);
     if (modloader_ui_process) {
         if (WaitForSingleObject(modloader_ui_process, 3000) != WAIT_OBJECT_0) {
-            log('W', "Modloader UI did not stop after its stop event; terminating owned process");
+            log('W', "Modloader UI did not stop after its stop event. Terminating the owned process");
             if (TerminateProcess(modloader_ui_process, 1)) WaitForSingleObject(modloader_ui_process, 1000);
             else log('E', "Could not terminate the owned Modloader UI process");
         }
@@ -362,7 +387,7 @@ void stop_modloader_ui() {
 
 void start_world_editor_ui(const std::filesystem::path& root) {
     if (is_dedicated_server_process()) {
-        log("World Editor window is skipped in the Dedicated Server process");
+        log('D', "World Editor window is skipped in the Dedicated Server process");
         return;
     }
     const auto executable = shroudforge_directory(root) / L"shroudforge.exe";
@@ -391,14 +416,14 @@ void start_world_editor_ui(const std::filesystem::path& root) {
     }
     CloseHandle(process.hThread);
     world_editor_ui_process = process.hProcess;
-    log("World Editor window host started; F1-F8 open its strip and F2 toggles it");
+    log('D', "World Editor window host started. F1-F8 open its strip and F2 toggles it.");
 }
 
 void stop_world_editor_ui() {
     if (world_editor_ui_stop_event) SetEvent(world_editor_ui_stop_event);
     if (world_editor_ui_process) {
         if (WaitForSingleObject(world_editor_ui_process, 3000) != WAIT_OBJECT_0) {
-            log('W', "World Editor window host did not stop after its stop event; terminating owned process");
+            log('W', "World Editor window host did not stop after its stop event. Terminating the owned process");
             if (TerminateProcess(world_editor_ui_process, 1)) WaitForSingleObject(world_editor_ui_process, 1000);
         }
         CloseHandle(world_editor_ui_process);
@@ -437,7 +462,7 @@ void start_pending_update(const std::filesystem::path& root) {
         if (exit_code == 0) log("Pending update queued for independent installation after game exit");
         else log('E', "Independent updater rejected pending update request");
     } else {
-        log('W', "Independent updater request is still starting; check updater log");
+        log('W', "Independent updater request is still starting. Check the updater log");
     }
     CloseHandle(process.hProcess);
 }
@@ -464,7 +489,8 @@ DWORD WINAPI run(void*) {
     clear_runtime_heartbeat(root);
     startup_stage(root, "bootstrap-thread-started");
     log("Log session started for game PID " + std::to_string(GetCurrentProcessId()) +
-        "; archived log files contain earlier sessions");
+        ". Archived log files contain earlier sessions");
+    log_shroudforge_banner(is_dedicated_server_process());
     // Start the independent log viewer before any ShroudForge DLL or mod code
     // can fail during process startup.
     start_debug_console(root);
@@ -473,7 +499,7 @@ DWORD WINAPI run(void*) {
     const auto runtime = LoadLibraryW(runtime_path.c_str());
     if (!runtime) {
         const auto error = GetLastError();
-        startup_failed(root, "runtime-dll-load", "shroudforge-runtime.dll could not be loaded; " + windows_error(error));
+        startup_failed(root, "runtime-dll-load", "shroudforge-runtime.dll could not be loaded. " + windows_error(error));
         EcsRuntime::Shutdown();
         return 1;
     }
@@ -492,7 +518,7 @@ DWORD WINAPI run(void*) {
     start_world_editor_ui(root);
     startup_stage(root, "startup-assets");
     if (!prepare_startup(root.c_str())) {
-        startup_failed(root, "startup-assets", "Asset preparation and baseline recovery failed; game startup stopped before loading inconsistent assets");
+        startup_failed(root, "startup-assets", "Asset preparation and baseline recovery failed. Game startup stopped before loading inconsistent assets");
         FreeLibrary(runtime);
         return 1;
     }
@@ -502,7 +528,7 @@ DWORD WINAPI run(void*) {
     if (!EcsRuntime::Initialize()) {
         log('W', "KFC Runtime initialization failed: " + EcsRuntime::Status());
     }
-    log("Startup assets and native-provider setup complete; releasing game entrypoint");
+    log("Startup assets and native-provider setup complete. Releasing the game entrypoint");
     startup.release();
     startup_stage(root, "runtime-create");
     std::mutex create_watchdog_mutex;
@@ -515,7 +541,7 @@ DWORD WINAPI run(void*) {
             if (!create_watchdog_condition.wait_for(lock, std::chrono::seconds(15),
                     [&] { return create_finished; })) {
                 lock.unlock();
-                log('E', "Runtime initialization has not returned after 15 seconds at runtime-create; inspect the last [shroudforge::runtime] startup stage above");
+                log('E', "Runtime initialization has not returned after 15 seconds at runtime-create. Inspect the last [shroudforge::runtime] startup stage above");
             }
         });
     } catch (...) {
@@ -529,7 +555,7 @@ DWORD WINAPI run(void*) {
     create_watchdog_condition.notify_one();
     if (create_watchdog.joinable()) create_watchdog.join();
     if (!handle) {
-        startup_failed(root, "runtime-create", "Runtime initialization returned no handle; see preceding runtime log entries");
+        startup_failed(root, "runtime-create", "Runtime initialization returned no handle. See preceding runtime log entries");
         EcsRuntime::Shutdown();
         FreeLibrary(runtime);
         return 1;
@@ -556,7 +582,7 @@ DWORD WINAPI run(void*) {
             next_runtime_status = now + std::chrono::seconds(2);
         }
         if (!update(handle, delta)) {
-            startup_failed(root, "runtime-update", "Runtime update failed; stopping Lua runtime");
+            startup_failed(root, "runtime-update", "Runtime update failed. Stopping the Lua runtime");
             break;
         }
     }

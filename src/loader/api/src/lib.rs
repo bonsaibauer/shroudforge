@@ -1,6 +1,6 @@
 use mlua::{Function, RegistryKey, Value};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
 
 use mod_loader::ModEnvironment;
 use shroudforge_compatibility::GameContract;
@@ -27,6 +27,49 @@ mod runtime_resolution;
 mod util;
 
 pub const API_VERSION: &str = env!("CARGO_PKG_VERSION");
+static NETWORK_ACKS_REPORTED: AtomicU64 = AtomicU64::new(0);
+static NETWORK_SEND_FAILURES_REPORTED: AtomicU64 = AtomicU64::new(0);
+static NETWORK_PROBE_TIMEOUTS_REPORTED: AtomicU64 = AtomicU64::new(0);
+static NETWORK_SERVICE_STATE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+static NETWORK_PROBE_OUTAGE_REPORTED: AtomicBool = AtomicBool::new(false);
+static NETWORK_ACKNOWLEDGED_PEER: AtomicU64 = AtomicU64::new(0);
+static NETWORK_PROBE_LAST_FAILURE: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+fn network_probe_failure_started() -> bool {
+    let mut last_failure = NETWORK_PROBE_LAST_FAILURE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *last_failure = Some(std::time::Instant::now());
+    !NETWORK_PROBE_OUTAGE_REPORTED.swap(true, Ordering::AcqRel)
+}
+
+fn network_probe_recovered() -> bool {
+    let mut last_failure = NETWORK_PROBE_LAST_FAILURE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let recovered = last_failure
+        .map(|last| last.elapsed() >= std::time::Duration::from_secs(15))
+        .unwrap_or(false);
+    if recovered {
+        *last_failure = None;
+        NETWORK_PROBE_OUTAGE_REPORTED.swap(false, Ordering::AcqRel)
+    } else {
+        false
+    }
+}
+
+fn network_allowlist(config: &serde_json::Value) -> (Vec<String>, bool) {
+    let raw = config.pointer("/modules/network/allowedClientSteamIds")
+        .and_then(serde_json::Value::as_str).unwrap_or_default();
+    let restrict = !raw.trim().is_empty();
+    let ids = raw.split([',', ';'])
+        .map(str::trim)
+        .filter(|peer| (16..=20).contains(&peer.len()) && peer.bytes().all(|byte| byte.is_ascii_digit()) &&
+            peer.parse::<u64>().is_ok_and(|id| id != 0))
+        .map(str::to_owned)
+        .collect();
+    (ids, restrict)
+}
 
 /// Deployed contract must describe this binary, not invent native capabilities.
 /// ECS readiness and per-component compatibility are still checked at call time.
@@ -354,10 +397,10 @@ impl IngameRuntime {
         api: Option<ShroudForgeApi>,
         file_name: String,
     ) -> anyhow::Result<Self> {
-        tracing::info!(target: "shroudforge::runtime", stage = "loader-config", "Runtime startup stage started");
+        tracing::debug!(target: "shroudforge::runtime", stage = "loader-config", "Runtime startup stage started");
         let loader_config = mod_loader::config::read_loader(env.game_dir().as_std_path())
             .map_err(anyhow::Error::msg)?;
-        tracing::info!(target: "shroudforge::runtime", stage = "app-state", "Runtime startup stage started");
+        tracing::debug!(target: "shroudforge::runtime", stage = "app-state", "Runtime startup stage started");
         let export_enabled = loader_config
             .pointer("/exports/enabled")
             .and_then(serde_json::Value::as_bool)
@@ -383,15 +426,17 @@ impl IngameRuntime {
             &CacheDiff::new_dirty(),
         );
         let state = state.map_err(|_| anyhow::anyhow!("failed to initialize ShroudForge API"))?;
-        tracing::info!(target: "shroudforge::runtime", stage = "app-state", "Runtime startup stage completed");
-        tracing::info!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage started");
+        tracing::debug!(target: "shroudforge::runtime", stage = "app-state", "Runtime startup stage completed");
+        tracing::debug!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage started");
         let runner = LuaModRunner::new(state)?;
-        tracing::info!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage completed");
+        tracing::debug!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage completed");
         let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
         let root = env.game_dir().as_std_path().to_path_buf();
-        tracing::info!(target: "shroudforge::runtime", stage = "runtime-plan", "Runtime startup stage started");
+        let (authorized_clients, restrict_network_clients) = network_allowlist(&loader_config);
+        shroudforge_steam_networking::service_tick(&authorized_clients, restrict_network_clients);
+        tracing::debug!(target: "shroudforge::runtime", stage = "runtime-plan", "Runtime startup stage started");
         let (mut plan, plan_errors) = env.runtime_plan_report_detailed(is_server, API_VERSION);
-        tracing::info!(target: "shroudforge::runtime", stage = "runtime-plan", planned_mods = plan.len(), "Runtime startup stage completed");
+        tracing::debug!(target: "shroudforge::runtime", stage = "runtime-plan", planned_mods = plan.len(), "Runtime startup stage completed");
         let mut errors = serde_json::Map::new();
         for issue in plan_errors {
             tracing::warn!(target: "shroudforge::runtime", mod_id = %issue.mod_id,
@@ -476,9 +521,9 @@ impl IngameRuntime {
                 )
             })
             .collect();
-        tracing::info!(target: "shroudforge::runtime", stage = "runner-setup", planned_mods = plan.len(), "Runtime startup stage started");
+        tracing::debug!(target: "shroudforge::runtime", stage = "runner-setup", planned_mods = plan.len(), "Runtime startup stage started");
         runner.setup(plan)?;
-        tracing::info!(target: "shroudforge::runtime", stage = "runner-setup", "Runtime startup stage completed");
+        tracing::debug!(target: "shroudforge::runtime", stage = "runner-setup", "Runtime startup stage completed");
         let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();
         for target_mod in env.enabled_mods() {
             if let Some(reason) = errors.get(&target_mod.info().id) {
@@ -492,20 +537,20 @@ impl IngameRuntime {
                 continue;
             }
             let app_state = runner.lua.app_data_ref::<AppState>().unwrap();
-            tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+            tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                 "Checking native DLL declaration");
             match app_state.load_native_dll_declaration(target_mod) {
                 Ok(true) => {
-                    tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                    tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                         "Native DLL queued for isolated loading");
                     app_state.report_runtime_effect(
                         &target_mod.info().id,
                         "loading",
-                        "native-plugin.ini DLL queued; Lua runtime continues independently",
+                        "native-plugin.ini DLL queued. Lua runtime continues independently",
                     );
                 }
                 Ok(false) => {
-                    tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+                    tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
                     "No native DLL declaration")
                 }
                 Err(error) => {
@@ -521,12 +566,12 @@ impl IngameRuntime {
         }
         let mut lifecycle = Vec::new();
         for id in runner.runtime_mod_ids() {
-            tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+            tracing::debug!(target: "shroudforge::runtime", mod_id = %id,
                 "Loading runtime mod entrypoint");
             let module_result = runner.load_runtime_module(&id);
             let value = match module_result {
                 Ok(value) => {
-                    tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                    tracing::debug!(target: "shroudforge::runtime", mod_id = %id,
                         "Runtime mod entrypoint loaded");
                     value
                 }
@@ -536,7 +581,7 @@ impl IngameRuntime {
                         format!("module initialization failed: {error}").into(),
                     );
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
-                        "module initialization failed; scope discarded: {error}");
+                        "module initialization failed. Scope discarded: {error}");
                     continue;
                 }
             };
@@ -576,7 +621,7 @@ impl IngameRuntime {
                 (Ok(load), Ok(update), Ok(unload)) => (load, update, unload),
                 _ => {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
-                        "invalid lifecycle; scope discarded");
+                        "invalid lifecycle. Scope discarded");
                     errors.insert(id.clone(), "invalid lifecycle".into());
                     continue;
                 }
@@ -618,13 +663,13 @@ impl IngameRuntime {
             }
             if enabled && let Some(key) = load.as_ref() {
                 let started = std::time::Instant::now();
-                tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                tracing::debug!(target: "shroudforge::runtime", mod_id = %id,
                     "Runtime mod on_load started");
                 let result = runner.lua.registry_value::<Function>(&key)?.call::<()>(());
                 diagnostics.measure("mods", &id, "on_load", started.elapsed(), result.is_err());
                 if let Err(error) = result {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %id,
-                        "on_load failed; rolling back scope: {error}");
+                        "on_load failed. Rolling back scope: {error}");
                     errors.insert(id.clone(), format!("on_load failed: {error}").into());
                     if let Some(key) = &unload {
                         if let Err(cleanup) = runner
@@ -633,7 +678,7 @@ impl IngameRuntime {
                             .and_then(|callback| callback.call::<()>(()))
                         {
                             tracing::error!(target: "shroudforge::runtime", mod_id = %id,
-                                "rollback failed; recovery required: {cleanup}");
+                                "Rollback failed. Recovery required: {cleanup}");
                         }
                     }
                     runner
@@ -643,8 +688,12 @@ impl IngameRuntime {
                         .set_runtime_mod_active(&id, false);
                     continue;
                 }
-                tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                tracing::debug!(target: "shroudforge::runtime", mod_id = %id,
                     elapsed_ms = started.elapsed().as_millis(), "Runtime mod on_load completed");
+            }
+            if enabled {
+                tracing::info!(target: "shroudforge::runtime", mod_id = %id,
+                    "Runtime mod initialized and active");
             }
             lifecycle.push(Lifecycle {
                 id,
@@ -682,9 +731,9 @@ impl IngameRuntime {
             processed_reload_request: None,
             publish_on_drop: true,
         };
-        tracing::info!(target: "shroudforge::runtime", stage = "status-publication", "Runtime startup stage started");
+        tracing::debug!(target: "shroudforge::runtime", stage = "status-publication", "Runtime startup stage started");
         runtime.publish_status(true);
-        tracing::info!(target: "shroudforge::runtime", stage = "status-publication", "Runtime startup stage completed");
+        tracing::debug!(target: "shroudforge::runtime", stage = "status-publication", "Runtime startup stage completed");
         Ok(runtime)
     }
 
@@ -711,6 +760,51 @@ impl IngameRuntime {
             .poll_native_dll_loads();
         self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
+            let (authorized_clients, restrict_network_clients) = mod_loader::config::read_loader(&self.root)
+                .map(|config| network_allowlist(&config)).unwrap_or_else(|_| (Vec::new(), true));
+            shroudforge_steam_networking::service_tick(&authorized_clients, restrict_network_clients);
+            let network = shroudforge_steam_networking::status();
+            let network_state = if !network.available { 2 } else if network.service_ready { 1 } else { 3 };
+            if NETWORK_SERVICE_STATE.swap(network_state, Ordering::AcqRel) != network_state {
+                if network_state == 1 {
+                    if self.runner.lua.app_data_ref::<AppState>().unwrap().is_server() {
+                        tracing::info!(target: "shroudforge::network", role = "server", "Network service is ready. Automatic Steam session acceptance and authenticated-peer health probes are active");
+                    } else {
+                        tracing::info!(target: "shroudforge::network", role = "client", "Network service is ready. Automatic Steam session acceptance is active and remote server discovery is listening");
+                    }
+                } else {
+                    tracing::warn!(target: "shroudforge::network", available = network.available, service_ready = network.service_ready, "Network service is waiting for Steam Networking Messages");
+                }
+            }
+            let stats = shroudforge_steam_networking::service_stats();
+            let previous_acks = NETWORK_ACKS_REPORTED.swap(stats.probes_acknowledged, Ordering::AcqRel);
+            let previous_failures = NETWORK_SEND_FAILURES_REPORTED.swap(stats.probe_send_failures, Ordering::AcqRel);
+            if stats.probe_send_failures > previous_failures {
+                if network_probe_failure_started() {
+                    tracing::warn!(target: "shroudforge::network", result = stats.last_send_result.unwrap_or_default(), total_failures = stats.probe_send_failures, "Steam P2P health probe send failed. Check the peer identity and Steam session state");
+                } else {
+                    tracing::debug!(target: "shroudforge::network", result = stats.last_send_result.unwrap_or_default(), total_failures = stats.probe_send_failures, "Steam P2P health probe send failed again");
+                }
+            }
+            let previous_timeouts = NETWORK_PROBE_TIMEOUTS_REPORTED.swap(stats.probe_timeouts, Ordering::AcqRel);
+            if stats.probe_timeouts > previous_timeouts {
+                if network_probe_failure_started() {
+                    tracing::warn!(target: "shroudforge::network", total_timeouts = stats.probe_timeouts, timeout_seconds = 15, "Steam P2P health probe received no acknowledgement for 15 seconds");
+                } else {
+                    tracing::debug!(target: "shroudforge::network", total_timeouts = stats.probe_timeouts, timeout_seconds = 15, "Steam P2P health probe timed out again");
+                }
+            }
+            if stats.probes_acknowledged > previous_acks {
+                let peer = stats.last_acknowledged_peer.as_deref().unwrap_or("unknown");
+                let peer_id = peer.parse::<u64>().unwrap_or_default();
+                let previous_peer = NETWORK_ACKNOWLEDGED_PEER.swap(peer_id, Ordering::AcqRel);
+                let recovered = network_probe_recovered();
+                if recovered || previous_acks == 0 || (peer_id != 0 && peer_id != previous_peer) {
+                    tracing::info!(target: "shroudforge::network", peer = peer, round_trip_ms = stats.last_round_trip_ms.unwrap_or_default(), total_acknowledged = stats.probes_acknowledged, "Steam P2P health probe confirmed");
+                } else {
+                    tracing::debug!(target: "shroudforge::network", peer = peer, round_trip_ms = stats.last_round_trip_ms.unwrap_or_default(), total_acknowledged = stats.probes_acknowledged, "Steam P2P health probe acknowledged");
+                }
+            }
             self.refresh_configuration();
             self.publish_status(true);
             self.next_status = std::time::Instant::now() + std::time::Duration::from_secs(1);
@@ -756,7 +850,7 @@ impl IngameRuntime {
                             .and_then(|callback| callback.call::<()>(()))
                         {
                             tracing::error!(target: "shroudforge::runtime", mod_id = %item.id,
-                                "update rollback failed; recovery required: {cleanup}");
+                                "Update rollback failed. Recovery required: {cleanup}");
                         }
                     }
                     self.runner
@@ -1010,7 +1104,7 @@ impl IngameRuntime {
                 Err(error) => {
                     let signature = format!("read-error:{error}");
                     if self.observed.get(package) != Some(&signature) {
-                        tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration read failed; keeping applied values: {error}");
+                        tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration read failed. Keeping applied values: {error}");
                         self.observed.insert(package.clone(), signature);
                     }
                     continue;
@@ -1023,11 +1117,11 @@ impl IngameRuntime {
             let manifest = match mod_loader::config::read_manifest_path(&self.root, package) {
                 Ok(manifest) if manifest.id == *id => manifest,
                 Ok(_) => {
-                    tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Mod identity changed; restart required, retaining applied configuration");
+                    tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Mod identity changed. Restart required, retaining applied configuration");
                     continue;
                 }
                 Err(error) => {
-                    tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration rejected; keeping applied values: {error}");
+                    tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration rejected. Keeping applied values: {error}");
                     continue;
                 }
             };
@@ -1151,7 +1245,7 @@ impl IngameRuntime {
                 } else {
                     self.errors.insert(
                         id.clone(),
-                        "runtime module was not present in the startup plan; restart required"
+                        "Runtime module was not present in the startup plan. Restart required"
                             .into(),
                     );
                 }

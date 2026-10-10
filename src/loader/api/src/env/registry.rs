@@ -147,6 +147,7 @@ pub(crate) mod tests {
         assert!(
             resolve(&registry, &LuaValue::Table(selector.clone()))
                 .unwrap_err()
+                .to_ascii_lowercase()
                 .contains("ambiguous")
         );
         selector.set("domain", "address").unwrap();

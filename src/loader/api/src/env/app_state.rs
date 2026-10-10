@@ -390,7 +390,7 @@ impl AppState {
                 "Native DLL was skipped because the mod is disabled. Enable it and restart the game to load the DLL.",
             );
             tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
-                dll = %relative_path, "Native DLL skipped because mod is disabled; restart required after enabling");
+                dll = %relative_path, "Native DLL skipped because the mod is disabled. Restart required after enabling");
             return Ok(());
         }
         self.queue_mod_native_dll(target_mod, relative_path)
@@ -493,7 +493,7 @@ impl AppState {
         let worker_mod_id = mod_id.clone();
         let worker_path = canonical.clone();
         let worker_tempdir = temporary_directory.clone();
-        tracing::info!(target: "shroudforge::runtime", mod_id, dll = %canonical.display(),
+        tracing::debug!(target: "shroudforge::runtime", mod_id, dll = %canonical.display(),
             "Queuing native DLL load on isolated worker");
         std::thread::Builder::new()
             .name(format!(
@@ -501,12 +501,12 @@ impl AppState {
                 mod_id.chars().take(24).collect::<String>()
             ))
             .spawn(move || {
-                tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                tracing::debug!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
                     dll = %worker_path.display(), "Isolated native DLL load started");
                 let result = load_native_library(&worker_mod_id, &worker_path);
                 match &result {
                     Ok(_) => {
-                        tracing::info!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
+                        tracing::debug!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
                         dll = %worker_path.display(), "Isolated native DLL load completed")
                     }
                     Err(error) => {
@@ -558,9 +558,9 @@ impl AppState {
                             && pending[index].queued_at.elapsed()
                                 >= std::time::Duration::from_secs(5)
                         {
-                            tracing::error!(target: "shroudforge::runtime", mod_id = %pending[index].mod_id,
+                            tracing::warn!(target: "shroudforge::runtime", mod_id = %pending[index].mod_id,
                                 dll = %pending[index].path.display(), elapsed_ms = pending[index].queued_at.elapsed().as_millis(),
-                                "Native DLL load is still running on isolated worker; runtime updates continue");
+                                "Native DLL load is still running on an isolated worker. Runtime updates continue");
                             pending[index].warned_stall = true;
                         }
                         index += 1;
@@ -664,8 +664,8 @@ impl AppState {
         let dll = dll.ok_or_else(|| {
             "native-plugin.ini enables DLL loading but does not name a DLL".to_owned()
         })?;
-        tracing::info!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
-            dll = %dll, "Native DLL declaration parsed; queuing isolated load");
+        tracing::debug!(target: "shroudforge::runtime", mod_id = %target_mod.info().id,
+            dll = %dll, "Native DLL declaration parsed. Queuing isolated load");
         self.queue_mod_native_dll(target_mod, &dll)?;
         Ok(true)
     }

@@ -13,7 +13,7 @@ pub fn generate(type_registry: &TypeRegistry) -> String {
 
     for r#type in type_registry.iter() {
         if r#type.flags.contains(TypeFlags::HAS_DS) {
-            output.push_str("--- Native DS layout: metadata is available; allocation/ownership is engine-managed.\n");
+            output.push_str("--- Native DS layout: metadata is available. Allocation and ownership are engine-managed.\n");
         }
 
         match r#type.primitive_type {

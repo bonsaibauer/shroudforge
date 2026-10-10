@@ -5,6 +5,11 @@ use std::rc::Rc;
 
 const KFC_RUNTIME_ABI_VERSION: u32 = 12;
 
+fn steam_network_ready() -> bool {
+    let status = shroudforge_steam_networking::status();
+    status.available && status.service_ready
+}
+
 use crate::{
     RuntimePhase,
     alias::MappedValue,
@@ -279,7 +284,7 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
-                && shroudforge_steam_networking::status().available
+                && steam_network_ready()
         }
         "runtime.world.context.active" => {
             state.phase() == RuntimePhase::Ingame
@@ -398,12 +403,12 @@ fn operation_status(lua: &mlua::Lua, feature: &str, r#mod: &Mod) -> mlua::Result
     }
     if feature.starts_with("runtime.network.")
         && matches!(availability, Availability::Available)
-        && !shroudforge_steam_networking::status().available
+        && !steam_network_ready()
     {
         return availability_to_lua(
             lua,
             Availability::Unavailable {
-                reason: "Steam Networking Messages is not initialized in this process".into(),
+                reason: "Steam Networking Messages transport or session callback is unavailable in this process".into(),
             },
         );
     }
@@ -837,7 +842,7 @@ fn lua_world_entity_query_props_in_bounds(
         Ok(props) => props,
         Err(reason) => return Ok((LuaValue::Nil, Some(reason.into()))),
     };
-    tracing::info!(
+    tracing::debug!(
         target: "shroudforge::runtime",
         elapsed_ms = query_started.elapsed().as_millis() as u64,
         matched_props = props.len(),
@@ -1007,7 +1012,7 @@ fn lua_world_grid_get_spec(
         }
         None => Ok((
             LuaValue::Nil,
-            Some("grid is unavailable; this backend currently exposes 'voxel'".into()),
+            Some("Grid is unavailable. This backend currently exposes 'voxel'".into()),
         )),
     }
 }
@@ -2548,8 +2553,8 @@ pub(super) mod runtime_provider {
         }
         Err(match outcome {
             1 => "voxel write was rejected before changing the world".into(),
-            2 => "voxel write failed; the previous voxel region was restored and read back".into(),
-            _ => "voxel write outcome is uncertain; rollback could not be verified".into(),
+            2 => "Voxel write failed. The previous voxel region was restored and read back".into(),
+            _ => "Voxel write outcome is uncertain. Rollback could not be verified".into(),
         })
     }
     fn operation_error(operation: &str, outcome: u32) -> String {
@@ -2573,10 +2578,10 @@ pub(super) mod runtime_provider {
                 "{operation} was queued, but its native game hook did not consume it within 3 seconds"
             ),
             4 => format!(
-                "{operation} was dispatched, but the requested live ECS state change was not observed; the final world state is uncertain"
+                "{operation} was dispatched, but the requested live ECS state change was not observed. The final world state is uncertain"
             ),
             _ => format!(
-                "{operation} timed out; the game thread may still have consumed the request"
+                "{operation} timed out. The game thread may still have consumed the request"
             ),
         }
     }
@@ -2672,7 +2677,7 @@ pub(super) mod runtime_provider {
             (provider.world_entity_query_props_in_bounds)(bounds.as_ptr(), std::ptr::null_mut(), 0)
         };
         if count == usize::MAX - 1 {
-            return Err("live prop query is still scanning; retry on the next update");
+            return Err("Live prop query is still scanning. Retry on the next update");
         }
         if count == usize::MAX {
             return Err("native recipe-bounds prop query failed");
@@ -2692,7 +2697,7 @@ pub(super) mod runtime_provider {
             )
         };
         if actual == usize::MAX - 1 {
-            return Err("live prop query is still scanning; retry on the next update");
+            return Err("Live prop query is still scanning. Retry on the next update");
         }
         if actual == usize::MAX {
             return Err("native recipe-bounds prop query failed while retrieving results");
@@ -2884,7 +2889,7 @@ pub(super) mod runtime_provider {
     }
     pub fn registry() -> Result<serde_json::Value, String> {
         let fetch = provider().and_then(|p| p.registry).ok_or(
-            "native provider lacks the component registry extension; install the matching provider",
+            "Native provider lacks the component registry extension. Install the matching provider",
         )?;
         fetch_json(fetch, 8 * 1024 * 1024)
     }
@@ -2957,7 +2962,7 @@ pub(super) mod runtime_provider {
                 return Err("native ECS query failed or timed out");
             }
             if actual == usize::MAX - 1 {
-                return Err("live ECS query is still scanning; retry on the next update");
+                return Err("Live ECS query is still scanning. Retry on the next update");
             }
             if actual <= entities.len() {
                 entities.truncate(actual);
@@ -2979,7 +2984,7 @@ pub(super) mod runtime_provider {
             return Err("native ECS provider unavailable");
         };
         let Some(query) = provider.query_bounds else {
-            return Err("native spatial ECS query is unavailable; update KFC Runtime");
+            return Err("Native spatial ECS query is unavailable. Update KFC Runtime");
         };
         let Ok(names) = components
             .iter()
@@ -3075,7 +3080,7 @@ pub(super) mod runtime_provider {
         } {
             1 => Ok(()),
             2 => Err(
-                "attribute snapshot changed before update; read current values and retry".into(),
+                "Attribute snapshot changed before update. Read current values and retry".into(),
             ),
             _ => Err("guarded attribute update failed".into()),
         }

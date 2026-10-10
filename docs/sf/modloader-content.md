@@ -29,7 +29,11 @@ By default, the loader saves its state in **shroudforge/state.json**. The locati
 - **news** remembers which notice IDs were read and when.
 - **mods** stores the last observed mod versions so the loader can notice changes.
 
-A notice with **repeatEveryDays: 90** appears as unread again 90 days after it was last read. Without that setting, it appears once. The loader checks event data when it is saved and read. If a file is invalid, ShroudForge reports the problem rather than silently replacing it.
+Runtime mods can publish their own local news notices with `shroudforge.notifications.publish`. A notice is written only when the mod calls the function. The API does not schedule, broadcast, throttle, or expire notices. Reusing the same mod-scoped ID replaces the notice in place. A new ID creates another local feed item. Read state is keyed by ID, so updating an already-read notice does not make it unread again. Mod authors should publish for meaningful events, never from per-frame callbacks, and should choose stable or versioned IDs based on whether a notice is an update or a separate release announcement. The [Lua API guide](../../src/loader/api/README.md#publish-a-modloader-notice) has a full example and explains the fields, size limits, and ID behavior.
+
+Under **Settings → General → Username**, the player can use automatic detection or choose a manual fallback. Automatic mode reads the most recently played character from the local rolling `characters` save; if it cannot read the save or cannot determine a unique character, it uses the fallback, which defaults to `Flameborn`. ShroudForge notices and mod-authored notices can use `{username}` in titles or messages. The Modloader replaces this token locally on the player's device.
+
+A notice with **repeatEveryDays: 90** appears as unread again 90 days after it was last read. Without that setting, it appears once in the unread view. Read notices remain available in the full news list. The loader checks event data when it is saved and read. If a file is invalid, ShroudForge reports the problem rather than silently replacing it.
 
 The Modloader also summarizes warning and error messages from the most recent 512 KiB of the loader log. Repeated copies are grouped together. A summary can open the Debug Console, and a known mod can be opened from its notice.
 

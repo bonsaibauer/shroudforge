@@ -768,6 +768,21 @@
           },
           "additionalProperties": false
         },
+        "network": {
+          "type": "object",
+          "properties": {
+            "serverSteamId": {
+              "type": "string",
+              "maxLength": 20,
+              "pattern": "^$|^[0-9]{16,20}$"
+            },
+            "allowedClientSteamIds": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          },
+          "additionalProperties": false
+        },
         "modloaderUi": {
           "type": "object",
           "properties": {
@@ -923,6 +938,15 @@
         },
         "reducedMotion": {
           "type": "boolean"
+        },
+        "usernameMode": {
+          "type": "string",
+          "enum": ["auto", "manual"]
+        },
+        "messageNameFallback": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
         }
       },
       "additionalProperties": false

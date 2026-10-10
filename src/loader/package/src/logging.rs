@@ -183,12 +183,16 @@ pub fn initialize(root: impl AsRef<Path>, archive_existing: bool) -> io::Result<
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or(Duration::ZERO)
                 .as_secs();
-            let mut destination = archive.join(format!("shroudforge-{timestamp}.log"));
+            let role = current
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("shroudforge-client");
+            let mut destination = archive.join(format!("{role}-{timestamp}.log"));
             for suffix in 2.. {
                 if !destination.exists() {
                     break;
                 }
-                destination = archive.join(format!("shroudforge-{timestamp}-{suffix}.log"));
+                destination = archive.join(format!("{role}-{timestamp}-{suffix}.log"));
             }
             fs::rename(&current, destination)?;
         }

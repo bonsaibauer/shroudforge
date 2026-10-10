@@ -59,7 +59,10 @@ fn check(snapshot: serde_json::Value) -> mlua::Result<()> {
         local original=copy(stores)
         local seconds=1
         loader={features={patch=true}}
-        shroudforge={settings={get=function(key) assert(key=='seconds') return seconds end}}
+        shroudforge={
+            settings={get=function(key) assert(key=='seconds') return seconds end},
+            log={info=function() end}
+        }
         game={types={get=function(name) assert(name=='keen::RecipeRegistryResource') return name end},
             assets={get_resources_by_type=function() return resources end}}
         local function run() assert(load(source))() end

@@ -149,14 +149,14 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let root = root.path();
         crate::config::write_document(root,"news-state",&serde_json::json!({
-            "read":["shroudforge-support-1","shroudforge-welcome-1.0.0"],
-            "readAt":{"shroudforge-support-1":now()-91*86400,"shroudforge-welcome-1.0.0":now()-91*86400}
+            "read":["shroudforge-support-2","shroudforge-welcome-1.6.5"],
+            "readAt":{"shroudforge-support-2":now()-91*86400,"shroudforge-welcome-1.6.5":now()-91*86400}
         })).unwrap();
-        assert_eq!(read_ids(root).unwrap(), vec!["shroudforge-welcome-1.0.0"]);
-        mark_read(root, &["shroudforge-support-1".into()]).unwrap();
+        assert_eq!(read_ids(root).unwrap(), vec!["shroudforge-welcome-1.6.5"]);
+        mark_read(root, &["shroudforge-support-2".into()]).unwrap();
         assert_eq!(
             read_ids(root).unwrap(),
-            vec!["shroudforge-support-1", "shroudforge-welcome-1.0.0"]
+            vec!["shroudforge-support-2", "shroudforge-welcome-1.6.5"]
         );
     }
 

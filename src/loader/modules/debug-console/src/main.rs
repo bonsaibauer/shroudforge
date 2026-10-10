@@ -163,6 +163,7 @@ mod windows {
         let mut user_enabled = preferences["enabled"] != false;
         let mut next_visibility_poll = Instant::now();
         let mut next_refresh = Instant::now();
+        let mut last_config_error: Option<String> = None;
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
             match event {
@@ -265,7 +266,13 @@ mod windows {
                                     }
                                     Ok(())
                                 });
-                                if let Err(error) = result { eprintln!("debug preferences: {error}"); }
+                                if let Err(error) = result {
+                                    eprintln!("debug preferences: {error}");
+                                    let _ = shroudforge_package::logging::append(
+                                        &arguments.root, 'E', "debug-console",
+                                        &format!("Could not save Debug Console preferences: {error}"),
+                                    );
+                                }
                                 next_refresh = Instant::now();
                             }
                         }
@@ -311,6 +318,12 @@ mod windows {
                         let mut minimum_level = "INFO".to_owned();
                         match shroudforge_package::config::read_loader(&arguments.root) {
                             Ok(value) => {
+                                if last_config_error.take().is_some() {
+                                    let _ = shroudforge_package::logging::append(
+                                        &arguments.root, 'I', "debug-console",
+                                        "Debug Console configuration is readable again.",
+                                    );
+                                }
                                 minimum_level = value.pointer("/logging/minimumLevel")
                                     .and_then(serde_json::Value::as_str)
                                     .unwrap_or("INFO")
@@ -324,7 +337,16 @@ mod windows {
                                 if let Ok(next) = serde_json::from_value(preferences.clone()) { config = next; }
                                 if preferences["enabled"] == false && !arguments.startup_watch { let _ = shroudforge_package::config::publish_window_visibility(&arguments.root, "debugConsole", false); *control_flow = ControlFlow::Exit; return; }
                             }
-                            Err(error) => eprintln!("debug configuration: {error}"),
+                            Err(error) => {
+                                eprintln!("debug configuration: {error}");
+                                let message = error.to_string();
+                                let level = if last_config_error.as_deref() == Some(message.as_str()) { 'D' } else { 'W' };
+                                let _ = shroudforge_package::logging::append(
+                                    &arguments.root, level, "debug-console",
+                                    &format!("Could not read Debug Console configuration, using the last available settings. {message}"),
+                                );
+                                last_config_error = Some(message);
+                            }
                         }
                         next_refresh =
                             Instant::now() + Duration::from_millis(config.refresh_milliseconds);

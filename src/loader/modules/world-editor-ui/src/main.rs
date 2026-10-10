@@ -51,11 +51,8 @@ mod windows {
 
     enum Command {
         Ready,
-        StateApplied {
-            blueprints: usize,
-            stage: String,
-            selected: String,
-        },
+        SurfaceChanged(String),
+        UiMessage { level: char, message: String },
         ScriptError(String),
         Hide,
         OpenModSettings,
@@ -186,8 +183,10 @@ mod windows {
             initial_state.panel_position_x,
             initial_state.panel_position_y,
         );
-        let _ = append_ui_log(
+        log_world_editor(
             &arguments.root,
+            'D',
+            "ui",
             "window initialized with opaque ShroudForge panel and undecorated Tao window",
         );
 
@@ -198,11 +197,22 @@ mod windows {
                     let kind = value["kind"].as_str().unwrap_or_default();
                     match kind {
                         "ready" => Command::Ready,
-                        "state-applied" => Command::StateApplied {
-                            blueprints: value["blueprints"].as_u64().unwrap_or(0) as usize,
-                            stage: value["stage"].as_str().unwrap_or("unknown").to_owned(),
-                            selected: value["selected"].as_str().unwrap_or_default().to_owned(),
-                        },
+                        "surface" => Command::SurfaceChanged(
+                            value["value"].as_str().unwrap_or_default().to_owned(),
+                        ),
+                        "ui-message" => {
+                            let level = match value["level"].as_str().unwrap_or("info") {
+                                "trace" => 'T',
+                                "debug" => 'D',
+                                "warn" => 'W',
+                                "error" => 'E',
+                                _ => 'I',
+                            };
+                            Command::UiMessage {
+                                level,
+                                message: value["message"].as_str().unwrap_or_default().to_owned(),
+                            }
+                        }
                         "script-error" => Command::ScriptError(
                             value["value"]
                                 .as_str()
@@ -257,9 +267,11 @@ mod windows {
         // Keep the same native window and WebView setup as the Modloader UI.
         // The document paints its own opaque surface; per-window background and
         // DWM frame overrides caused this host to diverge from that working path.
-        let _ = append_ui_log(
+        log_world_editor(
             &arguments.root,
-            "window initialized with Modloader-style undecorated Tao window; document owns the opaque panel surface",
+            'D',
+            "ui",
+            "Window initialized with the Modloader-style undecorated Tao window. The document owns the opaque panel surface",
         );
 
         let mut panel_width = initial_state.panel_width;
@@ -295,7 +307,7 @@ mod windows {
         });
         let mut next_refresh = Instant::now();
         let mut last_payload = String::new();
-        let mut last_ui_ack = String::new();
+        let mut last_ui_surface = String::new();
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(35));
             match event {
@@ -318,20 +330,21 @@ mod windows {
                         match command {
                             Command::Ready => {
                                 next_refresh = Instant::now();
-                                let _ = append_ui_log(&arguments.root, "UI document ready");
+                                log_world_editor(&arguments.root, 'I', "ui", "World Editor window and interface are ready.");
                             }
-                            Command::StateApplied { blueprints, stage, selected } => {
-                                let acknowledgment = format!("{blueprints}|{stage}|{selected}");
-                                if acknowledgment != last_ui_ack {
-                                    let _ = append_ui_log(
-                                        &arguments.root,
-                                        &format!("UI applied state: blueprints={blueprints} stage={stage} selected={selected}"),
-                                    );
-                                    last_ui_ack = acknowledgment;
+                            Command::SurfaceChanged(surface) => {
+                                if surface != last_ui_surface {
+                                    log_world_editor(&arguments.root, 'T', "ui-state", &surface);
+                                    last_ui_surface = surface;
+                                }
+                            }
+                            Command::UiMessage { level, message } => {
+                                if !message.trim().is_empty() {
+                                    log_world_editor(&arguments.root, level, "ui-message", &message);
                                 }
                             }
                             Command::ScriptError(message) => {
-                                let _ = append_ui_log(&arguments.root, &message);
+                                log_world_editor(&arguments.root, 'E', "ui", &format!("World Editor interface script failed: {message}"));
                             }
                             Command::Hide => {
                                 window_visible = false;
@@ -345,7 +358,7 @@ mod windows {
                             }
                             Command::OpenModSettings => {
                                 if let Err(error) = shroudforge_package::config::request_world_editor_module_settings(&arguments.root) {
-                                    let _ = append_ui_log(&arguments.root, &format!("Could not open World Editor module settings in Modloader UI: {error}"));
+                                    log_world_editor(&arguments.root, 'E', "ui", &format!("Could not open module settings: {error}"));
                                 }
                             }
                             Command::Drag => {}
@@ -397,6 +410,14 @@ mod windows {
                                 }
                             }
                             Command::Action { action, value } => {
+                                if matches!(action.as_str(), "browseScreenshots" | "refreshScreenshots" | "applyScreenshot" | "undoScreenshot") {
+                                    log_world_editor(
+                                        &arguments.root,
+                                        'D',
+                                        "input",
+                                        &format!("action=\"{action}\" value=\"{value}\" source=world-editor-window"),
+                                    );
+                                }
                                 let result = match action.as_str() {
                                     "browseScreenshots" => {
                                         browse_screenshots(&arguments.root, &value)
@@ -422,18 +443,22 @@ mod windows {
                                     Ok(None) => {
                                         if action == "applyScreenshot" {
                                             let name = value.split_once('\t').map(|(name, _)| name).unwrap_or("unknown");
-                                            let _ = append_ui_log(
+                                            log_world_editor(
                                                 &arguments.root,
-                                                &format!("screenshot cover saved for blueprint={name}"),
+                                                'I',
+                                                "blueprint",
+                                                &format!("Screenshot cover saved for blueprint \"{name}\"."),
                                             );
                                             let _ = webview.evaluate_script(
                                                 "window.__worldEditorScreenshotApplied(false);",
                                             );
                                             next_refresh = Instant::now();
                                         } else if action == "undoScreenshot" {
-                                            let _ = append_ui_log(
+                                            log_world_editor(
                                                 &arguments.root,
-                                                &format!("screenshot cover undo completed for blueprint={value}"),
+                                                'I',
+                                                "blueprint",
+                                                &format!("Previous screenshot cover restored for blueprint \"{value}\"."),
                                             );
                                             let _ = webview.evaluate_script(
                                                 "window.__worldEditorScreenshotApplied(true);",
@@ -442,9 +467,11 @@ mod windows {
                                         }
                                     }
                                     Err(error) => {
-                                        let _ = append_ui_log(
+                                        log_world_editor(
                                             &arguments.root,
-                                            &format!("action failed action={action}: {error}"),
+                                            'E',
+                                            "aktion",
+                                            &format!("Action \"{action}\" failed: {error}"),
                                         );
                                         let _ = webview.evaluate_script(&format!(
                                             "window.__worldEditorScreenshotError({});",
@@ -561,6 +588,12 @@ mod windows {
                     if should_show != native_visible {
                         native_visible = should_show;
                         window.set_visible(native_visible);
+                        log_world_editor(
+                            &arguments.root,
+                            'D',
+                            "ui",
+                            if native_visible { "World Editor window shown." } else { "World Editor window hidden." },
+                        );
                     }
                     if Instant::now() >= next_refresh {
                         if let Some(state) = state_updates.try_iter().last() {
@@ -611,9 +644,9 @@ mod windows {
                                             }}
                                         }} catch (error) {{
                                             console.error('World Editor render failed', error);
+                                            if (window.ipc && typeof window.ipc.postMessage === 'function') window.ipc.postMessage(JSON.stringify({{kind:'script-error',value:'World Editor render failed: '+String(error)}}));
                                         }}
                                         // Keep the process indicator working in the native fallback renderer too.
-                                        // A state-applied acknowledgement does not prove the page script ran.
                                         const processPanel = document.getElementById('processProgress');
                                         const processBar = document.getElementById('processBar');
                                         const processLabel = document.getElementById('processLabel');
@@ -630,7 +663,7 @@ mod windows {
                                             processLabel.textContent = [state.processOperation, state.processPhase].filter(Boolean).join(' · ') || 'World Editor · Ready';
                                             const detail = total > 0 ? `${{completed}}/${{total}} steps complete` : 'Working';
                                             processPanel.title = status === 'error' ? `${{detail}}. ${{state.hint}}` : detail;
-                                            processBar.setAttribute('aria-valuetext', `${{processLabel.textContent}}; ${{detail}}`);
+                                            processBar.setAttribute('aria-valuetext', `${{processLabel.textContent}}. ${{detail}}`);
                                             if (window.__sfProcessSequence !== state.processSequence) {{
                                                 window.__sfProcessSequence = state.processSequence;
                                                 window.__sfProcessStarted = performance.now();
@@ -754,23 +787,16 @@ mod windows {
                                                 }}
                                             }});
                                         }}
-                                        if (window.ipc && typeof window.ipc.postMessage === 'function') {{
-                                            window.ipc.postMessage(JSON.stringify({{ kind: 'state-applied', blueprints: state.blueprints.length, stage: state.stage, selected: state.selected }}));
-                                        }}
+                                        if (typeof window.__sfWorldEditorReportSurface === 'function') window.__sfWorldEditorReportSurface();
+                                        else if (window.ipc && typeof window.ipc.postMessage === 'function') window.ipc.postMessage(JSON.stringify({{kind:'surface',value:JSON.stringify({{text:document.body.innerText||''}})}}));
                                     }})();"#
                                 );
                                 if let Err(error) = webview.evaluate_script(&script) {
-                                    let _ = append_ui_log(
+                                    log_world_editor(
                                         &arguments.root,
-                                        &format!("state update failed: {error}"),
-                                    );
-                                } else if state_changed {
-                                    let _ = append_ui_log(
-                                        &arguments.root,
-                                        &format!(
-                                            "state sent to UI: blueprints={} stage={} selected={} visible={}",
-                                            state.blueprints.len(), state.stage, state.selected, window_visible
-                                        ),
+                                        'E',
+                                        "ui",
+                                        &format!("Could not send the visible interface state to the window: {error}"),
                                     );
                                 }
                             }
@@ -1406,16 +1432,15 @@ mod windows {
                 .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
     }
 
-    fn append_ui_log(root: &Path, message: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let directory = shroudforge_package::paths::logs_dir(root);
-        fs::create_dir_all(&directory)?;
-        let mut file = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(directory.join("world-editor-ui.log"))?;
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-        writeln!(file, "{timestamp} {message}")?;
-        Ok(())
+    fn log_world_editor(root: &Path, level: char, category: &str, message: &str) {
+        if let Err(error) = shroudforge_package::logging::append(
+            root,
+            level,
+            "world-editor",
+            &format!("[{category}] {message}"),
+        ) {
+            eprintln!("World Editor log write failed ({category}): {error}");
+        }
     }
 
     fn js_string(value: &str) -> String {

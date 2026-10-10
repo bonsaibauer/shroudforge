@@ -26,12 +26,16 @@ runtime.network = {}
 ---@field role 'client'|'server'
 ---@field local_steam_id string? Decimal Steam ID of this process, when Steam exposes it.
 ---@field local_dedicated_server_steam_id string? Current Steam ID of a ShroudForge Dedicated Server running in this Windows session, if one publishes it.
+---@field remote_dedicated_server_steam_id string? Dedicated Server SteamID64 learned from its automatic Network health probe.
+---@field configured_server_steam_id string? Remote Dedicated Server fallback from Settings > Modules > Network.
+---@field allowed_client_steam_ids string[]? Optional server-side client allowlist; empty means authenticated Enshrouded players.
+---@field service_ready boolean Whether the built-in Steam session callback is registered for automatic session acceptance.
 ---@field reason string?
 --- Report whether this process can use the built-in Steam P2P message channel.
 ---@return RuntimeNetworkStatus status
 function runtime.network.status() end
 ---@class RuntimeNetworkSendOptions
----@field channel integer? Destination channel, default 0; use the same channel on receive.
+---@field channel integer? Destination channel, 0..65534; 65535 is reserved for the automatic Network health probe. Use the same channel on receive.
 ---@field reliable boolean? Reliable, ordered delivery on this peer/channel; default true.
 --- Send raw bytes to a Steam peer. This is a separate Steam P2P session, not an Enshrouded game packet. True means Steam accepted the send request, not that the peer acknowledged it.
 ---@param peer_steam_id string Decimal SteamID64 from runtime.network.status().local_steam_id on the remote process.
@@ -48,12 +52,12 @@ function runtime.network.send(peer_steam_id, payload, options) end
 ---@return boolean ok
 ---@return string? reason
 function runtime.network.send_mod(peer_steam_id, target_mod_id, payload, options) end
---- Accept an incoming session request from a known peer before receiving its first message.
+--- Accept an incoming session request from a known peer. Runtime Network also accepts Steam session requests automatically for authenticated transport; this manual call remains for compatibility.
 ---@param peer_steam_id string Decimal SteamID64.
 ---@return boolean accepted
 ---@return string? reason
 function runtime.network.accept(peer_steam_id) end
---- Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server.
+--- Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server, filtered by the Network module's optional allowlist.
 ---@return string[]|nil peers
 ---@return string|nil reason
 function runtime.network.connected_peers() end
@@ -69,7 +73,7 @@ function runtime.network.connected_peers() end
 ---@return RuntimeNetworkMessage[]? messages
 ---@return string? reason
 function runtime.network.receive(options) end
---- Receive messages addressed to this mod. Call from runtime on_update; each message includes the sender mod ID and Steam peer ID. The mod must accept a new peer with runtime.network.accept(peer_steam_id) before its first incoming session.
+--- Receive messages addressed to this mod. Call from runtime on_update; each message includes the sender mod ID and Steam peer ID. Runtime Network accepts the Steam transport session automatically; mods should still validate their own protocol and permissions.
 ---@param limit integer? Maximum messages, 1..32, default 16.
 ---@return RuntimeModNetworkMessage[]? messages
 ---@return string? reason

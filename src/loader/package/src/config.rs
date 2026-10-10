@@ -71,7 +71,7 @@ pub fn write_json(path: &Path, value: &Value) -> Result<(), String> {
 
 pub fn write_document(root: &Path, name: &str, value: &Value) -> Result<(), String> {
     if name == "mod" {
-        return Err("mod.json is package data; edit the mod package instead".into());
+        return Err("mod.json is package data. Edit the mod package instead".into());
     }
     validate_document(root, name, value)?;
     if let Some(section) = state_section(name) {
@@ -119,7 +119,7 @@ fn read_state_file(root: &Path) -> Result<Value, String> {
 
 pub fn read_document(root: &Path, name: &str) -> Result<Value, String> {
     if name == "mod" {
-        return Err("mod.json is package data; read it from the mod package instead".into());
+        return Err("mod.json is package data. Read it from the mod package instead".into());
     }
     if let Some(section) = state_section(name) {
         let state_path = crate::paths::state_file(root);

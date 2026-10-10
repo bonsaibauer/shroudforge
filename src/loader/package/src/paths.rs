@@ -80,7 +80,23 @@ pub fn version_file(root: &Path) -> PathBuf {
     data_dir(root).join("version.json")
 }
 pub fn current_log(root: &Path) -> PathBuf {
-    logs_dir(root).join("shroudforge.log")
+    logs_dir(root).join(if is_dedicated_server(root) {
+        "shroudforge-server.log"
+    } else {
+        "shroudforge-client.log"
+    })
+}
+
+fn is_dedicated_server(root: &Path) -> bool {
+    std::env::current_exe()
+        .ok()
+        .is_some_and(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case("enshrouded_server.exe"))
+        })
+        || (root.join("enshrouded_server.exe").is_file()
+            && !root.join("enshrouded.exe").is_file())
 }
 pub fn logs_dir(root: &Path) -> PathBuf {
     configured_dir(root, "logs")

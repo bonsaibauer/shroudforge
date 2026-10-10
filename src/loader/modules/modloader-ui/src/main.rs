@@ -1,4 +1,8 @@
 #[cfg(windows)]
+#[path = "username.rs"]
+mod username;
+
+#[cfg(windows)]
 mod windows {
     use std::{
         fs::{self, File, OpenOptions},
@@ -14,6 +18,7 @@ mod windows {
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
 
+    use super::username;
     use base64::Engine as _;
     use semver::Version;
     use serde::{Deserialize, Serialize};
@@ -120,6 +125,10 @@ mod windows {
         compact_mode: bool,
         #[serde(default)]
         reduced_motion: bool,
+        #[serde(default = "default_username_mode")]
+        username_mode: String,
+        #[serde(default = "default_message_name_fallback")]
+        message_name_fallback: String,
         log_level: String,
         #[serde(default)]
         export_enabled: bool,
@@ -298,6 +307,8 @@ mod windows {
         #[serde(skip_serializing_if = "Option::is_none")]
         action_label_key: Option<String>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        links: Vec<NoticeLink>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         actions: Vec<NoticeAction>,
         updated_at: u64,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -315,6 +326,13 @@ mod windows {
         kind: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         target: Option<String>,
+    }
+
+    #[derive(Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct NoticeLink {
+        label_key: String,
+        url: String,
     }
 
     #[derive(Clone, Serialize)]
@@ -425,6 +443,9 @@ mod windows {
         module_preferences: serde_json::Value,
         compact_mode: bool,
         reduced_motion: bool,
+        username_mode: String,
+        detected_username: Option<String>,
+        message_name_fallback: String,
         log_level: String,
         export_enabled: bool,
         runtime_profile_id: Option<String>,
@@ -1702,7 +1723,7 @@ mod windows {
                                 "WebView rendered",
                                 "Ready",
                                 None,
-                                "info",
+                                "debug",
                             ),
                             Command::UiError(message) => write_activity(
                                 &arguments.root,
@@ -2063,6 +2084,10 @@ mod windows {
     fn read_central_config(root: &Path) -> serde_json::Value {
         shroudforge_package::config::read_loader(root).unwrap_or_else(|error| {
             eprintln!("loader configuration: {error}");
+            let _ = shroudforge_package::logging::append(
+                root, 'W', "modloader-ui",
+                &format!("Could not read Modloader configuration, using fallback settings. {error}"),
+            );
             serde_json::json!({"configurationError": error})
         })
     }
@@ -2247,6 +2272,18 @@ mod windows {
                 }
             }
         }
+        let username_mode = central
+            .pointer("/general/usernameMode")
+            .and_then(|value| value.as_str())
+            .filter(|value| matches!(*value, "auto" | "manual"))
+            .unwrap_or("auto")
+            .to_owned();
+        let fallback_username = central
+            .pointer("/general/messageNameFallback")
+            .and_then(|value| value.as_str())
+            .and_then(|value| normalize_message_name(value).ok())
+            .unwrap_or_else(default_message_name_fallback);
+        let detected_username = username::detect_active_character_name();
         Snapshot {
             diagnostics: shroudforge_runtime_diagnostics::status(&arguments.root),
             windows: shroudforge_package::config::window_state(&arguments.root),
@@ -2295,6 +2332,9 @@ mod windows {
                     .pointer("/general/reducedMotion")
                     .and_then(|value| value.as_bool())
                     .unwrap_or(false),
+                username_mode,
+                detected_username,
+                message_name_fallback: fallback_username,
                 log_level: logging_level,
                 export_enabled,
                 runtime_profile_id: central
@@ -2674,6 +2714,9 @@ mod windows {
             "warn" => 'W',
             "error" => 'E',
             "debug" => 'D',
+            "trace" => 'T',
+            level if matches!(level, "info" | "success")
+                && matches!(action, "WebView rendered" | "Search catalog" | "Save language" | "Open external link") => 'D',
             _ => 'I',
         };
         let mut message = format!("{action}: {result}");
@@ -2733,6 +2776,21 @@ mod windows {
                         .get("actionLabelKey")
                         .and_then(|value| value.as_str())
                         .map(str::to_owned),
+                    links: value
+                        .get("links")
+                        .and_then(|value| value.as_array())
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|link| {
+                            let url = link.get("url")?.as_str()?;
+                            let label_key = link.get("labelKey")?.as_str()?;
+                            (url.starts_with("https://") && !label_key.is_empty()).then(|| NoticeLink {
+                                label_key: label_key.chars().take(120).collect(),
+                                url: url.to_owned(),
+                            })
+                        })
+                        .take(4)
+                        .collect(),
                     actions: value
                         .get("actions")
                         .and_then(|value| value.as_array())
@@ -2740,7 +2798,13 @@ mod windows {
                         .flatten()
                         .filter_map(|action| {
                             let kind = action.get("kind")?.as_str()?;
-                            if !["open-mod", "open-debug-console"].contains(&kind) {
+                            if ![
+                                "open-mod",
+                                "open-debug-console",
+                                "open-installed-mods",
+                            ]
+                            .contains(&kind)
+                            {
                                 return None;
                             }
                             Some(NoticeAction {
@@ -2806,6 +2870,10 @@ mod windows {
     fn read_news_state(root: &Path) -> Vec<String> {
         shroudforge_package::news::read_ids(root).unwrap_or_else(|error| {
             eprintln!("news state: {error}");
+            let _ = shroudforge_package::logging::append(
+                root, 'W', "modloader-ui",
+                &format!("Could not read the news read-state, showing notices as unread. {error}"),
+            );
             Vec::new()
         })
     }
@@ -2932,6 +3000,7 @@ mod windows {
                     level: if error { "error" } else { "warning" }.into(),
                     action_url: None,
                     action_label_key: None,
+                    links: Vec::new(),
                     actions,
                     updated_at,
                     kind: Some(if error { "log.error" } else { "log.warning" }.into()),
@@ -3201,8 +3270,8 @@ mod windows {
                 }
             }
             Err(format!(
-                "could not disable every mod; gamefiles were not queued for restoration. {}",
-                errors.join("; ")
+                "Could not disable every mod. Game files were not queued for restoration. {}",
+                errors.join(", ")
             ))
         }
     }
@@ -3219,7 +3288,7 @@ mod windows {
             serde_json::json!({"enabled":manifest.enabled,"settings":manifest.setting_values});
         if config_revision(&current_state) != expected_revision {
             return Err(
-                "mod settings changed since they were displayed; reload before saving".into(),
+                "Mod settings changed since they were displayed. Reload before saving".into(),
             );
         }
         let mut extension = match read_package_file(&package, "extended.mod.json") {
@@ -3683,11 +3752,27 @@ mod windows {
         setting: &serde_json::Value,
     ) -> Result<(), String> {
         if scope == "general" {
-            if !matches!(key, "compactMode" | "reducedMotion") {
+            if !matches!(key, "compactMode" | "reducedMotion" | "usernameMode" | "messageNameFallback") {
                 return Err("unsupported general setting".into());
             }
+            let setting = if key == "messageNameFallback" {
+                normalize_message_name(
+                    setting
+                        .as_str()
+                        .ok_or("message name must be text")?,
+                )?
+                .into()
+            } else if key == "usernameMode" {
+                match setting.as_str() {
+                    Some("auto") => "auto".into(),
+                    Some("manual") => "manual".into(),
+                    _ => return Err("username mode must be auto or manual".into()),
+                }
+            } else {
+                setting.clone()
+            };
             return shroudforge_package::config::update_loader(root, |value| {
-                value["general"][key] = setting.clone();
+                value["general"][key] = setting;
                 Ok(())
             });
         }
@@ -3782,6 +3867,7 @@ mod windows {
                     || key == "window.position"
             }
             "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
+            "network" => matches!(key, "serverSteamId" | "allowedClientSteamIds"),
             "runtimeDiagnostics" => matches!(
                 key,
                 "intervalMilliseconds"
@@ -3799,6 +3885,23 @@ mod windows {
         };
         if !valid {
             return Err("unsupported module setting".into());
+        }
+        if module == "network" {
+            let text = setting.as_str().ok_or("Network settings must be text")?;
+            if key == "serverSteamId" && !text.is_empty() &&
+                (!(16..=20).contains(&text.len()) || !text.bytes().all(|byte| byte.is_ascii_digit()) ||
+                    text.parse::<u64>().map_or(true, |id| id == 0))
+            {
+                return Err("server SteamID64 must be empty or contain 16 to 20 decimal digits".into());
+            }
+            if key == "allowedClientSteamIds" {
+                if text.len() > 4096 || text.split([',', ';']).map(str::trim).any(|peer|
+                    !peer.is_empty() && (!(16..=20).contains(&peer.len()) || !peer.bytes().all(|byte| byte.is_ascii_digit()) ||
+                        peer.parse::<u64>().map_or(true, |id| id == 0)))
+                {
+                    return Err("authorized client IDs must be decimal SteamID64 values separated by commas or semicolons".into());
+                }
+            }
         }
         shroudforge_package::config::update_loader(root, |config| {
             if key == "window.position" {
@@ -4004,8 +4107,35 @@ mod windows {
                 .ok_or("general config must be an object")?;
             general.insert("compactMode".into(), settings.compact_mode.into());
             general.insert("reducedMotion".into(), settings.reduced_motion.into());
+            general.insert(
+                "usernameMode".into(),
+                if settings.username_mode == "manual" { "manual" } else { "auto" }.into(),
+            );
+            general.insert(
+                "messageNameFallback".into(),
+                normalize_message_name(&settings.message_name_fallback)?.into(),
+            );
             Ok(())
         })
+    }
+
+    fn default_message_name_fallback() -> String {
+        "Flameborn".into()
+    }
+
+    fn default_username_mode() -> String {
+        "auto".into()
+    }
+
+    fn normalize_message_name(value: &str) -> Result<String, String> {
+        let name = value.trim();
+        if name.is_empty() {
+            return Err("message name must not be empty".into());
+        }
+        if name.chars().count() > 40 || name.chars().any(char::is_control) {
+            return Err("message name must be at most 40 characters and contain no control characters".into());
+        }
+        Ok(name.to_owned())
     }
 
     fn save_language(root: &Path, locale: &str) -> Result<(), String> {
@@ -4106,7 +4236,7 @@ mod windows {
                     "Search catalog",
                     "Succeeded",
                     Some(&detail),
-                    "info",
+                    "debug",
                 );
             }
             if let Some(error) = failure {
@@ -4640,7 +4770,7 @@ mod windows {
             root,
             queue_item_id,
             "installing",
-            Some("Download verified; preparing mod installation"),
+            Some("Download verified. Preparing mod installation"),
         )?;
 
         let downloads = shroudforge_package::paths::ui_data_dir(root).join("downloads");
@@ -4771,7 +4901,7 @@ mod windows {
             let rollback = fs::rename(&backup, destination);
             if let Err(rollback_error) = rollback {
                 return Err(format!(
-                    "could not install updated package: {error}; rollback also failed: {rollback_error}"
+                    "Could not install updated package: {error}. Rollback also failed: {rollback_error}"
                 ));
             }
             if live_reload {
@@ -4792,10 +4922,10 @@ mod windows {
                 let restore = shroudforge_updater::request_runtime_mod_reload(root, &mod_ids);
                 return Err(match restore {
                     Ok(()) => format!(
-                        "updated runtime mod failed to load; previous package restored: {error}"
+                        "Updated runtime mod failed to load. Previous package restored: {error}"
                     ),
                     Err(restore_error) => format!(
-                        "updated runtime mod failed to load ({error}); previous package restored but runtime recovery also failed: {restore_error}"
+                        "Updated runtime mod failed to load ({error}). Previous package restored, but runtime recovery also failed: {restore_error}"
                     ),
                 });
             }
@@ -4813,10 +4943,10 @@ mod windows {
             };
             return Err(match restore {
                 Ok(()) => {
-                    format!("could not update catalog registry; previous package restored: {error}")
+                    format!("Could not update catalog registry. Previous package restored: {error}")
                 }
                 Err(restore_error) => format!(
-                    "catalog registry update failed ({error}); previous package restored but runtime recovery failed: {restore_error}"
+                    "Catalog registry update failed ({error}). Previous package restored, but runtime recovery failed: {restore_error}"
                 ),
             });
         }

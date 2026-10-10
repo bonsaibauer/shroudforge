@@ -52,7 +52,7 @@
       "pattern": "^(?:assets/[A-Za-z0-9._/-]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$"
     },
     "dependencies": {
-      "description": "Mods that must be available before this mod starts. Each id is another mod's manifest id; version is a SemVer version requirement. If optional is true, the dependency does not block startup when missing, disabled, or outside the version range.",
+      "description": "Mods that must be available before this mod starts. Each id is another mod's manifest id. Version is a SemVer version requirement. If optional is true, the dependency does not block startup when missing, disabled, or outside the version range.",
       "type": "array",
       "items": {
         "type": "object",

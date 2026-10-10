@@ -18,16 +18,20 @@ shroudforge_ui = {}
 --- @param callback fun()
 function shroudforge_ui.on_action(action, callback) end
 
+--- A message published to this player's local Modloader news feed.
+--- Reusing the same ID from this mod updates the existing notice.
 --- @class ShroudForgeNotification
---- @field id string
+--- @field id string Stable notice ID scoped to the publishing mod.
 --- @field level? 'info'|'success'|'warning'|'error'|'update'
---- @field title string
---- @field message string
---- @field action_url? string HTTPS URL.
+--- @field title string Title shown in the player's local news feed. May contain `{username}`.
+--- @field message string Message shown in the player's local news feed. May contain `{username}`.
+--- @field action_url? string HTTPS URL opened from the notice.
 
 --- @class ShroudForgeNotifications
 shroudforge_notifications = {}
 
+--- Publish or update a notice in the player's Modloader news feed.
+--- This does not distribute the notice to other players.
 --- @param notice ShroudForgeNotification
 function shroudforge_notifications.publish(notice) end
 

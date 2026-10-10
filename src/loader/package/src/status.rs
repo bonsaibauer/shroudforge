@@ -60,7 +60,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         ),
         Some(version) => (
             "warning",
-            format!("Runtime reports API {version}; expected {api}."),
+            format!("Runtime reports API {version}. Expected {api}."),
         ),
         None => (
             "neutral",
@@ -98,7 +98,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
             let preparation_error = preparation.as_ref().filter(|value| {
                 value["status"] == "failed"
                     && value["target"] == if server { "enshrouded_server" } else { "enshrouded" }
-            }).map(|value| value["error"].as_str().unwrap_or("Asset preparation failed; inspect the startup log."));
+            }).map(|value| value["error"].as_str().unwrap_or("Asset preparation failed. Inspect the startup log."));
             for item in env.mod_registry().values() {
                 let manifest = item.info();
                 let fingerprint =
@@ -194,7 +194,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                             }
                         }
                     } else if manifest.enabled {
-                        json!({"state":"not-running","detail":"Activation is saved; the mod is not active in the running process."})
+                        json!({"state":"not-running","detail":"Activation is saved. The mod is not active in the running process."})
                     } else {
                         json!({"state":"disabled","detail":"The mod is disabled."})
                     }
@@ -206,7 +206,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                             json!({"state":"failed","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("The native DLL failed to load.")})
                         }
                         Some("loading") => {
-                            json!({"state":"applied","detail":"Asset changes are applied; the native DLL is still loading."})
+                            json!({"state":"applied","detail":"Asset changes are applied. The native DLL is still loading."})
                         }
                         Some("loaded") => {
                             json!({"state":"applied","detail":native_dll_effect.and_then(|value|value["detail"].as_str()).unwrap_or("Asset changes and native DLL are active for this session.")})
@@ -216,13 +216,13 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                         }
                     }
                 } else if manifest.enabled {
-                    json!({"state":"unconfirmed","detail":"Activation is saved; no current runtime report is available."})
+                    json!({"state":"unconfirmed","detail":"Activation is saved. No current runtime report is available."})
                 } else {
                     json!({"state":"disabled","detail":"The mod is disabled."})
                 };
                 mod_states.insert(manifest.id.clone(), state);
             }
-            checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, inferred process scope, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ")}}));
+            checks.push(json!({"id":"mods","group":"mods","state":if failures.is_empty(){"ok"}else{"warning"},"detail":if failures.is_empty(){format!("{} mods satisfy activation, inferred process scope, and dependency requirements. Execution status is reported separately.",plan.len())}else{failures.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")}}));
             let needs_prepare = plan.iter().any(|item| item.info().requires_pregame());
             let blocked_pregame = failures
                 .iter()
@@ -240,7 +240,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     Ok(fingerprint) => {
                         if crate::prepared::matches(root, &fingerprint) {
                             if blocked_pregame > 0 {
-                                json!({"state":"partial","detail":format!("Preparation matches the runnable mods; {blocked_pregame} startup mod(s) were skipped because of compatibility or dependency issues.")})
+                                json!({"state":"partial","detail":format!("Preparation matches the runnable mods. {blocked_pregame} startup mod(s) were skipped because of compatibility or dependency issues.")})
                             } else {
                                 json!({"state":"applied","detail":"Preparation record matches the game and current mod configuration."})
                             }
@@ -263,7 +263,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
     } else {
         "enshrouded.exe"
     });
-    checks.push(json!({"id":"game","group":"game","state":if executable.is_file(){"ok"}else{"warning"},"detail":if executable.is_file(){"Game executable found; build and hook checks run in the target process."}else{"Game executable is missing from this installation."}}));
+    checks.push(json!({"id":"game","group":"game","state":if executable.is_file(){"ok"}else{"warning"},"detail":if executable.is_file(){"Game executable found. Build and hook checks run in the target process."}else{"Game executable is missing from this installation."}}));
     let parser = crate::config::read_document(root, "parser-status").ok();
     let parser_current = parser
         .as_ref()
@@ -286,7 +286,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
     let (parser_state, parser_detail) = match parser {
         Some(_) if !parser_current => (
             "neutral",
-            "Parser result belongs to an older game binary; prepare/launch will refresh it.".into(),
+            "Parser result belongs to an older game binary. Prepare or launch will refresh it.".into(),
         ),
         Some(value) if value["status"] == "parsed" => (
             "ok",
@@ -325,7 +325,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 "warning"
             },
             format!(
-                "KFC Runtime ABI {}; initialized={}; ready={}; writable={}; {}",
+                "KFC Runtime ABI {}. Initialized={}. Ready={}. Writable={}. {}",
                 value["abi"],
                 value["initialized"],
                 value["ready"],

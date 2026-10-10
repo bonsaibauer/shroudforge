@@ -31,7 +31,33 @@
           "updatedAt": { "type": "integer", "minimum": 0 },
           "repeatEveryDays": { "type": "integer", "minimum": 1, "maximum": 3650 },
           "actionUrl": { "type": "string", "pattern": "^https://" },
-          "actionLabelKey": { "type": "string", "maxLength": 120 }
+          "actionLabelKey": { "type": "string", "maxLength": 120 },
+          "links": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": ["labelKey", "url"],
+              "properties": {
+                "labelKey": { "type": "string", "maxLength": 120 },
+                "url": { "type": "string", "pattern": "^https://" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "actions": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": ["id", "kind"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+                "kind": { "const": "open-installed-mods" }
+              },
+              "additionalProperties": false
+            }
+          }
         }
       }
     }

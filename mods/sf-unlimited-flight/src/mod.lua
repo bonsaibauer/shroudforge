@@ -22,7 +22,7 @@ return {
         local reason
         modifier, reason = runtime.functions.bind_modifier(modifier_id)
         if not modifier or not modifier.available() then error("Unlimited Flight patch is not validated for this game build") end
-        if not set_enabled(true) then error("Unlimited Flight could not be enabled; see the runtime error log") end
+        if not set_enabled(true) then error("Unlimited Flight could not be enabled. See the runtime error log.") end
     end,
     on_unload = function() if enabled then set_enabled(false) end end,
 }

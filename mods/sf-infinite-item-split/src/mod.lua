@@ -30,10 +30,10 @@ return {
             error("Infinite Item Split patch is not validated for this game build")
         end
         if not set_enabled(true) then
-            error("Infinite Item Split could not enable its function modifier; see the runtime error log")
+            error("Infinite Item Split could not enable its function modifier. See the runtime error log.")
         end
         shroudforge.log.info(
-            "Infinite Item Split enabled a shared inventory subtraction modifier in this process; other inventory callers are also affected"
+            "Infinite Item Split enabled a shared inventory subtraction modifier in this process. Other inventory callers are also affected."
         )
     end,
     on_unload = function()

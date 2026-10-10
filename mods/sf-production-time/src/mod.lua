@@ -28,4 +28,4 @@ for _, resource in ipairs(resources) do
     if dirty then pending[#pending + 1] = {resource = resource, data = data} end
 end
 for _, entry in ipairs(pending) do entry.resource.data = entry.data end
-print("Production Time: updated " .. changed .. " timed recipes to " .. seconds .. " base seconds")
+shroudforge.log.info("Production Time: updated " .. changed .. " timed recipes to " .. seconds .. " base seconds")

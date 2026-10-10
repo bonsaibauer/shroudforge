@@ -7,13 +7,13 @@ catalogs below and records unresolved coverage explicitly.
 
 This guide covers support for new Enshrouded executable builds. The runtime is
 an internal ShroudForge loader component. The player build includes the native
-provider DLL; capture tools and draft data are maintainer-only.
+provider DLL. capture tools and draft data are maintainer-only.
 
 ## Ownership and locations
 
 | Data | Repository location | Release behavior |
 | --- | --- | --- |
-| C ABI and native implementation | `src/loader/runtime/native/` | ABI header stays in source; provider is compiled into `kfc-runtime.dll` |
+| C ABI and native implementation | `src/loader/runtime/native/` | ABI header stays in source. provider is compiled into `kfc-runtime.dll` |
 | Approved game profiles and component maps | `src/loader/runtime/profiles/` | Embedded into the provider DLL |
 | Profile schemas, catalogs and tools | `src/loader/runtime/profile-tools/dev/` | Not shipped to players |
 | Local captures and unapproved drafts | `src/loader/runtime/profile-tools/devdata/` | Maintainer workspace only |
@@ -48,7 +48,7 @@ operations, guarded patch definitions, and the ECS component map. CMake embeds
 the complete profile in the DLL and the release also copies profiles to
 `shroudforge/runtime/profiles/` for selection in the launcher. Automatic mode
 uses executable identity. A manually selected profile with a different build is
-still tried; the launcher warns that problems may occur, and each operation
+still tried. the launcher warns that problems may occur, and each operation
 must resolve against the running executable before use.
 
 PE timestamp and image size are recorded for identity. Newly generated profiles
@@ -96,7 +96,7 @@ build\native-runtime\tools\kfc-runtime-dev.exe import-ecs-capture "$capture\ecs-
 
 The importer reads the parser's native `version`/`types` format (`qualifiedName`
 and `size`) and also accepts the normalized `entries` format. Parser `version`
-identifies KFC data, not the game executable build; pass `--id` to name the game
+identifies KFC data, not the game executable build. pass `--id` to name the game
 build. Any unresolved name/size joins block profile approval.
 
 Generate and validate a draft entirely under `src/loader/runtime/profile-tools/devdata/`:
@@ -133,7 +133,7 @@ cmake --build build/native-runtime --config Release --target kfc-runtime
 ```
 
 The approved profile is the only per-build runtime data. The profile uses
-camelCase field names consistently; its sections are ordered as executable
+camelCase field names consistently. its sections are ordered as executable
 identity, memory layout, hooks, world access, ECS components, and runtime code
 patches. See `src/loader/runtime/profiles/README.md` for the field definitions.
 Separate capture data
@@ -147,9 +147,9 @@ Automatic selection prefers an exact executable identity. A profile selected
 manually is still tried when the running build differs, even if it did not opt
 in to automatic structural fallback. The launcher reports that the build
 differs and problems may occur. Every hook, byte signature, component layout,
-and live access is checked before use; operations whose checks fail remain
+and live access is checked before use. operations whose checks fail remain
 unavailable. These checks do not prove that every engine semantic stayed the
-same; new function semantics or calling conventions require profile review and
+same. new function semantics or calling conventions require profile review and
 sometimes native implementation changes.
 
 The provider retains hook trampolines and pins its DLL until process exit.

@@ -24,7 +24,7 @@ return {
             error("Infinite Item Use patch is not validated for this game build")
         end
         if not set_enabled(true) then
-            error("Infinite Item Use could not be enabled; see the runtime error log")
+            error("Infinite Item Use could not be enabled. See the runtime error log.")
         end
     end,
     on_unload = function()

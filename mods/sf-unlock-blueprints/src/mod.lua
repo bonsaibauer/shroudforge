@@ -71,7 +71,7 @@ end
 if #registries == 0 then
     warn("Unlock Blueprints found no RecipeRegistryResource assets")
 elseif changed_recipes == 0 then
-    print("Unlock Blueprints found no recipes requiring changes in " .. #registries .. " registries")
+    shroudforge.log.info("Unlock Blueprints found no recipes requiring changes in " .. #registries .. " registries")
 else
-    print("Updated " .. changed_recipes .. " recipes in " .. changed_registries .. " of " .. #registries .. " registries")
+    shroudforge.log.info("Unlock Blueprints updated " .. changed_recipes .. " recipes in " .. changed_registries .. " of " .. #registries .. " registries")
 end

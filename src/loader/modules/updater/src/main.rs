@@ -13,7 +13,7 @@ mod windows {
                     super::scheduled::write_status(
                         &arguments.root,
                         "cancelled",
-                        "Update download cancelled; queue cleared",
+                        "Update download cancelled. Queue cleared",
                     );
                 } else {
                     super::scheduled::write_status(&arguments.root, "error", error);
@@ -58,14 +58,14 @@ mod windows {
             shroudforge_package::config::write_json(
                 &status_path,
                 &serde_json::json!({"schemaVersion":1,"status":"restart-required",
-                    "message":"Original game files restored; restart Enshrouded",
+                    "message":"Original game files restored. Restart Enshrouded",
                     "target":target,"result":restored,
                     "updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()}),
             )?;
             append_log(
                 root,
                 'I',
-                "Original game files restored and verified; restart required",
+                "Original game files restored and verified. Restart required",
             );
             Ok(())
         })();
@@ -81,7 +81,7 @@ mod windows {
         super::scheduled::write_status(
             &arguments.root,
             "waitingForGame",
-            "Update is verified; waiting for Enshrouded to exit",
+            "Update is verified. Waiting for Enshrouded to exit",
         );
         append_log(
             &arguments.root,
@@ -92,7 +92,7 @@ mod windows {
             append_log(
                 &arguments.root,
                 'E',
-                &format!("Game process scan failed; update was not installed: {error}"),
+                &format!("Game process scan failed. Update was not installed: {error}"),
             );
             return Err(error);
         }
@@ -196,7 +196,7 @@ mod windows {
                 append_log(
                     &arguments.root,
                     'I',
-                    &format!("Update installed; backup={}", backup.display()),
+                    &format!("Update installed. Backup={}", backup.display()),
                 );
                 Ok(())
             }
@@ -204,7 +204,7 @@ mod windows {
                 append_log(
                     &arguments.root,
                     'E',
-                    &format!("Update failed: {error}; restoring backup"),
+                    &format!("Update failed: {error}. Restoring backup"),
                 );
                 if let Err(rollback_error) = restore(&backup, &arguments.root, &transaction_paths) {
                     append_log(
@@ -212,7 +212,7 @@ mod windows {
                         'E',
                         &format!("Rollback failed: {rollback_error}"),
                     );
-                    return Err(format!("{error}; rollback also failed: {rollback_error}"));
+                    return Err(format!("{error}. Rollback also failed: {rollback_error}"));
                 }
                 Err(error)
             }
@@ -806,7 +806,7 @@ mod scheduled {
         write_status(
             root,
             "cancelled",
-            "Update download cancelled; queue cleared",
+            "Update download cancelled. Queue cleared",
         );
         Ok(())
     }
@@ -898,7 +898,7 @@ mod scheduled {
                         'D',
                         "updater",
                         &format!(
-                            "Enshrouded is still running (PID {pid}, {image_path}); waiting before installation"
+                            "Enshrouded is still running (PID {pid}, {image_path}). Waiting before installation"
                         ),
                     );
                     last_waiting_pid = Some(pid);
@@ -909,7 +909,7 @@ mod scheduled {
                         &root,
                         'I',
                         "updater",
-                        "Enshrouded process exited; updater continues",
+                        "Enshrouded process exited. Updater continues",
                     );
                 }
                 return Ok(());
@@ -1051,7 +1051,7 @@ mod scheduled {
             Ok(name) => name,
             Err(task_error) => {
                 return spawn_worker(root).map_err(|spawn_error| {
-                    format!("{task_error}; direct updater start also failed: {spawn_error}")
+                    format!("{task_error}. Direct updater start also failed: {spawn_error}")
                 });
             }
         };
@@ -1063,7 +1063,7 @@ mod scheduled {
             Err(task_error) => {
                 let task_error = format!("could not start scheduled updater: {task_error}");
                 return spawn_worker(root).map_err(|spawn_error| {
-                    format!("{task_error}; direct updater start also failed: {spawn_error}")
+                    format!("{task_error}. Direct updater start also failed: {spawn_error}")
                 });
             }
         };
@@ -1073,7 +1073,7 @@ mod scheduled {
                 String::from_utf8_lossy(&output.stderr).trim()
             );
             return spawn_worker(root).map_err(|spawn_error| {
-                format!("{task_error}; direct updater start also failed: {spawn_error}")
+                format!("{task_error}. Direct updater start also failed: {spawn_error}")
             });
         }
         Ok(())
@@ -1314,7 +1314,7 @@ pub fn start_headless_control_worker(root: &std::path::Path) -> Result<(), Strin
                             Ok(message) => {
                                 let _ = shroudforge_package::logging::append(
                                     &root,
-                                    'I',
+                                    if message == "ShroudForge is up to date." { 'D' } else { 'I' },
                                     "updates",
                                     &format!("Headless update check: {message}"),
                                 );
@@ -1484,7 +1484,7 @@ fn execute_headless_control_action(
                 .pointer("/modules/updates/system/latestRelease")
                 .cloned()
                 .filter(serde_json::Value::is_object)
-                .ok_or("run checkUpdates first; no verified release is stored in modloader-config.json")?;
+                .ok_or("Run checkUpdates first. No verified release is stored in modloader-config.json")?;
             if release["updateAvailable"].as_bool() != Some(true) {
                 return Err("the stored release is not newer than the installed version".into());
             }
@@ -1518,7 +1518,7 @@ fn execute_headless_control_action(
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             start_update_queue(root, &[format!("system:{version}")], wait_for_game, false)?;
-            Ok("Headless system update queued; updater will wait for Enshrouded to stop".into())
+            Ok("Headless system update queued. The updater will wait for Enshrouded to stop".into())
         }
         "selectUpdateQueueItems" => {
             let selected = parameters
@@ -1552,7 +1552,7 @@ fn execute_headless_control_action(
                 .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true);
             start_update_queue(root, &selected_ids, wait_for_game, false)?;
-            Ok("Headless update worker started; progress is in the shared update queue".into())
+            Ok("Headless update worker started. Progress is in the shared update queue".into())
         }
         "clearUpdateQueue" => {
             clear_update_queue(root)?;
@@ -2288,12 +2288,12 @@ fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
                         root,
                         id,
                         "waitingForGame",
-                        Some("Download verified; installation waits for Enshrouded to close"),
+                        Some("Download verified. Installation waits for Enshrouded to close"),
                     )?;
                     scheduled::write_status(
                         root,
                         "waitingForGame",
-                        "Download verified; waiting to install ShroudForge",
+                        "Download verified. Waiting to install ShroudForge",
                     );
                     let staged = shroudforge_package::paths::updates_dir(root).join("pending");
                     let status = std::process::Command::new(
@@ -2383,11 +2383,11 @@ fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
         Ok(())
     } else {
         if contains_system_update {
-            scheduled::write_status(root, "error", &failures.join("; "));
+            scheduled::write_status(root, "error", &failures.join(", "));
         } else {
             scheduled::write_status(root, "ready", "One or more mod queue items failed");
         }
-        Err(failures.join("; "))
+        Err(failures.join(", "))
     }
 }
 
@@ -2467,7 +2467,7 @@ pub fn run_scheduled_worker() -> Result<(), String> {
             Ok(()) => scheduled::write_status(
                 &root,
                 "staged",
-                "Verified and staged; installation waits for game exit",
+                "Verified and staged. Installation waits for game exit",
             ),
             Err(error) if error == "UPDATE_CANCELLED" => {
                 let updates = shroudforge_package::paths::updates_dir(&root);
@@ -2478,7 +2478,7 @@ pub fn run_scheduled_worker() -> Result<(), String> {
                 scheduled::write_status(
                     &root,
                     "cancelled",
-                    "Update download cancelled; queue cleared",
+                    "Update download cancelled. Queue cleared",
                 );
             }
             Err(error) => {

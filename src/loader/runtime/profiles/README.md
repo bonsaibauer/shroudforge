@@ -15,13 +15,13 @@ and ECS metadata, to executable patch definitions.
 | `worldContexts` | Offsets between the live game services used by world operations. |
 | `worldGrids` | Per-build grid IDs, world origins, cell sizes, and maximum dimensions exposed by the native world API. |
 | `worldOperations` | Guarded game functions or globals used by `runtime.world.*`. `*Rva` values are relative virtual addresses. |
-| `componentResolution` | Shipped profiles use `live-registration`; the provider derives component identities/indices/sizes from the engine. Do not duplicate them in `components`. |
+| `componentResolution` | Shipped profiles use `live-registration`. the provider derives component identities/indices/sizes from the engine. Do not duplicate them in `components`. |
 | `components` | Optional legacy fallback only, mutually exclusive with `componentResolution`. |
 | `attributeCalculationModel` | Exact-build authorization for the independently tested owned attribute interpreter. Removed when generating a new-build draft. |
-| `runtimePatches` | Guarded executable interventions, now attached to `runtime.functions` through `modifier`; legacy `runtime.patch.*` keys remain backend aliases. `function` identifies the unwind fragment; `modifier.function_rva` identifies the chained primary root. |
+| `runtimePatches` | Guarded executable interventions, now attached to `runtime.functions` through `modifier`. legacy `runtime.patch.*` keys remain backend aliases. `function` identifies the unwind fragment. `modifier.function_rva` identifies the chained primary root. |
 
 Numeric byte arrays use decimal values from 0 through 255. Signatures are
-space-separated hexadecimal bytes; `??` marks a wildcard. RVA fields are
+space-separated hexadecimal bytes. `??` marks a wildcard. RVA fields are
 addresses relative to the executable image, while fields ending in `Offset`
 are byte offsets within their documented structure or context.
 
@@ -33,11 +33,11 @@ evidence of shared-helper reachability, not complete native signatures.
 
 `inlineReferences` describes displacement/next-instruction/data offsets inside
 a trampoline. The provider derives these relative references after copying the
-payload; it never reuses an original EXE-relative displacement for inline data.
+payload. it never reuses an original EXE-relative displacement for inline data.
 
 World operations with `validated: false` are always disabled, including when a
 candidate address happens to match an instruction guard. `unresolvedReason`
-states the missing evidence. Such entries may omit addresses entirely; a
+states the missing evidence. Such entries may omit addresses entirely. a
 candidate `functionRva` only supports an inspectable partial function binding.
 
 Do not add fields to only one build profile without updating
@@ -46,6 +46,6 @@ Do not add fields to only one build profile without updating
 Server `runtime.world.context.active` uses ABI `actor-world-context` with an
 instruction guard and store-validation offset. It intentionally has no client
 global RVA. The cursor hook is optional (the headless server has none).
-World operation guards establish native code availability; live context checks
+World operation guards establish native code availability. live context checks
 and the game-thread dispatcher still gate actual calls. Zero in the original
 finish event slot is a valid argument.

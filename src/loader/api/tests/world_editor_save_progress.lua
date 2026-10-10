@@ -49,7 +49,7 @@ assert(latest.saveSequence ~= sequence, 'each new save must reset elapsed time')
 fail_write, fail_library = false, true
 actions.saveBlueprint()
 assert(writes == 2 and latest.saveState == 'error' and latest.saveCompleted == '3')
-assert(latest.savePhase == 'Saved; library refresh failed')
+assert(latest.savePhase == 'Saved, library refresh failed')
 fail_library = false
 actions.saveBlueprint()
 assert(writes == 3 and latest.saveState == 'complete' and latest.saveCompleted == '4')

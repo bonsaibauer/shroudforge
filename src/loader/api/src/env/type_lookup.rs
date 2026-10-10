@@ -16,7 +16,7 @@ impl HashKind {
             "name" => Ok(Self::Name),
             "impact" => Ok(Self::Impact),
             _ => Err(format!(
-                "unknown hash domain '{name}'; expected qualified, internal, name or impact"
+                "Unknown hash domain '{name}'. Expected qualified, internal, name or impact"
             )),
         }
     }
@@ -38,7 +38,7 @@ pub(crate) fn by_hash(
     kind: HashKind,
 ) -> Result<Option<&TypeMetadata>, String> {
     unique_match(registry.iter().filter(|ty| kind.value(ty) == hash)).map_err(|()| {
-        format!("ambiguous type hash 0x{hash:08x}; use a qualified name or qualified hash")
+        format!("Ambiguous type hash 0x{hash:08x}. Use a qualified name or qualified hash")
     })
 }
 
@@ -96,6 +96,7 @@ mod tests {
         assert!(
             by_hash(&registry, 777, HashKind::Internal)
                 .unwrap_err()
+                .to_ascii_lowercase()
                 .contains("ambiguous")
         );
     }

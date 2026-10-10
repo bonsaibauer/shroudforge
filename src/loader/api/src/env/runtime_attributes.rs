@@ -24,7 +24,7 @@ impl Catalog {
                 match found.as_slice() {
                     [value] => Ok(value),
                     [] => Err(format!("attribute not found: {name}")),
-                    _ => Err("ambiguous attribute name; use its ID".into()),
+                    _ => Err("Ambiguous attribute name. Use its ID".into()),
                 }
             }
             _ => Err("expected original attribute name or unsigned attribute ID".into()),
@@ -163,7 +163,7 @@ pub(crate) fn attach(lua: &Lua, ecs: &Table, r#mod: &Mod) -> mlua::Result<()> {
                 }
                 let mut result = root_result(&entries, scalar, &values, trace)?;
                 result["applied"] = json!(update);
-                result["effect_scope"] = json!("local process; no automatic client/server RPC");
+                result["effect_scope"] = json!("local process, no automatic client/server RPC");
                 registry::json_to_lua(lua, &result).map_err(|e| e.to_string())
             };
             Ok(match execute() { Ok(v) => (v, None), Err(e) => (LuaValue::Nil, Some(e)) })
@@ -460,7 +460,7 @@ mod tests {
                 assert!(storage_range(descriptor, component, &corrupt).is_err());
             }
             println!(
-                "{} read-only live component snapshots accepted; corrupt headers rejected",
+                "{} read-only live component snapshots accepted. Corrupt headers rejected",
                 snapshots.len()
             );
         }

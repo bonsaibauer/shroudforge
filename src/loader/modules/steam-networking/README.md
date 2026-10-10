@@ -1,6 +1,6 @@
 # Built-in Steam Networking module
 
-This crate supplies the Windows runtime binding for Steam Networking Messages. The game initializes Steam; this module only uses the client or dedicated-server interface already loaded in that process. It ships with ShroudForge and is not a `mod.json` package.
+This crate supplies the Windows runtime binding for Steam Networking Messages. The game initializes Steam. this module only uses the client or dedicated-server interface already loaded in that process. It ships with ShroudForge and is not a `mod.json` package.
 
 Runtime mods use `runtime.network`:
 
@@ -36,6 +36,6 @@ end
 
 Both peers must have ShroudForge and Steam Networking initialized. This is peer-to-peer: it does not relay through the game server, map Steam IDs to character names, or prove that a claimed sender mod ID is trustworthy. Validate allowed peer IDs and payloads in the receiving mod. Use application-level acknowledgements when delivery confirmation is needed.
 
-The calling mod must have the `runtime` capability. `runtime.network.send` accepts a binary Lua string up to 512 KiB. Reliable messages are ordered per peer and channel. A successful `send` means Steam accepted the send request; add an application-level reply if the sender needs a delivery acknowledgement. Use `runtime.network.accept(peer_steam_id)` on the receiving process before its first `receive` call for an incoming peer session. `local_steam_id` is available from `runtime.network.status()` on each process and is returned as a decimal string so Lua does not lose uint64 precision.
+The calling mod must have the `runtime` capability. `runtime.network.send` accepts a binary Lua string up to 512 KiB. Reliable messages are ordered per peer and channel. A successful `send` means Steam accepted the send request. add an application-level reply if the sender needs a delivery acknowledgement. Use `runtime.network.accept(peer_steam_id)` on the receiving process before its first `receive` call for an incoming peer session. `local_steam_id` is available from `runtime.network.status()` on each process and is returned as a decimal string so Lua does not lose uint64 precision.
 
 The client and server must both run ShroudForge. This is a separate Steam P2P session and does not inject data into Enshrouded's native packets or forward messages through its server. Mods must arrange peer Steam IDs and authorization through their own configuration or application protocol.

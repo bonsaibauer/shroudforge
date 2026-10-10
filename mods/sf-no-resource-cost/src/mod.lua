@@ -24,7 +24,7 @@ return {
             error("No Resource Cost patch is not validated for this game build")
         end
         if not set_enabled(true) then
-            error("No Resource Cost could not be enabled; see the runtime error log")
+            error("No Resource Cost could not be enabled. See the runtime error log.")
         end
     end,
     on_unload = function()

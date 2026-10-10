@@ -287,7 +287,7 @@ fn capture_originals_inner(root: &Path, stem: &str, user_verified: bool) -> Resu
         match fs::rename(&stage, &final_dir) {
             Ok(()) => Ok(()),
             Err(_error) if final_dir.exists() => Err(
-                "original-backup set appeared concurrently; existing originals were preserved"
+                "Original backup set appeared concurrently. Existing originals were preserved"
                     .into(),
             ),
             Err(error) => Err(error.to_string()),

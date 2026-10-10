@@ -32,9 +32,24 @@ KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capa
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
 /* Optional Steam Networking Messages transport used by runtime.network. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkStatus(uint64_t* local_steam_id);
+/* Registers an ISteamNetworkingMessages session-request callback without
+ * pumping Steam callbacks. The game continues to own SteamAPI_RunCallbacks. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkServiceReady(void);
+KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeNetworkServiceTick(
+    const uint64_t* authorized_clients, size_t count, int32_t restrict_clients);
+KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeNetworkServiceStats(
+    uint64_t* probes_sent, uint64_t* probe_send_failures,
+    uint64_t* probes_acknowledged, uint64_t* last_acknowledged_peer,
+    uint64_t* last_round_trip_ms, int32_t* last_send_result,
+    uint64_t* probe_timeouts);
+KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeNetworkServiceShutdown(void);
 /* Optional local-host discovery. A dedicated server publishes its current
  * Steam identity through a session-scoped mapping; clients read it here. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkLocalServer(uint64_t* server_steam_id);
+/* SteamID64 learned from the Dedicated Server's automatic Network probe. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkRemoteServer(uint64_t* server_steam_id);
+/* True only for a currently authenticated server peer inside the optional Network allowlist. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkPeerAuthorized(uint64_t peer_steam_id);
 /* Authenticated, currently connected Dedicated Server clients from the server's
  * active Enshrouded session log. Returns 1 when the list was read. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkConnectedPeers(

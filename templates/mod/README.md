@@ -38,7 +38,7 @@ Before sharing your own copy, update these values in **mod.json**:
 In **extended.mod.json**, you can change the greeting, the message style, and the button text. The button's **id** must match the action name used in **src/mod.lua**. This lets the Modloader know which Lua instruction to run when someone presses the button.
 ### How the setting reaches the Lua code
 
-The `settings` key in **extended.mod.json** is the name your Lua code asks for. In this example the key is `greeting`; the player-facing label can say “Greeting” because Lua uses the key, not the label.
+The `settings` key in **extended.mod.json** is the name your Lua code asks for. In this example the key is `greeting`. the player-facing label can say “Greeting” because Lua uses the key, not the label.
 
 ```lua
 local function setting(name, fallback)
@@ -51,12 +51,14 @@ local function log_greeting()
 end
 ```
 
-`value` in **extended.mod.json** is the starting value. When a player changes the text, the Modloader saves it in `settings.greeting.value`. `shroudforge.settings.get` returns the current value; the second argument is used if there is no value for that key. The code reads it again whenever `log_greeting` runs, including when the player presses the `logGreeting` button. A setting only appears in the Modloader when its key is listed in a group's `settings` list.
+`value` in **extended.mod.json** is the starting value. When a player changes the text, the Modloader saves it in `settings.greeting.value`. `shroudforge.settings.get` returns the current value. The second argument is used if there is no value for that key. The code reads it again whenever `log_greeting` runs, including when the player presses the `logGreeting` button. A setting only appears in the Modloader when its key is listed in a group's `settings` list.
 
 
 The sample project links point to an example address. Replace them with your own links or remove them before sharing the mod.
 
 ## Permissions
+
+Follow the shared [ShroudForge logging rules](../../docs/sf/logging.md) when adding log messages. In particular, reserve INFO for meaningful operations and confirmed results. use WARN and ERROR for actionable problems, and DEBUG or TRACE for investigation detail.
 
 The **capabilities** list in **mod.json** tells ShroudForge which special actions this mod is allowed to use. This example only writes messages, so it asks for **runtime**. Add **patch** or **export** only when your mod needs those features.
 

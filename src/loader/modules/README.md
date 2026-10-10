@@ -2,11 +2,11 @@
 
 The folders here contain parts of ShroudForge itself. They are built with the loader and are not mods that players need to install.
 
-There are **seven Rust module crates**. The **ui-shared** folder contains shared styles for the user interfaces; it is not another running module.
+There are **seven Rust module crates**. The **ui-shared** folder contains shared styles for the user interfaces. it is not another running module.
 
 Other loader parts, such as the API, package reader, compatibility checks, parser, and startup workflow, live in neighboring folders under **src/loader/**.
 
-## The six Rust module crates
+## The seven Rust module crates
 
 | Folder | What it does |
 | --- | --- |
@@ -18,11 +18,11 @@ Other loader parts, such as the API, package reader, compatibility checks, parse
 | **updater/** | Queues mod installation and update work, and applies staged ShroudForge updates. |
 | **world-editor-ui/** | Currently contains the World Editor window, blueprint-state reading and screenshot/cover handling for the separate `mods/world-editor` package. The refactor plan replaces this special coupling with a generic mod UI host and moves editor-specific behavior into the mod package. |
 
-Each Rust module has its own Cargo.toml. The root loader lists these crates as dependencies in **src/loader/Cargo.toml**. Most are libraries linked into **shroudforge.exe** and started by a command-line mode; the updater also builds **shroudforge-updater.exe**. These crates are not all separate processes or dynamically loaded plugins. The [refactor master plan](../../../docs/sf/refactor-masterplan.md) maps their current entry points to proposed task-specific files.
+Each Rust module has its own Cargo.toml. The root loader lists these crates as dependencies in **src/loader/Cargo.toml**. Most are libraries linked into **shroudforge.exe** and started by a command-line mode. the updater also builds **shroudforge-updater.exe**. These crates are not all separate processes or dynamically loaded plugins. The [refactor master plan](../../../docs/sf/refactor-masterplan.md) maps their current entry points to proposed task-specific files.
 
 ## Shared interface styles
 
-**ui-shared/tokens.css** contains shared colors and other visual values used by the user interfaces. It is a style file; it does not have a Cargo crate or a separate process.
+**ui-shared/tokens.css** contains shared colors and other visual values used by the user interfaces. It is a style file. it does not have a Cargo crate or a separate process.
 
 ## Modloader interface
 
@@ -43,7 +43,7 @@ English is the source language. Translations are under **ui/src/locales/**.
 Run checks from the repository root:
 
 ~~~powershell
-cargo test -p shroudforge-commands -p shroudforge-debug-console -p shroudforge-modloader-ui -p shroudforge-runtime-diagnostics -p shroudforge-updater -p shroudforge-world-editor-ui
+cargo test -p shroudforge-commands -p shroudforge-debug-console -p shroudforge-modloader-ui -p shroudforge-runtime-diagnostics -p shroudforge-steam-networking -p shroudforge-updater -p shroudforge-world-editor-ui
 ~~~
 
 These commands are for contributors changing ShroudForge. Players do not need them.

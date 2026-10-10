@@ -4,6 +4,20 @@ use super::{AppState, loader};
 use mlua::{Lua, Table};
 use mod_loader::Mod;
 use shroudforge_steam_networking as steam_network;
+use std::collections::HashSet;
+
+fn authorized_client_ids(root: &std::path::Path) -> Result<Vec<String>, String> {
+    let config = mod_loader::config::read_loader(root)?;
+    Ok(config.pointer("/modules/network/allowedClientSteamIds")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .split([',', ';'])
+        .map(str::trim)
+        .filter(|peer| (16..=20).contains(&peer.len()) && peer.bytes().all(|byte| byte.is_ascii_digit()) &&
+            peer.parse::<u64>().is_ok_and(|id| id != 0))
+        .map(str::to_owned)
+        .collect())
+}
 
 fn steam_id(value: &str) -> Result<u64, String> {
     let id = value
@@ -20,15 +34,25 @@ fn channel(options: &Option<Table>) -> mlua::Result<i32> {
         Some(options) => options.raw_get::<Option<i32>>("channel")?.unwrap_or(0),
         None => 0,
     };
-    if !(0..=65_535).contains(&channel) {
-        return Err(mlua::Error::runtime("channel must be between 0 and 65535"));
+    if !(0..=65_534).contains(&channel) {
+        return Err(mlua::Error::runtime("Channel must be between 0 and 65534. 65535 is reserved for Network health checks"));
     }
     Ok(channel)
 }
 
 fn denied(lua: &Lua, owner: &Mod, operation: &str) -> Option<String> {
     let state = lua.app_data_ref::<AppState>().unwrap();
-    loader::runtime_denial_reason(&state, owner, operation)
+    if let Some(reason) = loader::runtime_denial_reason(&state, owner, operation) {
+        return Some(reason);
+    }
+    let status = steam_network::status();
+    if !status.available {
+        Some("Steam Networking Messages is not initialized in this process".into())
+    } else if !status.service_ready {
+        Some("Steam Network session callback could not be registered".into())
+    } else {
+        None
+    }
 }
 
 // Give every destination mod a deterministic Steam channel. The envelope still
@@ -38,7 +62,7 @@ fn mod_channel(id: &str) -> i32 {
     let hash = id.bytes().fold(0x811c9dc5u32, |hash, byte| {
         (hash ^ u32::from(byte)).wrapping_mul(0x01000193)
     });
-    ((hash % 65_535) + 1) as i32
+    ((hash % 65_534) + 1) as i32
 }
 
 pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
@@ -56,6 +80,8 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                     available: false,
                     local_steam_id: None,
                     local_dedicated_server_steam_id: None,
+                    remote_dedicated_server_steam_id: None,
+                    service_ready: false,
                 }
             };
             let state = lua.app_data_ref::<AppState>().unwrap();
@@ -75,6 +101,25 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                 "local_dedicated_server_steam_id",
                 native.local_dedicated_server_steam_id,
             )?;
+            result.raw_set(
+                "remote_dedicated_server_steam_id",
+                native.remote_dedicated_server_steam_id,
+            )?;
+            result.raw_set("service_ready", native.service_ready)?;
+            let root = state.env().game_dir().as_std_path();
+            if let Ok(config) = mod_loader::config::read_loader(root) {
+                result.raw_set(
+                    "configured_server_steam_id",
+                    config.pointer("/modules/network/serverSteamId")
+                        .and_then(serde_json::Value::as_str)
+                        .filter(|value| value.parse::<u64>().is_ok_and(|id| id != 0)),
+                )?;
+                let allowed = lua.create_table()?;
+                for (index, peer) in authorized_client_ids(root).unwrap_or_default().iter().enumerate() {
+                    allowed.raw_set(index + 1, peer.as_str())?;
+                }
+                result.raw_set("allowed_client_steam_ids", allowed)?;
+            }
             result.raw_set(
                 "reason",
                 reason.or_else(|| {
@@ -159,6 +204,10 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                 Ok(peer) => peer,
                 Err(reason) => return Ok((false, Some(reason))),
             };
+            let state = lua.app_data_ref::<AppState>().unwrap();
+            if state.is_server() && !steam_network::is_authorized_server_peer(peer) {
+                return Ok((false, Some("peer is not a currently authenticated and Network-authorized server client".into())));
+            }
             Ok(match steam_network::accept(peer) {
                 Ok(true) => (true, None),
                 Ok(false) => (
@@ -190,8 +239,15 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                 Ok(peers) => peers,
                 Err(reason) => return Ok((None, Some(reason))),
             };
+            let allowed = match authorized_client_ids(state.env().game_dir().as_std_path()) {
+                Ok(allowed) => allowed,
+                Err(reason) => return Ok((None, Some(reason))),
+            };
+            let allowed = (!allowed.is_empty()).then(|| allowed.into_iter().collect::<HashSet<_>>());
             let result = lua.create_table()?;
-            for (index, peer) in peers.iter().enumerate() {
+            for (index, peer) in peers.iter().filter(|peer| {
+                allowed.as_ref().map_or(true, |allowed| allowed.contains(*peer))
+            }).enumerate() {
                 result.raw_set(index + 1, peer.as_str())?;
             }
             Ok((Some(result), None))
@@ -215,15 +271,23 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                     "receive limit must be between 1 and 32",
                 ));
             }
+            let is_server = lua.app_data_ref::<AppState>().unwrap().is_server();
             let messages = lua.create_table()?;
-            for index in 1..=limit {
+            let mut output_index = 0;
+            for _ in 1..=limit {
                 match steam_network::receive(channel) {
                     Ok(Some(message)) => {
+                        if is_server && message.peer_steam_id.parse::<u64>()
+                            .map_or(true, |peer| !steam_network::is_authorized_server_peer(peer))
+                        {
+                            continue;
+                        }
                         let value = lua.create_table()?;
                         value.raw_set("peer_steam_id", message.peer_steam_id)?;
                         value.raw_set("payload", lua.create_string(&message.payload)?)?;
                         value.raw_set("reliable", message.reliable)?;
-                        messages.raw_set(index, value)?;
+                        output_index += 1;
+                        messages.raw_set(output_index, value)?;
                     }
                     Ok(None) => break,
                     Err(reason) => return Ok((Some(messages), Some(reason))),
@@ -246,10 +310,17 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                     "receive limit must be between 1 and 32",
                 ));
             }
+            let is_server = lua.app_data_ref::<AppState>().unwrap().is_server();
             let messages = lua.create_table()?;
-            for index in 1..=limit {
+            let mut output_index = 0;
+            for _ in 1..=limit {
                 match steam_network::receive(mod_channel(&receive_mod_owner.info().id)) {
                     Ok(Some(message)) => {
+                        if is_server && message.peer_steam_id.parse::<u64>()
+                            .map_or(true, |peer| !steam_network::is_authorized_server_peer(peer))
+                        {
+                            continue;
+                        }
                         let Ok(envelope) =
                             serde_json::from_slice::<serde_json::Value>(&message.payload)
                         else {
@@ -272,7 +343,8 @@ pub(crate) fn create(lua: &Lua, owner: &Mod) -> mlua::Result<Table> {
                         value.raw_set("to_mod", receive_mod_owner.info().id.as_str())?;
                         value.raw_set("payload", payload)?;
                         value.raw_set("reliable", message.reliable)?;
-                        messages.raw_set(index, value)?;
+                        output_index += 1;
+                        messages.raw_set(output_index, value)?;
                     }
                     Ok(None) => break,
                     Err(reason) => return Ok((Some(messages), Some(reason))),

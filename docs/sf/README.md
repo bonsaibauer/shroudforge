@@ -12,6 +12,8 @@ For player instructions, start with the [English website guide](https://bonsaiba
 | See the concrete refactor plan and target file paths | [Refactor master plan](refactor-masterplan.md) |
 | Inspect each file's proposed owner, target and actual review coverage | [Refactor file inventory](refactor-file-inventory.csv) |
 | Understand mod files and settings | [Mod packages](mod-packages.md) |
+| Follow shared log levels and message rules | [Logging rules](logging.md) |
+| Review client, local-host, and dedicated-server behavior | [Multiplayer execution audit](mod-multiplayer.md) |
 | Work on the native runtime or its game profiles | [Native runtime](runtime.md) |
 | Change how Enshrouded game data is read | [Game data parser](parser.md) |
 | Edit notices or link buttons shown in the Modloader | [Modloader content](modloader-content.md) |
@@ -20,4 +22,4 @@ The [root README](../../README.md) is the quick introduction and player starting
 
 ## Keep information easy to find
 
-Each page covers one job and links to the code that owns it. The current schemas and source files define what ShroudForge does; use the guide to find and understand them.
+Each page covers one job and links to the code that owns it. The current schemas and source files define what ShroudForge does. use the guide to find and understand them.
