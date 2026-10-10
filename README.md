@@ -27,8 +27,6 @@ The guide includes separate instructions for your PC and game server, pictures o
 
 ![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)
 
-[![ShroudForge trailer on YouTube](https://img.youtube.com/vi/V57iZcn-hfo/maxresdefault.jpg)](https://www.youtube.com/watch?v=V57iZcn-hfo)
-
 <p align="center">
   <a href="https://www.youtube.com/watch?v=V57iZcn-hfo"><img src="assets/youtube-logo.svg" width="100%" alt="ShroudForge on YouTube: watch the trailer"></a>
 </p>
