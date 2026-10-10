@@ -27,6 +27,10 @@ The guide includes separate instructions for your PC and game server, pictures o
 
 ![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)
 
+<video src="assets/ShroudForge_Trailer_v3_1080p.mp4" controls width="100%" poster="assets/modloader-ui-2.png">
+  Your browser does not support embedded videos.
+</video>
+
 ## Quickstart: use ShroudForge
 
 1. Close Enshrouded.
