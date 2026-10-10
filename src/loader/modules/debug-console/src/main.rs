@@ -129,7 +129,11 @@ mod windows {
         let html = include_str!("../ui/index.html")
             .replace("__SHROUDFORGE_STYLES__", &styles)
             .replace("__SHROUDFORGE_SCRIPT__", include_str!("../ui/app.ts"));
-        let profile = shroudforge_package::paths::webview_profile(&arguments.root);
+        // This window runs concurrently with Modloader and World Editor. Give
+        // its WebView2 context a private user-data directory so WebView2's
+        // profile lock cannot prevent another ShroudForge window from opening.
+        let profile =
+            shroudforge_package::paths::webview_profile(&arguments.root).join("debug-console");
         std::fs::create_dir_all(&profile)?;
         let mut web_context = WebContext::new(Some(profile));
         let webview = WebViewBuilder::new_with_web_context(&mut web_context)

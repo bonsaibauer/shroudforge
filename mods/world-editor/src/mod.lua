@@ -2003,10 +2003,6 @@ local function preview_paste_at(point)
         shroudforge.log.warn("World Editor: copy or load a blueprint before previewing")
         return
     end
-    if undo_state and undo_state.recovery_required then
-        shroudforge.log.warn("World Editor: restore the incomplete previous placement with F4 before preparing another placement")
-        return
-    end
     local turns = rotation_turns()
     local axis = clipboard.region.rotationAxis or setting("rotationAxis")
     if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
@@ -2042,12 +2038,6 @@ local function clear_cursor_selection()
 end
 
 local function mark_cursor_next()
-    if undo_state and undo_state.recovery_required then
-        editor_hint = "Finish the incomplete placement recovery with F4 before starting a new blueprint."
-        publish_editor_state()
-        shroudforge.log.warn("World Editor: cannot start a new capture while placement recovery is required")
-        return
-    end
     if editor_stage == "capturing" or editor_stage == "placing" then
         shroudforge.log.warn("World Editor: wait for the current capture or placement to finish")
         return
@@ -2080,12 +2070,6 @@ local function mark_cursor_next()
 end
 
 local function start_new_blueprint()
-    if undo_state and undo_state.recovery_required then
-        editor_hint = "Finish the incomplete placement recovery with F4 before starting a new blueprint."
-        publish_editor_state()
-        shroudforge.log.warn("World Editor: cannot start a new blueprint while placement recovery is required")
-        return
-    end
     pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
     clipboard, active_blueprint_name, placement_preview = nil, nil, nil
     selection_a, selection_b = nil, nil
@@ -2097,12 +2081,6 @@ local function start_new_blueprint()
 end
 
 local function reset_editor()
-    if undo_state and undo_state.recovery_required then
-        shroudforge.log.warn("World Editor reset refused: undo the incomplete paste with F4 before clearing editor state")
-        editor_hint = "Reset blocked: press F4 to restore the incomplete placement first."
-        publish_editor_state()
-        return
-    end
     selection_a, selection_b, selection_target = nil, nil, nil
     if save_progress.state == "saving" then
         save_step(save_progress.completed, "Save cancelled", "error")
@@ -2112,8 +2090,10 @@ local function reset_editor()
     clipboard, active_blueprint_name = nil, nil
     live_prop_cache = {}
     placement_preview = nil
-    editor_stage = "need_a"
-    editor_hint = "Editor reset. Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
+    editor_stage = undo_state and undo_state.recovery_required and "recovery" or "need_a"
+    editor_hint = undo_state and undo_state.recovery_required and
+        "Editor reset. The incomplete placement recovery is still retained; press F4 to retry it. You can continue using capture and blueprint tools, but F7 stays paused until recovery completes." or
+        "Editor reset. Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
     publish_editor_state()
     shroudforge.log.info("World Editor reset: capture cancelled and selection cleared; undo history preserved")
 end
@@ -2406,6 +2386,15 @@ end
 
 local function server_begin_remote_paste(peer, request_id, content, metadata, done)
     if not editor_is_server then done(false, nil, "server-runtime-not-active"); return end
+    if server_remote_transaction and server_remote_transaction.peer == peer and
+       not server_remote_paste and not server_remote_undo then
+        -- The client may have timed out or lost the original paste reply after
+        -- the server created its undo journal. Return the existing token with
+        -- the refusal so the client can recover it and retry F4.
+        done(false, server_remote_transaction.transaction,
+            "server-has-an-unresolved-world-editor-transaction; press F4 to resume its undo")
+        return
+    end
     if server_remote_paste or server_remote_transaction or undo_state then
         done(false, nil, "server-has-an-unresolved-world-editor-transaction")
         return

@@ -28,10 +28,13 @@ and saving remain on the client; F7 sends the same V7 blueprint body to the
 server. F4 sends the server-issued undo token back, so process-local entity
 handles never cross the network. Switching between local and server worlds
 changes the route automatically. The dedicated server keeps one in-memory undo
-journal; restarting it discards that journal. A stale client undo token cannot
-permanently block F7: the client may submit the next paste, and the server
-accepts it only after its own prior undo journal is complete. If an undo is
-still active, the server keeps rejecting edits until it reports completion.
+journal; restarting it discards that journal. If the client loses a paste
+reply while the server retains an unresolved journal, a later paste refusal
+returns that peer's existing undo token so F4 can resume recovery. A stale
+client undo token cannot permanently block F7: the client may submit the next
+paste, and the server accepts it only after its own prior undo journal is
+complete. If an undo is still active, the server keeps rejecting edits until
+it reports completion.
 
 The P2P transport, SFBP validation, authorization, and duplicate-request guards
 are covered by isolated tests. **Live dedicated-server replication and save
@@ -51,7 +54,7 @@ The persistent `.sfbp` format writes and accepts `SHROUDFORGE_WORLD_BLUEPRINT_V7
 
 Voxel reads and writes are bounded to 65,536 cells, matching the active Shroudtopia backend; writes are aligned to 8-cell chunk boundaries, dispatched on the game thread, and checked with native readback. The backend currently exposes one grid channel, `voxel`, with a 0.5 m cell size. A successful readback confirms voxel data only; collision and save persistence still require separate verification. Prop capture registers `ItemInfo` placement AABBs through the Lua API, then the dedicated native world query scans the live entity snapshot and applies rotated, scaled recipe bounds before returning matching prop handles and transforms. Transform lookup, scale updates, spawn, target replacement, and removal use registered native world APIs. The scale update writes and verifies only the scale fields of the live `CurrentTransform` component on the game thread; the Lua mod does not use generic ECS calls.
 
-Undo reads the target voxels before restoring the saved snapshot and pauses if those cells changed after paste. It checks each pasted prop's live handle and transform before removing it. On a paste failure, the mod immediately attempts to restore the pre-paste voxel and prop snapshot, following ShroudEdit's rollback path; if a native operation cannot be verified, it retains recovery state for F4 retry. F6 will not discard incomplete recovery state. F7 uses the live cursor position for its target. In the Modloader UI (F9), open **World Editor**:
+Undo reads the target voxels before restoring the saved snapshot and pauses if those cells changed after paste. It checks each pasted prop's live handle and transform before removing it. On a paste failure, the mod immediately attempts to restore the pre-paste voxel and prop snapshot, following ShroudEdit's rollback path; if a native operation cannot be verified, it retains recovery state for F4 retry. An incomplete recovery does not block capture, blueprint selection, or F6 editor reset; those tools preserve the recovery journal and F4 remains available. F7 stays paused until recovery completes, so another placement cannot compound a partially applied change. F7 uses the live cursor position for its target. In the Modloader UI (F9), open **World Editor**:
 
 - Set **Blueprint up axis** to X, Y, or Z before capturing. The axis is stored in the blueprint; changing this setting later does not change an already captured or loaded blueprint.
 - Set **Initial paste rotation** to 0, 1, 2, or 3 quarter turns (0°, 90°, 180°, 270°), then press **F3** in game to advance the active blueprint by 90° each time. The Modloader's **Rotate blueprint (F3)** button does the same. Rotation cycles through 0°, 90°, 180°, and 270° before returning to 0°; it applies to preview and paste.

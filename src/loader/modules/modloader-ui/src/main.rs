@@ -846,7 +846,16 @@ mod windows {
             };
             let _ = sender.send(command);
         };
-        let profile = shroudforge_package::paths::webview_profile(&arguments.root);
+        // WebView2 locks a user-data directory while a WebContext is alive.
+        // The Modloader, Debug Console, and World Editor windows run side by
+        // side, so each host must own a distinct profile directory.
+        let profile_name = if arguments.updater_window {
+            "updater"
+        } else {
+            "modloader-ui"
+        };
+        let profile = shroudforge_package::paths::webview_profile(&arguments.root)
+            .join(profile_name);
         fs::create_dir_all(&profile)?;
         let mut web_context = WebContext::new(Some(profile));
         let html = if arguments.updater_window {
