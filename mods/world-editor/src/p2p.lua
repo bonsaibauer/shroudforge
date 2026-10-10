@@ -61,6 +61,15 @@ return function(api, callbacks)
         end
     end
 
+    local function report_progress(peer, request_id, operation, completed, total, phase, message)
+        local payload = table.concat({"P", request_id, operation, "running",
+            tostring(completed or 0), tostring(total or 0), clean(phase), clean(message)}, "|")
+        local sent, send_reason = send(peer, payload)
+        if not sent and api.log and api.log.debug then
+            api.log.debug("World Editor P2P could not send progress to " .. peer .. ": " .. send_reason)
+        end
+    end
+
     local function queue_result(request_id, operation, ok, transaction, reason)
         local pending = client_pending
         if not pending or pending.request_id ~= request_id or pending.operation ~= operation then return end
@@ -86,6 +95,9 @@ return function(api, callbacks)
         end
         server_busy = true
         local finished = false
+        local function progress(phase, completed, total, message)
+            report_progress(peer, upload.request_id, "paste", completed, total, phase, message)
+        end
         local function done(ok, transaction, reason)
             if finished then return end
             finished, server_busy = true, false
@@ -93,7 +105,8 @@ return function(api, callbacks)
                 transaction = transaction, reason = clean(reason)})
             reply(peer, upload.request_id, "paste", ok, transaction, reason)
         end
-        local ok, reason = pcall(callbacks.on_paste, peer, upload.request_id, content, upload.metadata, done)
+        progress("Validating blueprint", 1, 5, "The server received the complete blueprint and is validating it.")
+        local ok, reason = pcall(callbacks.on_paste, peer, upload.request_id, content, upload.metadata, done, progress)
         if not ok then done(false, nil, "server-paste-handler-failed: " .. tostring(reason)) end
     end
 
@@ -170,6 +183,9 @@ return function(api, callbacks)
             if server_busy then reply(peer, request_id, "undo", false, transaction, "server-world-editor-is-busy"); return end
             server_busy = true
             local finished = false
+            local function progress(phase, completed, total, message)
+                report_progress(peer, request_id, "undo", completed, total, phase, message)
+            end
             local function done(ok, reason)
                 if finished then return end
                 finished, server_busy = true, false
@@ -177,7 +193,8 @@ return function(api, callbacks)
                     transaction = transaction, reason = clean(reason)})
                 reply(peer, request_id, "undo", ok, transaction, reason)
             end
-            local ok, reason = pcall(callbacks.on_undo, peer, request_id, transaction, done)
+            progress("Checking undo journal", 1, 4, "The server is checking the saved undo journal.")
+            local ok, reason = pcall(callbacks.on_undo, peer, request_id, transaction, done, progress)
             if not ok then done(false, "server-undo-handler-failed: " .. tostring(reason)) end
             return
         elseif command == "S" and #fields == 3 then
@@ -302,9 +319,18 @@ return function(api, callbacks)
             if api.is_server then
                 handle_server_message(message)
             elseif message.from_mod == mod_id and client_pending and message.peer_steam_id == client_pending.peer then
-                local request_id, operation, ok, transaction, detail = message.payload:match("^R|([^|]+)|([^|]+)|([01])|([^|]+)|([^|]*)$")
+                local request_id, operation, state, completed, total, phase, detail =
+                    message.payload:match("^P|([^|]+)|([^|]+)|([^|]+)|(%d+)|(%d+)|([^|]*)|([^|]*)$")
                 if request_id == client_pending.request_id and operation == client_pending.operation then
-                    queue_result(request_id, operation, ok == "1", transaction ~= "-" and transaction or nil, detail)
+                    if callbacks.on_progress then
+                        callbacks.on_progress(operation, state, tonumber(completed), tonumber(total), phase, detail, client_pending.peer)
+                    end
+                else
+                    local result_id, result_operation, ok, transaction, result_detail =
+                        message.payload:match("^R|([^|]+)|([^|]+)|([01])|([^|]+)|([^|]*)$")
+                    if result_id == client_pending.request_id and result_operation == client_pending.operation then
+                        queue_result(result_id, result_operation, ok == "1", transaction ~= "-" and transaction or nil, result_detail)
+                    end
                 end
             end
         end

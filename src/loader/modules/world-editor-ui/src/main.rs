@@ -100,10 +100,12 @@ mod windows {
     #[serde(rename_all = "camelCase")]
     struct ViewState {
         blueprints: Vec<BlueprintCard>,
-        save_state: String,
-        save_completed: u8,
-        save_phase: String,
-        save_sequence: u64,
+        process_state: String,
+        process_operation: String,
+        process_phase: String,
+        process_completed: u8,
+        process_total: u8,
+        process_sequence: u64,
         stage: String,
         hint: String,
         selected: String,
@@ -610,29 +612,32 @@ mod windows {
                                         }} catch (error) {{
                                             console.error('World Editor render failed', error);
                                         }}
-                                        // Keep the save indicator working in the native fallback renderer too.
+                                        // Keep the process indicator working in the native fallback renderer too.
                                         // A state-applied acknowledgement does not prove the page script ran.
-                                        const savePanel = document.getElementById('saveProgress');
-                                        const saveBar = document.getElementById('saveBar');
-                                        const saveLabel = document.getElementById('saveLabel');
-                                        const saveElapsed = document.getElementById('saveElapsed');
-                                        if (savePanel && saveBar && saveLabel && saveElapsed) {{
-                                            const status = state.saveState || 'idle';
-                                            const completed = Math.max(0, Math.min(4, Number(state.saveCompleted) || 0));
-                                            savePanel.hidden = false;
-                                            savePanel.dataset.status = status;
-                                            saveBar.value = completed;
-                                            saveLabel.textContent = state.savePhase || 'Blueprint save · Ready';
-                                            const detail = `${{completed}}/4 steps complete: capture, encode, write file, update library`;
-                                            savePanel.title = status === 'error' ? `${{detail}}. ${{state.hint}}` : detail;
-                                            saveBar.setAttribute('aria-valuetext', `${{saveLabel.textContent}}; ${{detail}}`);
-                                            if (window.__sfSaveSequence !== state.saveSequence) {{
-                                                window.__sfSaveSequence = state.saveSequence;
-                                                window.__sfSaveStarted = performance.now();
+                                        const processPanel = document.getElementById('processProgress');
+                                        const processBar = document.getElementById('processBar');
+                                        const processLabel = document.getElementById('processLabel');
+                                        const processElapsed = document.getElementById('processElapsed');
+                                        if (processPanel && processBar && processLabel && processElapsed) {{
+                                            const status = state.processState || 'idle';
+                                            const completed = Math.max(0, Number(state.processCompleted) || 0);
+                                            const total = Math.max(0, Number(state.processTotal) || 0);
+                                            processPanel.hidden = false;
+                                            processPanel.dataset.status = status;
+                                            processBar.max = Math.max(1, total);
+                                            if (total > 0) processBar.value = Math.min(total, completed);
+                                            else processBar.removeAttribute('value');
+                                            processLabel.textContent = [state.processOperation, state.processPhase].filter(Boolean).join(' · ') || 'World Editor · Ready';
+                                            const detail = total > 0 ? `${{completed}}/${{total}} steps complete` : 'Working';
+                                            processPanel.title = status === 'error' ? `${{detail}}. ${{state.hint}}` : detail;
+                                            processBar.setAttribute('aria-valuetext', `${{processLabel.textContent}}; ${{detail}}`);
+                                            if (window.__sfProcessSequence !== state.processSequence) {{
+                                                window.__sfProcessSequence = state.processSequence;
+                                                window.__sfProcessStarted = performance.now();
                                             }}
-                                            saveElapsed.textContent = status === 'saving'
-                                                ? `${{completed}}/4 · ${{Math.floor((performance.now() - window.__sfSaveStarted) / 1000)}}s`
-                                                : status === 'complete' ? '✓' : status === 'idle' ? '' : `${{completed}}/4`;
+                                            processElapsed.textContent = status === 'running'
+                                                ? `${{total > 0 ? `${{completed}}/${{total}} · ` : ''}}${{Math.floor((performance.now() - window.__sfProcessStarted) / 1000)}}s`
+                                                : status === 'complete' ? '✓' : status === 'idle' ? '' : `${{completed}}/${{total || '—'}}`;
                                         }}
                                         const count = document.getElementById('blueprintCount');
                                         const help = document.getElementById('help');
@@ -883,10 +888,12 @@ mod windows {
     fn view_state(root: &Path) -> Result<ViewState, Box<dyn std::error::Error>> {
         let exports = shroudforge_package::paths::export_dir(root);
         let directory = exports.join("world-editor/blueprints");
-        let mut save_state = "idle".to_owned();
-        let mut save_completed = 0;
-        let mut save_phase = String::new();
-        let mut save_sequence = 0;
+        let mut process_state = "idle".to_owned();
+        let mut process_operation = String::new();
+        let mut process_phase = String::new();
+        let mut process_completed = 0;
+        let mut process_total = 0;
+        let mut process_sequence = 0;
         let mut stage = "idle".to_owned();
         let mut hint =
             "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
@@ -900,14 +907,18 @@ mod windows {
         let mut panel_position_y = TOP_OFFSET as u32;
         if let Ok(contents) = fs::read_to_string(exports.join("world-editor/editor-state.txt")) {
             for line in contents.lines() {
-                if let Some(value) = line.strip_prefix("saveState=") {
-                    save_state = value.to_owned();
-                } else if let Some(value) = line.strip_prefix("saveCompleted=") {
-                    save_completed = value.parse::<u8>().unwrap_or(0).min(4);
-                } else if let Some(value) = line.strip_prefix("savePhase=") {
-                    save_phase = value.to_owned();
-                } else if let Some(value) = line.strip_prefix("saveSequence=") {
-                    save_sequence = value.parse::<u64>().unwrap_or(0);
+                if let Some(value) = line.strip_prefix("processState=") {
+                    process_state = value.to_owned();
+                } else if let Some(value) = line.strip_prefix("processOperation=") {
+                    process_operation = value.to_owned();
+                } else if let Some(value) = line.strip_prefix("processPhase=") {
+                    process_phase = value.to_owned();
+                } else if let Some(value) = line.strip_prefix("processCompleted=") {
+                    process_completed = value.parse::<u8>().unwrap_or(0);
+                } else if let Some(value) = line.strip_prefix("processTotal=") {
+                    process_total = value.parse::<u8>().unwrap_or(0);
+                } else if let Some(value) = line.strip_prefix("processSequence=") {
+                    process_sequence = value.parse::<u64>().unwrap_or(0);
                 } else if let Some(value) = line.strip_prefix("stage=") {
                     stage = value.to_owned();
                 } else if let Some(value) = line.strip_prefix("hint=") {
@@ -974,10 +985,12 @@ mod windows {
         }
         blueprints.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
         Ok(ViewState {
-            save_state,
-            save_completed,
-            save_phase,
-            save_sequence,
+            process_state,
+            process_operation,
+            process_phase,
+            process_completed,
+            process_total,
+            process_sequence,
             blueprints,
             stage,
             hint,
@@ -994,10 +1007,12 @@ mod windows {
     fn empty_state() -> ViewState {
         ViewState {
             blueprints: Vec::new(),
-            save_state: "idle".into(),
-            save_completed: 0,
-            save_phase: String::new(),
-            save_sequence: 0,
+            process_state: "idle".into(),
+            process_operation: String::new(),
+            process_phase: String::new(),
+            process_completed: 0,
+            process_total: 0,
+            process_sequence: 0,
             stage: "idle".into(),
             hint: "Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
                 .into(),

@@ -94,6 +94,51 @@ local function require_execution_backend(backend, operation)
 end
 -- Overall save milestones, not a prop count or an estimated byte percentage.
 local save_progress = {state = "idle", completed = 0, phase = "", sequence = 0}
+local process_progress = {state = "idle", operation = "", phase = "", completed = 0,
+    total = 0, sequence = 0}
+local remote_progress_callback = nil
+local function process_update(state, operation, phase, completed, total, message, level)
+    local next_operation = operation or process_progress.operation
+    local next_phase = phase or ""
+    local next_completed = math.max(0, tonumber(completed) or 0)
+    local next_total = math.max(0, tonumber(total) or 0)
+    if process_progress.state == state and process_progress.operation == next_operation and
+       process_progress.phase == next_phase and process_progress.completed == next_completed and
+       process_progress.total == next_total then return end
+    process_progress.state = state
+    process_progress.operation = next_operation
+    process_progress.phase = next_phase
+    process_progress.completed = next_completed
+    process_progress.total = next_total
+    if state == "running" and message then
+        local log_message = string.format("%s: %s — %s", process_progress.operation,
+            process_progress.phase, tostring(message))
+        local logger = shroudforge.log[level or "info"] or shroudforge.log.info
+        logger(log_message)
+        if remote_progress_callback then
+            pcall(remote_progress_callback, process_progress.phase, process_progress.completed,
+                process_progress.total, message)
+        end
+    elseif state ~= "running" and message then
+        local log_message = string.format("%s: %s — %s", process_progress.operation,
+            state == "complete" and "completed" or state, tostring(message))
+        local logger = shroudforge.log[level or (state == "error" and "error" or "info")] or shroudforge.log.info
+        logger(log_message)
+    end
+    if publish_editor_state then publish_editor_state() end
+end
+local function begin_process(operation, phase, total, message)
+    process_progress.sequence = process_progress.sequence + 1
+    process_progress.state = "idle"
+    process_update("running", operation, phase, 0, total, message, "info")
+end
+local function process_step(phase, completed, total, message, level)
+    process_update("running", process_progress.operation, phase, completed, total, message, level or "info")
+end
+local function finish_process(state, message, level)
+    process_update(state, process_progress.operation, process_progress.phase,
+        process_progress.completed, process_progress.total, message, level)
+end
 local function save_step(completed, phase, state)
     if completed == 0 then save_progress.sequence = save_progress.sequence + 1 end
     save_progress.completed, save_progress.phase = completed, phase
@@ -101,10 +146,15 @@ local function save_step(completed, phase, state)
     if publish_editor_state then publish_editor_state() end
 end
 local function finish_save_progress()
+    local capture_save = process_progress.operation == "Capture and save blueprint"
+    process_step("Refreshing blueprint library", capture_save and 5 or 3,
+        capture_save and 5 or 3, "Updating the blueprint list.")
     if refresh_blueprint_library and refresh_blueprint_library() then
         save_step(4, "Blueprint saved", "complete")
+        finish_process("complete", "The blueprint is saved and ready to use.")
     else
         save_step(3, "Saved; library refresh failed", "error")
+        finish_process("error", "The file was saved, but the blueprint list could not be refreshed.", "warn")
     end
 end
 
@@ -176,6 +226,12 @@ publish_editor_state = function()
         "saveCompleted=" .. tostring(save_progress.completed),
         "savePhase=" .. save_progress.phase,
         "saveSequence=" .. tostring(save_progress.sequence),
+        "processState=" .. process_progress.state,
+        "processOperation=" .. process_progress.operation,
+        "processPhase=" .. process_progress.phase,
+        "processCompleted=" .. tostring(process_progress.completed),
+        "processTotal=" .. tostring(process_progress.total),
+        "processSequence=" .. tostring(process_progress.sequence),
         "stage=" .. tostring(editor_stage),
         "hint=" .. tostring(editor_hint),
         "selected=" .. tostring(active_blueprint_name or ""),
@@ -736,6 +792,7 @@ local function request_prop_capture(region, callback)
     set_editor_message(editor_stage == "capturing" and "ready" or nil,
         "Could not read props in the selected area. Check the runtime status and try again.")
     shroudforge.log.warn("World Editor could not capture props: " .. tostring(reason or "live prop query unavailable"))
+    finish_process("error", "Props could not be read: " .. tostring(reason or "live prop query unavailable"), "warn")
 end
 
 local function update_pending_queries(delta)
@@ -782,6 +839,7 @@ local function update_pending_queries(delta)
             editor_hint = "Could not read the cursor: " .. tostring(reason or "cursor position unavailable")
             publish_editor_state()
             shroudforge.log.warn("World Editor cursor query stopped: " .. tostring(reason))
+            finish_process("error", "Cursor lookup stopped: " .. tostring(reason), "warn")
         end
     end
     if pending_prop_capture then
@@ -793,6 +851,7 @@ local function update_pending_queries(delta)
             editor_hint = "Capture cancelled: the world became unavailable. Mark the selection again."
             publish_editor_state()
             shroudforge.log.warn("World Editor cancelled pending prop capture after world change; no blueprint was saved")
+            finish_process("error", "Prop scanning stopped because the world is no longer available.", "warn")
             return
         end
         local props, reason = capture_region_props(pending.region)
@@ -808,6 +867,7 @@ local function update_pending_queries(delta)
                 publish_editor_state()
             end
             shroudforge.log.warn("World Editor prop query stopped: " .. tostring(reason or "live prop query unavailable"))
+            finish_process("error", "Prop scanning could not finish: " .. tostring(reason or "live prop query unavailable"), "warn")
         end
     end
 end
@@ -834,6 +894,9 @@ local function update_world_session()
     readiness_logged, readiness_wait_logged = false, false
     if save_progress.state == "saving" then
         save_step(save_progress.completed, "Capture cancelled: world session changed", "error")
+    end
+    if process_progress.state == "running" then
+        finish_process("error", "The world changed before this operation could finish.", "warn")
     end
     set_editor_message(clipboard and "selected" or "need_a",
         "World changed. Blueprint retained; mark a new selection or placement target. Previous-world undo is archived.")
@@ -913,6 +976,7 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
     if #(props or {}) > maximum then
         set_editor_message("ready", string.format("Capture stopped. It found %d props, above your limit of %d. Raise the limit in mod settings or select a smaller area.", #props, maximum))
         shroudforge.log.warn(string.format("World Editor refused capture: %d props exceed the configured maximum of %d", #props, maximum))
+        finish_process("error", string.format("Capture found %d props, above the configured limit of %d.", #props, maximum), "warn")
         return
     end
     local rotation_axis = region and region.rotationAxis or setting("rotationAxis")
@@ -925,6 +989,12 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
     if cells then
         clipboard.coverage = {}
         for index, value in ipairs(cells) do clipboard.coverage[index] = value == 0 and 1 or 2 end
+    end
+    if process_progress.operation == "Capture and save blueprint" then
+        process_step("Encoding blueprint", 3, 5,
+            string.format("Captured %d terrain cells and %d props; preparing the blueprint file.", #(cells or {}), #props))
+    else
+        finish_process("complete", string.format("Capture complete: %d terrain cells and %d props are ready.", #(cells or {}), #props))
     end
     placement_preview = nil
     local occupied = 0
@@ -945,6 +1015,7 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
             if not ok then
                 set_editor_message("ready", "Capture stopped. The blueprint folder could not be checked. Check the export folder and try F8 again.")
                 shroudforge.log.error("World Editor cannot safely choose a capture name because export storage could not be inspected: " .. tostring(exists))
+                finish_process("error", "Could not inspect the blueprint folder: " .. tostring(exists), "error")
                 return
             end
             if exists == false then name = candidate; break end
@@ -952,6 +1023,9 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
         if not name or not save_blueprint_named(name) then
             set_editor_message("ready", "Capture is ready, but the blueprint could not be saved. Check the export folder and try F8 again.")
             shroudforge.log.error("World Editor captured the region but could not save a unique persistent blueprint")
+            if process_progress.state == "running" then
+                finish_process("error", "The capture is ready, but the blueprint file could not be saved.", "error")
+            end
             return
         end
         active_blueprint_name = name
@@ -959,6 +1033,11 @@ local function finish_capture(region, cells, props, save_and_select, anchor, ext
         set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press F7 to place it. Open Manage to add a cover from F12 screenshots.")
         finish_save_progress()
         shroudforge.log.info("World Editor help: blueprint saved as '" .. name .. "' and selected. Click to select or double-click to manage it. Press F7 to place it.")
+    elseif process_progress.operation == "Capture blueprint data" or
+       process_progress.operation == "Capture props only" then
+        process_step("Capture complete", 1, 1,
+            string.format("Captured %d props for the active blueprint.", #props))
+        finish_process("complete", "The captured blueprint data is ready in the editor.")
     end
 end
 
@@ -975,12 +1054,17 @@ local function export_ready_for_capture(save_and_select)
 end
 
 local function copy_voxels(save_and_select)
+    if not save_and_select and process_progress.state ~= "running" then
+        begin_process("Capture blueprint data", "Reading terrain", 2,
+            "Reading terrain data for the selected region.")
+    end
     if not export_ready_for_capture(save_and_select) then return end
     if not require_world_feature("runtime.world.voxel.read", function() copy_voxels(save_and_select) end) then return end
     local region, reason = voxel_region(true)
     if not region then
         set_editor_message("ready", "Capture stopped. " .. tostring(reason) .. " Choose a smaller or valid selection, then try again.")
         shroudforge.log.warn("World Editor: " .. reason)
+        finish_process("error", "Terrain capture stopped: " .. tostring(reason), "warn")
         return
     end
     local cells, read_reason = runtime.world.voxel.read(region.x, region.y, region.z,
@@ -989,12 +1073,18 @@ local function copy_voxels(save_and_select)
         set_editor_message("ready", "Capture stopped because terrain data could not be read. Check runtime status, then try F8 again.")
         runtime.report_effect("waiting", read_reason or "voxel read failed")
         shroudforge.log.warn("World Editor voxel copy failed: " .. tostring(read_reason))
+        finish_process("error", "Terrain could not be read: " .. tostring(read_reason), "warn")
         return
+    end
+    if save_and_select then
+        process_step("Scanning props", 2, 5,
+            string.format("Read %d terrain cells; scanning props in the selected area.", #cells))
     end
     local grid = get_voxel_grid_spec()
     if not grid then
         set_editor_message("ready", "Capture stopped because voxel grid information is unavailable. Check runtime status, then try again.")
         shroudforge.log.warn("World Editor could not get voxel grid metadata")
+        finish_process("error", "Voxel grid information is unavailable.", "warn")
         return
     end
     local anchor, extent
@@ -1039,6 +1129,8 @@ local function capture_and_save()
     editor_stage = "capturing"
     editor_hint = "Capturing props and voxels, creating the blueprint file, and adding it to the library…"
     publish_editor_state()
+    begin_process("Capture and save blueprint", "Reading terrain", 5,
+        "Reading the selected terrain region.")
     save_step(0, "Capturing blueprint")
     copy_voxels(true)
     if editor_stage == "capturing" and not pending_prop_capture and not pending_world_action then
@@ -1059,6 +1151,10 @@ local function copy_props_only(save_and_select)
     if extent[1] <= 0 or extent[2] <= 0 or extent[3] <= 0 then
         shroudforge.log.warn("World Editor props-only capture needs a non-zero selection extent on every axis")
         return
+    end
+    if not save_and_select then
+        begin_process("Capture props only", "Scanning props", 1,
+            "Scanning props inside the marked selection.")
     end
     local region = {anchor = anchor, queryBounds = {anchor[1], anchor[2], anchor[3], far[1], far[2], far[3]},
         rotationAxis = setting("rotationAxis")}
@@ -1118,6 +1214,13 @@ save_blueprint_named = function(name)
         shroudforge.log.warn("World Editor: " .. reason)
         return
     end
+    if process_progress.state ~= "running" then
+        begin_process("Save blueprint", "Encoding blueprint", 3,
+            "Preparing " .. tostring(name) .. " for export.")
+    end
+    local capture_save = process_progress.operation == "Capture and save blueprint"
+    process_step("Encoding blueprint", capture_save and 3 or 1, capture_save and 5 or 3,
+        "Encoding " .. tostring(name) .. ".")
     -- A direct save already has a complete capture in the clipboard.
     if save_progress.state ~= "saving" then
         editor_stage = "capturing"
@@ -1128,21 +1231,28 @@ save_blueprint_named = function(name)
     if not content then
         set_editor_message("ready", "Save stopped. " .. tostring(encode_reason))
         shroudforge.log.warn("World Editor: " .. tostring(encode_reason))
+        finish_process("error", "Blueprint encoding failed: " .. tostring(encode_reason), "warn")
         return
     end
+    process_step("Writing blueprint file", capture_save and 4 or 2, capture_save and 5 or 3,
+        string.format("Writing %s (%d bytes).", path, #content))
     save_step(2, "Writing blueprint")
     local ok, err = pcall(io.export, path, content)
     if not ok then
         set_editor_message("ready", "Save failed. Check that export storage is enabled, then try again.")
         shroudforge.log.error("World Editor could not save persistent blueprint (enable export): " .. tostring(err))
+        finish_process("error", "Could not write the blueprint file: " .. tostring(err), "error")
         return false
     end
     if type(content) ~= "string" or #content > maximum_blueprint_bytes then
         shroudforge.log.warn("World Editor: blueprint is not text or exceeds the 256 MiB file limit")
+        finish_process("error", "The encoded blueprint exceeds the supported file limit.", "warn")
         return false
     end
     save_step(3, "Updating library")
     shroudforge.log.info("World Editor saved persistent blueprint: " .. path)
+    process_step("Blueprint file written", capture_save and 4 or 2, capture_save and 5 or 3,
+        "The file was written; refreshing the blueprint library.")
     return true
 end
 
@@ -1155,7 +1265,7 @@ local function save_blueprint()
     end
 end
 
-local function load_blueprint(name, supplied_content)
+local function load_blueprint_content(name, supplied_content)
     name = name or setting("blueprintName")
     local path, reason = blueprint_path(name)
     if not path then shroudforge.log.warn("World Editor: " .. reason); return end
@@ -1307,6 +1417,37 @@ local function load_blueprint(name, supplied_content)
     editor_stage = "selected"
     set_editor_message("selected", "Blueprint " .. name .. " loaded and selected. Press F7 to place it. Open Manage to add a cover from F12 screenshots.")
     shroudforge.log.info(string.format("World Editor loaded blueprint '%s' (%d cells, %d props). It is selected and ready for F7 placement.", active_blueprint_name, #cells, #props))
+    return true
+end
+
+local function load_blueprint(name, supplied_content)
+    local remote_paste = process_progress.state == "running" and
+        process_progress.operation == "Place blueprint from client"
+    if remote_paste then
+        process_step("Validating uploaded blueprint", 1, 5,
+            "Checking the blueprint format and its current placement recipes.")
+    else
+        begin_process("Load blueprint", "Reading blueprint", 0,
+            "Reading and checking the selected blueprint.")
+    end
+    local ok, loaded = pcall(load_blueprint_content, name, supplied_content)
+    if not ok then
+        finish_process("error", "Blueprint loading stopped: " .. tostring(loaded), "error")
+        return false
+    end
+    if not loaded then
+        finish_process("error", "Blueprint could not be loaded. See the world-editor log for the validation reason.", "warn")
+        return false
+    end
+    if remote_paste then
+        process_step("Blueprint validated", 2, 5,
+            "Blueprint data and prop recipes are valid on the server.")
+    else
+        process_step("Blueprint activated", 1, 1,
+            "Blueprint is active and ready for preview or placement.")
+        finish_process("complete", "Blueprint loaded and activated.")
+    end
+    return true
 end
 
 local blueprint_library = {}
@@ -1381,26 +1522,33 @@ local function rename_library_blueprint(value)
         "world-editor/blueprints/" .. new_name .. ".thumb.png"
     local has_image = io.export_exists(old_image)
     local has_thumb = io.export_exists(old_thumb)
+    begin_process("Rename blueprint", "Renaming blueprint file", 3,
+        "Renaming the blueprint and its cover files.")
     local ok, reason = pcall(io.export_rename, old_path, new_path)
     if not ok then
         set_editor_message(nil, "Rename failed. Check the export folder and try again.")
         shroudforge.log.error("World Editor could not rename blueprint: " .. tostring(reason))
+        finish_process("error", "The blueprint file could not be renamed.", "error")
         return
     end
+    process_step("Renaming cover image", 1, 3, "Updating the blueprint cover image.")
     if has_image then
         local image_ok, image_reason = pcall(io.export_rename, old_image, new_image)
         if not image_ok then
             pcall(io.export_rename, new_path, old_path)
             shroudforge.log.error("World Editor could not rename the blueprint image. The rename was rolled back: " .. tostring(image_reason))
+            finish_process("error", "The cover image could not be renamed; the blueprint rename was rolled back.", "error")
             return
         end
     end
+    process_step("Renaming thumbnail", 2, 3, "Updating the blueprint thumbnail.")
     if has_thumb then
         local thumb_ok, thumb_reason = pcall(io.export_rename, old_thumb, new_thumb)
         if not thumb_ok then
             if has_image then pcall(io.export_rename, new_image, old_image) end
             pcall(io.export_rename, new_path, old_path)
             shroudforge.log.error("World Editor could not rename the blueprint thumbnail. The rename was rolled back: " .. tostring(thumb_reason))
+            finish_process("error", "The thumbnail could not be renamed; the blueprint rename was rolled back.", "error")
             return
         end
     end
@@ -1411,6 +1559,8 @@ local function rename_library_blueprint(value)
     refresh_blueprint_library()
     set_editor_message(nil, "Blueprint renamed to " .. new_name .. ".")
     shroudforge.log.info("World Editor renamed blueprint " .. old_name .. " to " .. new_name)
+    process_step("Blueprint library refreshed", 3, 3, "The renamed blueprint is ready in the library.")
+    finish_process("complete", "Blueprint renamed to " .. new_name .. ".")
 end
 
 local function duplicate_library_blueprint(value)
@@ -1432,10 +1582,13 @@ local function duplicate_library_blueprint(value)
         shroudforge.log.warn("World Editor: a blueprint with that name already exists")
         return
     end
+    begin_process("Duplicate blueprint", "Copying blueprint file", 3,
+        "Copying the blueprint and its cover files.")
     local ok, reason = pcall(io.export_copy, source_path, destination)
     if not ok then
         set_editor_message(nil, "Duplicate failed. Check the export folder and try again.")
         shroudforge.log.error("World Editor could not duplicate blueprint: " .. tostring(reason))
+        finish_process("error", "The blueprint file could not be copied.", "error")
         return
     end
     local source_image, destination_image = "world-editor/blueprints/" .. source_name .. ".png",
@@ -1443,25 +1596,31 @@ local function duplicate_library_blueprint(value)
     local source_thumb, destination_thumb = "world-editor/blueprints/" .. source_name .. ".thumb.png",
         "world-editor/blueprints/" .. new_name .. ".thumb.png"
     if io.export_exists(source_image) then
+        process_step("Copying cover image", 1, 3, "Copying the blueprint cover image.")
         local image_ok, image_reason = pcall(io.export_copy, source_image, destination_image)
         if not image_ok then
             pcall(io.export_delete, destination)
             shroudforge.log.error("World Editor could not duplicate the blueprint image. The duplicate was rolled back: " .. tostring(image_reason))
+            finish_process("error", "The cover image could not be copied; the duplicate was rolled back.", "error")
             return
         end
     end
     if io.export_exists(source_thumb) then
+        process_step("Copying thumbnail", 2, 3, "Copying the blueprint thumbnail.")
         local thumb_ok, thumb_reason = pcall(io.export_copy, source_thumb, destination_thumb)
         if not thumb_ok then
             pcall(io.export_delete, destination)
             pcall(io.export_delete, destination_image)
             shroudforge.log.error("World Editor could not duplicate the blueprint thumbnail. The duplicate was rolled back: " .. tostring(thumb_reason))
+            finish_process("error", "The thumbnail could not be copied; the duplicate was rolled back.", "error")
             return
         end
     end
     refresh_blueprint_library()
     set_editor_message(nil, "Blueprint duplicated as " .. new_name .. ".")
     shroudforge.log.info("World Editor duplicated blueprint " .. source_name .. " as " .. new_name)
+    process_step("Blueprint library refreshed", 3, 3, "The duplicate is ready in the library.")
+    finish_process("complete", "Blueprint duplicated as " .. new_name .. ".")
 end
 
 local function delete_library_blueprint(name)
@@ -1480,17 +1639,22 @@ local function delete_library_blueprint(name)
     end
     local image = "world-editor/blueprints/" .. name .. ".png"
     local thumbnail = "world-editor/blueprints/" .. name .. ".thumb.png"
+    begin_process("Delete blueprint", "Deleting blueprint file", 3,
+        "Deleting the blueprint and its cover files.")
     local ok, reason = pcall(io.export_delete, path)
     if not ok then
         set_editor_message(nil, "Delete failed. Check the export folder and try again.")
         shroudforge.log.error("World Editor could not delete blueprint: " .. tostring(reason))
+        finish_process("error", "The blueprint file could not be deleted.", "error")
         return
     end
+    process_step("Deleting cover image", 1, 3, "Removing the blueprint cover image if present.")
     if io.export_exists(image) then
         local image_ok, image_reason = pcall(io.export_delete, image)
         if not image_ok then shroudforge.log.warn("World Editor deleted the blueprint but could not delete its image: " .. tostring(image_reason)) end
     end
     if io.export_exists(thumbnail) then
+        process_step("Deleting thumbnail", 2, 3, "Removing the blueprint thumbnail if present.")
         local thumb_ok, thumb_reason = pcall(io.export_delete, thumbnail)
         if not thumb_ok then shroudforge.log.warn("World Editor deleted the blueprint but could not delete its thumbnail: " .. tostring(thumb_reason)) end
     end
@@ -1502,6 +1666,8 @@ local function delete_library_blueprint(name)
     refresh_blueprint_library()
     set_editor_message(nil, "Blueprint " .. name .. " deleted.")
     shroudforge.log.info("World Editor deleted blueprint " .. name)
+    process_step("Blueprint library refreshed", 3, 3, "The blueprint was removed from the library.")
+    finish_process("complete", "Blueprint " .. name .. " deleted.")
 end
 
 local function paste_voxels(use_current_cursor, cursor_override, captured_props, target_override)
@@ -1587,20 +1753,29 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         shroudforge.log.warn("World Editor: empty props-only blueprint has nothing to paste unless target props are set to replace")
         return
     end
+    if process_progress.state ~= "running" or process_progress.operation ~= "Place blueprint" then
+        begin_process("Place blueprint", "Checking target and saving undo data", 5,
+            string.format("Preparing %s with %d props.", active_blueprint_name or "the active blueprint", #rotated.props))
+    end
     local recipes = (#rotated.props > 0 or setting("targetPropMode") == "replace") and resolve_placeable_items() or {}
     if #rotated.props > 0 and (not feature("runtime.world.entity.spawn") or
-       not feature("runtime.world.entity.set_scale")) then return end
+       not feature("runtime.world.entity.set_scale")) then
+        finish_process("error", "Required native prop placement features are unavailable.", "warn")
+        return
+    end
     for _, prop in ipairs(rotated.props or {}) do
         local maximum_scale = 3.402823466e38
         if not finite_number(prop.sx) or not finite_number(prop.sy) or not finite_number(prop.sz) or
            math.abs(prop.sx) > maximum_scale or math.abs(prop.sy) > maximum_scale or math.abs(prop.sz) > maximum_scale then
             set_editor_message("selected", "Placement stopped because a prop has invalid scale data. Check the blueprint file.")
             shroudforge.log.warn("World Editor: blueprint prop scale is outside the native transform range")
+            finish_process("error", "A blueprint prop has an invalid scale.", "warn")
             return
         end
         if not recipes or not recipes[prop.itemId] then
             set_editor_message("selected", "Placement stopped because a prop has no current placement recipe. Check the blueprint or game assets.")
             shroudforge.log.warn("World Editor: blueprint prop has no current native ItemInfo placement recipe")
+            finish_process("error", "A blueprint prop has no valid placement recipe.", "warn")
             return
         end
     end
@@ -1611,6 +1786,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         if not previous_cells then
             set_editor_message("selected", "Placement stopped because the target terrain could not be backed up. Aim at another target and retry.")
             shroudforge.log.warn("World Editor could not snapshot the target before paste: " .. tostring(read_reason))
+            finish_process("error", "Could not save the target terrain for undo: " .. tostring(read_reason), "warn")
             return
         end
         paste_cells = {}
@@ -1626,22 +1802,31 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
             end
         end
     end
+    process_step("Undo data saved", 1, 5,
+        clipboard.hasVoxels and "Saved the target terrain snapshot for a safe undo." or "Prepared prop state for undo.")
     local removed_props = {}
     if setting("targetPropMode") == "replace" then
         if not feature("runtime.world.entity.destroy") or not feature("runtime.world.entity.spawn") or
-           not feature("runtime.world.entity.set_scale") then return end
+           not feature("runtime.world.entity.set_scale") then
+            finish_process("error", "Required native prop replacement features are unavailable.", "warn")
+            return
+        end
         if not captured_props then
             local query_region = {queryBounds = context.bounds, anchor = anchor}
+            process_step("Checking target props", 2, 5, "Scanning props that will be replaced.")
             request_prop_capture(query_region, function(props)
                 paste_voxels(false, nil, props, context)
             end)
             return
         end
+        process_step("Removing target props", 2, 5,
+            string.format("Verified %d target props for replacement.", #props))
         local props = captured_props
         for _, prop in ipairs(props) do
             local recipe = recipes and recipes[prop.itemId]
             if not recipe then
                 shroudforge.log.warn("World Editor cannot replace a target prop without a current ItemInfo recipe")
+                finish_process("error", "A target prop has no valid replacement recipe.", "warn")
                 return
             end
             local live_prop = runtime.world.entity.get_transform(prop.entityHandle)
@@ -1649,6 +1834,7 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
                live_prop.templateUuidHighHex ~= prop.templateUuidHighHex or
                live_prop.templateUuidLowHex ~= prop.templateUuidLowHex then
                 shroudforge.log.warn("World Editor refused replace-props paste because the captured entity handle is stale")
+                finish_process("error", "A target prop changed while the replacement plan was being prepared.", "warn")
                 return
             end
             local live_transform = live_prop.transform
@@ -1657,11 +1843,13 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
             local live_scale = live_transform and live_transform.scale
             if not live_position or not live_rotation or not live_scale then
                 shroudforge.log.warn("World Editor cannot snapshot the exact target prop transform for undo")
+                finish_process("error", "A target prop could not be safely recorded for undo.", "warn")
                 return
             end
             local sx, sy, sz = tonumber(live_scale.x), tonumber(live_scale.y), tonumber(live_scale.z)
             if not finite_number(sx) or not finite_number(sy) or not finite_number(sz) then
                 shroudforge.log.warn("World Editor cannot replace a target prop with invalid scale data")
+                finish_process("error", "A target prop has invalid scale data.", "warn")
                 return
             end
             removed_props[#removed_props + 1] = {
@@ -1676,7 +1864,9 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
     end
     local session = runtime.world.session_id and runtime.world.session_id() or 0
     if session == 0 then
-        set_editor_message("recovery", "World session is unavailable. No placement was sent."); return
+        set_editor_message("recovery", "World session is unavailable. No placement was sent.")
+        finish_process("error", "The active world session is unavailable; no placement was sent.", "warn")
+        return
     end
     undo_state = {
         session = session,
@@ -1701,6 +1891,8 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
             return
         end
     end
+    process_step("Target props removed", 2, 5,
+        string.format("Removed %d verified target props.", #undo_state.removed_props))
     if clipboard.hasVoxels then
         -- A native write can partially modify the grid even when it reports
         -- failure. Mark the snapshot as applied before calling it so automatic
@@ -1722,7 +1914,12 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         end
         undo_state.expected_cells = paste_cells
         undo_state.voxel_written = true
+        process_step("Terrain written", 3, 5,
+            string.format("Wrote %d terrain cells and confirmed the native write.", #paste_cells))
+    else
+        process_step("Terrain skipped", 3, 5, "This props-only blueprint has no terrain channel.")
     end
+    process_step("Placing props", 4, 5, string.format("Placing %d blueprint props.", #rotated.props))
     local spawned = {}
     for _, prop in ipairs(rotated.props or {}) do
         local recipe = recipes[prop.itemId]
@@ -1774,6 +1971,10 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         #(clipboard.cells or {}), #spawned))
     shroudforge.log.info(string.format("World Editor placed blueprint with %d voxel cells and %d props at %.3f,%.3f,%.3f",
         #(clipboard.cells or {}), #spawned, anchor[1], anchor[2], anchor[3]))
+    process_step("Placement verified", 5, 5,
+        string.format("Verified %d terrain cells and %d props in the live world. Save persistence is not verified.",
+            #(clipboard.cells or {}), #spawned))
+    finish_process("complete", "Placement is confirmed in the live world. Save persistence is not verified.")
 end
 
 undo_voxels = function()
@@ -1808,11 +2009,28 @@ undo_voxels = function()
         shroudforge.log.warn("World Editor: there is no verified blueprint placement to undo")
         return
     end
+    local recovering_paste = undo_state.automaticRollback == true
+    if recovering_paste then
+        process_step("Restoring changes from the failed placement", 0, 0,
+            "Checking which world changes can be safely reversed.")
+    elseif process_progress.state ~= "running" or process_progress.operation ~= "Undo placement" then
+        begin_process("Undo placement", "Checking undo journal", 4,
+            "Checking the target world before restoring the previous state.")
+    end
     if #(undo_state.removed_props or {}) > 0 and
-       (not feature("runtime.world.entity.spawn") or not feature("runtime.world.entity.set_scale")) then return end
-    if undo_state.hasVoxels and not require_world_feature("runtime.world.voxel.write", undo_voxels) then return end
+       (not feature("runtime.world.entity.spawn") or not feature("runtime.world.entity.set_scale")) then
+        finish_process("error", "Required native prop restoration features are unavailable.", "warn")
+        return
+    end
+    if undo_state.hasVoxels and not require_world_feature("runtime.world.voxel.write", undo_voxels) then
+        process_step("Waiting for terrain access", 0, 0, "Waiting for the native terrain API.", "debug")
+        return
+    end
     if undo_state.hasVoxels and not undo_state.automaticRollback and
-       not require_world_feature("runtime.world.voxel.read", undo_voxels) then return end
+       not require_world_feature("runtime.world.voxel.read", undo_voxels) then
+        process_step("Waiting for terrain verification", 0, 0, "Waiting for the native terrain read API.", "debug")
+        return
+    end
     local region = undo_state.region
     if undo_state.hasVoxels then
         if not undo_state.automaticRollback then
@@ -1821,12 +2039,14 @@ undo_voxels = function()
             if not current_cells then
                 set_editor_message("recovery", "Undo paused. The terrain snapshot could not be read. Press F4 to retry.")
                 shroudforge.log.warn("World Editor paused undo because the pasted voxel region could not be checked: " .. tostring(read_reason))
+                finish_process("error", "Terrain could not be checked; retry undo after the runtime is available.", "warn")
                 return
             end
             local expected_cells = undo_state.voxel_written and undo_state.expected_cells or undo_state.cells
             if not same_cells(current_cells, expected_cells) then
                 set_editor_message("recovery", "Undo paused because the terrain changed after placement. Restore those changes manually, then press F4 to retry.")
                 shroudforge.log.warn("World Editor paused undo because the target voxels changed after the paste. No later changes were overwritten.")
+                finish_process("error", "Terrain changed after the paste, so undo paused to protect later edits.", "warn")
                 return
             end
         end
@@ -1837,22 +2057,29 @@ undo_voxels = function()
     -- Restore voxel cells before props so one unreadable prop cannot block the
     -- independent terrain snapshot. The journal preserves any remaining work.
     if undo_state.hasVoxels and undo_state.voxel_written then
+        process_step("Restoring terrain", 1, 4, "Restoring and verifying the saved terrain snapshot.")
         local ok, reason = runtime.world.voxel.write(region.x, region.y, region.z,
             region.sx, region.sy, region.sz, undo_state.cells)
         if not ok then
             set_editor_message("recovery", "Undo paused because the previous terrain could not be restored. Press F4 to retry.")
             runtime.report_effect("write-failed", reason or "voxel undo failed")
             shroudforge.log.error("World Editor voxel undo failed: " .. tostring(reason))
+            finish_process("error", "Terrain restoration failed: " .. tostring(reason), "error")
             return
         end
         undo_state.voxel_written = false
         undo_state.expected_cells = undo_state.cells
+    else
+        process_step("Terrain checked", 1, 4, "No terrain restoration is pending.")
     end
     -- A queued/paused prop dismantle must never block independent terrain
     -- restoration. F4 may therefore restore the snapshot while that one input
     -- remains pending; it still must not queue a duplicate dismantle.
     if (#entities > 0 or #(undo_state.removed_props or {}) > 0) and
-       not feature("runtime.world.entity.get_transform") then return end
+       not feature("runtime.world.entity.get_transform") then
+        finish_process("error", "The native prop inspection API is unavailable.", "warn")
+        return
+    end
     for entity_index = 1, index do
         local entity = entities[entity_index]
         local current, read_reason
@@ -1860,12 +2087,14 @@ undo_voxels = function()
         if not current and read_reason and read_reason ~= "entity handle is stale or not a live prop" then
             set_editor_message("recovery", "Undo paused because the prop state could not be read. Terrain has been restored; press F4 to retry the prop.")
             shroudforge.log.warn("World Editor paused prop undo because the live transform read failed: " .. tostring(read_reason))
+            finish_process("error", "A placed prop could not be checked; terrain restoration is retained.", "warn")
             return
         end
         if current and not undo_state.automaticRollback and not transform_matches(current, entity.expected_transform) then
             set_editor_message("recovery", "Undo paused because a placed prop was moved or changed. Restore it to its pasted state, then press F4 to retry.")
             runtime.report_effect("write-failed", "a pasted prop changed after paste")
             shroudforge.log.warn("World Editor refused undo because a pasted prop changed after paste")
+            finish_process("error", "A placed prop changed after paste, so undo paused to protect that change.", "warn")
             return
         end
     end
@@ -1876,28 +2105,34 @@ undo_voxels = function()
         if not current and read_reason and read_reason ~= "entity handle is stale or not a live prop" then
             set_editor_message("recovery", "Undo paused because the replaced prop state could not be read. Terrain has been restored; press F4 to retry.")
             shroudforge.log.warn("World Editor paused replaced-prop undo because the live transform read failed: " .. tostring(read_reason))
+            finish_process("error", "A replaced prop could not be checked; retry undo when the runtime is ready.", "warn")
             return
         end
         if not undo_state.automaticRollback and current then
             set_editor_message("recovery", "Undo paused because a replaced prop is already present. Check the world, then press F4 to retry.")
             runtime.report_effect("write-failed", "a replaced prop reappeared before undo")
             shroudforge.log.warn("World Editor refused undo because a replaced prop is already live again")
+            finish_process("error", "A replaced prop is already present; undo paused to avoid a duplicate.", "warn")
             return
         end
     end
     set_editor_message("placing", undo_state.automaticRollback and "Restoring the world after the failed placement…" or "Undo in progress. Removing placed props and restoring the previous world state…")
+    process_step("Removing placed props", 2, 4,
+        string.format("Removing or verifying %d placed props.", index))
     while index >= 1 do
         local entity = entities[index]
         if not entity.entityHandle then
             set_editor_message("recovery", "Undo paused because a prop handle is missing. Press F4 to retry recovery.")
             runtime.report_effect("write-failed", "pasted prop has no live entity handle")
             shroudforge.log.warn("World Editor paused undo because live prop state could not be inspected")
+            finish_process("error", "A placed prop has no verifiable live handle.", "warn")
             return
         end
         local current, read_reason = runtime.world.entity.get_transform(entity.entityHandle)
         if not current and read_reason and read_reason ~= "entity handle is stale or not a live prop" then
             set_editor_message("recovery", "Undo paused because the prop state could not be read. Terrain has been restored; press F4 to retry the prop.")
             shroudforge.log.warn("World Editor paused prop removal because the live transform read failed: " .. tostring(read_reason))
+            finish_process("error", "A placed prop could not be inspected; retry undo later.", "warn")
             return
         end
         if not current then
@@ -1919,11 +2154,18 @@ undo_voxels = function()
             set_editor_message("recovery", "Undo paused because a placed prop could not be removed. " .. tostring(detail) .. ". Press F4 to retry.")
             runtime.report_effect("write-failed", detail)
             shroudforge.log.error("World Editor paused undo and preserved its progress: " .. tostring(detail))
+            finish_process("error", "A placed prop could not be removed: " .. tostring(detail), "error")
             return
         end
         end
     end
+    if removed_index > 0 then
+        process_step("Restoring replaced props", 3, 4,
+            string.format("Restoring %d replaced props.", removed_index))
+    end
     while removed_index >= 1 do
+        process_step("Restoring replaced props", 3, 4,
+            string.format("Restoring %d replaced props.", removed_index))
         local prop = undo_state.removed_props[removed_index]
         if not feature("runtime.world.entity.spawn") then return end
         local entity_handle, spawn_reason = prop.restoreHandle
@@ -1939,6 +2181,7 @@ undo_voxels = function()
                 set_editor_message("recovery", "Undo paused while restoring a replaced prop's scale. Press F4 to retry.")
                 shroudforge.log.error("World Editor paused undo while restoring a replaced prop's scale: " ..
                     tostring(scale_reason or "native scale update failed"))
+                finish_process("error", "A replaced prop's scale could not be restored.", "error")
                 return
             end
         end
@@ -1947,6 +2190,7 @@ undo_voxels = function()
             set_editor_message("recovery", "Undo paused while restoring a replaced prop. Press F4 to retry.")
             shroudforge.log.error("World Editor paused undo while restoring a replaced target prop: " ..
                 tostring(spawn_reason or "spawn could not be verified by entity handle"))
+            finish_process("error", "A replaced prop could not be verified after restoration.", "error")
             return
         end
         prop.restoreHandle = nil
@@ -1962,10 +2206,14 @@ undo_voxels = function()
         "Removed pasted props and restored replaced props")
     shroudforge.log.info(had_voxels and "World Editor restored the previous voxel snapshot and affected props" or
         "World Editor undid the props-only placement")
+    process_step("Undo verified", 4, 4, "The previous live world state has been restored.")
+    finish_process("complete", "Undo is confirmed in the live world. Save persistence is not verified.")
 end
 
 rollback_partial_paste = function()
     if not undo_state then return end
+    begin_process("Recover failed placement", "Rolling back completed changes", 4,
+        "The paste failed; restoring the world changes that were completed.")
     shroudforge.log.warn("World Editor is rolling back the changes completed before the paste failure")
     undo_state.automaticRollback = true
     undo_voxels()
@@ -1973,9 +2221,11 @@ rollback_partial_paste = function()
         undo_state.automaticRollback = nil
         shroudforge.log.error("World Editor rollback is incomplete. Press F4 again after resolving the recovery issue.")
         set_editor_message("recovery", "Rollback is incomplete. Press F4 to continue restoring the previous world state.")
+        finish_process("error", "Automatic rollback is incomplete. Press F4 to continue recovery.", "error")
     else
         shroudforge.log.info("World Editor automatically restored the pre-paste snapshot")
         set_editor_message("selected", "Placement failed, and the previous world state was restored.")
+        finish_process("complete", "The failed placement was rolled back; the previous live state was restored.")
     end
 end
 
@@ -2003,6 +2253,8 @@ local function preview_paste_at(point)
         shroudforge.log.warn("World Editor: copy or load a blueprint before previewing")
         return
     end
+    begin_process("Preview placement", "Checking cursor target", 2,
+        "Checking the aimed position and voxel-grid alignment. No world changes will be made.")
     local turns = rotation_turns()
     local axis = clipboard.region.rotationAxis or setting("rotationAxis")
     if axis ~= "x" and axis ~= "y" and axis ~= "z" then axis = "y" end
@@ -2012,6 +2264,7 @@ local function preview_paste_at(point)
     if clipboard.hasVoxels and not target then
         set_editor_message("selected", "Preview could not use that target. " .. tostring(reason) .. " Aim at another point.")
         shroudforge.log.warn("World Editor preview rejected: " .. tostring(reason))
+        finish_process("error", "Preview could not use the target: " .. tostring(reason), "warn")
         return
     end
     local occupied = 0
@@ -2021,6 +2274,9 @@ local function preview_paste_at(point)
     shroudforge.log.info(string.format(
         "World Editor placement plan prepared: axis=%s turns=%d anchor=%.3f,%.3f,%.3f voxels=%s size=%d,%d,%d occupied=%d props=%d. No world changes were made.",
         axis, turns, anchor[1], anchor[2], anchor[3], tostring(plan.hasVoxels), plan.sx, plan.sy, plan.sz, occupied, #plan.props))
+    process_step("Placement plan ready", 2, 2,
+        string.format("Preview contains %d occupied cells and %d props. No world changes were made.", occupied, #plan.props))
+    finish_process("complete", "Preview ready. Nothing was written to the world.")
 end
 
 local function preview_paste()
@@ -2365,11 +2621,13 @@ local function on_p2p_result(operation, ok, transaction, reason, peer)
         if ok then
             set_editor_message("selected", "Server placed the blueprint through its native world runtime. Press F4 to undo.")
             shroudforge.log.info("World Editor P2P paste confirmed by dedicated server; undo token=" .. tostring(transaction))
+            finish_process("complete", "The server confirmed the placement in its live world. Save persistence is not verified.")
         else
             set_editor_message(transaction and "recovery" or "selected",
                 transaction and "Server placement needs recovery. Press F4 to request the server-owned undo." or
                     ("Server refused blueprint placement: " .. tostring(reason)))
             shroudforge.log.warn("World Editor P2P paste failed: " .. tostring(reason))
+            finish_process("error", "The server did not complete the placement: " .. tostring(reason), "warn")
         end
     elseif operation == "undo" then
         if ok then
@@ -2377,14 +2635,28 @@ local function on_p2p_result(operation, ok, transaction, reason, peer)
             persist_server_undo_token()
             set_editor_message("selected", "The server confirmed undo through its native world runtime.")
             shroudforge.log.info("World Editor P2P undo confirmed by dedicated server")
+            finish_process("complete", "The server confirmed that undo restored the previous live world state.")
         else
             set_editor_message("recovery", "Server undo is incomplete. Press F4 to retry safely. " .. tostring(reason))
             shroudforge.log.warn("World Editor P2P undo is incomplete: " .. tostring(reason))
+            finish_process("error", "Server undo is incomplete and can be retried: " .. tostring(reason), "warn")
         end
     end
 end
 
-local function server_begin_remote_paste(peer, request_id, content, metadata, done)
+local function on_p2p_progress(operation, state, completed, total, phase, message, peer)
+    if state ~= "running" then return end
+    local label = operation == "undo" and "Undo placement on dedicated server" or "Place blueprint on dedicated server"
+    process_update("running", label, phase, completed, total,
+        "Server " .. tostring(peer or "") .. ": " .. tostring(message), "info")
+    if operation == "paste" then
+        set_editor_message("placing", "The dedicated server is working: " .. tostring(message))
+    else
+        set_editor_message("placing", "The dedicated server is undoing the placement: " .. tostring(message))
+    end
+end
+
+local function server_begin_remote_paste(peer, request_id, content, metadata, done, progress)
     if not editor_is_server then done(false, nil, "server-runtime-not-active"); return end
     if server_remote_transaction and server_remote_transaction.peer == peer and
        not server_remote_paste and not server_remote_undo then
@@ -2399,11 +2671,16 @@ local function server_begin_remote_paste(peer, request_id, content, metadata, do
         done(false, nil, "server-has-an-unresolved-world-editor-transaction")
         return
     end
+    remote_progress_callback = progress
+    begin_process("Place blueprint from client", "Validating blueprint", 5,
+        "Received the complete blueprint from the authorized client.")
     clipboard, active_blueprint_name = nil, nil
     local blueprint_name = "remote-" .. tostring(request_id):gsub("[^%w_-]", "")
     load_blueprint(blueprint_name, content)
     if not clipboard then
         done(false, nil, editor_hint or "server-could-not-parse-blueprint")
+        finish_process("error", "The uploaded blueprint could not be parsed.", "warn")
+        remote_progress_callback = nil
         return
     end
     local configured_rotation = math.floor(tonumber(shroudforge.settings.get("rotationQuarterTurns")) or 0) % 4
@@ -2413,6 +2690,8 @@ local function server_begin_remote_paste(peer, request_id, content, metadata, do
     local target, target_reason = voxel_target_region(plan, anchor)
     if clipboard.hasVoxels and not target then
         done(false, nil, "server-rejected-target-grid-alignment: " .. tostring(target_reason))
+        finish_process("error", "The server rejected the target: " .. tostring(target_reason), "warn")
+        remote_progress_callback = nil
         return
     end
     local axis = clipboard.region.rotationAxis or setting("rotationAxis")
@@ -2420,21 +2699,24 @@ local function server_begin_remote_paste(peer, request_id, content, metadata, do
     local context = {anchor = anchor, plan = plan, target = target,
         bounds = plan_world_bounds(plan, anchor), turns = metadata.turns, axis = axis, blueprint = clipboard}
     remote_setting_override = {pasteVoxelMode = metadata.voxelMode, targetPropMode = metadata.targetPropMode}
-    server_remote_paste = {peer = peer, request_id = request_id, metadata = metadata,
+    server_remote_paste = {peer = peer, request_id = request_id, metadata = metadata, progress = progress,
         done = done, context = context, elapsed = 0, started = false,
         session = current_session(), initial_undo = undo_state}
     shroudforge.log.info(string.format("World Editor P2P received validated V7 blueprint %s from Steam peer %s (%d bytes; server applies it natively)",
         blueprint_name, peer, #content))
 end
 
-local function server_begin_remote_undo(peer, request_id, transaction, done)
+local function server_begin_remote_undo(peer, request_id, transaction, done, progress)
     local journal = server_remote_transaction
     if not journal or journal.peer ~= peer or journal.transaction ~= transaction then
         done(false, "server-undo-token-is-stale-or-belongs-to-another-peer")
         return
     end
     if server_remote_undo then done(false, "server-undo-is-already-running"); return end
-    server_remote_undo = {peer = peer, request_id = request_id, transaction = transaction,
+    remote_progress_callback = progress
+    begin_process("Undo placement from client", "Checking undo journal", 4,
+        "Received the client's request to restore its previous world state.")
+    server_remote_undo = {peer = peer, request_id = request_id, transaction = transaction, progress = progress,
         done = done, elapsed = 0, session = journal.session}
 end
 
@@ -2453,6 +2735,7 @@ local function create_p2p_bridge()
             return false
         end,
         on_result = on_p2p_result,
+        on_progress = on_p2p_progress,
         on_paste = server_begin_remote_paste,
         on_undo = server_begin_remote_undo,
     })
@@ -2476,12 +2759,18 @@ paste_remote = function(use_current_cursor, cursor_override)
         if not clipboard then return end
         local content, reason = encode_blueprint(clipboard)
         if not content then set_editor_message("selected", tostring(reason)); return end
+        begin_process("Place blueprint on dedicated server", "Sending blueprint", 0,
+            string.format("Sending %s to the dedicated server.", active_blueprint_name or "the active blueprint"))
         local ok, request = p2p_bridge.start_paste(peer, content, {
             anchor = anchor, turns = rotation_turns(),
             voxelMode = setting("pasteVoxelMode") == "add" and "add" or "replace",
             targetPropMode = setting("targetPropMode") == "replace" and "replace" or "keep",
         })
-        if not ok then set_editor_message("selected", tostring(request)); return end
+        if not ok then
+            set_editor_message("selected", tostring(request))
+            finish_process("error", "The client could not send the blueprint: " .. tostring(request), "warn")
+            return
+        end
         remote_request_pending = true
         set_editor_message("building", "Sending the existing V7 blueprint to the dedicated server. Its runtime performs the placement; wait for confirmation before pressing F4.")
         shroudforge.log.info("World Editor queued P2P blueprint request " .. tostring(request) .. " to server Steam peer " .. peer ..
@@ -2510,8 +2799,14 @@ undo_remote = function()
         set_editor_message("building", "The server is still processing the previous World Editor request. No duplicate was sent.")
         return
     end
+    begin_process("Undo placement on dedicated server", "Sending undo request", 0,
+        "Asking the dedicated server to restore its saved world state.")
     local ok, request = p2p_bridge.start_undo(remote_undo.peer, remote_undo.transaction)
-    if not ok then set_editor_message("recovery", tostring(request)); return end
+    if not ok then
+        set_editor_message("recovery", tostring(request))
+        finish_process("error", "The undo request could not be sent: " .. tostring(request), "warn")
+        return
+    end
     remote_request_pending = true
     set_editor_message("building", "F4 sent the server-owned undo request. Waiting for its native readback result…")
     shroudforge.log.info("World Editor queued P2P undo request " .. tostring(request))
@@ -2521,6 +2816,10 @@ local function finish_server_remote_paste(job, ok, transaction, reason)
     if server_remote_paste ~= job then return end
     server_remote_paste = nil
     remote_setting_override = nil
+    remote_progress_callback = nil
+    if not ok and process_progress.state == "running" then
+        finish_process("error", "Server placement did not complete: " .. tostring(reason), "warn")
+    end
     job.done(ok, transaction, reason)
 end
 
@@ -2547,11 +2846,16 @@ local function update_server_remote_paste(delta_seconds)
         local ready = session ~= 0
         for _, operation in ipairs(required) do if not runtime.has(operation) then ready = false end end
         if not ready then
+            process_step("Waiting for server world APIs", 0, 0,
+                "Waiting for the server's native world APIs to become ready.", "debug")
             if job.elapsed >= 45 then finish_server_remote_paste(job, false, nil, "server-world-runtime-did-not-become-ready"); return end
             return
         end
         job.session = session
         job.started = true
+        remote_progress_callback = job.progress
+        process_step("Preparing server placement", 1, 5,
+            "The server world is ready; preparing the target and undo data.")
         local before = undo_state
         paste_voxels(false, nil, nil, job.context)
         job.initial_undo = before
@@ -2579,6 +2883,8 @@ local function update_server_remote_undo(delta_seconds)
     if not transaction or transaction.peer ~= job.peer or transaction.transaction ~= job.transaction or
        transaction.session ~= current_session() then
         server_remote_undo = nil
+        remote_progress_callback = nil
+        finish_process("error", "The server undo token belongs to another or ended world session.", "warn")
         job.done(false, "server-world-session-changed-or-undo-token-expired")
         return
     end
@@ -2586,12 +2892,15 @@ local function update_server_remote_undo(delta_seconds)
        (not runtime.has("runtime.world.voxel.read") or not runtime.has("runtime.world.voxel.write")) then
         if job.elapsed >= 45 then
             server_remote_undo = nil
+            remote_progress_callback = nil
+            finish_process("error", "The server terrain APIs did not become ready for undo.", "warn")
             job.done(false, "server-voxel-runtime-did-not-become-ready")
         end
         return
     end
     if not undo_state then
         server_remote_transaction, server_remote_undo = nil, nil
+        remote_progress_callback = nil
         job.done(true, "undo-already-complete")
         return
     end
@@ -2601,20 +2910,41 @@ local function update_server_remote_undo(delta_seconds)
     end
     if not undo_state then
         server_remote_transaction, server_remote_undo = nil, nil
+        remote_progress_callback = nil
         job.done(true, "undo-confirmed")
     elseif pending_world_action then
         if job.elapsed >= 45 then
             server_remote_undo = nil
+            remote_progress_callback = nil
+            finish_process("error", "The server world context did not become ready for undo.", "warn")
             job.done(false, "server-undo-world-context-did-not-become-ready")
         end
     else
         server_remote_undo = nil
+        remote_progress_callback = nil
+        if process_progress.state == "running" then
+            finish_process("error", "Server undo paused: " .. tostring(editor_hint), "warn")
+        end
         job.done(false, editor_hint or "server-undo-needs-recovery; retry F4")
     end
 end
 
 local function create_server_peer_list()
     return server_peer_ids()
+end
+
+local function refresh_blueprint_library_with_progress()
+    begin_process("Refresh blueprint library", "Reading blueprint files", 1,
+        "Refreshing the saved blueprint list.")
+    local ok = refresh_blueprint_library()
+    if ok then
+        process_step("Blueprint library refreshed", 1, 1,
+            "The saved blueprint list is up to date.")
+        finish_process("complete", "Blueprint library refreshed.")
+    else
+        finish_process("error", "The blueprint list could not be refreshed. Check the World Editor log.", "warn")
+    end
+    return ok
 end
 
 p2p_bridge = create_p2p_bridge()
@@ -2646,7 +2976,7 @@ on_action("selectBlueprint", function(name)
     load_blueprint(name)
 end)
 on_action("newBlueprint", start_new_blueprint)
-on_action("refreshBlueprintLibrary", refresh_blueprint_library)
+on_action("refreshBlueprintLibrary", refresh_blueprint_library_with_progress)
 on_action("renameLibraryBlueprint", rename_library_blueprint)
 on_action("duplicateLibraryBlueprint", duplicate_library_blueprint)
 on_action("deleteLibraryBlueprint", delete_library_blueprint)

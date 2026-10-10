@@ -81,14 +81,14 @@ button,input{color:inherit}
 body.capturing .shell:after{content:"";position:absolute;left:8px;right:8px;bottom:5px;height:2px;background:linear-gradient(90deg,transparent,var(--sf-gold),var(--sf-blue),transparent);background-size:220% 100%;animation:scan 1s linear infinite}
 @keyframes scan{to{background-position:-220% 0}}
 
-.save-progress{width:174px;min-width:140px;flex:0 1 174px;color:var(--sf-muted);font-size:9px}
-.save-progress[hidden]{display:none}
-.save-caption{display:flex;justify-content:space-between;gap:6px;margin-bottom:4px;white-space:nowrap}
-#saveLabel{overflow:hidden;text-overflow:ellipsis}
-#saveElapsed{flex:none;font-variant-numeric:tabular-nums}
-.save-progress progress{display:block;width:100%;height:5px;border:0;border-radius:3px;overflow:hidden;background:#24363c;appearance:none}
-.save-progress progress::-webkit-progress-bar{background:#24363c;border-radius:3px}
-.save-progress progress::-webkit-progress-value{background:var(--sf-gold);border-radius:3px}
-.save-progress[data-status="complete"] progress::-webkit-progress-value{background:var(--sf-green)}
-.save-progress[data-status="error"]{color:#ef7078}
-.save-progress[data-status="error"] progress::-webkit-progress-value{background:#ef7078}
+.process-progress{width:286px;min-width:205px;flex:0 1 286px;color:var(--sf-muted);font-size:9px}
+.process-progress[hidden]{display:none}
+.process-caption{display:flex;justify-content:space-between;gap:6px;margin-bottom:4px;white-space:nowrap}
+#processLabel{overflow:hidden;text-overflow:ellipsis}
+#processElapsed{flex:none;font-variant-numeric:tabular-nums}
+.process-progress progress{display:block;width:100%;height:5px;border:0;border-radius:3px;overflow:hidden;background:#24363c;appearance:none}
+.process-progress progress::-webkit-progress-bar{background:#24363c;border-radius:3px}
+.process-progress progress::-webkit-progress-value{background:var(--sf-gold);border-radius:3px}
+.process-progress[data-status="complete"] progress::-webkit-progress-value{background:var(--sf-green)}
+.process-progress[data-status="error"]{color:#ef7078}
+.process-progress[data-status="error"] progress::-webkit-progress-value{background:#ef7078}
