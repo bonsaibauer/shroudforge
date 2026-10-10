@@ -13892,6 +13892,54 @@
     {
       "kind": "field",
       "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.remote_dedicated_server_steam_id",
+      "signature": "RuntimeNetworkStatus.remote_dedicated_server_steam_id: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.configured_server_steam_id",
+      "signature": "RuntimeNetworkStatus.configured_server_steam_id: string?",
+      "params": [],
+      "returns": [
+        "string?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.allowed_client_steam_ids",
+      "signature": "RuntimeNetworkStatus.allowed_client_steam_ids: string[]?",
+      "params": [],
+      "returns": [
+        "string[]?"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
+      "name": "RuntimeNetworkStatus.service_ready",
+      "signature": "RuntimeNetworkStatus.service_ready: boolean",
+      "params": [],
+      "returns": [
+        "boolean"
+      ],
+      "description": "",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "field",
+      "namespace": "runtime",
       "name": "RuntimeNetworkStatus.reason",
       "signature": "RuntimeNetworkStatus.reason: string?",
       "params": [],
@@ -14016,7 +14064,7 @@
         "boolean",
         "string?"
       ],
-      "description": "Accept an incoming session request from a known peer before receiving its first message.",
+      "description": "Accept an incoming session request from a known peer. Runtime Network also accepts Steam session requests automatically for authenticated transport; this manual call remains for compatibility.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -14029,7 +14077,7 @@
         "string[]|nil",
         "string|nil"
       ],
-      "description": "Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server.",
+      "description": "Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server, filtered by the Network module's optional allowlist.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -14127,7 +14175,7 @@
         "RuntimeModNetworkMessage[]?",
         "string?"
       ],
-      "description": "Receive messages addressed to this mod. Call from runtime on_update; each message includes the sender mod ID and Steam peer ID. The mod must accept a new peer with runtime.network.accept(peer_steam_id) before its first incoming session.",
+      "description": "Receive messages addressed to this mod. Call from runtime on_update; each message includes the sender mod ID and Steam peer ID. Runtime Network accepts the Steam transport session automatically; mods should still validate their own protocol and permissions.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
@@ -16368,7 +16416,7 @@
         }
       ],
       "returns": [],
-      "description": "",
+      "description": "Publish or update a notice in the player's Modloader news feed. This does not distribute the notice to other players.",
       "source": "shroudforge/v1/definitions/shroudforge.lua"
     },
     {
