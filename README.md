@@ -69,7 +69,7 @@ Open the game, press **F9**, find the mod, and switch it on. Some mods need a ga
 
 Read the full [PC quickstart](https://bonsaibauer.github.io/shroudforge/en/#play) for screenshots and help with each step.
 
-### Multiplayer server quickstart
+## Multiplayer server quickstart
 
 > [!NOTE]
 > The extra environment setting below is only for the Proton Docker image. It is not needed for the Windows game or the Enshrouded Dedicated Server installed through Steam.
