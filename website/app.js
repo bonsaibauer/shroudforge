@@ -13,6 +13,9 @@ const apiGuides = docRoutes.filter(page => page.apiSymbols?.length || page.apiPr
 const pageIds = [...staticPageIds, ...docPageIds];
 const docNavGroups = groupDocsForNavigation(docRoutes);
 const state = { page: "home", catalog: "api", apiSource: "all", api: [], apiVersion: null, apiLoaded: false, profile: null, snapshot: null, types: {}, typesLoaded: false, resources: {}, resourcesLoaded: false, manifest: null, extended: null, editor: "mod" };
+let apiLoadPromise;
+let gameProfilePromise;
+const gameDataPromises = {};
 let uploadedIcon = null;
 let editingSettingKey = null;
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -951,9 +954,6 @@ $("#mod-preview").addEventListener("input", event => {
 });
 updatePreview();
 
-let apiLoadPromise;
-let gameProfilePromise;
-const gameDataPromises = {};
 async function loadCatalog() {
   if (state.apiLoaded) { renderApi($("#api-search")?.value || ""); return; }
   if (apiLoadPromise) return apiLoadPromise;
