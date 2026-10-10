@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-unlock-blueprints",
+  "title": {
+    "de": "SF Unlock Blueprints",
+    "en": "SF Unlock Blueprints"
+  },
+  "summary": {
+    "de": "Ändert die Freischaltbedingungen von Rezepten auf den ersten Hinweis am Flammenaltar.",
+    "en": "Changes recipe unlock requirements to the first Flame Altar hint."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Unlock Blueprints",
+    "en": "Built-in mods · SF Unlock Blueprints"
+  },
+  "navOrder": 150,
+  "order": 0
+}

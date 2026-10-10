@@ -1,10 +1,16 @@
 import de from "./content.de.js";
 import en from "./content.en.js";
+import docPages from "./pages/index.js";
 
 const locale = document.documentElement.dataset.locale === "de" ? "de" : "en";
 const copy = locale === "de" ? de : en;
 const siteRoot = new URL("./", import.meta.url);
-const pageIds = ["home", "play", "server", "workings", "first", "manifests", "community", "api"];
+const staticPageIds = ["home", "play", "server", "server-files", "server-windows", "server-docker", "workings", "runtime", "first", "manifests", "community", "api"];
+const docRoutes = docPages.map(page => ({ ...page, route: `doc-${page.id}` }));
+const docPageByRoute = new Map(docRoutes.map(page => [page.route, page]));
+const docPageIds = docRoutes.map(page => page.route);
+const pageIds = [...staticPageIds, ...docPageIds];
+const docNavGroups = groupDocsForNavigation(docRoutes);
 const state = { page: "home", catalog: "api", apiSource: "all", api: [], profile: null, types: {}, resources: {}, manifest: null, extended: null, editor: "mod" };
 let uploadedIcon = null;
 let editingSettingKey = null;
@@ -12,16 +18,34 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&a
 const fmt = value => Number(value || 0).toLocaleString(locale === "de" ? "de-DE" : "en-US");
 
 document.documentElement.lang = locale;
-document.title = locale === "de" ? "ShroudForge — Spieler- und Modding-Guide" : "ShroudForge — Player and modding guide";
+document.title = locale === "de" ? "ShroudForge — Spiel-, Server- und Modding-Guide" : "ShroudForge — Player, server and modding guide";
 document.querySelector('meta[name="description"]')?.setAttribute("content", locale === "de"
-  ? "ShroudForge einrichten, Mods installieren und eigene EML- und ShroudForge-Mods entwickeln."
-  : "Set up ShroudForge, install mods, and build your own EML and ShroudForge mods.");
+  ? "ShroudForge für PC und Server einrichten, Mods installieren und verstehen, wie Loader, Lua Runtime und KFC Runtime arbeiten."
+  : "Set up ShroudForge for PC and servers, install mods, and learn how the loader, Lua runtime, and KFC Runtime work.");
 localStorage.setItem("sf-language", locale);
+
+function groupDocsForNavigation(pages) {
+  const groups = new Map();
+  for (const page of pages) {
+    const label = page.navGroup?.[locale] || (locale === "de" ? "Modding-Referenz" : "Modding reference");
+    const order = page.navOrder ?? 1000;
+    const key = `${order}:${label}`;
+    if (!groups.has(key)) groups.set(key, { label, order, items: [] });
+    groups.get(key).items.push({ id: page.route, label: page.title[locale].replaceAll("`", ""), order: page.order ?? 1000 });
+  }
+  return [...groups.values()].sort((left, right) => left.order - right.order || left.label.localeCompare(right.label, locale))
+    .map(group => ({ ...group, items: group.items.sort((left, right) => left.order - right.order || left.label.localeCompare(right.label, locale)) }));
+}
+
+const docNavigation = docNavGroups.map(group => `<details class="nav-doc-group"><summary>${esc(group.label)}</summary><div>${group.items.map(item => `<button class="nav-item nav-child" data-view="${item.id}"><span>${esc(item.label)}</span></button>`).join("")}</div></details>`).join("");
+const pageMarkup = pageIds.map(id => docPageByRoute.has(id)
+  ? `<section id="view-${id}" class="view doc-view"><article class="markdown-page" data-doc-page="${id}"><div class="doc-loading">${locale === "de" ? "Artikel wird geladen …" : "Loading article …"}</div></article></section>`
+  : `<section id="view-${id}" class="view ${id === "home" ? "active" : ""}">${copy[id]}</section>`).join("");
 
 document.querySelector("#app").innerHTML = `
   <header class="topbar"><a href="#home" class="brand" data-view="home" aria-label="ShroudForge home"><img src="../media/shroudforge-mark.svg" alt=""><span><b>SHROUDFORGE</b><small>${copy.brand}</small></span></a><div class="top-actions"><a class="top-link" href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><a class="top-link release-link" href="https://github.com/bonsaibauer/shroudforge/releases/latest" target="_blank" rel="noreferrer">${copy.download} ↗</a><nav class="language-switch" aria-label="${locale === "de" ? "Sprache wählen" : "Choose language"}"><a data-language="de" href="../de/#${location.hash.slice(1) || "home"}" lang="de" title="Deutsch" aria-label="Deutsch" ${locale === "de" ? 'aria-current="page"' : ""}><img src="../media/flag-de.svg" alt=""></a><a data-language="en" href="../en/#${location.hash.slice(1) || "home"}" lang="en" title="English" aria-label="English" ${locale === "en" ? 'aria-current="page"' : ""}><img src="../media/flag-en.svg" alt=""></a></nav><button class="mobile-menu" id="mobile-menu" aria-label="${copy.menu}">☰</button></div></header>
-  <aside class="sidebar"><div class="sidebar-label">${copy.menu}</div><nav>${copy.nav.map((label, i) => `<button class="nav-item ${i === 0 ? "active" : ""}" data-view="${pageIds[i]}"><span class="nav-index">0${i + 1}</span><span>${label}</span>${i === 0 ? '<i class="nav-glow"></i>' : ""}</button>`).join("")}</nav><div class="sidebar-bottom"><div class="sidebar-mark"><span class="status-dot"></span><span>ENSHROUDED<br><small>MODDING PLATFORM</small></span></div><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a></div></aside>
-  <main class="main-content"><div class="content-wrap">${pageIds.map(id => `<section id="view-${id}" class="view ${id === "home" ? "active" : ""}">${copy[id]}</section>`).join("")}<footer class="site-footer"><span>© SHROUDFORGE · ${copy.footer}</span><span><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><b>·</b><a href="#api" data-view="api">${copy.nav[7]}</a></span></footer></div></main>`;
+  <aside class="sidebar"><div class="sidebar-label">${copy.menu}</div><nav>${copy.navGroups.map(group => `<div class="nav-group"><div class="nav-group-title">${group.label}</div>${group.items.map(item => `<button class="nav-item ${item.child ? "nav-child" : ""} ${item.id === "home" ? "active" : ""}" data-view="${item.id}"><span>${item.label}</span>${item.id === "home" ? '<i class="nav-glow"></i>' : ""}</button>${group.items.some(entry => entry.id === "manifests") && item.id === "api" ? docNavigation : ""}`).join("")}</div>`).join("")}</nav><div class="sidebar-bottom"><div class="sidebar-mark"><span class="status-dot"></span><span>ENSHROUDED<br><small>MODDING PLATFORM</small></span></div><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a></div></aside>
+  <main class="main-content"><div class="content-wrap">${pageMarkup}<footer class="site-footer"><span>© SHROUDFORGE · ${copy.footer}</span><span><a href="https://github.com/bonsaibauer/shroudforge" target="_blank" rel="noreferrer">${copy.github} ↗</a><b>·</b><a href="#api" data-view="api">${copy.apiLabel}</a></span></footer></div></main>`;
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -67,6 +91,10 @@ function rebuildManifestStudio() {
   modBuilder.querySelector(".dependency-builder").after(dependencyList);
   const addToExtended = node => { if (node) extBuilder.append(node); };
   addToExtended($("#extended-core"));
+  const targetsPicker = document.createElement("fieldset");
+  targetsPicker.className = "target-picker builder-wide";
+  targetsPicker.innerHTML = `<legend>${locale === "de" ? "Wo läuft dieser Mod? · targets" : "Where does this mod run? · targets"}</legend><small>${locale === "de" ? "Das wählt den Spielprozess. Es synchronisiert keine Änderungen zwischen Spielern." : "This selects the game process. It does not synchronize changes between players."}</small><div><label><input type="checkbox" id="target-client" value="client"> ${locale === "de" ? "Spieler-Client" : "Player client"}</label><label><input type="checkbox" id="target-server" value="server"> Dedicated Server</label></div>`;
+  $("#extended-core").append(targetsPicker);
   const settingHeading = [...builder.children].find(node => node.classList?.contains("builder-heading") && (node.textContent.includes("Einstellung hinzufügen") || node.textContent.includes("Add a mod setting")));
   const settingFields = settingHeading?.nextElementSibling;
   if (settingHeading) { addToExtended(settingHeading); addToExtended(settingFields); }
@@ -106,10 +134,114 @@ function setPage(page, updateHash = true) {
   state.page = page;
   $$(".view").forEach(view => view.classList.toggle("active", view.id === `view-${page}`));
   $$(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.view === page));
+  $$(".nav-doc-group").forEach(group => { if (group.querySelector(`[data-view="${page}"]`)) group.open = true; });
   if (updateHash) history.replaceState(null, "", `#${page}`);
   $(".sidebar").classList.remove("open");
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (page === "api") loadCatalog();
+  const docPage = docPageByRoute.get(page);
+  if (docPage) loadMarkdownPage(docPage);
+}
+
+async function loadMarkdownPage(page) {
+  const article = document.querySelector(`[data-doc-page="${page.route}"]`);
+  if (!article || article.dataset.locale === locale) return;
+  article.innerHTML = `<div class="doc-loading">${locale === "de" ? "Artikel wird geladen …" : "Loading article …"}</div>`;
+  try {
+    const response = await fetch(new URL(`${page.path}${locale}.md`, import.meta.url));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const markdown = await response.text();
+    article.innerHTML = renderMarkdown(markdown, page);
+    article.dataset.locale = locale;
+    addCopyControls();
+  } catch (error) {
+    article.innerHTML = `<div class="callout error"><b>${locale === "de" ? "Artikel konnte nicht geladen werden" : "Could not load article"}</b><span>${esc(error.message)}</span></div>`;
+  }
+}
+
+function renderMarkdown(markdown, page) {
+  const lines = markdown.replaceAll("\r", "").split("\n");
+  const blocks = [];
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) { index++; continue; }
+    const fence = line.match(/^\s*```([\w-]*)\s*$/);
+    if (fence) {
+      const codeLines = [];
+      index++;
+      while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) codeLines.push(lines[index++]);
+      index++;
+      blocks.push(`<pre><code${fence[1] ? ` class="language-${esc(fence[1])}"` : ""}>${esc(codeLines.join("\n"))}</code></pre>`);
+      continue;
+    }
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      blocks.push(`<h${level}>${renderMarkdownInline(heading[2], page)}</h${level}>`);
+      index++;
+      continue;
+    }
+    if (/^\s*(?:---+|\*\*\*+)\s*$/.test(line)) { blocks.push("<hr>"); index++; continue; }
+    if (line.startsWith("> ")) {
+      const quote = [];
+      while (index < lines.length && lines[index].startsWith("> ")) quote.push(lines[index++].slice(2));
+      blocks.push(`<blockquote><p>${renderMarkdownInline(quote.join(" "), page)}</p></blockquote>`);
+      continue;
+    }
+    if (line.includes("|") && index + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[index + 1])) {
+      const rows = [line, lines[index + 1]];
+      index += 2;
+      while (index < lines.length && lines[index].includes("|")) rows.push(lines[index++]);
+      const cells = row => row.trim().replace(/^\||\|$/g, "").split("|").map(cell => cell.trim());
+      const header = cells(rows[0]);
+      const tableRows = rows.slice(2).map(cells);
+      blocks.push(`<div class="doc-table-wrap"><table class="doc-table"><thead><tr>${header.map(cell => `<th>${renderMarkdownInline(cell, page)}</th>`).join("")}</tr></thead><tbody>${tableRows.map(row => `<tr>${row.map(cell => `<td>${renderMarkdownInline(cell, page)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+      continue;
+    }
+    if (/^\s*[-*+]\s+/.test(line)) {
+      const items = [];
+      while (index < lines.length && /^\s*[-*+]\s+/.test(lines[index])) items.push(lines[index++].replace(/^\s*[-*+]\s+/, ""));
+      blocks.push(`<ul>${items.map(item => `<li>${renderMarkdownInline(item, page)}</li>`).join("")}</ul>`);
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = [];
+      while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index])) items.push(lines[index++].replace(/^\s*\d+\.\s+/, ""));
+      blocks.push(`<ol>${items.map(item => `<li>${renderMarkdownInline(item, page)}</li>`).join("")}</ol>`);
+      continue;
+    }
+    const paragraph = [line.trim()];
+    index++;
+    while (index < lines.length && lines[index].trim() && !/^(#{1,4})\s+/.test(lines[index]) && !/^\s*```/.test(lines[index]) && !/^\s*[-*+]\s+/.test(lines[index]) && !/^\s*\d+\.\s+/.test(lines[index]) && !lines[index].startsWith("> ")) paragraph.push(lines[index++].trim());
+    blocks.push(`<p>${renderMarkdownInline(paragraph.join("\n"), page)}</p>`);
+  }
+  return blocks.join("\n");
+}
+
+function renderMarkdownInline(value, page) {
+  const codeParts = [];
+  let html = esc(value).replace(/`([^`]+)`/g, (_, content) => {
+    const token = `\u0000CODE${codeParts.length}\u0000`;
+    codeParts.push(`<code>${content}</code>`);
+    return token;
+  });
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, href) => `<img src="${esc(resolveMarkdownUrl(href, page))}" alt="${alt}">`);
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+    if (href.startsWith("#")) {
+      const target = href.slice(1);
+      return `<a href="${esc(href)}"${pageIds.includes(target) ? ` data-view="${esc(target)}"` : ""}>${label}</a>`;
+    }
+    const external = /^https?:\/\//i.test(href);
+    return `<a href="${esc(resolveMarkdownUrl(href, page))}"${external ? ' target="_blank" rel="noreferrer"' : ""}>${label}</a>`;
+  });
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return html.replace(/\u0000CODE(\d+)\u0000/g, (_, number) => codeParts[Number(number)]);
+}
+
+function resolveMarkdownUrl(href, page) {
+  try { return new URL(href, new URL(page.path, import.meta.url)).href; }
+  catch { return href; }
 }
 
 document.addEventListener("click", event => {
@@ -228,7 +360,11 @@ function changeEditor(mode) {
   setBuilderTab(mode);
   $$('[data-editor-tab]').forEach(button => button.classList.toggle('active', button.dataset.editorTab === mode));
   if (mode === 'mod') readManifestIntoBuilder();
-  else $('#extended-enabled').checked = Boolean(parseCurrent()?.enabled);
+  else {
+    const extended = parseCurrent() || {};
+    $('#extended-enabled').checked = Boolean(extended.enabled);
+    syncTargetPicker(extended);
+  }
   updatePreview();
 }
 
@@ -239,6 +375,7 @@ function updatePreview() {
   let manifest = {}, extended = {}, errors = [];
   try { manifest = JSON.parse(state.manifest); } catch (error) { errors.push(`${copy.editor.labelMod}: ${locale === "de" ? "Bitte prüfe Kommas, Anführungszeichen und Klammern." : "Check the commas, quotation marks, and brackets."}`); }
   try { extended = JSON.parse(state.extended); } catch (error) { errors.push(`${copy.editor.labelExtended}: ${locale === "de" ? "Bitte prüfe Kommas, Anführungszeichen und Klammern." : "Check the commas, quotation marks, and brackets."}`); }
+  if (extended && typeof extended === "object") syncTargetPicker(extended);
   if (!errors.length) errors.push(...validateManifests(manifest, extended));
   const validation = $("#validation");
   validation.className = `validation ${errors.length ? "error" : "success"}`;
@@ -281,10 +418,11 @@ function validateManifests(manifest, extended) {
       }
     }
   }
-  checkKeys(extended, ["$schema", "schemaVersion", "enabled", "launcher", "links", "changelog", "settings", "groups"], "extended.mod.json");
+  checkKeys(extended, ["$schema", "schemaVersion", "enabled", "targets", "launcher", "links", "changelog", "settings", "groups"], "extended.mod.json");
   if (extended.schemaVersion !== 1) fail("extended.mod.json: schemaVersion must be 1.");
   if (extended["$schema"] !== undefined && typeof extended["$schema"] !== "string") fail("extended.mod.json: $schema must be a text address.");
   if (typeof extended.enabled !== "boolean") fail("extended.mod.json: enabled must be true or false.");
+  if (extended.targets !== undefined && (!Array.isArray(extended.targets) || extended.targets.length < 1 || extended.targets.some(target => !["client", "server"].includes(target)) || new Set(extended.targets).size !== extended.targets.length)) fail("extended.mod.json: targets must contain client, server, or both once each.");
   if (extended.launcher !== undefined && !["EML", "SF"].includes(extended.launcher)) fail("extended.mod.json: launcher must be EML or SF.");
   if (extended.links !== undefined && (!extended.links || typeof extended.links !== "object" || Array.isArray(extended.links) || Object.entries(extended.links).some(([key, url]) => !/^[a-z][a-z0-9-]*$/.test(key) || typeof url !== "string" || !url.startsWith("https://") || url.length > 2048))) fail("extended.mod.json: link names must be lowercase and each link must be an HTTPS address.");
   if (extended.changelog !== undefined && (!Array.isArray(extended.changelog) || extended.changelog.length > 50 || extended.changelog.some(item => typeof item !== "string" || !item || item.length > 500))) fail("extended.mod.json: changelog allows up to 50 notes, each 1–500 characters.");
@@ -339,6 +477,7 @@ function renderSchemaReference() {
     { title: "extended.mod.json", rows: [
       ["schemaVersion", "integer", de ? "Version des Erweiterungsformats." : "Extension format version.", "fest: 1"],
       ["enabled", "boolean", de ? "Ob der Mod eingeschaltet ist." : "Whether the mod is enabled.", "true | false"],
+      ["targets", "string[]", de ? "Prozesse, in denen der Mod ausgeführt wird. Das ist keine Netzwerk-Synchronisierung." : "Processes in which the mod runs. This is not network synchronization.", de ? "client · server · beide. EML startet standardmäßig auf beiden, ShroudForge standardmäßig auf dem Client." : "client · server · both. EML defaults to both, ShroudForge defaults to the client."],
       ["launcher", "string", de ? "Ursprünglicher Launcher; EML hält die EML-Herkunft sichtbar." : "Original launcher; EML preserves EML provenance.", "EML | SF; omitted defaults to SF"],
       ["settings.<key>", "value | object", de ? "Startwert und optionale Steuerung/Regeln für ein Feld." : "Starting value and optional control/rules for a field.", "Key: 1–80 Zeichen; value erforderlich: boolean, string, number oder array"],
       ["settings.<key>.control", "string", de ? "Steuerelement im Modloader." : "Control displayed in Modloader.", "toggle · checkbox · text · textarea · number · slider · select · radio · segmented · multiselect · keybind · color"],
@@ -530,6 +669,12 @@ function updateExtended(mutator) {
   renderBadgeBuilder();
   renderExtendedItems();
 }
+function syncTargetPicker(extended) {
+  const targets = Array.isArray(extended.targets) ? extended.targets : extended.launcher === "EML" ? ["client", "server"] : ["client"];
+  const client = $("#target-client"), server = $("#target-server");
+  if (client) client.checked = targets.includes("client");
+  if (server) server.checked = targets.includes("server");
+}
 $("#add-group")?.addEventListener("click", () => {
   const label = $("#group-label").value.trim();
   if (!label) return;
@@ -653,11 +798,15 @@ function renderPreview(manifest, extended) {
     return `<section class="mock-group"><header><b>${esc(group.label)}</b>${group.description ? `<small>${esc(group.description)}</small>` : ""}</header>${settings.map(key => renderSetting(key, extended.settings[key])).join("")}${actions ? `<div class="mock-actions">${actions}</div>` : ""}</section>`;
   }).join("");
   const usedSettings = new Set(groups.flatMap(group => group.settings || []));
-  const ungrouped = entries.filter(([key]) => !usedSettings.has(key)).map(([key, setting]) => renderSetting(key, setting)).join("");
+  const ungroupedEntries = entries.filter(([key]) => !usedSettings.has(key));
+  const ungrouped = ungroupedEntries.length ? `<section class="mock-group"><header><b>${locale === "de" ? "Einstellungen" : "Settings"}</b></header>${ungroupedEntries.map(([key, setting]) => renderSetting(key, setting)).join("")}</section>` : "";
   const links = linkBadges.filter(([id]) => extended.links?.[id]).map(([id, en, de]) => `<a class="mock-badge" href="${esc(extended.links[id])}" target="_blank" rel="noreferrer">${esc(locale === "de" ? de : en)} ↗</a>`).join("");
   const changelog = (extended.changelog || []).map(item => `<li>${esc(item)}</li>`).join("");
   const capabilities = manifest.capabilities || [];
-  const target = locale === "de" ? "Client & Server" : "Client & server";
+  const effectiveTargets = Array.isArray(extended.targets) ? extended.targets : extended.launcher === "EML" ? ["client", "server"] : ["client"];
+  const target = effectiveTargets.includes("client") && effectiveTargets.includes("server")
+    ? (locale === "de" ? "Client & Server" : "Client & server")
+    : effectiveTargets.includes("server") ? "Server" : "Client";
   const runtime = capabilities.includes("runtime") && !capabilities.includes("patch");
   const ecosystem = extended.launcher || "SF";
   const icon = uploadedIcon?.dataUrl || "";
@@ -700,6 +849,16 @@ $("#manifest-editor").addEventListener("input", () => { state.manifest = $("#man
 $("#mod-builder").addEventListener("input", event => { if (event.target.matches("#mod-icon") && uploadedIcon && event.target.value !== uploadedIcon.file.name) { $("#mod-icon-file").value = ""; showUploadedIcon(null, ""); } if (event.target.matches("#mod-id, #mod-name, #mod-version, #mod-authors, #mod-description, #mod-license, #mod-icon, [data-capability]")) $("#apply-mod-info").click(); });
 $("#mod-builder").addEventListener("change", event => { if (event.target.matches("[data-capability]")) $("#apply-mod-info").click(); });
 $("#extended-enabled").addEventListener("change", () => $("#apply-extended-core").click());
+$("#target-client")?.addEventListener("change", () => updateExtended(extended => {
+  const targets = [$("#target-client").checked ? "client" : null, $("#target-server").checked ? "server" : null].filter(Boolean);
+  if (targets.length) extended.targets = targets;
+  else { extended.targets = ["client"]; syncTargetPicker(extended); }
+}));
+$("#target-server")?.addEventListener("change", () => updateExtended(extended => {
+  const targets = [$("#target-client").checked ? "client" : null, $("#target-server").checked ? "server" : null].filter(Boolean);
+  if (targets.length) extended.targets = targets;
+  else { extended.targets = ["client"]; syncTargetPicker(extended); }
+}));
 $("#extended-editor").addEventListener("input", () => { updatePreview(); try { $("#extended-enabled").checked = Boolean(parseCurrent()?.enabled); renderBadgeBuilder(); } catch {} });
 async function copyText(text, button) {
   try { await navigator.clipboard.writeText(text); }

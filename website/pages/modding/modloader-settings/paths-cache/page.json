@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-cache",
+  "title": {
+    "de": "Einstellung `paths.cache`",
+    "en": "Setting `paths.cache`"
+  },
+  "summary": {
+    "de": "Ordner für wiederverwendbare Zwischendaten.",
+    "en": "Folder for reusable cached data."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 11
+}

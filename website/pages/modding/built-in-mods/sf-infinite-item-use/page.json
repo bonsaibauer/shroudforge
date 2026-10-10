@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-infinite-item-use",
+  "title": {
+    "de": "SF Infinite Item Use",
+    "en": "SF Infinite Item Use"
+  },
+  "summary": {
+    "de": "Verhindert, dass Gegenstände bei der Verwendung verbraucht werden.",
+    "en": "Prevents items from being consumed when used."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Infinite Item Use",
+    "en": "Built-in mods · SF Infinite Item Use"
+  },
+  "navOrder": 100,
+  "order": 0
+}

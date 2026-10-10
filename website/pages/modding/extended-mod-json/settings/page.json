@@ -1,0 +1,17 @@
+{
+  "id": "extension-settings",
+  "title": {
+    "de": "Feld `settings`",
+    "en": "The `settings` field"
+  },
+  "summary": {
+    "de": "Dynamische Schlüssel und Werte, die der Modloader als Mod-Einstellungen darstellt und Lua lesen kann.",
+    "en": "Dynamic keys and values that Modloader presents as mod settings and Lua can read."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 10
+}

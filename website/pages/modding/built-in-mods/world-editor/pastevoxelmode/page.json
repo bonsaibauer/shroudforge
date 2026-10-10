@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-pastevoxelmode",
+  "title": {
+    "de": "Voxel-Modus beim Einfügen · pasteVoxelMode",
+    "en": "Voxel mode · pasteVoxelMode"
+  },
+  "summary": {
+    "de": "Bestimmt, wie Voxel beim Einfügen zusammengeführt werden. `replace` ersetzt die Zielzellen, `add` fügt nur belegte Quellzellen hinzu.",
+    "en": "Controls how voxels are combined during paste. `replace` replaces target cells, while `add` adds only occupied source cells."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 15
+}

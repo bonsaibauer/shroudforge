@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-templateuuidhigh",
+  "title": {
+    "de": "Obere Hälfte der Template-UUID in Hexadezimal · templateUuidHigh",
+    "en": "Template UUID high (hex) · templateUuidHigh"
+  },
+  "summary": {
+    "de": "Obere hexadezimale Hälfte der nativen Template-UUID für die erweiterte Aktion Queue prop spawn.",
+    "en": "Upper hexadecimal half of the native template UUID for the advanced Queue prop spawn action."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Native Entity-Operationen",
+    "en": "Built-in mods · World Editor · Native entity operations"
+  },
+  "navOrder": 163,
+  "order": 26
+}

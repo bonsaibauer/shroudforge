@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-rotationaxis",
+  "title": {
+    "de": "Obere Blueprint-Achse · rotationAxis",
+    "en": "Blueprint up axis (stored on capture) · rotationAxis"
+  },
+  "summary": {
+    "de": "Obere Achse neuer Aufnahmen. Sie wird im Blueprint gespeichert, bereits gespeicherte Blueprints behalten ihre eigene Achse.",
+    "en": "Up axis for new captures. It is stored in the blueprint, and existing blueprints keep their own axis."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 24
+}

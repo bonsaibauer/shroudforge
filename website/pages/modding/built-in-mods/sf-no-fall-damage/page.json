@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-no-fall-damage",
+  "title": {
+    "de": "SF No Fall Damage",
+    "en": "SF No Fall Damage"
+  },
+  "summary": {
+    "de": "Verhindert Lebenspunkteverlust durch Stürze.",
+    "en": "Prevents health loss from falling."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF No Fall Damage",
+    "en": "Built-in mods · SF No Fall Damage"
+  },
+  "navOrder": 110,
+  "order": 0
+}

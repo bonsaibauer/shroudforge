@@ -1,0 +1,17 @@
+{
+  "id": "control-select",
+  "title": {
+    "de": "Steuerelement `select`",
+    "en": "The `select` control"
+  },
+  "summary": {
+    "de": "Für genau eine Auswahl aus options.",
+    "en": "For exactly one choice from options."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 6
+}

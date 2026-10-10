@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-runtime",
+  "title": {
+    "de": "Einstellung `paths.runtime`",
+    "en": "Setting `paths.runtime`"
+  },
+  "summary": {
+    "de": "Ordner für Lua- und native Laufzeitdaten sowie erkannte Spielprofile.",
+    "en": "Folder for Lua and native runtime data and detected game profiles."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 15
+}

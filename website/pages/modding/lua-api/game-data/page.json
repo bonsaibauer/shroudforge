@@ -1,0 +1,17 @@
+{
+  "id": "api-game-data",
+  "title": {
+    "de": "Spielressourcen, ECS und reflektierte Datentypen",
+    "en": "Game assets, ECS, and reflected data types"
+  },
+  "summary": {
+    "de": "Asset- und Runtime-Funktionen arbeiten in unterschiedlichen Phasen und brauchen passende Fähigkeiten oder ein unterstütztes Spielprofil.",
+    "en": "Asset and runtime functions operate in different phases and need the right capabilities or a supported game profile."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 8
+}

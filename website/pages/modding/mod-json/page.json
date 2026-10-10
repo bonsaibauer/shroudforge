@@ -1,0 +1,17 @@
+{
+  "id": "mod-json-guide",
+  "title": {
+    "de": "mod.json, der Steckbrief deines Mods",
+    "en": "mod.json, your mod's information card"
+  },
+  "summary": {
+    "de": "Diese Datei nennt die Mod-ID, den Namen, die Version und die Zugriffsrechte. Sie gehört in den Hauptordner deines Mods.",
+    "en": "This file declares the mod ID, name, version, and requested capabilities. It belongs in the root folder of your mod."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 0
+}

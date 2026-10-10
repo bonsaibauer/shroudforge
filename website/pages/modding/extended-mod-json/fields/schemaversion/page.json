@@ -1,0 +1,17 @@
+{
+  "id": "field-schemaversion",
+  "title": {
+    "de": "Feld `schemaVersion`",
+    "en": "The `schemaVersion` field"
+  },
+  "summary": {
+    "de": "Version der extended.mod.json-Struktur.",
+    "en": "Version of the extended.mod.json structure."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 1
+}

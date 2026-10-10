@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-description",
+  "title": {
+    "de": "Feld `groups[].description`",
+    "en": "The `groups[].description` field"
+  },
+  "summary": {
+    "de": "Kurzer Text für die Modseite.",
+    "en": "Short text shown on the mod page."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 1
+}

@@ -1,0 +1,17 @@
+{
+  "id": "capability-runtime",
+  "title": {
+    "de": "Berechtigung `runtime`",
+    "en": "The `runtime` capability"
+  },
+  "summary": {
+    "de": "Laufzeit-Callbacks und ShroudForge-Laufzeitfunktionen",
+    "en": "Runtime callbacks and ShroudForge runtime functions"
+  },
+  "navGroup": {
+    "de": "Berechtigungen in mod.json",
+    "en": "mod.json capabilities"
+  },
+  "navOrder": 12,
+  "order": 2
+}

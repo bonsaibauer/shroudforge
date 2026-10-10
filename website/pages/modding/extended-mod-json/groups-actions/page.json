@@ -1,0 +1,17 @@
+{
+  "id": "setting-groups-actions",
+  "title": {
+    "de": "Gruppen und Aktionsknöpfe",
+    "en": "Groups and action buttons"
+  },
+  "summary": {
+    "de": "Gruppen ordnen Mod-Einstellungen. Aktionsknöpfe rufen eine benannte Funktion deines Lua-Mods auf.",
+    "en": "Groups organize mod settings. Action buttons call a named function in your Lua mod."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 1
+}

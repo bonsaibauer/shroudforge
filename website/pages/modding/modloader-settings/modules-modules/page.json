@@ -1,0 +1,17 @@
+{
+  "id": "preference-modules-modules",
+  "title": {
+    "de": "Einstellung `modules.modules`",
+    "en": "Setting `modules.modules`"
+  },
+  "summary": {
+    "de": "Konfiguriert `modules.modules`.",
+    "en": "Configures `modules.modules`."
+  },
+  "navGroup": {
+    "de": "Modloader",
+    "en": "Modloader"
+  },
+  "navOrder": 60,
+  "order": 16
+}

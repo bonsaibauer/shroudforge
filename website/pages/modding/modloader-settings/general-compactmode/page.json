@@ -1,0 +1,17 @@
+{
+  "id": "preference-general-compactmode",
+  "title": {
+    "de": "Einstellung `general.compactMode`",
+    "en": "Setting `general.compactMode`"
+  },
+  "summary": {
+    "de": "Verdichtet die Modloader-Oberfläche.",
+    "en": "Uses a denser Modloader layout."
+  },
+  "navGroup": {
+    "de": "Allgemein",
+    "en": "General"
+  },
+  "navOrder": 60,
+  "order": 2
+}

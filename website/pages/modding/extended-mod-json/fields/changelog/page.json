@@ -1,0 +1,17 @@
+{
+  "id": "field-changelog",
+  "title": {
+    "de": "Feld `changelog`",
+    "en": "The `changelog` field"
+  },
+  "summary": {
+    "de": "Kurze Versionshinweise auf der Modseite.",
+    "en": "Short version notes on the mod page."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 6
+}

@@ -1,0 +1,17 @@
+{
+  "id": "field-description",
+  "title": {
+    "de": "Feld `description`",
+    "en": "The `description` field"
+  },
+  "summary": {
+    "de": "Kurzer Text für die Modseite.",
+    "en": "Short text shown on the mod page."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 3
+}

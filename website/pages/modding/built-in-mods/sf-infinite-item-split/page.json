@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-infinite-item-split",
+  "title": {
+    "de": "SF Infinite Item Split",
+    "en": "SF Infinite Item Split"
+  },
+  "summary": {
+    "de": "Behält beim Teilen von Gegenständen den ursprünglichen Stapel. Das wirkt sich auch auf weitere Inventaraktionen aus.",
+    "en": "Keeps the original stack when splitting items. Also affects other inventory operations."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Infinite Item Split",
+    "en": "Built-in mods · SF Infinite Item Split"
+  },
+  "navOrder": 90,
+  "order": 0
+}

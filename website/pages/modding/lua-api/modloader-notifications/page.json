@@ -1,0 +1,17 @@
+{
+  "id": "api-notifications",
+  "title": {
+    "de": "Modloader-Mitteilungen veröffentlichen",
+    "en": "Publish Modloader notices"
+  },
+  "summary": {
+    "de": "Mitteilungen zeigen Spielern wichtige Mod-Ereignisse. Sie werden lokal gespeichert und nur veröffentlicht, wenn dein Mod die Funktion aufruft.",
+    "en": "Notices tell players about meaningful mod events. They are stored locally and are published only when your mod calls the function."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 1
+}

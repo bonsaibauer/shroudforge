@@ -1,0 +1,17 @@
+{
+  "id": "preference-general-locale",
+  "title": {
+    "de": "Einstellung `general.locale`",
+    "en": "Setting `general.locale`"
+  },
+  "summary": {
+    "de": "Sprache der Modloader-Oberfläche, als gültiger Sprach-Tag.",
+    "en": "Language of the Modloader interface, as a valid language tag."
+  },
+  "navGroup": {
+    "de": "Allgemein",
+    "en": "General"
+  },
+  "navOrder": 60,
+  "order": 1
+}

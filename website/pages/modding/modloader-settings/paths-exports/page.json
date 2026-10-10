@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-exports",
+  "title": {
+    "de": "Einstellung `paths.exports`",
+    "en": "Setting `paths.exports`"
+  },
+  "summary": {
+    "de": "Zielordner für Dateien, die Mods exportieren.",
+    "en": "Destination folder for files exported by mods."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 12
+}

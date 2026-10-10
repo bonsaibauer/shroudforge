@@ -192,6 +192,7 @@ mod windows {
         Hide(String),
         Drag(String),
         Refresh(Option<String>),
+        CopyLogs(String),
         RefreshMod(String, String),
         ReloadSettings(String),
         CheckUpdates(String),
@@ -571,6 +572,7 @@ mod windows {
                 "hide" => Command::Hide(value.request_id.unwrap_or_default()),
                 "drag" => Command::Drag(value.request_id.unwrap_or_default()),
                 "refresh" => Command::Refresh(value.request_id),
+                "copy-logs" => Command::CopyLogs(value.request_id.unwrap_or_default()),
                 "refresh-mod" => match value.mod_id {
                     Some(id) => Command::RefreshMod(id, value.request_id.unwrap_or_default()),
                     None => return None,
@@ -1115,6 +1117,28 @@ mod windows {
                                 }
                                 next_refresh = Instant::now();
                             }
+                            Command::CopyLogs(request_id) => {
+                                let result = fs::read_to_string(
+                                    shroudforge_package::paths::current_log(&arguments.root),
+                                );
+                                let payload = match result {
+                                    Ok(text) => serde_json::json!({
+                                        "requestId": request_id,
+                                        "success": true,
+                                        "text": text,
+                                    }),
+                                    Err(error) => serde_json::json!({
+                                        "requestId": request_id,
+                                        "success": false,
+                                        "error": error.to_string(),
+                                    }),
+                                };
+                                if let Ok(payload) = serde_json::to_string(&payload) {
+                                    let _ = webview.evaluate_script(&format!(
+                                        "window.__shroudforgeLogCopyResult?.({payload});"
+                                    ));
+                                }
+                            }
                             Command::RefreshMod(id, request_id) => {
                                 let result = if read_mods(&arguments.root)
                                     .iter()
@@ -1507,6 +1531,18 @@ mod windows {
                                 );
                             }
                             Command::SaveSetting(scope, module, key, setting, request_id) => {
+                                let previous_log_level = if scope == "logging" && key == "minimumLevel" {
+                                    shroudforge_package::config::read_loader(&arguments.root)
+                                        .ok()
+                                        .and_then(|value| {
+                                            value
+                                                .pointer("/logging/minimumLevel")
+                                                .and_then(serde_json::Value::as_str)
+                                                .map(str::to_owned)
+                                        })
+                                    } else {
+                                        None
+                                    };
                                 let result = save_setting(
                                     &arguments.root,
                                     &scope,
@@ -1518,12 +1554,21 @@ mod windows {
                                     || format!("{scope}.{key}"),
                                     |module| format!("{module}.{key}"),
                                 );
+                                let action =
+                                    match (previous_log_level.as_deref(), setting.as_str()) {
+                                    (Some(previous), Some(next))
+                                        if previous != next && result.is_ok() =>
+                                    {
+                                        format!("Minimum log level changed from {previous} to {next}")
+                                    }
+                                    _ => format!("Save {target}"),
+                                };
                                 report_command_result(
                                     &arguments.root,
                                     &webview,
                                     &request_id,
                                     "Settings",
-                                    &format!("Save {target}"),
+                                    &action,
                                     result,
                                     "settings.saved",
                                     Some("settings"),
@@ -3304,10 +3349,10 @@ mod windows {
             .ok_or("extended.mod.json must be an object")?
             .entry("settings")
             .or_insert_with(|| serde_json::json!({}));
-        let targets = if extension.get("launcher").and_then(|value| value.as_str()) == Some("SF") {
-            serde_json::json!(["client"])
-        } else {
+        let targets = if extension.get("launcher").and_then(|value| value.as_str()) == Some("EML") {
             serde_json::json!(["client", "server"])
+        } else {
+            serde_json::json!(["client"])
         };
         let object = extension
             .as_object_mut()

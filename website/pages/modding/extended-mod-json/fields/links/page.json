@@ -1,0 +1,17 @@
+{
+  "id": "field-links",
+  "title": {
+    "de": "Feld `links`",
+    "en": "The `links` field"
+  },
+  "summary": {
+    "de": "Bekannte Link-IDs und HTTPS-Adressen für Modloader-Schaltflächen.",
+    "en": "Recognized link IDs and HTTPS addresses for Modloader buttons."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 5
+}

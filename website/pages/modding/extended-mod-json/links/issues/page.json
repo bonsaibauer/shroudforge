@@ -1,0 +1,17 @@
+{
+  "id": "link-issues",
+  "title": {
+    "de": "Link-ID `issues`",
+    "en": "Link ID `issues`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für issues.",
+    "en": "Recognized Modloader button for issues."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 4
+}

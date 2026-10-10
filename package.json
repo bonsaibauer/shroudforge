@@ -2,7 +2,7 @@
   "name": "shroudforge-website",
   "private": true,
   "scripts": {
-    "site:build": "node website/tools/build.mjs",
+    "site:build": "node website/tools/build.mjs && node website/tools/build-pages.mjs",
     "site:sanitize": "node website/tools/sanitize-snapshots.mjs",
     "runtime:types": "node website/tools/build-runtime-ecs-reference.mjs",
     "site:validate": "node website/tools/validate.mjs",

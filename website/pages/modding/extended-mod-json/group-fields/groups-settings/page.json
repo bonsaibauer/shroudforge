@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-settings",
+  "title": {
+    "de": "Feld `groups[].settings`",
+    "en": "The `groups[].settings` field"
+  },
+  "summary": {
+    "de": "Schlüssel vorhandener Mod-Einstellungen, die in dieser Gruppe angezeigt werden.",
+    "en": "Keys of existing mod settings displayed in this group."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 2
+}

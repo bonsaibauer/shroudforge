@@ -168,6 +168,7 @@ pub fn parse_manifest_with_extension(
     mut value: Value,
     external: Option<Value>,
 ) -> Result<ModManifest, String> {
+    let had_extension = external.is_some();
     let mut extension = external;
     if let Some(extension) = extension.as_mut() {
         validate_document(root, "extended-mod", extension)?;
@@ -193,7 +194,10 @@ pub fn parse_manifest_with_extension(
                 _ => crate::ModTarget::Client,
             }
         }
-        None if extension.get("launcher").and_then(Value::as_str) == Some("SF") => {
+        None if extension.get("launcher").and_then(Value::as_str) == Some("EML") => {
+            crate::ModTarget::ClientServer
+        }
+        None if had_extension => {
             crate::ModTarget::Client
         }
         None => crate::ModTarget::ClientServer,

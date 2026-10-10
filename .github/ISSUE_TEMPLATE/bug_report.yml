@@ -99,14 +99,15 @@ body:
 
         ### Attach a complete log file
 
-        If ShroudForge or the Debug Console does not start, the files are located in the Enshrouded installation directory next to `enshrouded.exe`:
+        If ShroudForge or the Debug Console does not start, attach the complete logs from their default locations beside the Enshrouded installation files:
 
-        - `shroudforge.log` – messages from the modloader, modules, and mods
+        - `shroudforge/logs/shroudforge-client.log` – ShroudForge messages from the game client
+        - `shroudforge/logs/shroudforge-server.log` – ShroudForge messages from a dedicated server
         - `enshrouded.log` – messages from Enshrouded
 
         Typical Steam path: `C:\Program Files (x86)\Steam\steamapps\common\Enshrouded`
 
-        Drag the `.log` file directly into the field below. Older ShroudForge logs may be stored at `Enshrouded\logs\shroudforge-<timestamp>.log`.
+        Drag the `.log` file directly into the field below. Older ShroudForge sessions are archived in `shroudforge/logs/` as `client-<timestamp>.log` or `server-<timestamp>.log`. If you changed the log storage location in Settings, use that folder instead.
 
         The Debug Console reads at most the final MiB of a log file. If the relevant error is older, attach the complete file or an archived log. Check the log for personal information before submitting it.
 

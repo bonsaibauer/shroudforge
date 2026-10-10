@@ -1,0 +1,17 @@
+{
+  "id": "field-license",
+  "title": {
+    "de": "Feld `license`",
+    "en": "The `license` field"
+  },
+  "summary": {
+    "de": "Lizenzkennung, falls der Mod eine Lizenz erklärt.",
+    "en": "License identifier when the mod declares a license."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 5
+}

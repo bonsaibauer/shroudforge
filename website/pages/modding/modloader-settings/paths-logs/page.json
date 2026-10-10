@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-logs",
+  "title": {
+    "de": "Einstellung `paths.logs`",
+    "en": "Setting `paths.logs`"
+  },
+  "summary": {
+    "de": "Ordner für ShroudForge- und Mod-Logdateien. Client und Dedicated Server schreiben getrennte Dateien.",
+    "en": "Folder for ShroudForge and mod log files. The client and Dedicated Server write separate files."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 10
+}

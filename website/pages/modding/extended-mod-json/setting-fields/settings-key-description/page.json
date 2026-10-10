@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-description",
+  "title": {
+    "de": "Feld `settings.<key>.description`",
+    "en": "The `settings.<key>.description` field"
+  },
+  "summary": {
+    "de": "Kurzer Text für die Modseite.",
+    "en": "Short text shown on the mod page."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 2
+}

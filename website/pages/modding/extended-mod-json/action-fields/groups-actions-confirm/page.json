@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-actions-confirm",
+  "title": {
+    "de": "Feld `groups[].actions[].confirm`",
+    "en": "The `groups[].actions[].confirm` field"
+  },
+  "summary": {
+    "de": "Optionale Rückfrage vor dem Ausführen einer Aktion.",
+    "en": "Optional confirmation prompt before running an action."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 3
+}

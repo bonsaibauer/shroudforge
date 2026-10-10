@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-maxlength",
+  "title": {
+    "de": "Feld `settings.<key>.maxLength`",
+    "en": "The `settings.<key>.maxLength` field"
+  },
+  "summary": {
+    "de": "Höchstlänge eines Textwerts.",
+    "en": "Maximum length of a text value."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 8
+}

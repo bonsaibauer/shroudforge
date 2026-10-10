@@ -1,0 +1,17 @@
+{
+  "id": "api-runtime",
+  "title": {
+    "de": "Laufzeit, Client und Server",
+    "en": "Runtime, client, and server"
+  },
+  "summary": {
+    "de": "Laufzeit-Mods starten in einem bestimmten Spielprozess. Native Spielfunktionen hängen zusätzlich vom Spielbuild und freigegebenem Profil ab.",
+    "en": "Runtime mods start in a selected game process. Native game operations also depend on the game build and a supported profile."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 6
+}

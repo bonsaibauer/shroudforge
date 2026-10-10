@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-entityhandle",
+  "title": {
+    "de": "Interner Entity-Handle · entityHandle",
+    "en": "Opaque entity handle · entityHandle"
+  },
+  "summary": {
+    "de": "Laufzeit-Handle eines Props aus der Aktion List props. Es gilt nur für den aktuellen Prozess und ist für die erweiterten nativen Aktionen gedacht.",
+    "en": "Runtime handle for a prop returned by the List props action. It is valid only in the current process and is intended for advanced native actions."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 25
+}

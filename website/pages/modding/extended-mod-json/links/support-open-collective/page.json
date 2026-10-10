@@ -1,0 +1,17 @@
+{
+  "id": "link-support-open-collective",
+  "title": {
+    "de": "Link-ID `support-open-collective`",
+    "en": "Link ID `support-open-collective`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-open-collective.",
+    "en": "Recognized Modloader button for support-open-collective."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 13
+}

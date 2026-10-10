@@ -1,0 +1,17 @@
+{
+  "id": "control-radio",
+  "title": {
+    "de": "Steuerelement `radio`",
+    "en": "The `radio` control"
+  },
+  "summary": {
+    "de": "Zeigt alle Werte aus options, von denen genau einer aktiv ist.",
+    "en": "Shows every option with exactly one active choice."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 7
+}

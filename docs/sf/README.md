@@ -17,6 +17,7 @@ For player instructions, start with the [English website guide](https://bonsaiba
 | Work on the native runtime or its game profiles | [Native runtime](runtime.md) |
 | Change how Enshrouded game data is read | [Game data parser](parser.md) |
 | Edit notices or link buttons shown in the Modloader | [Modloader content](modloader-content.md) |
+| Preview Modloader typography at different window widths | [Modloader typography preview](modloader-typography-preview.html) |
 
 The [root README](../../README.md) is the quick introduction and player starting point. The [mod template](../../templates/mod/README.md) is a practical place to begin creating a mod.
 

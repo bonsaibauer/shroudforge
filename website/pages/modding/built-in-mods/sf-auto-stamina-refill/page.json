@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-auto-stamina-refill",
+  "title": {
+    "de": "SF Auto Stamina Refill",
+    "en": "SF Auto Stamina Refill"
+  },
+  "summary": {
+    "de": "Füllt die Ausdauer wiederholt bis zum Maximum auf.",
+    "en": "Repeatedly refills stamina to maximum."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Auto Stamina Refill",
+    "en": "Built-in mods · SF Auto Stamina Refill"
+  },
+  "navOrder": 80,
+  "order": 0
+}

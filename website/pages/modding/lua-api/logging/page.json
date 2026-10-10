@@ -1,0 +1,17 @@
+{
+  "id": "api-logging",
+  "title": {
+    "de": "Verständliche Mod-Meldungen schreiben",
+    "en": "Write useful mod log messages"
+  },
+  "summary": {
+    "de": "Logs sollen zeigen, was der Mod tut, in welcher Phase er ist und ob die Aktion bestätigt wurde oder scheiterte.",
+    "en": "Logs should show what the mod is doing, which phase it reached, and whether the action was confirmed or failed."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 4
+}

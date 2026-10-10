@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-world-editor",
+  "title": {
+    "de": "World Editor",
+    "en": "World Editor"
+  },
+  "summary": {
+    "de": "Weltbereiche kopieren, drehen, speichern und einfügen.",
+    "en": "Copy, rotate, save, and paste parts of the world."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor",
+    "en": "Built-in mods · World Editor"
+  },
+  "navOrder": 160,
+  "order": 0
+}

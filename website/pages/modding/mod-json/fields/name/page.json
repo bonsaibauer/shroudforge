@@ -1,0 +1,17 @@
+{
+  "id": "field-name",
+  "title": {
+    "de": "Feld `name`",
+    "en": "The `name` field"
+  },
+  "summary": {
+    "de": "Name, den Spieler im Modloader sehen.",
+    "en": "Name players see in the Modloader."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 1
+}

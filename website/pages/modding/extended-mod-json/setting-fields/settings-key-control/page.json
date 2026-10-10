@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-control",
+  "title": {
+    "de": "Feld `settings.<key>.control`",
+    "en": "The `settings.<key>.control` field"
+  },
+  "summary": {
+    "de": "Art des Eingabefelds, das der Modloader zeigt.",
+    "en": "Input control displayed by the Modloader."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 3
+}

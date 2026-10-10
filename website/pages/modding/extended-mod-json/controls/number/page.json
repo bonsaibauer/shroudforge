@@ -1,0 +1,17 @@
+{
+  "id": "control-number",
+  "title": {
+    "de": "Steuerelement `number`",
+    "en": "The `number` control"
+  },
+  "summary": {
+    "de": "Für numerische Werte. min, max und step können den Eingabebereich begrenzen.",
+    "en": "For numeric values. min, max, and step can constrain input."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 4
+}

@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-actions-id",
+  "title": {
+    "de": "Feld `groups[].actions[].id`",
+    "en": "The `groups[].actions[].id` field"
+  },
+  "summary": {
+    "de": "Eindeutiger Aktionsname, den der Mod in Lua registriert.",
+    "en": "Unique action name that the mod registers in Lua."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 0
+}

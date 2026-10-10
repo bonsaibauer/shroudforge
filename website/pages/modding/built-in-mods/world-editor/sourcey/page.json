@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-sourcey",
+  "title": {
+    "de": "Quellzelle Y als manueller Ersatzwert · sourceY",
+    "en": "Source cell Y (manual fallback) · sourceY"
+  },
+  "summary": {
+    "de": "Manueller Y-Koordinatenwert der Quellzelle für eine Aufnahme ohne vollständig markierte Cursor-Ecken. Normalerweise die Auswahl mit F5 markieren.",
+    "en": "Manual Y coordinate of the source cell when capturing without both cursor corners marked. Normally mark the selection with F5."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 8
+}

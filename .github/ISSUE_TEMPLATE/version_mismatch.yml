@@ -30,7 +30,7 @@ body:
     id: error
     attributes:
       label: Exact error message
-      description: Copy the complete message from the Debug Console or shroudforge.log.
+      description: Copy the complete message from the Debug Console or the current ShroudForge client or server log.
       placeholder: Paste the complete error message …
     validations:
       required: true
@@ -59,14 +59,26 @@ body:
     id: manifest
     attributes:
       label: Relevant section of mod.json
-      description: Optional. For an affected mod, include at least id, version, api, dependencies, and target.
+      description: Optional. Paste the relevant mod.json fields. For an API mismatch, include the shroudforge-api dependency if it is listed.
       placeholder: |
         {
           "id": "…",
+          "name": "…",
           "version": "…",
-          "api": "…",
-          "dependencies": [],
-          "target": "client"
+          "capabilities": [],
+          "dependencies": []
+        }
+      render: json
+
+  - type: textarea
+    id: extension
+    attributes:
+      label: Optional target information from extended.mod.json
+      description: If the mod has this file, include its targets field. Client and server targets are stored here, not in mod.json.
+      placeholder: |
+        {
+          "schemaVersion": 1,
+          "targets": ["client"]
         }
       render: json
 
@@ -89,11 +101,15 @@ body:
 
         ### Attach a complete log file
 
-        If ShroudForge or the Debug Console does not start, `shroudforge.log` and `enshrouded.log` are located in the Enshrouded installation directory next to `enshrouded.exe`.
+        If ShroudForge or the Debug Console does not start, attach the complete logs from their default locations beside the Enshrouded installation files:
+
+        - `shroudforge/logs/shroudforge-client.log` – ShroudForge messages from the game client
+        - `shroudforge/logs/shroudforge-server.log` – ShroudForge messages from a dedicated server
+        - `enshrouded.log` – messages from Enshrouded
 
         Typical Steam path: `C:\Program Files (x86)\Steam\steamapps\common\Enshrouded`
 
-        Drag the `.log` file directly into the field below. Older ShroudForge logs may be stored at `Enshrouded\logs\shroudforge-<timestamp>.log`.
+        Drag the `.log` file directly into the field below. Older ShroudForge sessions are archived in `shroudforge/logs/` as `client-<timestamp>.log` or `server-<timestamp>.log`. If you changed the log storage location in Settings, use that folder instead.
 
         The Debug Console reads at most the final MiB of a log file. If the relevant error is older, attach the complete file or an archived log. Check the log for personal information before submitting it.
 

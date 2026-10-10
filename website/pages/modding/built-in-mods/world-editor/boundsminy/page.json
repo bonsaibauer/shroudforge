@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-boundsminy",
+  "title": {
+    "de": "Untere Begrenzung Y · boundsMinY",
+    "en": "Bounds min Y · boundsMinY"
+  },
+  "summary": {
+    "de": "Y-Minimum der Begrenzung, die an die erweiterten nativen Props-Platzierungs- und Entfernungsaktionen übergeben wird.",
+    "en": "Y minimum of the bounds passed to the advanced native prop placement and removal actions."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Native Entity-Operationen",
+    "en": "Built-in mods · World Editor · Native entity operations"
+  },
+  "navOrder": 163,
+  "order": 34
+}

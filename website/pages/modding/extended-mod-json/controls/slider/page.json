@@ -1,0 +1,17 @@
+{
+  "id": "control-slider",
+  "title": {
+    "de": "Steuerelement `slider`",
+    "en": "The `slider` control"
+  },
+  "summary": {
+    "de": "Für Zahlen, die Spieler innerhalb eines Bereichs einstellen.",
+    "en": "For numbers players adjust within a range."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 5
+}

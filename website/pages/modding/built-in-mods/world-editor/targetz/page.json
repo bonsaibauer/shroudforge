@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-targetz",
+  "title": {
+    "de": "Zielzelle Z · targetZ",
+    "en": "Target cell Z · targetZ"
+  },
+  "summary": {
+    "de": "Manuelle Z-Zielkoordinate in Voxel-Zellen für ein Blueprint mit Voxel-Daten, wenn weder Cursor noch markiertes Ziel verwendet werden.",
+    "en": "Manual Z target coordinate in voxel cells for a blueprint with voxels when neither the cursor nor a marked target is used."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 19
+}

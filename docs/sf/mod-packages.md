@@ -129,7 +129,7 @@ Here, **allowDescent** starts switched off. **flightSpeed** starts at **1.0** an
 
 The default control follows the value: a boolean shows a switch, a string shows a text field, and a number shows a number field. In this example, `control: "slider"` makes `flightSpeed` a slider with the given limits. Adding `options` makes a single value a dropdown; an array needs `options` and becomes a multi-select. You can choose one of the 12 controls explicitly with `control`. Choice controls need `options`; use the option keys as values and their strings as the names shown to players. `min`, `max`, and `step` apply to numbers. `minLength` and `maxLength` apply to text.
 
-A player-facing control only appears when a group lists its key in `groups[].settings`. The Lua code reads that same key with `shroudforge.settings.get(key, fallback)`. The [extension schema](../../src/loader/package/src/registry/extended.mod.schema.json) lists every accepted field; the package reader also checks that setting defaults, choices, and group references make sense together.
+A group listing a key in `groups[].settings` controls where it appears. An ungrouped setting appears in the default Settings group. The Lua code reads that same key with `shroudforge.settings.get(key, fallback)`. The [extension schema](../../src/loader/package/src/registry/extended.mod.schema.json) lists every accepted field; the package reader also checks that setting defaults, choices, and group references make sense together.
 
 ## Connect a Modloader setting to Lua
 

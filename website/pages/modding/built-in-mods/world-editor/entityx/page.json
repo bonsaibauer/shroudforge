@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-entityx",
+  "title": {
+    "de": "Entity-Position X · entityX",
+    "en": "Position X · entityX"
+  },
+  "summary": {
+    "de": "Weltkoordinate X für die erweiterten nativen Props-Aktionen zum Erstellen, Platzieren oder Entfernen.",
+    "en": "World coordinate X for the advanced native prop spawn, placement, or removal actions."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Native Entity-Operationen",
+    "en": "Built-in mods · World Editor · Native entity operations"
+  },
+  "navOrder": 163,
+  "order": 30
+}

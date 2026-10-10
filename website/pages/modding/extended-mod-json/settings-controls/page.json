@@ -1,0 +1,17 @@
+{
+  "id": "setting-controls",
+  "title": {
+    "de": "Einstellungen und Steuerelemente",
+    "en": "Settings and controls"
+  },
+  "summary": {
+    "de": "Jede Einstellung hat einen Schlüssel und einen Startwert. Metadaten bestimmen Beschriftung, Hilfe, Eingabefeld, Grenzen und Auswahlwerte.",
+    "en": "Each setting has a key and starting value. Metadata controls its label, help text, input, limits, and choices."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 0
+}

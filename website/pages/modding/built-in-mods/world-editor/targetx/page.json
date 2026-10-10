@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-targetx",
+  "title": {
+    "de": "Zielzelle X · targetX",
+    "en": "Target cell X · targetX"
+  },
+  "summary": {
+    "de": "Manuelle X-Zielkoordinate in Voxel-Zellen für ein Blueprint mit Voxel-Daten, wenn weder Cursor noch markiertes Ziel verwendet werden.",
+    "en": "Manual X target coordinate in voxel cells for a blueprint with voxels when neither the cursor nor a marked target is used."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 17
+}

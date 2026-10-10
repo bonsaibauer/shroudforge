@@ -1,0 +1,17 @@
+{
+  "id": "link-store",
+  "title": {
+    "de": "Link-ID `store`",
+    "en": "Link ID `store`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für store.",
+    "en": "Recognized Modloader button for store."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 7
+}

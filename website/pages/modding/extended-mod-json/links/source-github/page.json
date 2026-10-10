@@ -1,0 +1,17 @@
+{
+  "id": "link-source-github",
+  "title": {
+    "de": "Link-ID `source-github`",
+    "en": "Link ID `source-github`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für source-github.",
+    "en": "Recognized Modloader button for source-github."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 1
+}

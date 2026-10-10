@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-minlength",
+  "title": {
+    "de": "Feld `settings.<key>.minLength`",
+    "en": "The `settings.<key>.minLength` field"
+  },
+  "summary": {
+    "de": "Mindestlänge eines Textwerts.",
+    "en": "Minimum length of a text value."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 7
+}

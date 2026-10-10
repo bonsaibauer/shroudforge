@@ -1,0 +1,17 @@
+{
+  "id": "control-multiselect",
+  "title": {
+    "de": "Steuerelement `multiselect`",
+    "en": "The `multiselect` control"
+  },
+  "summary": {
+    "de": "Erlaubt mehrere Werte. value ist eine Liste und options muss die möglichen Elemente enthalten.",
+    "en": "Allows several values. value is a list and options defines the available items."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 9
+}

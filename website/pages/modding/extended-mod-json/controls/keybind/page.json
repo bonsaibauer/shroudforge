@@ -1,0 +1,17 @@
+{
+  "id": "control-keybind",
+  "title": {
+    "de": "Steuerelement `keybind`",
+    "en": "The `keybind` control"
+  },
+  "summary": {
+    "de": "Für eine Tastenkombination, die der Modloader als Schlüsselwert speichert.",
+    "en": "For a keyboard shortcut stored by Modloader as a key value."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 10
+}

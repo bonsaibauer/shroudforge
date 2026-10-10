@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-label",
+  "title": {
+    "de": "Feld `settings.<key>.label`",
+    "en": "The `settings.<key>.label` field"
+  },
+  "summary": {
+    "de": "Spielerfreundlicher Name, der im Modloader angezeigt wird.",
+    "en": "Player-facing name displayed in the Modloader."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 1
+}

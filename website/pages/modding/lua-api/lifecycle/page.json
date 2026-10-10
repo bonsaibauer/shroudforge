@@ -1,0 +1,17 @@
+{
+  "id": "api-lifecycle",
+  "title": {
+    "de": "Laufzeit-Callbacks",
+    "en": "Runtime callbacks"
+  },
+  "summary": {
+    "de": "on_load, on_update und on_unload steuern, wann dein Lua-Mod während einer Spielsitzung arbeitet.",
+    "en": "on_load, on_update, and on_unload control when your Lua mod runs during a game session."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 9
+}

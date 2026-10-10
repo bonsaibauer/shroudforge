@@ -1,0 +1,17 @@
+{
+  "id": "extension-groups",
+  "title": {
+    "de": "Feld `groups`",
+    "en": "The `groups` field"
+  },
+  "summary": {
+    "de": "Optionale Gruppen für Einstellungsfelder und Lua-Aktionen.",
+    "en": "Optional groups for setting fields and Lua actions."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 11
+}

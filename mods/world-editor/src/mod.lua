@@ -54,6 +54,11 @@ local p2p_target_check_elapsed = 0
 local p2p_bridge = nil
 local remote_undo = nil
 local remote_request_pending = false
+local remote_active_request = nil
+local remote_recovery_required = false
+local remote_release_pending = false
+local remote_stalled = false
+local abandon_remote
 local server_remote_paste = nil
 local server_remote_transaction = nil
 local server_remote_undo = nil
@@ -1680,7 +1685,15 @@ local function paste_voxels(use_current_cursor, cursor_override, captured_props,
         shroudforge.log.warn("World Editor: capture or load a blueprint before pasting")
         return
     end
-    if remote_request_pending or (p2p_bridge and p2p_bridge.pending()) then
+    if remote_release_pending then
+        set_editor_message("recovery", "The server has not confirmed release of the previous operation. Press F6 to resend the release request; F7 stays paused until confirmation.")
+        return
+    end
+    if remote_recovery_required then
+        set_editor_message("recovery", "The server has an unfinished World Editor operation. Press F6 to abandon it and release the server before starting another placement.")
+        return
+    end
+    if remote_request_pending or remote_active_request or (p2p_bridge and p2p_bridge.pending()) then
         set_editor_message("building", "The World Editor is waiting for the server response. No second request was sent.")
         return
     end
@@ -2341,6 +2354,10 @@ local function start_new_blueprint()
 end
 
 local function reset_editor()
+    if abandon_remote and (remote_recovery_required or remote_release_pending or remote_request_pending or
+       remote_active_request or (p2p_bridge and p2p_bridge.pending())) then
+        abandon_remote()
+    end
     selection_a, selection_b, selection_target = nil, nil, nil
     if save_progress.state == "saving" then
         save_step(save_progress.completed, "Save cancelled", "error")
@@ -2351,7 +2368,11 @@ local function reset_editor()
     live_prop_cache = {}
     placement_preview = nil
     editor_stage = undo_state and undo_state.recovery_required and "recovery" or "need_a"
-    editor_hint = undo_state and undo_state.recovery_required and
+    editor_hint = remote_release_pending and
+        "F6 asked the dedicated server to abandon the previous operation. The server must confirm before F7 can start. Press F6 again to resend if the reply is lost." or
+        remote_recovery_required and
+        "The dedicated server has an unfinished operation. Press F6 to abandon it; partial terrain or props may remain. F7 unlocks only after server confirmation." or
+        undo_state and undo_state.recovery_required and
         "Editor reset. The incomplete placement recovery is still retained. Press F4 to retry it. You can continue using capture and blueprint tools, but F7 stays paused until recovery completes." or
         "Editor reset. Select the Building Hammer, choose a Single Voxel, aim at the first corner, then press F5."
     publish_editor_state()
@@ -2641,33 +2662,78 @@ local function recover_server_undo_token()
     return true
 end
 
-local function on_p2p_result(operation, ok, transaction, reason, peer)
+local function on_p2p_result(operation, ok, transaction, reason, peer, request_id, uncertain)
     remote_request_pending = false
-    if operation == "paste" then
+    if operation == "abandon" then
+        if ok then
+            remote_undo = nil
+            remote_recovery_required, remote_release_pending = false, false
+            remote_active_request = nil
+            persist_server_undo_token()
+            set_editor_message("selected", "The server confirmed that the previous operation was abandoned and its World Editor lock released. Partial changes may remain; you can start a new operation.")
+            shroudforge.log.info("World Editor server confirmed the idempotent abandon-and-release request")
+            finish_process("complete", "The server released the previous World Editor operation. Partial world changes may remain.")
+        else
+            remote_release_pending = true
+            set_editor_message("recovery", "The server has not confirmed the release. F7 stays paused. Press F6 to resend the same release request. " .. tostring(reason))
+            shroudforge.log.warn("World Editor server release is not confirmed: " .. tostring(reason))
+            finish_process("error", "The server has not confirmed release. Press F6 to retry: " .. tostring(reason), "warn")
+        end
+    elseif operation == "paste" then
+        if uncertain then
+            remote_active_request = {peer = peer, request_id = request_id, operation = operation}
+            remote_recovery_required = true
+        else
+            remote_stalled = false
+            if remote_active_request and remote_active_request.request_id == request_id then
+                remote_active_request = nil
+            end
+            if ok then remote_recovery_required = false end
+        end
         if transaction then
             remote_undo = {peer = peer, transaction = transaction}
             persist_server_undo_token()
         end
-        if ok then
+        if uncertain then
+            set_editor_message("recovery", "The server did not answer within 60 seconds. The placement result is unknown. Press F6 to ask the server to abandon this operation; F7 stays paused until release is confirmed.")
+            shroudforge.log.warn("World Editor P2P paste timed out; outcome is unknown and F6 can request release")
+            finish_process("error", "The server did not answer. Press F6 to request release; the placement result may be partial.", "warn")
+        elseif ok then
             set_editor_message("selected", "Server placed the blueprint through its native world runtime. Press F4 to undo.")
             shroudforge.log.info("World Editor P2P paste confirmed by dedicated server, undo token=" .. tostring(transaction))
             finish_process("complete", "The server confirmed the placement in its live world. Save persistence is not verified.")
         else
+            if transaction then remote_recovery_required = true end
             set_editor_message(transaction and "recovery" or "selected",
-                transaction and "Server placement needs recovery. Press F4 to request the server-owned undo." or
+                transaction and "Server placement needs recovery. Press F4 to retry the server undo, or F6 to abandon this operation and release the server. Partial changes may remain; F7 waits for confirmation." or
                     ("Server refused blueprint placement: " .. tostring(reason)))
             shroudforge.log.warn("World Editor P2P paste failed: " .. tostring(reason))
             finish_process("error", "The server did not complete the placement: " .. tostring(reason), "warn")
         end
     elseif operation == "undo" then
-        if ok then
+        if uncertain then
+            remote_active_request = {peer = peer, request_id = request_id, operation = operation}
+            remote_recovery_required = true
+        else
+            remote_stalled = false
+            if remote_active_request and remote_active_request.request_id == request_id then
+                remote_active_request = nil
+            end
+        end
+        if uncertain then
+            set_editor_message("recovery", "The server did not answer within 60 seconds. The undo result is unknown. Press F6 to ask the server to abandon this operation; F7 stays paused until release is confirmed.")
+            shroudforge.log.warn("World Editor P2P undo timed out; outcome is unknown and F6 can request release")
+            finish_process("error", "The server did not answer. Press F6 to request release; undo may be partial.", "warn")
+        elseif ok then
             remote_undo = nil
+            remote_recovery_required = false
             persist_server_undo_token()
             set_editor_message("selected", "The server confirmed undo through its native world runtime.")
             shroudforge.log.info("World Editor P2P undo confirmed by dedicated server")
             finish_process("complete", "The server confirmed that undo restored the previous live world state.")
         else
-            set_editor_message("recovery", "Server undo is incomplete. Press F4 to retry safely. " .. tostring(reason))
+            remote_recovery_required = true
+            set_editor_message("recovery", "Server undo is incomplete. Press F4 to retry, or F6 to abandon this operation and release the server. Partial changes may remain; F7 waits for confirmation. " .. tostring(reason))
             shroudforge.log.warn("World Editor P2P undo is incomplete: " .. tostring(reason))
             finish_process("error", "Server undo is incomplete and can be retried: " .. tostring(reason), "warn")
         end
@@ -2676,6 +2742,12 @@ end
 
 local function on_p2p_progress(operation, state, completed, total, phase, message, peer)
     if state ~= "running" then return end
+    if remote_stalled then
+        remote_stalled = false
+        set_editor_message("placing", operation == "undo" and
+            "The dedicated server is responding again and is undoing the placement: " .. tostring(message) or
+            "The dedicated server is responding again and is placing the blueprint: " .. tostring(message))
+    end
     local label = operation == "undo" and "Undo placement on dedicated server" or "Place blueprint on dedicated server"
     process_update("running", label, phase, completed, total,
         "Server " .. tostring(peer or "") .. ": " .. tostring(message), "info")
@@ -2684,6 +2756,14 @@ local function on_p2p_progress(operation, state, completed, total, phase, messag
     else
         set_editor_message("placing", "The dedicated server is undoing the placement: " .. tostring(message))
     end
+end
+
+local function on_p2p_stalled(operation, peer)
+    local label = operation == "undo" and "undo" or "placement"
+    remote_stalled = true
+    set_editor_message("recovery", "The server has not reported progress for 10 seconds while " .. label .. " the blueprint. The result may be unknown. Press F6 to abandon the operation and request release; F7 stays paused until the server confirms.")
+    finish_process("error", "The server has not reported progress for 10 seconds. Press F6 to abandon the operation and request release; F7 stays paused until confirmation.", "warn")
+    shroudforge.log.warn("World Editor P2P " .. label .. " made no progress for 10 seconds with server " .. tostring(peer) .. "; F6 offers abandon and release")
 end
 
 local function server_begin_remote_paste(peer, request_id, content, metadata, done, progress)
@@ -2751,6 +2831,75 @@ local function server_begin_remote_undo(peer, request_id, transaction, done, pro
         done = done, elapsed = 0, session = journal.session}
 end
 
+local function server_begin_remote_abandon(peer, abandon_id, transaction, target_request_id, done)
+    if not editor_is_server then done(false, "server-runtime-not-active"); return end
+    local journal = server_remote_transaction
+    if not journal then
+        -- A repeated abandon may arrive after the server already released the
+        -- transaction but its first acknowledgement was lost.
+        done(true, "server-operation-already-released")
+        return
+    end
+    if journal.peer ~= peer then
+        done(false, "no-matching-server-operation-to-abandon")
+        return
+    end
+    local matches_transaction = transaction and journal.transaction == transaction
+    local matches_request = target_request_id and journal.request_id == target_request_id
+    if not matches_transaction and not matches_request then
+        done(false, "abandon-request-does-not-match-the-server-operation")
+        return
+    end
+    -- The P2P bridge serializes this behind active paste/undo work. Reaching
+    -- this callback means no native edit step is still running for this peer.
+    pending_cursor_action, pending_prop_capture, pending_world_action = nil, nil, nil
+    server_remote_paste, server_remote_undo = nil, nil
+    server_remote_transaction, undo_state = nil, nil
+    remote_setting_override, remote_progress_callback = nil, nil
+    placement_preview = nil
+    editor_stage = "need_a"
+    editor_hint = "An authorized client abandoned the previous World Editor operation and the server released its lock. Partial terrain or props may remain."
+    if process_progress.state == "running" then
+        finish_process("error", "World Editor operation abandoned by its authorized client. Partial world changes may remain.", "warn")
+    end
+    publish_editor_state()
+    shroudforge.log.warn("World Editor server released abandoned transaction " .. tostring(journal.transaction) ..
+        " for authorized Steam peer " .. peer .. " at request " .. tostring(abandon_id) .. "; partial changes may remain")
+    done(true, "server-operation-abandoned-and-lock-released")
+end
+
+abandon_remote = function()
+    if not p2p_bridge then
+        set_editor_message("recovery", "Steam P2P is unavailable. The server release could not be requested; F7 stays paused.")
+        return false
+    end
+    local request = remote_active_request
+    local peer = remote_undo and remote_undo.peer or (request and request.peer)
+    local transaction = remote_undo and remote_undo.transaction or nil
+    if not peer then peer = configured_server_steam_id() end
+    if not peer then
+        set_editor_message("recovery", "The server connection is unavailable. F6 cannot request release yet; F7 stays paused until the server confirms.")
+        return false
+    end
+    local target_request_id = request and request.request_id or nil
+    local ok, request_id = p2p_bridge.start_abandon(peer, transaction, target_request_id)
+    if not ok then
+        set_editor_message("recovery", "Could not request server release: " .. tostring(request_id) .. ". F7 stays paused.")
+        return false
+    end
+    local already_waiting = remote_release_pending
+    remote_release_pending = true
+    remote_request_pending = true
+    if not already_waiting then
+        begin_process("Release server World Editor operation", "Requesting server release", 1,
+            "Asking the dedicated server to discard the old recovery and confirm that its lock is released.")
+    end
+    set_editor_message("recovery", "F6 sent the release request. Waiting for server confirmation; F7 stays paused until the server confirms. Press F6 again to resend if the reply is lost.")
+    shroudforge.log.info("World Editor queued idempotent abandon request " .. tostring(request_id) ..
+        " for server peer " .. peer .. " targeting transaction " .. tostring(transaction or target_request_id or "unknown"))
+    return true
+end
+
 local function network_api()
     return {network = runtime.network, world = runtime.world, is_server = editor_is_server,
         log = shroudforge.log}
@@ -2767,8 +2916,10 @@ local function create_p2p_bridge()
         end,
         on_result = on_p2p_result,
         on_progress = on_p2p_progress,
+        on_stalled = on_p2p_stalled,
         on_paste = server_begin_remote_paste,
         on_undo = server_begin_remote_undo,
+        on_abandon = server_begin_remote_abandon,
     })
 end
 
@@ -2805,6 +2956,7 @@ paste_remote = function(use_current_cursor, cursor_override)
             return
         end
         remote_request_pending = true
+        remote_active_request = {peer = peer, request_id = request, operation = "paste"}
         set_editor_message("building", "Sending the existing V7 blueprint to the dedicated server. Its runtime performs the placement. Wait for confirmation before pressing F4.")
         shroudforge.log.debug("World Editor queued P2P blueprint request " .. tostring(request) .. " to server Steam peer " .. peer ..
             (discovered_local_server and " (discovered from the running Dedicated Server)" or " (configured fallback)"))
@@ -2842,6 +2994,7 @@ undo_remote = function()
         return
     end
     remote_request_pending = true
+    remote_active_request = {peer = remote_undo.peer, request_id = request, operation = "undo"}
     set_editor_message("building", "F4 sent the server-owned undo request. Waiting for its native readback result…")
     shroudforge.log.debug("World Editor queued P2P undo request " .. tostring(request))
     shroudforge.log.info("World Editor: undo request sent to the dedicated server. Waiting for confirmation.")
@@ -2897,7 +3050,8 @@ local function update_server_remote_paste(delta_seconds)
     end
     if undo_state and undo_state ~= job.initial_undo then
         local transaction = "tx_" .. tostring(job.request_id):gsub("[^%w_-]", "")
-        server_remote_transaction = {peer = job.peer, transaction = transaction, session = job.session}
+        server_remote_transaction = {peer = job.peer, transaction = transaction,
+            request_id = job.request_id, session = job.session}
         if undo_state.recovery_required then
             finish_server_remote_paste(job, false, transaction, "placement-partially-applied. Press F4 for server recovery")
         else

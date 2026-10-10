@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-boundsmaxy",
+  "title": {
+    "de": "Obere Begrenzung Y · boundsMaxY",
+    "en": "Bounds max Y · boundsMaxY"
+  },
+  "summary": {
+    "de": "Y-Maximum der Begrenzung, die an die erweiterten nativen Props-Platzierungs- und Entfernungsaktionen übergeben wird.",
+    "en": "Y maximum of the bounds passed to the advanced native prop placement and removal actions."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Native Entity-Operationen",
+    "en": "Built-in mods · World Editor · Native entity operations"
+  },
+  "navOrder": 163,
+  "order": 37
+}

@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-feedbackid",
+  "title": {
+    "de": "Material-Feedback-ID nur für Platzierung · feedbackId",
+    "en": "Material feedback ID (placement only) · feedbackId"
+  },
+  "summary": {
+    "de": "Material-Feedback-ID aus der ItemInfo-Platzierungsdefinition. Die erweiterte Aktion Place at coordinates benötigt sie, Destroy at coordinates nicht.",
+    "en": "Material feedback ID from the ItemInfo placement definition. The advanced Place at coordinates action requires it, Destroy at coordinates does not."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Native Entity-Operationen",
+    "en": "Built-in mods · World Editor · Native entity operations"
+  },
+  "navOrder": 163,
+  "order": 29
+}

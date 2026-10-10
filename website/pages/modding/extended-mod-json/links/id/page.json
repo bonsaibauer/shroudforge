@@ -1,0 +1,17 @@
+{
+  "id": "extension-link-id",
+  "title": {
+    "de": "Schlüssel `links.<id>`",
+    "en": "The `links.<id>` key"
+  },
+  "summary": {
+    "de": "Die Link-ID entscheidet, welche bekannte Schaltfläche der Modloader anzeigt.",
+    "en": "The link ID selects which recognized button the Modloader displays."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 10
+}

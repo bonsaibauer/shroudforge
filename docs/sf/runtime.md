@@ -2,6 +2,8 @@
 
 The native runtime is a built-in part of ShroudForge. It provides a small set of approved operations for mods while Enshrouded is running. Players do not install it separately.
 
+For a player-friendly explanation of the difference between a mod's Lua code and the native KFC runtime, see the [runtime guide on the website](https://bonsaibauer.github.io/shroudforge/en/#runtime).
+
 The [registry API](runtime-registry.md) exposes the complete reflected type
 registry, owned value codecs, engine component registrations and native procedure
 metadata. Component identity can now be resolved directly from the live engine

@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-max",
+  "title": {
+    "de": "Feld `settings.<key>.max`",
+    "en": "The `settings.<key>.max` field"
+  },
+  "summary": {
+    "de": "Größter zulässiger Eingabewert.",
+    "en": "Largest accepted input value."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 5
+}

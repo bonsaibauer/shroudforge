@@ -1,0 +1,17 @@
+{
+  "id": "link-support-patreon",
+  "title": {
+    "de": "Link-ID `support-patreon`",
+    "en": "Link ID `support-patreon`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-patreon.",
+    "en": "Recognized Modloader button for support-patreon."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 9
+}

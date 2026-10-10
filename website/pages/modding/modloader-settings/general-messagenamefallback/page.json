@@ -1,0 +1,17 @@
+{
+  "id": "preference-general-messagenamefallback",
+  "title": {
+    "de": "Einstellung `general.messageNameFallback`",
+    "en": "Setting `general.messageNameFallback`"
+  },
+  "summary": {
+    "de": "Name, den Nachrichten verwenden, wenn die automatische Erkennung keinen eindeutigen Spielernamen findet.",
+    "en": "Name used by notices when automatic detection cannot find one player name."
+  },
+  "navGroup": {
+    "de": "Allgemein",
+    "en": "General"
+  },
+  "navOrder": 60,
+  "order": 5
+}

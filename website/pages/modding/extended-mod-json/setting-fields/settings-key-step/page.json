@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-step",
+  "title": {
+    "de": "Feld `settings.<key>.step`",
+    "en": "The `settings.<key>.step` field"
+  },
+  "summary": {
+    "de": "Schrittweite für Zahlen- und Reglerfelder.",
+    "en": "Increment for number and slider inputs."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 6
+}

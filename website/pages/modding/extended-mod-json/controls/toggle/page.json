@@ -1,0 +1,17 @@
+{
+  "id": "control-toggle",
+  "title": {
+    "de": "Steuerelement `toggle`",
+    "en": "The `toggle` control"
+  },
+  "summary": {
+    "de": "Zeigt einen Ein/Aus-Schalter für einen booleschen Wert.",
+    "en": "Displays an on/off switch for a boolean value."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 0
+}

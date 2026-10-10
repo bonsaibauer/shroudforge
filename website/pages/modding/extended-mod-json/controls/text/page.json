@@ -1,0 +1,17 @@
+{
+  "id": "control-text",
+  "title": {
+    "de": "Steuerelement `text`",
+    "en": "The `text` control"
+  },
+  "summary": {
+    "de": "Für kurze Texte und Namen.",
+    "en": "For short text and names."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 2
+}

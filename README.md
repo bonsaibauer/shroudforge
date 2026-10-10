@@ -16,7 +16,7 @@
 
 ## Welcome!
 
-ShroudForge helps you install and make mods for **Enshrouded**. A mod is a small add-on that changes or adds something in the game. You can use mods made by other players, or create your own.
+ShroudForge is the loader that finds, checks, and starts mods for **Enshrouded**. A mod is a separate add-on that changes or adds something in the game. You can use mods made by other players, or create your own. Read [how ShroudForge works](https://bonsaibauer.github.io/shroudforge/en/#workings) for a clear explanation of how the loader and mods fit together.
 
 New to mods? Start with the illustrated guide. It explains everything in simple steps, in English and German:
 
@@ -53,17 +53,7 @@ The Modloader is the ShroudForge window inside the game. It shows your mods and 
 
 ### Add a mod
 
-Follow the mod creator's instructions. Unpack the mod download, then copy the mod's folder into **mods**, beside **enshrouded.exe**. Its **mod.json** file should be directly inside the mod folder:
-
-~~~text
-Enshrouded/
-├── enshrouded.exe
-└── mods/
-    └── my-mod/
-        ├── mod.json
-        └── src/
-            └── mod.lua
-~~~
+Follow the mod creator's instructions. Unpack the mod download, then copy the mod folder into **mods**, beside **enshrouded.exe**. Keep any folder structure and extra files the creator includes.
 
 Open the game, press **F9**, find the mod, and switch it on. Some mods need a game restart. Mods that change game files must prepare those changes before the game starts.
 

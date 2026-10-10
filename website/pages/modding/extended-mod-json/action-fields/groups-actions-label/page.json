@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-actions-label",
+  "title": {
+    "de": "Feld `groups[].actions[].label`",
+    "en": "The `groups[].actions[].label` field"
+  },
+  "summary": {
+    "de": "Spielerfreundlicher Name, der im Modloader angezeigt wird.",
+    "en": "Player-facing name displayed in the Modloader."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 1
+}

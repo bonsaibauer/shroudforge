@@ -1,0 +1,17 @@
+{
+  "id": "field-schema-extended-mod-json",
+  "title": {
+    "de": "Feld `$schema`",
+    "en": "The `$schema` field"
+  },
+  "summary": {
+    "de": "Dieses Feld konfiguriert `$schema`. Der genaue technische Vertrag steht im Schema.",
+    "en": "This field configures `$schema`. The exact technical contract is defined by the schema."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 0
+}

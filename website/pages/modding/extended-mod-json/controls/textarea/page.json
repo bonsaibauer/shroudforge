@@ -1,0 +1,17 @@
+{
+  "id": "control-textarea",
+  "title": {
+    "de": "Steuerelement `textarea`",
+    "en": "The `textarea` control"
+  },
+  "summary": {
+    "de": "Für längere Texte, die über mehrere Zeilen bearbeitet werden.",
+    "en": "For longer text edited across multiple lines."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 3
+}

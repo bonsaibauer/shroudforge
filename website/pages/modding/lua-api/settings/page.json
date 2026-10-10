@@ -1,0 +1,17 @@
+{
+  "id": "api-settings",
+  "title": {
+    "de": "Mod-Einstellungen in Lua lesen",
+    "en": "Read mod settings in Lua"
+  },
+  "summary": {
+    "de": "Der Schlüssel in extended.mod.json ist derselbe Schlüssel, den dein Lua-Code an shroudforge.settings.get übergibt.",
+    "en": "The key in extended.mod.json is the same key your Lua code passes to shroudforge.settings.get."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 2
+}

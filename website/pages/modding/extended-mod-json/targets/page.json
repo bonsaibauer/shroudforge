@@ -1,0 +1,17 @@
+{
+  "id": "targets",
+  "title": {
+    "de": "targets, Client und Server auswählen",
+    "en": "targets, choose client and server"
+  },
+  "summary": {
+    "de": "targets legt fest, in welchem Spielprozess ein Mod ausgeführt wird. Client, Server oder beide sind möglich.",
+    "en": "targets selects the game process in which a mod runs. Client, server, or both are available."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 1
+}

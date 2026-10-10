@@ -1,0 +1,17 @@
+{
+  "id": "builtin-sf-auto-stamina-refill-autorefill",
+  "title": {
+    "de": "Ausdauer automatisch auffüllen · autoRefill",
+    "en": "Auto Refill · autoRefill"
+  },
+  "summary": {
+    "de": "Schaltet die wiederholte Auffüllung der Ausdauer bis zum Maximum ein oder aus.",
+    "en": "Turns repeated stamina refill to maximum on or off."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Auto Stamina Refill · Ausdauerverhalten",
+    "en": "Built-in mods · SF Auto Stamina Refill · Stamina behavior"
+  },
+  "navOrder": 80,
+  "order": 0
+}

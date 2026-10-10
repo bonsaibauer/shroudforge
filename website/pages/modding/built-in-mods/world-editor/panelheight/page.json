@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-panelheight",
+  "title": {
+    "de": "Höhe des Blueprint-Fensters · panelHeight",
+    "en": "Blueprint panel height · panelHeight"
+  },
+  "summary": {
+    "de": "Höhe des World-Editor-Fensters in logischen Pixeln. Änderungen gelten während des laufenden Spiels.",
+    "en": "Height of the World Editor window in logical pixels. Changes apply while the game is running."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Fenster im Spiel",
+    "en": "Built-in mods · World Editor · In-game panel"
+  },
+  "navOrder": 160,
+  "order": 3
+}

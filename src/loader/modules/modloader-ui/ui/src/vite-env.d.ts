@@ -5,4 +5,5 @@ interface Window {
   __shroudforgeUpdate(snapshot: unknown): void
   __shroudforgeWindowState(state: unknown): void
   __shroudforgeCommandResult(result: {requestId:string;success:boolean;message:string;batchKey?:string;restoreSettings?:boolean;ecosystem?:'EML'|'SF'|null}): void
+  __shroudforgeLogCopyResult?(result: {requestId:string;success:boolean;text?:string;error?:string}): void
 }

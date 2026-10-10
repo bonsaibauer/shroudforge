@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-unlimited-flight",
+  "title": {
+    "de": "SF Unlimited Flight",
+    "en": "SF Unlimited Flight"
+  },
+  "summary": {
+    "de": "Ermöglicht unbegrenztes Fliegen.",
+    "en": "Lets you keep flying without a time limit."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Unlimited Flight",
+    "en": "Built-in mods · SF Unlimited Flight"
+  },
+  "navOrder": 140,
+  "order": 0
+}

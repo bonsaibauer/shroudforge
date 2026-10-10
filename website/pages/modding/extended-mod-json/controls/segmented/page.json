@@ -1,0 +1,17 @@
+{
+  "id": "control-segmented",
+  "title": {
+    "de": "Steuerelement `segmented`",
+    "en": "The `segmented` control"
+  },
+  "summary": {
+    "de": "Zeigt Auswahlwerte als eine Reihe von Schaltflächen.",
+    "en": "Shows choices as a row of buttons."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 8
+}

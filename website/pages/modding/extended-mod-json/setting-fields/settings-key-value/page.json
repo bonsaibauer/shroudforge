@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-value",
+  "title": {
+    "de": "Feld `settings.<key>.value`",
+    "en": "The `settings.<key>.value` field"
+  },
+  "summary": {
+    "de": "Startwert und erwarteter Lua-Datentyp der Einstellung.",
+    "en": "Starting value and expected Lua data type of the setting."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 0
+}

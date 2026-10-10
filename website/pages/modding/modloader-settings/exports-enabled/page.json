@@ -1,0 +1,17 @@
+{
+  "id": "preference-exports-enabled",
+  "title": {
+    "de": "Einstellung `exports.enabled`",
+    "en": "Setting `exports.enabled`"
+  },
+  "summary": {
+    "de": "Schaltet die Exportfunktionen für Mod-Ausgaben ein oder aus.",
+    "en": "Enables or disables mod export functions."
+  },
+  "navGroup": {
+    "de": "Exporte",
+    "en": "Exports"
+  },
+  "navOrder": 62,
+  "order": 7
+}

@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-blueprintnewname",
+  "title": {
+    "de": "Neuer Name beim Umbenennen oder Duplizieren · blueprintNewName",
+    "en": "New name for rename or duplicate · blueprintNewName"
+  },
+  "summary": {
+    "de": "Zielname für die Mod-Aktionen zum Umbenennen oder Duplizieren eines Blueprints.",
+    "en": "Destination name for the mod actions that rename or duplicate a blueprint."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 14
+}

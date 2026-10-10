@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-blueprintname",
+  "title": {
+    "de": "Dauerhafter Blueprint-Name · blueprintName",
+    "en": "Persistent blueprint name · blueprintName"
+  },
+  "summary": {
+    "de": "Standardname für das Speichern eines Blueprints und den ersten Namen in den Mod-Aktionen zum Umbenennen oder Duplizieren.",
+    "en": "Default name for saving a blueprint and the first name used by rename or duplicate actions."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 13
+}

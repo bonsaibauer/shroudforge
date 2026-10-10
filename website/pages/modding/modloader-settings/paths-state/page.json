@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-state",
+  "title": {
+    "de": "Einstellung `paths.state`",
+    "en": "Setting `paths.state`"
+  },
+  "summary": {
+    "de": "Ordner für den persistenten Loader-Zustand, darunter Aktivierungs- und Laufzeitstatus.",
+    "en": "Folder for persistent loader state, including enablement and runtime status."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 9
+}

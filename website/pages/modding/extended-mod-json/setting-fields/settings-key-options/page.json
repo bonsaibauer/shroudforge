@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-options",
+  "title": {
+    "de": "Feld `settings.<key>.options`",
+    "en": "The `settings.<key>.options` field"
+  },
+  "summary": {
+    "de": "Erlaubte Auswahlwerte mit den Namen, die Spieler sehen.",
+    "en": "Allowed choices and the labels players see."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 9
+}

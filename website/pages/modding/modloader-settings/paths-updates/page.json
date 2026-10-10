@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-updates",
+  "title": {
+    "de": "Einstellung `paths.updates`",
+    "en": "Setting `paths.updates`"
+  },
+  "summary": {
+    "de": "Ordner für heruntergeladene oder vorbereitete Updates.",
+    "en": "Folder for downloaded or staged updates."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 13
+}

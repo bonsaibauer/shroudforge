@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-targetpropmode",
+  "title": {
+    "de": "Props am Einfügeziel · targetPropMode",
+    "en": "Props at target · targetPropMode"
+  },
+  "summary": {
+    "de": "Bestimmt, ob Props am Ziel erhalten bleiben oder sicher überprüfte, sich überschneidende Props ersetzt werden.",
+    "en": "Controls whether props at the target are kept or safely verified intersecting props are replaced."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 16
+}

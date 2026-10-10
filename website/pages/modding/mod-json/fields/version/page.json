@@ -1,0 +1,17 @@
+{
+  "id": "field-version",
+  "title": {
+    "de": "Feld `version`",
+    "en": "The `version` field"
+  },
+  "summary": {
+    "de": "Version dieser Mod-Veröffentlichung im SemVer-Grundformat.",
+    "en": "Version of this mod release using the basic SemVer format."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 2
+}

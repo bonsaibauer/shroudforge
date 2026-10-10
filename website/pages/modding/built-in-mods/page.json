@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mods-guide",
+  "title": {
+    "de": "Eingebaute Mods und ihre Einstellungen",
+    "en": "Built-in mods and their settings"
+  },
+  "summary": {
+    "de": "Übersicht der mit ShroudForge ausgelieferten Mods und ihrer einzeln erklärten Einstellungen.",
+    "en": "Overview of the mods shipped with ShroudForge and their individually documented settings."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods",
+    "en": "Built-in mods"
+  },
+  "navOrder": 79,
+  "order": 0
+}

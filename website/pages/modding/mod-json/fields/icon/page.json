@@ -1,0 +1,17 @@
+{
+  "id": "field-icon",
+  "title": {
+    "de": "Feld `icon`",
+    "en": "The `icon` field"
+  },
+  "summary": {
+    "de": "Icon-Datei im Paketstamm oder unter assets/.",
+    "en": "Icon file in the package root or under assets/."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 6
+}

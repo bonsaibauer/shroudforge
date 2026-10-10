@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-actions",
+  "title": {
+    "de": "Feld `groups[].actions`",
+    "en": "The `groups[].actions` field"
+  },
+  "summary": {
+    "de": "Aktionsknöpfe, deren IDs Lua-Callbacks aufrufen.",
+    "en": "Action buttons whose IDs call Lua callbacks."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 3
+}

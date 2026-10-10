@@ -1,0 +1,17 @@
+{
+  "id": "link-source",
+  "title": {
+    "de": "Link-ID `source`",
+    "en": "Link ID `source`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für source.",
+    "en": "Recognized Modloader button for source."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 0
+}

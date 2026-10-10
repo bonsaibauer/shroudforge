@@ -1,0 +1,17 @@
+{
+  "id": "field-settings-key-min",
+  "title": {
+    "de": "Feld `settings.<key>.min`",
+    "en": "The `settings.<key>.min` field"
+  },
+  "summary": {
+    "de": "Kleinster zulässiger Eingabewert.",
+    "en": "Smallest accepted input value."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 4
+}

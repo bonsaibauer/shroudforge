@@ -1,0 +1,17 @@
+{
+  "id": "field-launcher",
+  "title": {
+    "de": "Feld `launcher`",
+    "en": "The `launcher` field"
+  },
+  "summary": {
+    "de": "Herkunft des Mod-Pakets für die Modloader-Anzeige.",
+    "en": "Package origin used in the Modloader display."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 4
+}

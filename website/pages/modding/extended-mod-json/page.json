@@ -1,0 +1,17 @@
+{
+  "id": "extended-mod-json-guide",
+  "title": {
+    "de": "extended.mod.json, Einstellungen und Modloader-Seite",
+    "en": "extended.mod.json, settings and the Modloader page"
+  },
+  "summary": {
+    "de": "Diese optionale Datei steuert Modloader-Einstellungen, Gruppen, Aktionen, Links, Zielprozesse und den gespeicherten Aktivierungszustand.",
+    "en": "This optional file describes Modloader settings, groups, actions, links, target processes, and the saved enabled state."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 0
+}

@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-sizex",
+  "title": {
+    "de": "Auswahlgröße X als manueller Ersatzwert · sizeX",
+    "en": "Size X (manual fallback) · sizeX"
+  },
+  "summary": {
+    "de": "Manuelle Ausdehnung der Aufnahme entlang X in Voxel-Zellen. Wird nur verwendet, wenn keine vollständige Auswahl über Cursor-Ecken vorliegt.",
+    "en": "Manual capture extent along X in voxel cells. Used only when there is no complete selection marked by cursor corners."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 10
+}

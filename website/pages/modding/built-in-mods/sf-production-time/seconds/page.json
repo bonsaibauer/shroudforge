@@ -1,0 +1,17 @@
+{
+  "id": "builtin-sf-production-time-seconds",
+  "title": {
+    "de": "Basis-Produktionszeit in Sekunden · seconds",
+    "en": "Base production time (seconds) · seconds"
+  },
+  "summary": {
+    "de": "Legt die Basisdauer in Sekunden für alle zeitgesteuerten Produktionsrezepte fest. Stelle denselben Wert auf Client und Host oder Server ein, bevor das Spiel startet.",
+    "en": "Sets the base duration in seconds for timed production recipes. Set the same value on the client and host or server before starting the game."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Production Time · Produktionszeit",
+    "en": "Built-in mods · SF Production Time · Production time"
+  },
+  "navOrder": 130,
+  "order": 1
+}

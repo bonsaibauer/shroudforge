@@ -1,0 +1,17 @@
+{
+  "id": "extension-setting-key",
+  "title": {
+    "de": "Schlüssel `settings.<key>`",
+    "en": "The `settings.<key>` key"
+  },
+  "summary": {
+    "de": "Der Schlüssel benennt eine Einstellung und ist zugleich der Name, den Lua zum Lesen ihres aktuellen Werts verwendet.",
+    "en": "The key names a setting and is also the name Lua uses to read its current value."
+  },
+  "navGroup": {
+    "de": "Einstellungen",
+    "en": "Settings"
+  },
+  "navOrder": 30,
+  "order": 1
+}

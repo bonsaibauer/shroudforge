@@ -1,0 +1,17 @@
+{
+  "id": "preference-general-usernamemode",
+  "title": {
+    "de": "Einstellung `general.usernameMode`",
+    "en": "Setting `general.usernameMode`"
+  },
+  "summary": {
+    "de": "Legt fest, ob der Spielername automatisch erkannt oder manuell festgelegt wird.",
+    "en": "Chooses automatic player-name detection or a manual name."
+  },
+  "navGroup": {
+    "de": "Allgemein",
+    "en": "General"
+  },
+  "navOrder": 60,
+  "order": 4
+}

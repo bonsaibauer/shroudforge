@@ -1,0 +1,17 @@
+{
+  "id": "capability-runtime-register-dll",
+  "title": {
+    "de": "Berechtigung `runtime-register-dll`",
+    "en": "The `runtime-register-dll` capability"
+  },
+  "summary": {
+    "de": "Registrierung einer DLL aus dem Mod-Paket im Runtime-Schritt",
+    "en": "Register a package-local DLL during the runtime phase"
+  },
+  "navGroup": {
+    "de": "Berechtigungen in mod.json",
+    "en": "mod.json capabilities"
+  },
+  "navOrder": 12,
+  "order": 3
+}

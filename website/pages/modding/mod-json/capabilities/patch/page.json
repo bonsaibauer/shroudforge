@@ -1,0 +1,17 @@
+{
+  "id": "capability-patch",
+  "title": {
+    "de": "Berechtigung `patch`",
+    "en": "The `patch` capability"
+  },
+  "summary": {
+    "de": "Vorbereitung unterstützter Spieldateien vor dem Start",
+    "en": "Prepare supported game files before launch"
+  },
+  "navGroup": {
+    "de": "Berechtigungen in mod.json",
+    "en": "mod.json capabilities"
+  },
+  "navOrder": 12,
+  "order": 0
+}

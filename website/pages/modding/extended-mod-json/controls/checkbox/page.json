@@ -1,0 +1,17 @@
+{
+  "id": "control-checkbox",
+  "title": {
+    "de": "Steuerelement `checkbox`",
+    "en": "The `checkbox` control"
+  },
+  "summary": {
+    "de": "Zeigt einen booleschen Wert als Kontrollkästchen.",
+    "en": "Displays a boolean value as a checkbox."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 1
+}

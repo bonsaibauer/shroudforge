@@ -1,0 +1,17 @@
+{
+  "id": "field-dependencies-id",
+  "title": {
+    "de": "Feld `dependencies[].id`",
+    "en": "The `dependencies[].id` field"
+  },
+  "summary": {
+    "de": "Exakte Mod-ID aus der mod.json des benötigten Mods.",
+    "en": "Exact mod ID from the required mod's mod.json."
+  },
+  "navGroup": {
+    "de": "mod.json, Abhängigkeiten",
+    "en": "mod.json, dependencies"
+  },
+  "navOrder": 11,
+  "order": 0
+}

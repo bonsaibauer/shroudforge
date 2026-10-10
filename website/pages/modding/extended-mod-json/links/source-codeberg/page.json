@@ -1,0 +1,17 @@
+{
+  "id": "link-source-codeberg",
+  "title": {
+    "de": "Link-ID `source-codeberg`",
+    "en": "Link ID `source-codeberg`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für source-codeberg.",
+    "en": "Recognized Modloader button for source-codeberg."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 3
+}

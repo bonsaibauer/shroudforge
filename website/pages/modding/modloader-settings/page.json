@@ -1,0 +1,17 @@
+{
+  "id": "modloader-settings-guide",
+  "title": {
+    "de": "Modloader-Einstellungen",
+    "en": "Modloader settings"
+  },
+  "summary": {
+    "de": "Diese Werte konfigurieren ShroudForge selbst. Sie sind von den Einstellungen eines einzelnen Mods getrennt.",
+    "en": "These values configure ShroudForge itself. They are separate from settings packaged by an individual mod."
+  },
+  "navGroup": {
+    "de": "Modloader-Einstellungen",
+    "en": "Modloader settings"
+  },
+  "navOrder": 60,
+  "order": 0
+}

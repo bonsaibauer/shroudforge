@@ -1,0 +1,17 @@
+{
+  "id": "link-support-ko-fi",
+  "title": {
+    "de": "Link-ID `support-ko-fi`",
+    "en": "Link ID `support-ko-fi`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-ko-fi.",
+    "en": "Recognized Modloader button for support-ko-fi."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 12
+}

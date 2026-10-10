@@ -1,6 +1,6 @@
 # How ShroudForge is organized
 
-This guide is for people exploring or changing the ShroudForge source code. For installing mods or getting started as a player, use the [illustrated website guide](https://bonsaibauer.github.io/shroudforge/en/).
+This guide is for people exploring or changing the ShroudForge source code. For an illustrated introduction, see [what ShroudForge does](https://bonsaibauer.github.io/shroudforge/en/#workings) and [how the Lua and KFC runtimes work](https://bonsaibauer.github.io/shroudforge/en/#runtime). For installing mods or getting started as a player, use the [website quickstart](https://bonsaibauer.github.io/shroudforge/en/#play).
 
 ## The short version
 

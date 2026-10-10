@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-panelwidth",
+  "title": {
+    "de": "Breite des Blueprint-Fensters · panelWidth",
+    "en": "Blueprint panel width · panelWidth"
+  },
+  "summary": {
+    "de": "Breite des World-Editor-Fensters in logischen Pixeln. Änderungen gelten während des laufenden Spiels.",
+    "en": "Width of the World Editor window in logical pixels. Changes apply while the game is running."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Fenster im Spiel",
+    "en": "Built-in mods · World Editor · In-game panel"
+  },
+  "navOrder": 160,
+  "order": 2
+}

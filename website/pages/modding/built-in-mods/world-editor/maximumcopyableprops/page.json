@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-maximumcopyableprops",
+  "title": {
+    "de": "Maximale Props pro Blueprint · maximumCopyableProps",
+    "en": "Maximum props per blueprint · maximumCopyableProps"
+  },
+  "summary": {
+    "de": "Maximale Prop-Anzahl pro Blueprint. Aufnahme, Speichern, Laden und Einfügen lehnen größere Blueprints ab, statt Props still zu entfernen.",
+    "en": "Maximum props per blueprint. Capture, save, load, and paste reject larger blueprints instead of silently dropping props."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Grenzen des World Editors",
+    "en": "Built-in mods · World Editor · World Editor limits"
+  },
+  "navOrder": 161,
+  "order": 6
+}

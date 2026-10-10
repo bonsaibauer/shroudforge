@@ -1,0 +1,17 @@
+{
+  "id": "link-support-paypal",
+  "title": {
+    "de": "Link-ID `support-paypal`",
+    "en": "Link ID `support-paypal`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-paypal.",
+    "en": "Recognized Modloader button for support-paypal."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 10
+}

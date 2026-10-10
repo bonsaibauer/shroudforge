@@ -1,0 +1,17 @@
+{
+  "id": "api-network",
+  "title": {
+    "de": "Steam-P2P-Nachrichten zwischen Mod-Prozessen",
+    "en": "Steam P2P messages between mod processes"
+  },
+  "summary": {
+    "de": "runtime.network stellt einen eigenen Steam-Nachrichtenkanal bereit. Er versendet keine normalen Enshrouded-Spielpakete.",
+    "en": "runtime.network provides a separate Steam messaging channel. It does not send normal Enshrouded game packets."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 7
+}

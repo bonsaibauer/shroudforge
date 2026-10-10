@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-production-time",
+  "title": {
+    "de": "SF Production Time",
+    "en": "SF Production Time"
+  },
+  "summary": {
+    "de": "Legt eine Basisdauer für zeitgesteuerte Produktionsrezepte fest. Weltgeschwindigkeitseinstellungen gelten weiterhin.",
+    "en": "Sets timed production recipes to a chosen base duration. World speed settings still apply."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF Production Time",
+    "en": "Built-in mods · SF Production Time"
+  },
+  "navOrder": 130,
+  "order": 0
+}

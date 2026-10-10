@@ -1,0 +1,17 @@
+{
+  "id": "link-support-other",
+  "title": {
+    "de": "Link-ID `support-other`",
+    "en": "Link ID `support-other`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-other.",
+    "en": "Recognized Modloader button for support-other."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 14
+}

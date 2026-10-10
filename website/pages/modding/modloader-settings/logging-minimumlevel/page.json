@@ -1,0 +1,17 @@
+{
+  "id": "preference-logging-minimumlevel",
+  "title": {
+    "de": "Einstellung `logging.minimumLevel`",
+    "en": "Setting `logging.minimumLevel`"
+  },
+  "summary": {
+    "de": "Niedrigste Stufe, die ShroudForge in Logdateien speichert. Die Debug Console hat zusätzlich einen eigenen Anzeigefilter.",
+    "en": "Lowest level ShroudForge writes to log files. The Debug Console also has its own display filter."
+  },
+  "navGroup": {
+    "de": "Protokollierung",
+    "en": "Logging"
+  },
+  "navOrder": 61,
+  "order": 6
+}

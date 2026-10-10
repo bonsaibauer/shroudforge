@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-panelpositiony",
+  "title": {
+    "de": "Fensterposition Y ab oberem Rand · panelPositionY",
+    "en": "Panel position Y (from game top) · panelPositionY"
+  },
+  "summary": {
+    "de": "Vertikaler Abstand des World-Editor-Fensters vom oberen Rand des Spielfensters.",
+    "en": "Vertical offset of the World Editor window from the top of the game window."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Fenster im Spiel",
+    "en": "Built-in mods · World Editor · In-game panel"
+  },
+  "navOrder": 160,
+  "order": 5
+}

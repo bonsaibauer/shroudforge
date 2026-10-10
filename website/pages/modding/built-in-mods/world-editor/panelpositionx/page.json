@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-panelpositionx",
+  "title": {
+    "de": "Fensterposition X, minus eins zentriert · panelPositionX",
+    "en": "Panel position X (−1 = centered) · panelPositionX"
+  },
+  "summary": {
+    "de": "Horizontale Position relativ zum Spielfenster. Der Wert −1 zentriert das Fenster, nichtnegative Werte legen den linken Abstand fest.",
+    "en": "Horizontal position relative to the game window. A value of −1 centers the window, nonnegative values set its left offset."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Fenster im Spiel",
+    "en": "Built-in mods · World Editor · In-game panel"
+  },
+  "navOrder": 160,
+  "order": 4
+}

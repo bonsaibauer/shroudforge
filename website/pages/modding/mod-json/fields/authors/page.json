@@ -1,0 +1,17 @@
+{
+  "id": "field-authors",
+  "title": {
+    "de": "Feld `authors`",
+    "en": "The `authors` field"
+  },
+  "summary": {
+    "de": "Namen der Personen, die den Mod erstellt haben.",
+    "en": "Names of the people who created the mod."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 4
+}

@@ -1,0 +1,17 @@
+{
+  "id": "capability-export",
+  "title": {
+    "de": "Berechtigung `export`",
+    "en": "The `export` capability"
+  },
+  "summary": {
+    "de": "Exportfunktionen für Mod-Ausgaben",
+    "en": "Export functions for mod output"
+  },
+  "navGroup": {
+    "de": "Berechtigungen in mod.json",
+    "en": "mod.json capabilities"
+  },
+  "navOrder": 12,
+  "order": 1
+}

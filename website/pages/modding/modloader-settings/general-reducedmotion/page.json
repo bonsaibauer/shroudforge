@@ -1,0 +1,17 @@
+{
+  "id": "preference-general-reducedmotion",
+  "title": {
+    "de": "Einstellung `general.reducedMotion`",
+    "en": "Setting `general.reducedMotion`"
+  },
+  "summary": {
+    "de": "Reduziert Bewegungs- und Übergangseffekte.",
+    "en": "Reduces motion and transition effects."
+  },
+  "navGroup": {
+    "de": "Allgemein",
+    "en": "General"
+  },
+  "navOrder": 60,
+  "order": 3
+}

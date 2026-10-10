@@ -86,10 +86,6 @@ window.__shroudforgeUpdate = (next) => {
   }
   document.querySelectorAll(".tab").forEach(item => item.classList.toggle("active",item.dataset.tab===activeSource));
   byId("level").textContent = `Display: ${levels[levelIndex]}`;
-  byId("recording").textContent = minimumLevel === "TRACE"
-    ? "Saved: TRACE and above · Display filter only hides lines"
-    : `Saved: ${minimumLevel} and above · lower levels are not recorded`;
-  byId("recording").title = "The minimum level controls what is written to the log. Display filters only hide already-recorded entries.";
   byId("level").classList.toggle("active",levelIndex!==0);
   byId("follow").textContent = `Auto-Scroll: ${follow ? "On" : "Off"}`;
   byId("follow").classList.toggle("active",follow);
@@ -120,9 +116,6 @@ byId("level").addEventListener("click", () => {
   savePreferences();
   byId("level").textContent = `Display: ${levels[levelIndex]}`;
   byId("level").classList.toggle("active", levelIndex !== 0);
-  byId("recording").textContent = minimumLevel === "TRACE"
-    ? "Saved: TRACE and above · Display filter only hides lines"
-    : `Saved: ${minimumLevel} and above · lower levels are not recorded`;
   render();
 });
 byId("pause").addEventListener("click", () => {

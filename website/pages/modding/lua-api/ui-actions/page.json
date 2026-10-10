@@ -1,0 +1,17 @@
+{
+  "id": "api-ui-actions",
+  "title": {
+    "de": "Modloader-Aktionsknöpfe mit Lua verbinden",
+    "en": "Connect Modloader buttons to Lua"
+  },
+  "summary": {
+    "de": "Eine Aktions-ID in der Moddatei verbindet den sichtbaren Knopf mit einer Callback-Funktion deines Mods.",
+    "en": "An action ID in the mod file connects a visible button to a callback in your mod."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 3
+}

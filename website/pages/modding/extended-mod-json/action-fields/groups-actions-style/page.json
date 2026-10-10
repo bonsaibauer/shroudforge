@@ -1,0 +1,17 @@
+{
+  "id": "field-groups-actions-style",
+  "title": {
+    "de": "Feld `groups[].actions[].style`",
+    "en": "The `groups[].actions[].style` field"
+  },
+  "summary": {
+    "de": "Darstellung des Aktionsknopfs, ohne die Funktion zu ändern.",
+    "en": "Appearance of the action button, without changing its behavior."
+  },
+  "navGroup": {
+    "de": "Gruppen und Aktionen",
+    "en": "Groups and actions"
+  },
+  "navOrder": 31,
+  "order": 2
+}

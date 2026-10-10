@@ -1,0 +1,17 @@
+{
+  "id": "field-dependencies",
+  "title": {
+    "de": "Feld `dependencies`",
+    "en": "The `dependencies` field"
+  },
+  "summary": {
+    "de": "Andere Mods, deren Verfügbarkeit oder Version der Loader vor dem Start prüfen muss.",
+    "en": "Other mods whose availability or version the loader checks before startup."
+  },
+  "navGroup": {
+    "de": "mod.json",
+    "en": "mod.json"
+  },
+  "navOrder": 10,
+  "order": 7
+}

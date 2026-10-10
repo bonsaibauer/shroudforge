@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-trackingid",
+  "title": {
+    "de": "Tracking-ID · trackingId",
+    "en": "Tracking ID · trackingId"
+  },
+  "summary": {
+    "de": "Nichtnuller Tracking-Wert aus der ItemInfo-Platzierungsdefinition. Die erweiterten nativen Spawn- und Platzierungsaktionen benötigen ihn.",
+    "en": "Nonzero tracking value from the ItemInfo placement definition. The advanced native spawn and placement actions require it."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · Native Entity-Operationen",
+    "en": "Built-in mods · World Editor · Native entity operations"
+  },
+  "navOrder": 163,
+  "order": 28
+}

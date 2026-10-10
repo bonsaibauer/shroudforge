@@ -1,0 +1,17 @@
+{
+  "id": "field-dependencies-optional",
+  "title": {
+    "de": "Feld `dependencies[].optional`",
+    "en": "The `dependencies[].optional` field"
+  },
+  "summary": {
+    "de": "Ob eine fehlende oder inkompatible Abhängigkeit den Start blockiert.",
+    "en": "Whether a missing or incompatible dependency blocks startup."
+  },
+  "navGroup": {
+    "de": "mod.json, Abhängigkeiten",
+    "en": "mod.json, dependencies"
+  },
+  "navOrder": 11,
+  "order": 2
+}

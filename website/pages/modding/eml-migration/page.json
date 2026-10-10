@@ -1,0 +1,17 @@
+{
+  "id": "eml-migration",
+  "title": {
+    "de": "EML-Mods verstehen und migrieren",
+    "en": "Understand and migrate EML mods"
+  },
+  "summary": {
+    "de": "ShroudForge kann EML-Pakete laden. Diese Seite trennt alte Manifestdaten von ShroudForge-Erweiterungen und erklärt die wichtigen Unterschiede.",
+    "en": "ShroudForge can load EML packages. This page separates legacy manifest data from ShroudForge extensions and explains the differences that matter."
+  },
+  "navGroup": {
+    "de": "EML verstehen und migrieren",
+    "en": "Understand and migrate EML"
+  },
+  "navOrder": 40,
+  "order": 0
+}

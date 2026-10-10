@@ -1,0 +1,17 @@
+{
+  "id": "control-color",
+  "title": {
+    "de": "Steuerelement `color`",
+    "en": "The `color` control"
+  },
+  "summary": {
+    "de": "Für einen Farbwert, der im Modloader als Farbfeld bearbeitet wird.",
+    "en": "For a color value edited through a color input in Modloader."
+  },
+  "navGroup": {
+    "de": "Steuerelemente",
+    "en": "Controls"
+  },
+  "navOrder": 32,
+  "order": 11
+}

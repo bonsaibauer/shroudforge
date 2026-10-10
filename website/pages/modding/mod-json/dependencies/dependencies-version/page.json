@@ -1,0 +1,17 @@
+{
+  "id": "field-dependencies-version",
+  "title": {
+    "de": "Feld `dependencies[].version`",
+    "en": "The `dependencies[].version` field"
+  },
+  "summary": {
+    "de": "SemVer-Bereich, der für die Version des benötigten Mods akzeptiert wird.",
+    "en": "SemVer range accepted for the required mod's version."
+  },
+  "navGroup": {
+    "de": "mod.json, Abhängigkeiten",
+    "en": "mod.json, dependencies"
+  },
+  "navOrder": 11,
+  "order": 1
+}

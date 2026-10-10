@@ -1,0 +1,17 @@
+{
+  "id": "link-support-github",
+  "title": {
+    "de": "Link-ID `support-github`",
+    "en": "Link ID `support-github`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-github.",
+    "en": "Recognized Modloader button for support-github."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 11
+}

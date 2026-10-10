@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-targetworldx",
+  "title": {
+    "de": "Weltposition X für Props-only-Blueprints · targetWorldX",
+    "en": "Props-only target world X · targetWorldX"
+  },
+  "summary": {
+    "de": "Weltkoordinate X als manuelles Einfügeziel für Props-only-Blueprints, wenn weder Cursor noch markiertes Ziel verwendet werden.",
+    "en": "World coordinate X as the manual paste target for props-only blueprints when neither the cursor nor a marked target is used."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 20
+}

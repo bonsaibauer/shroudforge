@@ -254,9 +254,9 @@
         },
         {
           "id": "resetEditor",
-          "label": "F6 — Reset editor",
+          "label": "F6 — Reset / release stuck server operation",
           "style": "secondary",
-          "confirm": "Clear the current selection, active blueprint, and undo history?"
+          "confirm": "If a server paste or undo is stalled or incomplete, F6 asks the dedicated server to abandon it and release its lock. Partial terrain or props may remain. F7 unlocks only after server confirmation."
         },
         {
           "id": "pasteAtCursor",

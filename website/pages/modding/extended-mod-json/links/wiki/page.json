@@ -1,0 +1,17 @@
+{
+  "id": "link-wiki",
+  "title": {
+    "de": "Link-ID `wiki`",
+    "en": "Link ID `wiki`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für wiki.",
+    "en": "Recognized Modloader button for wiki."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 5
+}

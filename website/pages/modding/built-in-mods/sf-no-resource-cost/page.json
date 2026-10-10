@@ -1,0 +1,17 @@
+{
+  "id": "builtin-mod-sf-no-resource-cost",
+  "title": {
+    "de": "SF No Resource Cost",
+    "en": "SF No Resource Cost"
+  },
+  "summary": {
+    "de": "Entfernt den Ressourcenverbrauch bei unterstützten Bau-, Herstellungs- und Verwendungsaktionen.",
+    "en": "Removes resource consumption in supported building, crafting, and item-use actions."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · SF No Resource Cost",
+    "en": "Built-in mods · SF No Resource Cost"
+  },
+  "navOrder": 120,
+  "order": 0
+}

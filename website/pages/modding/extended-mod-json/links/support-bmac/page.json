@@ -1,0 +1,17 @@
+{
+  "id": "link-support-bmac",
+  "title": {
+    "de": "Link-ID `support-bmac`",
+    "en": "Link ID `support-bmac`"
+  },
+  "summary": {
+    "de": "Bekannte Modloader-Schaltfläche für support-bmac.",
+    "en": "Recognized Modloader button for support-bmac."
+  },
+  "navGroup": {
+    "de": "Link-IDs",
+    "en": "Link IDs"
+  },
+  "navOrder": 33,
+  "order": 8
+}

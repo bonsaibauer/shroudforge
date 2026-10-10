@@ -1,0 +1,17 @@
+{
+  "id": "builtin-world-editor-rotationquarterturns",
+  "title": {
+    "de": "Drehung vor dem Einfügen · rotationQuarterTurns",
+    "en": "Initial paste rotation (F3 cycles in game, 0–3) · rotationQuarterTurns"
+  },
+  "summary": {
+    "de": "Anfangsdrehung des aktiven Blueprints in Vierteldrehungen. 0, 1, 2 und 3 entsprechen 0°, 90°, 180° und 270°. F3 erhöht den Wert im Spiel.",
+    "en": "Initial rotation of the active blueprint in quarter turns. 0, 1, 2, and 3 mean 0°, 90°, 180°, and 270°. F3 advances it in game."
+  },
+  "navGroup": {
+    "de": "Eingebaute Mods · World Editor · World Editor",
+    "en": "Built-in mods · World Editor · World Editor"
+  },
+  "navOrder": 164,
+  "order": 23
+}

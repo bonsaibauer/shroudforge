@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This crate provides the Lua API used by ShroudForge mods. It combines parsed game data, the verified compatibility contract, settings, logging, asset access, and runtime ECS operations in one sandboxed mod environment. The loader derives execution scope and target from API use in `src/mod.lua`. Authors do not maintain capability, target, or apply-phase flags in `mod.json`.
+This crate provides the Lua API used by ShroudForge mods. It combines parsed game data, the verified compatibility contract, settings, logging, asset access, and runtime ECS operations in one sandboxed mod environment. Mods declare the access they need in `mod.json`. Client or server targets can be selected in `extended.mod.json`. The loader checks those declarations and the current execution phase before it makes protected operations available. Calling an API function does not grant a missing capability.
 
 ## Current status
 
@@ -43,7 +43,7 @@ local greeting = shroudforge.settings.get(
 
 The first argument is the setting key. The second is a fallback for a missing value. Keep the fallback the same kind of value as the setting's `value`. Read settings in a runtime callback or action when the latest player choice should take effect. The loader updates the active runtime settings after a player saves a change. code that cached the value once during module startup still holds its old local value.
 
-The Modloader saves a changed player value in `extended.mod.json`, under `settings.<key>.value`. The setting key must also be listed in `groups[].settings` for its control to appear in the Modloader. The [website guide](https://bonsaibauer.github.io/shroudforge/en/#manifests) shows both files, the Lua lookup, and a preview.
+The Modloader saves a changed player value in `extended.mod.json`, under `settings.<key>.value`. Listing the key in `groups[].settings` places it in that group. An ungrouped setting still appears under the default Settings group. The [website guide](https://bonsaibauer.github.io/shroudforge/en/#doc-setting-controls) explains the fields, Lua lookup, and preview.
 
 ## Publish a Modloader notice
 

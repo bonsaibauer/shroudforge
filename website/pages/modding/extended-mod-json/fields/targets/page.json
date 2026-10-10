@@ -1,0 +1,17 @@
+{
+  "id": "field-targets",
+  "title": {
+    "de": "Feld `targets`",
+    "en": "The `targets` field"
+  },
+  "summary": {
+    "de": "Wählt den Client-Prozess, den Dedicated Server oder beide als Ausführungsort des Mods.",
+    "en": "Selects the client process, the Dedicated Server, or both as mod execution targets."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 3
+}

@@ -1,0 +1,17 @@
+{
+  "id": "field-enabled",
+  "title": {
+    "de": "Feld `enabled`",
+    "en": "The `enabled` field"
+  },
+  "summary": {
+    "de": "Gespeicherter Aktivierungszustand für diesen Mod.",
+    "en": "Saved enabled state for this mod."
+  },
+  "navGroup": {
+    "de": "extended.mod.json",
+    "en": "extended.mod.json"
+  },
+  "navOrder": 20,
+  "order": 2
+}

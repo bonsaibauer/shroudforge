@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-ui",
+  "title": {
+    "de": "Einstellung `paths.ui`",
+    "en": "Setting `paths.ui`"
+  },
+  "summary": {
+    "de": "Ordner für persistente Daten und das WebView-Profil der Modloader-Oberfläche.",
+    "en": "Folder for persistent data and the Modloader interface WebView profile."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 14
+}

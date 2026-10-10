@@ -1,0 +1,17 @@
+{
+  "id": "api-files",
+  "title": {
+    "de": "Dateien lesen und Exporte speichern",
+    "en": "Read files and save exports"
+  },
+  "summary": {
+    "de": "Paketdateien und Exportdateien haben unterschiedliche Orte und Berechtigungen. Verwende den passenden API-Bereich.",
+    "en": "Package files and exported files use different locations and permissions. Choose the matching API surface."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 5
+}

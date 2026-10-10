@@ -1,0 +1,17 @@
+{
+  "id": "api-guides",
+  "title": {
+    "de": "Lua-API, Anleitungen nach Funktion",
+    "en": "Lua API, guides by feature"
+  },
+  "summary": {
+    "de": "Die API-Referenz listet alle verfügbaren Symbole. Diese Anleitungen erklären häufige Aufgaben mit Ablauf, Voraussetzungen und vollständigen Beispielen.",
+    "en": "The API reference lists every available symbol. These guides explain common tasks with their flow, prerequisites, and complete examples."
+  },
+  "navGroup": {
+    "de": "Lua-API-Anleitungen",
+    "en": "Lua API guides"
+  },
+  "navOrder": 50,
+  "order": 0
+}

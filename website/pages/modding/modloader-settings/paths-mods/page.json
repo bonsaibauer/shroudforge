@@ -1,0 +1,17 @@
+{
+  "id": "preference-paths-mods",
+  "title": {
+    "de": "Einstellung `paths.mods`",
+    "en": "Setting `paths.mods`"
+  },
+  "summary": {
+    "de": "Ordner, in dem ShroudForge installierte Mod-Pakete sucht.",
+    "en": "Folder where ShroudForge searches for installed mod packages."
+  },
+  "navGroup": {
+    "de": "Speicherorte",
+    "en": "Storage paths"
+  },
+  "navOrder": 69,
+  "order": 8
+}
