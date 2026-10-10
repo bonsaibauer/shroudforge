@@ -1060,12 +1060,6 @@ function renderApi(query = "") {
   if (!$("#api-results")) return;
   const needle = query.trim().toLocaleLowerCase();
   const count = $("#api-result-count");
-  if (!needle) {
-    if (count) count.textContent = "";
-    $("#api-results").innerHTML = `<div class="api-search-help"><strong>${locale === "de" ? "Suche nach einer Aufgabe oder einem API-Namen" : "Search for a task or API name"}</strong><span>${locale === "de" ? "Nutze die Beispiele oben oder tippe zum Beispiel shroudforge.settings.get." : "Use one of the examples above or type a name such as shroudforge.settings.get."}</span></div>`;
-    return;
-  }
-
   const terms = needle.split(/\s+/).filter(Boolean);
   const filtered = state.api.filter(item => {
     const isEml = item.source?.includes("eml/v1");
@@ -1081,12 +1075,11 @@ function renderApi(query = "") {
     ].join(" ").toLocaleLowerCase();
     return terms.every(term => searchText.includes(term));
   });
-  const matches = filtered.slice(0, 160);
-  if (count) count.textContent = filtered.length > 160
-    ? (locale === "de" ? `${fmt(filtered.length)} Treffer, die ersten 160 werden angezeigt. Suche genauer, um die Liste einzugrenzen.` : `${fmt(filtered.length)} results, showing the first 160. Add a word to narrow the list.`)
-    : (locale === "de" ? `${fmt(filtered.length)} ${filtered.length === 1 ? "Treffer" : "Treffer"}` : `${fmt(filtered.length)} ${filtered.length === 1 ? "result" : "results"}`);
-  $("#api-results").innerHTML = matches.length
-    ? matches.map(renderApiResult).join("")
+  if (count) count.textContent = locale === "de"
+    ? `${fmt(filtered.length)} ${filtered.length === 1 ? "Eintrag" : "Einträge"}`
+    : `${fmt(filtered.length)} ${filtered.length === 1 ? "entry" : "entries"}`;
+  $("#api-results").innerHTML = filtered.length
+    ? filtered.map(renderApiResult).join("")
     : `<div class="empty-results">${locale === "de" ? "Keine Treffer. Prüfe die Schreibweise, wähle Alle oder suche nach einem kürzeren Begriff." : "No results. Check the spelling, choose All, or search for a shorter term."}</div>`;
   addCopyControls();
 }
