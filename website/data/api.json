@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.5",
   "symbols": [
     {
       "kind": "field",
@@ -14017,6 +14017,19 @@
         "string?"
       ],
       "description": "Accept an incoming session request from a known peer before receiving its first message.",
+      "source": "shroudforge/v1/definitions/runtime.lua"
+    },
+    {
+      "kind": "function",
+      "namespace": "runtime",
+      "name": "runtime.network.connected_peers",
+      "signature": "runtime.network.connected_peers()",
+      "params": [],
+      "returns": [
+        "string[]|nil",
+        "string|nil"
+      ],
+      "description": "Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server.",
       "source": "shroudforge/v1/definitions/runtime.lua"
     },
     {
