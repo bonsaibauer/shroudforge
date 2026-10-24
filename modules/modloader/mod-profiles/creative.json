@@ -5,11 +5,17 @@
   "packageDirectory": "creative",
   "name": "Creative Mode",
   "target": "both",
+  "modJson": {
+    "authors": ["Phoenix1355"]
+  },
   "extendedModJson": {
     "schemaVersion": 1,
     "enabled": true,
     "targets": ["client", "server"],
-    "launcher": "EML"
+    "launcher": "EML",
+    "links": {
+      "issues": "https://www.nexusmods.com/enshrouded/mods/146?tab=posts"
+    }
   },
   "files": [
     {
