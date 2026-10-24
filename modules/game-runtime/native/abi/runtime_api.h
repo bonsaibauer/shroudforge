@@ -28,6 +28,10 @@ KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeShutdown(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capacity);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
+/* Optional ABI-12 selected-character cache. Returns required UTF-8 bytes
+ * including NUL, or zero when unavailable. Copies only a complete name.
+ * This getter never reads game memory or refreshes the cached selection. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeSelectedCharacterName(char* buffer, size_t capacity);
 /* Optional Steam Networking Messages transport used by runtime.network. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkStatus(uint64_t* local_steam_id);
 /* Registers an ISteamNetworkingMessages session-request callback without

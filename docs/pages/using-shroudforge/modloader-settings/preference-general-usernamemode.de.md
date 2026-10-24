@@ -19,7 +19,9 @@ Legt fest, ob der Spielername automatisch erkannt oder manuell festgelegt wird.
 
 ## Wirkung
 
-Legt fest, ob der Spielername automatisch erkannt oder manuell festgelegt wird.
+`"auto"` verwendet den gecachten Charakternamen aus der vorhandenen Runtime. Der native Menücallback liest ihn beim ersten gültigen Charakter und erneut bei geänderter Auswahl oder geändertem Namensdeskriptor. Während des Spielens bleibt der Name im Cache. Schlägt die Erfassung fehl, gilt `general.messageNameFallback`. Ein Name aus einem früheren Spielprozess wird nicht übernommen.
+
+`"manual"` verwendet immer `general.messageNameFallback`. Dessen Standardwert ist `Flameborn`.
 
 ## Standardwert
 

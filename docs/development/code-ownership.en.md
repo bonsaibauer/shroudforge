@@ -22,7 +22,7 @@ modules/                       # Product modules and application entrypoints
   entrypoints/                # Loader application and Windows DLL entrypoints
   modloader/                  # Find, read, check and configure mods
     ui/                       # Modloader window and its views
-  player-name/                # Read the selected character name from the live Enshrouded UI
+  player-name/                # Resolve the Modloader name from the published native runtime cache
   updater/                    # Check, download and install updates
     ui/                       # Its update views
   loader-config/              # Read and save loader settings and state
@@ -163,7 +163,7 @@ A file contains the implementation of the action named by that file. Related hel
 | What you want to change | Open this file |
 | --- | --- |
 | Find installed mods | `modules/modloader/find_installed_mods.rs` |
-| Read the live player name from the Enshrouded login log or character menu memory, and persist successful detections | `modules/player-name/lib.rs`, `modules/player-name/read_game_login_player_name.rs`, `modules/player-name/read_live_character_selection.rs` |
+| Provide the selected character name to Lua and the Modloader | `modules/game-runtime/native/main-menu/resolve_character_selection.cpp` derives the original selected-entry/name contract from the existing menu builder. `manage_native_main_menu.cpp` observes changes during its existing UI callback and owns copied name bytes. The optional ABI, Rust bridge and `runtime.player.name()` read that cache. The existing runtime status publication carries the same value to `modules/player-name/lib.rs`, which applies the Modloader manual/default-name policy without process access or a reader thread. |
 | Read a mod's information | `modules/modloader/read_mod_manifest.rs` |
 | Save mod settings | `modules/modloader/save_mod_settings.rs` |
 | Parse SDL scancode shortcuts, observe keyboard input, or edit the shared shortcut field | `modules/hotkeys/` |

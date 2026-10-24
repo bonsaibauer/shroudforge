@@ -8,6 +8,7 @@
 --- @field phase "pregame"|"ingame" Whether the game is preparing startup data or is running.
 --- @field is_client boolean True when this mod runs in a player client process.
 --- @field is_server boolean True when this mod runs in a Dedicated Server process.
+--- @field player RuntimePlayerApi Cached local character selection from the main menu.
 --- @field network RuntimeNetworkApi Steam Networking Messages P2P channel on the current client or dedicated-server process.
 --- @field services RuntimeServicesApi Reflected views of original named engine DI services with independently validated plain-data storage contracts.
 --- @field impact RuntimeImpactApi Checked semantic calls to original named Impact operations.
@@ -20,6 +21,17 @@
 --- @field on_unload fun()? Called when the runtime mod stops.
 --- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
+
+---@class RuntimePlayerApi
+runtime.player = {}
+--- Return the cached name selected in the local client's main menu, including Unicode.
+--- The native menu reads the name on the first selection and when selection/name metadata changes.
+--- This getter performs no game-memory scan or refresh. It does not require an active world.
+--- Returns nil and a reason before a name is available and on Dedicated Servers.
+--- Requires an active runtime mod with the runtime capability.
+---@return string? name
+---@return string? reason
+function runtime.player.name() end
 
 --- Reversible scalar changes through the common typed writers.
 --- Targets resolve original storage identities. Independent mods receive exclusive

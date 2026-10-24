@@ -55,10 +55,7 @@ pub(crate) fn read_ui_snapshot(
         .unwrap_or_else(default_message_name_fallback);
     let resolved_username =
         player_name_detection.resolve_name(username_mode == "manual", &fallback_username);
-    let detected_username = player_name_detection
-        .name
-        .clone()
-        .or_else(|| player_name_detection.saved_name.clone());
+    let detected_username = player_name_detection.name.clone();
     let diagnostic_jobs = shroudforge_runtime_diagnostics::diagnostic_job_catalog(
         &arguments.root,
         &central["modules"]["runtimeDiagnostics"],

@@ -19,7 +19,9 @@ Chooses automatic player-name detection or a manual name.
 
 ## What it changes
 
-Chooses automatic player-name detection or a manual name.
+`"auto"` uses the cached character name from the existing runtime. The native menu callback reads it on the first valid character and again when the selection or name descriptor changes. The name remains cached while playing. Failed capture uses `general.messageNameFallback`. A name from a previous game process is not restored.
+
+`"manual"` always uses `general.messageNameFallback`, which defaults to `Flameborn`.
 
 ## Default
 

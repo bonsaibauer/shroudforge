@@ -245,6 +245,9 @@ bool select_binding(const Procedure& builder, std::uintptr_t anchor, MenuBinding
     }
     if (!OriginalCode::AppendEvidence(builder, result.evidence) || !OriginalCode::AppendEvidence(helper, result.evidence) ||
         !OriginalCode::EvidenceUnchanged(result.evidence)) return false;
+    // The character cache observes this same original UI callback. Failure to
+    // establish its read-only contract does not disable the Mods menu entry.
+    ResolveCharacterSelection(builder, result.character);
     selected = std::move(result);
     return true;
 }

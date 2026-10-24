@@ -4,4 +4,4 @@ Each direct child of `modules/` is a product module with its own behavior and, w
 
 See [code ownership](../docs/development/code-ownership.en.md) for the current repository map and action-to-file guide.
 
-`modules/player-name/` owns live character-name detection from the Enshrouded login log and menu memory, plus persistence of names that have been detected live. The Modloader UI calls it to populate the detected-name setting and reports detection status through the existing logging module.
+`modules/game-runtime/native/main-menu/` owns the selected-character cache alongside the existing native menu callback. It derives the original selection/name contract from the already resolved menu builder. Names are copied on the first valid selection and on a changed selection or name descriptor. The optional native ABI and `runtime.player.name()` expose that same cache. `modules/player-name/` consumes the existing runtime status publication for the Modloader and applies the configured manual/default-name policy. It does not open the game process, scan memory, start a reader thread, or maintain a persistent name cache.

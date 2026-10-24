@@ -192,4 +192,5 @@ pub(super) struct Provider {
     pub(super) runtime_patch_set_enabled: RuntimePatchSetEnabled,
     pub(super) abi: u32,
     pub(super) status: unsafe extern "C" fn(*mut c_char, usize),
+    pub(super) selected_character_name: Option<Registry>,
 }

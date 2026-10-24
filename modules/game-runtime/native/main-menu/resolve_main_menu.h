@@ -1,5 +1,6 @@
 #pragma once
 #include "code-inventory/resolve_original_call_graph.h"
+#include "main-menu/resolve_character_selection.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +17,7 @@ struct MenuBinding {
     std::vector<MenuCall> insertion_calls;
     std::size_t menu_calls{};
     OriginalCode::CodeEvidence evidence;
+    CharacterSelectionBinding character;
     std::string error;
 };
 

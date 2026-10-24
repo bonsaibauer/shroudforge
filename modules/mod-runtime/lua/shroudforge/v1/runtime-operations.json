@@ -3,6 +3,7 @@
   "schemaVersion": 1,
   "runtimeOperations": [
     "runtime.lifecycle",
+    "runtime.player.name",
     "runtime.network.status",
     "runtime.network.send",
     "runtime.network.send_mod",

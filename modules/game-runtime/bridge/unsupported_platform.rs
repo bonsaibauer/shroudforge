@@ -159,6 +159,9 @@ pub fn runtime_patch_set_enabled(_: &str, _: bool) -> Result<(), String> {
 pub fn report() -> serde_json::Value {
     serde_json::json!({"available":false,"reason":"windows-runtime-only"})
 }
+pub fn selected_character_name() -> Option<String> {
+    None
+}
 pub fn registry() -> Result<serde_json::Value, String> {
     Err("native component registry is available on Windows only".into())
 }

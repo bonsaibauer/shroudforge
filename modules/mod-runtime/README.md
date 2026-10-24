@@ -66,7 +66,17 @@ Use a stable ID for a notice that should be updated in place. The ID is scoped t
 
 Each call writes to the event file for that mod and ID. Calling again with the same ID replaces its title and message instead of adding another row. A different ID creates another row that stays in the local feed. Read state is keyed by the notice ID, so replacing a notice that was already read does not make it unread again. Choose when to publish deliberately. Do not publish from a per-frame callback or create a fresh ID every time the game starts. A stable ID works for a persistent help notice. A versioned ID works when each release should have its own notice. Read version notices remain in the full feed after they are marked read.
 
-You can use `{username}` in the title or message when addressing the player. Settings â†’ General â†’ Username defaults to Automatic and shows the detected name separately from the effective name. Automatic mode reads the most recently played character from the local rolling `characters` save; when the save cannot be read or its character data is ambiguous, it uses the editable fallback, which defaults to `Flameborn`. Manual mode always uses that fallback. This substitution happens on the player's device and does not change the saved mod notice.
+You can use `{username}` in the title or message when addressing the player. Settings → General → Username defaults to Automatic and shows the detected name separately from the effective name. Automatic mode consumes the native runtime's selected-character cache. It reads the name on the first valid menu selection and when the selection or name descriptor changes, then retains the copied name while playing. Failed capture uses the editable fallback, which defaults to `Flameborn`. A previous game process's name is not restored. Manual mode always uses that fallback. This substitution happens on the player's device and does not change the saved mod notice.
+
+## Read the selected character name
+
+Runtime mods can read the same native cache without triggering another game read:
+
+```lua
+local name = runtime.player.name() or "Flameborn"
+```
+
+`runtime.player.name()` returns the selected client character's UTF-8 name or `nil, reason` when unavailable. It requires the existing runtime capability and an active mod lifecycle, but no loaded world. The native menu callback owns updates. Calling this API repeatedly only reads the cache. Dedicated servers have no local main-menu character and return `nil`.
 
 ## Network channels
 

@@ -6,21 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-memchr = "2.8.3"
 serde_json.workspace = true
 shroudforge-loader-config.workspace = true
+shroudforge-runtime-diagnostics = { path = "../runtime-diagnostics" }
 
 [lib]
 path = "lib.rs"
-
-[dev-dependencies]
-tempfile = "3"
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61.2", features = [
-    "Win32_Foundation",
-    "Win32_System_Diagnostics_Debug",
-    "Win32_System_Diagnostics_ToolHelp",
-    "Win32_System_Memory",
-    "Win32_System_Threading",
-] }

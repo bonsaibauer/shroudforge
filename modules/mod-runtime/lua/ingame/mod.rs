@@ -56,6 +56,9 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &table, "get_operations", &r#mod, lua_get_operations)?;
     add_function_with_mod(lua, &table, "report_effect", &r#mod, lua_report_effect)?;
 
+    let player = lua.create_table()?;
+    add_function_with_mod(lua, &player, "name", &r#mod, lua_player_name)?;
+    table.raw_set("player", player)?;
     table.raw_set("ecs", create_ecs(lua, &r#mod)?)?;
     table.raw_set("impact", impact::create(lua, &r#mod)?)?;
     table.raw_set(
@@ -75,6 +78,22 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     table.raw_set("functions", create_functions(lua, &table, &r#mod)?)?;
 
     Ok(table)
+}
+
+fn lua_player_name(
+    lua: &mlua::Lua,
+    _args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(Option<String>, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.player.name") {
+        return Ok((None, Some(reason)));
+    }
+    let name = runtime_provider::selected_character_name();
+    let reason = name
+        .is_none()
+        .then(|| "selected character name is unavailable".to_owned());
+    Ok((name, reason))
 }
 
 fn lua_vec<const N: usize>(table: mlua::Table, label: &str) -> mlua::Result<[f64; N]> {

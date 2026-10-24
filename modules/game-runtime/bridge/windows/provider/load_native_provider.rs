@@ -199,6 +199,10 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                             "KfcRuntimeStatus",
                             unsafe extern "C" fn(*mut c_char, usize)
                         ),
+                        selected_character_name: optional_symbol!(
+                            "KfcRuntimeSelectedCharacterName",
+                            Registry
+                        ),
                     })
                 }
             }
