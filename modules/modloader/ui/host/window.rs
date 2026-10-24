@@ -7,8 +7,6 @@ use super::change_notice_read_state::change_notice_read_state;
 use super::change_storage_folder::change_storage_folder;
 use super::copy_activity_log::copy_activity_log;
 use super::invoke_updater_request::{UpdaterRequestResult, spawn as spawn_updater_request};
-use super::log_configuration_changes::log_configuration_check_transitions;
-use super::log_player_name_detection::log_player_name_detection;
 use super::open_requested_folder::open_requested_folder;
 use super::open_requested_link::open_requested_link;
 use super::parse_ui_command::Command;
@@ -17,7 +15,6 @@ use super::parse_ui_command::parse_ui_command;
 use super::handoff_to_client::handoff_to_client;
 use super::read_host_arguments::Arguments;
 use super::read_host_arguments::arguments;
-use super::read_installed_mods::read_mods;
 use super::read_missing_updater_announcement;
 use super::read_release_status::idle_release_status;
 use super::read_ui_configuration::default_refresh;
@@ -28,7 +25,7 @@ use super::read_ui_configuration::load_module_config;
 use super::read_ui_configuration::load_user_config;
 use super::read_ui_configuration::read_central_config;
 use super::read_ui_snapshot::default_catalog_state;
-use super::read_ui_snapshot::read_ui_snapshot;
+use super::refresh_ui_snapshot::SnapshotRefresher;
 use super::read_window_focus::foreground_is_shroudforge_window;
 use super::read_window_focus::foreground_process;
 use super::read_window_focus::open_event;
@@ -41,10 +38,7 @@ use super::request_diagnostics::request_diagnostics;
 use super::request_mod_action::request_mod_action;
 use super::request_module_visibility::request_module_visibility;
 use super::ui_snapshot_types::ModuleConfig;
-use super::{
-    dispatch_control_actions::dispatch_control_actions,
-    log_configuration_errors::log_configuration_errors, watch_toggle_key::watch_toggle_key,
-};
+use super::{dispatch_control_actions::dispatch_control_actions, watch_toggle_key::watch_toggle_key};
 use shroudforge_logging::write_activity;
 use shroudforge_window_management::WindowDefaults;
 use shroudforge_window_management::apply_window_geometry;
@@ -331,12 +325,8 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
 
     let mut shown = arguments.desktop;
     let mut window_topmost = false;
-    let mut previous_configuration_errors = std::collections::HashSet::<String>::new();
-    let mut previous_player_name_detection = None;
-    let mut previous_configuration_checks =
-        std::collections::BTreeMap::<String, (String, String)>::new();
-    let mut previous_asset_status = std::collections::BTreeMap::<String, (String, String)>::new();
-    let mut previous_mod_statuses = std::collections::BTreeMap::<String, (String, String)>::new();
+    let mut refresher =
+        SnapshotRefresher::start(&arguments, &release_state, &release_announcement, &catalog_state);
     let initial_window_state = shroudforge_loader_config::config::window_state(&arguments.root);
     let mut visibility_request_id = initial_window_state["modloaderUi"]["requestId"]
         .as_u64()
@@ -368,9 +358,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
     }
     let mut next_refresh = Instant::now();
     // The background work of each refresh (status logging, news, player
-    // name) always runs. Only its UI snapshot is skipped while the window is
-    // hidden, and an unchanged snapshot is not pushed to the page again. The
-    // same goes for the window state: each push re-renders the whole page.
+    // name) always runs, on the refresher's thread. Only its UI snapshot is
+    // not pushed while the window is hidden, and an unchanged snapshot is not
+    // pushed to the page again. The same goes for the window state: each push
+    // re-renders the whole page.
+    let mut latest_snapshot = String::new();
     let mut last_snapshot = String::new();
     let mut last_window_state = String::new();
     let mut webview_visible = window.is_visible();
@@ -1073,9 +1065,13 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         }
                         next_announcement_retry = Instant::now() + Duration::from_secs(30);
                     }
-                    let next_position = read_central_config(&arguments.root)["modules"]
-                        [window_config_module]["window"]["position"]
-                        .clone();
+                    next_refresh = Instant::now()
+                        + Duration::from_millis(module_config.refresh_milliseconds.clamp(250, 10_000));
+                    refresher.request(&active_provider);
+                }
+                if let Some(refreshed) = refresher.take() {
+                    let next_position =
+                        refreshed.central["modules"][window_config_module]["window"]["position"].clone();
                     if next_position != saved_position {
                         pending_window_geometry_save = None;
                         effective_window_geometry = apply_window_geometry(
@@ -1086,54 +1082,18 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         );
                         saved_position = next_position;
                     }
-                    next_refresh = Instant::now()
-                        + Duration::from_millis(module_config.refresh_milliseconds.clamp(250, 10_000));
-                    let central = read_central_config(&arguments.root);
-                    let mods = read_mods(&arguments.root);
-                    let notification_mods: Vec<_> = mods.iter().map(|item| shroudforge_news::ModNotification {
-                        id: &item.id, name: &item.name, version: &item.version, ecosystem: item.ecosystem, changelog: &item.changelog,
-                    }).collect();
-                    shroudforge_news::sync_mod_events(&arguments.root, &notification_mods);
-                    let game_process_id =
-                        (!arguments.desktop && !arguments.server).then_some(arguments.game_pid);
-                    let player_name_detection =
-                        shroudforge_player_name::detect_active_character_for_process(
-                            &arguments.root,
-                            game_process_id,
-                        );
-                    let (snapshot, resolved_player_name) = read_ui_snapshot(
-                        &arguments,
-                        &active_provider,
-                        &release_state,
-                        &release_announcement,
-                        &catalog_state,
-                        central,
-                        mods,
-                        &player_name_detection,
-                    );
-                    log_player_name_detection(
-                        &arguments.root,
-                        &player_name_detection,
-                        &resolved_player_name,
-                        &mut previous_player_name_detection,
-                    );
-                    log_configuration_check_transitions(
-                        &arguments.root,
-                        &snapshot.configuration,
-                        &mut previous_configuration_checks,
-                        &mut previous_asset_status,
-                        &mut previous_mod_statuses,
-                    );
-                    log_configuration_errors(&arguments.root, &snapshot, &mut previous_configuration_errors);
-                    if visible
-                        && let Ok(payload) = serde_json::to_string(&snapshot)
-                        && payload != last_snapshot
-                        && webview
-                            .evaluate_script(&format!("window.__shroudforgeUpdate({payload});"))
-                            .is_ok()
-                    {
-                        last_snapshot = payload;
+                    if let Some(payload) = refreshed.payload {
+                        latest_snapshot = payload;
                     }
+                }
+                if visible
+                    && !latest_snapshot.is_empty()
+                    && latest_snapshot != last_snapshot
+                    && webview
+                        .evaluate_script(&format!("window.__shroudforgeUpdate({latest_snapshot});"))
+                        .is_ok()
+                {
+                    last_snapshot = latest_snapshot.clone();
                 }
             }
             Event::MainEventsCleared => {

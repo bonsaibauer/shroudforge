@@ -41,6 +41,7 @@ mod read_window_focus;
 mod record_ui_log;
 mod refresh_activity_log;
 mod refresh_installed_mod;
+mod refresh_ui_snapshot;
 mod reload_loader_settings;
 mod report_command_result;
 mod request_diagnostics;
