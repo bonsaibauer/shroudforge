@@ -26,6 +26,8 @@ Die [durchsuchbare API-Referenz](#api) ist das vollständige Verzeichnis der imp
 - [Meldungen schreiben](#doc-api-logging) erklärt Log-Level und sinnvolle Meldungen.
 - [Dateien und Exporte](#doc-api-files) beschreibt Paketdateien und Exportberechtigungen.
 - [Laufzeit und Spielfunktionen](#doc-api-runtime) beschreibt Lifecycle, Client/Server und native Unterstützung.
+- [Hauptmenü erkennen](#doc-modding-main-menu) erklärt `runtime.is_main_menu()` und unbekannte Ladeübergänge.
+- [Charakternamen lesen](#doc-modding-player-name) erklärt `runtime.player.name()`, Standardnamen und den gemeinsamen Cache.
 
 ## So sind API-Artikel aufgebaut
 

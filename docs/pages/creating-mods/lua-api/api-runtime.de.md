@@ -34,3 +34,5 @@ Die Mod muss benötigte Laufzeitfähigkeiten in `mod.json` deklarieren. Manche S
 Beginne mit [Lua und KFC Runtime](#runtime) und suche konkrete Symbole in der [API-Referenz](#api).
 
 Das Beispiel [`registry-overview.lua`](https://github.com/bonsaibauer/shroudforge/blob/HEAD/docs/examples/runtime/registry-overview.lua) protokolliert einmalig eine rein lesende Runtime-Registrierungsübersicht. Kopiere es nach `src/mod.lua` in einen Testmod, der die Fähigkeit `runtime` deklariert.
+
+Die Kategorie [Modding](#doc-modding-guide) erklärt die Abfragen für [Hauptmenüzustand](#doc-modding-main-menu) und [lokalen Charakternamen](#doc-modding-player-name) mit Voraussetzungen, Rückgabewerten und vollständigen Lua-Beispielen.

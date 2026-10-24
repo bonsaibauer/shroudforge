@@ -34,3 +34,5 @@ A mod declares required runtime capabilities in `mod.json`. Some game operations
 Start with [Lua and KFC Runtime](#runtime), then search for specific symbols in the [API reference](#api).
 
 For a read-only example that logs one runtime-registry snapshot, copy [`registry-overview.lua`](https://github.com/bonsaibauer/shroudforge/blob/HEAD/docs/examples/runtime/registry-overview.lua) to `src/mod.lua` in a test mod that declares the `runtime` capability.
+
+The [Modding](#doc-modding-guide) category explains the [main-menu state](#doc-modding-main-menu) and [local character name](#doc-modding-player-name) queries with prerequisites, return values, and complete Lua examples.

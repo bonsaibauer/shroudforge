@@ -26,6 +26,8 @@ The [searchable API reference](#api) is the complete index of implemented functi
 - [Write log messages](#doc-api-logging) explains levels and useful messages.
 - [Files and exports](#doc-api-files) explains package files and export capabilities.
 - [Runtime and game features](#doc-api-runtime) explains lifecycle, client/server targets, and native support.
+- [Detect the main menu](#doc-modding-main-menu) explains `runtime.is_main_menu()` and unknown loading transitions.
+- [Read the character name](#doc-modding-player-name) explains `runtime.player.name()`, fallback names, and the shared cache.
 
 ## What each API article covers
 
