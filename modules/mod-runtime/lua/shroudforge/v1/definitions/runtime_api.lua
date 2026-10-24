@@ -71,12 +71,21 @@ function RuntimeWriteClaim:release() end
 ---@field read fun():table?,string? Returns the owned observed scalar plus dependent values.
 ---@field write fun(snapshot:table,value:unknown):boolean,unknown,string?,unknown Uses the guarded public writer and its confirmed result.
 ---@field normalize fun(snapshot:table,value:unknown):unknown?,string? Applies the original scalar encoding or attribute program.
+---@class RuntimeAttributeSnapshotContext
+---@field active boolean True only during one update. Set false before retaining a target for cleanup.
+---@field session integer? World session for the cached root.
+---@field entity integer? Entity owning the cached root.
+---@field root_hash integer? Root identity returned by the attribute catalog.
+---@field component_name string? Resolved component layout for the cached root.
+---@field snapshot table? Latest complete root snapshot or confirmed update result.
 ---Bind an original named attribute on one current entity. Full root values guard dependent inputs.
+---A shared snapshot context is limited to one update and one entity/root. The guarded writer checks the full snapshot before every mutation.
 ---@param entity integer
 ---@param selector string|integer Original attribute name or stored ID.
+---@param snapshot_context RuntimeAttributeSnapshotContext? Optional per-update context shared by attributes of the same entity and root.
 ---@return RuntimeOverrideTarget? target
 ---@return string? reason
-function runtime.overrides.attribute(entity, selector) end
+function runtime.overrides.attribute(entity, selector, snapshot_context) end
 ---Bind one inline scalar. The original component/root calculator remains authoritative.
 ---@param entity integer
 ---@param component TypeSelector
@@ -518,7 +527,7 @@ function runtime.ecs.read_attribute(entity, selector) end
 ---@return string? reason
 function runtime.ecs.write_attribute_storage(entity, selector, value) end
 
----Read the entire related attribute root as {root_hash, scalar_type, values={original_name=value}}.
+---Read the entire related attribute root as {entity, root_hash, component, scalar_type, values={original_name=value}}.
 ---@param entity integer
 ---@param selector string|integer Original attribute name or stored attribute ID.
 ---@return table? result

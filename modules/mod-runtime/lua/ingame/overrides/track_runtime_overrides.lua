@@ -35,12 +35,12 @@ local function new(get_session)
     end
 
     function self:write(entry, snapshot, target)
-        if self.fault then self:waiting(self.fault) return false end
+        if self.fault then self:waiting(self.fault) return false, self.fault end
         local ok, applied, actual, reason, canonical = pcall(entry.adapter.write, snapshot, target)
         if not ok then
             self.fault = "Uncertain runtime write: " .. tostring(applied)
             entry.uncertain = true
-            return false
+            return false, self.fault
         end
         if not applied then
             reason = tostring(reason or "Engine write is not ready")
@@ -48,11 +48,11 @@ local function new(get_session)
                 self.fault, entry.uncertain = reason, true
             end
             self:waiting(reason)
-            return false
+            return false, reason
         end
         if actual == nil then
             self.fault, entry.uncertain = "Uncertain runtime write: no confirmed value was returned", true
-            return false
+            return false, self.fault
         end
         entry.applied = actual
         if actual ~= snapshot.value then self.writes = self.writes + 1 end
@@ -60,43 +60,51 @@ local function new(get_session)
         if canonical ~= nil then expected = canonical end
         if actual ~= expected then
             self.fault = "Original calculation returned an unexpected value for " .. entry.setting
-            return false
+            return false, self.fault
         end
         return true
     end
 
     function self:apply(key, setting, adapter, desired, shared)
-        if self.fault then return end
+        if self.fault then return false, self.fault end
         key = adapter.key or key
         self.touched = self.touched or {}
         self.touched[key] = true
-        if self.blocked[key] then self:waiting(self.blocked[key].reason) return end
+        if self.blocked[key] then
+            self:waiting(self.blocked[key].reason)
+            return false, self.blocked[key].reason
+        end
         if active_keys[key] and active_keys[key] ~= self then
-            self:waiting(setting .. ": another override tracker already owns this field")
-            return
+            local reason = setting .. ": another override tracker already owns this field"
+            self:waiting(reason)
+            return false, reason
         end
         local entry = self.owned[key]
+        local fresh = entry == nil
         local claim = entry and entry.claim or adapter.claim
         if not claim then
-            self:waiting(setting .. ": an API ownership claim is required")
-            return
+            local reason = setting .. ": an API ownership claim is required"
+            self:waiting(reason)
+            return false, reason
         end
         local ok, acquired, failure = pcall(function() return claim:acquire() end)
         if not ok or not acquired then
-            self:waiting(setting .. ": " .. tostring(ok and failure or acquired))
-            return
+            local reason = setting .. ": " .. tostring(ok and failure or acquired)
+            self:waiting(reason)
+            return false, reason
         end
         local snapshot, reason = read(adapter)
         if not snapshot then
             if not entry then claim:release() end
-            self:waiting(setting .. ": " .. tostring(reason))
-            return
+            local failure = setting .. ": " .. tostring(reason)
+            self:waiting(failure)
+            return false, failure
         end
         if entry and snapshot.value ~= entry.applied then
             release(key, entry)
             self.blocked[key] = {setting=setting, reason=setting .. ": an external change was preserved. Toggle off and on to bind again"}
             self:waiting(self.blocked[key].reason)
-            return
+            return false, self.blocked[key].reason
         end
         local baseline = snapshot.value
         if entry then baseline = entry.baseline end
@@ -107,7 +115,9 @@ local function new(get_session)
         end
         if target == nil then
             if not entry then claim:release() end
-            self:waiting(setting .. ": " .. tostring(why)) return
+            local failure = setting .. ": " .. tostring(why)
+            self:waiting(failure)
+            return false, failure
         end
         if adapter.normalize then
             ok, target, why = pcall(adapter.normalize, snapshot, target)
@@ -117,23 +127,25 @@ local function new(get_session)
             end
             if target == nil then
                 if not entry then claim:release() end
-                self:waiting(setting .. ": " .. tostring(why)) return
+                local failure = setting .. ": " .. tostring(why)
+                self:waiting(failure)
+                return false, failure
             end
         end
         if snapshot.value == target then
             if not entry then claim:release() end
-            return
+            return true, nil, fresh
         end
-        local fresh = entry == nil
         entry = entry or {setting=setting, baseline=snapshot.value, applied=target,
             shared=shared or adapter.shared, claim=claim}
         entry.adapter = adapter
         self.owned[key] = entry
         active_keys[key] = self
-        local applied = self:write(entry, snapshot, target)
+        local applied, failure = self:write(entry, snapshot, target)
         if fresh and ((applied and entry.applied == entry.baseline) or (not applied and not self.fault)) then
             release(key, entry)
         end
+        return applied, failure, fresh
     end
 
     function self:restore(key, entry)

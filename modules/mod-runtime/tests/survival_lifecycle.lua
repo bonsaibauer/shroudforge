@@ -8,8 +8,9 @@ local function fixture()
     local f = {
         settings={}, session=41, writes=0, calls={}, players={11, 12},
         fall={fallDamageStartDistance=8, fallDamageLethalDistance=16},
-        service={enableDurability=true}, attributes={}, trackers={},
+        service={enableDurability=true}, attributes={}, trackers={}, read_counts={},
     }
+    local root_ids = {Health=101, Stamina=102, Mana=103, Oxygen=104, BodyHeat=105}
     for _, entity in ipairs(f.players) do
         f.attributes[entity] = {}
         for _, root in ipairs({"Health", "Stamina", "Mana", "Oxygen", "BodyHeat"}) do
@@ -94,11 +95,23 @@ local function fixture()
                 equal(name, "keen::ecs::PlayerInput")
                 return f.players
             end,
-            get_attribute=function(selector) return {name=selector} end,
+            get_attribute=function(selector)
+                local root = selector:match("^(.-)_") or selector
+                return {
+                    name=selector, root_hash=root_ids[root],
+                    calculation_writable=f.attribute_reason == nil,
+                    calculation_reason=f.attribute_reason,
+                }
+            end,
             read_attributes=function(entity, selector)
                 local root = selector:match("^(.-)_") or selector
                 f.calls[root] = true
-                return {values=copy(f.attributes[entity][root]), component={qualified_name="keen::ecs::" .. root}}
+                f.read_counts[root] = (f.read_counts[root] or 0) + 1
+                return {
+                    entity=entity, root_hash=root_ids[root],
+                    values=copy(f.attributes[entity][root]),
+                    component={qualified_name="keen::ecs::" .. root},
+                }
             end,
             evaluate_attributes=function(field, values)
                 local normalized = copy(values)
@@ -109,6 +122,7 @@ local function fixture()
             end,
             update_attribute=function(entity, field, value, expected)
                 local root = field:match("^(.-)_")
+                if f.fail_attribute then return nil, f.fail_attribute end
                 local values = f.attributes[entity][root]
                 equal(type(expected), "table", "attribute expected values")
                 for name, old in pairs(expected) do equal(values[name], old, name) end
@@ -119,7 +133,10 @@ local function fixture()
                     equal(expected[root .. "_Max"], values[root .. "_Max"], "guard dependent maximum")
                     values[root] = math.max(values[root], value)
                 end
-                return {values=copy(values)}
+                return {
+                    entity=entity, root_hash=root_ids[root], values=copy(values),
+                    component={qualified_name="keen::ecs::" .. root},
+                }
             end,
             get_template_component=function(_, name)
                 equal(name, "keen::ecs::FallDamage")
@@ -280,4 +297,48 @@ do
     f:tick()
     equal(f.writes, before, "never restores an old shared view in a new session")
     equal(f.state, "write-failed")
+end
+
+do
+    local f = fixture()
+    f.players = {11}
+    f.settings.infiniteMana = true
+    f.settings.fastManaRegen = true
+    f:tick()
+    equal(f.read_counts.Mana, 1, "same-root settings share one update snapshot")
+    equal(f.attributes[11].Mana.Mana_Min, 100)
+    equal(f.attributes[11].Mana.Mana_Recharge, 200)
+    f:unload()
+    equal(f.read_counts.Mana, 3, "cleanup obtains fresh snapshots after the update cache closes")
+end
+
+do
+    local f = fixture()
+    f.players = {11}
+    f.settings.infiniteMana = true
+    f.fail_attribute = "signedness-dependent program with conflicting resource/storage scalar types"
+    f:tick()
+    equal(f.read_counts.Mana, 1, "first unsupported attempt resolves the entity root")
+    f:tick()
+    equal(f.read_counts.Mana, 1, "known unsupported root is not retried every update")
+    f.settings.infiniteMana = false
+    f:tick()
+    f.fail_attribute = nil
+    f.settings.infiniteMana = true
+    f:tick()
+    equal(f.read_counts.Mana, 2, "changing the setting clears the unsupported cache")
+    equal(f.attributes[11].Mana.Mana_Min, 100)
+    f:unload()
+end
+
+do
+    local f = fixture()
+    f.players = {11}
+    f.settings.infiniteMana = true
+    f.attribute_reason = "signedness-dependent program with conflicting resource/storage scalar types"
+    f:tick()
+    equal(f.read_counts.Mana, nil, "catalog-known unsupported root is rejected before native reads")
+    f:tick()
+    equal(f.read_counts.Mana, nil, "catalog failure remains cached for this runtime environment")
+    f:unload()
 end

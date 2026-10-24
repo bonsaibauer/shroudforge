@@ -83,7 +83,8 @@ mod tests {
             .load(include_str!("create_override_targets.lua"))
             .eval()?;
         lua.globals().set("target_factory", factory)?;
-        lua.load(r#"
+        lua.load(
+            r#"
             local descriptors, snapshots, acquired, claims = 0, 0, 0, 0
             local current = 0
             local runtime = {
@@ -92,11 +93,15 @@ mod tests {
                     get_attribute=function(selector)
                         descriptors = descriptors + 1
                         if selector ~= "Stamina_Min" then return nil, "attribute not found" end
-                        return {name=selector}
+                        return {name=selector, root_hash=1}
                     end,
                     read_attributes=function()
                         snapshots = snapshots + 1
-                        return {component={qualified_name="keen::ecs::Stamina"}, values={Stamina_Min=current}}
+                        return {
+                            entity=7, root_hash=1,
+                            component={qualified_name="keen::ecs::Stamina"},
+                            values={Stamina_Min=current},
+                        }
                     end,
                 },
                 overrides={get_component_claim=function()
@@ -112,14 +117,16 @@ mod tests {
                 assert(target.read().value == value)
             end
             assert(descriptors == 1, "warm targets reuse only immutable catalog names")
-            assert(snapshots == 10, "constructor and apply reads must remain fresh")
+            assert(snapshots == 5, "each target reuses its complete initial root snapshot")
             assert(acquired == 5 and claims == 5, "every target retains the checked claim path")
             local other_mod = target_factory(runtime, {})
             assert(other_mod.attribute(7, "Stamina_Min"))
             assert(descriptors == 2, "metadata reuse remains scoped to its mod environment")
             for _ = 1, 2 do assert(not targets.attribute(7, "Missing")) end
             assert(descriptors == 4, "failed lookups are not cached")
-        "#).exec()
+        "#,
+        )
+        .exec()
     }
 
     #[test]
@@ -245,11 +252,9 @@ mod tests {
             lua.globals().get::<mlua::Table>("first")?.to_pointer(),
             "rebuilding the same mod environment must retain its original tracker registry"
         );
-        assert!(
-            cleanup(&lua, "first")
-                .unwrap_err()
-                .contains("Scene gate is busy")
-        );
+        assert!(cleanup(&lua, "first")
+            .unwrap_err()
+            .contains("Scene gate is busy"));
         assert_eq!(lua.globals().get::<i64>("first_value")?, 2);
         lua.globals().set("busy", false)?;
         cleanup(&lua, "first").unwrap();
