@@ -207,10 +207,12 @@ mod windows {
             if !self.ending {
                 return;
             }
-            if !idle {
-                if self.release_after.take().is_some() {
-                    tracing::trace!(target: "shroudforge::hotkeys", "Shortcut capture protection is waiting for input release");
-                }
+            // Only the inputs held when the capture ends delay the protection.
+            // Once they are released, the next presses are new ones (moving
+            // in the game, the window shortcut): they must not restart the
+            // three seconds, or the shortcuts stay blocked while the player
+            // keeps playing.
+            if !idle && self.release_after.is_none() {
                 return;
             }
             let release_after = self.release_after.get_or_insert_with(|| {
@@ -607,5 +609,40 @@ mod windows {
             CloseHandle(handle);
         }
         active
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        fn ending_capture() -> Capture {
+            Capture {
+                armed: false,
+                armed_at: 0,
+                device: InputDevice::Keyboard,
+                candidate: None,
+                pending: None,
+                guard: None,
+                ending: true,
+                release_after: None,
+            }
+        }
+
+        #[test]
+        fn protection_waits_for_the_held_inputs_then_ignores_new_presses() {
+            let mut capture = ending_capture();
+            capture.release_if_idle(false);
+            assert!(capture.ending && capture.release_after.is_none(), "the captured key is still held");
+
+            capture.release_if_idle(true);
+            let release_after = capture.release_after.expect("the delay starts at release");
+
+            capture.release_if_idle(false);
+            assert_eq!(capture.release_after, Some(release_after), "a new press keeps the delay");
+
+            capture.release_after = Some(Instant::now() - Duration::from_millis(1));
+            capture.release_if_idle(false);
+            assert!(!capture.ending, "the protection ends even while a new key is held");
+        }
     }
 }
