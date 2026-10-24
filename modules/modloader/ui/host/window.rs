@@ -369,8 +369,10 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
     let mut next_refresh = Instant::now();
     // The background work of each refresh (status logging, news, player
     // name) always runs. Only its UI snapshot is skipped while the window is
-    // hidden, and an unchanged snapshot is not pushed to the page again.
+    // hidden, and an unchanged snapshot is not pushed to the page again. The
+    // same goes for the window state: each push re-renders the whole page.
     let mut last_snapshot = String::new();
+    let mut last_window_state = String::new();
     let mut webview_visible = window.is_visible();
     let mut next_announcement_retry = Instant::now() + Duration::from_secs(30);
     let mut next_visibility_poll = Instant::now();
@@ -1025,10 +1027,13 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                 }
                 if Instant::now() >= next_window_state_refresh {
                     let windows = shroudforge_loader_config::config::window_state(&arguments.root);
-                    if let Ok(payload) = serde_json::to_string(&windows) {
-                        let _ = webview.evaluate_script(&format!(
-                            "window.__shroudforgeWindowState({payload});"
-                        ));
+                    if let Ok(payload) = serde_json::to_string(&windows)
+                        && payload != last_window_state
+                        && webview
+                            .evaluate_script(&format!("window.__shroudforgeWindowState({payload});"))
+                            .is_ok()
+                    {
+                        last_window_state = payload;
                     }
                     next_window_state_refresh = Instant::now() + Duration::from_millis(250);
                 }
