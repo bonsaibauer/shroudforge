@@ -72,3 +72,10 @@ function shroudforge_input.keybind_label(setting_key) end
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 shroudforge = {}
+
+--- Language the player chose for ShroudForge in the Modloader, such as `"en"`,
+--- `"de"`, `"fr"` or a regional variant such as `"de-AT"`; `"en"` when the
+--- setting cannot be read. Reads the settings file: call it when settings
+--- change, not at every update.
+--- @return string
+function shroudforge.locale() end
