@@ -1,6 +1,9 @@
 const levels = ["All", "Trace", "Debug", "Info", "Warning", "Error"];
-const emptyTail = () => ({ text: "", state: "missing" });
-const data = { game: emptyTail(), loader: emptyTail() };
+// Lines kept in the list; older ones leave it as new ones arrive. The full
+// log tail stays available to filters, search and Copy Logs.
+const MAX_SHOWN_LINES = 2000;
+const emptyLog = () => ({ text: "", state: "missing", lines: 0 });
+const data = { game: emptyLog(), loader: emptyLog() };
 const paths = { game: "enshrouded.log", loader: "shroudforge/logs/shroudforge-client.log" };
 let activeSource = "game";
 let levelIndex = 0;
@@ -33,25 +36,57 @@ function accepted(line) {
   return classify(line) === ["", "trace", "debug", "info", "warn", "error"][levelIndex];
 }
 
-// What the list shows was last built from; an update that changes none of it
-// (such as new lines in the other log) leaves the list untouched.
+function countLines(text) {
+  let count = 0;
+  for (let index = text.indexOf("\n"); index !== -1; index = text.indexOf("\n", index + 1)) count += 1;
+  return count;
+}
+
+// Applies one log update from the host: "replace" its text, or "append"
+// complete lines (keeping at most maxChars). Returns the appended text, ""
+// when nothing changed, or null when the text was replaced.
+function applyLogUpdate(name, update, maxChars) {
+  if (!update) return "";
+  if (update.mode === "replace") {
+    data[name] = { text: update.text, state: update.state, lines: countLines(update.text) };
+    return null;
+  }
+  const current = data[name];
+  current.text += update.text;
+  current.state = update.state;
+  current.lines += countLines(update.text);
+  if (current.text.length > maxChars) {
+    const cut = current.text.indexOf("\n", current.text.length - maxChars);
+    if (cut !== -1) {
+      current.lines -= countLines(current.text.slice(0, cut + 1));
+      current.text = current.text.slice(cut + 1);
+    }
+  }
+  return update.text;
+}
+
+function lineElement(value) {
+  const line = document.createElement("div");
+  line.className = `line ${classify(value)}`;
+  line.textContent = value;
+  return line;
+}
+
+function showStats() {
+  byId("stats").textContent = `${log.querySelectorAll(".line").length.toLocaleString()} shown of ${data[activeSource].lines.toLocaleString()} lines`;
+  byId("game-count").textContent = data.game.lines.toLocaleString();
+  byId("loader-count").textContent = data.loader.lines.toLocaleString();
+}
+
+// The view the list was last built for: a change rebuilds it.
 let lastRender = "";
+const viewKey = () => [activeSource, levelIndex, minimumLevel, search.value, paused, follow].join("\u0000");
 
 function render() {
+  lastRender = viewKey();
   const tail = data[activeSource];
   const source = paused ? frozen : tail.text;
-  const renderKey = [activeSource, levelIndex, minimumLevel, search.value, paused, follow, tail.state, source].join("\u0000");
-  const counts = `${data.game.text.length}/${data.loader.text.length}`;
-  if (renderKey === lastRender && counts === lastCounts) return;
-  if (counts !== lastCounts) {
-    lastCounts = counts;
-    byId("game-count").textContent = count(data.game.text);
-    byId("loader-count").textContent = count(data.loader.text);
-  }
-  if (renderKey === lastRender) return;
-  lastRender = renderKey;
-  const lines = source ? source.split(/\r?\n/).filter(Boolean) : [];
-  const visible = lines.filter(accepted);
+  const visible = source ? source.split(/\r?\n/).filter(Boolean).filter(accepted) : [];
   log.replaceChildren();
   if (!visible.length) {
     const empty = document.createElement("div");
@@ -63,24 +98,27 @@ function render() {
     log.append(empty);
   } else {
     const fragment = document.createDocumentFragment();
-    for (const value of visible) {
-      const line = document.createElement("div");
-      line.className = `line ${classify(value)}`;
-      line.textContent = value;
-      fragment.append(line);
-    }
+    for (const value of visible.slice(-MAX_SHOWN_LINES)) fragment.append(lineElement(value));
     log.append(fragment);
   }
   byId("source").textContent = paths[activeSource];
   byId("source").title = paths[activeSource];
-  byId("stats").textContent = `${visible.length.toLocaleString()} of ${lines.length.toLocaleString()} lines`;
+  showStats();
   if (follow) log.scrollTop = log.scrollHeight;
 }
 
-let lastCounts = "";
-
-function count(value) {
-  return value ? value.split(/\r?\n/).filter(Boolean).length.toLocaleString() : "0";
+// Adds the accepted lines of newly appended text to the list.
+function appendLines(text) {
+  const added = text.split(/\r?\n/).filter(Boolean).filter(accepted);
+  if (added.length) {
+    if (log.querySelector(".empty")) return render();
+    const fragment = document.createDocumentFragment();
+    for (const value of added) fragment.append(lineElement(value));
+    log.append(fragment);
+    for (let excess = log.childElementCount - MAX_SHOWN_LINES; excess > 0; excess -= 1) log.firstElementChild.remove();
+    if (follow) log.scrollTop = log.scrollHeight;
+  }
+  showStats();
 }
 
 window.__shroudforgeUpdate = (next) => {
@@ -103,8 +141,11 @@ window.__shroudforgeUpdate = (next) => {
   byId("level").classList.toggle("active",levelIndex!==0);
   byId("follow").textContent = `Auto-Scroll: ${follow ? "On" : "Off"}`;
   byId("follow").classList.toggle("active",follow);
-  data.game = next.game || emptyTail();
-  data.loader = next.loader || emptyTail();
+  const maxChars = Number(next.preferences && next.preferences.tailBytes) || 1048576;
+  const added = {
+    game: applyLogUpdate("game", next.game, maxChars),
+    loader: applyLogUpdate("loader", next.loader, maxChars),
+  };
   paths.game = next.paths?.game || paths.game;
   paths.loader = next.paths?.loader || paths.loader;
   document.querySelector('[data-tab="game"]').title = paths.game;
@@ -112,7 +153,9 @@ window.__shroudforgeUpdate = (next) => {
   byId("session").textContent = next.connected ? "CLIENT" : "DESKTOP";
   byId("mode").classList.toggle("online", Boolean(next.connected));
   byId("mode").classList.toggle("desktop", !next.connected);
-  if (!paused) render();
+  if (paused) return showStats();
+  if (viewKey() !== lastRender || added[activeSource] === null) render();
+  else appendLines(added[activeSource]);
 };
 
 document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
@@ -147,7 +190,8 @@ byId("follow").addEventListener("click", () => {
   render();
 });
 byId("copy").addEventListener("click", async () => {
-  const text = [...log.querySelectorAll(".line")].map((line) => line.textContent).join("\n");
+  const source = paused ? frozen : data[activeSource].text;
+  const text = source.split(/\r?\n/).filter(Boolean).filter(accepted).join("\n");
   try {
     await navigator.clipboard.writeText(text);
   } catch {
