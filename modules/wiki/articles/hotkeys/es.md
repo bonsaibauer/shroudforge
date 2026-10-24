@@ -6,7 +6,7 @@ Esta página muestra y permite cambiar los atajos de las ventanas de ShroudForge
 
 Haz clic en el campo y pulsa la tecla o combinación que quieras. La entrada usa códigos físicos de SDL3, como `SDL:64` para F7, `Ctrl+SDL:29` o `Shift+SDL:100`. Así se mantiene la misma posición física entre distribuciones de teclado. SDL proporciona etiquetas legibles para la distribución actual del sistema operativo. Los modificadores como Ctrl, Alt, Shift y Meta deben coincidir exactamente.
 
-Durante la grabación, ShroudForge bloquea los atajos de sus ventanas y los atajos declarados de los mods en todos sus procesos. El bloqueo también se mantiene después de cancelar o cambiar el foco de la ventana, hasta soltar todas las teclas y botones del ratón y dejar pasar tres segundos sin una nueva pulsación. Cada nueva pulsación reinicia la espera después de soltar la tecla o el botón.
+Durante la grabación, ShroudForge bloquea los atajos de sus ventanas y los atajos declarados de los mods en todos sus procesos. El bloqueo también se mantiene después de cancelar o cambiar el foco de la ventana, hasta soltar todas las teclas y botones del ratón y dejar pasar tres segundos sin una nueva pulsación. Cada nueva pulsación reinicia la espera después de soltar la tecla o el botón. Escape no se puede grabar, ni sola ni con modificadores: el juego la usa para su menú de pausa y para cerrar sus ventanas. Pulsarla cancela la grabación y conserva el atajo anterior.
 
 Usa **Borrar** para desactivar un atajo. En las ventanas de ShroudForge puedes restaurar el valor predeterminado integrado. Los atajos de cada mod siguen en sus propios ajustes. Los campos de los ajustes del mod y de **Compatibility → Hotkeys** modifican el mismo valor guardado.
 

@@ -150,6 +150,13 @@ export function KeybindInput({
       }
       if (typeof detail.value !== 'string' || typeof detail.label !== 'string') return
       if (!deviceBinding(detail.value, recording)) return
+      // Escape opens the game's pause menu and closes its windows: a shortcut
+      // on it would fire at the same time. Pressing it cancels the recording
+      // and keeps the previous value, with or without modifiers.
+      if (/(?:^|\+)SDL:41$/.test(deviceBinding(detail.value, 'keyboard'))) {
+        cancelRecording()
+        return
+      }
       const capturedValue = detail.value
       const capturedLabel = detail.label
       setNativeLabels((current) => ({ ...current, [capturedValue]: capturedLabel }))

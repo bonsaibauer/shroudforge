@@ -43,7 +43,7 @@ return {
 
 The shortcut field has two columns. Record the full keyboard combination on the left and an optional mouse combination on the right. Both alternatives belong to the same setting. Either one triggers the action.
 
-While recording, ShroudForge blocks its window shortcuts and mod shortcuts queried through this API across processes. Protection remains active after cancellation or a window focus change until all keys and mouse buttons are released, followed by three seconds without another key press or mouse click. New input restarts the waiting period after release.
+While recording, ShroudForge blocks its window shortcuts and mod shortcuts queried through this API across processes. Protection remains active after cancellation or a window focus change until all keys and mouse buttons are released, followed by three seconds without another key press or mouse click. New input restarts the waiting period after release. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous value.
 
 The value remains one string. A keyboard chord stores an [SDL scancode](https://wiki.libsdl.org/SDL3/SDL_Scancode), for example `SDL:64` for F7, `Ctrl+SDL:29` for the Z position or `Shift+SDL:100` for the additional ISO key. A mouse chord stores an SDL button number, for example `Mouse:4` for X1 or `Ctrl+Mouse:4` with Ctrl. Join a keyboard and mouse chord with `|`, keyboard first, as in `Ctrl+SDL:29|Mouse:4`. At most one chord per device is allowed. Optional modifier prefixes occur once in `Ctrl`, `Alt`, `Shift`, `Meta` order and match exactly. An empty string disables the shortcut.
 
