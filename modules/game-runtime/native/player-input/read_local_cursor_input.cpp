@@ -1,6 +1,12 @@
 #include "player-input/world_cursor_state.h"
 #include "ecs/ecs_session_state.h"
 
+#include <algorithm>
+#include <cstring>
+#include <string>
+#include <utility>
+#include <vector>
+
 // The local input belongs to the original main-client ECS owner. The default
 // ECS session can separately belong to a hosted authority world, so its type
 // indices and entity handles must never be reused for the input owner.
@@ -9,6 +15,9 @@ namespace {
 using namespace EcsImplementation;
 constexpr const char* InputType = "keen::ecs::ClientPlayerInput";
 constexpr std::size_t MaximumInputBytes = 65536;
+constexpr std::size_t MaximumCandidates = 32;
+// In multiplayer the main-client ECS holds a ClientPlayerInput for every
+// player, the other players' copies being replicated: see choose_local_input.
 
 struct LocalInputState {
     EngineContext::EcsView owner;
@@ -16,12 +25,21 @@ struct LocalInputState {
     std::uintptr_t records{};
     std::size_t registrations{}, entity_count{}, cursor{}, candidate_slot{}, published_slot{};
     EntityView candidate, published;
+    std::vector<std::pair<EntityView, std::size_t>> candidates;
+    std::vector<std::pair<ComponentType, std::string>> components;
+    // The last decision among several candidates: their (id, generation), and
+    // the index chosen.
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> decided_identities;
+    std::size_t decided{};
     std::uint64_t session{}, registry_ms{}, completed_ms{};
     bool configured{}, complete{}, ambiguous{};
 };
 std::mutex local_input_mutex;
 LocalInputState local_input;
 std::uint64_t local_input_sequence{};
+// How the last complete scan chose, or why it could not: for error messages.
+std::mutex local_input_detail_mutex;
+std::string local_input_detail;
 
 ResolvedLayout client_layout(const EngineContext::EcsView& owner){
     const auto& source = owner.layout;
@@ -45,7 +63,8 @@ ResolvedLayout client_layout(const EngineContext::EcsView& owner){
 }
 
 bool resolve_input_registration(const EngineContext::EcsView& owner, std::size_t size,
-                                ComponentType& component, std::uintptr_t& records, std::size_t& count){
+                                ComponentType& component, std::uintptr_t& records, std::size_t& count,
+                                std::vector<std::pair<ComponentType, std::string>>& components){
     std::unordered_map<std::string, std::uint32_t> contract;
     { std::scoped_lock lock(state_mutex); contract = configured_types; }
     const auto expected = contract.find(InputType);
@@ -55,12 +74,15 @@ bool resolve_input_registration(const EngineContext::EcsView& owner, std::size_t
     if (!ComponentRegistry::Read(owner.manager, owner.owners.image, image_size, read_bytes, registry, error) ||
         registry.owner != owner.registry_owner) return false;
     bool found{};
+    components.clear();
     for (const auto& entry : registry.entries) {
         for (const auto* type : {&entry.storage, &entry.configuration}) {
             if (type->name.empty()) continue;
             const auto type_contract = contract.find(type->name);
             if (type_contract == contract.end() || type_contract->second != type->size) return false;
         }
+        const auto& name = entry.storage.name.empty() ? entry.name : entry.storage.name;
+        if (!name.empty()) components.emplace_back(ComponentType{entry.index, entry.size}, name);
         if (entry.storage.name != InputType) continue;
         if (found || entry.storage.size != size || entry.size != size) return false;
         component = {entry.index, entry.size};
@@ -91,9 +113,80 @@ void restart_scan(LocalInputState& state, bool retain_published = false){
     state.cursor = 0;
     state.candidate = {};
     state.candidate_slot = 0;
+    state.candidates.clear();
     state.complete = state.ambiguous = false;
     state.completed_ms = 0;
     if (!retain_published) { state.published = {}; state.published_slot = 0; }
+}
+
+void publish_detail(std::string detail){
+    std::scoped_lock lock(local_input_detail_mutex);
+    local_input_detail = std::move(detail);
+}
+
+// Several candidates: the local player's input is the one whose components
+// hold the local Steam ID, else the only one whose client-only hammer state
+// (ClientCycleInventoryStock) is set. The decision is kept while the
+// candidates do not change. Otherwise the detail tells what was tried.
+bool choose_local_input(LocalInputState& state, const ResolvedLayout& layout){
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> identities;
+    for (const auto& [entity, slot] : state.candidates) identities.emplace_back(entity.id, entity.generation);
+    if (identities == state.decided_identities && state.decided < state.candidates.size()) {
+        state.candidate = state.candidates[state.decided].first;
+        state.candidate_slot = state.candidates[state.decided].second;
+        return true;
+    }
+    const auto count = std::to_string(state.candidates.size()) + " player inputs";
+    const auto decide = [&](std::size_t index, const std::string& reason){
+        state.candidate = state.candidates[index].first;
+        state.candidate_slot = state.candidates[index].second;
+        state.decided_identities = identities;
+        state.decided = index;
+        publish_detail(count + ", the local one is entity " + std::to_string(state.candidates[index].first.id) +
+            ": " + reason);
+        return true;
+    };
+    // The bytes of one component of a candidate, empty when it has none.
+    const auto component_bytes = [&](std::size_t index, const ComponentType& type){
+        std::vector<std::uint8_t> bytes(type.size);
+        bool present{};
+        std::uintptr_t address{};
+        if (!type.size || type.size > 4096 ||
+            !component_presence(state.candidates[index].first, layout, type, present) || !present ||
+            !component_address(state.candidates[index].first, layout, type, address) ||
+            !read_bytes(address, bytes.data(), bytes.size())) bytes.clear();
+        return bytes;
+    };
+    std::uint64_t steam_id{};
+    KfcRuntimeNetworkStatus(&steam_id);
+    std::vector<std::size_t> owners;
+    if (steam_id) {
+        std::uint8_t needle[sizeof(steam_id)];
+        std::memcpy(needle, &steam_id, sizeof(steam_id));
+        for (std::size_t i = 0; i < state.candidates.size(); ++i) {
+            for (const auto& [type, name] : state.components) {
+                const auto bytes = component_bytes(i, type);
+                if (std::search(bytes.begin(), bytes.end(), std::begin(needle), std::end(needle)) == bytes.end()) continue;
+                owners.push_back(i);
+                break;
+            }
+        }
+        if (owners.size() == 1) return decide(owners[0], "its components hold the local Steam ID");
+    }
+    std::vector<std::size_t> stocked;
+    const auto stock = std::find_if(state.components.begin(), state.components.end(),
+        [](const auto& entry){ return entry.second == "keen::ecs::ClientCycleInventoryStock"; });
+    if (stock != state.components.end()) {
+        for (std::size_t i = 0; i < state.candidates.size(); ++i) {
+            const auto bytes = component_bytes(i, stock->first);
+            if (std::any_of(bytes.begin(), bytes.end(), [](auto byte){ return byte != 0; })) stocked.push_back(i);
+        }
+        if (stocked.size() == 1) return decide(stocked[0], "only its hammer state is set");
+    }
+    publish_detail(count + "; local Steam ID " + (steam_id ? "in " + std::to_string(owners.size()) : std::string("unknown")) +
+        "; hammer state set in " + (stock == state.components.end() ? std::string("none: unregistered") :
+        std::to_string(stocked.size())));
+    return false;
 }
 
 std::uint32_t scan_local_input(LocalInputState& state, const ResolvedLayout& layout){
@@ -123,9 +216,13 @@ std::uint32_t scan_local_input(LocalInputState& state, const ResolvedLayout& lay
             return 5;
         }
         if (!present) continue;
-        if (state.candidate.pointer && (state.candidate.pointer != entity.pointer ||
-            state.candidate.id != entity.id || state.candidate.generation != entity.generation)) state.ambiguous = true;
-        else { state.candidate = entity; state.candidate_slot = slot; }
+        if (state.candidates.size() < MaximumCandidates) state.candidates.emplace_back(entity, slot);
+    }
+    if (state.candidates.size() == 1) {
+        state.candidate = state.candidates.front().first;
+        state.candidate_slot = state.candidates.front().second;
+    } else if (state.candidates.size() > 1) {
+        state.ambiguous = !choose_local_input(state, layout);
     }
     state.complete = true;
     state.completed_ms = GetTickCount64();
@@ -191,12 +288,14 @@ std::uint32_t ReadLocalCursorInput(std::size_t component_size, std::uint64_t exp
         ComponentType component{};
         std::uintptr_t records{};
         std::size_t registrations{};
-        if (!resolve_input_registration(owner, component_size, component, records, registrations)) {
+        std::vector<std::pair<ComponentType, std::string>> components;
+        if (!resolve_input_registration(owner, component_size, component, records, registrations, components)) {
             local_input = {};
             return 3;
         }
         if (!local_input.configured || local_input.component != component || local_input.records != records ||
             local_input.registrations != registrations) restart_scan(local_input);
+        local_input.components = std::move(components);
         local_input.component = component;
         local_input.records = records;
         local_input.registrations = registrations;
@@ -234,4 +333,18 @@ extern "C" std::uint32_t __cdecl KfcRuntimeWorldCursorReadInput(std::size_t comp
     std::uint64_t expected_session, std::uint8_t* buffer, std::size_t capacity, std::uint64_t* sequence){
     try { return WorldRuntime::Implementation::ReadLocalCursorInput(component_size, expected_session, buffer, capacity, sequence); }
     catch (...) { return 4; }
+}
+
+// How the last scan chose among several player inputs, or why it could not.
+// Returns the text length (truncated to capacity - 1).
+extern "C" std::size_t __cdecl KfcRuntimeWorldCursorInputDetail(char* buffer, std::size_t capacity){
+    if (!buffer || !capacity) return 0;
+    try {
+        std::scoped_lock lock(WorldRuntime::Implementation::local_input_detail_mutex);
+        const auto& detail = WorldRuntime::Implementation::local_input_detail;
+        const auto length = std::min(detail.size(), capacity - 1);
+        std::memcpy(buffer, detail.data(), length);
+        buffer[length] = '\0';
+        return length;
+    } catch (...) { buffer[0] = '\0'; return 0; }
 }

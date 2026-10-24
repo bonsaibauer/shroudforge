@@ -123,6 +123,7 @@ pub(super) type WorldGridGetSpecForSession =
 pub(super) type WorldCursorRead = unsafe extern "C" fn(*mut u8, usize, *mut u64) -> bool;
 pub(super) type WorldCursorReadInput =
     unsafe extern "C" fn(usize, u64, *mut u8, usize, *mut u64) -> u32;
+pub(super) type WorldCursorInputDetail = unsafe extern "C" fn(*mut u8, usize) -> usize;
 pub(super) type WorldVoxelReadForSession =
     unsafe extern "C" fn(u64, *const i32, *const u32, *mut u16, usize, *mut usize) -> u32;
 pub(super) type WorldVoxelWrite =
@@ -180,6 +181,7 @@ pub(super) struct Provider {
     pub(super) world_entity_set_scale: WorldEntitySetScale,
     pub(super) world_cursor_read: Option<WorldCursorRead>,
     pub(super) world_cursor_read_input: Option<WorldCursorReadInput>,
+    pub(super) world_cursor_input_detail: Option<WorldCursorInputDetail>,
     pub(super) world_voxel_read_for_session: Option<WorldVoxelReadForSession>,
     pub(super) world_voxel_write: WorldVoxelWrite,
     pub(super) world_grid_get_spec_for_session: Option<WorldGridGetSpecForSession>,
