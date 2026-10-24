@@ -181,7 +181,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
     let (icon_rgba, icon_width, icon_height) = shroudforge_ui_resources::rgba()?;
     let icon = tao::window::Icon::from_rgba(icon_rgba, icon_width, icon_height)?;
     let title = "ShroudForge | Modloader";
-    let (inner_width, inner_height) = (1180.0, modloader_height);
+    let (inner_width, inner_height) = (1290.0, modloader_height);
     let window_defaults = WindowDefaults {
         width: inner_width,
         height: inner_height,
