@@ -15,6 +15,15 @@ struct JobDefinition {
     trigger: Trigger,
     repeatable: bool,
     action: Action,
+    #[serde(default)]
+    settings: Vec<SettingUpdate>,
+}
+
+#[derive(Clone, Debug, Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct SettingUpdate {
+    path: Vec<String>,
+    value: serde_json::Value,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -40,6 +49,10 @@ impl Trigger {
     }
 }
 
+// Settings-only migrations use one declarative loader-config action. Keep changed
+// setting paths and replacement values in each job JSON instead of adding a Rust
+// action and handler per setting. Dedicated handlers are for migrations that need
+// validation, conversion, or other domain-specific work.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 enum Action {
@@ -47,6 +60,7 @@ enum Action {
     MigrateLegacyUpdateFiles,
     MigrateLegacyMods,
     MigrateLegacyEventLevels,
+    UpdateLoaderSettings,
     PurgeExpiredRecycleBin,
 }
 
@@ -58,15 +72,43 @@ impl Action {
                 | Self::MigrateLegacyUpdateFiles
                 | Self::MigrateLegacyMods
                 | Self::MigrateLegacyEventLevels
+                | Self::UpdateLoaderSettings
         )
     }
 }
 
-const REQUIRED_MIGRATIONS: [(Trigger, Action, u32); 4] = [
-    (Trigger::BeforeUpdate, Action::MigrateLegacyBackups, 2),
-    (Trigger::BeforeUpdate, Action::MigrateLegacyUpdateFiles, 3),
-    (Trigger::BeforeUpdate, Action::MigrateLegacyMods, 1),
-    (Trigger::AfterInstall, Action::MigrateLegacyEventLevels, 2),
+// Key required jobs by ID so multiple JSON jobs can share a generic action.
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 5] = [
+    (
+        Trigger::BeforeUpdate,
+        "migration.legacy-update-backups",
+        Action::MigrateLegacyBackups,
+        2,
+    ),
+    (
+        Trigger::BeforeUpdate,
+        "migration.legacy-update-files",
+        Action::MigrateLegacyUpdateFiles,
+        3,
+    ),
+    (
+        Trigger::BeforeUpdate,
+        "migration.legacy-shroudforge-mods",
+        Action::MigrateLegacyMods,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.notification-event-levels",
+        Action::MigrateLegacyEventLevels,
+        2,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.debug-console-log-settings",
+        Action::UpdateLoaderSettings,
+        1,
+    ),
 ];
 
 const CURRENT_MOD_IDS: &[&str] = &[
@@ -113,6 +155,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
         include_str!("migrate-legacy-event-levels.json"),
     ),
     (
+        "migrate-debug-console-log-settings.json",
+        include_str!("migrate-debug-console-log-settings.json"),
+    ),
+    (
         "purge-expired-recycle-bin.json",
         include_str!("purge-expired-recycle-bin.json"),
     ),
@@ -134,11 +180,12 @@ fn enqueue_for_trigger(root: &Path, trigger: Trigger) -> Result<(), String> {
     }
     if REQUIRED_MIGRATIONS
         .iter()
-        .any(|(required_trigger, required, minimum_revision)| {
+        .any(|(required_trigger, required_id, required_action, minimum_revision)| {
             *required_trigger == trigger
                 && !catalog.jobs.iter().any(|job| {
                     job.trigger == trigger
-                        && job.action == *required
+                        && job.id == *required_id
+                        && job.action == *required_action
                         && job.revision >= *minimum_revision
                 })
         })
@@ -346,6 +393,7 @@ pub(crate) fn execute(root: &Path, item: &serde_json::Value) -> Result<(), Strin
         }
         Action::MigrateLegacyMods => migrate_legacy_mods(root)?,
         Action::MigrateLegacyEventLevels => migrate_legacy_event_levels(root)?,
+        Action::UpdateLoaderSettings => update_loader_settings(root, item)?,
         Action::PurgeExpiredRecycleBin => {
             if crate::recycle_bin::automatic_cleanup_enabled(root) {
                 crate::recycle_bin::purge_expired(root)?;
@@ -368,6 +416,7 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
         Some("MigrateLegacyUpdateFiles") => Ok(Action::MigrateLegacyUpdateFiles),
         Some("MigrateLegacyMods") => Ok(Action::MigrateLegacyMods),
         Some("MigrateLegacyEventLevels") => Ok(Action::MigrateLegacyEventLevels),
+        Some("UpdateLoaderSettings") => Ok(Action::UpdateLoaderSettings),
         Some("PurgeExpiredRecycleBin") => Ok(Action::PurgeExpiredRecycleBin),
         _ => Err(format!("unsupported maintenance job in queue item {id}")),
     }
@@ -375,6 +424,39 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
 
 fn migrate_legacy_event_levels(root: &Path) -> Result<(), String> {
     shroudforge_news::migrate_legacy_event_levels(root).map(|_| ())
+}
+
+fn update_loader_settings(root: &Path, item: &serde_json::Value) -> Result<(), String> {
+    let settings: Vec<SettingUpdate> = serde_json::from_value(item["settings"].clone())
+        .map_err(|error| format!("invalid loader settings in maintenance job: {error}"))?;
+    validate_settings(Action::UpdateLoaderSettings, &settings)?;
+    shroudforge_loader_config::config::update_loader(root, |config| {
+        for setting in &settings {
+            set_loader_setting(config, &setting.path, &setting.value)?;
+        }
+        Ok(())
+    })
+}
+
+fn set_loader_setting(
+    config: &mut serde_json::Value,
+    path: &[String],
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    let Some((key, remaining)) = path.split_first() else {
+        return Err("loader setting path cannot be empty".into());
+    };
+    let object = config
+        .as_object_mut()
+        .ok_or_else(|| format!("loader setting path is not an object: {}", path.join(".")))?;
+    let setting = object
+        .get_mut(key)
+        .ok_or_else(|| format!("loader setting does not exist: {}", path.join(".")))?;
+    if remaining.is_empty() {
+        *setting = value.clone();
+        return Ok(());
+    }
+    set_loader_setting(setting, remaining, value)
 }
 
 fn migrate_legacy_mods(root: &Path) -> Result<(), String> {
@@ -707,7 +789,7 @@ fn read_json(path: &Path) -> Result<serde_json::Value, String> {
 }
 
 fn queue_item(id: &str, job: JobDefinition) -> serde_json::Value {
-    serde_json::json!({
+    let mut item = serde_json::json!({
         "id": id,
         "kind": "maintenance",
         "operation": format!("{:?}", job.action),
@@ -718,7 +800,11 @@ fn queue_item(id: &str, job: JobDefinition) -> serde_json::Value {
         "selected": job.trigger == Trigger::BeforeUpdate,
         "required": job.action.is_migration(),
         "message": job.description
-    })
+    });
+    if !job.settings.is_empty() {
+        item["settings"] = serde_json::json!(job.settings);
+    }
+    item
 }
 
 fn discover(root: &Path) -> JobCatalog {
@@ -926,6 +1012,31 @@ fn validate(job: &JobDefinition) -> Result<(), String> {
     }
     if job.description.chars().count() > 500 {
         return Err("description must contain at most 500 characters".into());
+    }
+    validate_settings(job.action, &job.settings)?;
+    Ok(())
+}
+
+fn validate_settings(action: Action, settings: &[SettingUpdate]) -> Result<(), String> {
+    if action != Action::UpdateLoaderSettings {
+        return if settings.is_empty() {
+            Ok(())
+        } else {
+            Err("settings are only supported by the update-loader-settings action".into())
+        };
+    }
+    if settings.is_empty() {
+        return Err("update-loader-settings requires at least one setting".into());
+    }
+    for setting in settings {
+        if setting.path.len() < 3
+            || setting.path.first().map(String::as_str) != Some("modules")
+            || setting.path.iter().any(|part| part.trim().is_empty())
+        {
+            return Err(
+                "setting paths must target an existing module setting under modules".into(),
+            );
+        }
     }
     Ok(())
 }

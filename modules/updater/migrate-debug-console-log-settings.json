@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.debug-console-log-settings",
+  "revision": 1,
+  "name": "Update Debug Console log settings",
+  "description": "Updates the saved Debug Console log refresh interval and tail size.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "update-loader-settings",
+  "settings": [
+    {
+      "path": ["modules", "debugConsole", "refreshMilliseconds"],
+      "value": 1000
+    },
+    {
+      "path": ["modules", "debugConsole", "tailBytes"],
+      "value": 65536
+    }
+  ]
+}

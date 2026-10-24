@@ -109,6 +109,7 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut next_activation_poll = Instant::now();
     let mut next_visibility_poll = Instant::now();
     let mut next_refresh = Instant::now();
+    let mut was_refresh_window_visible = window.is_visible() && !window.is_minimized();
     let mut last_config_error: Option<String> = None;
     let mut pending_window_geometry_save: Option<Instant> = None;
     event_loop.run(move |event, _, control_flow| {
@@ -353,7 +354,12 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                 } else if shown && (game_focused || console_focused) && !window.is_visible() {
                     window.set_visible(true);
                 }
-                if Instant::now() >= next_refresh {
+                let refresh_window_visible = window.is_visible() && !window.is_minimized();
+                if refresh_window_visible && !was_refresh_window_visible {
+                    next_refresh = Instant::now();
+                }
+                was_refresh_window_visible = refresh_window_visible;
+                if refresh_window_visible && Instant::now() >= next_refresh {
                     let Some(minimum_level) = refresh_console_settings(&arguments, &window, &mut preferences, &mut effective_window_geometry, &mut config, &mut user_enabled, &mut last_config_error, control_flow) else { return; };
                     next_refresh =
                         Instant::now() + Duration::from_millis(config.refresh_milliseconds);

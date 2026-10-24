@@ -1,5 +1,3 @@
-pub(crate) const MAX_TAIL: u64 = 1024 * 1024;
-
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Config {
@@ -20,9 +18,16 @@ pub(crate) fn default_toggle_key() -> String {
 }
 
 pub(crate) fn default_refresh() -> u64 {
-    500
+    default_numeric_setting("refreshMilliseconds")
 }
 
 pub(crate) fn default_tail() -> u64 {
-    MAX_TAIL
+    default_numeric_setting("tailBytes")
+}
+
+fn default_numeric_setting(key: &str) -> u64 {
+    shroudforge_loader_config::config::read_loader_defaults()
+        .expect("embedded loader defaults must be valid")["modules"]["debugConsole"][key]
+        .as_u64()
+        .expect("debug console numeric setting default must be an unsigned integer")
 }

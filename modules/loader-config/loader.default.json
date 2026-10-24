@@ -231,8 +231,8 @@
       "levelFilter": "ALL",
       "autoScroll": true,
       "toggleKey": "SDL:67",
-      "refreshMilliseconds": 500,
-      "tailBytes": 1048576,
+      "refreshMilliseconds": 1000,
+      "tailBytes": 65536,
       "window": {
         "position": null
       }
