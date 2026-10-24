@@ -9,7 +9,7 @@ mod observe_keyboard;
 mod parse_hotkey;
 
 pub use observe_keyboard::{
-    initialize, initialize_runtime, is_capture_active, is_hotkey_down, layout_revision,
-    run_input_process, set_capture_active, take_captured_hotkey,
+    hotkey_press_revision, initialize, initialize_runtime, is_capture_active, is_hotkey_down,
+    layout_revision, run_input_process, set_capture_active, take_captured_hotkey,
 };
 pub use parse_hotkey::{Hotkey, InputDevice, parse_hotkey, parse_value};

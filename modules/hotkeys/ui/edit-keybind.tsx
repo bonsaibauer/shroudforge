@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { useI18n } from '../../ui-resources/i18n'
 import { postRequest } from '../../transport/ui/send-host-command'
 
@@ -36,6 +37,12 @@ function replaceDeviceBinding(value: string, device: InputDevice, binding: strin
     .filter(Boolean).join('|')
 }
 
+function reservedKey(value: string): 'F1' | 'F12' | undefined {
+  const scancode = /(?:^|\+)SDL:(\d+)$/.exec(value)?.[1]
+  if (scancode === '58') return 'F1'
+  if (scancode === '69') return 'F12'
+}
+
 export function KeybindInput({
   value,
   label,
@@ -50,6 +57,8 @@ export function KeybindInput({
   disabled?: boolean
 }) {
   const { t } = useI18n()
+  const tRef = useRef(t)
+  tRef.current = t
   const [recording, setRecording] = useState<InputDevice | null>(null)
   const [nativeLabels, setNativeLabels] = useState<Record<string, string>>({})
   const editor = useRef<HTMLDivElement>(null)
@@ -155,6 +164,17 @@ export function KeybindInput({
       setNativeLabels((current) => ({ ...current, [capturedValue]: capturedLabel }))
       setRecording(null)
       onChangeRef.current(replaceDeviceBinding(valueRef.current, recording, capturedValue))
+      const reserved = reservedKey(capturedValue)
+      if (reserved) {
+        logUiEvent({
+          level: 'WARN',
+          source: 'compatibility',
+          operation: 'reserved-hotkey-selected',
+          subject: reserved,
+          message: tRef.current(reserved === 'F1' ? 'hotkeys.reservedF1' : 'hotkeys.reservedF12'),
+          notify: true,
+        })
+      }
     }
     window.addEventListener('shroudforge-keybind-captured', capture)
     window.addEventListener('blur', cancelRecording)

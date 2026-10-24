@@ -507,7 +507,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             );
                         }
                     }
-                    next_control_poll = Instant::now() + Duration::from_millis(250);
+                    next_control_poll = Instant::now() + Duration::from_secs(1);
                 }
                 while let Ok(result) = updater_request_receiver.try_recv() {
                     if result.operation == "remove-mod" {

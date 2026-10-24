@@ -57,11 +57,8 @@ return function(editor)
     end
 
     function editor.key_pressed(key)
-        local binding = editor.setting(key)
-        local down = shroudforge.input.is_keybind_down(key)
-        local previous = editor.previous_key_state[key]
-        local pressed = down and (not previous or (previous.binding == binding and not previous.down))
-        editor.previous_key_state[key] = {binding = binding, down = down}
+        local pressed = shroudforge.input.was_keybind_pressed(key)
+        editor.previous_key_state[key] = true
         if pressed then
             shroudforge.log.debug("World Editor input: action=" .. key .. " key=" .. tostring(shroudforge.input.keybind_label(key)))
         end

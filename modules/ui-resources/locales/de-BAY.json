@@ -19,6 +19,8 @@
   "hotkeys.conflicts": "Mehrere aktive Aktionen ham dieselbe Belegung. Nimm unterschiedliche Tastn.",
   "hotkeys.conflict": "Aa belegt für: {actions}.",
   "hotkeys.empty": "Koane änderbaren Belegungen verfügbar.",
+  "hotkeys.reservedF1": "Enshrouded nutzt F1 fürs Feedbackfenster. Des Kürzel kann des Fenster a aufmachen.",
+  "hotkeys.reservedF12": "Steam nutzt F12 für Screenshots. Des Kürzel kann a zusätzlich an Screenshot aufnehmen.",
   "nav.wiki": "Wiki",
   "wiki.guide": "ALEITUNG",
   "wiki.subtitle": "Hilf und Aleitungen zu ShroudForge, direkt in da Anwendung.",

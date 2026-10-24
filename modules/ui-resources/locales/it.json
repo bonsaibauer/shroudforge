@@ -19,6 +19,8 @@
   "hotkeys.conflicts": "Più azioni attive usano la stessa assegnazione. Scegli tasti diversi.",
   "hotkeys.conflict": "Assegnato anche a: {actions}.",
   "hotkeys.empty": "Nessuna assegnazione modificabile disponibile.",
+  "hotkeys.reservedF1": "Enshrouded usa F1 per la finestra di feedback. Questa scorciatoia potrebbe aprirla.",
+  "hotkeys.reservedF12": "Steam usa F12 per gli screenshot. Questa scorciatoia potrebbe acquisire uno screenshot.",
   "nav.wiki": "Wiki",
   "wiki.guide": "GUIDA",
   "wiki.subtitle": "Aiuto e guide di ShroudForge, disponibili all'interno dell'applicazione.",

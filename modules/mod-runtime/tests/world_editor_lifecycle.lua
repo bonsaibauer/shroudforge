@@ -69,6 +69,7 @@ local function fixture(context, session, deny_unverified_features, is_server)
         settings={get=function(name) return f.settings[name] end},
         ui={on_action=function(name, action) f.actions[name] = action end},
         input={is_keybind_down=function() return false end,
+            was_keybind_pressed=function() return false end,
             keybind_label=function(key) return f.settings[key] ~= "" and "Fixture shortcut" or nil end},
         log={debug=ignore_log, info=ignore_log, warn=ignore_log, error=ignore_log, trace=ignore_log},
     }

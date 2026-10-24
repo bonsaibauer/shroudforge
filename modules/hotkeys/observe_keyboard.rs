@@ -71,6 +71,18 @@ pub fn is_hotkey_down(hotkey: &Hotkey) -> bool {
     }
 }
 
+/// Returns the most recent observed press revision for a configured shortcut.
+/// Callers keep their own previous revision so a short tap survives between polls.
+pub fn hotkey_press_revision(hotkey: &Hotkey) -> u64 {
+    #[cfg(windows)]
+    return windows::press_revision(hotkey);
+    #[cfg(not(windows))]
+    {
+        let _ = hotkey;
+        0
+    }
+}
+
 pub(crate) fn valid_scancode(scancode: u16) -> bool {
     #[cfg(windows)]
     return unsafe { windows::sf_keyboard_valid_scancode(i32::from(scancode)) != 0 };
@@ -235,6 +247,8 @@ mod windows {
     static ACTIVE: AtomicBool = AtomicBool::new(false);
     static MODIFIERS: AtomicU8 = AtomicU8::new(0);
     static KEYS: RwLock<BTreeMap<Trigger, KeyState>> = RwLock::new(BTreeMap::new());
+    static PRESS_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    static PRESS_REVISIONS: RwLock<BTreeMap<(Trigger, u8), u64>> = RwLock::new(BTreeMap::new());
     pub(super) static LABELS: RwLock<Vec<String>> = RwLock::new(Vec::new());
     pub(super) static LAYOUT_REVISION: AtomicU64 = AtomicU64::new(0);
     pub(super) static CAPTURE: Mutex<Capture> = Mutex::new(Capture {
@@ -295,6 +309,9 @@ mod windows {
                         ACTIVE.store(false, Ordering::Release);
                         if let Ok(mut keys) = KEYS.write() {
                             keys.clear();
+                        }
+                        if let Ok(mut presses) = PRESS_REVISIONS.write() {
+                            presses.clear();
                         }
                         if let Ok(mut capture) = CAPTURE.lock() {
                             capture.armed = false;
@@ -496,6 +513,14 @@ mod windows {
                 if repeat {
                     return;
                 }
+                if down && !is_capture_active() {
+                    let revision = PRESS_SEQUENCE
+                        .fetch_add(1, Ordering::AcqRel)
+                        .wrapping_add(1);
+                    if let Ok(mut presses) = PRESS_REVISIONS.write() {
+                        presses.insert((trigger, modifiers), revision);
+                    }
+                }
                 if let Ok(mut capture) = CAPTURE.lock() {
                     capture.release_if_idle(idle);
                     if capture.armed && timestamp >= capture.armed_at && device == capture.device {
@@ -539,6 +564,24 @@ mod windows {
                         .get(&chord.trigger)
                         .is_some_and(|key| key.down && key.modifiers == chord.required_modifiers())
             })
+        })
+    }
+
+    pub(super) fn press_revision(hotkey: &Hotkey) -> u64 {
+        if !ACTIVE.load(Ordering::Acquire) {
+            return 0;
+        }
+        PRESS_REVISIONS.read().map_or(0, |presses| {
+            hotkey
+                .chords
+                .iter()
+                .filter_map(|chord| {
+                    presses
+                        .get(&(chord.trigger, chord.required_modifiers()))
+                        .copied()
+                })
+                .max()
+                .unwrap_or(0)
         })
     }
 

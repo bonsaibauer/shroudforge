@@ -125,7 +125,9 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
         "worldEditor",
         module_enabled && window_visible,
     );
-    let mut toggle_down = false;
+    let mut last_toggle_press_revision = toggle_key
+        .as_ref()
+        .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
     let mut next_visibility_poll = Instant::now();
     let mut next_settings_poll = Instant::now();
     // Keep disk enumeration and thumbnail reads off the window thread.
@@ -274,7 +276,9 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                         if let Ok(next_key) = shroudforge_hotkeys::parse_value(&config["modules"]["worldEditor"]["toggleKey"]) {
                             if next_key != toggle_key {
                                 toggle_key = next_key;
-                                toggle_down = toggle_key.as_ref().is_some_and(shroudforge_hotkeys::is_hotkey_down);
+                                last_toggle_press_revision = toggle_key
+                                    .as_ref()
+                                    .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
                             }
                         }
                         let next_enabled = config["modules"]["worldEditor"]["enabled"] != false;
@@ -302,7 +306,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                    next_settings_poll = Instant::now() + Duration::from_millis(300);
+                    next_settings_poll = Instant::now() + Duration::from_secs(1);
                 }
 
                 let foreground = unsafe { GetForegroundWindow() };
@@ -311,8 +315,10 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                 let is_game = !arguments.desktop && foreground_pid == arguments.game_pid;
                 let is_overlay = !arguments.desktop
                     && foreground_pid == unsafe { GetCurrentProcessId() };
-                let toggle = toggle_key.as_ref().is_some_and(shroudforge_hotkeys::is_hotkey_down);
-                let toggle_pressed = toggle && !toggle_down;
+                let toggle_press_revision = toggle_key
+                    .as_ref()
+                    .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
+                let toggle_pressed = toggle_press_revision > last_toggle_press_revision;
                 if module_enabled && (is_game || is_overlay) && !shroudforge_hotkeys::is_capture_active() {
                     let was_visible = window_visible;
                     if toggle_pressed {
@@ -340,7 +346,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                         );
                     }
                 }
-                toggle_down = toggle;
+                last_toggle_press_revision = toggle_press_revision;
                 let should_show = module_enabled && window_visible && (is_game || is_overlay);
                 if should_show != native_visible {
                     native_visible = should_show;

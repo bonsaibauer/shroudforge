@@ -141,9 +141,12 @@ Enshrouded's process. Dedicated servers do not start keyboard observation.
 `control: "keybind"` settings remain in each mod's `extended.mod.json`, while
 native window shortcuts remain in the existing loader configuration. The
 Modloader owns declared-binding discovery and conflict validation. Lua mods
-use `shroudforge.input.is_keybind_down(settingKey)` and
-`shroudforge.input.keybind_label(settingKey)`. Numeric Windows keys, browser-code
-strings and the former raw `is_key_down` API are not supported.
+use `shroudforge.input.is_keybind_down(settingKey)`,
+`shroudforge.input.was_keybind_pressed(settingKey)` and
+`shroudforge.input.keybind_label(settingKey)`. The former
+`is_key_down("F1")` through `is_key_down("F8")` API was removed in 1.7.6.
+Calling it logs a migration error directing mod authors to declare a `keybind`
+setting and assign it in Compatibility → Hotkeys.
 
 ## Offline help and UI events
 

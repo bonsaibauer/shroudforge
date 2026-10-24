@@ -30,20 +30,16 @@ Ein Mod-Autor deklariert das Kürzel als Einstellung in `extended.mod.json`:
 Der Mod liest diese Einstellung über die ShroudForge-Lua-API aus. Damit reagiert er auf den aktuell eingestellten Wert, statt eine feste Taste im Skript zu verwenden:
 
 ```lua
-local was_down = false
-
 return {
     on_update = function()
-        local down = shroudforge.input.is_keybind_down("pasteKey")
-        if down and not was_down then
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
             -- Die Aktion ausführen.
         end
-        was_down = down
     end,
 }
 ```
 
-`shroudforge.input.keybind_label("pasteKey")` liefert die aktuelle lesbare SDL-Beschriftung für das Betriebssystemlayout. Die Tastenabfrage funktioniert bei fokussiertem Spielfenster. Eine Deklaration allein ändert keine fest im Skript hinterlegte Taste. Der Mod muss den Wert über diese API abfragen und für seine Aktion verwenden. Mod-Autoren sollen den Tastendruck nur beim Übergang von nicht gedrückt zu gedrückt auslösen, damit eine gehaltene Taste keine Aktion in jedem Update wiederholt.
+`shroudforge.input.was_keybind_pressed("pasteKey")` merkt auch kurze Tastendrücke zwischen zwei Runtime-Updates und liefert pro Mod und Einstellung einmal `true`. Live gespeicherte Änderungen erreichen die Runtime innerhalb einer Sekunde. Für Aktionen, die während des Haltens wiederholt werden sollen, verwende `is_keybind_down`. Die frühere API `is_key_down("F1")` bis `is_key_down("F8")` wird seit ShroudForge 1.7.6 nicht mehr unterstützt. Ein Aufruf protokolliert einen Migrationshinweis und löst einen Lua-Fehler aus. Deklariere stattdessen eine `keybind`-Einstellung und weise sie im Hotkey-Manager unter **Kompatibilität → Tastenkürzel** zu. `shroudforge.input.keybind_label("pasteKey")` liefert die aktuelle lesbare SDL-Beschriftung für das Betriebssystemlayout. Die Tastenabfrage funktioniert bei fokussiertem Spielfenster. Eine Deklaration allein ändert keine fest im Skript hinterlegte Taste. Der Mod muss den Wert über diese API abfragen und für seine Aktion verwenden.
 
 ## Konflikte und fremde Mods
 

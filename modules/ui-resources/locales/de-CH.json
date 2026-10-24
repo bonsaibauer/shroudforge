@@ -19,6 +19,8 @@
   "hotkeys.conflicts": "Mehri aktivi Aktione nutzed di gliich Belegig. Nimm anderi Taste.",
   "hotkeys.conflict": "Au zuegwiese für: {actions}.",
   "hotkeys.empty": "Kei änderbari Belegige verfüegbar.",
+  "hotkeys.reservedF1": "Enshrouded verwendet F1 fürs Feedbackfenster. Diese Belegung kann das Fenster ebenfalls öffnen.",
+  "hotkeys.reservedF12": "Steam verwendet F12 für Screenshots. Diese Belegung kann zusätzlich einen Screenshot aufnehmen.",
   "nav.wiki": "Wiki",
   "wiki.guide": "AALEITIG",
   "wiki.subtitle": "Hilf und Aaleitige zu ShroudForge, grad i de Aawändig.",

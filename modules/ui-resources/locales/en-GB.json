@@ -19,6 +19,8 @@
   "hotkeys.conflicts": "Multiple active actions use the same binding. Choose different keys.",
   "hotkeys.conflict": "Also assigned to: {actions}.",
   "hotkeys.empty": "No editable bindings are available.",
+  "hotkeys.reservedF1": "Enshrouded uses F1 for its feedback window. This binding may also open the feedback window.",
+  "hotkeys.reservedF12": "Steam uses F12 for screenshots. This binding may also take a screenshot.",
   "nav.wiki": "Wiki",
   "wiki.guide": "GUIDE",
   "wiki.subtitle": "ShroudForge help and guides, available inside the application.",

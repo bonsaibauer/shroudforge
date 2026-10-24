@@ -30,20 +30,16 @@ El autor del mod declara el atajo como un ajuste en `extended.mod.json`:
 El mod lee este ajuste mediante la API Lua de ShroudForge. Así responde al valor actual en lugar de fijar una tecla en el script:
 
 ```lua
-local was_down = false
-
 return {
     on_update = function()
-        local down = shroudforge.input.is_keybind_down("pasteKey")
-        if down and not was_down then
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
             -- Ejecutar la acción.
         end
-        was_down = down
     end,
 }
 ```
 
-`shroudforge.input.keybind_label("pasteKey")` devuelve la etiqueta legible actual de SDL para la distribución del sistema operativo. La consulta de teclas funciona cuando una ventana del juego está activa. La declaración por sí sola no cambia una tecla fijada en el script. El mod debe leer este valor mediante la API y usarlo para su acción. Los autores deben ejecutar la acción solo al pasar de tecla suelta a pulsada para evitar repetirla en cada actualización mientras se mantiene pulsada.
+`shroudforge.input.was_keybind_pressed("pasteKey")` conserva las pulsaciones breves entre actualizaciones del runtime y devuelve `true` una vez por mod y ajuste. Los cambios guardados en vivo llegan al runtime en un segundo como máximo. Usa `is_keybind_down` para acciones que deban repetirse mientras se mantenga pulsada la tecla. La API anterior `is_key_down("F1")` a `is_key_down("F8")` dejó de estar admitida en ShroudForge 1.7.6. Su llamada registra un mensaje de migración y genera un error de Lua. Declara un ajuste `keybind` y asígnalo en el administrador de atajos, en **Compatibility → Hotkeys**. `shroudforge.input.keybind_label("pasteKey")` devuelve la etiqueta legible actual de SDL para la distribución del sistema operativo. La consulta de teclas funciona cuando una ventana del juego está activa. La declaración por sí sola no cambia una tecla fijada en el script. El mod debe leer este valor mediante la API y usarlo para su acción.
 
 ## Conflictos y otros mods
 

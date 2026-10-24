@@ -29,19 +29,18 @@ Declare a shortcut once as a `keybind` setting. The same setting appears in the 
 Read the declared setting in Lua. Do not repeat its default key in the script.
 
 ```lua
-local was_down = false
 return {
     on_update = function()
-        local down = shroudforge.input.is_keybind_down("pasteKey")
-        if down and not was_down then
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
             -- Call the same action that the mod's UI uses.
         end
-        was_down = down
     end,
 }
 ```
 
-The shortcut field has two columns. Record the full keyboard combination on the left and an optional mouse combination on the right. Both alternatives belong to the same setting. Either one triggers the action.
+`was_keybind_pressed` retains a short tap even when it begins and ends between runtime updates. It returns `true` once per new press for each mod and setting. For actions that should repeat while held, use `is_keybind_down`.
+
+The shortcut field has two columns. Record the full keyboard combination on the left and an optional mouse combination on the right. Both alternatives belong to the same setting. Either one triggers the action. Live saved changes reach the runtime on its next configuration refresh, within one second.
 
 While recording, ShroudForge blocks its window shortcuts and mod shortcuts queried through this API across processes. Protection remains active after cancellation or a window focus change until all keys and mouse buttons are released, followed by three seconds without another key press or mouse click. New input restarts the waiting period after release.
 
@@ -49,6 +48,6 @@ The value remains one string. A keyboard chord stores an [SDL scancode](https://
 
 SDL supplies the displayed labels. `shroudforge.input.keybind_label("pasteKey")` returns the current label, including both alternatives when configured, or `nil` when inactive. Mouse observation uses SDL's global button state. Mouse-wheel shortcuts are not supported.
 
-ShroudForge observes in-game shortcuts in a separate hidden process and sends input states and labels to the Lua runtime. It does not register SDL input inside the game process. Only the SDL binding strings described above are accepted. Windows virtual-key numbers, browser key names and the former raw `is_key_down` API are not supported.
+ShroudForge observes in-game shortcuts in a separate hidden process and sends input states and labels to the Lua runtime. It does not register SDL input inside the game process. Only the SDL binding strings described above are accepted. The former `is_key_down("F1")` through `is_key_down("F8")` API has been unsupported since ShroudForge 1.7.6. Calling it logs a migration message and raises a Lua error. Declare a `keybind` setting instead and assign it in the Hotkey Manager under **Compatibility → Hotkeys**.
 
 Only declared `keybind` settings can use this API. Existing `enabledWhen` conditions also apply. Native third-party DLL shortcuts are not automatically controlled by this setting. See [settings.<key>.control](#doc-field-settings-key-control) for the schema rules.

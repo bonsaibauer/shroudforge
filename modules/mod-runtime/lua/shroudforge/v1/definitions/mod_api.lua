@@ -46,14 +46,27 @@ function shroudforge_notifications.publish(notice) end
 --- @class ShroudForgeInput
 shroudforge_input = {}
 
+--- @deprecated Removed and unsupported in ShroudForge 1.7.6. Calling it logs a migration error and raises a Lua error.
+--- Declare a `control: "keybind"` setting, assign it in Compatibility → Hotkeys, and use is_keybind_down or was_keybind_pressed.
+--- @vararg any
+function shroudforge_input.is_key_down(...) end
+
 --- Returns true while either configured keyboard or mouse chord and its exact modifiers are held
 --- and a window in the game process is focused. The setting must declare `control: "keybind"`
---- in `extended.mod.json`. Saved changes follow the existing mod-settings live/restart policy.
+--- in `extended.mod.json`. Live saved changes reach the runtime on its one-second configuration refresh.
+--- Other settings follow the existing mod-settings live/restart policy.
 --- An empty binding or a false enabledWhen condition disables the shortcut.
 --- Poll from `on_update` and detect rising edges.
 --- @param setting_key string Key of this mod's declared keybind setting.
 --- @return boolean
 function shroudforge_input.is_keybind_down(setting_key) end
+
+--- Returns true once when the configured shortcut was pressed since this mod last queried it.
+--- Short taps between runtime updates are retained. The setting must declare control: "keybind".
+--- An empty binding or a false enabledWhen condition disables the shortcut.
+--- @param setting_key string Key of this mod's declared keybind setting.
+--- @return boolean
+function shroudforge_input.was_keybind_pressed(setting_key) end
 
 --- Returns the current display label supplied by SDL, including modifiers and both alternatives.
 --- One setting string stores a keyboard chord, a mouse chord, or keyboard|mouse,

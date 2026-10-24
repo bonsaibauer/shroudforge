@@ -92,8 +92,12 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
         "debugConsole",
         shown,
     );
-    let mut key_down = false;
     let mut previous_toggle_key = config.toggle_key.clone();
+    let mut last_toggle_press_revision = shroudforge_hotkeys::parse_hotkey(&config.toggle_key)
+        .ok()
+        .flatten()
+        .as_ref()
+        .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
     let mut fatal_seen = false;
     let mut failure_review = false;
     let mut game_exited = false;
@@ -161,6 +165,11 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                         shroudforge_loader_config::config::read_loader(&arguments.root)
                     {
                         let debug_settings = &settings["modules"]["debugConsole"];
+                        if let Some(toggle_key) = debug_settings["toggleKey"].as_str()
+                            && config.toggle_key != toggle_key
+                        {
+                            config.toggle_key = toggle_key.to_owned();
+                        }
                         let enabled = debug_settings["enabled"] != false;
                         for key in ["popupMode", "popupCooldownSeconds"] {
                             if let Some(value) = debug_settings.get(key) {
@@ -184,7 +193,7 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                    next_activation_poll = Instant::now() + Duration::from_millis(250);
+                    next_activation_poll = Instant::now() + Duration::from_secs(1);
                 }
                 let popup_mode = if user_enabled && arguments.startup_watch {
                     preferences["popupMode"].as_str().unwrap_or("bootstrap")
@@ -312,18 +321,21 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                     window.set_always_on_top(next_topmost);
                     window_topmost = next_topmost;
                 }
-                let down = shroudforge_hotkeys::parse_hotkey(&config.toggle_key)
-                    .ok().flatten()
-                    .is_some_and(|binding| shroudforge_hotkeys::is_hotkey_down(&binding));
+                let binding = shroudforge_hotkeys::parse_hotkey(&config.toggle_key)
+                    .ok()
+                    .flatten();
+                let press_revision = binding
+                    .as_ref()
+                    .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
                 if config.toggle_key != previous_toggle_key {
-                    key_down = down;
+                    last_toggle_press_revision = press_revision;
                     previous_toggle_key = config.toggle_key.clone();
                 }
+                let pressed = press_revision > last_toggle_press_revision;
                 if !arguments.desktop
                     && user_enabled
                     && (game_focused || console_focused)
-                    && down
-                    && !key_down
+                    && pressed
                     && !shroudforge_hotkeys::is_capture_active() {
                     shown = !shown;
                     if !shown {
@@ -338,7 +350,7 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                         window.set_focus();
                     }
                 }
-                key_down = down;
+                last_toggle_press_revision = press_revision;
                 if !user_enabled && shown {
                     shown = false;
                     window.set_visible(false);

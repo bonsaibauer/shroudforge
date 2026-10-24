@@ -19,6 +19,8 @@
   "hotkeys.conflicts": "複数の有効な操作に同じキーが割り当てられています。別のキーを選んでください。",
   "hotkeys.conflict": "次の操作にも割り当て済み: {actions}。",
   "hotkeys.empty": "変更できるキー割り当てはありません。",
+  "hotkeys.reservedF1": "EnshroudedではF1がフィードバック画面に使われています。この割り当てでも画面が開く場合があります。",
+  "hotkeys.reservedF12": "SteamではF12がスクリーンショットに使われています。この割り当てでも撮影される場合があります。",
   "nav.wiki": "メニュー",
   "wiki.guide": "ガイド",
   "wiki.subtitle": "アプリケーション内で利用可能なShroudForgeヘルプとガイド.",
