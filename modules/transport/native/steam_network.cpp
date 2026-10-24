@@ -20,6 +20,11 @@ constexpr int32_t k_ready = 1;
 constexpr int32_t k_steam_identity_type = 16;
 constexpr int32_t k_steam_identity_size = 8;
 constexpr int32_t k_steam_send_reliable = 8;
+// k_nSteamNetworkingSend_AutoRestartBrokenSession: without it, once a session
+// with a peer has failed (the peer did not accept in time, or the connection
+// dropped), every later send to that peer fails with k_EResultConnectFailed
+// until the process restarts.
+constexpr int32_t k_steam_send_restart_broken_session = 32;
 constexpr int32_t k_steam_messages_session_request_callback = 1251;
 constexpr int32_t k_network_service_channel = 65535;
 constexpr size_t k_max_message_bytes = 512u * 1024u;
@@ -285,7 +290,7 @@ int32_t send_service_message(const Interfaces& api, uint64_t peer, const std::st
     if (!peer || !api.messages || !api.send) return -1;
     const auto target = identity(peer);
     const auto result = api.send(api.messages, target, text.data(), static_cast<uint32_t>(text.size()),
-        k_steam_send_reliable, k_network_service_channel);
+        k_steam_send_reliable | k_steam_send_restart_broken_session, k_network_service_channel);
     g_last_send_result.store(result, std::memory_order_release);
     return result;
 }
@@ -497,7 +502,7 @@ KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkSend(
         if (!ready(api)) return -1;
         const auto peer = identity(peer_steam_id);
         return api.send(api.messages, peer, payload, static_cast<uint32_t>(size),
-            reliable ? k_steam_send_reliable : 0, channel);
+            (reliable ? k_steam_send_reliable : 0) | k_steam_send_restart_broken_session, channel);
     } catch (...) { return -1; }
 }
 
