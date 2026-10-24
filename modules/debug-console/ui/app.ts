@@ -33,9 +33,23 @@ function accepted(line) {
   return classify(line) === ["", "trace", "debug", "info", "warn", "error"][levelIndex];
 }
 
+// What the list shows was last built from; an update that changes none of it
+// (such as new lines in the other log) leaves the list untouched.
+let lastRender = "";
+
 function render() {
   const tail = data[activeSource];
   const source = paused ? frozen : tail.text;
+  const renderKey = [activeSource, levelIndex, minimumLevel, search.value, paused, follow, tail.state, source].join("\u0000");
+  const counts = `${data.game.text.length}/${data.loader.text.length}`;
+  if (renderKey === lastRender && counts === lastCounts) return;
+  if (counts !== lastCounts) {
+    lastCounts = counts;
+    byId("game-count").textContent = count(data.game.text);
+    byId("loader-count").textContent = count(data.loader.text);
+  }
+  if (renderKey === lastRender) return;
+  lastRender = renderKey;
   const lines = source ? source.split(/\r?\n/).filter(Boolean) : [];
   const visible = lines.filter(accepted);
   log.replaceChildren();
@@ -60,10 +74,10 @@ function render() {
   byId("source").textContent = paths[activeSource];
   byId("source").title = paths[activeSource];
   byId("stats").textContent = `${visible.length.toLocaleString()} of ${lines.length.toLocaleString()} lines`;
-  byId("game-count").textContent = count(data.game.text);
-  byId("loader-count").textContent = count(data.loader.text);
   if (follow) log.scrollTop = log.scrollHeight;
 }
+
+let lastCounts = "";
 
 function count(value) {
   return value ? value.split(/\r?\n/).filter(Boolean).length.toLocaleString() : "0";

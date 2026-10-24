@@ -119,6 +119,11 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut was_refresh_window_visible = window.is_visible() && !window.is_minimized();
     let mut last_config_error: Option<String> = None;
     let mut pending_window_geometry_save: Option<Instant> = None;
+    // Last snapshot handed to the page and the WebView's own visibility: a
+    // hidden console neither reads the logs nor renders, and an unchanged
+    // snapshot is not sent again (the page rebuilds its whole list for one).
+    let mut last_payload = String::new();
+    let mut webview_visible = window.is_visible();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
         match event {
@@ -372,6 +377,11 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                     window.set_visible(true);
                 }
                 let refresh_window_visible = window.is_visible() && !window.is_minimized();
+                if refresh_window_visible != webview_visible {
+                    // Lets WebView2 suspend rendering while the console is hidden.
+                    let _ = webview.set_visible(refresh_window_visible);
+                    webview_visible = refresh_window_visible;
+                }
                 if refresh_window_visible && !was_refresh_window_visible {
                     next_refresh = Instant::now();
                 }
@@ -380,12 +390,16 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let Some(minimum_level) = refresh_console_settings(&arguments, &window, &mut preferences, &mut effective_window_geometry, &mut config, &mut user_enabled, &mut last_config_error, control_flow) else { return; };
                     next_refresh =
                         Instant::now() + Duration::from_millis(config.refresh_milliseconds);
-                    let payload = read_console_snapshot(&arguments, &config, &preferences, minimum_level, auto_open_alert);
-                    if webview
-                        .evaluate_script(&format!("window.__shroudforgeUpdate({});", payload))
-                        .is_ok()
-                    {
-                        auto_open_alert = false;
+                    if visible {
+                        let payload = read_console_snapshot(&arguments, &config, &preferences, minimum_level, auto_open_alert).to_string();
+                        if payload != last_payload
+                            && webview
+                                .evaluate_script(&format!("window.__shroudforgeUpdate({payload});"))
+                                .is_ok()
+                        {
+                            auto_open_alert = false;
+                            last_payload = payload;
+                        }
                     }
                 }
             }
