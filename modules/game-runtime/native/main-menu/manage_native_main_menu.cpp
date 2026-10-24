@@ -1,5 +1,6 @@
 #include "main-menu/native_main_menu.h"
 #include "main-menu/resolve_main_menu.h"
+#include "main-menu/resolve_game_flow.h"
 #include "engine-hooks/allocate_near_code.h"
 #include "engine-hooks/encode_relative_jump.h"
 #include "engine-hooks/write_executable_bytes.h"
@@ -47,6 +48,8 @@ std::atomic<std::uint64_t> draws{}, clicks{};
 std::vector<InstalledCall> installed;
 std::size_t menu_calls{};
 std::string state{"not-initialized"}, reason;
+GameFlowBinding game_flow;
+std::atomic<std::uint32_t> main_menu_state{};
 
 // The existing menu callback owns capture. ABI/Lua/status consumers only copy
 // this cache. No worker, timer, process handle or second menu hook is involved.
@@ -286,6 +289,11 @@ void Initialize() noexcept {
     try {
         std::lock_guard lock(lifecycle_mutex);
         if (accepting.load(std::memory_order_acquire)) return;
+        main_menu_state.store(0, std::memory_order_release);
+        // Screen classification is independent of ECS readiness and whether
+        // the optional Mods row can be installed or is currently visible.
+        ResolveGameFlow(game_flow);
+        main_menu_state.store(ReadGameFlowState(game_flow), std::memory_order_release);
         if (!installed.empty()) {
             state = "unavailable"; reason = "previous-menu-calls-could-not-be-restored"; return;
         }
@@ -368,10 +376,22 @@ void Initialize() noexcept {
     }
 }
 
-void Shutdown() noexcept {
-    accepting.store(false, std::memory_order_release);
+void Tick() noexcept {
     try {
         std::lock_guard lock(lifecycle_mutex);
+        main_menu_state.store(ReadGameFlowState(game_flow), std::memory_order_release);
+    } catch (...) { main_menu_state.store(0, std::memory_order_release); }
+}
+
+std::uint32_t MainMenuState() noexcept { return main_menu_state.load(std::memory_order_acquire); }
+
+void Shutdown() noexcept {
+    accepting.store(false, std::memory_order_release);
+    main_menu_state.store(0, std::memory_order_release);
+    try {
+        std::lock_guard lock(lifecycle_mutex);
+        game_flow = {};
+        main_menu_state.store(0, std::memory_order_release);
         const bool restored = restore_calls();
         {
             std::lock_guard character_lock(character_mutex);
@@ -393,8 +413,13 @@ std::string Status() {
         {"menuCalls", menu_calls}, {"insertionCalls", installed.size()},
         {"draws", draws.load(std::memory_order_relaxed)},
         {"clicks", clicks.load(std::memory_order_relaxed)},
+        {"mainMenuState", MainMenuState()}, {"mainMenuReason", game_flow.error},
         {"characterNameReads", name_reads}, {"characterNameReason", character_reason}}).dump();
 }
+}
+
+extern "C" KFC_RUNTIME_API std::uint32_t __cdecl KfcRuntimeMainMenuState() {
+    return NativeMainMenu::MainMenuState();
 }
 
 extern "C" KFC_RUNTIME_API std::size_t __cdecl KfcRuntimeSelectedCharacterName(char* buffer, std::size_t capacity) {

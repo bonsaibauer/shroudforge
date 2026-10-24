@@ -55,6 +55,7 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     add_function_with_mod(lua, &table, "status", &r#mod, lua_status)?;
     add_function_with_mod(lua, &table, "get_operations", &r#mod, lua_get_operations)?;
     add_function_with_mod(lua, &table, "report_effect", &r#mod, lua_report_effect)?;
+    add_function_with_mod(lua, &table, "is_main_menu", &r#mod, lua_is_main_menu)?;
 
     let player = lua.create_table()?;
     add_function_with_mod(lua, &player, "name", &r#mod, lua_player_name)?;
@@ -78,6 +79,22 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     table.raw_set("functions", create_functions(lua, &table, &r#mod)?)?;
 
     Ok(table)
+}
+
+fn lua_is_main_menu(
+    lua: &mlua::Lua,
+    _args: FunctionArgs,
+    r#mod: &Mod,
+) -> mlua::Result<(Option<bool>, Option<String>)> {
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    if let Some(reason) = runtime_denial_reason(&state, r#mod, "runtime.is_main_menu") {
+        return Ok((None, Some(reason)));
+    }
+    let main_menu = runtime_provider::is_main_menu();
+    let reason = main_menu
+        .is_none()
+        .then(|| "main menu state is unknown or transitioning".to_owned());
+    Ok((main_menu, reason))
 }
 
 fn lua_player_name(

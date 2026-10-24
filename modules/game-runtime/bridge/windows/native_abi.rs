@@ -97,6 +97,7 @@ pub(super) type CompareExchange = unsafe extern "C" fn(
 pub(super) type WorldOperationAvailable = unsafe extern "C" fn(*const c_char) -> bool;
 pub(super) type WorldContextActive = unsafe extern "C" fn() -> bool;
 pub(super) type WorldContextKind = unsafe extern "C" fn() -> u32;
+pub(super) type MainMenuState = unsafe extern "C" fn() -> u32;
 pub(super) type WorldSessionId = unsafe extern "C" fn() -> u64;
 pub(super) type WorldEntityContextReady = unsafe extern "C" fn() -> bool;
 pub(super) type WorldEntityQueryProps =
@@ -193,4 +194,5 @@ pub(super) struct Provider {
     pub(super) abi: u32,
     pub(super) status: unsafe extern "C" fn(*mut c_char, usize),
     pub(super) selected_character_name: Option<Registry>,
+    pub(super) main_menu_state: Option<MainMenuState>,
 }

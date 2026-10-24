@@ -203,6 +203,7 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                             "KfcRuntimeSelectedCharacterName",
                             Registry
                         ),
+                        main_menu_state: optional_symbol!("KfcRuntimeMainMenuState", MainMenuState),
                     })
                 }
             }

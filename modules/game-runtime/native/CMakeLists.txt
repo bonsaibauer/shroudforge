@@ -156,6 +156,7 @@ add_library(kfc-runtime SHARED
     voxels/write_registered_voxel_grid.cpp
     main-menu/resolve_main_menu.cpp
     main-menu/resolve_character_selection.cpp
+    main-menu/resolve_game_flow.cpp
     main-menu/manage_native_main_menu.cpp
     host/manage_runtime_lifecycle.cpp
     code-inventory/export_function_inspection.cpp

@@ -1,7 +1,8 @@
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
-pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
+pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>) -> Value {
+    let desktop = game_pid.is_none();
     let mut errors = Vec::new();
     let mut checks = Vec::new();
     let mut mod_states = serde_json::Map::new();
@@ -32,11 +33,18 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
             .and_then(|value| value["pid"].as_u64());
     let runtime_fresh = runtime.as_ref().is_some_and(|value| {
         value["running"] == true
+            && game_pid.is_some_and(|pid| value["pid"].as_u64() == Some(u64::from(pid)))
             && value["pid"].as_u64() == heartbeat_pid
             && value["updatedAt"]
                 .as_u64()
                 .is_some_and(|timestamp| timestamp <= now && now - timestamp <= 5)
     });
+    let main_menu = runtime_fresh
+        && !server
+        && runtime.as_ref().is_some_and(|value| {
+            value["runtimeProvider"]["available"] == true
+                && value["runtimeProvider"]["mainMenu"] == true
+        });
     let awaiting_world = runtime_fresh
         && runtime.as_ref().is_some_and(|value| {
             value["runtimeProvider"]["available"] == true
@@ -192,6 +200,16 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     json!({"state":"disabled","detail":"The mod is disabled."})
                 } else if pregame_mod && preparation_error.is_some() {
                     json!({"state":"failed","code":"asset-preparation-failed","detail":preparation_error.unwrap()})
+                } else if let Some(effect) = native_dll_effect.filter(|effect| {
+                    matches!(effect["state"].as_str(), Some("error" | "write-failed"))
+                }) {
+                    json!({"state":"failed","detail":effect["detail"].as_str().unwrap_or("The mod reported a runtime error.")})
+                } else if let Some(effect) =
+                    native_dll_effect.filter(|effect| effect["state"] == "restart-required")
+                {
+                    json!({"state":"restart-required","detail":effect["detail"].as_str().unwrap_or("Restart the game to apply this mod configuration.")})
+                } else if desktop {
+                    json!({"state":"ready","detail":"The mod is enabled and ready for the next game start. World access is not expected in desktop mode."})
                 } else if runtime_fresh && runtime_mod {
                     let runtime = runtime.as_ref().unwrap();
                     if let Some(reason) = runtime["errors"].get(&manifest.id) {
@@ -207,6 +225,13 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                             && runtime["loaded"].get(&manifest.id).is_none())
                     {
                         json!({"state":"restart-required","detail":"The current game session has not loaded this mod configuration. Restart the game to apply it."})
+                    } else if main_menu
+                        && native_dll_effect.is_none_or(|effect| effect["state"] != "loading")
+                        && runtime["active"]
+                            .as_array()
+                            .is_some_and(|active| active.iter().any(|id| id == &manifest.id))
+                    {
+                        json!({"state":"ready","detail":"The mod is loaded and ready. World access is not expected in the main menu."})
                     } else if awaiting_world {
                         json!({"state":"waiting-world","detail":"The mod is loaded for this session and is waiting for the game world."})
                     } else if runtime["active"]
@@ -253,6 +278,8 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                     }
                 } else if pregame_mod && !applied_assets {
                     json!({"state":"restart-required","detail":"This mod's asset changes are not included in startup preparation. Restart the game to apply them."})
+                } else if main_menu {
+                    json!({"state":"ready","detail":"The mod is enabled and ready. World access is not expected in the main menu."})
                 } else if pregame_mod && !runtime_mod && applied_assets {
                     match native_dll_effect.and_then(|value| value["state"].as_str()) {
                         Some("error") => {
@@ -350,11 +377,17 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
             Some("loaded") if dll_plan_changed => {
                 json!({"state":"restart-required","detail":"The DLL selection, initialization mode or load order changed. Restart the game to apply it."})
             }
+            Some("loaded") if main_menu => {
+                json!({"state":"ready","detail":effect.unwrap()["detail"]})
+            }
             Some("loaded") => json!({"state":"dll-loaded","detail":effect.unwrap()["detail"]}),
             Some("loading") => json!({"state":"waiting","detail":effect.unwrap()["detail"]}),
             Some("error") => json!({"state":"failed","detail":effect.unwrap()["detail"]}),
             _ if !dll_enabled => {
                 json!({"state":"disabled","detail":"DLL Manager is off. This DLL will not load at the next game start."})
+            }
+            _ if desktop => {
+                json!({"state":"ready","detail":"Scheduled for the next game start. A runtime load report is not expected in desktop mode."})
             }
             _ if runtime_fresh => {
                 json!({"state":"restart-required","detail":"Restart the game to apply this DLL selection."})
@@ -415,7 +448,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
                 let state = if effect["state"] == "error" {
                     json!({"state":"failed","detail":effect["detail"]})
                 } else if (lua_active || selected_by_plan) && !dll_plan_changed {
-                    json!({"state":if effect["state"] == "loaded" {"dll-loaded"} else {"waiting"},"detail":effect["detail"]})
+                    json!({"state":if effect["state"] == "loaded" {if main_menu {"ready"} else {"dll-loaded"}} else {"waiting"},"detail":effect["detail"]})
                 } else {
                     json!({"state":"restart-required","detail":"This DLL is no longer selected. It remains loaded until the game restarts."})
                 };
@@ -499,6 +532,15 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
         .filter(|_| runtime_fresh)
         .map(|value| &value["runtimeProvider"]);
     let (runtime_state, runtime_detail) = match runtime_check {
+        _ if desktop => (
+            "ok",
+            "Desktop mode. World access is not expected until a game world is entered.".into(),
+        ),
+        _ if main_menu => (
+            "ok",
+            "The original game state confirms the main menu. World access is not expected here."
+                .into(),
+        ),
         Some(value) if value["available"] == true && value["awaitingWorld"] == true => (
             "neutral",
             "KFC Runtime is waiting for the player to enter a game world.".into(),
@@ -535,7 +577,7 @@ pub fn configuration(root: &Path, server: bool, api: &str) -> Value {
             "Waiting for a fresh status from the game process.".into(),
         ),
     };
-    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"detail":runtime_detail,"phase":if awaiting_world {"waiting-world"} else {"normal"}}));
+    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"detail":runtime_detail,"phase":if desktop {"desktop"} else if main_menu {"main-menu"} else if awaiting_world {"waiting-world"} else {"normal"}}));
     let state_path = shroudforge_loader_config::paths::state_file(root);
     let updates = match fs::read(&state_path) {
         Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {
@@ -583,7 +625,7 @@ mod tests {
         )
         .expect("legacy event state");
 
-        let status = configuration(root.path(), false, "1.0.0");
+        let status = configuration(root.path(), false, "1.0.0", None);
         let errors = status["errors"].as_array().expect("configuration errors");
         assert!(!errors.iter().any(|error| {
             error.as_str().is_some_and(|error| {
@@ -620,7 +662,7 @@ mod tests {
             }),
         )
         .unwrap();
-        let status = configuration(root.path(), false, "1.0.0");
+        let status = configuration(root.path(), false, "1.0.0", None);
         let encoded = serde_json::to_string(&status).unwrap();
         assert!(encoded.contains("asset-preparation-failed"), "{encoded}");
         assert!(!encoded.contains("restart-required"), "{encoded}");

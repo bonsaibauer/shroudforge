@@ -157,9 +157,12 @@ pub fn runtime_patch_set_enabled(_: &str, _: bool) -> Result<(), String> {
     Err("native runtime patches are available on Windows only".into())
 }
 pub fn report() -> serde_json::Value {
-    serde_json::json!({"available":false,"reason":"windows-runtime-only"})
+    serde_json::json!({"available":false,"reason":"windows-runtime-only","mainMenu":null})
 }
 pub fn selected_character_name() -> Option<String> {
+    None
+}
+pub fn is_main_menu() -> Option<bool> {
     None
 }
 pub fn registry() -> Result<serde_json::Value, String> {

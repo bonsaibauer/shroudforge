@@ -190,15 +190,19 @@ export function Compatibility({
       title: t('compatibility.row.runtime'),
       status: statusOf(runtimeCheck),
       detail: t(
-        runtimeCheck?.phase === 'waiting-world'
-          ? 'compatibility.detail.runtime.waitingWorld'
-          : runtimeCheck?.state === 'ok'
-            ? 'compatibility.detail.runtime.ok'
-            : runtimeCheck?.state === 'warning'
-              ? 'compatibility.detail.runtime.warning'
-              : data.mode === 'DESKTOP'
-                ? 'compatibility.detail.runtime.desktop'
-                : 'compatibility.detail.runtime.pending',
+        runtimeCheck?.state === 'ok' && runtimeCheck.phase === 'desktop'
+          ? 'compatibility.detail.runtime.desktop'
+          : runtimeCheck?.state === 'ok' && runtimeCheck.phase === 'main-menu'
+            ? 'compatibility.detail.runtime.mainMenu'
+            : runtimeCheck?.phase === 'waiting-world'
+              ? 'compatibility.detail.runtime.waitingWorld'
+              : runtimeCheck?.state === 'ok'
+                ? 'compatibility.detail.runtime.ok'
+                : runtimeCheck?.state === 'warning'
+                  ? 'compatibility.detail.runtime.warning'
+                  : data.mode === 'DESKTOP'
+                    ? 'compatibility.detail.runtime.desktop'
+                    : 'compatibility.detail.runtime.pending',
       ),
       technicalDetail: runtimeCheck?.detail,
       action:
@@ -596,6 +600,10 @@ export function Compatibility({
   )
 }
 
+function dllStateIsReady(state: string | undefined): boolean {
+  return state === 'dll-loaded' || state === 'ready'
+}
+
 function dllManagerStatus(data: Snapshot): CompatibilityStatus {
   const manager = data.settings.modulePreferences?.dllManager || {}
   const runtimeStates = Object.entries(data.configuration?.modStates || {})
@@ -612,7 +620,7 @@ function dllManagerStatus(data: Snapshot): CompatibilityStatus {
     (!item.loadEntries.length && item.dlls.length &&
       !profiles.some((selection) => selection.packageDirectory === item.packageDirectory && !selection.enabled)),
   ) || states.some((state) => ['waiting', 'unconfirmed', 'restart-required'].includes(state))) return 'warning'
-  return states.length && states.every((state) => state === 'dll-loaded' || state === 'disabled')
+  return states.length && states.every((state) => dllStateIsReady(state) || state === 'disabled')
     ? 'ok' : 'neutral'
 }
 
@@ -688,9 +696,10 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
     `compatibility.dllManager.source.${source || 'manual'}` as TranslationKey,
   )
   const statusLabel = (state: string) => t(
-    `compatibility.dllManager.state.${state === 'dll-loaded' ? 'loaded' :
-      state === 'failed' ? 'failed' : state === 'waiting' ? 'loading' :
-        state === 'disabled' ? 'disabled' : state === 'restart-required' ? 'restart' : 'pending'}` as TranslationKey,
+    state === 'ready' ? 'compatibility.status.ok' :
+      `compatibility.dllManager.state.${state === 'dll-loaded' ? 'loaded' :
+        state === 'failed' ? 'failed' : state === 'waiting' ? 'loading' :
+          state === 'disabled' ? 'disabled' : state === 'restart-required' ? 'restart' : 'pending'}` as TranslationKey,
   )
 
   return (
@@ -713,7 +722,7 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
             return <li key={entry.statusId}>
               <span>{entry.path}<small> · {statusLabel(state?.state || '')}</small></span>
               <CompatibilityStatusBadge status={state?.state === 'failed' ? 'error' :
-                state?.state === 'dll-loaded' ? 'ok' : !enabled || state?.state === 'disabled' ? 'neutral' : 'warning'} />
+                dllStateIsReady(state?.state) ? 'ok' : !enabled || state?.state === 'disabled' ? 'neutral' : 'warning'} />
               {state?.state === 'failed' && <small className="dll-manager-error">{state.detail}</small>}
             </li>
           })}
@@ -736,20 +745,20 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
         const entries = [...candidate.loadEntries]
         const statusPrefix = `dll:${directory.toLowerCase()}:`
         for (const [id, state] of Object.entries(data.configuration?.modStates || {})) {
-          if (id.startsWith(statusPrefix) && ['restart-required', 'dll-loaded', 'waiting'].includes(state.state) &&
+          if (id.startsWith(statusPrefix) && ['restart-required', 'dll-loaded', 'ready', 'waiting'].includes(state.state) &&
             !entries.some((entry) => entry.statusId === id)) {
             entries.push({ statusId: id, path: id.slice(statusPrefix.length), mode: 'library', source: 'previous' })
           }
         }
         const getState = (id: string) => data.configuration?.modStates?.[id]
         const failure = entries.some((entry) => getState(entry.statusId)?.state === 'failed')
-        const loaded = entries.length > 0 && entries.every((entry) => getState(entry.statusId)?.state === 'dll-loaded')
+        const ready = entries.length > 0 && entries.every((entry) => dllStateIsReady(getState(entry.statusId)?.state))
         const selectionEnabled = profile?.enabled !== false
         const active = selectionEnabled && candidate.manifestEnabled !== false &&
           (target === 'both' || target === (data.mode === 'SERVER' ? 'server' : 'client'))
         const pendingRestart = entries.some((entry) => getState(entry.statusId)?.state === 'restart-required')
         const status: CompatibilityStatus = failure ? 'error' : pendingRestart ? 'warning' : !enabled || !active ? 'neutral' :
-          candidate.issues.length ? 'warning' : loaded ? 'ok' : entries.length || candidate.dlls.length ? 'warning' : 'neutral'
+          candidate.issues.length ? 'warning' : ready ? 'ok' : entries.length || candidate.dlls.length ? 'warning' : 'neutral'
         const usingAdapter = selectedProfile !== 'none' && Boolean(selectedProfile || candidate.selectedProfile)
         const modeFor = (path: string): DllLoadMode => modes[`${directory}/${path}`] ||
           profile?.files.find((file) => file.path === path)?.mode ||
@@ -798,13 +807,13 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
                 return <li key={entry.statusId}>
                   <span>{entry.path}<small> · {sourceLabel(entry.source)} · {statusLabel(state?.state || (!enabled || !active ? 'disabled' : ''))}</small></span>
                   <CompatibilityStatusBadge status={state?.state === 'failed' ? 'error' :
-                    state?.state === 'dll-loaded' ? 'ok' : state?.state === 'disabled' || (!state && (!enabled || !active)) ? 'neutral' : 'warning'} />
+                    dllStateIsReady(state?.state) ? 'ok' : state?.state === 'disabled' || (!state && (!enabled || !active)) ? 'neutral' : 'warning'} />
                   {state && ['failed', 'restart-required'].includes(state.state) &&
                     <small className={state.state === 'failed' ? 'dll-manager-error' : 'hint'}>{state.detail}</small>}
                 </li>
               })}
             </ol>}
-            {enabled && active && entries.length > 0 && !loaded && <p className="hint">{t('compatibility.dllManager.restart')}</p>}
+            {enabled && active && entries.length > 0 && !ready && <p className="hint">{t('compatibility.dllManager.restart')}</p>}
             <SettingsRow label={t('compatibility.dllManager.profileEnabled')} control={
               <SettingSwitch label={t('compatibility.dllManager.profileEnabled')} checked={selectionEnabled} disabled={!enabled}
                 onChange={(value) => replaceSelection(profile ? { ...profile, enabled: value } : {

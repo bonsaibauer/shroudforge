@@ -32,6 +32,10 @@ KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t
  * including NUL, or zero when unavailable. Copies only a complete name.
  * This getter never reads game memory or refreshes the cached selection. */
 KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeSelectedCharacterName(char* buffer, size_t capacity);
+/* Optional ABI-12 original GameFlow snapshot, refreshed by the existing native
+ * lifecycle tick. 0 unknown/transition, 1 PreGame/menu, 2 validated other state.
+ * This getter only copies the cache and never reads game memory. */
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeMainMenuState(void);
 /* Optional Steam Networking Messages transport used by runtime.network. */
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeNetworkStatus(uint64_t* local_steam_id);
 /* Registers an ISteamNetworkingMessages session-request callback without

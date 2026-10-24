@@ -22,6 +22,15 @@
 --- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
 
+--- Return the cached original client GameFlow state, using the same source as the Modloader UI.
+--- True means PreGame, including its selection/browser screens. False means a validated other state.
+--- Returns nil and a reason during transitions, before detection, or when the provider is unavailable.
+--- Reads only the existing native cache and does not require world access or an execution profile.
+--- Requires an active runtime mod with the runtime capability.
+--- @return boolean? main_menu
+--- @return string? reason
+function runtime.is_main_menu() end
+
 ---@class RuntimePlayerApi
 runtime.player = {}
 --- Return the cached name selected in the local client's main menu, including Unicode.

@@ -8,6 +8,6 @@
     "errors":{"type":"object","additionalProperties":{"type":"string"}},
     "effects":{"type":"object","additionalProperties":{"type":"object","required":["state","detail","updatedAt"],"properties":{"state":{"enum":["waiting","no-target","no-change","write-confirmed","write-failed","loading","loaded","error","restart-required"]},"processTarget":{"enum":["client","server"]},"scope":{"const":"this-process"},"detail":{"type":"string","maxLength":240},"nativeSource":{"type":"string"},"updatedAt":{"type":"integer","minimum":0}},"additionalProperties":false}},
     "dllPlan":{"type":["array","null"],"items":{"type":"object","required":["statusId","path","mode"],"properties":{"statusId":{"type":"string"},"path":{"type":"string"},"mode":{"enum":["library","dinput8","flame"]}},"additionalProperties":false}},
-    "runtimeProvider":{"type":"object","properties":{"available":{"type":"boolean"},"abi":{"type":["integer","null"]},"initialized":{"type":"boolean"},"ready":{"type":"boolean"},"writable":{"type":"boolean"},"awaitingWorld":{"type":"boolean"},"detail":{"type":"string"},"reason":{"type":"string"}}}
+    "runtimeProvider":{"type":"object","properties":{"available":{"type":"boolean"},"abi":{"type":["integer","null"]},"initialized":{"type":"boolean"},"ready":{"type":"boolean"},"writable":{"type":"boolean"},"awaitingWorld":{"type":"boolean"},"mainMenu":{"type":["boolean","null"]},"detail":{"type":"string"},"reason":{"type":"string"}}}
   },"additionalProperties":false
 }

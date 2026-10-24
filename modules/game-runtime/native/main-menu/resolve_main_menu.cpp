@@ -13,45 +13,6 @@ using OriginalCode::Procedure;
 using NamedServiceImplementation::copy;
 constexpr char menu_anchor[] = "mainMenuEntries";
 
-struct Section {
-    std::uintptr_t address{};
-    bool executable{};
-    std::vector<std::uint8_t> bytes;
-};
-
-bool read_sections(std::vector<Section>& result) {
-    const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-    IMAGE_DOS_HEADER dos{};
-    IMAGE_NT_HEADERS64 nt{};
-    if (!base || !copy(&dos, reinterpret_cast<const void*>(base), sizeof(dos)) ||
-        dos.e_magic != IMAGE_DOS_SIGNATURE || dos.e_lfanew < 0 || dos.e_lfanew > 0x100000 ||
-        !copy(&nt, reinterpret_cast<const void*>(base + dos.e_lfanew), sizeof(nt)) ||
-        nt.Signature != IMAGE_NT_SIGNATURE || nt.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 ||
-        nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC ||
-        !nt.OptionalHeader.SizeOfImage || nt.OptionalHeader.SizeOfImage > 1024u * 1024u * 1024u ||
-        !nt.FileHeader.NumberOfSections || nt.FileHeader.NumberOfSections > 128) return false;
-    const auto table = static_cast<std::size_t>(dos.e_lfanew) + offsetof(IMAGE_NT_HEADERS64, OptionalHeader) +
-        nt.FileHeader.SizeOfOptionalHeader;
-    const auto count = static_cast<std::size_t>(nt.FileHeader.NumberOfSections);
-    if (table > nt.OptionalHeader.SizeOfImage ||
-        count * sizeof(IMAGE_SECTION_HEADER) > nt.OptionalHeader.SizeOfImage - table) return false;
-    std::vector<IMAGE_SECTION_HEADER> headers(count);
-    if (!copy(headers.data(), reinterpret_cast<const void*>(base + table), count * sizeof(IMAGE_SECTION_HEADER))) return false;
-    for (const auto& header : headers) {
-        const bool executable = (header.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
-        if (!(header.Characteristics & IMAGE_SCN_MEM_READ) || (header.Characteristics & IMAGE_SCN_MEM_WRITE) ||
-            (!executable && !(header.Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA))) continue;
-        const auto size = static_cast<std::size_t>(header.Misc.VirtualSize);
-        if (!size) continue;
-        if (header.VirtualAddress > nt.OptionalHeader.SizeOfImage ||
-            size > nt.OptionalHeader.SizeOfImage - header.VirtualAddress) return false;
-        Section section{base + header.VirtualAddress, executable, std::vector<std::uint8_t>(size)};
-        if (!copy(section.bytes.data(), reinterpret_cast<const void*>(section.address), size)) return false;
-        result.push_back(std::move(section));
-    }
-    return !result.empty();
-}
-
 bool reg(const ZydisDecodedOperand& operand, ZydisRegister value) {
     return operand.type == ZYDIS_OPERAND_TYPE_REGISTER && operand.reg.value == value;
 }
@@ -256,11 +217,11 @@ bool select_binding(const Procedure& builder, std::uintptr_t anchor, MenuBinding
 bool ResolveMainMenu(MenuBinding& output) {
     const auto fail = [&](const char* error) { output = {}; output.error = error; return false; };
     try {
-        std::vector<Section> sections;
-        if (!read_sections(sections)) return fail("Could not read the original executable sections");
+        std::vector<OriginalCode::ImageSection> sections;
+        if (!OriginalCode::ReadImageSections(sections)) return fail("Could not read the original executable sections");
         std::set<std::uintptr_t> strings;
         for (const auto& section : sections) {
-            if (section.executable || section.bytes.size() < sizeof(menu_anchor)) continue;
+            if ((section.flags & IMAGE_SCN_MEM_EXECUTE) || section.bytes.size() < sizeof(menu_anchor)) continue;
             auto from = section.bytes.begin();
             for (;;) {
                 const auto found = std::search(from, section.bytes.end(), std::begin(menu_anchor), std::end(menu_anchor));
@@ -273,7 +234,7 @@ bool ResolveMainMenu(MenuBinding& output) {
         MenuBinding selected;
         std::set<std::uintptr_t> visited_builders;
         for (const auto& section : sections) {
-            if (!section.executable || section.bytes.size() < 7) continue;
+            if (!(section.flags & IMAGE_SCN_MEM_EXECUTE) || section.bytes.size() < 7) continue;
             // Byte search only proposes a candidate. The canonical unwind CFG
             // must decode that exact address as a LEA before it can select code.
             for (std::size_t offset = 0; offset + 7 <= section.bytes.size(); ++offset) {

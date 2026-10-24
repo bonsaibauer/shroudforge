@@ -34,6 +34,7 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimeInitialize() {
 }
 
 KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
+    NativeMainMenu::Tick();
     try { EcsRuntime::Tick(); } catch (...) { EcsRuntime::Shutdown(); }
 }
 

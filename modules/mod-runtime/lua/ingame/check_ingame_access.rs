@@ -28,6 +28,12 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && has_capability(r#mod, Capability::Runtime)
                 && runtime_provider::selected_character_name().is_some()
         }
+        "runtime.is_main_menu" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+                && runtime_provider::is_main_menu().is_some()
+        }
         "runtime.ecs.query" | "runtime.ecs.resolve" | "runtime.ecs.read" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
@@ -185,6 +191,17 @@ pub(super) fn operation_status(
         );
     }
     let availability = state.api().runtime(&feature);
+    if feature == "runtime.is_main_menu"
+        && matches!(availability, Availability::Available)
+        && runtime_provider::is_main_menu().is_none()
+    {
+        return availability_to_lua(
+            lua,
+            Availability::Unavailable {
+                reason: "main menu state is unknown or transitioning".into(),
+            },
+        );
+    }
     if feature == "runtime.player.name"
         && matches!(availability, Availability::Available)
         && runtime_provider::selected_character_name().is_none()

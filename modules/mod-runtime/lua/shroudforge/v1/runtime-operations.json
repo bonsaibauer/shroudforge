@@ -3,6 +3,7 @@
   "schemaVersion": 1,
   "runtimeOperations": [
     "runtime.lifecycle",
+    "runtime.is_main_menu",
     "runtime.player.name",
     "runtime.network.status",
     "runtime.network.send",

@@ -18,9 +18,19 @@ pub fn selected_character_name() -> Option<String> {
         .map(str::to_owned)
 }
 
+/// Copies the same native GameFlow cache consumed by the Modloader status.
+pub fn is_main_menu() -> Option<bool> {
+    let read = provider()?.main_menu_state?;
+    match unsafe { read() } {
+        1 => Some(true),
+        2 => Some(false),
+        _ => None,
+    }
+}
+
 pub fn report() -> serde_json::Value {
     let Some(provider) = provider() else {
-        return serde_json::json!({"available":false,"abi":observed_abi(),"reason":PROVIDER_ERROR.get().map(String::as_str).unwrap_or("provider-unavailable")});
+        return serde_json::json!({"available":false,"abi":observed_abi(),"reason":PROVIDER_ERROR.get().map(String::as_str).unwrap_or("provider-unavailable"),"mainMenu":null});
     };
     let mut buffer = [0i8; 4096];
     unsafe {
@@ -37,5 +47,6 @@ pub fn report() -> serde_json::Value {
     // ready or stale-game-thread, so a later pause is not mistaken for the
     // initial menu wait.
     let awaiting_world = detail.contains("game_thread=installed-awaiting-world");
-    serde_json::json!({"available":true,"abi":provider.abi,"initialized":true,"ready":unsafe{(provider.ready)()},"writable":unsafe{(provider.can_write)()},"awaitingWorld":awaiting_world,"detail":detail,"resourceService":resource_status(),"selectedCharacterName":selected_character_name()})
+    let main_menu = is_main_menu();
+    serde_json::json!({"available":true,"abi":provider.abi,"initialized":true,"ready":unsafe{(provider.ready)()},"writable":unsafe{(provider.can_write)()},"awaitingWorld":awaiting_world,"mainMenu":main_menu,"detail":detail,"resourceService":resource_status(),"selectedCharacterName":selected_character_name()})
 }

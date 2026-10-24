@@ -79,6 +79,7 @@ pub(crate) fn read_ui_snapshot(
             &arguments.root,
             arguments.server,
             env!("CARGO_PKG_VERSION"),
+            (!arguments.desktop).then_some(arguments.game_pid),
         ),
         connected: !arguments.desktop && runtime_is_active(&arguments.root),
         mode: if arguments.desktop {
