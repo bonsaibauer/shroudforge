@@ -13,6 +13,7 @@ import modSupportFeedbackEn from './assets/mod-support-feedback.en.svg'
 import modSupportFeedbackEs from './assets/mod-support-feedback.es.svg'
 import modSupportFeedbackFr from './assets/mod-support-feedback.fr.svg'
 import multiplayerSupportBanner from './assets/multiplayer-support.svg'
+import creativeModeBanner from './assets/creative-mode-banner.png'
 import nexusModsBanner from '../../../assets/nexusmods-enshrouded-banner.jpg'
 
 const modSupportFeedbackBanners: Record<string, string> = {
@@ -85,6 +86,10 @@ export function NoticeCard({
   const modSupportLink = links.find(
     (link) => link.labelKey === 'news.link.modCompatibility',
   )
+  const creativeModeDownloadLink =
+    item.kind === 'notice.creativeMode'
+      ? links.find((link) => link.labelKey === 'news.link.creativeModeDownload')
+      : undefined
   const footerLinks =
     !compact && supportLink
       ? links.filter((link) => link !== supportLink)
@@ -136,6 +141,22 @@ export function NoticeCard({
             <img src={item.banner.imageUrl} alt="" loading="lazy" />
           </button>
         )}
+        {!compact &&
+          item.kind === 'notice.creativeMode' &&
+          creativeModeDownloadLink?.url && (
+            <button
+              className="notice-banner"
+              type="button"
+              aria-label={t('news.link.creativeModeDownload')}
+              onClick={() =>
+                postRequest('open-url', {
+                  url: localizedUrl(creativeModeDownloadLink.url!),
+                })
+              }
+            >
+              <img src={creativeModeBanner} alt="" loading="lazy" />
+            </button>
+          )}
         {!compact && item.kind === 'notice.multiplayerSupport' && (
           <img
             className="notice-artwork"
