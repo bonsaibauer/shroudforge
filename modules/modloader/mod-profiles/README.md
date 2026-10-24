@@ -22,7 +22,7 @@ The release build copies this directory to `shroudforge/runtime/profiles/mod-pro
 - The DLL Manager can explicitly select a catalog profile for another folder. Automatic selection is the default. Selecting no adapter keeps ordinary DLL selection available.
 - `modJson` and `extendedModJson` are in-memory overlays. They cannot replace the mod ID or version. Existing capabilities remain declared. Profile capabilities are added without duplicates rather than replacing the original list. `packageFiles` supplies virtual files only when an adapter actually needs them. None of these rules rewrites the installed mod folder.
 - `files` declares ordered payload DLLs relative to the mod folder. It may be empty for metadata-only adapters. `library` loads an ordinary DLL and leaves its internal startup to that DLL. `dinput8` also offers its DirectInput export to ShroudForge's chain host. Creative uses ordinary `library` loading, with no extra initialization call, Lua stub, capability or INI declaration.
-- `importFiles` is installer-only. It maps explicit companion files from the archive's enclosing game folder into the installed mod folder. Auto Loot Plus keeps its own native file named `dinput8.dll` under `mods/auto-loot-plus/`. Other root bootstrap files are not copied implicitly.
+- `importFiles` is installer-only. It maps explicit companion files from the archive's enclosing game folder into the installed mod folder. Other root bootstrap files are not copied implicitly.
 
 Ordinary user choices live in the existing DLL Manager settings (`modules.dllManager.profiles`). These entries store the selected adapter, target, activation, confirmation and ordered DLL files. They are settings, not another adapter catalog. Nonempty local file selections replace the adapter's DLL list. A disabled selection suppresses that folder's automatic native loading.
 
@@ -40,7 +40,6 @@ An existing game-root `dinput8-chain.ini` is read in its established format:
 
 ```ini
 [Chain]
-mods\auto-loot-plus\dinput8.dll
 mods\xhl-native-core\xhl-native-core.dll
 ```
 
