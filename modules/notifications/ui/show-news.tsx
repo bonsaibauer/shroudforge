@@ -12,12 +12,14 @@ export function NewsPage({
   read,
   markRead,
   runNoticeAction,
+  openWikiArticle,
 }: {
   items: NewsItem[]
   unread: NewsItem[]
   read: string[]
   markRead(ids: string[], isRead?: boolean): void
   runNoticeAction(action: NoticeAction): void
+  openWikiArticle(articleId: string): void
 }) {
   const { t } = useI18n()
   const [tab, setTab] = useState('unread')
@@ -63,6 +65,7 @@ export function NewsPage({
               unread={!read.includes(item.id)}
               onRead={() => markRead([item.id], !read.includes(item.id))}
               onAction={runNoticeAction}
+              onWikiArticle={openWikiArticle}
             />
           ))
         ) : (

@@ -2,7 +2,12 @@ import type { LogLevel } from '../../logging/ui/log-entry'
 
 export type NoticeAction = { id: string; kind: string; target?: string }
 
-export type NoticeLink = { labelKey?: string; label?: string; url: string }
+export type NoticeLink = {
+  labelKey?: string
+  label?: string
+  url?: string
+  wikiArticleId?: string
+}
 
 export type NoticeBanner = {
   imageUrl: string
@@ -23,6 +28,7 @@ export type Notice = {
   title: string
   message: string
   level: LogLevel
+  beta?: boolean
   actionUrl?: string
   actionLabelKey?: string
   links?: NoticeLink[]
@@ -41,6 +47,7 @@ export type NewsItem = {
   level: LogLevel
   title: string
   message: string
+  beta?: boolean
   actionUrl?: string
   actionLabelKey?: string
   links?: NoticeLink[]
@@ -60,7 +67,7 @@ export type NewsPersonalization = {
 }
 export type NewsDisplaySource = {
   notices: Notice[]
-  newsTemplates?: Record<string, { title: string; message: string }>
+  newsTemplates?: Record<string, { title: string; message: string; beta?: boolean }>
   mods: Array<{ id: string; ecosystem: 'EML' | 'SF' }>
   updatesEnabled: boolean
   releaseAnnouncement?: {

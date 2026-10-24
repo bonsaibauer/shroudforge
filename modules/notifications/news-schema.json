@@ -11,7 +11,8 @@
         "required": ["title", "message"],
         "properties": {
           "title": {"type": "string"},
-          "message": {"type": "string"}
+          "message": {"type": "string"},
+          "beta": {"type": "boolean"}
         },
         "additionalProperties": false
       }
@@ -24,6 +25,7 @@
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "kind": { "type": "string" },
+          "beta": { "type": "boolean" },
           "title": { "type": "string" },
           "message": { "type": "string" },
           "modId": { "type": "string" },
@@ -37,7 +39,10 @@
             "maxItems": 4,
             "items": {
               "type": "object",
-              "required": ["url"],
+              "oneOf": [
+                { "required": ["url"], "not": { "required": ["wikiArticleId"] } },
+                { "required": ["wikiArticleId"], "not": { "required": ["url"] } }
+              ],
               "anyOf": [
                 { "required": ["labelKey"] },
                 { "required": ["label"] }
@@ -45,7 +50,8 @@
               "properties": {
                 "labelKey": { "type": "string", "minLength": 1, "maxLength": 120 },
                 "label": { "type": "string", "minLength": 1, "maxLength": 120 },
-                "url": { "type": "string", "pattern": "^https://" }
+                "url": { "type": "string", "pattern": "^https://" },
+                "wikiArticleId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 80 }
               },
               "additionalProperties": false
             }

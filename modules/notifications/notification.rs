@@ -11,6 +11,8 @@ pub struct Notice {
     pub title: String,
     pub message: String,
     pub level: LogLevel,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub beta: Option<bool>,
     pub action_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action_label_key: Option<String>,
@@ -45,7 +47,10 @@ pub struct NoticeLink {
     pub label_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wiki_article_id: Option<String>,
 }
 
 #[derive(Clone, Serialize)]

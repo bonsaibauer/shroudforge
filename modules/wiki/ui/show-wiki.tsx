@@ -6,10 +6,16 @@ import { PageHeader } from '../../ui-resources/show-page-header'
 import { readWikiArticle, readWikiArticles } from './read-wiki-articles'
 import { WikiArticle, WikiArtwork } from './show-wiki-article'
 
-export function WikiPage() {
+export function WikiPage({
+  selectedArticleId,
+  onSelectArticle,
+}: {
+  selectedArticleId: string | null
+  onSelectArticle(articleId: string | null): void
+}) {
   const { t, locale } = useI18n()
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<string | null>(null)
+  const selected = selectedArticleId
   const article = selected ? readWikiArticle(selected, locale) : undefined
   const filter = query.trim().toLocaleLowerCase()
   const articles = readWikiArticles(locale).filter((item) =>
@@ -41,11 +47,11 @@ export function WikiPage() {
   function selectArticle(id: string | null) {
     logUiEvent({ level: 'DEBUG', source: 'wiki', operation: id ? 'Open article' : 'Return to wiki',
       subject: id || selected || 'article-list', message: id ? 'Article selected.' : 'Article list opened.' })
-    setSelected(id)
+    onSelectArticle(id)
   }
   return <>
     <PageHeader eyebrow={t('nav.modloader')} title={t('nav.wiki')} subtitle={t('wiki.subtitle')} />
-    {article ? <WikiArticle article={article}>
+    {article ? <WikiArticle article={article} onOpenWikiArticle={(id) => selectArticle(id)}>
       <div className="feature-banner-actions"><button type="button" className="button ghost"
         onClick={() => selectArticle(null)}>{t('wiki.back')}</button></div>
     </WikiArticle> : <>

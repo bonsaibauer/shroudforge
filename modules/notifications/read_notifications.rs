@@ -62,6 +62,7 @@ pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Noti
                     .and_then(|value| value.as_str())
                     .and_then(LogLevel::parse)
                     .unwrap_or(LogLevel::Info),
+                beta: value.get("beta").and_then(|value| value.as_bool()),
                 action_url: value
                     .get("actionUrl")
                     .and_then(|value| value.as_str())
@@ -77,8 +78,25 @@ pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Noti
                     .into_iter()
                     .flatten()
                     .filter_map(|link| {
-                        let url = link.get("url")?.as_str()?;
-                        if !url.starts_with("https://") {
+                        let url = link
+                            .get("url")
+                            .and_then(|value| value.as_str())
+                            .filter(|url| url.starts_with("https://"))
+                            .map(str::to_owned);
+                        let wiki_article_id = link
+                            .get("wikiArticleId")
+                            .and_then(|value| value.as_str())
+                            .filter(|id| {
+                                !id.is_empty()
+                                    && id.len() <= 80
+                                    && id.bytes().all(|byte| {
+                                        byte.is_ascii_lowercase()
+                                            || byte.is_ascii_digit()
+                                            || byte == b'-'
+                                    })
+                            })
+                            .map(str::to_owned);
+                        if url.is_some() == wiki_article_id.is_some() {
                             return None;
                         }
                         let label_key = link
@@ -94,7 +112,8 @@ pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Noti
                         (label_key.is_some() || label.is_some()).then(|| NoticeLink {
                             label_key,
                             label,
-                            url: url.to_owned(),
+                            url,
+                            wiki_article_id,
                         })
                     })
                     .take(4)

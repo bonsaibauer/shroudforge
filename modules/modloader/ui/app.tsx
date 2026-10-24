@@ -24,6 +24,7 @@ export function App() {
   const [data, setData] = useState<Snapshot>(empty)
   const [page, setPage] = useState<PageId>('news')
   const [selectedMod, setSelectedMod] = useState<string | null>(null)
+  const [selectedWikiArticle, setSelectedWikiArticle] = useState<string | null>(null)
   const [chirper, setChirper] = useState(false)
   const [settings, setSettings] = useState<Settings>(empty.settings)
   const [read, setRead] = useState<string[]>([])
@@ -62,7 +63,13 @@ export function App() {
   const activeMod = data.mods.find((mod) => mod.id === selectedMod)
   const navigate = (next: PageId) => {
     setSelectedMod(null)
+    setSelectedWikiArticle(null)
     setPage(next)
+  }
+  const openWikiArticle = (articleId: string) => {
+    setSelectedMod(null)
+    setSelectedWikiArticle(articleId)
+    setPage('wiki')
   }
   const savePageZoom = (zoomPercent: number) => {
     setSettings((current) => ({ ...current, zoomPercent }))
@@ -204,6 +211,9 @@ export function App() {
                 settings={settings}
                 setSettings={setSettings}
                 news={news}
+                wikiArticleId={selectedWikiArticle}
+                selectWikiArticle={setSelectedWikiArticle}
+                openWikiArticle={openWikiArticle}
                 unread={unread}
                 read={read}
                 markRead={markRead}
@@ -226,6 +236,10 @@ export function App() {
           }}
           markRead={markRead}
           runNoticeAction={runNoticeAction}
+          openWikiArticle={(articleId) => {
+            setChirper(false)
+            openWikiArticle(articleId)
+          }}
         />
       )}
     </main>

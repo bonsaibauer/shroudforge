@@ -66,12 +66,14 @@ export function NoticeCard({
   unread = false,
   onRead,
   onAction,
+  onWikiArticle,
 }: {
   item: NewsItem
   compact?: boolean
   unread?: boolean
   onRead?(): void
   onAction?(action: NoticeAction): void
+  onWikiArticle?(articleId: string): void
 }) {
   const { t, locale } = useI18n()
   const actions = item.actions || []
@@ -118,6 +120,7 @@ export function NoticeCard({
         <div className="notice-title">
           <h3>{title}</h3>
           <span className="state-pill neutral">{item.level.toUpperCase()}</span>
+          {item.beta && <span className="state-pill neutral">BETA</span>}
           <EcosystemBadge ecosystem={item.ecosystem} />
           {unread && <i />}
         </div>
@@ -153,13 +156,13 @@ export function NoticeCard({
             <img src={nexusModsBanner} alt="" loading="lazy" />
           </button>
         )}
-        {!compact && modSupportLink && (
+        {!compact && modSupportLink?.url && (
           <button
             className="notice-banner"
             type="button"
             aria-label={t('news.link.modCompatibility')}
             onClick={() =>
-              postRequest('open-url', { url: localizedUrl(modSupportLink.url) })
+              postRequest('open-url', { url: localizedUrl(modSupportLink.url!) })
             }
           >
             <img
@@ -179,7 +182,7 @@ export function NoticeCard({
             type="button"
             aria-label={t('news.link.buyCoffee')}
             onClick={() =>
-              postRequest('open-url', { url: localizedUrl(supportLink.url) })
+              postRequest('open-url', { url: localizedUrl(supportLink.url!) })
             }
           >
             <img
@@ -227,9 +230,12 @@ export function NoticeCard({
             {footerLinks.map((link, index) => (
               <button
                 key={`${link.labelKey || link.label}-${index}`}
-                onClick={() =>
-                  postRequest('open-url', { url: localizedUrl(link.url) })
-                }
+                onClick={() => {
+                  if (link.wikiArticleId)
+                    onWikiArticle?.(link.wikiArticleId)
+                  else if (link.url)
+                    postRequest('open-url', { url: localizedUrl(link.url) })
+                }}
               >
                 {link.label || t(link.labelKey as TranslationKey)}
               </button>

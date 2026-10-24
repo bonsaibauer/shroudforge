@@ -157,6 +157,10 @@ export function buildNewsItems(
       ecosystem:
         item.ecosystem ||
         data.mods.find((mod) => mod.id === item.modId)?.ecosystem,
+      beta:
+        item.beta ??
+        (item.kind ? data.newsTemplates?.[item.kind]?.beta : undefined) ??
+        false,
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }

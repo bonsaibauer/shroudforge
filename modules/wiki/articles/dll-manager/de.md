@@ -1,16 +1,16 @@
 # DLL Manager
 
-Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurden. Für bekannte Mods gibt es vorbereitete Profile. Andere DLLs wählst du einmal im DLL Manager aus und bestätigst sie.
+Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurden. Für bekannte Mods gibt es vorbereitete Profile. Andere DLLs wählst du einmal in der DLL-Verwaltung aus und bestätigst sie.
 
 ## Was mache ich mit dem heruntergeladenen Mod?
 
-- **Keine DLL dabei:** Installiere den Mod wie gewohnt. Mods, die für ShroudForge oder EML geschrieben wurden, brauchen keine zusätzliche native DLL.
-- **DLL dabei:** Lege die Mod-DLL in den Modordner, wie unten gezeigt. Danach erscheint sie im DLL Manager. Bei einem bekannten Profil ist die Auswahl vorbereitet. Sonst wählst du die DLL dort aus und bestätigst sie.
+- **Keine DLL dabei:** Installiere den Mod wie gewohnt. Mods, die für ShroudForge oder EML geschrieben wurden, brauchen keine zusätzliche DLL.
+- **DLL dabei:** Lege die Mod-DLL in den Modordner, wie unten gezeigt. Danach erscheint sie in der DLL-Verwaltung. Bei einem bekannten Profil ist die Auswahl vorbereitet. Sonst wählst du die DLL dort aus und bestätigst sie.
 - **Weitere Moddateien dabei:** Übernimm den Modordner vollständig. Lösche mitgelieferte Dateien wie `mod.json`, `native-plugin.ini` oder Konfigurationen nicht.
 
 ## Wenn der Mod mehrere DLL-Dateien enthält
 
-Viele Modordner enthalten DLL-Dateien, die nur Hilfsdateien sind. Wähle nur die DLLs aus, die das Modprofil oder die Anleitung des Modautors zum Laden nennt. Wenn mehrere Mod-DLLs geladen werden sollen, legst du ihre Reihenfolge im DLL Manager fest.
+Viele Modordner enthalten DLL-Dateien, die nur Hilfsdateien sind. Wähle nur die DLLs aus, die das Modprofil oder die Anleitung des Modautors zum Laden nennt. Wenn mehrere Mod-DLLs geladen werden sollen, legst du ihre Reihenfolge in der DLL-Verwaltung fest.
 
 ## Mod mit DLL installieren
 
@@ -24,7 +24,7 @@ mods/
     config.ini      (falls enthalten)
 ```
 
-Eine unbekannte DLL wird nicht allein durch das Ablegen geladen. Wähle sie im DLL Manager aus, prüfe die vorgeschlagene Ladeart und bestätige sie.
+Eine unbekannte DLL wird nicht allein durch das Ablegen geladen. Wähle sie in der DLL-Verwaltung aus, prüfe die vorgeschlagene Ladeart und bestätige sie.
 
 ## Warum darf die Moddatei auch dinput8.dll heißen?
 
@@ -32,7 +32,7 @@ ShroudForges eigene Startdatei liegt unter `dinput8.dll` im Spielordner. Die Mod
 
 ## Profile verstehen
 
-Ein Profil ist eine vorbereitete Einstellung für einen bekannten Mod. Es legt fest, welche Dateien ShroudForge lädt und wie. ShroudForge ordnet das Profil anhand der Modkennung in `mod.json` oder, wenn sie fehlt, anhand des Ordnernamens zu. Du kannst ein Profil auch im DLL Manager auswählen. Profile ändern die Moddateien nicht. Eine eigene gespeicherte DLL-Auswahl ersetzt die Dateiauswahl des Profils.
+Ein Profil ist eine vorbereitete Einstellung für einen bekannten Mod. Es legt fest, welche Dateien ShroudForge lädt und wie. ShroudForge ordnet das Profil anhand der Modkennung in `mod.json` oder, wenn sie fehlt, anhand des Ordnernamens zu. Du kannst ein Profil auch in der DLL-Verwaltung auswählen. Profile ändern die Moddateien nicht. Eine eigene gespeicherte DLL-Auswahl ersetzt die Dateiauswahl des Profils.
 
 ## Bestehende DirectInput-Chain
 
@@ -48,7 +48,7 @@ Die Einträge müssen auf Dateien innerhalb direkter Modpakete wie `mods/<Modord
 
 ## Schalter, Ziel und Neustart
 
-Der Hauptschalter steuert alle von ShroudForge ausgeführten nativen Ladewege, einschließlich INI, Profil, Chain und Lua-Registrierung. Eine deaktivierte Auswahl unterdrückt das automatische Laden dieses Ordners. Client, Server oder beide bestimmen den Zielprozess. Dateinamenfilter gelten unmittelbar vor dem Laden. Sie erkennen keine Modfunktionen anhand des Namens.
+Der Hauptschalter steuert alle von ShroudForge ausgeführten DLL-Ladewege, einschließlich INI, Profil, Chain und Lua-Registrierung. Eine deaktivierte Auswahl unterdrückt das automatische Laden dieses Ordners. Client, Server oder beide bestimmen den Zielprozess. Dateinamenfilter gelten unmittelbar vor dem Laden. Sie erkennen keine Modfunktionen anhand des Namens.
 
 Geladene DLLs bleiben bis zum Prozessende im Speicher. Ausschalten, andere Reihenfolge oder ein anderes Profil erfordern deshalb einen Spielneustart. Doppelte Deklarationen derselben Datei erzeugen keine zweite Instanz.
 

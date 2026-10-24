@@ -8,12 +8,14 @@ export function Chirper({
   all,
   markRead,
   runNoticeAction,
+  openWikiArticle,
 }: {
   items: NewsItem[]
   close(): void
   all(): void
   markRead(ids: string[]): void
   runNoticeAction(action: NoticeAction): void
+  openWikiArticle(articleId: string): void
 }) {
   const { t } = useI18n()
   const errors = items.filter((item) => item.level === 'error').length
@@ -57,6 +59,7 @@ export function Chirper({
                   unread
                   onAction={runNoticeAction}
                   onRead={() => markRead([item.id])}
+                  onWikiArticle={openWikiArticle}
                 />
               ))}
             </div>

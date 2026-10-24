@@ -47,10 +47,11 @@ export function WikiArtwork({ article }: { article: Article }) {
   }} />
 }
 
-export function WikiArticle({ article, expanded = true, children }: {
+export function WikiArticle({ article, expanded = true, children, onOpenWikiArticle }: {
   article: Article
   expanded?: boolean
   children?: ReactNode
+  onOpenWikiArticle?(articleId: string): void
 }) {
   const { t } = useI18n()
   const id = useId()
@@ -87,6 +88,11 @@ export function WikiArticle({ article, expanded = true, children }: {
             h2: ({ children }) => <h2 id={`${id}-${headingId(textContent(children))}`}>{children}</h2>,
             h3: ({ children }) => <h3 id={`${id}-${headingId(textContent(children))}`}>{children}</h3>,
             a: ({ href, children }) => {
+              const wikiArticle = href?.match(/^#wiki\/([a-z0-9]+(?:-[a-z0-9]+)*)$/)
+              if (wikiArticle) return <a href={href} onClick={(event) => {
+                event.preventDefault()
+                onOpenWikiArticle?.(wikiArticle[1])
+              }}>{children}</a>
               if (href?.startsWith('#')) return <a href={`#${id}-${href.slice(1)}`}>{children}</a>
               return <a href={href} onClick={(event) => {
                 event.preventDefault()
