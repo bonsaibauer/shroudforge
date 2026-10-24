@@ -28,6 +28,7 @@ use super::read_ui_snapshot::default_catalog_state;
 use super::refresh_ui_snapshot::SnapshotRefresher;
 use super::read_window_focus::foreground_is_shroudforge_window;
 use super::read_window_focus::foreground_process;
+use super::read_window_focus::foreground_title;
 use super::read_window_focus::open_event;
 use super::native_menu_toggle::NativeMenuToggle;
 use super::refresh_activity_log::refresh_activity_log;
@@ -325,6 +326,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
 
     let mut shown = arguments.desktop;
     let mut window_topmost = false;
+    let mut shown_at = Instant::now();
     let mut refresher =
         SnapshotRefresher::start(&arguments, &release_state, &release_announcement, &catalog_state);
     let initial_window_state = shroudforge_loader_config::config::window_state(&arguments.root);
@@ -1008,6 +1010,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         window.set_visible(shown);
                         if shown {
                             window.set_focus();
+                            shown_at = Instant::now();
                         }
                         let _ = shroudforge_loader_config::config::publish_window_visibility(
                             &arguments.root,
@@ -1039,7 +1042,25 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     window.set_always_on_top(next_topmost);
                     window_topmost = next_topmost;
                 }
-                if !arguments.desktop && shown && !game_focused && !ui_focused {
+                // Focus moves in steps when the window is shown, and for a
+                // moment no window may be in the foreground: give a window just
+                // shown half a second, and never hide it for an empty foreground.
+                let focus_settled =
+                    foreground != 0 && shown_at.elapsed() >= Duration::from_millis(500);
+                if !arguments.desktop && shown && focus_settled && !game_focused && !ui_focused {
+                    if window.is_visible() {
+                        write_activity(
+                            &arguments.root,
+                            "Modloader UI",
+                            "Hide window",
+                            "Focus elsewhere",
+                            Some(&format!(
+                                "foreground process {foreground}, window \"{}\"",
+                                foreground_title()
+                            )),
+                            "info",
+                        );
+                    }
                     window.set_visible(false);
                 } else if shown && (game_focused || ui_focused) && !window.is_visible() {
                     window.set_visible(true);
@@ -1181,6 +1202,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     if shown {
                         next_refresh = Instant::now();
                         window.set_focus();
+                        shown_at = Instant::now();
                     }
                 }
             }
