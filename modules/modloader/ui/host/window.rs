@@ -367,6 +367,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
         );
     }
     let mut next_refresh = Instant::now();
+    // The background work of each refresh (status logging, news, player
+    // name) always runs. Only its UI snapshot is skipped while the window is
+    // hidden, and an unchanged snapshot is not pushed to the page again.
+    let mut last_snapshot = String::new();
+    let mut webview_visible = window.is_visible();
     let mut next_announcement_retry = Instant::now() + Duration::from_secs(30);
     let mut next_visibility_poll = Instant::now();
     let mut next_client_handoff_poll = Instant::now();
@@ -1042,6 +1047,15 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                 } else if shown && (game_focused || ui_focused) && !window.is_visible() {
                     window.set_visible(true);
                 }
+                let visible = window.is_visible();
+                if visible != webview_visible {
+                    // Lets WebView2 suspend rendering while the window is hidden.
+                    let _ = webview.set_visible(visible);
+                    webview_visible = visible;
+                    if visible {
+                        next_refresh = Instant::now();
+                    }
+                }
 
                 if Instant::now() >= next_refresh {
                     if Instant::now() >= next_announcement_retry {
@@ -1106,10 +1120,14 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         &mut previous_mod_statuses,
                     );
                     log_configuration_errors(&arguments.root, &snapshot, &mut previous_configuration_errors);
-                    if let Ok(payload) = serde_json::to_string(&snapshot) {
-                        let _ = webview.evaluate_script(&format!(
-                            "window.__shroudforgeUpdate({payload});"
-                        ));
+                    if visible
+                        && let Ok(payload) = serde_json::to_string(&snapshot)
+                        && payload != last_snapshot
+                        && webview
+                            .evaluate_script(&format!("window.__shroudforgeUpdate({payload});"))
+                            .is_ok()
+                    {
+                        last_snapshot = payload;
                     }
                 }
             }
