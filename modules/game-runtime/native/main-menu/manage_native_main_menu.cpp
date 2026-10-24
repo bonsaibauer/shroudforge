@@ -247,9 +247,9 @@ bool __fastcall draw_with_mods(void* selection, const MenuDescriptor* descriptor
     observe_character_selection();
     if (accepting.load(std::memory_order_acquire) && enabled()) {
         auto mods = *descriptor;
-        mods.text = "Mods";
-        mods.length = 4;
-        mods.identity = label_identity("Mods");
+        mods.text = "ShroudForge";
+        mods.length = 11;
+        mods.identity = label_identity("ShroudForge");
         draws.fetch_add(1, std::memory_order_relaxed);
         // Stay on the engine's UI thread for rendering. The external Modloader
         // owns its event loop, just as it does for the configured shortcut and
