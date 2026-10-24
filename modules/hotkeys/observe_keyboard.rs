@@ -90,6 +90,35 @@ pub(crate) fn valid_scancode(scancode: u16) -> bool {
     (1..512).contains(&scancode)
 }
 
+/// Convert a legacy Windows virtual-key setting to an SDL keyboard or mouse
+/// binding without initializing SDL input.
+pub fn legacy_virtual_key_binding(virtual_key: u16) -> Option<String> {
+    let mouse_button = match virtual_key {
+        0x01 => Some(1), // VK_LBUTTON
+        0x02 => Some(3), // VK_RBUTTON
+        0x04 => Some(2), // VK_MBUTTON
+        0x05 => Some(4), // VK_XBUTTON1
+        0x06 => Some(5), // VK_XBUTTON2
+        _ => None,
+    };
+    if let Some(button) = mouse_button {
+        return Some(format!("Mouse:{button}"));
+    }
+
+    #[cfg(windows)]
+    {
+        let scancode =
+            unsafe { windows::sf_keyboard_legacy_virtual_key_scancode(i32::from(virtual_key)) };
+        let scancode = u16::try_from(scancode).ok()?;
+        return (scancode != 0 && valid_scancode(scancode)).then(|| format!("SDL:{scancode}"));
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = virtual_key;
+        None
+    }
+}
+
 pub(crate) fn primary_modifier(scancode: u16) -> u8 {
     #[cfg(windows)]
     return unsafe { windows::sf_keyboard_modifier(i32::from(scancode)) as u8 };
@@ -174,6 +203,7 @@ mod windows {
         fn sf_keyboard_error() -> *const c_char;
         fn sf_keyboard_scancode_count() -> i32;
         pub(super) fn sf_keyboard_valid_scancode(scancode: i32) -> i32;
+        pub(super) fn sf_keyboard_legacy_virtual_key_scancode(virtual_key: i32) -> i32;
         pub(super) fn sf_keyboard_modifier(scancode: i32) -> i32;
         fn sf_keyboard_label(scancode: i32) -> *const c_char;
         fn sf_keyboard_sync_layout() -> i32;

@@ -7,6 +7,12 @@ pub fn read_loader_defaults() -> Result<Value, String> {
 }
 
 pub fn read_loader(root: &Path) -> Result<Value, String> {
+    let result = read_loader_unvalidated(root)?;
+    validate_document(root, crate::documents::LOADER, &result)?;
+    Ok(result)
+}
+
+pub(crate) fn read_loader_unvalidated(root: &Path) -> Result<Value, String> {
     let path = document_path(root, crate::documents::LOADER);
     let mut result = read_loader_defaults()?;
     let mut loaded = match fs::read(&path) {
@@ -141,7 +147,6 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
             settings.insert("jobId".into(), "runtime.overview".into());
         }
     }
-    validate_document(root, crate::documents::LOADER, &result)?;
     Ok(result)
 }
 
@@ -169,7 +174,10 @@ mod tests {
         ] {
             assert_eq!(config["modules"][module]["enabled"], true, "{module}");
         }
-        assert_eq!(crate::config::window_state(root.path()), serde_json::json!({}));
+        assert_eq!(
+            crate::config::window_state(root.path()),
+            serde_json::json!({})
+        );
     }
 
     #[test]

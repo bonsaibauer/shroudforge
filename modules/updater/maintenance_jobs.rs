@@ -60,6 +60,7 @@ enum Action {
     MigrateLegacyUpdateFiles,
     MigrateLegacyMods,
     MigrateLegacyEventLevels,
+    MigrateLegacyToggleKeys,
     UpdateLoaderSettings,
     PurgeExpiredRecycleBin,
 }
@@ -72,13 +73,14 @@ impl Action {
                 | Self::MigrateLegacyUpdateFiles
                 | Self::MigrateLegacyMods
                 | Self::MigrateLegacyEventLevels
+                | Self::MigrateLegacyToggleKeys
                 | Self::UpdateLoaderSettings
         )
     }
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 5] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 6] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -107,6 +109,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 5] = [
         Trigger::AfterInstall,
         "migration.debug-console-log-settings",
         Action::UpdateLoaderSettings,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.legacy-toggle-key-settings",
+        Action::MigrateLegacyToggleKeys,
         1,
     ),
 ];
@@ -159,6 +167,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
         include_str!("migrate-debug-console-log-settings.json"),
     ),
     (
+        "migrate-legacy-toggle-key-settings.json",
+        include_str!("migrate-legacy-toggle-key-settings.json"),
+    ),
+    (
         "purge-expired-recycle-bin.json",
         include_str!("purge-expired-recycle-bin.json"),
     ),
@@ -178,9 +190,8 @@ fn enqueue_for_trigger(root: &Path, trigger: Trigger) -> Result<(), String> {
     for error in catalog.errors {
         let _ = shroudforge_logging::append(root, 'W', "updater", &error);
     }
-    if REQUIRED_MIGRATIONS
-        .iter()
-        .any(|(required_trigger, required_id, required_action, minimum_revision)| {
+    if REQUIRED_MIGRATIONS.iter().any(
+        |(required_trigger, required_id, required_action, minimum_revision)| {
             *required_trigger == trigger
                 && !catalog.jobs.iter().any(|job| {
                     job.trigger == trigger
@@ -188,8 +199,8 @@ fn enqueue_for_trigger(root: &Path, trigger: Trigger) -> Result<(), String> {
                         && job.action == *required_action
                         && job.revision >= *minimum_revision
                 })
-        })
-    {
+        },
+    ) {
         return Err(format!(
             "required updater migration jobs for {} are missing or invalid",
             trigger.as_str()
@@ -205,11 +216,17 @@ fn enqueue_for_trigger(root: &Path, trigger: Trigger) -> Result<(), String> {
         for job in &catalog.jobs {
             supersede_obsolete_revisions(items, job);
         }
-        for job in catalog
+        let mut triggered_jobs = catalog
             .jobs
             .into_iter()
             .filter(|job| job.trigger == trigger)
-        {
+            .collect::<Vec<_>>();
+        // Convert raw integer hotkeys before any settings migration validates the loader document.
+        triggered_jobs.sort_by_key(|job| match job.action {
+            Action::MigrateLegacyToggleKeys => 0,
+            _ => 1,
+        });
+        for job in triggered_jobs {
             let id = format!("maintenance:{}:{}", job.id, job.revision);
             let existing_index = items.iter().position(|item| item["id"] == id);
             let Some(index) = existing_index else {
@@ -256,7 +273,7 @@ pub(crate) fn run_after_install(root: &Path) -> Result<(), String> {
         crate::run_update_queue(root)?;
     }
     enqueue_for_trigger(root, Trigger::AfterInstall)?;
-    let ids = crate::update_queue_storage::read_update_queue_value(root)["items"]
+    let mut ids = crate::update_queue_storage::read_update_queue_value(root)["items"]
         .as_array()
         .into_iter()
         .flatten()
@@ -267,6 +284,14 @@ pub(crate) fn run_after_install(root: &Path) -> Result<(), String> {
         })
         .filter_map(|item| item["id"].as_str().map(str::to_owned))
         .collect::<Vec<_>>();
+    // A queued settings update can validate loader.json, so migrate integer hotkeys first.
+    ids.sort_by_key(|id| {
+        if id.starts_with("maintenance:migration.legacy-toggle-key-settings:") {
+            0
+        } else {
+            1
+        }
+    });
 
     if !ids.is_empty() {
         crate::update_queue_storage::update_update_queue(root, |queue| {
@@ -393,6 +418,7 @@ pub(crate) fn execute(root: &Path, item: &serde_json::Value) -> Result<(), Strin
         }
         Action::MigrateLegacyMods => migrate_legacy_mods(root)?,
         Action::MigrateLegacyEventLevels => migrate_legacy_event_levels(root)?,
+        Action::MigrateLegacyToggleKeys => migrate_legacy_toggle_keys(root)?,
         Action::UpdateLoaderSettings => update_loader_settings(root, item)?,
         Action::PurgeExpiredRecycleBin => {
             if crate::recycle_bin::automatic_cleanup_enabled(root) {
@@ -416,6 +442,7 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
         Some("MigrateLegacyUpdateFiles") => Ok(Action::MigrateLegacyUpdateFiles),
         Some("MigrateLegacyMods") => Ok(Action::MigrateLegacyMods),
         Some("MigrateLegacyEventLevels") => Ok(Action::MigrateLegacyEventLevels),
+        Some("MigrateLegacyToggleKeys") => Ok(Action::MigrateLegacyToggleKeys),
         Some("UpdateLoaderSettings") => Ok(Action::UpdateLoaderSettings),
         Some("PurgeExpiredRecycleBin") => Ok(Action::PurgeExpiredRecycleBin),
         _ => Err(format!("unsupported maintenance job in queue item {id}")),
@@ -424,6 +451,10 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
 
 fn migrate_legacy_event_levels(root: &Path) -> Result<(), String> {
     shroudforge_news::migrate_legacy_event_levels(root).map(|_| ())
+}
+
+fn migrate_legacy_toggle_keys(root: &Path) -> Result<(), String> {
+    shroudforge_loader_config::config::migrate_legacy_toggle_key_settings(root).map(|_| ())
 }
 
 fn update_loader_settings(root: &Path, item: &serde_json::Value) -> Result<(), String> {

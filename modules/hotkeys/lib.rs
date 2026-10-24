@@ -10,6 +10,7 @@ mod parse_hotkey;
 
 pub use observe_keyboard::{
     hotkey_press_revision, initialize, initialize_runtime, is_capture_active, is_hotkey_down,
-    layout_revision, run_input_process, set_capture_active, take_captured_hotkey,
+    layout_revision, legacy_virtual_key_binding, run_input_process, set_capture_active,
+    take_captured_hotkey,
 };
 pub use parse_hotkey::{Hotkey, InputDevice, parse_hotkey, parse_value};

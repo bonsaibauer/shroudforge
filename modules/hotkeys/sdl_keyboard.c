@@ -1,7 +1,7 @@
 /* SDL owns platform key translation and its international scancode catalogue.
  * This small C boundary keeps SDL event layouts and constants out of Rust. */
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
+#include "SDL_internal.h"
+#include "events/scancodes_windows.h"
 #include <windows.h>
 
 typedef struct {
@@ -44,6 +44,26 @@ int sf_keyboard_modifier(int scancode)
 int sf_keyboard_valid_scancode(int scancode)
 {
     return scancode > SDL_SCANCODE_UNKNOWN && scancode < SDL_SCANCODE_COUNT;
+}
+
+int sf_keyboard_legacy_virtual_key_scancode(int virtual_key)
+{
+    if (virtual_key == VK_PAUSE) return SDL_SCANCODE_PAUSE;
+    if (virtual_key == VK_SNAPSHOT) return SDL_SCANCODE_PRINTSCREEN;
+
+    UINT scan_code = MapVirtualKeyExW(
+        (UINT)virtual_key,
+        MAPVK_VK_TO_VSC_EX,
+        GetKeyboardLayout(0));
+    if (scan_code == 0) return SDL_SCANCODE_UNKNOWN;
+    if ((scan_code & 0xff00) == 0xe000) {
+        scan_code = (scan_code & 0xff) | 0x80;
+    } else if ((scan_code & 0xff00) != 0) {
+        return SDL_SCANCODE_UNKNOWN;
+    }
+    return scan_code < SDL_arraysize(windows_scancode_table)
+        ? windows_scancode_table[scan_code]
+        : SDL_SCANCODE_UNKNOWN;
 }
 
 int sf_keyboard_scancode_count(void) { return SDL_SCANCODE_COUNT; }

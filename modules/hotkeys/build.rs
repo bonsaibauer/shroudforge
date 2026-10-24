@@ -3,6 +3,7 @@ use std::{env, path::PathBuf};
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=sdl_keyboard.c");
+    println!("cargo:rerun-if-changed=SDL/src/events/scancodes_windows.h");
     println!("cargo:rerun-if-changed=SDL");
     println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_FEATURE");
 
@@ -66,6 +67,11 @@ fn main() {
         configuration.static_crt(static_crt);
     }
     let installed = configuration.build();
+    let profile = env::var("PROFILE").unwrap();
+    let build_config = installed
+        .join("build")
+        .join(format!("include-config-{profile}"))
+        .join("build_config");
 
     // Emit the adapter first, then SDL and its system dependencies. This order
     // also keeps single-pass static linkers correct for the adapter's SDL calls.
@@ -73,6 +79,10 @@ fn main() {
     adapter
         .file(directory.join("sdl_keyboard.c"))
         .include(source.join("include"))
+        // The legacy-key migration shares SDL's own private Windows scan-code
+        // table instead of maintaining a second copy of that mapping.
+        .include(source.join("src"))
+        .include(build_config)
         .define("SDL_MAIN_HANDLED", None)
         .define("SDL_STATIC_LIB", None);
     if msvc {

@@ -5,6 +5,7 @@ mod claim_control_actions;
 pub mod documents;
 mod initialize_loader_settings;
 mod lock_installation;
+mod migrate_legacy_toggle_key_settings;
 #[path = "resolve_installation_paths.rs"]
 pub mod paths;
 mod publish_modloader_client_pid;
@@ -42,9 +43,11 @@ pub mod config {
     pub use crate::claim_control_actions::*;
     pub use crate::initialize_loader_settings::*;
     pub use crate::lock_installation::*;
+    pub use crate::migrate_legacy_toggle_key_settings::*;
     pub use crate::publish_modloader_client_pid::*;
     pub use crate::publish_window_visibility::*;
     pub use crate::read_document::*;
+    pub(crate) use crate::read_loader_settings::read_loader_unvalidated;
     pub use crate::read_loader_settings::*;
     pub use crate::read_loader_state::*;
     pub use crate::request_window_visibility::*;

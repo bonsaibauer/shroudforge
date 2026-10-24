@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.legacy-toggle-key-settings",
+  "revision": 1,
+  "name": "Migrate legacy hotkey settings",
+  "description": "Converts saved Windows virtual-key settings to SDL keyboard or mouse bindings.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "migrate-legacy-toggle-keys"
+}
