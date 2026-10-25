@@ -63,6 +63,7 @@ pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Noti
                     .and_then(LogLevel::parse)
                     .unwrap_or(LogLevel::Info),
                 beta: value.get("beta").and_then(|value| value.as_bool()),
+                english_only: value.get("englishOnly").and_then(|value| value.as_bool()),
                 action_url: value
                     .get("actionUrl")
                     .and_then(|value| value.as_str())

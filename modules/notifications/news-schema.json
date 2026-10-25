@@ -12,7 +12,8 @@
         "properties": {
           "title": {"type": "string"},
           "message": {"type": "string"},
-          "beta": {"type": "boolean"}
+          "beta": {"type": "boolean"},
+          "englishOnly": {"type": "boolean"}
         },
         "additionalProperties": false
       }
@@ -26,6 +27,7 @@
           "id": { "type": "string", "minLength": 1 },
           "kind": { "type": "string" },
           "beta": { "type": "boolean" },
+          "englishOnly": { "type": "boolean" },
           "title": { "type": "string" },
           "message": { "type": "string" },
           "modId": { "type": "string" },

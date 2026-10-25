@@ -5,6 +5,7 @@
       "id": "shroudforge-localization-beta-1",
       "kind": "notice.localization",
       "beta": false,
+      "englishOnly": false,
       "title": "Welcome! Herzlich willkommen! Bienvenue ! ¡Te damos la bienvenida!",
       "message": "French and Spanish are now in beta. Help translate ShroudForge on Crowdin, suggest a language, or report an issue below.",
       "level": "info",
@@ -18,6 +19,7 @@
       "id": "shroudforge-discord-2",
       "kind": "notice.discord",
       "beta": false,
+      "englishOnly": false,
       "title": "Meet the Enshrouded modding community",
       "message": "Talk mods, swap ideas, or ask for a hand when something is confusing. The Enshrouded Modding Discord brings players and mod authors together. Joining is completely optional, and you are welcome to just listen in first.",
       "level": "info",
@@ -28,6 +30,7 @@
       "id": "shroudforge-nexusmods-1",
       "kind": "notice.nexusMods",
       "beta": false,
+      "englishOnly": false,
       "title": "Find EML mods on Nexus Mods",
       "message": "ShroudForge supports mods in the Enshrouded Mod Loader (EML) format. Find current EML mods and the Enshrouded modding community on Nexus Mods.",
       "level": "info",
@@ -38,11 +41,11 @@
       "id": "shroudforge-creative-mode-1.7.6",
       "kind": "notice.creativeMode",
       "beta": true,
+      "englishOnly": false,
       "title": "Multi DLL Manager",
-      "message": "Creative Mode by Phoenix1355 is detected automatically when its mod folder is in mods. You do not need to edit mod.json or set up its DLL manually. For other mods with a DirectInput DLL, put the DLL in that mod's folder under mods. DLL Manager also lets you choose profiles, set load order and client or server targets, approve manual DLLs, exclude filenames, and review loading status. Press Insert to open Creative Mode and G to toggle character flight.",
+      "message": "Creative Mode by Phoenix1355 is detected automatically when you place its mod folder in ShroudForge's /mods folder. Creative Mode does not need a dinput8.dll. For other mods, including EML mods, that need a DLL to start, best practice is to place dinput8.dll or the required DLL directly inside that mod's own subfolder, for example at /mods/ModName/dinput8.dll. In DLL Manager, you can choose profiles and load targets, set the load order, approve manual DLLs, exclude filenames, and check loading status. Have fun playing Creative Mode!",
       "level": "info",
       "links": [
-        { "labelKey": "news.link.creativeModeGuide", "wikiArticleId": "creative-mode" },
         { "labelKey": "news.link.dllManagerGuide", "wikiArticleId": "dll-manager" },
         { "labelKey": "news.link.modDetectionGuide", "wikiArticleId": "mod-detection" },
         { "labelKey": "news.link.creativeModeDownload", "url": "https://www.nexusmods.com/enshrouded/mods/146" }
@@ -52,6 +55,7 @@
       "id": "shroudforge-welcome-1.6.5",
       "kind": "notice.welcome",
       "beta": false,
+      "englishOnly": false,
       "title": "Welcome — and thank you for being here",
       "message": "ShroudForge grew from work already happening in the Enshrouded modding community. Brabb3l's EML and kfc-parser opened important doors, and Shroudtopia showed how runtime mods could be loaded, unloaded, and configured while the game was running. I am grateful to everyone who shared tools, examples, discoveries, and time. ShroudForge brings mod management, asset preparation, and runtime features together, with the goal of keeping documented EML mods usable too. If you are new here, the guide will help you find your way around and get started.",
       "level": "info",
@@ -66,6 +70,7 @@
       "id": "shroudforge-configuration-2",
       "kind": "notice.configuration",
       "beta": false,
+      "englishOnly": false,
       "title": "Thinking about making your own mod?",
       "message": "Every mod starts with mod.json: its name, version, author, dependencies, and the features it needs. ShroudForge-specific switches, settings, buttons, and links live in the optional extended.mod.json. The Modloader can display those settings for players, and your Lua code can read them through the ShroudForge API. You do not need to learn every field at once. Start with the working Hello Ember template, then read the extended.mod.json guide to see how settings are defined and shown in the Modloader.",
       "level": "info",
@@ -79,6 +84,7 @@
       "id": "shroudforge-mods-guide-2",
       "kind": "notice.modsGuide",
       "beta": false,
+      "englishOnly": false,
       "title": "Five included mods 🧩",
       "message": "ShroudForge includes five mods. Find their settings and details under Installed Mods.\n\n• SF Survival: Adjust stamina, mana, breath, frost, regeneration, weapon durability, and fall damage.\n• SF Unlimited Flight: Tune glider controls and flight values. Optionally gain altitude without glider stamina drain.\n• SF Crafting Essentials: Change production times, remove recipe costs, and keep supported items when used.\n• SF Unlock Blueprints: Set recipe unlocks to the first Flame Altar hint. Off by default and requires a restart.\n• World Editor: Capture, save, rotate, and place world blueprints.\n\nGame asset changes are prepared before launch.",
       "level": "info",
@@ -93,6 +99,7 @@
       "id": "shroudforge-multiplayer-support-1",
       "kind": "notice.multiplayerSupport",
       "beta": false,
+      "englishOnly": false,
       "title": "Multiplayer support for all ShroudForge mods",
       "message": "All five mods currently included with ShroudForge support multiplayer. See the server guides for setup details.",
       "level": "info"
@@ -101,6 +108,7 @@
       "id": "shroudforge-apply-settings-2",
       "kind": "notice.applySettings",
       "beta": false,
+      "englishOnly": false,
       "title": "When do changes take effect?",
       "message": "Your choices are saved as soon as you apply them. What happens next depends on the mod: runtime-only mods can apply settings live when their code reads the current value from a lifecycle or action callback. Asset changes are prepared before the next game start, so close Enshrouded before preparing them. If a mod's status says that a restart is needed, the change is saved and waiting for the next session.",
       "level": "info",
@@ -113,6 +121,7 @@
       "id": "shroudforge-mod-support-1",
       "kind": "notice.feedback",
       "beta": false,
+      "englishOnly": false,
       "title": "Which mods work with your setup?",
       "message": "I am sorry if the updater has caused problems for you. It is still less polished and reliable than I want it to be. I am doing my best to make it smoother, step by step. I work on ShroudForge in my spare time, and your feedback helps me improve it.\n\nIf you have a moment, please share which mods work for you. Choose ST (Shroudtopia), EML (Enshrouded Mod Loader), SF (ShroudForge), or Other, then select Yes, No, or Problem. If something went wrong, you can choose a short problem category and add a sentence. Even a quick \"Mod X works\" helps a lot.\n\nThank you for testing and helping out. I really appreciate it. 💚",
       "level": "info",
@@ -124,6 +133,7 @@
       "id": "shroudforge-support-2",
       "kind": "notice.support",
       "beta": false,
+      "englishOnly": false,
       "repeatEveryDays": 90,
       "title": "Support ShroudForge",
       "message": "I build ShroudForge because I love seeing what this community makes possible in Enshrouded. The most valuable support is already here: people trying the loader, making mods, sharing ideas, and taking time to report problems. If you would also like to chip in financially, you can buy me a coffee. There is absolutely no pressure — being here and making things together is a big deal on its own. Thank you.",
@@ -136,28 +146,39 @@
   "templates": {
     "mod.install.success": {
       "beta": false,
+      "englishOnly": false,
       "title": "{name} installed",
       "message": "Version {version} is now in your mods folder. Open the mod page to check its status, enable it, and see whether it has settings or setup notes. Some changes need the next game start before you can see them."
     },
     "mod.update.success": {
       "beta": false,
+      "englishOnly": false,
       "title": "{name} updated",
       "message": "Updated from {previousVersion} to {version}. Your mod package is ready. Take a look at the changelog below for what changed. If the update replaced package files, check your settings before launching the game."
     },
     "mod.remove.success": {
       "beta": false,
+      "englishOnly": false,
       "title": "{name} removed",
       "message": "Version {version} was moved to the ShroudForge recycle bin and removed from your active mods folder. The package is kept in ShroudForge's local trash folder in case you need the files again."
     },
     "system.update": {
       "beta": false,
+      "englishOnly": false,
       "title": "ShroudForge {version} is available",
       "message": "There is a new ShroudForge version ready. You can review what changed, then prepare the update here. The verified installer waits until Enshrouded is closed before replacing the loader files."
     },
     "system.staged": {
       "beta": false,
+      "englishOnly": false,
       "title": "System update queued",
       "message": "The update was downloaded and verified, and is waiting for Enshrouded to close. Once the game exits, the updater can finish replacing the ShroudForge files."
+    },
+    "system.updaterMissing": {
+      "beta": false,
+      "englishOnly": false,
+      "title": "ShroudForge {version} is available",
+      "message": "A new version is available, but shroudforge-updater.exe is missing. Open Updates to see where the file belongs and where to get it."
     }
   }
 }

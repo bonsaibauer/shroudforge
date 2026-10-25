@@ -29,6 +29,7 @@ export type Notice = {
   message: string
   level: LogLevel
   beta?: boolean
+  englishOnly?: boolean
   actionUrl?: string
   actionLabelKey?: string
   links?: NoticeLink[]
@@ -48,6 +49,7 @@ export type NewsItem = {
   title: string
   message: string
   beta?: boolean
+  englishOnly?: boolean
   actionUrl?: string
   actionLabelKey?: string
   links?: NoticeLink[]
@@ -67,7 +69,10 @@ export type NewsPersonalization = {
 }
 export type NewsDisplaySource = {
   notices: Notice[]
-  newsTemplates?: Record<string, { title: string; message: string; beta?: boolean }>
+  newsTemplates?: Record<
+    string,
+    { title: string; message: string; beta?: boolean; englishOnly?: boolean }
+  >
   mods: Array<{ id: string; ecosystem: 'EML' | 'SF' }>
   updatesEnabled: boolean
   releaseAnnouncement?: {

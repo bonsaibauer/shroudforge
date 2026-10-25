@@ -43,7 +43,10 @@ export type Snapshot = {
   mods: ModInfo[]
   activity: Activity[]
   notices: Notice[]
-  newsTemplates?: Record<string, { title: string; message: string; beta?: boolean }>
+  newsTemplates?: Record<
+    string,
+    { title: string; message: string; beta?: boolean; englishOnly?: boolean }
+  >
   readNoticeIds: string[]
   release: Release
   releaseAnnouncement?: {

@@ -13,6 +13,8 @@ pub struct Notice {
     pub level: LogLevel,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub beta: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub english_only: Option<bool>,
     pub action_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action_label_key: Option<String>,

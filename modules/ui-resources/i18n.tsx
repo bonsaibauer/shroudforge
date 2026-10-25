@@ -21,7 +21,7 @@ type I18nValue = {
   locale: Locale
   locales: LocaleOption[]
   setLocale(locale: Locale): void
-  t(key: TranslationKey, parameters?: Parameters): string
+  t(key: TranslationKey, parameters?: Parameters, locale?: Locale): string
 }
 
 const modules = import.meta.glob('./locales/*.json', {
@@ -83,9 +83,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         updateLocale(resolved)
         saveLocale(resolved)
       },
-      t(key, parameters = {}) {
+      t(key, parameters = {}, targetLocale = locale) {
         const template =
-          catalogs[locale]?.[key] ?? catalogs['en-GB']?.[key] ?? String(key)
+          catalogs[targetLocale]?.[key] ??
+          catalogs['en-GB']?.[key] ??
+          String(key)
         return template.replace(/\{([A-Za-z0-9_]+)\}/g, (match, name: string) =>
           String(parameters[name] ?? match),
         )

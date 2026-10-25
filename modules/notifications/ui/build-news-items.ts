@@ -38,14 +38,37 @@ export function buildNewsItems(
   const username =
     (settings.effectiveUsername || settings.messageNameFallback).trim() ||
     'Flameborn'
-  const personalize = (text: string) => text.replace(/\{username\}/g, username)
-  const configured = (kind: string, values: Record<string, string> = {}) => {
-    const template = data.newsTemplates?.[kind]
-    if (!template) return {}
-    const render = (text: string) =>
-      text.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match)
-    return { title: render(template.title), message: render(template.message) }
+  const render = (
+    text: string,
+    values: Record<string, string | number>,
+  ) =>
+    text.replace(/\{(\w+)\}/g, (match, key) => String(values[key] ?? match))
+  const englishOnlyFor = (kind: string, itemValue?: boolean) =>
+    itemValue ?? data.newsTemplates?.[kind]?.englishOnly ?? false
+  const translateText = (
+    key: string,
+    sourceText: string,
+    values: Record<string, string | number>,
+    englishOnly: boolean,
+  ) => {
+    const translationKey = `news.${key}` as TranslationKey
+    const translated = t(
+      translationKey,
+      values,
+      englishOnly ? 'en-GB' : undefined,
+    )
+    return translated === translationKey ? render(sourceText, values) : translated
   }
+  const translateCard = (
+    kind: string,
+    sourceTitle: string,
+    sourceMessage: string,
+    values: Record<string, string | number>,
+    englishOnly: boolean,
+  ) => ({
+    title: translateText(`${kind}.title`, sourceTitle, values, englishOnly),
+    message: translateText(`${kind}.message`, sourceMessage, values, englishOnly),
+  })
   const updaterAvailable = data.release.updaterAvailable === true
   const updatesEnabled = data.updatesEnabled === true
   const standardUpdateAvailable =
@@ -54,31 +77,67 @@ export function buildNewsItems(
     !standardUpdateAvailable &&
     (data.releaseAnnouncement?.updateAvailable === true ||
       data.release.updateAvailable)
-  if (standardUpdateAvailable)
+  if (standardUpdateAvailable) {
+    const kind = 'system.update'
+    const template = data.newsTemplates?.[kind]
+    const englishOnly = englishOnlyFor(kind)
+    const translated = translateCard(
+      kind,
+      template?.title || '',
+      template?.message || '',
+      { version: data.release.latestVersion || '' },
+      englishOnly,
+    )
     items.push({
       id: `system-${data.release.latestVersion}`,
+      kind,
+      englishOnly,
       level: 'info',
-      title: t('news.system.update.title', {
-        version: data.release.latestVersion || '',
-      }),
-      message: data.release.message || t('news.system.update.message'),
+      ...translated,
       actionUrl: data.release.releaseUrl,
       actions: [{ id: 'queue-system-update', kind: 'queue-system-update' }],
       updatedAt: 0,
       changelog: releaseChangelog(data.release.message),
     })
-  else if (fallbackUpdateAvailable) {
+  } else if (fallbackUpdateAvailable) {
     const version =
       data.releaseAnnouncement?.latestVersion || data.release.latestVersion || ''
+    const kind = 'system.updaterMissing'
+    const template = data.newsTemplates?.[kind]
+    const englishOnly = englishOnlyFor(kind)
+    const values = { version }
+    const title = translateText(
+      `${kind}.title`,
+      template?.title || '',
+      values,
+      englishOnly,
+    )
+    const message = !updaterAvailable
+      ? translateText(
+          `${kind}.message`,
+          template?.message || '',
+          values,
+          englishOnly,
+        )
+      : !updatesEnabled
+        ? t(
+            'updates.availability.disabled.description',
+            {},
+            englishOnly ? 'en-GB' : undefined,
+          )
+        : translateText(
+            'system.update.message',
+            data.newsTemplates?.['system.update']?.message || '',
+            values,
+            englishOnly,
+          )
     items.push({
       id: `system-${version}`,
+      kind,
+      englishOnly,
       level: 'warn',
-      title: t('news.system.updaterMissing.title', { version }),
-      message: !updaterAvailable
-        ? t('news.system.updaterMissing.message', { version })
-        : !updatesEnabled
-          ? t('updates.availability.disabled.description')
-          : t('news.system.update.message'),
+      title,
+      message,
       actions: [{ id: 'open-updates', kind: 'open-updates' }],
       updatedAt: 0,
       changelog:
@@ -87,68 +146,48 @@ export function buildNewsItems(
           : releaseChangelog(data.release.message),
     })
   }
-  if (standardUpdateAvailable && data.release.staged)
+  if (standardUpdateAvailable && data.release.staged) {
+    const kind = 'system.staged'
+    const template = data.newsTemplates?.[kind]
+    const englishOnly = englishOnlyFor(kind)
+    const translated = translateCard(
+      kind,
+      template?.title || '',
+      template?.message || '',
+      {},
+      englishOnly,
+    )
     items.push({
       id: `system-staged-${data.release.latestVersion}`,
+      kind,
+      englishOnly,
       level: 'info',
-      title: t('news.system.staged.title'),
-      message: t('news.system.staged.message'),
+      ...translated,
       updatedAt: 0,
-    })
-  for (const item of items) {
-    if (item.actions?.some((action) => action.kind === 'open-updates')) continue
-    const kind = item.id.startsWith('system-staged-')
-      ? 'system.staged'
-      : 'system.update'
-    item.title = t(`news.${kind}.title` as TranslationKey, {
-      version: data.release.latestVersion || '',
-    })
-    item.message = t(`news.${kind}.message` as TranslationKey, {
-      version: data.release.latestVersion || '',
     })
   }
   items.push(
     ...data.notices.map((item) => {
-      if (!item.kind)
-        return {
-          ...item,
-          title: personalize(item.title),
-          message: personalize(item.message),
-        }
+      const kind = item.kind
+      const template = kind ? data.newsTemplates?.[kind] : undefined
+      const englishOnly = kind
+        ? englishOnlyFor(kind, item.englishOnly)
+        : item.englishOnly ?? false
       const values = { ...(item.values || {}), username }
-      if (item.kind.startsWith('notice.'))
+      const sourceTitle = item.title || template?.title || ''
+      const sourceMessage = item.message || template?.message || ''
+      if (!kind)
         return {
           ...item,
-          title: t(`news.${item.kind}.title` as TranslationKey, values),
-          message: t(`news.${item.kind}.message` as TranslationKey, values),
+          englishOnly,
+          title: render(item.title, values),
+          message: render(item.message, values),
         }
-      if (item.kind === 'mod.install.success')
-        return {
-          ...item,
-          title: t('news.mod.install.success.title', values),
-          message: t('news.mod.install.success.message', values),
-          changelog: item.changelog,
-        }
-      if (item.kind === 'mod.update.success')
-        return {
-          ...item,
-          title: t('news.mod.update.success.title', values),
-          message: t('news.mod.update.success.message', values),
-          changelog: item.changelog,
-        }
-      if (item.kind === 'mod.remove.success')
-        return {
-          ...item,
-          title: t('news.mod.remove.success.title', values),
-          message: t('news.mod.remove.success.message', values),
-          changelog: item.changelog,
-        }
-      if (data.newsTemplates?.[item.kind])
-        return {
-          ...item,
-          ...configured(item.kind, values as Record<string, string>),
-        }
-      return { ...item }
+      return {
+        ...item,
+        englishOnly,
+        ...translateCard(kind, sourceTitle, sourceMessage, values, englishOnly),
+      }
     }),
   )
   return items
@@ -161,6 +200,7 @@ export function buildNewsItems(
         item.beta ??
         (item.kind ? data.newsTemplates?.[item.kind]?.beta : undefined) ??
         false,
+      englishOnly: item.englishOnly ?? false,
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
