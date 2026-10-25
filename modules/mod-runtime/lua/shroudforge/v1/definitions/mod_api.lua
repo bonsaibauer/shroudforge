@@ -110,3 +110,8 @@ shroudforge = {}
 --- change, not at every update.
 --- @return string
 function shroudforge.locale() end
+
+--- Seconds from a monotonic clock (0 at the first call in the game process), to measure how
+--- long a mod's own work takes: the Lua sandbox has no `os` library.
+--- @return number
+function shroudforge.clock() end
