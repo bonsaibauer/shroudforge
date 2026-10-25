@@ -79,6 +79,13 @@ export function useModSettings(mod: ModInfo) {
       const requestedModId = requests.current.get(result.requestId)
       if (!requestedModId) return
       requests.current.delete(result.requestId)
+      // Saved: the next change is saved against the new revision, without
+      // waiting for the next snapshot (a slider moved again within a second
+      // was refused as "changed since displayed").
+      if (result.success && result.revision && requestedModId === modIdRef.current) {
+        revisionRef.current = result.revision
+        return
+      }
       const current = latestMod.current
       if (result.success || requestedModId !== current.id || requestedModId !== modIdRef.current) return
       if (autoSaveTimer.current !== undefined) {
