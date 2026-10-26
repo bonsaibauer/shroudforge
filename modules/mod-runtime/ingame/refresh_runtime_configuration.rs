@@ -131,6 +131,7 @@ impl IngameRuntime {
                     continue;
                 }
             };
+            let revision = package_signature.clone();
             let signature = if id == "world-editor" {
                 format!("{package_signature}:worldEditor.enabled={world_editor_enabled}")
             } else {
@@ -140,7 +141,12 @@ impl IngameRuntime {
                 continue;
             }
             self.observed.insert(package.clone(), signature);
-            let manifest = match mod_loader::config::read_manifest_path(&self.root, package) {
+            // Read off the mods' loop with its revision, or now if not yet.
+            let manifest = self
+                .package_revisions
+                .manifest(package, &revision)
+                .unwrap_or_else(|| mod_loader::config::read_manifest_path(&self.root, package));
+            let manifest = match manifest {
                 Ok(manifest) if manifest.id == *id => manifest,
                 Ok(_) => {
                     tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Mod identity changed. Restart required, retaining applied configuration");

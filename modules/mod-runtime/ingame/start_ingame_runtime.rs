@@ -113,6 +113,7 @@ impl IngameRuntime {
                 )
             })
             .collect();
+        let package_revisions = super::watch_package_revisions::PackageRevisions::start(root.clone());
         let runtime = Self {
             diagnostics,
             runner,
@@ -124,7 +125,7 @@ impl IngameRuntime {
             errors,
             configurations,
             observed: Default::default(),
-            package_revisions: super::watch_package_revisions::PackageRevisions::start(),
+            package_revisions,
             next_status: std::time::Instant::now(),
             processed_reload_request: None,
             publish_on_drop: true,
