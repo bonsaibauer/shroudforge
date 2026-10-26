@@ -156,6 +156,10 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                             "KfcRuntimeWorldCursorRead",
                             WorldCursorRead
                         ),
+                        set_local_camera_layout: optional_symbol!(
+                            "KfcRuntimeSetLocalCameraLayout",
+                            SetLocalCameraLayout
+                        ),
                         world_cursor_read_input: optional_symbol!(
                             "KfcRuntimeWorldCursorReadInput",
                             WorldCursorReadInput

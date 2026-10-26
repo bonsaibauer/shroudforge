@@ -56,3 +56,13 @@ fn input_detail() -> Option<String> {
     let length = unsafe { detail(buffer.as_mut_ptr(), buffer.len()) }.min(buffer.len() - 1);
     (length > 0).then(|| String::from_utf8_lossy(&buffer[..length]).into_owned())
 }
+
+/// Gives the native runtime the reflected layout of the local camera inside
+/// ClientPlayerInput (component size, 9 byte offsets), so that a caller
+/// drawing every frame can read it. False when the runtime lacks it.
+pub fn set_local_camera_layout(component_size: usize, offsets: &[u32]) -> bool {
+    let Some(set) = provider().and_then(|provider| provider.set_local_camera_layout) else {
+        return false;
+    };
+    unsafe { set(component_size, offsets.as_ptr(), offsets.len()) == 1 }
+}

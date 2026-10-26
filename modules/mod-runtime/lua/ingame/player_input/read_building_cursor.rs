@@ -199,7 +199,7 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
         .map_err(|error| error.to_string())?;
     // The local player's camera, from the same input snapshot. Left out when
     // this game's layout has no such fields: the cursor stays readable.
-    if let Ok(camera) = reflected_local_camera(lua, state, metadata.index, &bytes) {
+    if let Ok(camera) = reflected_local_camera(lua, state, metadata.index, metadata.size as usize, &bytes) {
         value
             .raw_set("camera", camera)
             .map_err(|error| error.to_string())?;
@@ -222,8 +222,10 @@ fn reflected_local_camera(
     lua: &mlua::Lua,
     state: &AppState,
     root: kfc::reflection::TypeIndex,
+    component_size: usize,
     bytes: &[u8],
 ) -> Result<mlua::Table, String> {
+    share_local_camera_layout(state, root, component_size);
     let field = |path: &str| -> Result<LuaValue, String> {
         state
             .inline_field(root, &format!("data.camera.{path}"))?
@@ -264,6 +266,30 @@ fn reflected_local_camera(
             .map_err(|error| error.to_string())?;
     }
     Ok(camera)
+}
+
+// The native runtime reads the camera for the game overlay at every frame,
+// at the byte offsets the reflection gives: sent once per component size.
+fn share_local_camera_layout(state: &AppState, root: kfc::reflection::TypeIndex, component_size: usize) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static SENT: AtomicUsize = AtomicUsize::new(0);
+    if SENT.load(Ordering::Relaxed) == component_size {
+        return;
+    }
+    let paths = [
+        "position.x", "position.y", "position.z", "orientation.x", "orientation.y", "orientation.z",
+        "orientation.w", "fovY", "aspectRatio",
+    ];
+    let mut offsets = Vec::with_capacity(paths.len());
+    for path in paths {
+        match state.inline_field(root, &format!("data.camera.{path}")) {
+            Ok(field) => offsets.push(field.byte_range().start as u32),
+            Err(_) => return,
+        }
+    }
+    if runtime_provider::set_local_camera_layout(component_size, &offsets) {
+        SENT.store(component_size, Ordering::Relaxed);
+    }
 }
 
 // Cursor snapshots expose numeric flags/enums for compatibility. The general

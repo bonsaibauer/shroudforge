@@ -92,6 +92,9 @@ pub fn world_entity_context_ready() -> bool {
 pub fn world_cursor_read() -> Option<(Vec<u8>, u64)> {
     None
 }
+pub fn set_local_camera_layout(_: usize, _: &[u32]) -> bool {
+    false
+}
 pub fn world_cursor_read_input(_: usize) -> Result<(Vec<u8>, u64), String> {
     Err("native local cursor access is available on Windows only".into())
 }

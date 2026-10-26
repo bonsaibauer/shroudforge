@@ -6,6 +6,6 @@ mod finish_building;
 pub use finish_building::world_entity_finish_building;
 mod format_operation_error;
 mod read_cursor;
-pub use read_cursor::{world_cursor_read, world_cursor_read_input};
+pub use read_cursor::{set_local_camera_layout, world_cursor_read, world_cursor_read_input};
 mod spawn_entity;
 pub use spawn_entity::world_entity_spawn;

@@ -295,6 +295,16 @@ KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldCursorReadInput(
    one ClientPlayerInput per player), or what it tried when it could not.
    Returns the text length. */
 KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeWorldCursorInputDetail(char* buffer, size_t capacity);
+
+/* Optional. The local client's camera, from the same ClientPlayerInput
+   sample as the local cursor, for a caller drawing every frame. The mod
+   runtime sets the reflected layout once: component size and 9 byte offsets
+   (position x, y, z as Q32.32 int64; orientation x, y, z, w; fovY;
+   aspectRatio as float). Read writes 9 doubles (position in meters). Results
+   as KfcRuntimeWorldCursorReadInput, and 3 while no layout was set. */
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeSetLocalCameraLayout(
+    size_t component_size, const uint32_t* offsets, size_t count);
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeReadLocalCamera(double* output, size_t count);
 /* Optional ABI-12 client input extension. Exact build only. Dispatch is not a
    replicated-world acknowledgement. kind: select=0, place=1, remove=2, undo=3.
    Status: unknown=0, queued=1, pressed=2, dispatched=3, timeout=4, cancelled=5. */
