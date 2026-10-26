@@ -276,16 +276,27 @@ fn share_local_camera_layout(state: &AppState, root: kfc::reflection::TypeIndex,
     if SENT.load(Ordering::Relaxed) == component_size {
         return;
     }
+    // The camera, then the building cursor's transform and flags: the overlay
+    // also draws the aimed face at every frame.
     let paths = [
-        "position.x", "position.y", "position.z", "orientation.x", "orientation.y", "orientation.z",
-        "orientation.w", "fovY", "aspectRatio",
+        "camera.position.x", "camera.position.y", "camera.position.z", "camera.orientation.x",
+        "camera.orientation.y", "camera.orientation.z", "camera.orientation.w", "camera.fovY",
+        "camera.aspectRatio", "cursorInput.primaryTransform.position.x", "cursorInput.primaryTransform.position.y",
+        "cursorInput.primaryTransform.position.z", "cursorInput.primaryTransform.orientation.x",
+        "cursorInput.primaryTransform.orientation.y", "cursorInput.primaryTransform.orientation.z",
+        "cursorInput.primaryTransform.orientation.w", "cursorInput.primaryFlags",
     ];
-    let mut offsets = Vec::with_capacity(paths.len());
+    let mut offsets = Vec::with_capacity(paths.len() + 1);
     for path in paths {
-        match state.inline_field(root, &format!("data.camera.{path}")) {
+        match state.inline_field(root, &format!("data.{path}")) {
             Ok(field) => offsets.push(field.byte_range().start as u32),
             Err(_) => return,
         }
+    }
+    // The flags' width (8, 16 or 32 bits as reflected).
+    match state.inline_field(root, "data.cursorInput.primaryFlags") {
+        Ok(field) => offsets.push(field.byte_range().len() as u32),
+        Err(_) => return,
     }
     if runtime_provider::set_local_camera_layout(component_size, &offsets) {
         SENT.store(component_size, Ordering::Relaxed);

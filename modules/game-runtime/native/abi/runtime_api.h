@@ -296,12 +296,16 @@ KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldCursorReadInput(
    Returns the text length. */
 KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeWorldCursorInputDetail(char* buffer, size_t capacity);
 
-/* Optional. The local client's camera, from the same ClientPlayerInput
-   sample as the local cursor, for a caller drawing every frame. The mod
-   runtime sets the reflected layout once: component size and 9 byte offsets
-   (position x, y, z as Q32.32 int64; orientation x, y, z, w; fovY;
-   aspectRatio as float). Read writes 9 doubles (position in meters). Results
-   as KfcRuntimeWorldCursorReadInput, and 3 while no layout was set. */
+/* Optional. The local client's camera and building cursor, from the same
+   ClientPlayerInput sample as the local cursor, for a caller drawing every
+   frame. The mod runtime sets the reflected layout once: component size and
+   9 byte offsets (camera position x, y, z as Q32.32 int64; orientation x, y,
+   z, w; fovY; aspectRatio as float), or 17 offsets (then the cursor's
+   position, orientation and flags) followed by the flags' width in bytes.
+   Read writes 9 doubles (camera, position in meters) and, when count is 17
+   or more, 8 more (cursor position in meters, orientation, flags; flags -1
+   without the cursor). Results as KfcRuntimeWorldCursorReadInput, and 3
+   while no layout was set. */
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeSetLocalCameraLayout(
     size_t component_size, const uint32_t* offsets, size_t count);
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeReadLocalCamera(double* output, size_t count);
