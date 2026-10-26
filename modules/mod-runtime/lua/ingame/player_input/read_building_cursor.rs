@@ -197,6 +197,13 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
     value
         .raw_set("attachedToProp", attached)
         .map_err(|error| error.to_string())?;
+    // The local player's camera, from the same input snapshot. Left out when
+    // this game's layout has no such fields: the cursor stays readable.
+    if let Ok(camera) = reflected_local_camera(lua, state, metadata.index, &bytes) {
+        value
+            .raw_set("camera", camera)
+            .map_err(|error| error.to_string())?;
+    }
     let result = lua.create_table().map_err(|error| error.to_string())?;
     result
         .raw_set("sequence", sequence)
@@ -205,6 +212,58 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
         .raw_set("value", value)
         .map_err(|error| error.to_string())?;
     Ok(result)
+}
+
+// The camera the local player's client sends with its input
+// (data.camera, a keen::ecs::ClientCamera): position in Q32.32 integers like
+// the cursor, orientation as {x, y, z, w}, vertical field of view, aspect
+// ratio, near and far planes and orbit distance as reflected.
+fn reflected_local_camera(
+    lua: &mlua::Lua,
+    state: &AppState,
+    root: kfc::reflection::TypeIndex,
+    bytes: &[u8],
+) -> Result<mlua::Table, String> {
+    let field = |path: &str| -> Result<LuaValue, String> {
+        state
+            .inline_field(root, &format!("data.camera.{path}"))?
+            .read(lua, bytes)
+    };
+    let number = |path: &str| -> Result<f64, String> {
+        match field(path)? {
+            LuaValue::Number(value) if value.is_finite() => Ok(value),
+            LuaValue::Integer(value) => Ok(value as f64),
+            _ => Err(format!("local camera field is not a finite number: {path}")),
+        }
+    };
+    let camera = lua.create_table().map_err(|error| error.to_string())?;
+    let position = lua.create_table().map_err(|error| error.to_string())?;
+    for axis in ["x", "y", "z"] {
+        let LuaValue::Integer(value) = field(&format!("position.{axis}"))? else {
+            return Err(format!("local camera position is not an integer: {axis}"));
+        };
+        position
+            .raw_set(axis, value)
+            .map_err(|error| error.to_string())?;
+    }
+    let orientation = lua.create_table().map_err(|error| error.to_string())?;
+    for (index, axis) in ["x", "y", "z", "w"].iter().enumerate() {
+        orientation
+            .raw_set(index + 1, number(&format!("orientation.{axis}"))?)
+            .map_err(|error| error.to_string())?;
+    }
+    camera
+        .raw_set("position", position)
+        .map_err(|error| error.to_string())?;
+    camera
+        .raw_set("orientation", orientation)
+        .map_err(|error| error.to_string())?;
+    for name in ["fovY", "aspectRatio", "nearPlane", "farPlane", "distance"] {
+        camera
+            .raw_set(name, number(name)?)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(camera)
 }
 
 // Cursor snapshots expose numeric flags/enums for compatibility. The general
