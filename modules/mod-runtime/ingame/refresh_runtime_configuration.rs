@@ -76,7 +76,7 @@ pub(super) fn settings_to_apply_live(
 
 impl IngameRuntime {
     pub(super) fn refresh_configuration(&mut self) {
-        let world_editor_enabled = shroudforge_loader_config::config::read_loader(&self.root)
+        let world_editor_enabled = shroudforge_loader_config::config::read_loader_in_background(&self.root)
             .ok()
             .and_then(|config| {
                 config
@@ -118,9 +118,11 @@ impl IngameRuntime {
             }
         }
         for (id, package, applied) in &mut self.configurations {
-            let package_signature = match mod_loader::config::manifest_revision(package) {
-                Ok(signature) => signature,
-                Err(error) => {
+            // Read off the mods' loop; unknown until first read.
+            let package_signature = match self.package_revisions.revision(package) {
+                None => continue,
+                Some(Ok(signature)) => signature,
+                Some(Err(error)) => {
                     let signature = format!("read-error:{error}");
                     if self.observed.get(package) != Some(&signature) {
                         tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration read failed. Keeping applied values: {error}");

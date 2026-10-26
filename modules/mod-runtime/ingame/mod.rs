@@ -17,6 +17,7 @@ mod unload_runtime_mod;
 mod unload_runtime_packages;
 mod update_ingame_runtime;
 mod update_mod_callbacks;
+mod watch_package_revisions;
 
 #[cfg(test)]
 use refresh_runtime_configuration::settings_only_manifest_change;
@@ -44,6 +45,7 @@ pub struct IngameRuntime {
     next_status: std::time::Instant,
     configurations: Vec<(String, std::path::PathBuf, serde_json::Value)>,
     observed: std::collections::HashMap<std::path::PathBuf, String>,
+    package_revisions: watch_package_revisions::PackageRevisions,
     runner: LuaModRunner,
     lifecycle: Vec<Lifecycle>,
     processed_reload_request: Option<String>,

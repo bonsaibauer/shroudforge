@@ -12,7 +12,12 @@ impl Session {
             return;
         }
         self.next_config = Instant::now() + Duration::from_millis(500);
-        let config = match shroudforge_loader_config::config::read_loader(&self.root) {
+        let read = if self.background_io {
+            shroudforge_loader_config::config::read_loader_in_background(&self.root)
+        } else {
+            shroudforge_loader_config::config::read_loader(&self.root)
+        };
+        let config = match read {
             Ok(value) => value,
             Err(error) => {
                 if error != self.last_error {
