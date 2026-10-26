@@ -235,6 +235,8 @@ std::uint32_t scan_local_input(LocalInputState& state, const ResolvedLayout& lay
     return state.ambiguous ? 6u : state.candidate.pointer ? 1u : 4u;
 }
 
+// The sample is copied under SEH (read_bytes): the component's page is not
+// queried first, each VirtualQuery taking about 30 ms in game.
 bool sample_local_input(const LocalInputState& state, const ResolvedLayout& layout,
                         std::vector<std::uint8_t>& sample){
     std::uintptr_t pointer{}, address{}, again_address{};
@@ -242,12 +244,12 @@ bool sample_local_input(const LocalInputState& state, const ResolvedLayout& layo
     if (state.published_slot >= state.entity_count ||
         !read(state.owner.entity_table + state.published_slot * sizeof(pointer), pointer) || pointer != state.published.pointer ||
         !entity_view(pointer, layout, entity) || entity.id != state.published.id || entity.generation != state.published.generation ||
-        !component_address(entity, layout, state.component, address)) return false;
+        !component_address(entity, layout, state.component, address, false)) return false;
     std::vector<std::uint8_t> verification(sample.size());
     return read_bytes(address, sample.data(), sample.size()) &&
         read_bytes(address, verification.data(), verification.size()) && verification == sample &&
         entity_view(pointer, layout, again) && again == entity &&
-        component_address(again, layout, state.component, again_address) && again_address == address &&
+        component_address(again, layout, state.component, again_address, false) && again_address == address &&
         read(state.owner.entity_table + state.published_slot * sizeof(pointer), pointer) && pointer == entity.pointer;
 }
 }
