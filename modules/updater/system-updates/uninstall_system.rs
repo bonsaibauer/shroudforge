@@ -664,7 +664,7 @@ mod tests {
         reset_loader_settings(root.path()).unwrap();
         let settings = shroudforge_loader_config::config::read_loader(root.path()).unwrap();
 
-        assert_eq!(settings["general"]["locale"], "de");
+        assert_eq!(settings["general"]["locale"], "en-GB");
         assert_eq!(settings["paths"]["updates"], "custom-updates");
         assert_eq!(settings["modules"]["updates"]["enabled"], true);
     }
