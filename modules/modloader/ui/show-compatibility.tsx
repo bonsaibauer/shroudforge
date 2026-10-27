@@ -842,8 +842,11 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
                 <div className="dll-manager-files">
                   {candidate.dlls.map((file) => <label className="dll-manager-file" key={file.path}>
                     <input type="checkbox" checked={currentSelection.includes(file.path)} disabled={!enabled}
-                      onChange={(event) => setSelectedFiles((value) => ({ ...value, [directory]: event.currentTarget.checked ?
-                        [...currentSelection, file.path] : currentSelection.filter((path) => path !== file.path) }))} />
+                      onChange={(event) => {
+                        const checked = event.currentTarget.checked
+                        setSelectedFiles((value) => ({ ...value, [directory]: checked ?
+                          [...currentSelection, file.path] : currentSelection.filter((path) => path !== file.path) }))
+                      }} />
                     <span>{file.path}</span><small>{formatFileSize(file.size)}</small>
                   </label>)}
                 </div>
@@ -851,7 +854,10 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
                   {currentSelection.map((path, index) => <li key={path}>
                     <span>{path}</span>
                     <select value={modeFor(path)} disabled={!enabled} aria-label={t('compatibility.dllManager.modeLabel')}
-                      onChange={(event) => setModes((value) => ({ ...value, [`${directory}/${path}`]: event.currentTarget.value as DllLoadMode }))}>
+                      onChange={(event) => {
+                        const mode = event.currentTarget.value as DllLoadMode
+                        setModes((value) => ({ ...value, [`${directory}/${path}`]: mode }))
+                      }}>
                       {(['library', 'dinput8'] as const).map((mode) => <option key={mode} value={mode}>
                         {t(`compatibility.dllManager.mode.${mode}` as TranslationKey)}
                       </option>)}
@@ -864,16 +870,20 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
                 </ol>
               </>}
               <SettingsRow label={t('compatibility.dllManager.targetLabel')} control={
-                <select value={target} disabled={!enabled} onChange={(event) =>
-                  setTargets((value) => ({ ...value, [directory]: event.currentTarget.value as DllManagerProfile['target'] }))}>
+                <select value={target} disabled={!enabled} onChange={(event) => {
+                  const selectedTarget = event.currentTarget.value as DllManagerProfile['target']
+                  setTargets((value) => ({ ...value, [directory]: selectedTarget }))
+                }}>
                   {(['client', 'server', 'both'] as const).map((value) => <option key={value} value={value}>
                     {t(`compatibility.dllManager.target.${value}` as TranslationKey)}
                   </option>)}
                 </select>
               } />
               <label className="dll-manager-consent">
-                <input type="checkbox" checked={accepted} disabled={!enabled} onChange={(event) =>
-                  setApproved((value) => ({ ...value, [directory]: event.currentTarget.checked }))} />
+                <input type="checkbox" checked={accepted} disabled={!enabled} onChange={(event) => {
+                  const checked = event.currentTarget.checked
+                  setApproved((value) => ({ ...value, [directory]: checked }))
+                }} />
                 <span>{t('compatibility.dllManager.consent')}</span>
               </label>
               <p className="hint dll-manager-profile-summary">{t('compatibility.dllManager.virtualFiles')}</p>
