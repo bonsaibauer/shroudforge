@@ -21,6 +21,7 @@
   "hotkeys.empty": "没有可编辑的按键绑定。",
   "hotkeys.reservedF1": "Enshrouded 使用 F1 打开反馈窗口。此绑定也可能打开反馈窗口。",
   "hotkeys.reservedF12": "Steam 使用 F12 截图。此绑定也可能截取屏幕。",
+  "hotkeys.assessmentFailed": "无法检查此快捷键。已保留当前绑定。",
   "nav.wiki": "Wiki",
   "wiki.guide": "指南",
   "wiki.subtitle": "ShroudForge 帮助和指南，可在应用程序内获取。",

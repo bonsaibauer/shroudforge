@@ -3,15 +3,18 @@ import type React from 'react'
 
 import { SettingSwitch, SettingsRow } from '../../ui-resources/edit-setting'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
+import type { KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
 
 export function ModSetting({
   definition,
   value,
+  assessmentTarget,
   onChange,
   disabled = false,
 }: {
   definition: SettingDefinition
   value: unknown
+  assessmentTarget: KeybindAssessmentTarget
   onChange(value: unknown): void
   disabled?: boolean
 }) {
@@ -148,6 +151,7 @@ export function ModSetting({
       <KeybindInput
         value={value}
         label={definition.label}
+        assessmentTarget={assessmentTarget}
         disabled={disabled}
         onChange={onChange}
       />

@@ -6,15 +6,18 @@ import type { TranslationKey } from '../../ui-resources/i18n'
 import type { Snapshot } from '../../modloader/ui/ui-snapshot'
 import { settingIsEnabled } from '../../modloader/ui/edit-mod-setting'
 import { KeybindInput, keybindText } from './edit-keybind'
+import type { KeybindAssessmentTarget } from './edit-keybind'
 import { WikiHelp } from '../../wiki/ui/show-wiki-help'
 
 type HotkeyRow = {
   id: string
+  conflictId: string
   owner: string
   label: string
   description?: string
   binding: string
   enabled: boolean
+  assessmentTarget: KeybindAssessmentTarget
   save(binding: string): void
   reset?(): void
 }
@@ -25,10 +28,12 @@ function hotkeyRows(data: Snapshot): HotkeyRow[] {
     .filter(([, preferences]) => Object.prototype.hasOwnProperty.call(preferences, 'toggleKey'))
     .map(([module, preferences]): HotkeyRow => ({
       id: `module:${module}`,
+      conflictId: `modules.${module}.toggleKey`,
       owner: module,
       label: '',
       binding: keybindText(preferences.toggleKey),
       enabled: client && preferences.enabled !== false,
+      assessmentTarget: { scope: 'module', module },
       save: (binding) => postRequest('save-setting', {
         scope: 'module', module, key: 'toggleKey', value: binding,
       }),
@@ -44,6 +49,7 @@ function hotkeyRows(data: Snapshot): HotkeyRow[] {
     .filter((definition) => definition.control === 'keybind')
     .map((definition): HotkeyRow => ({
       id: `mod:${mod.id}:${definition.key}`,
+      conflictId: `${mod.id}.${definition.key}`,
       owner: mod.name,
       label: definition.label,
       description: definition.description,
@@ -51,6 +57,13 @@ function hotkeyRows(data: Snapshot): HotkeyRow[] {
       enabled: client && mod.enabled && mod.target !== 'server' &&
         (mod.id !== 'world-editor' || data.settings.modulePreferences?.worldEditor?.enabled !== false) &&
         settingIsEnabled(definition, mod.settings, values),
+      assessmentTarget: {
+        scope: 'mod',
+        modId: mod.id,
+        key: definition.key,
+        revision: mod.revision,
+        values,
+      },
       save: (binding) => postRequest('save-mod-settings', {
         modId: mod.id, values: { [definition.key]: binding }, revision: mod.revision,
       }),
@@ -59,17 +72,23 @@ function hotkeyRows(data: Snapshot): HotkeyRow[] {
   return [...modules, ...mods]
 }
 
-function conflictsFor(rows: HotkeyRow[], row: HotkeyRow): HotkeyRow[] {
-  const alternatives = row.binding.split('|').filter(Boolean)
-  return row.enabled && row.binding ? rows.filter((other) =>
-    other.id !== row.id && other.enabled &&
-      other.binding.split('|').some((binding) => alternatives.includes(binding)),
-  ) : []
+function conflictsFor(
+  rows: HotkeyRow[],
+  row: HotkeyRow,
+  conflicts: Snapshot['hotkeyConflicts'],
+): HotkeyRow[] {
+  const conflictIds = conflicts.flatMap((conflict) => {
+    if (conflict.firstId === row.conflictId) return [conflict.secondId]
+    if (conflict.secondId === row.conflictId) return [conflict.firstId]
+    return []
+  })
+  return rows.filter((other) =>
+    other.id !== row.id && other.enabled && conflictIds.includes(other.conflictId),
+  )
 }
 
 export function hasHotkeyConflicts(data: Snapshot): boolean {
-  const rows = hotkeyRows(data)
-  return rows.some((row) => conflictsFor(rows, row).length > 0)
+  return data.hotkeyConflicts.length > 0
 }
 
 export function Hotkeys({ data }: { data: Snapshot }) {
@@ -90,7 +109,7 @@ export function Hotkeys({ data }: { data: Snapshot }) {
         </p>}
         <div className="settings-options">
           {rows.map((row) => {
-            const conflicts = conflictsFor(rows, row)
+            const conflicts = conflictsFor(rows, row, data.hotkeyConflicts)
             const detail = [
               row.description,
               !row.enabled ? t('hotkeys.inactive') : '',
@@ -101,7 +120,13 @@ export function Hotkeys({ data }: { data: Snapshot }) {
               label={label(row)}
               detail={detail || undefined}
               rowClass={`hotkey-list-row${conflicts.length ? ' warning' : ''}`}
-              control={<KeybindInput value={row.binding} label={label(row)} onChange={row.save} onReset={row.reset} />}
+              control={<KeybindInput
+                value={row.binding}
+                label={label(row)}
+                assessmentTarget={row.assessmentTarget}
+                onChange={row.save}
+                onReset={row.reset}
+              />}
             />
           })}
         </div>

@@ -71,6 +71,7 @@ pub(crate) struct Snapshot {
     pub(crate) game_version: String,
     pub(crate) version: String,
     pub(crate) mods: Vec<ModInfo>,
+    pub(crate) hotkey_conflicts: Vec<shroudforge_package::HotkeyConflict>,
     pub(crate) activity: Vec<Activity>,
     pub(crate) notices: Vec<shroudforge_news::Notice>,
     pub(crate) news_templates: serde_json::Value,

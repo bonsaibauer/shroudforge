@@ -1,5 +1,6 @@
 use super::loader_settings_input::UiSettings;
 use super::record_ui_log::UiLogEvent;
+use shroudforge_package::HotkeyAssessmentTarget;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -40,6 +41,8 @@ pub(crate) struct UiCommand {
     pub(crate) restore_gamefiles: Option<bool>,
     #[serde(default)]
     pub(crate) reset_user_settings: Option<bool>,
+    #[serde(default)]
+    pub(crate) reset: Option<bool>,
     #[serde(default)]
     pub(crate) purge_data: Option<bool>,
     #[serde(default)]
@@ -83,6 +86,7 @@ pub(crate) enum Command {
     OpenUrl(String, String),
     SetModEnabled(String, bool, String, String),
     SaveModSettings(String, serde_json::Value, String, String),
+    AssessHotkey(HotkeyAssessmentTarget, String),
     SaveSettings(UiSettings, String),
     SaveSetting(String, Option<String>, String, serde_json::Value, String),
     BrowsePath(String, String),
@@ -144,6 +148,27 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
             ),
             _ => return None,
         },
+        "assess-hotkey" => {
+            let target = match value.scope.as_deref() {
+                Some("module") if value.key.as_deref() == Some("toggleKey") => {
+                    HotkeyAssessmentTarget::Module {
+                        module: value.module?,
+                        binding: if value.reset.unwrap_or(false) {
+                            None
+                        } else {
+                            Some(value.value)
+                        },
+                    }
+                }
+                Some("mod") => HotkeyAssessmentTarget::Mod {
+                    id: value.mod_id?,
+                    key: value.key?,
+                    values: value.values?,
+                },
+                _ => return None,
+            };
+            Command::AssessHotkey(target, value.request_id.unwrap_or_default())
+        }
         "set-mod-enabled" => match (value.mod_id, value.enabled) {
             (Some(id), Some(enabled)) => Command::SetModEnabled(
                 id,

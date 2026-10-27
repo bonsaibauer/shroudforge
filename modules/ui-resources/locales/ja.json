@@ -21,6 +21,7 @@
   "hotkeys.empty": "変更できるキー割り当てはありません。",
   "hotkeys.reservedF1": "EnshroudedではF1がフィードバック画面に使われています。この割り当てでも画面が開く場合があります。",
   "hotkeys.reservedF12": "SteamではF12がスクリーンショットに使われています。この割り当てでも撮影される場合があります。",
+  "hotkeys.assessmentFailed": "このショートカットを確認できませんでした。現在の割り当てを維持しました。",
   "nav.wiki": "メニュー",
   "wiki.guide": "ガイド",
   "wiki.subtitle": "アプリケーション内で利用可能なShroudForgeヘルプとガイド.",

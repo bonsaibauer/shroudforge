@@ -1,6 +1,7 @@
 mod apply_language_change;
 mod apply_loader_setting;
 mod apply_loader_settings;
+mod assess_hotkey_change;
 mod apply_mod_enabled;
 mod apply_mod_settings;
 mod change_notice_read_state;

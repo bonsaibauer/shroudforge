@@ -21,6 +21,7 @@
   "hotkeys.empty": "Er zijn geen aanpasbare sneltoetsen beschikbaar.",
   "hotkeys.reservedF1": "Enshrouded gebruikt F1 voor het feedbackvenster. Deze sneltoets kan dat venster ook openen.",
   "hotkeys.reservedF12": "Steam gebruikt F12 voor schermafbeeldingen. Deze sneltoets kan ook een schermafbeelding maken.",
+  "hotkeys.assessmentFailed": "Deze sneltoets kon niet worden gecontroleerd. De huidige toewijzing is behouden.",
   "nav.wiki": "Wiki",
   "wiki.guide": "GIDS",
   "wiki.subtitle": "ShroudForge hulp en handleidingen, beschikbaar in de applicatie.",

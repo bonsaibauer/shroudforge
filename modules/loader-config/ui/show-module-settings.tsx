@@ -254,6 +254,7 @@ export function ModulePreferencesEditor({
                         <KeybindInput
                           label={t(label)}
                           value={prefs[module]?.[key]}
+                          assessmentTarget={{ scope: 'module', module }}
                           onChange={(value) => change(module, key, value)}
                           onReset={() => saveModule(module, key, null)}
                         />

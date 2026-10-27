@@ -198,6 +198,13 @@ export function ModPage({
                       key={definition.key}
                       definition={definition}
                       value={values[definition.key]}
+                      assessmentTarget={{
+                        scope: 'mod',
+                        modId: mod.id,
+                        key: definition.key,
+                        revision: mod.revision,
+                        values,
+                      }}
                       disabled={!settingIsEnabled(definition, settings, values)}
                       onChange={(value) => updateSetting(definition.key, value)}
                     />

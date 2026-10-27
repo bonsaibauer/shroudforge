@@ -21,6 +21,7 @@
   "hotkeys.empty": "Det finns inga redigerbara bindningar.",
   "hotkeys.reservedF1": "Enshrouded använder F1 för sitt feedbackfönster. Den här bindningen kan också öppna feedbackfönstret.",
   "hotkeys.reservedF12": "Steam använder F12 för skärmbilder. Den här bindningen kan också ta en skärmbild.",
+  "hotkeys.assessmentFailed": "Det gick inte att kontrollera genvägen. Den nuvarande bindningen behölls.",
   "nav.wiki": "Wiki",
   "wiki.guide": "GUIDAD",
   "wiki.subtitle": "ShroudForge hjälp och guider, tillgängliga i programmet.",

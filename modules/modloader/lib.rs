@@ -6,7 +6,9 @@ mod mod_log_macros;
 use mod_log_macros as log;
 pub mod check_mod_conflicts;
 mod check_hotkey_conflicts;
-pub use check_hotkey_conflicts::validate_hotkey_configuration;
+pub use check_hotkey_conflicts::{
+    HotkeyAssessmentTarget, assess_hotkey_change, validate_hotkey_configuration,
+};
 pub use validate_mod_settings::setting_is_enabled;
 pub mod dll_manager;
 pub mod mod_profiles;

@@ -9,6 +9,65 @@ let cancelActiveRecording: (() => void) | undefined
 type InputDevice = 'keyboard' | 'mouse'
 const inputDevices: InputDevice[] = ['keyboard', 'mouse']
 
+export type KeybindAssessmentTarget =
+  | { scope: 'module'; module: string }
+  | {
+      scope: 'mod'
+      modId: string
+      key: string
+      revision: string
+      values: Record<string, unknown>
+    }
+
+type KeybindAssessment = {
+  requestId: string
+  allowed: boolean
+  confirmation?: 'F1' | 'F12' | null
+}
+
+function assessKeybind(
+  target: KeybindAssessmentTarget,
+  binding: string | null,
+): Promise<KeybindAssessment & { failed?: boolean }> {
+  return new Promise((resolve) => {
+    let requestId = ''
+    let timer: number | undefined
+    let settled = false
+    const finish = (result: KeybindAssessment & { failed?: boolean }) => {
+      if (settled) return
+      settled = true
+      if (timer !== undefined) window.clearTimeout(timer)
+      window.removeEventListener('shroudforge-hotkey-assessed', onAssessment)
+      resolve(result)
+    }
+    const onAssessment = (event: Event) => {
+      const result = (event as CustomEvent<KeybindAssessment>).detail
+      if (!result || result.requestId !== requestId) return
+      finish(result)
+    }
+    window.addEventListener('shroudforge-hotkey-assessed', onAssessment)
+    const payload = target.scope === 'module'
+      ? {
+          scope: target.scope,
+          module: target.module,
+          key: 'toggleKey',
+          value: binding,
+          reset: binding === null,
+        }
+      : {
+          scope: target.scope,
+          modId: target.modId,
+          key: target.key,
+          revision: target.revision,
+          values: { ...target.values, [target.key]: binding },
+        }
+    requestId = postRequest('assess-hotkey', payload)
+    if (!settled) {
+      timer = window.setTimeout(() => finish({ requestId, allowed: false, failed: true }), 10_000)
+    }
+  })
+}
+
 function requestKeybindLabel(value: string) {
   if (!value) return
   requestedLabels.add(value)
@@ -37,21 +96,17 @@ function replaceDeviceBinding(value: string, device: InputDevice, binding: strin
     .filter(Boolean).join('|')
 }
 
-function reservedKey(value: string): 'F1' | 'F12' | undefined {
-  const scancode = /(?:^|\+)SDL:(\d+)$/.exec(value)?.[1]
-  if (scancode === '58') return 'F1'
-  if (scancode === '69') return 'F12'
-}
-
 export function KeybindInput({
   value,
   label,
+  assessmentTarget,
   onChange,
   onReset,
   disabled = false,
 }: {
   value: unknown
   label: string
+  assessmentTarget: KeybindAssessmentTarget
   onChange(value: string): void
   onReset?(): void
   disabled?: boolean
@@ -60,6 +115,7 @@ export function KeybindInput({
   const tRef = useRef(t)
   tRef.current = t
   const [recording, setRecording] = useState<InputDevice | null>(null)
+  const [assessmentPending, setAssessmentPending] = useState(false)
   const [nativeLabels, setNativeLabels] = useState<Record<string, string>>({})
   const editor = useRef<HTMLDivElement>(null)
   const recordingRef = useRef(recording)
@@ -70,6 +126,11 @@ export function KeybindInput({
   const suppressMouseClick = useRef(false)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  const onResetRef = useRef(onReset)
+  onResetRef.current = onReset
+  const assessmentTargetRef = useRef(assessmentTarget)
+  assessmentTargetRef.current = assessmentTarget
+  const assessmentSequence = useRef(0)
   const text = keybindText(value)
   const valueRef = useRef(text)
   valueRef.current = text
@@ -80,6 +141,39 @@ export function KeybindInput({
     suppressKeyboard.current = false
     suppressMouseClick.current = false
     setRecording(null)
+  }, [])
+  const assessAndApply = useCallback(async (
+    binding: string | null,
+    apply: () => void,
+  ) => {
+    const sequence = ++assessmentSequence.current
+    setAssessmentPending(true)
+    const assessment = await assessKeybind(assessmentTargetRef.current, binding)
+    if (sequence !== assessmentSequence.current) return
+    setAssessmentPending(false)
+    if (!assessment.allowed) {
+      if (assessment.failed) {
+        logUiEvent({
+          level: 'ERROR',
+          source: 'compatibility',
+          operation: 'hotkey-assessment-failed',
+          subject: label,
+          message: tRef.current('hotkeys.assessmentFailed'),
+          notify: true,
+        })
+      }
+      return
+    }
+    if (assessment.confirmation) {
+      const warning = assessment.confirmation === 'F1'
+        ? 'hotkeys.reservedF1'
+        : 'hotkeys.reservedF12'
+      if (!window.confirm(tRef.current(warning))) return
+    }
+    apply()
+  }, [label])
+  useEffect(() => () => {
+    assessmentSequence.current += 1
   }, [])
   useEffect(() => {
     if (recording !== 'mouse') return
@@ -168,19 +262,12 @@ export function KeybindInput({
       }
       const capturedValue = detail.value
       const capturedLabel = detail.label
+      const previousValue = valueRef.current
+      const nextValue = replaceDeviceBinding(previousValue, recording, capturedValue)
       setNativeLabels((current) => ({ ...current, [capturedValue]: capturedLabel }))
-      setRecording(null)
-      onChangeRef.current(replaceDeviceBinding(valueRef.current, recording, capturedValue))
-      const reserved = reservedKey(capturedValue)
-      if (reserved) {
-        logUiEvent({
-          level: 'WARN',
-          source: 'compatibility',
-          operation: 'reserved-hotkey-selected',
-          subject: reserved,
-          message: tRef.current(reserved === 'F1' ? 'hotkeys.reservedF1' : 'hotkeys.reservedF12'),
-          notify: true,
-        })
+      cancelRecording()
+      if (nextValue !== previousValue) {
+        void assessAndApply(nextValue, () => onChangeRef.current(nextValue))
       }
     }
     window.addEventListener('shroudforge-keybind-captured', capture)
@@ -194,9 +281,13 @@ export function KeybindInput({
       if (cancelActiveRecording === cancelRecording) cancelActiveRecording = undefined
       postRequest('keybind-capture', { enabled: false, id: requestId })
     }
-  }, [recording, cancelRecording])
+  }, [recording, cancelRecording, assessAndApply])
   useEffect(() => {
-    if (disabled) cancelRecording()
+    if (disabled) {
+      assessmentSequence.current += 1
+      setAssessmentPending(false)
+      cancelRecording()
+    }
   }, [disabled, cancelRecording])
   return (
     <div
@@ -243,7 +334,7 @@ export function KeybindInput({
             type="button"
             className="button secondary keybind-input"
             data-capture-device={device}
-            disabled={disabled}
+            disabled={disabled || assessmentPending}
             aria-label={t('hotkeys.assignLabel', { action })}
             aria-pressed={active}
             title={`${t(active ? 'hotkeys.recordingHint' : 'hotkeys.assignHint')}${display ? ` (${display})` : ''}`}
@@ -271,7 +362,7 @@ export function KeybindInput({
               key="clear"
               type="button"
               className="button ghost"
-              disabled={disabled || !binding}
+              disabled={disabled || assessmentPending || !binding}
               aria-label={t('hotkeys.clearLabel', { action })}
               onClick={() => onChange(replaceDeviceBinding(text, device, ''))}
             >
@@ -284,9 +375,12 @@ export function KeybindInput({
         <button
           type="button"
           className="button ghost keybind-reset"
-          disabled={disabled}
+          disabled={disabled || assessmentPending}
           aria-label={t('hotkeys.resetLabel', { action: label })}
-          onClick={onReset}
+          onClick={() => {
+            const reset = onResetRef.current
+            if (reset) void assessAndApply(null, reset)
+          }}
         >
           {t('hotkeys.reset')}
         </button>

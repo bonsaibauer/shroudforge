@@ -21,6 +21,7 @@
   "hotkeys.empty": "Koane änderbaren Belegungen verfügbar.",
   "hotkeys.reservedF1": "Enshrouded verwendet F1 für das Feedbackfenster. Diese Belegung kann das Feedbackfenster ebenfalls öffnen.",
   "hotkeys.reservedF12": "Steam verwendet F12 für Screenshots. Diese Belegung kann zusätzlich einen Screenshot aufnehmen.",
+  "hotkeys.assessmentFailed": "Die Tastenkombination konnte nicht geprüft werden. Die bisherige Belegung bleibt erhalten.",
   "nav.wiki": "Wiki",
   "wiki.guide": "ALEITUNG",
   "wiki.subtitle": "Hüf und Aleitungen zu ShroudForge, direkt in da Anwendung.",

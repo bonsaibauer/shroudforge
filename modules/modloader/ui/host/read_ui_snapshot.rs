@@ -75,6 +75,7 @@ pub(crate) fn read_ui_snapshot(
             changelog: &item.changelog,
         })
         .collect();
+    let hotkey_conflicts = hotkey_conflicts(&central, &mods, arguments.server);
     let snapshot = Snapshot {
         diagnostics: shroudforge_runtime_diagnostics::status(&arguments.root),
         dll_candidates: shroudforge_package::dll_manager::discover_dll_candidates(&arguments.root),
@@ -98,6 +99,7 @@ pub(crate) fn read_ui_snapshot(
         version,
         notices: shroudforge_news::read_notifications(&arguments.root, &notification_mods),
         mods,
+        hotkey_conflicts,
         activity: read_activity(&arguments.root).unwrap_or_default(),
         news_templates: shroudforge_news::read(&arguments.root)
             .ok()
@@ -167,12 +169,68 @@ pub(crate) fn read_ui_snapshot(
             .lock()
             .map(|value| value.clone())
             .unwrap_or_else(|_| default_catalog_state()),
-        locale: load_user_config(&arguments.root)
-            .locale
-            .filter(|locale| is_valid_locale(locale))
-            .unwrap_or_else(|| "en-GB".into()),
+        locale,
     };
     (snapshot, resolved_username)
+}
+
+fn hotkey_conflicts(
+    central: &serde_json::Value,
+    mods: &[ModInfo],
+    server: bool,
+) -> Vec<shroudforge_package::HotkeyConflict> {
+    if server {
+        return Vec::new();
+    }
+    let mut bindings = Vec::new();
+    if let Some(modules) = central.get("modules").and_then(serde_json::Value::as_object) {
+        for (id, module) in modules {
+            if module.get("enabled").and_then(serde_json::Value::as_bool) == Some(false) {
+                continue;
+            }
+            if let Some(binding) = module
+                .get("toggleKey")
+                .and_then(|value| shroudforge_hotkeys::parse_value(value).ok().flatten())
+            {
+                bindings.push((format!("modules.{id}.toggleKey"), binding));
+            }
+        }
+    }
+    for item in mods {
+        if !item.enabled
+            || item.target == "server"
+            || (item.id == "world-editor"
+                && central
+                    .pointer("/modules/worldEditor/enabled")
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(false))
+        {
+            continue;
+        }
+        let definitions: Vec<shroudforge_package::SettingDefinition> =
+            serde_json::from_value(serde_json::Value::Array(item.settings.clone()))
+                .unwrap_or_default();
+        for setting in &definitions {
+            if !matches!(
+                setting.control,
+                Some(shroudforge_package::SettingControl::Keybind)
+            ) || !shroudforge_package::setting_is_enabled(
+                &setting.key,
+                &definitions,
+                &item.setting_values,
+            ) {
+                continue;
+            }
+            if let Some(binding) = item
+                .setting_values
+                .get(&setting.key)
+                .and_then(|value| shroudforge_hotkeys::parse_value(value).ok().flatten())
+            {
+                bindings.push((format!("{}.{}", item.id, setting.key), binding));
+            }
+        }
+    }
+    shroudforge_package::find_hotkey_conflicts(&bindings)
 }
 
 fn read_update_queue(root: &std::path::Path) -> serde_json::Value {

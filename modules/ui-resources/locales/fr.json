@@ -21,6 +21,7 @@
   "hotkeys.empty": "Aucun raccourci modifiable n’est disponible.",
   "hotkeys.reservedF1": "Enshrouded utilise F1 pour sa fenêtre de commentaires. Ce raccourci peut aussi ouvrir cette fenêtre.",
   "hotkeys.reservedF12": "Steam utilise F12 pour les captures d’écran. Ce raccourci peut aussi prendre une capture.",
+  "hotkeys.assessmentFailed": "Impossible de vérifier ce raccourci. L’attribution actuelle a été conservée.",
   "nav.wiki": "Wiki",
   "wiki.guide": "GUIDE",
   "wiki.subtitle": "Aide et guides ShroudForge, disponibles dans l’application.",

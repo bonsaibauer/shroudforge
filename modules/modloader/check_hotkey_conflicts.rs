@@ -4,6 +4,18 @@ use serde_json::Value;
 use shroudforge_hotkeys::Hotkey;
 use std::{fs, path::Path};
 
+pub enum HotkeyAssessmentTarget {
+    Module {
+        module: String,
+        binding: Value,
+    },
+    Mod {
+        id: String,
+        key: String,
+        values: Value,
+    },
+}
+
 struct ConfiguredBinding {
     id: String,
     binding: Hotkey,
@@ -150,4 +162,41 @@ pub fn validate_hotkey_configuration(
         }
     }
     Ok(())
+}
+
+/// Check a proposed keybind before the UI asks for confirmation or saves it.
+/// The save path runs `validate_hotkey_configuration` again before writing.
+pub fn assess_hotkey_change(
+    root: &Path,
+    target: &HotkeyAssessmentTarget,
+) -> Result<(), String> {
+    match target {
+        HotkeyAssessmentTarget::Module { module, binding } => {
+            let mut config = crate::config::read_loader(root)?;
+            let module_settings = config
+                .get_mut("modules")
+                .and_then(Value::as_object_mut)
+                .and_then(|modules| modules.get_mut(module))
+                .and_then(Value::as_object_mut)
+                .ok_or("module settings were not found")?;
+            module_settings.insert("toggleKey".into(), binding.clone());
+            validate_hotkey_configuration(root, &config, None)
+        }
+        HotkeyAssessmentTarget::Mod { id, key, values } => {
+            let package = crate::package_lookup::find_mod_package(root, id)
+                .ok_or("mod package not found")?;
+            let manifest = crate::config::read_manifest_path(root, &package)?;
+            if !manifest.settings.iter().any(|setting| {
+                setting.key == *key
+                    && matches!(setting.control, Some(SettingControl::Keybind))
+            }) {
+                return Err(format!("'{key}' is not a declared keybind setting"));
+            }
+            let proposed = values
+                .get(key)
+                .ok_or_else(|| format!("Missing hotkey setting '{}.{key}'", id))?;
+            let config = crate::config::read_loader(root)?;
+            validate_hotkey_configuration(root, &config, Some((id, values, None)))
+        }
+    }
 }
