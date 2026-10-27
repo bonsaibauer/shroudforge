@@ -419,7 +419,7 @@
   "news.notice.multiplayerSupport.title": "Multiplayer-Unterstützung für alle ShroudForge-Mods",
   "news.notice.multiplayerSupport.message": "Alle fünf aktuell mit ShroudForge mitgelieferten Mods unterstützen Multiplayer. Die Serverguides erklären die Einrichtung.",
   "news.notice.multiplayerSupport.bannerAlt": "Multiplayer-Unterstützung für alle ShroudForge-Mods: SF Crafting Essentials, SF Survival, SF Unlimited Flight, SF Unlock Blueprints und World Editor.",
-  "news.notice.creativeMode.title": "Multi DLL Manager",
+  "news.notice.creativeMode.title": "Multi DLL Manager: Creative Mode einfach nutzen",
   "news.notice.creativeMode.message": "Creative Mode von Phoenix1355 wird automatisch erkannt, sobald du seinen Modordner in den ShroudForge-Ordner /mods legst. Für Creative Mode brauchst du keine dinput8.dll. Bei anderen Mods, zum Beispiel EML-Mods, die eine DLL zum Starten benötigen, ist es am besten, die dinput8.dll oder die benötigte DLL direkt im jeweiligen Mod-Unterordner abzulegen, zum Beispiel unter /mods/Modname/dinput8.dll. In der DLL-Verwaltung kannst du Profile und Ladeziele auswählen, die Ladereihenfolge festlegen, manuelle DLLs freigeben, Dateinamen ausschließen und den Ladestatus prüfen. Viel Spaß mit Creative Mode!",
   "news.notice.configuration.message": "Jede Mod beginnt mit mod.json: Name, Version, Autor:innen, Abhängigkeiten und die Funktionen, die sie braucht. ShroudForge-spezifische Schalter, Einstellungen, Buttons und Links stehen in der optionalen extended.mod.json. Der Modloader kann diese Einstellungen für Spieler:innen anzeigen, und dein Lua-Code kann sie über die ShroudForge-API auslesen. Du musst nicht gleich jedes Feld kennen. Starte mit der funktionierenden Hello-Ember-Vorlage und lies in der extended.mod.json-Anleitung nach, wie Einstellungen definiert und im Modloader angezeigt werden.",
   "news.notice.discord.title": "Frage, Idee oder neugierig, {username}? 💬",
@@ -782,7 +782,6 @@
   "updater.checking": "Suche nach Updates …",
   "updater.complete": "Update abgeschlossen",
   "updater.completeDetail": "ShroudForge wurde erfolgreich aktualisiert.",
-  "updater.current": "ShroudForge ist auf dem aktuellen Stand.",
   "updater.downloading": "Update wird heruntergeladen …",
   "updater.extracting": "Update-Dateien werden vorbereitet …",
   "updater.failed": "Update fehlgeschlagen",
@@ -848,5 +847,6 @@
   "updater.updateNow": "Jetzt aktualisieren",
   "updater.required": "Pflichtupdate",
   "updater.verifying": "Download wird verifiziert …",
-  "updater.waiting": "Das Update wird installiert, sobald Enshrouded beendet ist."
+  "updater.waiting": "Das Update wird installiert, sobald Enshrouded beendet ist.",
+  "updater.current": "ShroudForge ist auf dem aktuellen Stand."
 }
