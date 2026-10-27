@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Volo illimitato",
-      "description": "Permette di inclinare l’aliante verso l’alto senza consumare stamina."
+      "label": "Planata verso l’alto",
+      "description": "Permette di inclinare l’aliante verso l’alto. La stamina dell’aliante continua a diminuire normalmente."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Stamina illimitata dell’aliante",
+      "description": "Impedisce il consumo di stamina durante la planata."
     },
     "turnSpeed": {
       "label": "Velocità di svolta",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Aggiunge controlli per il volo verso l’alto, la resistenza, la virata, l’avanzamento, la portanza e la discesa. Quando la mod viene disattivata, ripristina i valori originali del gioco."
+    "Separa la planata verso l’alto dalla stamina illimitata dell’aliante. Quando la mod viene disattivata, ripristina i valori originali del gioco."
   ],
   "strings": {}
 }

@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Vol illimité",
-      "description": "Permet d’incliner le planeur vers le haut sans consommer d’endurance."
+      "label": "Vol ascendant",
+      "description": "Permet d’orienter le planeur vers le haut. L’endurance du planeur continue de diminuer normalement."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Endurance illimitée du planeur",
+      "description": "Empêche la consommation d’endurance pendant le vol en planeur."
     },
     "turnSpeed": {
       "label": "Vitesse de rotation",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Ajoute des commandes pour le vol ascendant, l’endurance, la rotation, l’accélération vers l’avant, la portance et la descente. Les valeurs d’origine du jeu sont rétablies à la désactivation du mod."
+    "Sépare le vol ascendant de l’endurance illimitée du planeur. Les valeurs d’origine du jeu sont rétablies à la désactivation du mod."
   ],
   "strings": {}
 }

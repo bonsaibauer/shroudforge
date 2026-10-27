@@ -12,13 +12,19 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
-    "Adds controls for upward gliding, stamina, turning, forward movement, lift and descent. Restores original game values when the mod is disabled."
+    "Separates upward gliding from unlimited glider stamina. Restores original game values when the mod is disabled."
   ],
   "settings": {
     "unlimitedFlying": {
       "value": true,
-      "label": "Unlimited Flying",
-      "description": "Allows the glider to tilt upward without using stamina.",
+      "label": "Upward Gliding",
+      "description": "Allows the glider to tilt upward while glider stamina depletes normally.",
+      "control": "checkbox"
+    },
+    "unlimitedGliderStamina": {
+      "value": false,
+      "label": "Unlimited Glider Stamina",
+      "description": "Prevents stamina drain while gliding.",
       "control": "checkbox"
     },
     "turnSpeed": {
@@ -64,6 +70,7 @@
       "description": "Speed changes affect the active glider and every player using the same glider type.",
       "settings": [
         "unlimitedFlying",
+        "unlimitedGliderStamina",
         "turnSpeed",
         "moveSpeed",
         "liftSpeed",

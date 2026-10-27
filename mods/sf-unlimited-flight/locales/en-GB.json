@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Unlimited Flying",
-      "description": "Allows the glider to tilt upward without using stamina."
+      "label": "Upward Gliding",
+      "description": "Allows the glider to tilt upward while glider stamina depletes normally."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Unlimited Glider Stamina",
+      "description": "Prevents stamina drain while gliding."
     },
     "turnSpeed": {
       "label": "Turn Speed",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Adds controls for upward gliding, stamina, turning, forward movement, lift and descent. Restores original game values when the mod is disabled."
+    "Separates upward gliding from unlimited glider stamina. Restores original game values when the mod is disabled."
   ],
   "strings": {}
 }

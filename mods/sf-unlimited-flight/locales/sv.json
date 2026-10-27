@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Obegränsad flygning",
-      "description": "Låter segelflygplanet luta uppåt utan att förbruka uthållighet."
+      "label": "Stig med segelflygaren",
+      "description": "Låter dig styra segelflygplanet uppåt. Segelflygets uthållighet förbrukas som vanligt."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Obegränsad uthållighet för segelflyg",
+      "description": "Förhindrar att uthållighet förbrukas under glidflygning."
     },
     "turnSpeed": {
       "label": "Svänghastighet",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Lägger till kontroller för uppåtflygning, uthållighet, svängning, rörelse framåt, lyft och nedstigning. Spelets ursprungliga värden återställs när modden stängs av."
+    "Separerar uppåtflygning från obegränsad uthållighet för segelflyg. Spelets ursprungliga värden återställs när modden stängs av."
   ],
   "strings": {}
 }

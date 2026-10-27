@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Nieograniczone latanie",
-      "description": "Umożliwia przechylenie szybowca w górę bez zużywania wytrzymałości."
+      "label": "Wznoszenie szybowcem",
+      "description": "Umożliwia skierowanie szybowca w górę. Wytrzymałość szybowca nadal zużywa się normalnie."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Nieograniczona wytrzymałość szybowca",
+      "description": "Zapobiega zużywaniu wytrzymałości podczas szybowania."
     },
     "turnSpeed": {
       "label": "Prędkość skrętu",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Dodaje ustawienia wznoszenia, wytrzymałości, skrętu, przyspieszenia do przodu, unoszenia i opadania. Po wyłączeniu moda przywraca pierwotne wartości gry."
+    "Oddziela wznoszenie szybowcem od nieograniczonej wytrzymałości szybowca. Po wyłączeniu moda przywraca pierwotne wartości gry."
   ],
   "strings": {}
 }

@@ -26,7 +26,7 @@ local function finite(value)
 end
 
 local function setting_enabled(key)
-    if key == "unlimitedFlying" then
+    if key == "unlimitedFlying" or key == "unlimitedGliderStamina" then
         return shroudforge.settings.get(key, false) == true
     end
     local value = shroudforge.settings.get(key, 100)
@@ -41,7 +41,7 @@ local function multiplier(key)
 end
 
 local function has_effect()
-    if setting_enabled("unlimitedFlying") then return true end
+    if setting_enabled("unlimitedFlying") or setting_enabled("unlimitedGliderStamina") then return true end
     for _, field in ipairs(glider_fields) do
         if setting_enabled(field.setting) then return true end
     end
@@ -235,10 +235,10 @@ local function update(delta_seconds)
 
     local pitch_detail = ""
     for _, entity in ipairs(players) do
-        if setting_enabled("unlimitedFlying") then
+        if setting_enabled("unlimitedGliderStamina") then
             local target, failure = runtime.overrides.attribute(entity, "StaminaDepletionMod_Glider")
             if target then
-                overrides:apply(target.key, "unlimitedFlying", target, function() return 0 end)
+                overrides:apply(target.key, "unlimitedGliderStamina", target, function() return 0 end)
             else overrides:waiting("Glider stamina: " .. tostring(failure)) end
         end
 

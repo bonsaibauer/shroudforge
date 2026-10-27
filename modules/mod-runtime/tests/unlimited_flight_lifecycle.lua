@@ -342,6 +342,7 @@ do
     f:tick()
     equal(f.writes, 0, "defaults do not modify original inputs")
     f.settings.unlimitedFlying = true
+    f.settings.unlimitedGliderStamina = true
     f.settings.turnSpeed = 200
     f.settings.moveSpeed = 150
     f.settings.liftSpeed = 200
@@ -403,6 +404,7 @@ do
     local f = fixture()
     f.players = {11}
     f.settings.unlimitedFlying = true
+    f.settings.unlimitedGliderStamina = true
     f.settings.turnSpeed = 200
     f.active_item = f.item_id
     f:tick()

@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Onbeperkt vliegen",
-      "description": "Laat het zweefvliegtuig omhoog kantelen zonder uithoudingsvermogen te verbruiken."
+      "label": "Omhoog zweven",
+      "description": "Laat je het zweefvliegtuig omhoog sturen. Het uithoudingsvermogen blijft normaal afnemen."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Onbeperkte zweefstamina",
+      "description": "Voorkomt dat stamina tijdens het zweven wordt verbruikt."
     },
     "turnSpeed": {
       "label": "Draaisnelheid",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Voegt bediening toe voor omhoog vliegen, uithoudingsvermogen, draaien, voorwaarts bewegen, stijgen en dalen. Bij uitschakelen van de mod worden de oorspronkelijke spelwaarden hersteld."
+    "Scheidt omhoog zweven van onbeperkte zweefstamina. Bij uitschakelen van de mod worden de oorspronkelijke spelwaarden hersteld."
   ],
   "strings": {}
 }

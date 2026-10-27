@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Unbegrenztes Fliegen",
-      "description": "Ermöglicht dem Gleiter, ohne Ausdauerverbrauch nach oben zu neigen."
+      "label": "Aufwärtsflug",
+      "description": "Ermöglicht das Neigen des Gleiters nach oben. Die Ausdauer wird weiterhin normal verbraucht."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Unbegrenzte Gleiter-Ausdauer",
+      "description": "Verhindert den Ausdauerverbrauch beim Gleiten."
     },
     "turnSpeed": {
       "label": "Drehgeschwindigkeit",
@@ -33,6 +37,6 @@
     }
   ],
   "changelog": [
-    "Ergänzt Einstellungen für Aufwärtsflug, Ausdauer, Drehen, Vorwärtsbewegung, Auftrieb und Sinken. Beim Deaktivieren der Mod werden die ursprünglichen Spielwerte wiederhergestellt."
+    "Trennt Aufwärtsflug und unbegrenzte Gleiter-Ausdauer. Beim Deaktivieren der Mod werden die ursprünglichen Spielwerte wiederhergestellt."
   ]
 }

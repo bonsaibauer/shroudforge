@@ -1,17 +1,19 @@
 # SF Unlimited Flight
 
 Independent runtime mod using the public ShroudForge API. It has no dependency
-on SF Survival or another mod. Settings default to off and 100 percent.
+on SF Survival or another mod. The mod itself is disabled by default. When
+enabled, upward gliding starts on, unlimited glider stamina starts off, and the
+speed multipliers start at 100 percent.
 Runtime updates run every 100 ms to reduce repeated ECS and resource access.
 Steering inputs and landing are sampled at that interval. The pitch guard still
 uses the measured elapsed time, and restoration uses the same checked writers.
 
-`Unlimited Flying` controls the original glider pitch-rate input and sets the
-glider-specific stamina depletion modifier to zero. The active actor action
-selects its actual loaded `ItemInfo`. Rotation and movement remain in the
-original game systems. The four percentage sliders multiply the glider's
-original yaw rate, forward acceleration and air resistance coefficients. Higher
-lift or descend resistance increases drag.
+`Upward Gliding` controls the original glider pitch-rate input. The separate
+`Unlimited Glider Stamina` setting sets the glider-specific stamina depletion
+modifier to zero. The active actor action selects its actual loaded `ItemInfo`.
+Rotation and movement remain in the original game systems. The four percentage
+sliders multiply the glider's original yaw rate, forward acceleration and air
+resistance coefficients. Higher lift or descend resistance increases drag.
 
 Upward steering currently supports `YawSpeedPitchSpeed` controls with one player
 in the authoritative world. Negative input uses a signed native pitch rate,

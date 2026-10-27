@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "Vuelo ilimitado",
-      "description": "Permite inclinar el planeador hacia arriba sin gastar resistencia."
+      "label": "Vuelo ascendente",
+      "description": "Permite dirigir el planeador hacia arriba. La resistencia del planeador sigue agotándose con normalidad."
+    },
+    "unlimitedGliderStamina": {
+      "label": "Resistencia ilimitada del planeador",
+      "description": "Evita que se consuma resistencia al planear."
     },
     "turnSpeed": {
       "label": "Velocidad de giro",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "Añade controles para el vuelo ascendente, la resistencia, el giro, el avance, la sustentación y el descenso. Al desactivar el mod, restaura los valores originales del juego."
+    "Separa el vuelo ascendente de la resistencia ilimitada del planeador. Al desactivar el mod, restaura los valores originales del juego."
   ],
   "strings": {}
 }

@@ -6,8 +6,12 @@
   },
   "settings": {
     "unlimitedFlying": {
-      "label": "无限飞行",
-      "description": "允许滑翔机向上倾斜而不消耗耐力。"
+      "label": "滑翔上升",
+      "description": "允许将滑翔机机头上仰。滑翔时仍会正常消耗耐力。"
+    },
+    "unlimitedGliderStamina": {
+      "label": "滑翔耐力无限",
+      "description": "滑翔时不会消耗耐力。"
     },
     "turnSpeed": {
       "label": "转弯速度",
@@ -33,7 +37,7 @@
     }
   ],
   "changelog": [
-    "新增上升飞行、耐力、转向、前进、升力和下降控制。停用模组时会恢复游戏原有数值。"
+    "将滑翔上升与滑翔耐力无限分开设置。停用模组时会恢复游戏原有数值。"
   ],
   "strings": {}
 }
