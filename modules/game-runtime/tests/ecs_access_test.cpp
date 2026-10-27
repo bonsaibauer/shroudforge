@@ -42,12 +42,13 @@ SIZE_T WINAPI counted_ecs_virtual_query(LPCVOID address, PMEMORY_BASIC_INFORMATI
 #undef VirtualQuery
 #include <cstdio>
 #include <cstdlib>
+#include <source_location>
 
 namespace {
 unsigned checks{};
-void check(bool value) {
+void check(bool value, const std::source_location location = std::source_location::current()) {
     ++checks;
-    if (!value) { std::fprintf(stderr, "ECS read check %u failed\n", checks); std::exit(1); }
+    if (!value) { std::fprintf(stderr, "ECS read check %u failed at line %u\n", checks, location.line()); std::exit(1); }
 }
 template<class T> void put(void* bytes, std::size_t offset, const T& value) {
     std::memcpy(static_cast<unsigned char*>(bytes) + offset, &value, sizeof(value));
@@ -122,10 +123,11 @@ OwnerObject root_object;
 std::uintptr_t root_virtuals[1]{}, client_virtuals[1]{}, controller_virtuals[1]{};
 alignas(8) unsigned char descriptor[0x90]{};
 const char component_name[] = "keen::ecs::FixtureComponent";
-alignas(8) unsigned char editor_descriptors[3][0x90]{};
+alignas(8) unsigned char editor_descriptors[4][0x90]{};
 const char input_component_name[] = "keen::ecs::ClientPlayerInput";
 const char used_item_component_name[] = "keen::ecs::UsedItem";
 const char transform_component_name[] = "keen::ecs::CurrentTransform";
+const char local_marker_component_name[] = "keen::ecs::ClientCycleInventoryStock";
 }
 
 int main() {
@@ -780,34 +782,37 @@ int main() {
     // Editor reads use the original owner binding even without a dispatcher.
     // Client input deliberately belongs to a different manager and entity.
     struct EditorLayout {
-        std::uint64_t bits{7};
-        std::uint16_t offsets[3]{}, strides[3]{4,64,56};
+        std::uint64_t bits{15};
+        std::uint16_t offsets[4]{}, strides[4]{4,64,56,8};
     } editor_layout;
     struct EditorTransform {
         std::int64_t position[3]{1ll<<32,2ll<<32,3ll<<32};
         float rotation[4]{0,0,0,1}, scale[3]{1,1,1};
         std::uint32_t padding{};
     };
-    struct EditorStorage { std::uint32_t item{42}; std::uint8_t input[64]{}; EditorTransform transform; } editor_storage, input_storage;
+    struct EditorStorage { std::uint32_t item{42}; std::uint8_t input[64]{}; EditorTransform transform; std::uint8_t stock[8]{}; };
+    EditorStorage editor_storage, input_storage, second_input_storage;
     std::fill(std::begin(editor_storage.input), std::end(editor_storage.input), std::uint8_t{0x6b});
     std::fill(std::begin(input_storage.input), std::end(input_storage.input), std::uint8_t{0x2a});
+    input_storage.stock[0] = 1;
     editor_layout.offsets[0] = offsetof(EditorStorage,item);
     editor_layout.offsets[1] = offsetof(EditorStorage,input);
     editor_layout.offsets[2] = offsetof(EditorStorage,transform);
+    editor_layout.offsets[3] = offsetof(EditorStorage,stock);
     entity.layout = reinterpret_cast<std::uintptr_t>(&editor_layout);
     entity.storage = reinterpret_cast<std::uintptr_t>(&editor_storage);
     Entity input_entity = entity;
     input_entity.id = 23;
     input_entity.storage = reinterpret_cast<std::uintptr_t>(&input_storage);
-    std::uintptr_t client_table[4]{reinterpret_cast<std::uintptr_t>(&input_entity)};
+    std::uintptr_t client_table[40]{reinterpret_cast<std::uintptr_t>(&input_entity)};
     put(execution.manager,392,reinterpret_cast<std::uintptr_t>(client_table));
-    const char* editor_names[]{used_item_component_name,input_component_name,transform_component_name};
-    std::uint32_t editor_sizes[]{4,64,56};
-    unsigned char editor_registration[3 * 256]{};
-    std::uint16_t editor_storage_sizes[]{4,64,56};
-    std::uintptr_t editor_types[3]{};
-    std::uint64_t editor_callbacks[15]{};
-    for (std::size_t index = 0; index < 3; ++index) {
+    const char* editor_names[]{used_item_component_name,input_component_name,transform_component_name,local_marker_component_name};
+    std::uint32_t editor_sizes[]{4,64,56,8};
+    unsigned char editor_registration[4 * 256]{};
+    std::uint16_t editor_storage_sizes[]{4,64,56,8};
+    std::uintptr_t editor_types[4]{};
+    std::uint64_t editor_callbacks[20]{};
+    for (std::size_t index = 0; index < 4; ++index) {
         const auto descriptor_address = reinterpret_cast<std::uintptr_t>(editor_descriptors[index]);
         const auto name_address = reinterpret_cast<std::uintptr_t>(editor_names[index]);
         const auto name_size = std::strlen(editor_names[index]);
@@ -826,17 +831,18 @@ int main() {
     }
     for (auto* owner_registry : {execution.registry,authority_execution.registry}) {
         put(owner_registry,8,reinterpret_cast<std::uintptr_t>(editor_registration));
-        put(owner_registry,16,std::uint64_t{3}); put(owner_registry,24,std::uint64_t{3});
-        put(owner_registry,232,reinterpret_cast<std::uintptr_t>(editor_storage_sizes)); put(owner_registry,240,std::uint64_t{3});
-        put(owner_registry,256,reinterpret_cast<std::uintptr_t>(editor_types)); put(owner_registry,264,std::uint64_t{3});
-        put(owner_registry,280,reinterpret_cast<std::uintptr_t>(editor_callbacks)); put(owner_registry,288,std::uint64_t{3});
+        put(owner_registry,16,std::uint64_t{4}); put(owner_registry,24,std::uint64_t{4});
+        put(owner_registry,232,reinterpret_cast<std::uintptr_t>(editor_storage_sizes)); put(owner_registry,240,std::uint64_t{4});
+        put(owner_registry,256,reinterpret_cast<std::uintptr_t>(editor_types)); put(owner_registry,264,std::uint64_t{4});
+        put(owner_registry,280,reinterpret_cast<std::uintptr_t>(editor_callbacks)); put(owner_registry,288,std::uint64_t{4});
         put(owner_registry,400,std::uint64_t{0}); put(owner_registry,560,std::uint64_t{0});
     }
     profile["ecsReadLayout"]["componentBits"] = offsetof(EditorLayout,bits);
     profile["ecsReadLayout"]["componentOffsets"] = offsetof(EditorLayout,offsets);
     profile["ecsReadLayout"]["componentStrides"] = offsetof(EditorLayout,strides);
+    profile["ecsReadLayout"]["maximumEntities"] = 40;
     check(EngineContext::Configure(profile,error));
-    check(KfcRuntimeEcsConfigure(editor_names,editor_sizes,3));
+    check(KfcRuntimeEcsConfigure(editor_names,editor_sizes,4));
     EcsRuntime::Tick();
     check(read_only_binding && !GameThreadDispatcher::Ready() && KfcRuntimeEcsPropQueryReady());
     KfcRuntimePropRecipe recipe{42,{-.5f,-.5f,-.5f,.5f,.5f,.5f},7};
@@ -897,6 +903,12 @@ int main() {
     check(!KfcRuntimeWorldCursorRead(legacy_cursor.data(),legacy_cursor.size(),&input_sequence));
     const auto untouched_input=input_bytes;
     const auto untouched_sequence=input_sequence;
+    const auto read_input_until_done=[&](std::uint64_t session){
+        std::uint32_t status=5;
+        for (unsigned attempt=0; attempt<20 && status==5; ++attempt)
+            status=KfcRuntimeWorldCursorReadInput(input_bytes.size(),session,input_bytes.data(),input_bytes.size(),&input_sequence);
+        return status;
+    };
     check(KfcRuntimeWorldCursorReadInput(input_bytes.size(),editor_session+1,input_bytes.data(),input_bytes.size(),&input_sequence)==4);
     check(input_bytes==untouched_input && input_sequence==untouched_sequence);
     check(KfcRuntimeWorldCursorReadInput(input_bytes.size(),editor_session,input_bytes.data(),0,&input_sequence)==2);
@@ -908,26 +920,52 @@ int main() {
     check(!KfcRuntimeWorldEntityGetTransform(editor_prop.entity_handle,&editor_observed));
     Entity second_input = input_entity;
     second_input.id = 24;
+    second_input.storage = reinterpret_cast<std::uintptr_t>(&second_input_storage);
     client_table[1]=reinterpret_cast<std::uintptr_t>(&second_input);
     std::uintptr_t next_authority_table[4]{reinterpret_cast<std::uintptr_t>(&entity)};
     put(authority_execution.manager,392,reinterpret_cast<std::uintptr_t>(next_authority_table));
     EcsRuntime::Tick();
+    const auto selected_session=KfcRuntimeWorldSessionId();
+    check(selected_session && selected_session!=editor_session);
+    const auto selected_status=read_input_until_done(selected_session);
+    if (selected_status!=1) {
+        char detail[512]{};
+        KfcRuntimeWorldCursorInputDetail(detail,sizeof(detail));
+        std::fprintf(stderr,"Local cursor selection status %u: %s\n",selected_status,detail);
+    }
+    check(selected_status==1);
+    check(input_bytes==untouched_input && input_sequence>untouched_sequence);
+    const auto selected_sequence=input_sequence;
+    second_input_storage.stock[0] = 1;
+    put(authority_execution.manager,392,table_pointer);
+    EcsRuntime::Tick();
     const auto ambiguous_session=KfcRuntimeWorldSessionId();
-    check(ambiguous_session && ambiguous_session!=editor_session);
-    check(KfcRuntimeWorldCursorReadInput(input_bytes.size(),ambiguous_session,input_bytes.data(),input_bytes.size(),&input_sequence)==6);
-    check(input_bytes==untouched_input && input_sequence==untouched_sequence);
+    check(ambiguous_session && ambiguous_session!=selected_session);
+    check(read_input_until_done(ambiguous_session)==6);
+    check(input_bytes==untouched_input && input_sequence==selected_sequence);
     // An unreadable occupied candidate cannot be treated as an absent type.
     client_table[1]=1;
-    put(authority_execution.manager,392,table_pointer);
+    put(authority_execution.manager,392,reinterpret_cast<std::uintptr_t>(next_authority_table));
     EcsRuntime::Tick();
     const auto unreadable_session=KfcRuntimeWorldSessionId();
     check(KfcRuntimeWorldCursorReadInput(input_bytes.size(),unreadable_session,input_bytes.data(),input_bytes.size(),&input_sequence)==5);
-    check(input_bytes==untouched_input && input_sequence==untouched_sequence);
+    check(input_bytes==untouched_input && input_sequence==selected_sequence);
     client_table[1]=0;
     check(KfcRuntimeWorldCursorReadInput(input_bytes.size(),unreadable_session,input_bytes.data(),input_bytes.size(),&input_sequence)==1);
     client_table[0]=0;
     const auto stale_input_sequence=input_sequence;
     check(KfcRuntimeWorldCursorReadInput(input_bytes.size(),unreadable_session,input_bytes.data(),input_bytes.size(),&input_sequence)==5);
+    check(input_bytes==untouched_input && input_sequence==stale_input_sequence);
+    std::array<Entity,33> overflow_entities{};
+    std::array<EditorStorage,33> overflow_storage{};
+    for (std::size_t index = 0; index < overflow_entities.size(); ++index) {
+        overflow_entities[index] = input_entity;
+        overflow_entities[index].id = static_cast<std::uint32_t>(100 + index);
+        overflow_entities[index].storage = reinterpret_cast<std::uintptr_t>(&overflow_storage[index]);
+        client_table[index] = reinterpret_cast<std::uintptr_t>(&overflow_entities[index]);
+    }
+    put(execution.manager,344,std::uint64_t{34});
+    check(read_input_until_done(unreadable_session)==6);
     check(input_bytes==untouched_input && input_sequence==stale_input_sequence);
     using WorldRuntime::Implementation::WriteRegion;
     using WorldRuntime::Implementation::plan_write_region;
