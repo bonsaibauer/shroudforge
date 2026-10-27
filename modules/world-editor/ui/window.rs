@@ -125,9 +125,11 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
         "worldEditor",
         module_enabled && window_visible,
     );
-    let mut last_toggle_press_revision = toggle_key
+    let initial_toggle_press_revision = toggle_key
         .as_ref()
         .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
+    let mut toggle_debouncer =
+        shroudforge_hotkeys::WindowToggleDebouncer::new(initial_toggle_press_revision);
     let mut next_visibility_poll = Instant::now();
     let mut next_settings_poll = Instant::now();
     // Keep disk enumeration and thumbnail reads off the window thread.
@@ -276,9 +278,10 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                         if let Ok(next_key) = shroudforge_hotkeys::parse_value(&config["modules"]["worldEditor"]["toggleKey"]) {
                             if next_key != toggle_key {
                                 toggle_key = next_key;
-                                last_toggle_press_revision = toggle_key
+                                let current_press_revision = toggle_key
                                     .as_ref()
                                     .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
+                                toggle_debouncer.reset(current_press_revision);
                             }
                         }
                         let next_enabled = config["modules"]["worldEditor"]["enabled"] != false;
@@ -318,25 +321,26 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                 let toggle_press_revision = toggle_key
                     .as_ref()
                     .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
-                let toggle_pressed = toggle_press_revision > last_toggle_press_revision;
-                if module_enabled && (is_game || is_overlay) && !shroudforge_hotkeys::is_capture_active() {
+                if toggle_debouncer.should_toggle(toggle_press_revision, || {
+                    module_enabled
+                        && (is_game || is_overlay)
+                        && !shroudforge_hotkeys::is_capture_active()
+                }) {
                     let was_visible = window_visible;
-                    if toggle_pressed {
-                        window_visible = !window_visible;
-                        if window_visible {
-                            let height = if manager_open {
-                                560.0
-                            } else if library_expanded {
-                                library_expanded_height as f64
-                            } else {
-                                panel_height as f64
-                            };
-                            set_fixed_size(&window, panel_width, height);
-                            window.set_inner_size(LogicalSize::new(
-                                panel_width as f64,
-                                height,
-                            ));
-                        }
+                    window_visible = !window_visible;
+                    if window_visible {
+                        let height = if manager_open {
+                            560.0
+                        } else if library_expanded {
+                            library_expanded_height as f64
+                        } else {
+                            panel_height as f64
+                        };
+                        set_fixed_size(&window, panel_width, height);
+                        window.set_inner_size(LogicalSize::new(
+                            panel_width as f64,
+                            height,
+                        ));
                     }
                     if was_visible != window_visible {
                         let _ = shroudforge_loader_config::config::request_window_visibility(
@@ -346,7 +350,6 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                         );
                     }
                 }
-                last_toggle_press_revision = toggle_press_revision;
                 let should_show = module_enabled && window_visible && (is_game || is_overlay);
                 if should_show != native_visible {
                     native_visible = should_show;

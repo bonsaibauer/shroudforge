@@ -15,7 +15,7 @@ pub(crate) fn watch_toggle_key(
     desktop: bool,
 ) {
     thread::spawn(move || {
-        let mut last_press_revision = 0;
+        let mut toggle_debouncer = shroudforge_hotkeys::WindowToggleDebouncer::new(0);
         let mut previous_binding = None;
         loop {
             let binding = hotkey_key_watcher
@@ -26,20 +26,19 @@ pub(crate) fn watch_toggle_key(
                 .as_ref()
                 .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
             if binding != previous_binding {
-                last_press_revision = press_revision;
+                toggle_debouncer.reset(press_revision);
                 previous_binding = binding;
             }
-            if press_revision > last_press_revision {
-                last_press_revision = press_revision;
+            if toggle_debouncer.should_toggle(press_revision, || {
                 let foreground = foreground_process();
                 let focused = !desktop
                     && (foreground == game_pid
                         || foreground == unsafe { GetCurrentProcessId() }
                         || foreground_is_shroudforge_window());
-                if focused && !shroudforge_hotkeys::is_capture_active() {
-                    if hotkey_proxy.send_event(UiEvent::Toggle).is_err() {
-                        break;
-                    }
+                focused && !shroudforge_hotkeys::is_capture_active()
+            }) {
+                if hotkey_proxy.send_event(UiEvent::Toggle).is_err() {
+                    break;
                 }
             }
             thread::sleep(Duration::from_millis(5));

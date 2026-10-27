@@ -132,7 +132,10 @@ The [API reference](https://bonsaibauer.github.io/shroudforge/en/#api) is genera
 Shortcuts use SDL3 scancodes and mouse button numbers in one setting string,
 such as `Ctrl+SDL:29|Mouse:4`. The shortcut editor has separate keyboard and mouse
 columns. Each device has at most one chord, with the keyboard first in storage.
-`modules/hotkeys/` owns parsing, SDL key names, observation and key capture.
+`modules/hotkeys/` owns parsing, SDL key names, observation, key capture and
+the shared 250 ms debounce gate for configured native UI window toggles. The
+Modloader, Debug Console and World Editor use the gate independently. Lua mod
+keybind queries continue to use raw press revisions.
 Its official SDL3 source submodule is `modules/hotkeys/SDL`, pinned to
 `release-3.4.18`. Cargo builds SDL statically through `modules/hotkeys/build.rs`
 and compiles `sdl_keyboard.c` against the upstream event types. The existing

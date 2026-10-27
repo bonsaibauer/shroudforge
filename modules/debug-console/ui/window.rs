@@ -93,11 +93,13 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
         shown,
     );
     let mut previous_toggle_key = config.toggle_key.clone();
-    let mut last_toggle_press_revision = shroudforge_hotkeys::parse_hotkey(&config.toggle_key)
+    let initial_toggle_press_revision = shroudforge_hotkeys::parse_hotkey(&config.toggle_key)
         .ok()
         .flatten()
         .as_ref()
         .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
+    let mut toggle_debouncer =
+        shroudforge_hotkeys::WindowToggleDebouncer::new(initial_toggle_press_revision);
     let mut fatal_seen = false;
     let mut failure_review = false;
     let mut game_exited = false;
@@ -328,15 +330,15 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                     .as_ref()
                     .map_or(0, shroudforge_hotkeys::hotkey_press_revision);
                 if config.toggle_key != previous_toggle_key {
-                    last_toggle_press_revision = press_revision;
+                    toggle_debouncer.reset(press_revision);
                     previous_toggle_key = config.toggle_key.clone();
                 }
-                let pressed = press_revision > last_toggle_press_revision;
-                if !arguments.desktop
-                    && user_enabled
-                    && (game_focused || console_focused)
-                    && pressed
-                    && !shroudforge_hotkeys::is_capture_active() {
+                if toggle_debouncer.should_toggle(press_revision, || {
+                    !arguments.desktop
+                        && user_enabled
+                        && (game_focused || console_focused)
+                        && !shroudforge_hotkeys::is_capture_active()
+                }) {
                     shown = !shown;
                     if !shown {
                         auto_open_suppressed_until = suppress_reopen_until(&preferences);
@@ -350,7 +352,6 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                         window.set_focus();
                     }
                 }
-                last_toggle_press_revision = press_revision;
                 if !user_enabled && shown {
                     shown = false;
                     window.set_visible(false);
