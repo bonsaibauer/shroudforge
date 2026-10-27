@@ -11,6 +11,7 @@ use std::{
     },
 };
 
+use super::read_ui_locale::read_ui_locale;
 use super::set_mod_settings::set_settings;
 use crate::lua::LuaValue;
 
@@ -201,6 +202,13 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         lua.create_function(|_, ()| request_modloader_toggle().map_err(mlua::Error::runtime))?,
     )?;
     table.raw_set("ui", ui)?;
+
+    // Reads the config file at each call: call it when settings change, not every update.
+    let locale_dir = game_dir.clone();
+    table.raw_set(
+        "locale",
+        lua.create_function(move |_, ()| Ok(read_ui_locale(&locale_dir)))?,
+    )?;
 
     let notifications = lua.create_table()?;
     notifications.raw_set(
