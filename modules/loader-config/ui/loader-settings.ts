@@ -7,10 +7,16 @@ export type DiagnosticJob = {
   description: string
   capabilities: string[]
 }
+export type ProtectedHotkey = {
+  scancode: number
+  label: string
+  action: 'block' | 'confirm' | 'cancel'
+}
 
 export type Settings = {
   configRevision?: string
   modulePreferences?: ModulePreferences
+  protectedHotkeys?: ProtectedHotkey[]
   compactMode: boolean
   reducedMotion: boolean
   showNativeModMenu: boolean

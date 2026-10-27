@@ -9,15 +9,32 @@ pub(crate) fn assess_hotkey_change(
     webview: &wry::WebView,
 ) {
     let result = shroudforge_package::assess_hotkey_change(&arguments.root, &target);
-    let (allowed, confirmation, error) = match result {
-        Ok(confirmation) => (true, confirmation, None),
-        Err(error) => (false, None, Some(error)),
+    let (payload, error) = match result {
+        Ok(shroudforge_package::HotkeyAssessment::Allowed) => (
+            serde_json::json!({ "requestId": request_id, "allowed": true }),
+            None,
+        ),
+        Ok(shroudforge_package::HotkeyAssessment::Confirm(key)) => (
+            serde_json::json!({
+                "requestId": request_id,
+                "allowed": true,
+                "confirmation": { "scancode": key.scancode, "label": key.label },
+            }),
+            None,
+        ),
+        Ok(shroudforge_package::HotkeyAssessment::Cancel) => (
+            serde_json::json!({
+                "requestId": request_id,
+                "allowed": false,
+                "cancelled": true,
+            }),
+            None,
+        ),
+        Err(error) => (
+            serde_json::json!({ "requestId": request_id, "allowed": false }),
+            Some(error),
+        ),
     };
-    let payload = serde_json::json!({
-        "requestId": request_id,
-        "allowed": allowed,
-        "confirmation": confirmation,
-    });
     if let Ok(payload) = serde_json::to_string(&payload) {
         if let Err(error) = webview.evaluate_script(&format!(
             "window.dispatchEvent(new CustomEvent('shroudforge-hotkey-assessed',{{detail:{payload}}}));"

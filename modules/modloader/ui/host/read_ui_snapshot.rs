@@ -119,6 +119,7 @@ pub(crate) fn read_ui_snapshot(
         settings: SnapshotSettings {
             config_revision: config_revision(&central),
             module_preferences: central["modules"].clone(),
+            protected_hotkeys: shroudforge_package::protected_hotkeys(&central),
             compact_mode: central
                 .pointer("/general/compactMode")
                 .and_then(|value| value.as_bool())

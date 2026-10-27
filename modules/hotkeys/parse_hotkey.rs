@@ -89,6 +89,12 @@ impl Hotkey {
             .collect::<Vec<_>>()
             .join(" / ")
     }
+    pub fn keyboard_scancodes(&self) -> impl Iterator<Item = u16> + '_ {
+        self.chords.iter().filter_map(|chord| match chord.trigger {
+            Trigger::Keyboard(scancode) => Some(scancode),
+            Trigger::Mouse(_) => None,
+        })
+    }
     pub fn overlaps(&self, other: &Self) -> bool {
         self.chords.iter().any(|left| {
             other.chords.iter().any(|right| {

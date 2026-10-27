@@ -90,6 +90,7 @@ pub(crate) struct Snapshot {
 pub(crate) struct SnapshotSettings {
     pub(crate) config_revision: String,
     pub(crate) module_preferences: serde_json::Value,
+    pub(crate) protected_hotkeys: Vec<shroudforge_package::ProtectedHotkey>,
     pub(crate) compact_mode: bool,
     pub(crate) reduced_motion: bool,
     pub(crate) show_native_mod_menu: bool,

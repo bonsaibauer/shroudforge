@@ -1030,6 +1030,29 @@
         }
       }
     },
+    "hotkeys": {
+      "type": "object",
+      "description": "Protected SDL scancodes. Edit this list in shroudforge/config/modloader-config.json. Active ShroudForge bindings remain defined by the existing module and mod settings.",
+      "required": ["protectedKeys"],
+      "properties": {
+        "protectedKeys": {
+          "type": "array",
+          "description": "Use block to reject a key, confirm to ask before assignment, or cancel to keep the current binding and stop recording.",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "required": ["scancode", "label", "action"],
+            "properties": {
+              "scancode": { "type": "integer", "minimum": 1, "maximum": 999 },
+              "label": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "action": { "enum": ["block", "confirm", "cancel"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "general": {
       "type": "object",
       "properties": {

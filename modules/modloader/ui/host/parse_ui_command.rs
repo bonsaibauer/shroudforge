@@ -42,8 +42,6 @@ pub(crate) struct UiCommand {
     #[serde(default)]
     pub(crate) reset_user_settings: Option<bool>,
     #[serde(default)]
-    pub(crate) reset: Option<bool>,
-    #[serde(default)]
     pub(crate) purge_data: Option<bool>,
     #[serde(default)]
     pub(crate) read: Option<bool>,
@@ -153,11 +151,7 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
                 Some("module") if value.key.as_deref() == Some("toggleKey") => {
                     HotkeyAssessmentTarget::Module {
                         module: value.module?,
-                        binding: if value.reset.unwrap_or(false) {
-                            None
-                        } else {
-                            Some(value.value)
-                        },
+                        binding: value.value,
                     }
                 }
                 Some("mod") => HotkeyAssessmentTarget::Mod {

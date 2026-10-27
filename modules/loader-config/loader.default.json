@@ -35,6 +35,13 @@
       "loader": "shroudforge"
     }
   },
+  "hotkeys": {
+    "protectedKeys": [
+      { "scancode": 41, "label": "Escape", "action": "cancel" },
+      { "scancode": 58, "label": "F1", "action": "confirm" },
+      { "scancode": 69, "label": "F12", "action": "confirm" }
+    ]
+  },
   "control": {
     "actions": {
       "diagnostics": false,

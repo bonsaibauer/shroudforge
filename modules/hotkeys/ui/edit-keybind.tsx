@@ -22,7 +22,8 @@ export type KeybindAssessmentTarget =
 type KeybindAssessment = {
   requestId: string
   allowed: boolean
-  confirmation?: 'F1' | 'F12' | null
+  cancelled?: boolean
+  confirmation?: { scancode: number; label: string } | null
 }
 
 function assessKeybind(
@@ -52,7 +53,6 @@ function assessKeybind(
           module: target.module,
           key: 'toggleKey',
           value: binding,
-          reset: binding === null,
         }
       : {
           scope: target.scope,
@@ -152,7 +152,7 @@ export function KeybindInput({
     if (sequence !== assessmentSequence.current) return
     setAssessmentPending(false)
     if (!assessment.allowed) {
-      if (assessment.failed) {
+      if (assessment.failed && !assessment.cancelled) {
         logUiEvent({
           level: 'ERROR',
           source: 'compatibility',
@@ -165,10 +165,13 @@ export function KeybindInput({
       return
     }
     if (assessment.confirmation) {
-      const warning = assessment.confirmation === 'F1'
-        ? 'hotkeys.reservedF1'
-        : 'hotkeys.reservedF12'
-      if (!window.confirm(tRef.current(warning))) return
+      const { scancode, label: key } = assessment.confirmation
+      const warning = scancode === 58
+        ? tRef.current('hotkeys.reservedF1')
+        : scancode === 69
+          ? tRef.current('hotkeys.reservedF12')
+          : tRef.current('hotkeys.reservedOther', { key })
+      if (!window.confirm(warning)) return
     }
     apply()
   }, [label])
@@ -253,13 +256,6 @@ export function KeybindInput({
       }
       if (typeof detail.value !== 'string' || typeof detail.label !== 'string') return
       if (!deviceBinding(detail.value, recording)) return
-      // Escape opens the game's pause menu and closes its windows: a shortcut
-      // on it would fire at the same time. Pressing it cancels the recording
-      // and keeps the previous value, with or without modifiers.
-      if (/(?:^|\+)SDL:41$/.test(deviceBinding(detail.value, 'keyboard'))) {
-        cancelRecording()
-        return
-      }
       const capturedValue = detail.value
       const capturedLabel = detail.label
       const previousValue = valueRef.current
@@ -377,10 +373,7 @@ export function KeybindInput({
           className="button ghost keybind-reset"
           disabled={disabled || assessmentPending}
           aria-label={t('hotkeys.resetLabel', { action: label })}
-          onClick={() => {
-            const reset = onResetRef.current
-            if (reset) void assessAndApply(null, reset)
-          }}
+          onClick={() => onResetRef.current?.()}
         >
           {t('hotkeys.reset')}
         </button>

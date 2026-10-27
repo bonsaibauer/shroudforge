@@ -1,7 +1,7 @@
 use crate::Document;
 use serde_json::Value;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::Path,
     sync::{Arc, LazyLock, OnceLock, RwLock},
 };
@@ -14,6 +14,23 @@ static VALIDATORS: LazyLock<RwLock<HashMap<(&'static str, &'static str), CachedV
 pub fn validate_document(_root: &Path, document: Document, value: &Value) -> Result<(), String> {
     let name = document.name;
     if name == crate::documents::LOADER.name {
+        let mut protected_scancodes = HashSet::new();
+        if let Some(keys) = value
+            .pointer("/hotkeys/protectedKeys")
+            .and_then(Value::as_array)
+        {
+            for key in keys {
+                if let Some(scancode) = key.get("scancode").and_then(Value::as_u64) {
+                    shroudforge_hotkeys::parse_hotkey(&format!("SDL:{scancode}"))
+                        .map_err(|error| format!("hotkeys.protectedKeys: {error}"))?;
+                    if !protected_scancodes.insert(scancode) {
+                        return Err(format!(
+                            "shroudforge: duplicate protected SDL scancode {scancode}"
+                        ));
+                    }
+                }
+            }
+        }
         if let Some(modules) = value.get("modules").and_then(Value::as_object) {
             for (module, settings) in modules {
                 if let Some(binding) = settings.get("toggleKey") {

@@ -131,6 +131,33 @@ export function Hotkeys({ data }: { data: Snapshot }) {
           })}
         </div>
         {!rows.length && <p className="hint">{t('hotkeys.empty')}</p>}
+        {data.settings.protectedHotkeys?.length ? <div className="settings-options">
+          <p className="hint settings-module-description">{t('hotkeys.policyTitle')}</p>
+          <p className="hint settings-module-description">{t('hotkeys.policySource')}</p>
+          {data.settings.protectedHotkeys.map((key) => {
+            const detail = key.action === 'confirm'
+              ? key.scancode === 58
+                ? t('hotkeys.reservedF1')
+                : key.scancode === 69
+                  ? t('hotkeys.reservedF12')
+                  : t('hotkeys.policyConfirm', { key: key.label })
+              : key.action === 'cancel'
+                ? t('hotkeys.policyCancel', { key: key.label })
+                : t('hotkeys.policyBlocked', { key: key.label })
+            const icon = key.action === 'confirm'
+              ? '⚠'
+              : key.action === 'cancel'
+                ? '↩'
+                : '⊘'
+            return <SettingsRow
+              key={key.scancode}
+              label={key.label}
+              detail={detail}
+              rowClass={`hotkey-policy-${key.action}`}
+              control={<span aria-hidden="true">{icon}</span>}
+            />
+          })}
+        </div> : null}
       </Card>
     </div>
   )
