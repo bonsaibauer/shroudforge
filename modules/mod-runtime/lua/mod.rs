@@ -27,6 +27,7 @@ pub(crate) mod shroudforge {
         mod create_mod_api;
         mod dispatch_mod_ui_actions;
         pub(crate) mod read_runtime_operations;
+        mod read_ui_locale;
         mod set_mod_settings;
         pub(crate) use create_mod_api::create;
         pub(crate) use dispatch_mod_ui_actions::{dispatch_ui_actions, invoke_mod_action};
