@@ -188,7 +188,8 @@ int main() {
     // The existing local singleton retains precedence and direct capability.
     singleton_pointer=reinterpret_cast<std::uintptr_t>(&singleton);
     OnCursorUpdate(cursor.data(),&view,&frame);
-    check(OperationAvailable("runtime.world.voxel.write"));
+    // A resolved world alone does not advertise writes without a validated ECS writer.
+    check(!OperationAvailable("runtime.world.voxel.write"));
     check(resolve_voxel_world(resolved) && resolved==reinterpret_cast<std::uintptr_t>(&local_world));
     check(ContextKind()==1); // direct context wins even while cursor samples exist
     read_op.context_generation=context_resets.load();

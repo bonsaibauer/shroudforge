@@ -116,6 +116,8 @@ std::vector<std::uint8_t> unwind_image() {
     IMAGE_NT_HEADERS64 nt{};
     nt.Signature = IMAGE_NT_SIGNATURE;
     nt.FileHeader.Machine = IMAGE_FILE_MACHINE_AMD64;
+    nt.FileHeader.NumberOfSections = 1;
+    nt.FileHeader.SizeOfOptionalHeader = sizeof(nt.OptionalHeader);
     nt.OptionalHeader.Magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC;
     nt.OptionalHeader.SizeOfImage = static_cast<DWORD>(bytes.size());
     nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION] = {0x1000, 2*sizeof(RUNTIME_FUNCTION)};
