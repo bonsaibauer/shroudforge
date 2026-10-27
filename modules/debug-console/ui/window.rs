@@ -112,6 +112,7 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut bootstrap_popup_shown = false;
     let log_path = shroudforge_loader_config::paths::current_log(&arguments.root);
     let mut user_enabled = preferences["enabled"] != false;
+    let mut next_alert_scan = Instant::now();
     let mut next_activation_poll = Instant::now();
     let mut next_visibility_poll = Instant::now();
     let mut next_refresh = Instant::now();
@@ -202,23 +203,26 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     "off"
                 };
-                if scan_log_for_alert(
-                    &log_path,
-                    &mut log_offset,
-                    popup_mode,
-                    &mut bootstrap_complete,
-                    &mut bootstrap_popup_shown,
-                ) && user_enabled
-                {
-                    fatal_seen = true;
-                    failure_review = true;
-                    open_for_alert(
-                        &window,
-                        &arguments.root,
-                        &mut shown,
-                        &mut auto_open_alert,
-                        auto_open_suppressed_until,
-                    );
+                if Instant::now() >= next_alert_scan {
+                    next_alert_scan = Instant::now() + Duration::from_millis(500);
+                    if scan_log_for_alert(
+                        &log_path,
+                        &mut log_offset,
+                        popup_mode,
+                        &mut bootstrap_complete,
+                        &mut bootstrap_popup_shown,
+                    ) && user_enabled
+                    {
+                        fatal_seen = true;
+                        failure_review = true;
+                        open_for_alert(
+                            &window,
+                            &arguments.root,
+                            &mut shown,
+                            &mut auto_open_alert,
+                            auto_open_suppressed_until,
+                        );
+                    }
                 }
                 if !game_exited && !arguments.game_process.is_null()
                     && unsafe { WaitForSingleObject(arguments.game_process, 0) } == WAIT_OBJECT_0

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.ui-refresh-performance",
+  "revision": 1,
+  "name": "Reduce UI refresh work",
+  "description": "Reduces periodic Modloader and World Editor refresh work while preserving customized intervals.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "update-loader-settings",
+  "settings": [
+    {
+      "path": ["modules", "modloaderUi", "refreshMilliseconds"],
+      "previousValue": 1000,
+      "value": 2000
+    },
+    {
+      "path": ["modules", "worldEditor", "refreshMilliseconds"],
+      "previousValue": 400,
+      "value": 1000
+    }
+  ]
+}

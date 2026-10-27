@@ -41,7 +41,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
     let mut toggle_key = shroudforge_hotkeys::parse_value(&preferences["toggleKey"])?;
     let refresh_ms = preferences["refreshMilliseconds"]
         .as_u64()
-        .unwrap_or(400)
+        .unwrap_or(1000)
         .clamp(100, 5000);
     let initial_state = view_state(&arguments.root).unwrap_or_else(|_| empty_state());
     let initial_window_state = shroudforge_loader_config::config::window_state(&arguments.root);

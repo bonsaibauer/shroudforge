@@ -12,7 +12,7 @@ pub(crate) fn default_toggle_key() -> String {
 }
 
 pub(crate) fn default_refresh() -> u64 {
-    1000
+    2000
 }
 
 pub(crate) fn load_module_config(root: &Path) -> Result<ModuleConfig, String> {

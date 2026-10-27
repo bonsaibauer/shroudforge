@@ -20,10 +20,12 @@ struct JobDefinition {
 }
 
 #[derive(Clone, Debug, Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SettingUpdate {
     path: Vec<String>,
     value: serde_json::Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    previous_value: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
@@ -80,7 +82,7 @@ impl Action {
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 6] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 7] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -108,6 +110,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 6] = [
     (
         Trigger::AfterInstall,
         "migration.debug-console-log-settings",
+        Action::UpdateLoaderSettings,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.ui-refresh-performance",
         Action::UpdateLoaderSettings,
         1,
     ),
@@ -165,6 +173,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
     (
         "migrate-debug-console-log-settings.json",
         include_str!("migrate-debug-console-log-settings.json"),
+    ),
+    (
+        "migrate-ui-refresh-performance.json",
+        include_str!("migrate-ui-refresh-performance.json"),
     ),
     (
         "migrate-legacy-toggle-key-settings.json",
@@ -463,10 +475,28 @@ fn update_loader_settings(root: &Path, item: &serde_json::Value) -> Result<(), S
     validate_settings(Action::UpdateLoaderSettings, &settings)?;
     shroudforge_loader_config::config::update_loader(root, |config| {
         for setting in &settings {
+            if let Some(previous_value) = &setting.previous_value
+                && loader_setting(config, &setting.path) != Some(previous_value)
+            {
+                continue;
+            }
             set_loader_setting(config, &setting.path, &setting.value)?;
         }
         Ok(())
     })
+}
+
+fn loader_setting<'a>(
+    config: &'a serde_json::Value,
+    path: &[String],
+) -> Option<&'a serde_json::Value> {
+    let (key, remaining) = path.split_first()?;
+    let value = config.as_object()?.get(key)?;
+    if remaining.is_empty() {
+        Some(value)
+    } else {
+        loader_setting(value, remaining)
+    }
 }
 
 fn set_loader_setting(

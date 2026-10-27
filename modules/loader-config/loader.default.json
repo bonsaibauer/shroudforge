@@ -247,13 +247,13 @@
     "worldEditor": {
       "enabled": true,
       "toggleKey": "SDL:59",
-      "refreshMilliseconds": 400
+      "refreshMilliseconds": 1000
     },
     "modloaderUi": {
       "enabled": true,
       "startPage": "news",
       "toggleKey": "SDL:66",
-      "refreshMilliseconds": 1000,
+      "refreshMilliseconds": 2000,
       "window": {
         "position": null
       }

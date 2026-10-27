@@ -4,5 +4,5 @@
   "version": "1.0.0",
   "entrypoint": "shroudforge.exe",
   "mode": "--world-editor-ui",
-  "refreshMilliseconds": 400
+  "refreshMilliseconds": 1000
 }
