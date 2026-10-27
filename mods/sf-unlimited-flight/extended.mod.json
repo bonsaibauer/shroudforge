@@ -22,7 +22,7 @@
       "control": "checkbox"
     },
     "unlimitedGliderStamina": {
-      "value": false,
+      "value": true,
       "label": "Unlimited Glider Stamina",
       "description": "Prevents stamina drain while gliding.",
       "control": "checkbox"
