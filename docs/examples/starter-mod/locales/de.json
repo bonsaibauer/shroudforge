@@ -1,0 +1,42 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Hallo Ember",
+    "description": "Ein kleines ShroudForge-Beispiel mit gespeicherten Einstellungen, einer Modloader-Aktion und Laufzeitprotokollen."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Begrüßung beim Start anzeigen",
+      "description": "Schreibt die Begrüßung beim Start der Laufzeit in das Mod-Protokoll."
+    },
+    "greeting": {
+      "label": "Begrüßung",
+      "description": "Text für den Start-Callback und die Schaltfläche."
+    },
+    "severity": {
+      "label": "Protokollstufe",
+      "description": "Legt fest, wie die Beispielnachricht im Mod-Protokoll erscheint.",
+      "options": {
+        "info": "Information",
+        "warn": "Warnung"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Begrüßung",
+      "description": "Ein Beispiel für Einstellungen mit einer Lua-Aktion.",
+      "actions": {
+        "logGreeting": {
+          "label": "Begrüßung protokollieren"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Erstes Beispiel mit gespeicherten Einstellungen, einer Modloader-Aktion und Laufzeitprotokollen."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Begrüßung"
+  }
+}

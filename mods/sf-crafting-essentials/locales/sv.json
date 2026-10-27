@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Justerar receptkostnader och produktionstider och förhindrar att artiklar som stöds konsumeras när de används."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Inga receptresurskostnader",
+      "description": "Tar bort direkta ingredienser, kategoriingredienser och vattenavgifter från recept före start. Receptkraven visas som noll. Kräver omstart av spelet. Byggnads-, uppgraderings- och andra delade lagerkostnader är oförändrade."
+    },
+    "infiniteItemUse": {
+      "label": "Ingen artikelförbrukning",
+      "description": "Använd mat, drycker, bandage och andra föremål som stöds stannar i ditt lager istället för att konsumeras. Gäller live för stödda användningsåtgärder. Receptingredienser, byten och lageröverföringar är oförändrade. Vissa objektåtgärder stöds inte."
+    },
+    "productionTimeMode": {
+      "label": "Recepttidsläge",
+      "description": "Ändring av läge kräver omstart. Originalläget skalar varje recepttid medan spelet körs. Fast läge tillämpar en varaktighet för varje tidsinställt recept vid start.",
+      "options": {
+        "original": "Live: Originalrecepttider",
+        "fixed": "Omstart krävs: En delad tid för alla recept"
+      }
+    },
+    "productionSeconds": {
+      "label": "Produktionstid i sekunder",
+      "description": "Ställer in varaktigheten som används av varje tidsinställt recept i fast läge. Träder i kraft efter omstart."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Produktionslängdskala",
+      "description": "Tillämpas live på laddade recepttider. Vid 0 % tar det kortaste receptet 1 sekund och andra recept behåller sina relativa tider. 100 % återställer originalrecepttider. Världshastighetsinställningen förblir oförändrad. Förändringar påverkar även löpande produktion."
+    }
+  },
+  "groups": [
+    {
+      "label": "Resurser och inventering",
+      "description": "Receptingrediens och vattenkostnader tas bort före start. Ingen artikelförbrukning förhindrar att föremål som stöds konsumeras när de används."
+    },
+    {
+      "label": "Produktion",
+      "description": "Välj mellan att skala recepttider som produktionskörningar eller använda en fast varaktighet för alla tidsinställda recept. Endast inställningarna för det valda läget är tillgängliga."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

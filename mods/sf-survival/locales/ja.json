@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "落下ダメージ、体力とマナの回復、スタミナ、水中呼吸、武器の耐久性、防寒性の設定を追加します。"
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "落下ダメージなし",
+      "description": "同じキャラクター テンプレートを使用しているプレイヤーの落下ダメージをオフにします。"
+    },
+    "fastHealthRegen": {
+      "label": "高速ヘルス回復",
+      "description": "体力の回復量が最大 100 倍になります。自然な健康再生が必要です。"
+    },
+    "fastManaRegen": {
+      "label": "高速マナ回復",
+      "description": "マナの回復量が最大 100 倍に増加します。自然なマナ回復が必要です。"
+    },
+    "infiniteStamina": {
+      "label": "無限のスタミナ",
+      "description": "スタミナを満タンに保ち、最大値が変化すると自動的に調整されます。"
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "無限水中ブレス",
+      "description": "水中ブレスリザーブを満タンに保ちます。"
+    },
+    "infiniteWeaponDurability": {
+      "label": "無限の武器耐久性",
+      "description": "他のプレイヤーが装備したアイテムを含む、ホストされているワールド全体の耐久性の損失を無効にします。無効にすると、以前のワールド設定が復元されます。"
+    },
+    "infiniteFrostTimer": {
+      "label": "無限フロストタイマー",
+      "description": "体の暖かさを最大限に保ちます。"
+    },
+    "infiniteMana": {
+      "label": "無限マナ",
+      "description": "マナを満タンに保ち、最大値が変化すると自動的に調整します。"
+    }
+  },
+  "groups": [
+    {
+      "label": "サバイバル",
+      "description": "個々の生存オプションをオンまたはオフにします。変更はすぐに保存されます。"
+    }
+  ],
+  "changelog": [
+    "落下ダメージ、体力とマナの回復、スタミナ、水中呼吸、武器の耐久性、防寒性、マナの 8 つの設定を追加します。"
+  ],
+  "strings": {}
+}

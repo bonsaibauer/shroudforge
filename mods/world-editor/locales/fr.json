@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Copiez, faites pivoter, enregistrez et collez des parties du monde."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Rotation du plan à 90°"
+    },
+    "undoVoxels": {
+      "label": "Annuler le dernier collage"
+    },
+    "markCursorNext": {
+      "label": "Marquer le prochain coin de sélection"
+    },
+    "resetEditor": {
+      "label": "Réinitialiser/libérer le fonctionnement bloqué du serveur"
+    },
+    "pasteAtCursor": {
+      "label": "Coller au curseur"
+    },
+    "captureAndSave": {
+      "label": "Capturer et enregistrer le plan"
+    },
+    "panelWidth": {
+      "label": "Largeur du panneau du plan"
+    },
+    "panelHeight": {
+      "label": "Hauteur du panneau du plan"
+    },
+    "panelPositionX": {
+      "label": "Position du panneau X (−1 = centré)"
+    },
+    "panelPositionY": {
+      "label": "Position du panneau Y (à partir du haut du jeu)"
+    },
+    "maximumCopyableProps": {
+      "label": "Nombre maximal d'accessoires par plan"
+    },
+    "sourceX": {
+      "label": "Cellule source X (repli manuel)"
+    },
+    "sourceY": {
+      "label": "Cellule source Y (repli manuel)"
+    },
+    "sourceZ": {
+      "label": "Cellule source Z (repli manuel)"
+    },
+    "sizeX": {
+      "label": "Taille X (repli manuel)"
+    },
+    "sizeY": {
+      "label": "Taille Y (repli manuel)"
+    },
+    "sizeZ": {
+      "label": "Taille Z (repli manuel)"
+    },
+    "blueprintName": {
+      "label": "Nom de plan persistant"
+    },
+    "blueprintNewName": {
+      "label": "Nouveau nom à renommer ou à dupliquer"
+    },
+    "pasteVoxelMode": {
+      "label": "Mode Voxel",
+      "options": {
+        "replace": "Remplacer les voxels cibles",
+        "add": "Ajouter des voxels sources occupés"
+      }
+    },
+    "targetPropMode": {
+      "label": "Accessoires sur cible",
+      "options": {
+        "keep": "Conserver les accessoires existants",
+        "replace": "Remplacer les accessoires qui se croisent"
+      }
+    },
+    "targetX": {
+      "label": "Cellule cible X"
+    },
+    "targetY": {
+      "label": "Cellule cible Y"
+    },
+    "targetZ": {
+      "label": "Cellule cible Z"
+    },
+    "targetWorldX": {
+      "label": "Monde cible X uniquement avec accessoires"
+    },
+    "targetWorldY": {
+      "label": "Monde cible Y réservé aux accessoires uniquement"
+    },
+    "targetWorldZ": {
+      "label": "Monde cible Z réservé aux accessoires uniquement"
+    },
+    "rotationQuarterTurns": {
+      "label": "Rotation initiale du collage (0–3, rotation dans le jeu avec le raccourci configuré)"
+    },
+    "rotationAxis": {
+      "label": "Plan vers le haut de l'axe (stocké lors de la capture)",
+      "options": {
+        "x": "Axe X",
+        "y": "Axe Y",
+        "z": "Axe Z"
+      }
+    },
+    "entityHandle": {
+      "label": "Poignée d'entité opaque"
+    },
+    "templateUuidHigh": {
+      "label": "Modèle UUID élevé (hexadécimal)"
+    },
+    "templateUuidLow": {
+      "label": "Modèle UUID faible (hexadécimal)"
+    },
+    "trackingId": {
+      "label": "ID de suivi"
+    },
+    "feedbackId": {
+      "label": "ID de retour de matériau (emplacement uniquement)"
+    },
+    "entityX": {
+      "label": "Coordonnée X"
+    },
+    "entityY": {
+      "label": "Coordonnée Y"
+    },
+    "entityZ": {
+      "label": "Coordonnée Z"
+    },
+    "boundsMinX": {
+      "label": "Limites min X"
+    },
+    "boundsMinY": {
+      "label": "Limites min Y"
+    },
+    "boundsMinZ": {
+      "label": "Limites min Z"
+    },
+    "boundsMaxX": {
+      "label": "Limites max X"
+    },
+    "boundsMaxY": {
+      "label": "Limites max Y"
+    },
+    "boundsMaxZ": {
+      "label": "Limites max Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "Panneau en jeu",
+      "description": "La position est relative à la fenêtre de jeu en pixels logiques. X = −1 centre le panneau. Y est mesuré à partir du haut. Les modifications s'appliquent pendant que le jeu est en cours d'exécution.\nLimites de l'éditeur mondial"
+    },
+    {
+      "label": "Limites de l’éditeur de monde"
+    },
+    {
+      "label": "Raccourcis clavier",
+      "description": "Modifiez les raccourcis ici ou dans Compatibilité → Raccourcis clavier. Les modifications s'appliquent pendant la lecture. Une liaison vide désactive un raccourci.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Rotation du plan à 90°"
+        },
+        "undoVoxels": {
+          "label": "Annuler le dernier collage"
+        },
+        "markCursorNext": {
+          "label": "Marquer le prochain coin de sélection"
+        },
+        "resetEditor": {
+          "label": "Réinitialiser/libérer le fonctionnement bloqué du serveur",
+          "confirm": "Si un collage ou une annulation d'un serveur est bloqué ou incomplet, Réinitialiser/libérer demande au serveur dédié de l'abandonner et de libérer son verrou. Un terrain partiel ou des accessoires peuvent rester. Le collage ne se déverrouille qu'après confirmation du serveur."
+        },
+        "pasteAtCursor": {
+          "label": "Coller au curseur",
+          "confirm": "Écrire le plan actif à la position actuelle du curseur ?"
+        },
+        "captureAndSave": {
+          "label": "Capturer et enregistrer le plan"
+        }
+      }
+    },
+    {
+      "label": "Opérations sur les entités natives",
+      "description": "L'apparition et le placement utilisent des opérations de jeu natives.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Apparition d'accessoires de file d'attente",
+          "confirm": "Mettre en file d'attente un accessoire natif en utilisant ces UUID et ces valeurs de suivi ?"
+        },
+        "placeEntity": {
+          "label": "Lieu aux coordonnées",
+          "confirm": "Envoyer le placement natif à ces coordonnées ?"
+        },
+        "destroyEntity": {
+          "label": "Détruire aux coordonnées",
+          "confirm": "Envoyer la suppression native à ces coordonnées ?"
+        }
+      }
+    },
+    {
+      "label": "Éditeur du monde",
+      "description": "Capturez des plans voxels et accessoires ou uniquement accessoires, prévisualisez, collez et annulez via les API du monde natif.",
+      "actions": {
+        "markCursorA": {
+          "label": "Marquer le coin de sélection A"
+        },
+        "markCursorB": {
+          "label": "Marquer le coin de sélection B"
+        },
+        "markCursorTarget": {
+          "label": "Marquer la cible de collage"
+        },
+        "clearCursorSelection": {
+          "label": "Effacer les marques du curseur"
+        },
+        "copyVoxels": {
+          "label": "Capturez des voxels et des accessoires"
+        },
+        "capturePropsOnly": {
+          "label": "Capturez les accessoires uniquement à partir de la sélection A/B"
+        },
+        "listProps": {
+          "label": "Liste des accessoires dans la région source"
+        },
+        "resolveRecipes": {
+          "label": "Résoudre les recettes de construction"
+        },
+        "saveBlueprint": {
+          "label": "Plan de sauvegarde du monde"
+        },
+        "loadBlueprint": {
+          "label": "Charger le plan du monde"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Actualiser le dossier de plans"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Renommer le plan avec un nouveau nom"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Dupliquer le plan sous un nouveau nom"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Supprimer le plan et l'image",
+          "confirm": "Supprimer le plan nommé et son image du dossier d'exportation ?"
+        },
+        "pasteVoxels": {
+          "label": "Coller le plan actif",
+          "confirm": "Écrire le plan actif sur l'ancre cible ?"
+        },
+        "previewPaste": {
+          "label": "Aperçu du plan de placement (journal uniquement)"
+        },
+        "undoVoxels": {
+          "label": "Annuler le collage du dernier monde"
+        },
+        "destroySelectedProp": {
+          "label": "Détruire l'accessoire répertorié sélectionné"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Ajoute la capture F8 en ligne : le serveur dédié lit le terrain et les accessoires marqués, renvoie le plan V7 complet via Steam P2P, et le client le valide et l'enregistre localement. Vérifié en direct avec 648 cellules et deux accessoires, suivi du placement et de l'annulation.",
+    "Met en file d'attente les requêtes P2P par client authentifié et ID de requête, sépare les téléchargements simultanés et le dernier journal d'annulation de chaque client, et permet le placement répété de F7 après confirmation. F4 annule le dernier placement. Une récupération incomplète bloque toujours le prochain collage de ce client.",
+    "Corrige le placement F7 natif et l'annulation F4 pour le terrain, les cellules voxels et les accessoires de taille originale, y compris les plans pivotés. Le propre journal de l'éditeur restaure le terrain et supprime les accessoires placés indépendamment de l'historique d'annulation limité du jeu.",
+    "Utilise le même placement protégé et le même flux d'annulation pour les mondes locaux et les requêtes Steam P2P du serveur dédié. Supprime les contrôles de préparation en double et les exigences inutiles en matière de rédaction d'échelle, et attend l'indisponibilité temporaire de la grille au lieu de rejeter une cible valide. Vérifié en direct avec 1 170 cellules et un accessoire sur les deux cibles.",
+    "Exécute les mises à jour de l'éditeur toutes les 100 ms et limite les vérifications de préparation supplémentaires à une fois toutes les deux secondes au maximum, en suspendant ces vérifications pendant les opérations actives.",
+    "Déplace le secours de la découverte du serveur distant et l'autorisation du client vers le module réseau appartenant au chargeur ; l'éditeur utilise désormais sa découverte automatique de sondes d'intégrité.",
+    "Détecte le SteamID actuel d'un serveur dédié local après chaque redémarrage et signale les requêtes P2P sans réponse après 60 secondes avec un avertissement explicite de résultat inconnu.",
+    "Conserve le jeton d'annulation émis par le serveur lors des redémarrages du client et le reprend automatiquement au lieu de perdre le journal non résolu du serveur.",
+    "Sélectionne automatiquement les écritures natives locales ou le serveur dédié Steam P2P à partir du contexte du monde réel validé. Suspend les modifications lorsque ce contexte est inconnu.",
+    "Rend la cible mondiale explicite. Le mode local/solo reste sur le chemin client direct. Les modifications sur serveur dédié utilisent Steam P2P.",
+    "Achemine le placement et l'annulation des plans multijoueurs via Steam P2P vers le runtime mondial natif du serveur dédié. Préserve les modifications directes en mode solo.",
+    "Exécute le même module World Editor sans tête sur des serveurs dédiés avec une liste blanche SteamID64 explicite et un journal d'annulation appartenant au serveur.",
+    "Supprime le chemin de collage du plan d'entrée du jeu client expérimental. Conserve le format SFBP V7 existant et le planificateur direct natif.",
+    "Déplace le filtrage lié au placement ItemInfo pivoté et mis à l'échelle dans la requête du monde natif enregistrée.",
+    "Préserve l'UUID du modèle d'entité natif via la capture d'accessoires, les fichiers de plan et le collage.",
+    "Préserve l'échelle des accessoires capturés avec une mise à jour de transformation native vérifiée dédiée.",
+    "Ajoute des plans V6 réservés aux accessoires et des ancres de placement dans l'espace mondial de style ShroudEdit avec vérifications de l'alignement de la grille.",
+    "Utilise des API du monde natif enregistrées pour les descripteurs d'entités, les lectures de transformation, la suppression sécurisée ciblée par descripteurs et les métadonnées de la grille de voxels.",
+    "Regroupe le mod autonome en tant qu'éditeur mondial et expose la rotation F3 dans les raccourcis clavier.",
+    "Ajoute une fenêtre de plan unique contrôlée par F2 avec une ligne d'instructions contextuelles, une bibliothèque de plans et un navigateur de dossiers de capture d'écran dans la gestion des plans.",
+    "Ajoute des raccourcis F3-F8, un collage ciblé par le curseur, un flux de travail de capture vers un plan, des modes de rotation et de collage et une annulation en cas de conflit. La F1 reste disponible pour le jeu."
+  ],
+  "strings": {}
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Dostosowuje koszty receptur i czas produkcji oraz zapobiega zużyciu obsługiwanych produktów podczas ich używania."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Brak kosztów zasobów receptury",
+      "description": "Usuwa składniki bezpośrednie, składniki kategorii i ładunki wody z receptur przed uruchomieniem. Wymagania dotyczące receptury są wyświetlane jako zero. Wymaga ponownego uruchomienia gry. Koszty budowy, ulepszeń i innych współdzielonych zasobów pozostają niezmienione."
+    },
+    "infiniteItemUse": {
+      "label": "Brak zużycia elementu",
+      "description": "Zużyte jedzenie, mikstury, bandaże i inne obsługiwane przedmioty pozostają w Twoim ekwipunku zamiast zostać skonsumowane. Stosuje się na żywo do obsługiwanych działań użytkowych. Składniki receptur, transakcje i transfery zapasów pozostają niezmienione. Niektóre akcje elementów nie są obsługiwane."
+    },
+    "productionTimeMode": {
+      "label": "Tryb czasu receptury",
+      "description": "Zmiana trybu wymaga ponownego uruchomienia. Tryb oryginalny skaluje czas trwania każdego przepisu podczas gry. Tryb stały stosuje jeden czas trwania do każdego przepisu czasowego przy uruchomieniu.",
+      "options": {
+        "original": "Live: Czasy oryginalnych przepisów",
+        "fixed": "Wymagane ponowne uruchomienie: Jeden wspólny czas dla wszystkich przepisów"
+      }
+    },
+    "productionSeconds": {
+      "label": "Czas produkcji w sekundach",
+      "description": "Ustawia czas trwania każdej receptury czasowej w trybie stałym. Obowiązuje po ponownym uruchomieniu."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Skala czasu trwania produkcji",
+      "description": "Stosowany na bieżąco do załadowanych czasów receptur. Przy wartości 0% przepis o najkrótszym czasie zajmuje 1 sekundę, a inne przepisy zachowują swoje czasy względne. W 100% przywraca oryginalne czasy receptury. Ustawienie prędkości świata pozostaje niezmienione. Zmiany dotyczą także bieżącej produkcji."
+    }
+  },
+  "groups": [
+    {
+      "label": "Zasoby i zapasy",
+      "description": "Koszty składników receptury i wody są usuwane przed uruchomieniem. Brak zużycia elementów zapobiega zużyciu obsługiwanych elementów podczas ich używania."
+    },
+    {
+      "label": "Produkcja",
+      "description": "Wybierz pomiędzy skalowaniem czasów receptur w trakcie produkcji lub użyciem jednego stałego czasu trwania dla wszystkich receptur czasowych. Dostępne są tylko ustawienia dla wybranego trybu."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

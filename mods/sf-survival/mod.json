@@ -3,7 +3,7 @@
   "id": "sf-survival",
   "name": "SF Survival",
   "version": "1.0.0",
-  "description": "Survival options through the shared typed ECS, template and engine-service API.",
+  "description": "Adds settings for fall damage, health and mana regeneration, stamina, underwater breathing, weapon durability and cold protection.",
   "authors": [
     "bonsaibauer"
   ],

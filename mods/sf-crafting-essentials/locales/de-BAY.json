@@ -1,0 +1,44 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Ändert Rezeptkosten und Herstellungszeiten und verhindert den Verbrauch unterstützter Gegenstände bei der Benutzung."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Keine Rohstoffkosten für Rezepte",
+      "description": "Entfernt direkte Zutaten, Kategorie-Zutaten und Wasserkosten aus Rezepten vor dem Start. Die Rezeptanforderungen werden als null angezeigt. Ein Neustart des Spiels ist erforderlich. Bau-, Ausbau- und andere gemeinsame Inventarkosten bleiben unverändert."
+    },
+    "infiniteItemUse": {
+      "label": "Keine Gegenstandsverbräuche",
+      "description": "Benutzte Nahrung, Tränke, Verbände und andere unterstützte Gegenstände bleiben im Inventar. Gilt sofort für unterstützte Aktionen. Rezeptzutaten, Handel und Inventarübertragungen bleiben unverändert. Einige Gegenstandsaktionen werden nicht unterstützt."
+    },
+    "productionTimeMode": {
+      "label": "Herstellungszeitmodus",
+      "description": "Ein Moduswechsel erfordert einen Neustart. Im Originalmodus werden die Rezeptzeiten während des Spiels skaliert. Der feste Modus verwendet beim Start eine Dauer für alle zeitgesteuerten Rezepte.",
+      "options": {
+        "original": "Live: ursprüngliche Rezeptzeiten",
+        "fixed": "Neustart erforderlich: eine gemeinsame Zeit für alle Rezepte"
+      }
+    },
+    "productionSeconds": {
+      "label": "Herstellungszeit in Sekunden",
+      "description": "Legt die Dauer für alle zeitgesteuerten Rezepte im festen Modus fest. Die Einstellung wird nach einem Neustart wirksam."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Skalierung der Herstellungsdauer",
+      "description": "Skaliert die ursprünglichen Rezeptzeiten während des Spiels. Bei 0 % dauert das kürzeste zeitgesteuerte Rezept eine Sekunde. Die übrigen Rezepte behalten ihr Zeitverhältnis. 100 % stellt die ursprünglichen Zeiten wieder her. Die Weltgeschwindigkeit bleibt unverändert. Änderungen gelten auch für laufende Produktion."
+    }
+  },
+  "groups": [
+    {
+      "label": "Rohstoffe und Inventar",
+      "description": "Zutaten- und Wasserkosten von Rezepten werden vor dem Start entfernt. Unterstützte Gegenstände werden bei ihrer Benutzung nicht verbraucht."
+    },
+    {
+      "label": "Produktion",
+      "description": "Skaliere Rezeptzeiten während der Produktion oder verwende eine feste Dauer für alle zeitgesteuerten Rezepte. Nur die Einstellungen des gewählten Modus sind verfügbar."
+    }
+  ],
+  "changelog": []
+}

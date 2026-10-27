@@ -1,0 +1,289 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Kopiert, dreht, speichert und platziert Bereiche der Welt."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Bauplan um 90° drehen"
+    },
+    "undoVoxels": {
+      "label": "Letztes Einfügen rückgängig machen"
+    },
+    "markCursorNext": {
+      "label": "Nächste Auswahl-Ecke markieren"
+    },
+    "resetEditor": {
+      "label": "Editor zurücksetzen / blockierten Servervorgang lösen"
+    },
+    "pasteAtCursor": {
+      "label": "Am Cursor einfügen"
+    },
+    "captureAndSave": {
+      "label": "Bauplan erfassen und speichern"
+    },
+    "panelWidth": {
+      "label": "Breite des Bauplanfensters"
+    },
+    "panelHeight": {
+      "label": "Höhe des Bauplanfensters"
+    },
+    "panelPositionX": {
+      "label": "Fensterposition X (−1 = zentriert)"
+    },
+    "panelPositionY": {
+      "label": "Fensterposition Y (ab oberem Spielrand)"
+    },
+    "maximumCopyableProps": {
+      "label": "Maximale Anzahl Objekte pro Bauplan"
+    },
+    "sourceX": {
+      "label": "Quellzelle X (manuelle Ausweichoption)"
+    },
+    "sourceY": {
+      "label": "Quellzelle Y (manuelle Ausweichoption)"
+    },
+    "sourceZ": {
+      "label": "Quellzelle Z (manuelle Ausweichoption)"
+    },
+    "sizeX": {
+      "label": "Grösse X (manuelle Ausweichoption)"
+    },
+    "sizeY": {
+      "label": "Grösse Y (manuelle Ausweichoption)"
+    },
+    "sizeZ": {
+      "label": "Grösse Z (manuelle Ausweichoption)"
+    },
+    "blueprintName": {
+      "label": "Dauerhafter Bauplanname"
+    },
+    "blueprintNewName": {
+      "label": "Neuer Name zum Umbenennen oder Duplizieren"
+    },
+    "pasteVoxelMode": {
+      "label": "Voxelmodus",
+      "options": {
+        "replace": "Zielvoxel ersetzen",
+        "add": "Belegte Quellvoxel hinzufügen"
+      }
+    },
+    "targetPropMode": {
+      "label": "Objekte am Ziel",
+      "options": {
+        "keep": "Vorhandene Objekte behalten",
+        "replace": "Überlappende Objekte ersetzen"
+      }
+    },
+    "targetX": {
+      "label": "Zielzelle X"
+    },
+    "targetY": {
+      "label": "Zielzelle Y"
+    },
+    "targetZ": {
+      "label": "Zielzelle Z"
+    },
+    "targetWorldX": {
+      "label": "Zielposition der Objekte in der Welt X"
+    },
+    "targetWorldY": {
+      "label": "Zielposition der Objekte in der Welt Y"
+    },
+    "targetWorldZ": {
+      "label": "Zielposition der Objekte in der Welt Z"
+    },
+    "rotationQuarterTurns": {
+      "label": "Drehung beim Einfügen (0–3, Drehung im Spiel über die festgelegte Taste)"
+    },
+    "rotationAxis": {
+      "label": "Hochachse des Bauplans (beim Erfassen gespeichert)",
+      "options": {
+        "x": "X-Achse",
+        "y": "Y-Achse",
+        "z": "Z-Achse"
+      }
+    },
+    "entityHandle": {
+      "label": "Opakes Entity-Handle"
+    },
+    "templateUuidHigh": {
+      "label": "Hoher Teil der Vorlagen-UUID (Hex)"
+    },
+    "templateUuidLow": {
+      "label": "Niedriger Teil der Vorlagen-UUID (Hex)"
+    },
+    "trackingId": {
+      "label": "Tracking-ID"
+    },
+    "feedbackId": {
+      "label": "Material-Feedback-ID (nur beim Platzieren)"
+    },
+    "entityX": {
+      "label": "Position X"
+    },
+    "entityY": {
+      "label": "Position Y"
+    },
+    "entityZ": {
+      "label": "Position Z"
+    },
+    "boundsMinX": {
+      "label": "Minimale Begrenzung X"
+    },
+    "boundsMinY": {
+      "label": "Minimale Begrenzung Y"
+    },
+    "boundsMinZ": {
+      "label": "Minimale Begrenzung Z"
+    },
+    "boundsMaxX": {
+      "label": "Maximale Begrenzung X"
+    },
+    "boundsMaxY": {
+      "label": "Maximale Begrenzung Y"
+    },
+    "boundsMaxZ": {
+      "label": "Maximale Begrenzung Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "Spielinterne Oberfläche",
+      "description": "Die Position bezieht sich auf das Spielfenster in logischen Pixeln. X = −1 zentriert das Fenster. Y wird vom oberen Rand aus gemessen. Änderungen gelten sofort im laufenden Spiel."
+    },
+    {
+      "label": "Grenzwerte des Welteditors"
+    },
+    {
+      "label": "Tastenkürzel",
+      "description": "Bearbeite die Tastenkürzel hier oder unter Kompatibilität → Hotkeys. Änderungen gelten während des Spielens. Eine leere Belegung deaktiviert das Kürzel.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Bauplan um 90° drehen"
+        },
+        "undoVoxels": {
+          "label": "Letztes Einfügen rückgängig machen"
+        },
+        "markCursorNext": {
+          "label": "Nächste Auswahl-Ecke markieren"
+        },
+        "resetEditor": {
+          "label": "Editor zurücksetzen / blockierten Servervorgang lösen",
+          "confirm": "Wenn ein Server-Einfügen oder Rückgängigmachen hängt oder unvollständig ist, fordert Zurücksetzen den dedizierten Server auf, den Vorgang abzubrechen und seine Sperre freizugeben. Teilweise platzierte Landschaft oder Objekte können bestehen bleiben. Einfügen wird erst nach der Bestätigung des Servers wieder freigegeben."
+        },
+        "pasteAtCursor": {
+          "label": "Am Cursor einfügen",
+          "confirm": "Den aktiven Bauplan an der aktuellen Cursorposition platzieren?"
+        },
+        "captureAndSave": {
+          "label": "Bauplan erfassen und speichern"
+        }
+      }
+    },
+    {
+      "label": "Native Objektaktionen",
+      "description": "Erzeugen und Platzieren verwenden native Spielaktionen.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Objekterzeugung einreihen",
+          "confirm": "Eine native Objekterzeugung mit diesen UUID- und Tracking-Werten einreihen?"
+        },
+        "placeEntity": {
+          "label": "An Koordinaten platzieren",
+          "confirm": "Native Platzierung an diesen Koordinaten ausführen?"
+        },
+        "destroyEntity": {
+          "label": "An Koordinaten zerstören",
+          "confirm": "Natives Entfernen an diesen Koordinaten ausführen?"
+        }
+      }
+    },
+    {
+      "label": "Welteditor",
+      "description": "Erfasst Baupläne mit Voxelblöcken und Objekten oder nur mit Objekten, zeigt eine Vorschau an, platziert und macht Änderungen über native Welt-APIs rückgängig.",
+      "actions": {
+        "markCursorA": {
+          "label": "Auswahl-Ecke A markieren"
+        },
+        "markCursorB": {
+          "label": "Auswahl-Ecke B markieren"
+        },
+        "markCursorTarget": {
+          "label": "Einfügeziel markieren"
+        },
+        "clearCursorSelection": {
+          "label": "Cursor-Markierungen löschen"
+        },
+        "copyVoxels": {
+          "label": "Voxelblöcke und Objekte erfassen"
+        },
+        "capturePropsOnly": {
+          "label": "Nur Objekte aus der Auswahl A/B erfassen"
+        },
+        "listProps": {
+          "label": "Objekte im Quellbereich auflisten"
+        },
+        "resolveRecipes": {
+          "label": "Baurezepte auflösen"
+        },
+        "saveBlueprint": {
+          "label": "Weltbauplan speichern"
+        },
+        "loadBlueprint": {
+          "label": "Weltbauplan laden"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Bauplanordner aktualisieren"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Bauplan in neuen Namen umbenennen"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Bauplan unter neuem Namen duplizieren"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Bauplan und Bild löschen",
+          "confirm": "Den benannten Bauplan und sein Bild aus dem Exportordner löschen?"
+        },
+        "pasteVoxels": {
+          "label": "Aktiven Bauplan einfügen",
+          "confirm": "Den aktiven Bauplan an der Zielposition platzieren?"
+        },
+        "previewPaste": {
+          "label": "Platzierungsvorschau (nur Protokoll)"
+        },
+        "undoVoxels": {
+          "label": "Letztes Einfügen in der Welt rückgängig machen"
+        },
+        "destroySelectedProp": {
+          "label": "Ausgewähltes aufgelistetes Objekt zerstören"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Ergänzt die Online-Erfassung über F8. Der dedizierte Server liest markierte Landschaft und Objekte, sendet den vollständigen V7-Bauplan über Steam-P2P zurück und der Client prüft und speichert ihn lokal. Live mit 648 Zellen und zwei Objekten sowie anschliessendem Platzieren und Rückgängigmachen überprüft.",
+    "Reiht P2P-Anfragen nach authentifiziertem Client und Anfrage-ID ein, trennt parallele Uploads und das jeweils letzte Rückgängig-Protokoll jedes Clients und erlaubt wiederholtes Einfügen über F7 nach Bestätigung. F4 macht das letzte Einfügen rückgängig. Eine unvollständige Wiederherstellung blockiert weiterhin das nächste Einfügen dieses Clients.",
+    "Behebt natives Platzieren mit F7 und Rückgängigmachen mit F4 für Landschaft, Voxelzellen und Objekte in Originalgrösse, auch bei gedrehten Bauplänen. Das eigene Protokoll des Editors stellt die Landschaft wieder her und entfernt platzierte Objekte unabhängig vom begrenzten Rückgängigmachen des Spiels.",
+    "Verwendet denselben abgesicherten Ablauf zum Platzieren und Rückgängigmachen in lokalen Welten und für dedizierte Server über Steam-P2P. Entfernt doppelte Bereitschaftsprüfungen und unnötige Anforderungen an den Skalen-Schreiber. Bei vorübergehend nicht verfügbarem Raster wird gewartet, statt ein gültiges Ziel abzulehnen. Live mit 1.170 Zellen und einem Objekt auf beiden Zielen überprüft.",
+    "Führt Editor-Aktualisierungen alle 100 ms aus und begrenzt zusätzliche Bereitschaftsprüfungen auf höchstens eine alle zwei Sekunden. Während aktiver Vorgänge pausieren diese Prüfungen.",
+    "Verschiebt die Ausweichsuche für entfernte Server und die Client-Autorisierung in das loadereigene Netzwerkmodul. Der Editor verwendet nun dessen automatische Erkennung per Integritätsprüfung.",
+    "Ermittelt nach jedem Neustart die aktuelle SteamID eines lokalen dedizierten Servers und meldet unbeantwortete P2P-Anfragen nach 60 Sekunden mit einem ausdrücklichen Hinweis auf den unbekannten Ausgang.",
+    "Speichert das vom Server ausgegebene Rückgängig-Token über Client-Neustarts hinweg und setzt es automatisch fort, statt das ungelöste Serverprotokoll zu verlieren.",
+    "Wählt anhand des geprüften Live-Weltkontexts automatisch zwischen lokalen nativen Schreibvorgängen und dediziertem Server über Steam-P2P. Änderungen werden pausiert, solange dieser Kontext unbekannt ist.",
+    "Legt das Weltziel eindeutig fest. Lokale Spiele und Einzelspieler bleiben beim direkten Client-Ablauf. Änderungen auf dedizierten Servern verwenden Steam-P2P.",
+    "Leitet das Platzieren und Rückgängigmachen von Bauplänen im Mehrspieler über Steam-P2P an die native Weltlaufzeit des dedizierten Servers. Direkte Änderungen im Einzelspieler bleiben erhalten.",
+    "Führt dasselbe Welteditor-Modul auf dedizierten Servern ohne grafische Oberfläche aus, mit einer expliziten SteamID64-Zulassungsliste und einem serverseitigen Rückgängig-Protokoll.",
+    "Entfernt den experimentellen Spiel-Eingabepfad zum Einfügen von Bauplänen auf dem Client. Das vorhandene SFBP-V7-Format und der native direkte Planer bleiben erhalten.",
+    "Verschiebt die Filterung von Platzierungsgrenzen gedrehter und skalierter ItemInfo-Objekte in die registrierte native Weltabfrage.",
+    "Erhält die native Entity-Template-UUID beim Erfassen von Objekten, in Bauplandateien und beim Einfügen.",
+    "Erhält die erfasste Objektskalierung durch eine eigens dafür vorgesehene und überprüfte native Transformationsaktualisierung.",
+    "Ergänzt Baupläne mit ausschliesslich Objekten im V6-Format und platzierungsanker im Weltkoordinatensystem nach ShroudEdit-Art mit Rasterausrichtung.",
+    "Verwendet registrierte native Welt-APIs für Entity-Handles, Transformationsabfragen, sicheres Entfernen anhand eines Handles und Metadaten des Voxelrasters.",
+    "Verpackt die eigenständige Mod unter world-editor und stellt F3 zum Drehen unter Tastenkürzel bereit.",
+    "Ergänzt ein einzelnes, über F2 gesteuertes Bauplanfenster mit kontextbezogener Anweisung, Bauplanbibliothek und Browser für den Screenshot-Ordner in der Bauplanverwaltung.",
+    "Ergänzt Tastenkürzel F3 bis F8, Einfügen am Cursorziel, Erfassen und Speichern von Bauplänen, Dreh- und Einfügemodi sowie ein konfliktgeprüftes Rückgängigmachen. F1 bleibt dem Spiel vorbehalten."
+  ]
+}

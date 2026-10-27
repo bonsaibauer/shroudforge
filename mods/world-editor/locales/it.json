@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Copia, ruota, salva e incolla parti del mondo."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Ruota il progetto di 90°"
+    },
+    "undoVoxels": {
+      "label": "Annulla l'ultimo incollaggio"
+    },
+    "markCursorNext": {
+      "label": "Contrassegnare l'angolo di selezione successivo"
+    },
+    "resetEditor": {
+      "label": "Ripristina/rilascia il funzionamento bloccato del server"
+    },
+    "pasteAtCursor": {
+      "label": "Incolla in corrispondenza del cursore"
+    },
+    "captureAndSave": {
+      "label": "Cattura e salva il progetto"
+    },
+    "panelWidth": {
+      "label": "Larghezza del pannello del progetto"
+    },
+    "panelHeight": {
+      "label": "Altezza del pannello del progetto"
+    },
+    "panelPositionX": {
+      "label": "Posizione pannello X (−1 = centrato)"
+    },
+    "panelPositionY": {
+      "label": "Posizione del pannello Y (dall'alto del gioco)"
+    },
+    "maximumCopyableProps": {
+      "label": "Numero massimo di oggetti di scena per progetto"
+    },
+    "sourceX": {
+      "label": "Cella sorgente X (fallback manuale)"
+    },
+    "sourceY": {
+      "label": "Cella sorgente Y (fallback manuale)"
+    },
+    "sourceZ": {
+      "label": "Cella sorgente Z (fallback manuale)"
+    },
+    "sizeX": {
+      "label": "Taglia X (ripiego manuale)"
+    },
+    "sizeY": {
+      "label": "Taglia Y (ripiego manuale)"
+    },
+    "sizeZ": {
+      "label": "Taglia Z (ripiego manuale)"
+    },
+    "blueprintName": {
+      "label": "Nome del progetto persistente"
+    },
+    "blueprintNewName": {
+      "label": "Nuovo nome da rinominare o duplicare"
+    },
+    "pasteVoxelMode": {
+      "label": "Modalità Voxel",
+      "options": {
+        "replace": "Sostituisci i voxel di destinazione",
+        "add": "Aggiungi voxel sorgente occupati"
+      }
+    },
+    "targetPropMode": {
+      "label": "Puntelli sul bersaglio",
+      "options": {
+        "keep": "Mantieni gli oggetti di scena esistenti",
+        "replace": "Sostituisci i puntelli che si intersecano"
+      }
+    },
+    "targetX": {
+      "label": "Cella obiettivo X"
+    },
+    "targetY": {
+      "label": "Cella obiettivo Y"
+    },
+    "targetZ": {
+      "label": "Cella obiettivo Z"
+    },
+    "targetWorldX": {
+      "label": "Mondo bersaglio X solo oggetti di scena"
+    },
+    "targetWorldY": {
+      "label": "Mondo bersaglio solo oggetti scenici Y"
+    },
+    "targetWorldZ": {
+      "label": "Mondo bersaglio solo oggetti scenici Z"
+    },
+    "rotationQuarterTurns": {
+      "label": "Rotazione iniziale dell'incolla (0–3, ruota nel gioco con la scorciatoia configurata)"
+    },
+    "rotationAxis": {
+      "label": "Progetto asse superiore (memorizzato al momento dell'acquisizione)",
+      "options": {
+        "x": "Asse X",
+        "y": "Asse Y",
+        "z": "Asse Z"
+      }
+    },
+    "entityHandle": {
+      "label": "Maniglia entità opaca"
+    },
+    "templateUuidHigh": {
+      "label": "UUID modello alto (esadecimale)"
+    },
+    "templateUuidLow": {
+      "label": "UUID modello basso (esadecimale)"
+    },
+    "trackingId": {
+      "label": "ID di tracciamento"
+    },
+    "feedbackId": {
+      "label": "ID feedback materiale (solo posizionamento)"
+    },
+    "entityX": {
+      "label": "Posizione X"
+    },
+    "entityY": {
+      "label": "Posizione Y"
+    },
+    "entityZ": {
+      "label": "Posizione Z"
+    },
+    "boundsMinX": {
+      "label": "Limiti min X"
+    },
+    "boundsMinY": {
+      "label": "Limiti min Y"
+    },
+    "boundsMinZ": {
+      "label": "Limiti min Z"
+    },
+    "boundsMaxX": {
+      "label": "Limiti max X"
+    },
+    "boundsMaxY": {
+      "label": "Limiti max Y"
+    },
+    "boundsMaxZ": {
+      "label": "Limita Z massimo"
+    }
+  },
+  "groups": [
+    {
+      "label": "Pannello di gioco",
+      "description": "La posizione è relativa alla finestra di gioco in pixel logici. X = −1 centra il pannello. Y è misurato dall'alto. Le modifiche si applicano mentre il gioco è in esecuzione."
+    },
+    {
+      "label": "Limiti dell'editor mondiale"
+    },
+    {
+      "label": "Scorciatoie da tastiera",
+      "description": "Modifica le scorciatoie qui o in Compatibilità → Tasti di scelta rapida. Le modifiche si applicano durante il gioco. Un'associazione vuota disabilita un collegamento.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Ruota il progetto di 90°"
+        },
+        "undoVoxels": {
+          "label": "Annulla l'ultimo incollaggio"
+        },
+        "markCursorNext": {
+          "label": "Contrassegnare l'angolo di selezione successivo"
+        },
+        "resetEditor": {
+          "label": "Ripristina/rilascia il funzionamento bloccato del server",
+          "confirm": "Se un server incolla o annulla è bloccato o incompleto, Reset/release chiede al server dedicato di abbandonarlo e rilasciare il blocco. Potrebbero rimanere terreno parziale o oggetti di scena. Incolla gli sblocchi solo dopo la conferma del server."
+        },
+        "pasteAtCursor": {
+          "label": "Incolla in corrispondenza del cursore",
+          "confirm": "Scrivere il progetto attivo nella posizione corrente del cursore?"
+        },
+        "captureAndSave": {
+          "label": "Cattura e salva il progetto"
+        }
+      }
+    },
+    {
+      "label": "Operazioni di entità native",
+      "description": "Lo spawn e il posizionamento utilizzano operazioni di gioco native.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Spawn dell'elica della coda",
+          "confirm": "Mettere in coda la generazione di un oggetto nativo utilizzando questi UUID e valori di tracciamento?"
+        },
+        "placeEntity": {
+          "label": "Luogo alle coordinate",
+          "confirm": "Inviare il posizionamento nativo a queste coordinate?"
+        },
+        "destroyEntity": {
+          "label": "Distruggi alle coordinate",
+          "confirm": "Inviare la rimozione nativa a queste coordinate?"
+        }
+      }
+    },
+    {
+      "label": "Redattore mondiale",
+      "description": "Cattura progetti voxel-and-prop o solo oggetti di scena, visualizza in anteprima, incolla e annulla tramite le API del mondo nativo.",
+      "actions": {
+        "markCursorA": {
+          "label": "Contrassegnare l'angolo di selezione A"
+        },
+        "markCursorB": {
+          "label": "Contrassegnare l'angolo di selezione B"
+        },
+        "markCursorTarget": {
+          "label": "Contrassegna destinazione incolla"
+        },
+        "clearCursorSelection": {
+          "label": "Cancella i segni del cursore"
+        },
+        "copyVoxels": {
+          "label": "Cattura voxel e oggetti di scena"
+        },
+        "capturePropsOnly": {
+          "label": "Cattura gli oggetti scenici solo dalla selezione A/B"
+        },
+        "listProps": {
+          "label": "Elenca gli oggetti nella regione di origine"
+        },
+        "resolveRecipes": {
+          "label": "Risolvi le ricette di costruzione"
+        },
+        "saveBlueprint": {
+          "label": "Salva il progetto del mondo"
+        },
+        "loadBlueprint": {
+          "label": "Carica il progetto del mondo"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Aggiorna la cartella del progetto"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Rinomina il progetto con un nuovo nome"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Progetto duplicato con il nuovo nome"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Elimina progetto e immagine",
+          "confirm": "Eliminare il progetto denominato e la relativa immagine dalla cartella di esportazione?"
+        },
+        "pasteVoxels": {
+          "label": "Incolla il progetto attivo",
+          "confirm": "Scrivere il progetto attivo sull'ancora di destinazione?"
+        },
+        "previewPaste": {
+          "label": "Anteprima del piano di posizionamento (solo registro)"
+        },
+        "undoVoxels": {
+          "label": "Annulla l'ultimo incollaggio del mondo"
+        },
+        "destroySelectedProp": {
+          "label": "Distruggi l'oggetto selezionato nell'elenco"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Aggiunge l'acquisizione F8 online: il server dedicato legge il terreno e gli oggetti contrassegnati, restituisce il progetto V7 completo su Steam P2P e il client lo convalida e lo salva localmente. Verificato dal vivo con 648 celle e due oggetti di scena, seguito da posizionamento e annullamento.",
+    "Accoda le richieste P2P in base al client autenticato e all'ID richiesta, separa i caricamenti simultanei e l'ultimo giornale di annullamento di ciascun client e consente il posizionamento ripetuto di F7 dopo la conferma. F4 annulla l'ultimo posizionamento. Il ripristino incompleto blocca comunque il successivo incollaggio del client.",
+    "Corregge il posizionamento nativo di F7 e l'annullamento di F4 per terreno, celle voxel e oggetti di scena di dimensioni originali, inclusi progetti ruotati. Il diario dell'editor ripristina il terreno e rimuove gli oggetti di scena posizionati indipendentemente dalla cronologia di annullamento limitata del gioco.",
+    "Utilizza lo stesso posizionamento protetto e flusso di annullamento per i mondi locali e le richieste P2P di Steam del server dedicato. Rimuove i controlli di disponibilità duplicati e i requisiti di scale-writer non necessari e attende l'indisponibilità temporanea della griglia invece di rifiutare una destinazione valida. Verificato dal vivo con 1.170 celle e un oggetto di scena su entrambi gli obiettivi.",
+    "Esegue gli aggiornamenti dell'editor ogni 100 ms e limita i controlli di disponibilità aggiuntivi al massimo a una volta ogni due secondi, sospendendo tali controlli durante le operazioni attive.",
+    "Sposta il fallback di rilevamento del server remoto e l'autorizzazione del client nel modulo di rete di proprietà del caricatore; l'editor ora utilizza il rilevamento automatico della sonda di salute.",
+    "Scopre l'attuale SteamID di un server dedicato locale dopo ogni riavvio e segnala le richieste P2P senza risposta dopo 60 secondi con un esplicito avviso di esito sconosciuto.",
+    "Rende persistente il token di annullamento emesso dal server durante i riavvii del client e lo riprende automaticamente invece di perdere il journal non risolto del server.",
+    "Seleziona automaticamente le scritture native locali o il server dedicato Steam P2P dal contesto del mondo live convalidato. Mette in pausa le modifiche mentre il contesto è sconosciuto.",
+    "Rende esplicito il target mondiale. Il giocatore locale/singolo rimane sul percorso diretto del cliente. Le modifiche sul server dedicato utilizzano Steam P2P.",
+    "Indirizza il posizionamento e l'annullamento del progetto multiplayer su Steam P2P al runtime mondiale nativo del server dedicato. Conserva le modifiche dirette per giocatore singolo.",
+    "Esegue lo stesso modulo World Editor senza headless su server dedicati con una lista consentita SteamID64 esplicita e un diario di annullamento di proprietà del server.",
+    "Rimuove il percorso di incollamento del progetto di input del gioco del client sperimentale. Mantiene il formato SFBP V7 esistente e il pianificatore diretto nativo.",
+    "Sposta il filtraggio associato al posizionamento ItemInfo ruotato e ridimensionato nella query del mondo nativo registrata.",
+    "Conserva l'UUID del modello di entità nativo tramite l'acquisizione dell'oggetto di scena, i file del progetto e l'incollaggio.",
+    "Preserva la scala dell'elica catturata con un aggiornamento dedicato della trasformazione nativa verificata.",
+    "Aggiunge progetti V6 solo per oggetti di scena e ancoraggi di posizionamento nello spazio mondiale in stile ShroudEdit con controlli di allineamento della griglia.",
+    "Utilizza API del mondo nativo registrate per handle di entità, letture di trasformazione, rimozione sicura mirata all'handle e metadati della griglia voxel.",
+    "Contiene la mod standalone come editor mondiale ed espone la rotazione F3 nelle scorciatoie da tastiera.",
+    "Aggiunge una singola finestra di progetto controllata da F2 con una riga di istruzioni contestuale, una libreria di progetti e un browser di cartelle di screenshot nella gestione dei progetti.",
+    "Aggiunge scorciatoie F3-F8, incolla con cursore, flusso di lavoro di acquisizione su progetto, modalità di rotazione e incolla e annullamento con controllo dei conflitti. La F1 rimane a disposizione del gioco."
+  ],
+  "strings": {}
+}

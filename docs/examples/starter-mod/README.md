@@ -9,11 +9,12 @@ You do not need to understand every line before you begin. First, follow the [fi
 ~~~text
 mod.json                 The mod's name, version, author, and permission
 extended.mod.json        The switch, settings, and button shown in the Modloader
+locales/de.json          German labels, descriptions, and Lua text
 icon.svg          The small picture shown with the mod
 src/mod.lua              The instructions the mod runs
 ~~~
 
-Think of **mod.json** as the information card for the mod. **extended.mod.json** adds ShroudForge settings and buttons. The Lua file contains the behavior.
+Think of **mod.json** as the information card for the mod. **extended.mod.json** adds ShroudForge settings and buttons. Files under **locales/** translate those labels and provide the same mod-specific text to Lua. The Lua file contains the behavior.
 
 ## Try the example
 
@@ -35,7 +36,7 @@ Before sharing your own copy, update these values in **mod.json**:
 - **authors:** Add the names you want players to see.
 - **description:** Say in one sentence what your mod does.
 
-In **extended.mod.json**, you can change the greeting, the message style, and the button text. The button's **id** must match the action name used in **src/mod.lua**. This lets the Modloader know which Lua instruction to run when someone presses the button.
+In **extended.mod.json**, you can change the greeting, the message style, and the button text. The button's **id** must match the action name used in **src/mod.lua**. This lets the Modloader know which Lua instruction to run when someone presses the button. Add a file such as **locales/de.json** to translate the name, settings, groups, actions, changelog, and Lua strings without changing setting keys or saved values. The [mod locale guide](https://bonsaibauer.github.io/shroudforge/en/#doc-modding-locales) explains the schema and fallback behavior.
 ### How the setting reaches the Lua code
 
 The `settings` key in **extended.mod.json** is the name your Lua code asks for. In this example the key is `greeting`. the player-facing label can say “Greeting” because Lua uses the key, not the label.

@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "复制、旋转、保存和粘贴世界的某些部分。"
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "蓝图旋转90°"
+    },
+    "undoVoxels": {
+      "label": "撤消上次粘贴"
+    },
+    "markCursorNext": {
+      "label": "标记下一个选择角"
+    },
+    "resetEditor": {
+      "label": "重置/释放卡住的服务器操作"
+    },
+    "pasteAtCursor": {
+      "label": "粘贴到光标处"
+    },
+    "captureAndSave": {
+      "label": "捕获并保存蓝图"
+    },
+    "panelWidth": {
+      "label": "蓝图面板宽度"
+    },
+    "panelHeight": {
+      "label": "蓝图面板高度"
+    },
+    "panelPositionX": {
+      "label": "面板位置 X（−1 = 居中）"
+    },
+    "panelPositionY": {
+      "label": "面板位置 Y（从游戏顶部开始）"
+    },
+    "maximumCopyableProps": {
+      "label": "每个蓝图的最大道具"
+    },
+    "sourceX": {
+      "label": "源单元 X（手动回退）"
+    },
+    "sourceY": {
+      "label": "源单元 Y（手动回退）"
+    },
+    "sourceZ": {
+      "label": "源单元 Z（手动回退）"
+    },
+    "sizeX": {
+      "label": "尺寸 X（手动后备）"
+    },
+    "sizeY": {
+      "label": "Y 尺寸（手动回退）"
+    },
+    "sizeZ": {
+      "label": "Z尺寸（手动回退）"
+    },
+    "blueprintName": {
+      "label": "持久蓝图名称"
+    },
+    "blueprintNewName": {
+      "label": "重命名或重复的新名称"
+    },
+    "pasteVoxelMode": {
+      "label": "体素模式",
+      "options": {
+        "replace": "替换目标体素",
+        "add": "添加占用的源体素"
+      }
+    },
+    "targetPropMode": {
+      "label": "道具到达目标",
+      "options": {
+        "keep": "保留现有道具",
+        "replace": "更换相交道具"
+      }
+    },
+    "targetX": {
+      "label": "靶细胞 X"
+    },
+    "targetY": {
+      "label": "靶细胞 Y"
+    },
+    "targetZ": {
+      "label": "靶细胞 Z"
+    },
+    "targetWorldX": {
+      "label": "仅道具目标世界 X"
+    },
+    "targetWorldY": {
+      "label": "仅道具目标世界 Y"
+    },
+    "targetWorldZ": {
+      "label": "仅道具目标世界 Z"
+    },
+    "rotationQuarterTurns": {
+      "label": "初始粘贴旋转（0–3，使用配置的快捷方式在游戏中旋转）"
+    },
+    "rotationAxis": {
+      "label": "蓝图上轴（捕获时存储）",
+      "options": {
+        "x": "X轴",
+        "y": "Y轴",
+        "z": "Z轴"
+      }
+    },
+    "entityHandle": {
+      "label": "不透明实体手柄"
+    },
+    "templateUuidHigh": {
+      "label": "模板 UUID 高（十六进制）"
+    },
+    "templateUuidLow": {
+      "label": "模板 UUID 低（十六进制）"
+    },
+    "trackingId": {
+      "label": "追踪 ID"
+    },
+    "feedbackId": {
+      "label": "物料反馈 ID（仅限放置）"
+    },
+    "entityX": {
+      "label": "位置 X"
+    },
+    "entityY": {
+      "label": "位置 Y"
+    },
+    "entityZ": {
+      "label": "Z位置"
+    },
+    "boundsMinX": {
+      "label": "最小 X 界限"
+    },
+    "boundsMinY": {
+      "label": "最小 Y 界限"
+    },
+    "boundsMinZ": {
+      "label": "最小 Z 边界"
+    },
+    "boundsMaxX": {
+      "label": "最大界限 X"
+    },
+    "boundsMaxY": {
+      "label": "最大 Y 界限"
+    },
+    "boundsMaxZ": {
+      "label": "最大 Z 边界"
+    }
+  },
+  "groups": [
+    {
+      "label": "游戏内面板",
+      "description": "位置是相对于游戏窗口的逻辑像素。 X = −1 使面板居中。 Y 是从顶部向下测量的。更改在游戏运行时生效。"
+    },
+    {
+      "label": "世界编辑器限制"
+    },
+    {
+      "label": "键盘快捷键",
+      "description": "在此处或兼容性 → 热键中编辑快捷方式。玩游戏时会发生变化。空绑定会禁用快捷方式。",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "蓝图旋转90°"
+        },
+        "undoVoxels": {
+          "label": "撤消上次粘贴"
+        },
+        "markCursorNext": {
+          "label": "标记下一个选择角"
+        },
+        "resetEditor": {
+          "label": "重置/释放卡住的服务器操作",
+          "confirm": "如果服务器粘贴或撤消停止或不完整，重置/释放会要求专用服务器放弃它并释放其锁定。部分地形或道具可能会保留。粘贴仅在服务器确认后解锁。"
+        },
+        "pasteAtCursor": {
+          "label": "粘贴到光标处",
+          "confirm": "在当前光标位置写入活动蓝图？"
+        },
+        "captureAndSave": {
+          "label": "捕获并保存蓝图"
+        }
+      }
+    },
+    {
+      "label": "Native实体操作",
+      "description": "生成和放置使用本机游戏操作。",
+      "actions": {
+        "spawnEntity": {
+          "label": "队列道具生成",
+          "confirm": "使用这些 UUID 和跟踪值对原生道具生成进行排队？"
+        },
+        "placeEntity": {
+          "label": "放置在坐标处",
+          "confirm": "在这些坐标处调度本机放置？"
+        },
+        "destroyEntity": {
+          "label": "摧毁坐标",
+          "confirm": "在这些坐标处调度本地移除？"
+        }
+      }
+    },
+    {
+      "label": "世界编辑器",
+      "description": "通过本机世界 API 捕获体素和道具或仅道具蓝图、预览、粘贴和撤消。",
+      "actions": {
+        "markCursorA": {
+          "label": "标记选择角A"
+        },
+        "markCursorB": {
+          "label": "标记选择角B"
+        },
+        "markCursorTarget": {
+          "label": "标记粘贴靶"
+        },
+        "clearCursorSelection": {
+          "label": "清除光标标记"
+        },
+        "copyVoxels": {
+          "label": "捕获体素和道具"
+        },
+        "capturePropsOnly": {
+          "label": "仅从 A/B 选择中捕获道具"
+        },
+        "listProps": {
+          "label": "列出源区域中的 props"
+        },
+        "resolveRecipes": {
+          "label": "解决构建配方"
+        },
+        "saveBlueprint": {
+          "label": "拯救世界蓝图"
+        },
+        "loadBlueprint": {
+          "label": "加载世界蓝图"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "刷新蓝图文件夹"
+        },
+        "renameLibraryBlueprint": {
+          "label": "将蓝图重命名为新名称"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "复制蓝图至新名称"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "删除蓝图和图像",
+          "confirm": "从导出文件夹中删除指定的蓝图及其图像吗？"
+        },
+        "pasteVoxels": {
+          "label": "粘贴活动蓝图",
+          "confirm": "将活动蓝图写入目标锚点？"
+        },
+        "previewPaste": {
+          "label": "预览安置计划（仅日志）"
+        },
+        "undoVoxels": {
+          "label": "撤消最后的世界粘贴"
+        },
+        "destroySelectedProp": {
+          "label": "销毁选定的列出道具"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "增加在线F8采集：专用服务器读取标记的地形和道具，通过Steam P2P返回完整的V7蓝图，客户端验证并保存在本地。使用 648 个单元和两个道具进行实时验证，然后进行放置和撤消。",
+    "通过经过身份验证的客户端和请求 ID 对 P2P 请求进行排队，分离并发上传和每个客户端的最新撤消日志，并允许在确认后重复 F7 放置。 F4 撤消最新的放置。不完整的恢复仍然会阻止该客户端的下一次粘贴。",
+    "修复了地形、体素单元和原始尺寸道具（包括旋转蓝图）的原生 F7 放置和 F4 撤消。编辑器自己的日志可以恢复地形并删除放置的道具，而与游戏有限的撤消历史无关。",
+    "对本地世界和专用服务器 Steam P2P 请求使用相同的受保护放置和撤消流程。删除重复的准备情况检查和不必要的缩放写入器要求，并等待临时网格不可用而不是拒绝有效目标。已在两个目标上使用 1,170 个单元和一个支柱进行实时验证。",
+    "每 100 毫秒运行一次编辑器更新，并将额外的准备情况检查限制为最多每两秒一次，并在活动操作期间暂停这些检查。",
+    "将远程服务器发现回退和客户端授权移至加载程序拥有的网络模块中；编辑器现在使用其自动健康探测发现。",
+    "每次重新启动后发现本地专用服务器的当前 SteamID，并在 60 秒后报告未应答的 P2P 请求，并显示明确的未知结果警告。",
+    "在客户端重新启动时保留服务器发出的撤消令牌并自动恢复它，而不是丢失服务器未解析的日志。",
+    "自动从经过验证的实时世界上下文中选择本地本机写入或专用服务器 Steam P2P。当上下文未知时暂停编辑。",
+    "使世界目标明确。本地/单人游戏保留在直接客户端路径上。专用服务器编辑使用 Steam P2P。",
+    "通过 Steam P2P 将多人游戏蓝图放置和撤消路由到专用服务器的本机世界运行时。保留直接单人游戏编辑。",
+    "在具有显式 SteamID64 允许列表和服务器拥有的撤消日志的专用服务器上无头运行相同的世界编辑器模块。",
+    "删除实验性客户端游戏输入蓝图粘贴路径。保留现有的 SFBP V7 格式和本机直接规划器。",
+    "将旋转和缩放的 ItemInfo 放置绑定过滤移动到已注册的本机世界查询中。",
+    "通过道具捕获、蓝图文件和粘贴保留本机实体模板 UUID。",
+    "通过专用的经过验证的本机变换更新保留捕获的道具比例。",
+    "添加 V6 仅道具蓝图和带有网格对齐检查的 ShroudEdit 风格的世界空间放置锚点。",
+    "使用注册的本机世界 API 进行实体句柄、转换读取、安全句柄目标删除和体素网格元数据。",
+    "将独立 mod 打包为世界编辑器，并在键盘快捷键中公开 F3 旋转。",
+    "在蓝图管理中添加单个 F2 控制的蓝图窗口，其中包含上下文指令行、蓝图库和屏幕截图文件夹浏览器。",
+    "添加 F3-F8 快捷键、光标定位粘贴、捕获到蓝图工作流程、旋转和粘贴模式以及冲突检查撤消。 F1 仍然可用于游戏。"
+  ],
+  "strings": {}
+}

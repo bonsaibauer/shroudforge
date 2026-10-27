@@ -11,7 +11,7 @@ const resources = JSON.parse(fs.readFileSync(path.join(snapshot, "resources.json
 const api = JSON.parse(fs.readFileSync(path.join(site, "data", "api.json"), "utf8"));
 const version = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
 
-for (const name of ["manifest.schema.json", "extended.mod.schema.json"]) {
+for (const name of ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"]) {
   const source = fs.readFileSync(path.join(root, "modules", "modloader", "manifest", name), "utf8");
   const published = fs.readFileSync(path.join(site, "schemas", name), "utf8");
   if (source !== published) throw new Error(`published schema is stale: ${name}`);

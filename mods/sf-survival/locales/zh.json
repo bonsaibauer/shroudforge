@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "添加坠落伤害、生命值和法力再生、耐力、水下呼吸、武器耐用性和寒冷防护的设置。"
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "无坠落损坏",
+      "description": "关闭使用相同角色模板的玩家的坠落伤害。"
+    },
+    "fastHealthRegen": {
+      "label": "快速健康恢复",
+      "description": "生命恢复速度提高多达 100 倍。需要自然健康再生。"
+    },
+    "fastManaRegen": {
+      "label": "快速法力恢复",
+      "description": "法力回复速度提高最多 100 倍。需要自然法力再生。"
+    },
+    "infiniteStamina": {
+      "label": "无限耐力",
+      "description": "保持体力满，并在其最大变化时自动调整。"
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "无限水下呼吸",
+      "description": "保持水下呼吸储备充足。"
+    },
+    "infiniteWeaponDurability": {
+      "label": "无限武器耐久度",
+      "description": "禁用整个托管世界的耐久度损失，包括其他玩家装备的物品。禁用时恢复之前的世界设置。"
+    },
+    "infiniteFrostTimer": {
+      "label": "无限霜定时器",
+      "description": "最大限度地保持身体温暖。"
+    },
+    "infiniteMana": {
+      "label": "无限法力",
+      "description": "保持法力满并在其最大变化时自动调整。"
+    }
+  },
+  "groups": [
+    {
+      "label": "生存",
+      "description": "打开或关闭个人生存选项。更改会立即保存。"
+    }
+  ],
+  "changelog": [
+    "增加了坠落伤害、生命值和法力再生、耐力、水下呼吸、武器耐久度、寒冷防护和法力的八种设置。"
+  ],
+  "strings": {}
+}

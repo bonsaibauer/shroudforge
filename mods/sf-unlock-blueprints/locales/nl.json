@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Ontgrendelt alle blauwdrukken na opnieuw opstarten, ongeacht de ontgrendelingsvereisten voor het oorspronkelijke recept. Waarschuwing: als je deze wijziging ongedaan wilt maken, moet je alle betrokken ontgrendelingsvoortgangen resetten. Daarom is deze optie standaard uitgeschakeld."
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "Telt alleen recepten en registers waarvan de behoeftegegevens daadwerkelijk zijn gewijzigd."
+  ],
+  "strings": {}
+}

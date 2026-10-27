@@ -29,7 +29,7 @@
     "productionTimeMode": {
       "value": "original",
       "label": "Recipe Time Mode",
-      "description": "Changing the mode requires a restart. Original recipe times use the live scale. Shared time changes every timed recipe during startup asset preparation.",
+      "description": "Changing the mode requires a restart. Original mode scales each recipe time while the game runs. Fixed mode applies one duration to every timed recipe at startup.",
       "control": "select",
       "options": {
         "original": "Live: Original recipe times",
@@ -42,7 +42,7 @@
     "productionSeconds": {
       "value": 3,
       "label": "Production Time in Seconds",
-      "description": "Sets one base duration for every timed recipe in shared-time mode. Applied during startup asset preparation. Requires restart.",
+      "description": "Sets the duration used by every timed recipe in fixed mode. Takes effect after a restart.",
       "control": "slider",
       "min": 1,
       "max": 900,
@@ -79,7 +79,7 @@
     },
     {
       "label": "Production",
-      "description": "Choose live scaling of original recipe times or one shared duration prepared at startup. Only the control for the selected mode is enabled.",
+      "description": "Choose between scaling recipe times as production runs or using one fixed duration for all timed recipes. Only the settings for the selected mode are available.",
       "settings": ["productionTimeMode", "productionSeconds", "workshopTimeFactorPercent"]
     }
   ]

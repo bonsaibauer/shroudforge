@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Ajoute des paramètres pour les dégâts de chute, la régénération de santé et de mana, l'endurance, la respiration sous-marine, la durabilité des armes et la protection contre le froid."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Aucun dommage de chute",
+      "description": "Désactive les dégâts de chute pour les joueurs utilisant le même modèle de personnage."
+    },
+    "fastHealthRegen": {
+      "label": "Régénération rapide de la santé",
+      "description": "Augmente la régénération de la santé jusqu'à 100 fois. Nécessite une régénération naturelle de la santé."
+    },
+    "fastManaRegen": {
+      "label": "Régénération rapide du mana",
+      "description": "Augmente la régénération du mana jusqu'à 100 fois. Nécessite une régénération naturelle du mana."
+    },
+    "infiniteStamina": {
+      "label": "Endurance infinie",
+      "description": "Maintient l'endurance pleine et s'ajuste automatiquement lorsque son maximum change."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Respiration sous-marine infinie",
+      "description": "Maintient la réserve respiratoire sous-marine pleine."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Durabilité infinie des armes",
+      "description": "Désactive la perte de durabilité pour l'ensemble du monde hébergé, y compris les objets équipés par d'autres joueurs. Restaure le paramètre mondial précédent lorsqu'il est désactivé.\nMinuterie de gel infinie"
+    },
+    "infiniteFrostTimer": {
+      "label": "Protection contre le froid illimitée",
+      "description": "Maintient la chaleur corporelle à son maximum."
+    },
+    "infiniteMana": {
+      "label": "Mana infini",
+      "description": "Maintient le mana plein et s'ajuste automatiquement lorsque son maximum change."
+    }
+  },
+  "groups": [
+    {
+      "label": "Survie",
+      "description": "Activez ou désactivez les options de survie individuelles. Les modifications sont enregistrées immédiatement."
+    }
+  ],
+  "changelog": [
+    "Ajoute huit paramètres pour les dégâts de chute, la régénération de santé et de mana, l'endurance, la respiration sous-marine, la durabilité des armes, la protection contre le froid et le mana."
+  ],
+  "strings": {}
+}

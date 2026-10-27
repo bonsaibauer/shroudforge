@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Kopieer, roteer, bewaar en plak delen van de wereld."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Roteer blauwdruk 90°"
+    },
+    "undoVoxels": {
+      "label": "Laatste plakken ongedaan maken"
+    },
+    "markCursorNext": {
+      "label": "Markeer het volgende selectiehoekje"
+    },
+    "resetEditor": {
+      "label": "Vastgelopen serverwerking resetten/vrijgeven"
+    },
+    "pasteAtCursor": {
+      "label": "Plakken bij cursor"
+    },
+    "captureAndSave": {
+      "label": "Blauwdruk vastleggen en opslaan"
+    },
+    "panelWidth": {
+      "label": "Blauwdruk paneelbreedte"
+    },
+    "panelHeight": {
+      "label": "Blauwdruk paneelhoogte"
+    },
+    "panelPositionX": {
+      "label": "Paneelpositie X (−1 = gecentreerd)"
+    },
+    "panelPositionY": {
+      "label": "Paneelpositie Y (vanaf begin spel)"
+    },
+    "maximumCopyableProps": {
+      "label": "Maximaal aantal rekwisieten per blauwdruk"
+    },
+    "sourceX": {
+      "label": "Broncel X (handmatige fallback)"
+    },
+    "sourceY": {
+      "label": "Broncel Y (handmatige fallback)"
+    },
+    "sourceZ": {
+      "label": "Broncel Z (handmatige fallback)"
+    },
+    "sizeX": {
+      "label": "Maat X (handmatige terugval)"
+    },
+    "sizeY": {
+      "label": "Maat Y (handmatige terugval)"
+    },
+    "sizeZ": {
+      "label": "Maat Z (handmatige terugval)"
+    },
+    "blueprintName": {
+      "label": "Persistente blauwdruknaam"
+    },
+    "blueprintNewName": {
+      "label": "Nieuwe naam voor hernoemen of dupliceren"
+    },
+    "pasteVoxelMode": {
+      "label": "Voxel-modus",
+      "options": {
+        "replace": "Doelvoxels vervangen",
+        "add": "Bezette bronvoxels toevoegen"
+      }
+    },
+    "targetPropMode": {
+      "label": "Steunen op doel",
+      "options": {
+        "keep": "Bestaande rekwisieten behouden",
+        "replace": "Vervang kruisende steunen"
+      }
+    },
+    "targetX": {
+      "label": "Doelcel X"
+    },
+    "targetY": {
+      "label": "Doelcel Y"
+    },
+    "targetZ": {
+      "label": "Doelcel Z"
+    },
+    "targetWorldX": {
+      "label": "Doelwereld X, alleen voor rekwisieten"
+    },
+    "targetWorldY": {
+      "label": "Doelwereld Y, alleen voor rekwisieten"
+    },
+    "targetWorldZ": {
+      "label": "Alleen rekwisieten doelwereld Z"
+    },
+    "rotationQuarterTurns": {
+      "label": "Initiële plakrotatie (0–3, roteren in het spel met de geconfigureerde snelkoppeling)"
+    },
+    "rotationAxis": {
+      "label": "Blauwdruk omhoog-as (opgeslagen bij vastleggen)",
+      "options": {
+        "x": "X-as",
+        "y": "Y-as",
+        "z": "Z-as"
+      }
+    },
+    "entityHandle": {
+      "label": "Ondoorzichtige entiteitshandgreep"
+    },
+    "templateUuidHigh": {
+      "label": "Sjabloon UUID hoog (hexadecimaal)"
+    },
+    "templateUuidLow": {
+      "label": "Sjabloon UUID laag (hexadecimaal)"
+    },
+    "trackingId": {
+      "label": "Tracking-ID"
+    },
+    "feedbackId": {
+      "label": "Materiaalfeedback-ID (alleen plaatsing)"
+    },
+    "entityX": {
+      "label": "Positie X"
+    },
+    "entityY": {
+      "label": "Positie Y"
+    },
+    "entityZ": {
+      "label": "Positie Z"
+    },
+    "boundsMinX": {
+      "label": "Grenzen min X"
+    },
+    "boundsMinY": {
+      "label": "Grenzen min Y"
+    },
+    "boundsMinZ": {
+      "label": "Grenzen min Z"
+    },
+    "boundsMaxX": {
+      "label": "Grenzen max. X"
+    },
+    "boundsMaxY": {
+      "label": "Grenzen max. Y"
+    },
+    "boundsMaxZ": {
+      "label": "Grenzen max Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "In-game paneel",
+      "description": "Positie is relatief ten opzichte van het spelvenster in logische pixels. X = −1 centreert het paneel. Y wordt vanaf de bovenkant gemeten. Wijzigingen zijn van toepassing terwijl het spel actief is."
+    },
+    {
+      "label": "Limieten voor Wereldeditor"
+    },
+    {
+      "label": "Sneltoetsen",
+      "description": "Bewerk de snelkoppelingen hier of in Compatibiliteit → Sneltoetsen. Wijzigingen zijn van toepassing tijdens het spelen. Een lege binding schakelt een snelkoppeling uit.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Roteer blauwdruk 90°"
+        },
+        "undoVoxels": {
+          "label": "Laatste plakken ongedaan maken"
+        },
+        "markCursorNext": {
+          "label": "Markeer het volgende selectiehoekje"
+        },
+        "resetEditor": {
+          "label": "Vastgelopen serverwerking resetten/vrijgeven",
+          "confirm": "Als het plakken of ongedaan maken van een server vastloopt of onvolledig is, vraagt ​​Reset/release de dedicated server om deze te verlaten en de vergrendeling op te heffen. Gedeeltelijk terrein of rekwisieten mogen achterblijven. Plakken wordt pas ontgrendeld na serverbevestiging."
+        },
+        "pasteAtCursor": {
+          "label": "Plakken bij cursor",
+          "confirm": "De actieve blauwdruk op de huidige cursorpositie schrijven?"
+        },
+        "captureAndSave": {
+          "label": "Blauwdruk vastleggen en opslaan"
+        }
+      }
+    },
+    {
+      "label": "Eigen entiteitsbewerkingen",
+      "description": "Spawn en plaatsing maken gebruik van native spelbewerkingen.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Wachtrij prop spawn",
+          "confirm": "Een native prop-spawn in de wachtrij plaatsen met behulp van deze UUID en trackingwaarden?"
+        },
+        "placeEntity": {
+          "label": "Plaats op coördinaten",
+          "confirm": "Native plaatsing op deze coördinaten verzenden?"
+        },
+        "destroyEntity": {
+          "label": "Vernietig op coördinaten",
+          "confirm": "Native verwijdering op deze coördinaten verzenden?"
+        }
+      }
+    },
+    {
+      "label": "Wereldeditor",
+      "description": "Leg voxel-en-prop of alleen-props blauwdrukken vast, bekijk een voorbeeld, plak en maak ongedaan via native wereld-API's.",
+      "actions": {
+        "markCursorA": {
+          "label": "Markeer selectiehoek A"
+        },
+        "markCursorB": {
+          "label": "Markeer selectiehoek B"
+        },
+        "markCursorTarget": {
+          "label": "Markeer het plakdoel"
+        },
+        "clearCursorSelection": {
+          "label": "Cursormarkeringen wissen"
+        },
+        "copyVoxels": {
+          "label": "Leg voxels en rekwisieten vast"
+        },
+        "capturePropsOnly": {
+          "label": "Leg alleen rekwisieten vast uit de A/B-selectie"
+        },
+        "listProps": {
+          "label": "Lijst met rekwisieten in de bronregio"
+        },
+        "resolveRecipes": {
+          "label": "Los bouwrecepten op"
+        },
+        "saveBlueprint": {
+          "label": "Red de wereldblauwdruk"
+        },
+        "loadBlueprint": {
+          "label": "Wereldblauwdruk laden"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Blauwdrukmap vernieuwen"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Hernoem de blauwdruk naar een nieuwe naam"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Dupliceer blauwdruk naar nieuwe naam"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Blauwdruk en afbeelding verwijderen",
+          "confirm": "De genoemde blueprint en de bijbehorende afbeelding uit de exportmap verwijderen?"
+        },
+        "pasteVoxels": {
+          "label": "Actieve blauwdruk plakken",
+          "confirm": "De actieve blauwdruk naar het doelanker schrijven?"
+        },
+        "previewPaste": {
+          "label": "Voorbeeld plaatsingsplan (alleen log)"
+        },
+        "undoVoxels": {
+          "label": "Laatste wereld plakken ongedaan maken"
+        },
+        "destroySelectedProp": {
+          "label": "Vernietig geselecteerde vermelde prop"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Voegt online F8-opname toe: de speciale server leest het gemarkeerde terrein en de rekwisieten, retourneert de volledige V7-blauwdruk via Steam P2P en de client valideert deze en slaat deze lokaal op. Live geverifieerd met 648 cellen en twee rekwisieten, gevolgd door plaatsing en ongedaan maken.",
+    "Zet P2P-verzoeken in de wachtrij op basis van een geverifieerde klant en verzoek-ID, scheidt gelijktijdige uploads en het laatste ongedaan gemaakte dagboek van elke klant, en maakt herhaalde F7-plaatsing mogelijk na bevestiging. F4 maakt de laatste plaatsing ongedaan. Onvolledig herstel blokkeert nog steeds de volgende plak van die client.",
+    "Herstelt de oorspronkelijke F7-plaatsing en F4 ongedaan maken voor terrein, voxelcellen en rekwisieten op origineel formaat, inclusief geroteerde blauwdrukken. Het eigen dagboek van de redacteur herstelt het terrein en verwijdert geplaatste rekwisieten, onafhankelijk van de beperkte geschiedenis van het ongedaan maken van het spel.",
+    "Gebruikt dezelfde bewaakte plaatsing en ongedaanmakingsstroom voor lokale werelden en Dedicated Server Steam P2P-verzoeken. Verwijdert dubbele gereedheidscontroles en onnodige vereisten voor schaalschrijvers, en wacht op tijdelijke onbeschikbaarheid van het raster in plaats van een geldig doel af te wijzen. Live geverifieerd met 1.170 cellen en één steun op beide doelen.",
+    "Voert elke 100 ms updates van de editor uit en beperkt aanvullende gereedheidscontroles tot maximaal één keer per twee seconden, waarbij deze controles worden gepauzeerd tijdens actieve bewerkingen.",
+    "Verplaatst de fallback voor detectie van externe servers en clientautorisatie naar de netwerkmodule die eigendom is van de lader; de editor gebruikt nu de automatische detectie van gezondheidstests.",
+    "Ontdekt de huidige SteamID van een lokale Dedicated Server na elke herstart en rapporteert onbeantwoorde P2P-verzoeken na 60 seconden met een expliciete waarschuwing voor onbekende uitkomst.",
+    "Behoudt het door de server uitgegeven ongedaan maken-token bij het opnieuw opstarten van de client en hervat dit automatisch in plaats van dat het onopgeloste journaal van de server verloren gaat.",
+    "Selecteert automatisch lokale native schrijfbewerkingen of Dedicated Server Steam P2P uit de gevalideerde livewereldcontext. Pauzeert bewerkingen terwijl de context onbekend is.",
+    "Maakt het werelddoel expliciet. Lokaal/singleplayer blijft op het directe clientpad. Bewerkingen op een speciale server gebruiken Steam P2P.",
+    "Stuurt plaatsing en ongedaan maken van multiplayer-blauwdrukken via Steam P2P naar de runtime van de specifieke server. Preserves direct singleplayer edits.",
+    "Voert dezelfde World Editor-module headless uit op speciale servers met een expliciete SteamID64-toelatingslijst en een ongedaan journaal van de server.",
+    "Verwijdert het plakpad voor de experimentele clientgame-invoerblauwdruk. Behoudt het bestaande SFBP V7-formaat en de native direct planner.",
+    "Verplaatst geroteerde en geschaalde ItemInfo-plaatsingsgebonden filtering naar de geregistreerde native world-query.",
+    "Behoudt de oorspronkelijke UUID van de entiteitssjabloon via het vastleggen van props, blauwdrukbestanden en plakken.",
+    "Behoudt de schaal van de vastgelegde prop met een speciale, geverifieerde native transformatie-update.",
+    "Voegt blauwdrukken voor alleen V6-rekwisieten en plaatsingsankers in de wereldruimte in ShroudEdit-stijl toe met controles op de uitlijning van het raster.",
+    "Maakt gebruik van geregistreerde native world-API's voor entiteitshandles, transformatie-leesbewerkingen, veilige, op handle gerichte verwijdering en voxel-rastermetagegevens.",
+    "Verpakt de standalone mod als wereldeditor en maakt F3-rotatie zichtbaar in sneltoetsen.",
+    "Voegt een enkel F2-gestuurd blauwdrukvenster toe met een contextuele instructieregel, blauwdrukkenbibliotheek en screenshot-mapbrowser in blauwdrukkenbeheer.",
+    "Voegt F3-F8-snelkoppelingen, cursorgericht plakken, workflow voor vastleggen naar blauwdruk, rotatie- en plakmodi en ongedaan maken met conflictcontrole toe. F1 blijft beschikbaar voor de game."
+  ],
+  "strings": {}
+}

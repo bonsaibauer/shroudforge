@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Lägger till inställningar för fallskador, hälsa och mana-regenerering, uthållighet, undervattensandning, vapenhållbarhet och kylskydd."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Inga fallskador",
+      "description": "Stänger av fallskador för spelare som använder samma karaktärsmall."
+    },
+    "fastHealthRegen": {
+      "label": "Snabbare hälsoläkning",
+      "description": "Ökar hälsoregenerering med upp till 100 gånger. Kräver naturlig hälsoregenerering."
+    },
+    "fastManaRegen": {
+      "label": "Snabbare manaregenerering",
+      "description": "Ökar mana-regenerering med upp till 100 gånger. Kräver naturlig mana-regenerering."
+    },
+    "infiniteStamina": {
+      "label": "Oändlig uthållighet",
+      "description": "Håller uthålligheten full och justeras automatiskt när dess maximala ändras."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Oändligt undervattensandning",
+      "description": "Håller undervattensandningsreserven full."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Oändlig vapenhållbarhet",
+      "description": "Inaktiverar hållbarhetsförlust för hela värdvärlden, inklusive föremål utrustade av andra spelare. Återställer den tidigare världsinställningen när den är inaktiverad."
+    },
+    "infiniteFrostTimer": {
+      "label": "Obegränsat köldskydd",
+      "description": "Håller kroppsvärmen maximalt."
+    },
+    "infiniteMana": {
+      "label": "Obegränsad mana",
+      "description": "Håller mana full och justerar automatiskt när dess maximala ändras."
+    }
+  },
+  "groups": [
+    {
+      "label": "Överlevnad",
+      "description": "Slå på eller av individuella överlevnadsalternativ. Ändringar sparas omedelbart."
+    }
+  ],
+  "changelog": [
+    "Lägger till åtta inställningar för fallskador, hälsa och mana-regenerering, uthållighet, undervattensandning, vapenhållbarhet, köldskydd och mana."
+  ],
+  "strings": {}
+}

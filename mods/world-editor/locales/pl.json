@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Kopiuj, obracaj, zapisuj i wklejaj części świata."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Obróć projekt o 90°"
+    },
+    "undoVoxels": {
+      "label": "Cofa ostatnią pastę"
+    },
+    "markCursorNext": {
+      "label": "Zaznacz następny narożnik wyboru"
+    },
+    "resetEditor": {
+      "label": "Zresetuj / zwolnij zablokowane działanie serwera"
+    },
+    "pasteAtCursor": {
+      "label": "Wklej w miejscu kursora"
+    },
+    "captureAndSave": {
+      "label": "Przechwyć i zapisz plan"
+    },
+    "panelWidth": {
+      "label": "Szerokość panelu na planie"
+    },
+    "panelHeight": {
+      "label": "Wysokość panelu według projektu"
+    },
+    "panelPositionX": {
+      "label": "Pozycja panelu X (-1 = wyśrodkowana)"
+    },
+    "panelPositionY": {
+      "label": "Pozycja panelu Y (od góry gry)"
+    },
+    "maximumCopyableProps": {
+      "label": "Maksymalna liczba rekwizytów na projekt"
+    },
+    "sourceX": {
+      "label": "Komórka źródłowa X (ręczne przywracanie)"
+    },
+    "sourceY": {
+      "label": "Komórka źródłowa Y (ręczne przywracanie)"
+    },
+    "sourceZ": {
+      "label": "Komórka źródłowa Z (ręczna rezerwa)"
+    },
+    "sizeX": {
+      "label": "Rozmiar X (ręczny powrót)"
+    },
+    "sizeY": {
+      "label": "Rozmiar Y (ręczny powrót)"
+    },
+    "sizeZ": {
+      "label": "Rozmiar Z (ręczny powrót)"
+    },
+    "blueprintName": {
+      "label": "Stała nazwa planu"
+    },
+    "blueprintNewName": {
+      "label": "Nowa nazwa do zmiany nazwy lub duplikatu"
+    },
+    "pasteVoxelMode": {
+      "label": "Tryb woksela",
+      "options": {
+        "replace": "Zamień docelowe woksele",
+        "add": "Dodaj zajęte woksele źródłowe"
+      }
+    },
+    "targetPropMode": {
+      "label": "Podpory u celu",
+      "options": {
+        "keep": "Zachowaj istniejące rekwizyty",
+        "replace": "Zamień przecinające się podpory"
+      }
+    },
+    "targetX": {
+      "label": "Komórka docelowa X"
+    },
+    "targetY": {
+      "label": "Komórka docelowa Y"
+    },
+    "targetZ": {
+      "label": "Komórka docelowa Z"
+    },
+    "targetWorldX": {
+      "label": "Docelowy świat X, przeznaczony wyłącznie dla rekwizytów"
+    },
+    "targetWorldY": {
+      "label": "Świat docelowy Y, przeznaczony wyłącznie dla rekwizytów"
+    },
+    "targetWorldZ": {
+      "label": "Docelowy świat Z, przeznaczony wyłącznie dla rekwizytów"
+    },
+    "rotationQuarterTurns": {
+      "label": "Początkowa rotacja wklejania (0–3, obracaj w grze za pomocą skonfigurowanego skrótu)"
+    },
+    "rotationAxis": {
+      "label": "Plan w górę osi (zapisywany podczas przechwytywania)",
+      "options": {
+        "x": "Oś X",
+        "y": "Oś Y",
+        "z": "Oś Z"
+      }
+    },
+    "entityHandle": {
+      "label": "Nieprzezroczysty uchwyt elementu"
+    },
+    "templateUuidHigh": {
+      "label": "Szablon UUID wysoki (szesnastkowo)"
+    },
+    "templateUuidLow": {
+      "label": "Szablon UUID niski (szesnastkowo)"
+    },
+    "trackingId": {
+      "label": "Identyfikator śledzenia"
+    },
+    "feedbackId": {
+      "label": "Identyfikator informacji zwrotnej o materiale (tylko rozmieszczenie)"
+    },
+    "entityX": {
+      "label": "Pozycja X"
+    },
+    "entityY": {
+      "label": "Pozycja Y"
+    },
+    "entityZ": {
+      "label": "Pozycja Z"
+    },
+    "boundsMinX": {
+      "label": "Granice min X"
+    },
+    "boundsMinY": {
+      "label": "Granice min Y"
+    },
+    "boundsMinZ": {
+      "label": "Granice min Z"
+    },
+    "boundsMaxX": {
+      "label": "Granice maks. X"
+    },
+    "boundsMaxY": {
+      "label": "Granice maks. Y"
+    },
+    "boundsMaxZ": {
+      "label": "Granice max Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "Panel w grze",
+      "description": "Pozycja jest określana względem okna gry w pikselach logicznych. X = −1 centruje panel. Y mierzone jest od góry. Zmiany obowiązują podczas działania gry."
+    },
+    {
+      "label": "Ograniczenia edytora świata"
+    },
+    {
+      "label": "Skróty klawiaturowe",
+      "description": "Edytuj skróty tutaj lub w Zgodność → Skróty klawiszowe. Zmiany obowiązują podczas gry. Puste powiązanie wyłącza skrót.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Obróć projekt o 90°"
+        },
+        "undoVoxels": {
+          "label": "Cofa ostatnią pastę"
+        },
+        "markCursorNext": {
+          "label": "Zaznacz następny narożnik wyboru"
+        },
+        "resetEditor": {
+          "label": "Zresetuj / zwolnij zablokowane działanie serwera",
+          "confirm": "Jeśli wklejanie lub cofanie serwera zostanie zatrzymane lub niekompletne, polecenie Reset/release prosi serwer dedykowany o porzucenie go i zwolnienie blokady. Może pozostać częściowy teren lub rekwizyty. Wklejenie odblokowuje się dopiero po potwierdzeniu przez serwer."
+        },
+        "pasteAtCursor": {
+          "label": "Wklej w miejscu kursora",
+          "confirm": "Zapisać aktywny plan w bieżącej pozycji kursora?"
+        },
+        "captureAndSave": {
+          "label": "Przechwyć i zapisz plan"
+        }
+      }
+    },
+    {
+      "label": "Operacje na encji natywnej",
+      "description": "Spawn i rozmieszczenie korzystają z natywnych operacji gry.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Pojawienie się rekwizytów w kolejce",
+          "confirm": "Umieścić w kolejce natywny spawn rekwizytów, używając tych identyfikatorów UUID i wartości śledzenia?"
+        },
+        "placeEntity": {
+          "label": "Miejsce na współrzędnych",
+          "confirm": "Wysłać natywne położenie pod tymi współrzędnymi?"
+        },
+        "destroyEntity": {
+          "label": "Zniszcz we współrzędnych",
+          "confirm": "Wysłać natywne usunięcie pod tymi współrzędnymi?"
+        }
+      }
+    },
+    {
+      "label": "Edytor świata",
+      "description": "Przechwytuj plany zawierające woksel i rekwizyty lub tylko rekwizyty, wyświetlaj podgląd, wklejaj i cofaj za pomocą natywnych interfejsów API.",
+      "actions": {
+        "markCursorA": {
+          "label": "Zaznacz narożnik wyboru A"
+        },
+        "markCursorB": {
+          "label": "Zaznacz narożnik wyboru B"
+        },
+        "markCursorTarget": {
+          "label": "Zaznacz cel wklejenia"
+        },
+        "clearCursorSelection": {
+          "label": "Usuń znaczniki kursora"
+        },
+        "copyVoxels": {
+          "label": "Przechwytuj woksele i rekwizyty"
+        },
+        "capturePropsOnly": {
+          "label": "Przechwytuj rekwizyty tylko z wyboru A/B"
+        },
+        "listProps": {
+          "label": "Lista rekwizytów w regionie źródłowym"
+        },
+        "resolveRecipes": {
+          "label": "Rozwiąż receptury kompilacji"
+        },
+        "saveBlueprint": {
+          "label": "Plan ratowania świata"
+        },
+        "loadBlueprint": {
+          "label": "Załaduj plan świata"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Odśwież folder planów"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Zmień nazwę projektu na nową"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Zduplikuj projekt pod nową nazwą"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Usuń projekt i obraz",
+          "confirm": "Usunąć nazwany projekt i jego obraz z folderu eksportu?"
+        },
+        "pasteVoxels": {
+          "label": "Wklej aktywny plan",
+          "confirm": "Zapisać aktywny plan do docelowej kotwicy?"
+        },
+        "previewPaste": {
+          "label": "Podgląd planu rozmieszczenia (tylko log)"
+        },
+        "undoVoxels": {
+          "label": "Cofa ostatnie wklejenie świata"
+        },
+        "destroySelectedProp": {
+          "label": "Zniszcz wybrany przedmiot z listy"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Dodaje przechwytywanie online F8: dedykowany serwer odczytuje oznaczony teren i rekwizyty, zwraca kompletny plan V7 przez Steam P2P, a klient sprawdza go i zapisuje lokalnie. Zweryfikowano na żywo z 648 komórkami i dwoma rekwizytami, a następnie umieszczono i cofnięto.",
+    "Kolejkuje żądania P2P według uwierzytelnionego klienta i identyfikatora żądania, oddziela równoczesne przesyłanie i dziennik ostatnich cofnięć każdego klienta oraz umożliwia wielokrotne umieszczanie klawisza F7 po potwierdzeniu. F4 cofa ostatnie umieszczenie. Niekompletne odzyskiwanie nadal blokuje następną pastę tego klienta.",
+    "Naprawiono natywne umieszczanie F7 i cofanie F4 dla terenu, komórek wokseli i rekwizytów w oryginalnym rozmiarze, w tym obróconych planów. Własny dziennik redaktora przywraca teren i usuwa umieszczone rekwizyty niezależnie od ograniczonej historii cofania w grze.",
+    "Używa tego samego chronionego procesu umieszczania i cofania dla światów lokalnych i żądań P2P serwera dedykowanego Steam. Usuwa zduplikowane kontrole gotowości i niepotrzebne wymagania dotyczące modułu skalowania oraz czeka na tymczasową niedostępność sieci, zamiast odrzucać prawidłowy cel. Zweryfikowano na żywo z 1170 komórkami i jednym rekwizytem na obu celach.",
+    "Uruchamia aktualizacje edytora co 100 ms i ogranicza dodatkowe kontrole gotowości do maksymalnie raz na dwie sekundy, wstrzymując te kontrole podczas aktywnych operacji.",
+    "Przenosi rezerwowe zdalne wykrywanie serwera i autoryzację klienta do modułu sieciowego należącego do modułu ładującego; edytor korzysta teraz z automatycznego wykrywania sond kondycji.",
+    "Wykrywa aktualny SteamID lokalnego serwera dedykowanego po każdym ponownym uruchomieniu i raportuje nieodebrane żądania P2P po 60 sekundach z wyraźnym ostrzeżeniem o nieznanym wyniku.",
+    "Utrzymuje wydany przez serwer token cofania podczas ponownego uruchamiania klienta i automatycznie go wznawia, zamiast tracić nierozwiązany dziennik serwera.",
+    "Automatycznie wybiera lokalne zapisy natywne lub serwer dedykowany Steam P2P z zatwierdzonego kontekstu świata na żywo. Wstrzymuje edycję, gdy kontekst jest nieznany.",
+    "Wyraźnie określa cel świata. Lokalny/singiel pozostaje na bezpośredniej ścieżce klienta. Edycje na serwerze dedykowanym korzystają ze Steam P2P.",
+    "Kieruje umieszczanie i cofanie planów gry wieloosobowej przez Steam P2P do natywnego środowiska wykonawczego serwera dedykowanego. Zachowuje bezpośrednie zmiany w trybie dla jednego gracza.",
+    "Uruchamia bezgłowy ten sam moduł World Editor na dedykowanych serwerach z wyraźną listą dozwolonych SteamID64 i dziennikiem cofania należącym do serwera.",
+    "Usuwa ścieżkę wklejania planu wejściowego gry w eksperymentalnym kliencie. Zachowuje istniejący format SFBP V7 i natywny planer bezpośredni.",
+    "Przenosi obrócone i skalowane filtrowanie powiązane z miejscem docelowym ItemInfo do zarejestrowanego zapytania świata natywnego.",
+    "Zachowuje natywny identyfikator UUID szablonu encji poprzez przechwytywanie elementów, pliki planów i wklejanie.",
+    "Zachowuje przechwyconą skalę rekwizytów dzięki dedykowanej zweryfikowanej aktualizacji transformacji natywnej.",
+    "Dodaje plany zawierające wyłącznie rekwizyty V6 i kotwice rozmieszczenia w przestrzeni świata w stylu ShroudEdit z kontrolą wyrównania siatki.",
+    "Wykorzystuje zarejestrowane natywne interfejsy API do obsługi uchwytów encji, odczytów transformacji, bezpiecznego usuwania ukierunkowanego na uchwyty i metadanych siatki wokseli.",
+    "Pakuje samodzielny mod jako edytor świata i udostępnia rotację F3 w skrótach klawiaturowych.",
+    "Dodaje pojedyncze okno planu sterowane klawiszem F2 z kontekstową linią instrukcji, biblioteką planów i przeglądarką folderów zrzutów ekranu w zarządzaniu planami.",
+    "Dodaje skróty F3-F8, wklejanie kierowane kursorem, przepływ pracy przechwytywania do planu, tryby obracania i wklejania oraz cofanie ze sprawdzaniem konfliktów. F1 pozostaje dostępna w grze."
+  ],
+  "strings": {}
+}

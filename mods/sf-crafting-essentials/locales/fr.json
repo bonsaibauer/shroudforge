@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Ajuste les coûts des recettes et les temps de production et empêche la consommation des éléments pris en charge lorsqu'ils sont utilisés."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Aucun coût de ressources de recette",
+      "description": "Supprime les ingrédients directs, les ingrédients de catégorie et les frais d'eau des recettes avant le démarrage. Les exigences de la recette s'affichent à zéro. Nécessite un redémarrage du jeu. Les coûts de construction, de mise à niveau et autres coûts d’inventaire partagés restent inchangés."
+    },
+    "infiniteItemUse": {
+      "label": "Aucune consommation d'article",
+      "description": "La nourriture, les potions, les bandages et autres objets pris en charge utilisés restent dans votre inventaire au lieu d'être consommés. S’applique en direct aux actions d’utilisation prises en charge. Les ingrédients des recettes, les échanges et les transferts de stocks restent inchangés. Certaines actions sur les éléments ne sont pas prises en charge."
+    },
+    "productionTimeMode": {
+      "label": "Mode temps de recette",
+      "description": "Le changement de mode nécessite un redémarrage. Le mode original met à l'échelle la durée de chaque recette pendant l'exécution du jeu. Le mode fixe applique une durée à chaque recette chronométrée au démarrage.",
+      "options": {
+        "original": "Live : temps de recette originaux",
+        "fixed": "Redémarrage requis : un temps partagé pour toutes les recettes"
+      }
+    },
+    "productionSeconds": {
+      "label": "Temps de production en secondes",
+      "description": "Définit la durée utilisée par chaque recette chronométrée en mode fixe. Prend effet après un redémarrage."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Facteur de durée de production",
+      "description": "Appliqué en direct aux temps de recette chargés. À 0 %, la recette au temps le plus court prend 1 seconde et les autres recettes conservent leurs temps relatifs. Restaure à 100 % les temps de recette d'origine. Le réglage de la vitesse mondiale reste inchangé. Les changements affectent également la production en cours."
+    }
+  },
+  "groups": [
+    {
+      "label": "Ressources et inventaire",
+      "description": "Les coûts des ingrédients et de l'eau de la recette sont supprimés avant le démarrage. Aucune consommation d'élément empêche la consommation des éléments pris en charge lorsqu'ils sont utilisés."
+    },
+    {
+      "label": "Production",
+      "description": "Choisissez entre la mise à l'échelle des durées de recette au fur et à mesure des cycles de production ou l'utilisation d'une durée fixe pour toutes les recettes chronométrées. Seuls les paramètres du mode sélectionné sont disponibles."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

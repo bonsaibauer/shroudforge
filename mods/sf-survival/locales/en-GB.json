@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Adds settings for fall damage, health and mana regeneration, stamina, underwater breathing, weapon durability and cold protection."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "No Fall Damage",
+      "description": "Turns off fall damage for players using the same character template."
+    },
+    "fastHealthRegen": {
+      "label": "Fast Health Regen",
+      "description": "Increases health regeneration by up to 100 times. Requires natural health regeneration."
+    },
+    "fastManaRegen": {
+      "label": "Fast Mana Regen",
+      "description": "Increases mana regeneration by up to 100 times. Requires natural mana regeneration."
+    },
+    "infiniteStamina": {
+      "label": "Infinite Stamina",
+      "description": "Keeps stamina full and adjusts automatically when its maximum changes."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Infinite Underwater Breath",
+      "description": "Keeps the underwater breath reserve full."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Infinite Weapon Durability",
+      "description": "Disables durability loss for the entire hosted world, including items equipped by other players. Restores the previous world setting when disabled."
+    },
+    "infiniteFrostTimer": {
+      "label": "Infinite Frost Timer",
+      "description": "Keeps body warmth at its maximum."
+    },
+    "infiniteMana": {
+      "label": "Infinite Mana",
+      "description": "Keeps mana full and adjusts automatically when its maximum changes."
+    }
+  },
+  "groups": [
+    {
+      "label": "Survival",
+      "description": "Turn individual survival options on or off. Changes are saved immediately."
+    }
+  ],
+  "changelog": [
+    "Adds eight settings for fall damage, health and mana regeneration, stamina, underwater breathing, weapon durability, cold protection and mana."
+  ],
+  "strings": {}
+}

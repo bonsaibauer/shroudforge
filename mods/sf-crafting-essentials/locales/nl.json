@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Past receptkosten en productietijden aan en voorkomt dat ondersteunde artikelen worden geconsumeerd wanneer ze worden gebruikt."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Geen kosten voor receptbronnen",
+      "description": "Verwijdert directe ingrediënten, categorie-ingrediënten en waterladingen uit recepten vóór het opstarten. Receptvereisten worden weergegeven als nul. Vereist een herstart van het spel. Bouw-, upgrade- en andere gedeelde inventariskosten blijven ongewijzigd."
+    },
+    "infiniteItemUse": {
+      "label": "Geen artikelverbruik",
+      "description": "Gebruikt voedsel, drankjes, verbandmiddelen en andere ondersteunde items blijven in je inventaris en worden niet geconsumeerd. Is live van toepassing op ondersteunde gebruiksacties. Receptingrediënten, transacties en voorraadoverdrachten blijven ongewijzigd. Sommige itemacties worden niet ondersteund."
+    },
+    "productionTimeMode": {
+      "label": "Recepttijdmodus",
+      "description": "Het wijzigen van de modus vereist een herstart. De originele modus schaalt de tijd van elk recept terwijl het spel loopt. De vaste modus past één duur toe op elk getimed recept bij het opstarten.",
+      "options": {
+        "original": "Live: Originele recepttijden",
+        "fixed": "Opnieuw opstarten vereist: één gedeelde tijd voor alle recepten"
+      }
+    },
+    "productionSeconds": {
+      "label": "Productietijd in seconden",
+      "description": "Stelt de duur in die wordt gebruikt door elk getimed recept in de vaste modus. Treedt in werking na een herstart."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Schaal voor productieduur",
+      "description": "Live toegepast op geladen recepttijden. Bij 0% duurt het kortst getimede recept 1 seconde en behouden andere recepten hun relatieve tijden. Herstelt 100% de oorspronkelijke recepttijden. De wereldsnelheidsinstelling blijft ongewijzigd. Veranderingen hebben ook gevolgen voor de lopende productie."
+    }
+  },
+  "groups": [
+    {
+      "label": "Hulpbronnen en inventaris",
+      "description": "Receptingrediënten en waterkosten worden vóór het opstarten verwijderd. Geen itemverbruik voorkomt dat ondersteunde items worden verbruikt wanneer ze worden gebruikt."
+    },
+    {
+      "label": "-productie",
+      "description": "Kies tussen het schalen van recepttijden naarmate de productie loopt of het gebruik van één vaste duur voor alle getimede recepten. Alleen de instellingen voor de geselecteerde modus zijn beschikbaar."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

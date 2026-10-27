@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "调整滑翔机的耐力消耗和飞行操控。"
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "无限飞行",
+      "description": "允许滑翔机向上倾斜而不消耗耐力。"
+    },
+    "turnSpeed": {
+      "label": "转弯速度",
+      "description": "滑翔机转向速度的倍率。"
+    },
+    "moveSpeed": {
+      "label": "移动速度",
+      "description": "滑翔机向前加速度的倍率。"
+    },
+    "liftSpeed": {
+      "label": "提升速度",
+      "description": "滑翔机纵向空气阻力的倍率。数值越高，空气阻力越大。"
+    },
+    "descendSpeed": {
+      "label": "下降速度",
+      "description": "滑翔机垂直方向空气阻力的倍率。数值越高，空气阻力越大。"
+    }
+  },
+  "groups": [
+    {
+      "label": "无限飞行",
+      "description": "速度调整会影响当前滑翔机以及所有使用同一滑翔机型号的玩家。"
+    }
+  ],
+  "changelog": [
+    "新增上升飞行、耐力、转向、前进、升力和下降控制。停用模组时会恢复游戏原有数值。"
+  ],
+  "strings": {}
+}

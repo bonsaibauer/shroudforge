@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Voegt instellingen toe voor valschade, gezondheid en mana-regeneratie, uithoudingsvermogen, onderwaterademhaling, wapenduurzaamheid en bescherming tegen kou."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Geen valschade",
+      "description": "Schakelt valschade uit voor spelers die dezelfde karaktersjabloon gebruiken."
+    },
+    "fastHealthRegen": {
+      "label": "Snelle gezondheidsregen",
+      "description": "Verhoogt het herstel van de gezondheid tot wel 100 keer. Vereist natuurlijk herstel van de gezondheid."
+    },
+    "fastManaRegen": {
+      "label": "Snelle Mana Regen",
+      "description": "Verhoogt de regeneratie van mana tot wel 100 keer. Vereist natuurlijke mana-regeneratie."
+    },
+    "infiniteStamina": {
+      "label": "Oneindig uithoudingsvermogen",
+      "description": "Houdt het uithoudingsvermogen vol en past zich automatisch aan wanneer het maximum verandert."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Oneindige onderwaterademhaling",
+      "description": "Houdt de ademreserve onder water vol."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Oneindige wapenduurzaamheid",
+      "description": "Schakelt duurzaamheidsverlies uit voor de hele gehoste wereld, inclusief items die door andere spelers zijn uitgerust. Herstelt de vorige wereldinstelling wanneer deze is uitgeschakeld."
+    },
+    "infiniteFrostTimer": {
+      "label": "Oneindige vorsttimer",
+      "description": "Houdt de lichaamswarmte maximaal."
+    },
+    "infiniteMana": {
+      "label": "Oneindige mana",
+      "description": "Houdt de mana vol en wordt automatisch aangepast wanneer het maximum verandert."
+    }
+  },
+  "groups": [
+    {
+      "label": "Overleving",
+      "description": "Individuele overlevingsopties in- of uitschakelen. Wijzigingen worden direct opgeslagen."
+    }
+  ],
+  "changelog": [
+    "Voegt acht instellingen toe voor valschade, gezondheid en mana-regeneratie, uithoudingsvermogen, onderwaterademhaling, wapenduurzaamheid, koudebescherming en mana."
+  ],
+  "strings": {}
+}

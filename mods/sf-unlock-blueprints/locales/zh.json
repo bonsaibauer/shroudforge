@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "重启后解锁所有蓝图，无论其原始配方解锁要求如何。警告：恢复此更改需要重置所有受影响的解锁进度。因此，默认情况下禁用此选项。"
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "仅计算需求数据实际更改的配方和注册表。"
+  ],
+  "strings": {}
+}

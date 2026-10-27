@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Dodaje ustawienia dotyczące obrażeń od upadku, regeneracji zdrowia i many, wytrzymałości, oddychania pod wodą, trwałości broni i ochrony przed zimnem."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Brak uszkodzeń spowodowanych upadkiem",
+      "description": "Wyłącza obrażenia od upadku dla graczy używających tego samego szablonu postaci."
+    },
+    "fastHealthRegen": {
+      "label": "Szybka regeneracja zdrowia",
+      "description": "Zwiększa regenerację zdrowia nawet 100 razy. Wymaga naturalnej regeneracji zdrowia."
+    },
+    "fastManaRegen": {
+      "label": "Szybka regeneracja many",
+      "description": "Zwiększa regenerację many nawet 100 razy. Wymaga naturalnej regeneracji many."
+    },
+    "infiniteStamina": {
+      "label": "Nieskończona wytrzymałość",
+      "description": "Utrzymuje pełną wytrzymałość i dostosowuje się automatycznie, gdy zmienia się jej maksymalna wartość."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Nieskończony podwodny oddech",
+      "description": "Utrzymuje pełną rezerwę oddechu pod wodą."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Nieskończona trwałość broni",
+      "description": "Wyłącza utratę wytrzymałości dla całego hostowanego świata, w tym przedmiotów wyposażonych przez innych graczy. Przywraca poprzednie ustawienie świata, gdy jest wyłączone."
+    },
+    "infiniteFrostTimer": {
+      "label": "Nieskończony licznik czasu mrozu",
+      "description": "Utrzymuje maksymalną ciepłotę ciała."
+    },
+    "infiniteMana": {
+      "label": "Nieskończona mana",
+      "description": "Utrzymuje pełną manę i dostosowuje się automatycznie, gdy zmienia się jej maksimum."
+    }
+  },
+  "groups": [
+    {
+      "label": "Przetrwanie",
+      "description": "Włącz lub wyłącz indywidualne opcje przetrwania. Zmiany zostaną natychmiast zapisane."
+    }
+  ],
+  "changelog": [
+    "Dodaje osiem ustawień obrażeń od upadku, regeneracji zdrowia i many, wytrzymałości, oddychania pod wodą, trwałości broni, ochrony przed zimnem i many."
+  ],
+  "strings": {}
+}

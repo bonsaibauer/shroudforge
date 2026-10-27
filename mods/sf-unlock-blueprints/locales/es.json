@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Desbloquea todos los planos después del reinicio, independientemente de los requisitos de desbloqueo de la receta original. Advertencia: Revertir este cambio requiere restablecer todo el progreso de desbloqueo afectado. Por lo tanto, esta opción está deshabilitada por defecto."
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "Cuenta sólo recetas y registros cuyos datos de requisitos realmente cambiaron."
+  ],
+  "strings": {}
+}

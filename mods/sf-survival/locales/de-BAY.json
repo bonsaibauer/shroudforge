@@ -1,0 +1,50 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Bietet Einstellungen für Fallschaden, Gesundheits- und Manaregeneration, Ausdauer, Atem unter Wasser, Waffenhaltbarkeit und Kälteschutz."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Kein Fallschaden",
+      "description": "Deaktiviert Fallschaden. Spieler mit derselben Charaktervorlage teilen sich diese Einstellung."
+    },
+    "fastHealthRegen": {
+      "label": "Schnelle Lebensregeneration",
+      "description": "Erhöht die Gesundheitsregeneration um bis zum 100-Fachen. Setzt natürliche Gesundheitsregeneration voraus."
+    },
+    "fastManaRegen": {
+      "label": "Schnelle Manaregeneration",
+      "description": "Erhöht die Manaregeneration um bis zum 100-Fachen. Setzt natürliche Manaregeneration voraus."
+    },
+    "infiniteStamina": {
+      "label": "Unbegrenzte Ausdauer",
+      "description": "Hält die Ausdauer voll und passt sie bei Änderungen des Maximums automatisch an."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Unbegrenzter Atem unter Wasser",
+      "description": "Hält den Atemvorrat unter Wasser voll."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Unbegrenzte Waffenhaltbarkeit",
+      "description": "Deaktiviert Haltbarkeitsverlust in der gesamten gehosteten Welt, auch für ausgerüstete Gegenstände anderer Spieler. Beim Deaktivieren wird die vorherige Welteinstellung wiederhergestellt."
+    },
+    "infiniteFrostTimer": {
+      "label": "Unbegrenzter Frostschutz",
+      "description": "Hält die Körperwärme auf ihrem Maximum."
+    },
+    "infiniteMana": {
+      "label": "Unbegrenztes Mana",
+      "description": "Hält das Mana voll und passt es bei Änderungen des Maximums automatisch an."
+    }
+  },
+  "groups": [
+    {
+      "label": "Überleben",
+      "description": "Schalte einzelne Überlebensoptionen ein oder aus. Änderungen werden sofort gespeichert."
+    }
+  ],
+  "changelog": [
+    "Ergänzt acht Einstellungen für Fallschaden, Gesundheits- und Manaregeneration, Ausdauer, Atem unter Wasser, Waffenhaltbarkeit, Kälteschutz und Mana."
+  ]
+}

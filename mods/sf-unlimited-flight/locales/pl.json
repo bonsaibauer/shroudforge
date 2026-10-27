@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Zmienia wytrzymałość szybowca i sterowanie lotem."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Nieograniczone latanie",
+      "description": "Umożliwia przechylenie szybowca w górę bez zużywania wytrzymałości."
+    },
+    "turnSpeed": {
+      "label": "Prędkość skrętu",
+      "description": "Mnożnik prędkości skrętu szybowca."
+    },
+    "moveSpeed": {
+      "label": "Prędkość ruchu",
+      "description": "Mnożnik przyspieszenia szybowca do przodu."
+    },
+    "liftSpeed": {
+      "label": "Prędkość podnoszenia",
+      "description": "Mnożnik podłużnego oporu powietrza szybowca. Wyższe wartości zwiększają opór."
+    },
+    "descendSpeed": {
+      "label": "Prędkość opadania",
+      "description": "Mnożnik pionowego oporu powietrza szybowca. Wyższe wartości zwiększają opór."
+    }
+  },
+  "groups": [
+    {
+      "label": "Nieograniczony lot",
+      "description": "Zmiany prędkości dotyczą aktywnego szybowca i wszystkich graczy używających tego samego typu szybowca."
+    }
+  ],
+  "changelog": [
+    "Dodaje ustawienia wznoszenia, wytrzymałości, skrętu, przyspieszenia do przodu, unoszenia i opadania. Po wyłączeniu moda przywraca pierwotne wartości gry."
+  ],
+  "strings": {}
+}

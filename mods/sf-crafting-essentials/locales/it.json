@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Regola i costi delle ricette e i tempi di produzione e impedisce il consumo degli articoli supportati quando utilizzati."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Nessun costo per le risorse della ricetta",
+      "description": "Rimuove gli ingredienti diretti, gli ingredienti di categoria e le cariche di acqua dalle ricette prima dell'avvio. I requisiti della ricetta vengono visualizzati come zero. Richiede il riavvio del gioco. I costi di costruzione, aggiornamento e altri costi di inventario condiviso rimangono invariati."
+    },
+    "infiniteItemUse": {
+      "label": "Nessun consumo di articoli",
+      "description": "Cibo usato, pozioni, bende e altri oggetti supportati rimangono nel tuo inventario invece di essere consumati. Si applica in tempo reale alle azioni di utilizzo supportate. Gli ingredienti delle ricette, gli scambi e i trasferimenti di inventario rimangono invariati. Alcune azioni degli elementi non sono supportate."
+    },
+    "productionTimeMode": {
+      "label": "Modalità tempo ricetta",
+      "description": "La modifica della modalità richiede un riavvio. La modalità originale ridimensiona il tempo di ogni ricetta durante l'esecuzione del gioco. La modalità fissa applica una durata a ogni ricetta temporizzata all'avvio.",
+      "options": {
+        "original": "Live: Tempi della ricetta originale",
+        "fixed": "Riavvio richiesto: un tempo condiviso per tutte le ricette"
+      }
+    },
+    "productionSeconds": {
+      "label": "Tempo di produzione in secondi",
+      "description": "Imposta la durata utilizzata da ogni ricetta temporizzata in modalità fissa. Ha effetto dopo il riavvio."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Scala della durata della produzione",
+      "description": "Applicato in tempo reale ai tempi delle ricette caricate. Allo 0%, la ricetta con il tempo più breve impiega 1 secondo e le altre ricette mantengono i relativi tempi. Ripristina al 100% i tempi della ricetta originale. L'impostazione della velocità mondiale rimane invariata. Le modifiche riguardano anche la produzione in corso."
+    }
+  },
+  "groups": [
+    {
+      "label": "Risorse e inventario",
+      "description": "Gli ingredienti della ricetta e i costi dell'acqua vengono rimossi prima dell'avvio. Nessun consumo di articoli impedisce il consumo degli articoli supportati quando utilizzati."
+    },
+    {
+      "label": "Produzione",
+      "description": "Scegli tra la modifica dei tempi delle ricette durante la produzione e una durata fissa per tutte le ricette a tempo. Sono disponibili solo le impostazioni della modalità selezionata."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

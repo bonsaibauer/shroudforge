@@ -3,7 +3,7 @@
   "id": "sf-crafting-essentials",
   "name": "SF Crafting Essentials",
   "version": "1.0.0",
-  "description": "Adjusts timed recipes and production speed, removes recipe costs, and keeps items used by supported actions.",
+  "description": "Adjusts recipe costs and production times and prevents supported items from being consumed when used.",
   "authors": ["bonsaibauer"],
   "icon": "icon.svg",
   "dependencies": [],

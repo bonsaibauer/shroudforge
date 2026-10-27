@@ -3,7 +3,7 @@
   "id": "sf-unlimited-flight",
   "name": "SF Unlimited Flight",
   "version": "1.2.0",
-  "description": "Controls the original glider stamina and movement inputs through the shared typed runtime API.",
+  "description": "Adjusts glider stamina and flight controls.",
   "authors": [
     "bonsaibauer"
   ],

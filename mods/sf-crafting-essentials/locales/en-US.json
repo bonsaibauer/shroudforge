@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Adjusts recipe costs and production times and prevents supported items from being consumed when used."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "No Recipe Resource Costs",
+      "description": "Removes direct ingredients, category ingredients and water charges from recipes before startup. Recipe requirements display as zero. Requires a game restart. Building, upgrade and other shared inventory costs are unchanged."
+    },
+    "infiniteItemUse": {
+      "label": "No Item Consumption",
+      "description": "Used food, potions, bandages and other supported items stay in your inventory instead of being consumed. Applies live to supported use actions. Recipe ingredients, trades and inventory transfers are unchanged. Some item actions are not supported."
+    },
+    "productionTimeMode": {
+      "label": "Recipe Time Mode",
+      "description": "Changing the mode requires a restart. Original mode scales each recipe time while the game runs. Fixed mode applies one duration to every timed recipe at startup.",
+      "options": {
+        "original": "Live: Original recipe times",
+        "fixed": "Restart required: One shared time for all recipes"
+      }
+    },
+    "productionSeconds": {
+      "label": "Production Time in Seconds",
+      "description": "Sets the duration used by every timed recipe in fixed mode. Takes effect after a restart."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Production Duration Scale",
+      "description": "Applied live to loaded recipe times. At 0%, the shortest timed recipe takes 1 second and other recipes keep their relative times. 100% restores original recipe times. The world speed setting stays unchanged. Changes also affect running production."
+    }
+  },
+  "groups": [
+    {
+      "label": "Resources and Inventory",
+      "description": "Recipe ingredient and water costs are removed before startup. No Item Consumption prevents supported items from being consumed when used."
+    },
+    {
+      "label": "Production",
+      "description": "Choose between scaling recipe times as production runs or using one fixed duration for all timed recipes. Only the settings for the selected mode are available."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

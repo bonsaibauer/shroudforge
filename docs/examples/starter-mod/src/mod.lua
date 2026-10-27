@@ -1,5 +1,11 @@
 runtime.require("runtime.lifecycle")
 
+local locale = shroudforge.locale()
+
+local function text(key, fallback)
+    return shroudforge.i18n.get(key, locale, fallback)
+end
+
 local function setting(name, fallback)
     return shroudforge.settings.get(name, fallback)
 end
@@ -7,11 +13,12 @@ end
 local function log_greeting()
     local greeting = tostring(setting("greeting", "Hello from the ShroudForge runtime!"))
     local severity = setting("severity", "info")
+    local message = text("log.greeting_prefix", "Greeting") .. ": " .. greeting
 
     if severity == "warn" then
-        shroudforge.log.warn(greeting)
+        shroudforge.log.warn(message)
     else
-        shroudforge.log.info(greeting)
+        shroudforge.log.info(message)
     end
 end
 

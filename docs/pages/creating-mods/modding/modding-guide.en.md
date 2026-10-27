@@ -3,7 +3,7 @@
   "id": "modding-guide",
   "locale": "en",
   "title": "Modding with the Lua runtime",
-  "summary": "Practical guides to the main-menu state and selected local character name provided by the shared runtime.",
+  "summary": "Practical Lua guides to the main-menu state, character name, and mod localization.",
   "navigation": {
     "path": ["Modding"],
     "overview": true,
@@ -20,6 +20,7 @@ These guides show how an active mod queries the main-menu state and selected loc
 | --- | --- | --- |
 | Detect the main menu | `runtime.is_main_menu()` | [Query the main-menu state](#doc-modding-main-menu) |
 | Read the selected character name | `runtime.player.name()` | [Query the local character name](#doc-modding-player-name) |
+| Translate mod text and settings | `shroudforge.locale()` and `shroudforge.i18n.get()` | [Localize mod text](#doc-modding-locales) |
 
 The mod needs the [`runtime` capability](#doc-capability-runtime) and an active runtime callback. A runtime callback can already run in the main menu. `runtime.phase == "ingame"` describes the started mod runtime and does not confirm entry into a world.
 

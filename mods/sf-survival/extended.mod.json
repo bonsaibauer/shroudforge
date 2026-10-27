@@ -12,33 +12,33 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
-    "Adds eight Survival settings through the shared typed runtime API, original attribute bounds, player-template configuration and the engine durability setting."
+    "Adds eight settings for fall damage, health and mana regeneration, stamina, underwater breathing, weapon durability, cold protection and mana."
   ],
   "settings": {
     "noFallDamage": {
       "value": true,
       "label": "No Fall Damage",
-      "description": "Disables fall damage through the original fall configuration. Players using the same player template share this effect."
+      "description": "Turns off fall damage for players using the same character template."
     },
     "fastHealthRegen": {
       "value": true,
       "label": "Fast Health Regen",
-      "description": "Increases the existing health recharge value in the original attribute by up to 100 times. This setting has no effect without natural regeneration."
+      "description": "Increases health regeneration by up to 100 times. Requires natural health regeneration."
     },
     "fastManaRegen": {
       "value": true,
       "label": "Fast Mana Regen",
-      "description": "Increases the existing mana recharge value in the original attribute by up to 100 times. This setting has no effect without natural regeneration."
+      "description": "Increases mana regeneration by up to 100 times. Requires natural mana regeneration."
     },
     "infiniteStamina": {
       "value": true,
       "label": "Infinite Stamina",
-      "description": "Keeps stamina at its current maximum through the original attribute lower bound. Changes to the maximum are applied automatically."
+      "description": "Keeps stamina full and adjusts automatically when its maximum changes."
     },
     "infiniteUnderwaterBreath": {
       "value": true,
       "label": "Infinite Underwater Breath",
-      "description": "Keeps the underwater breath reserve at its current maximum through the original attribute lower bound."
+      "description": "Keeps the underwater breath reserve full."
     },
     "infiniteWeaponDurability": {
       "value": true,
@@ -48,18 +48,18 @@
     "infiniteFrostTimer": {
       "value": true,
       "label": "Infinite Frost Timer",
-      "description": "Keeps body warmth at its current maximum through the original attribute lower bound."
+      "description": "Keeps body warmth at its maximum."
     },
     "infiniteMana": {
       "value": true,
       "label": "Infinite Mana",
-      "description": "Keeps mana at its current maximum through the original attribute lower bound. Changes to the maximum are applied automatically."
+      "description": "Keeps mana full and adjusts automatically when its maximum changes."
     }
   },
   "groups": [
     {
       "label": "Survival",
-      "description": "Enables individual survival features. Changes to settings are saved immediately.",
+      "description": "Turn individual survival options on or off. Changes are saved immediately.",
       "settings": [
         "noFallDamage",
         "fastHealthRegen",

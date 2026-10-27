@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Kopiera, rotera, spara och klistra in delar av världen."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Rotera ritningen 90°"
+    },
+    "undoVoxels": {
+      "label": "Ångra senaste inklistring"
+    },
+    "markCursorNext": {
+      "label": "Markera nästa valhörn"
+    },
+    "resetEditor": {
+      "label": "Återställ/släpp serverdrift som har fastnat"
+    },
+    "pasteAtCursor": {
+      "label": "Klistra in vid markören"
+    },
+    "captureAndSave": {
+      "label": "Fånga och spara ritning"
+    },
+    "panelWidth": {
+      "label": "Blueprint panel bredd"
+    },
+    "panelHeight": {
+      "label": "Blueprint panel höjd"
+    },
+    "panelPositionX": {
+      "label": "Panelposition X (−1 = centrerad)"
+    },
+    "panelPositionY": {
+      "label": "Panelposition Y (från spelets topp)"
+    },
+    "maximumCopyableProps": {
+      "label": "Maximalt antal rekvisita per ritning"
+    },
+    "sourceX": {
+      "label": "Källcell X (manuell reserv)"
+    },
+    "sourceY": {
+      "label": "Källcell Y (manuell reserv)"
+    },
+    "sourceZ": {
+      "label": "Källcell Z (manuell reserv)"
+    },
+    "sizeX": {
+      "label": "storlek X (manuell reserv)"
+    },
+    "sizeY": {
+      "label": "storlek Y (manuell reserv)"
+    },
+    "sizeZ": {
+      "label": "storlek Z (manuell reserv)"
+    },
+    "blueprintName": {
+      "label": "Beständigt ritningsnamn"
+    },
+    "blueprintNewName": {
+      "label": "Nytt namn för att byta namn eller duplicera"
+    },
+    "pasteVoxelMode": {
+      "label": "Voxelläge",
+      "options": {
+        "replace": "Byt ut målvoxlar",
+        "add": "Lägg till ockuperade källvoxlar"
+      }
+    },
+    "targetPropMode": {
+      "label": "Rekvisita vid målet",
+      "options": {
+        "keep": "Behåll befintlig rekvisita",
+        "replace": "Byt ut korsande stöttor"
+      }
+    },
+    "targetX": {
+      "label": "Målcell X"
+    },
+    "targetY": {
+      "label": "Målcell Y"
+    },
+    "targetZ": {
+      "label": "Målcell Z"
+    },
+    "targetWorldX": {
+      "label": "Rekvisita-endast målvärld X"
+    },
+    "targetWorldY": {
+      "label": "Målvärld Y för endast rekvisita"
+    },
+    "targetWorldZ": {
+      "label": "Målvärld Z för endast rekvisita"
+    },
+    "rotationQuarterTurns": {
+      "label": "Initial klistringsrotation (0–3, rotera i spelet med den konfigurerade genvägen)"
+    },
+    "rotationAxis": {
+      "label": "Blueprint upp axeln (lagras vid insamling)",
+      "options": {
+        "x": "X-axel",
+        "y": "Y-axel",
+        "z": "Z-axel"
+      }
+    },
+    "entityHandle": {
+      "label": "ogenomskinligt enhetshandtag"
+    },
+    "templateUuidHigh": {
+      "label": "Mall UUID hög (hex)"
+    },
+    "templateUuidLow": {
+      "label": "Mall UUID låg (hex)"
+    },
+    "trackingId": {
+      "label": "spårnings-ID"
+    },
+    "feedbackId": {
+      "label": "Materialfeedback ID (endast placering)"
+    },
+    "entityX": {
+      "label": "X-koordinat"
+    },
+    "entityY": {
+      "label": "Y-koordinat"
+    },
+    "entityZ": {
+      "label": "Z-koordinat"
+    },
+    "boundsMinX": {
+      "label": "Gränser min X"
+    },
+    "boundsMinY": {
+      "label": "Gränser min Y"
+    },
+    "boundsMinZ": {
+      "label": "Gränser min Z"
+    },
+    "boundsMaxX": {
+      "label": "Gränser max X"
+    },
+    "boundsMaxY": {
+      "label": "Gränser max Y"
+    },
+    "boundsMaxZ": {
+      "label": "Gränser max Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "Panel i spelet",
+      "description": "Positionen är relativt spelfönstret i logiska pixlar. X = −1 centrerar panelen. Y mäts ner från toppen. Ändringar gäller medan spelet körs."
+    },
+    {
+      "label": "Gränser för världsredigeraren"
+    },
+    {
+      "label": "Kortkommandon",
+      "description": "Redigera genvägarna här eller i Kompatibilitet → Snabbtangenter. Ändringar gäller under spelning. En tom bindning inaktiverar en genväg.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Rotera ritningen 90°"
+        },
+        "undoVoxels": {
+          "label": "Ångra senaste inklistring"
+        },
+        "markCursorNext": {
+          "label": "Markera nästa valhörn"
+        },
+        "resetEditor": {
+          "label": "Återställ/släpp serverdrift som har fastnat",
+          "confirm": "Om en serverklistring eller ångra har stannat eller ofullständig, ber Återställ/släpp den dedikerade servern att överge den och släppa dess lås. Delvis terräng eller rekvisita kan finnas kvar. Klistra in låser upp först efter serverbekräftelse."
+        },
+        "pasteAtCursor": {
+          "label": "Klistra in vid markören",
+          "confirm": "Skriva den aktiva ritningen vid den aktuella markörpositionen?"
+        },
+        "captureAndSave": {
+          "label": "Fånga och spara ritning"
+        }
+      }
+    },
+    {
+      "label": "Inbyggd enhetsverksamhet",
+      "description": "Spawn och placering använder inbyggda speloperationer.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Kö props spawn",
+          "confirm": "Kö en infödd prop-spawn med dessa UUID och spårningsvärden?"
+        },
+        "placeEntity": {
+          "label": "Plats vid koordinater",
+          "confirm": "Skicka infödd placering vid dessa koordinater?"
+        },
+        "destroyEntity": {
+          "label": "Förstör vid koordinaterna",
+          "confirm": "Skicka inbyggt borttagning vid dessa koordinater?"
+        }
+      }
+    },
+    {
+      "label": "Världsredigerare",
+      "description": "Fånga voxel-and-prop eller rekvisita-ritningar, förhandsgranska, klistra in och ångra genom infödda API:er.",
+      "actions": {
+        "markCursorA": {
+          "label": "Markera valhörnet A"
+        },
+        "markCursorB": {
+          "label": "Markera valhörnet B"
+        },
+        "markCursorTarget": {
+          "label": "Markera klistra mål"
+        },
+        "clearCursorSelection": {
+          "label": "Rensa markörmärken"
+        },
+        "copyVoxels": {
+          "label": "Fånga voxlar och rekvisita"
+        },
+        "capturePropsOnly": {
+          "label": "Fånga rekvisita endast från A/B-val"
+        },
+        "listProps": {
+          "label": "Lista rekvisita i källregionen"
+        },
+        "resolveRecipes": {
+          "label": "Lös byggrecept"
+        },
+        "saveBlueprint": {
+          "label": "Rädda världen ritning"
+        },
+        "loadBlueprint": {
+          "label": "Ladda världsritningen"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Uppdatera ritningsmappen"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Byt namn på ritningen till nytt namn"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Duplicera ritning till nytt namn"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Ta bort ritning och bild",
+          "confirm": "Ta bort den namngivna ritningen och dess bild från exportmappen?"
+        },
+        "pasteVoxels": {
+          "label": "Klistra in aktiv ritning",
+          "confirm": "Skriva den aktiva ritningen till målankaret?"
+        },
+        "previewPaste": {
+          "label": "Förhandsgranska placeringsplan (endast logg)"
+        },
+        "undoVoxels": {
+          "label": "Ångra den senaste världsklistran"
+        },
+        "destroySelectedProp": {
+          "label": "Förstör vald listad prop"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Lägger till online F8-infångning: den dedikerade servern läser den markerade terrängen och rekvisita, returnerar hela V7-ritningen över Steam P2P och klienten validerar och sparar den lokalt. Verifierad live med 648 celler och två rekvisita, följt av placering och ångra.",
+    "Köar P2P-förfrågningar efter autentiserat klient- och begäran-ID, separerar samtidiga uppladdningar och varje klients senaste ångrajournal och tillåter upprepad F7-placering efter bekräftelse. F4 ångrar den senaste placeringen. Ofullständig återställning blockerar fortfarande klientens nästa inklistring.",
+    "Fixar inbyggd F7-placering och F4-ångra för terräng, voxelceller och rekvisita i originalstorlek, inklusive roterade ritningar. Redaktörens egen journal återställer terräng och tar bort placerade rekvisita oberoende av spelets begränsade ångrahistorik.",
+    "Använder samma bevakade placering och ångra flöde för lokala världar och Dedicated Server Steam P2P-förfrågningar. Tar bort dubbletter av beredskapskontroller och onödiga krav på scale-writer, och väntar på tillfällig otillgänglighet i rutnätet istället för att avvisa ett giltigt mål. Verifierad live med 1 170 celler och en prop på båda målen.",
+    "Kör redigeringsuppdateringar var 100:e ms och begränsar ytterligare beredskapskontroller till högst en gång varannan sekund, vilket pausar dessa kontroller under aktiva operationer.",
+    "Flyttar reservserverupptäckt på fjärrserver och klientbehörighet till den laddarägda nätverksmodulen; redaktören använder nu sin automatiska upptäckt av hälsoprober.",
+    "Upptäcker det aktuella SteamID för en lokal dedikerad server efter varje omstart och rapporterar obesvarade P2P-förfrågningar efter 60 sekunder med en explicit varning för okänt utfall.",
+    "Behåller den serverutfärdade ångra-token över klientstarter och återupptar den automatiskt istället för att förlora serverns olösta journal.",
+    "Väljer automatiskt lokala inbyggda skrivningar eller Dedicated Server Steam P2P från den validerade live-världskontexten. Pausar redigeringar medan sammanhanget är okänt.",
+    "Gör världsmålet explicit. Lokal/singelspelare stannar på den direkta klientvägen. Dedikerade serverredigeringar använder Steam P2P.",
+    "Omdirigerar flerspelarritning och ångra över Steam P2P till den dedikerade serverns inhemska körtid. Bevarar direkta singleplayer-redigeringar.",
+    "Kör samma World Editor-modul huvudlöst på dedikerade servrar med en explicit SteamID64-godkännandelista och serverägd ångrajournal.",
+    "Tar bort sökvägen för inklistring av den experimentella klientens spelinmatning. Behåller det befintliga SFBP V7-formatet och den inbyggda direktplaneraren.",
+    "Flyttar roterad och skalad ItemInfo-placeringsbunden filtrering till den registrerade native world-frågan.",
+    "Bevarar den inbyggda entitetsmallens UUID genom rekvisita, ritningsfiler och klistra in.",
+    "Bevarar infångad rekvisita med en dedikerad verifierad inbyggd transformeringsuppdatering.",
+    "Lägger till V6-rekvisita-ritningar och ShroudEdit-stil världsrymdplaceringsankare med rutnätsjustering.",
+    "Använder registrerade native world API:er för entitetshandtag, transformläsningar, säker handtagsinriktad borttagning och voxel grid-metadata.",
+    "Paketerar den fristående moden som världsredigerare och visar F3-rotation i kortkommandon.",
+    "Lägger till ett enda F2-kontrollerat ritningsfönster med en kontextuell instruktionsrad, ritningsbibliotek och webbläsare för skärmdumpar i ritningshantering.",
+    "Lägger till F3-F8 genvägar, markörinriktad klistra in, fånga-till-ritning-arbetsflöde, rotation och klistra in lägen och konfliktmarkerad ångra. F1 förblir tillgängligt för spelet."
+  ],
+  "strings": {}
+}

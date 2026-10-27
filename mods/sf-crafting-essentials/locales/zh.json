@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "调整配方成本和生产时间，并防止支持的物品在使用时被消耗。"
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "无配方资源成本",
+      "description": "在启动前从配方中删除直接成分、类别成分和水费。配方要求显示为零。需要重新启动游戏。建造、升级和其他共享库存成本保持不变。"
+    },
+    "infiniteItemUse": {
+      "label": "无物品消费",
+      "description": "用过的食物、药水、绷带和其他受支持的物品会保留在您的库存中，而不是被消耗。实时应用于支持的使用操作。配方成分、交易和库存转移保持不变。不支持某些项目操作。"
+    },
+    "productionTimeMode": {
+      "label": "配方时间模式",
+      "description": "更改模式需要重新启动。原始模式会在游戏运行时缩放每个配方时间。固定模式在启动时对每个定时配方应用一个持续时间。",
+      "options": {
+        "original": "直播：原创菜谱时间",
+        "fixed": "需要重新启动：所有菜谱共用一个时间"
+      }
+    },
+    "productionSeconds": {
+      "label": "生产时间（秒）",
+      "description": "设置固定模式下每个定时配方使用的持续时间。重启后生效。"
+    },
+    "workshopTimeFactorPercent": {
+      "label": "生产工期规模",
+      "description": "实时应用于加载的配方时间。在 0% 时，最短时间的配方需要 1 秒，其他配方保持其相对时间。 100%恢复原始配方时间。世界速度设置保持不变。变化也会影响运行生产。"
+    }
+  },
+  "groups": [
+    {
+      "label": "资源和库存",
+      "description": "配方成分和水成本在启动前被删除。无物品消耗可防止支持的物品在使用时被消耗。"
+    },
+    {
+      "label": "生产",
+      "description": "选择在生产运行时调整配方时间或对所有定时配方使用一个固定持续时间。仅所选模式的设置可用。"
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

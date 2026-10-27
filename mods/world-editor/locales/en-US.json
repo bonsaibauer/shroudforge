@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Copy, rotate, save, and paste parts of the world."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Rotate blueprint 90°"
+    },
+    "undoVoxels": {
+      "label": "Undo last paste"
+    },
+    "markCursorNext": {
+      "label": "Mark next selection corner"
+    },
+    "resetEditor": {
+      "label": "Reset / release stuck server operation"
+    },
+    "pasteAtCursor": {
+      "label": "Paste at cursor"
+    },
+    "captureAndSave": {
+      "label": "Capture and save blueprint"
+    },
+    "panelWidth": {
+      "label": "Blueprint panel width"
+    },
+    "panelHeight": {
+      "label": "Blueprint panel height"
+    },
+    "panelPositionX": {
+      "label": "Panel position X (−1 = centered)"
+    },
+    "panelPositionY": {
+      "label": "Panel position Y (from game top)"
+    },
+    "maximumCopyableProps": {
+      "label": "Maximum props per blueprint"
+    },
+    "sourceX": {
+      "label": "Source cell X (manual fallback)"
+    },
+    "sourceY": {
+      "label": "Source cell Y (manual fallback)"
+    },
+    "sourceZ": {
+      "label": "Source cell Z (manual fallback)"
+    },
+    "sizeX": {
+      "label": "Size X (manual fallback)"
+    },
+    "sizeY": {
+      "label": "Size Y (manual fallback)"
+    },
+    "sizeZ": {
+      "label": "Size Z (manual fallback)"
+    },
+    "blueprintName": {
+      "label": "Persistent blueprint name"
+    },
+    "blueprintNewName": {
+      "label": "New name for rename or duplicate"
+    },
+    "pasteVoxelMode": {
+      "label": "Voxel mode",
+      "options": {
+        "replace": "Replace target voxels",
+        "add": "Add occupied source voxels"
+      }
+    },
+    "targetPropMode": {
+      "label": "Props at target",
+      "options": {
+        "keep": "Keep existing props",
+        "replace": "Replace intersecting props"
+      }
+    },
+    "targetX": {
+      "label": "Target cell X"
+    },
+    "targetY": {
+      "label": "Target cell Y"
+    },
+    "targetZ": {
+      "label": "Target cell Z"
+    },
+    "targetWorldX": {
+      "label": "Props-only target world X"
+    },
+    "targetWorldY": {
+      "label": "Props-only target world Y"
+    },
+    "targetWorldZ": {
+      "label": "Props-only target world Z"
+    },
+    "rotationQuarterTurns": {
+      "label": "Initial paste rotation (0–3, rotate in game with the configured shortcut)"
+    },
+    "rotationAxis": {
+      "label": "Blueprint up axis (stored on capture)",
+      "options": {
+        "x": "X axis",
+        "y": "Y axis",
+        "z": "Z axis"
+      }
+    },
+    "entityHandle": {
+      "label": "Opaque entity handle"
+    },
+    "templateUuidHigh": {
+      "label": "Template UUID high (hex)"
+    },
+    "templateUuidLow": {
+      "label": "Template UUID low (hex)"
+    },
+    "trackingId": {
+      "label": "Tracking ID"
+    },
+    "feedbackId": {
+      "label": "Material feedback ID (placement only)"
+    },
+    "entityX": {
+      "label": "Position X"
+    },
+    "entityY": {
+      "label": "Position Y"
+    },
+    "entityZ": {
+      "label": "Position Z"
+    },
+    "boundsMinX": {
+      "label": "Bounds min X"
+    },
+    "boundsMinY": {
+      "label": "Bounds min Y"
+    },
+    "boundsMinZ": {
+      "label": "Bounds min Z"
+    },
+    "boundsMaxX": {
+      "label": "Bounds max X"
+    },
+    "boundsMaxY": {
+      "label": "Bounds max Y"
+    },
+    "boundsMaxZ": {
+      "label": "Bounds max Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "In-game panel",
+      "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel. Y is measured down from the top. Changes apply while the game is running."
+    },
+    {
+      "label": "World Editor limits"
+    },
+    {
+      "label": "Keyboard shortcuts",
+      "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Rotate blueprint 90°"
+        },
+        "undoVoxels": {
+          "label": "Undo last paste"
+        },
+        "markCursorNext": {
+          "label": "Mark next selection corner"
+        },
+        "resetEditor": {
+          "label": "Reset / release stuck server operation",
+          "confirm": "If a server paste or undo is stalled or incomplete, Reset / release asks the dedicated server to abandon it and release its lock. Partial terrain or props may remain. Paste unlocks only after server confirmation."
+        },
+        "pasteAtCursor": {
+          "label": "Paste at cursor",
+          "confirm": "Write the active blueprint at the current cursor position?"
+        },
+        "captureAndSave": {
+          "label": "Capture and save blueprint"
+        }
+      }
+    },
+    {
+      "label": "Native entity operations",
+      "description": "Spawn and placement use native game operations.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Queue prop spawn",
+          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
+        },
+        "placeEntity": {
+          "label": "Place at coordinates",
+          "confirm": "Dispatch native placement at these coordinates?"
+        },
+        "destroyEntity": {
+          "label": "Destroy at coordinates",
+          "confirm": "Dispatch native removal at these coordinates?"
+        }
+      }
+    },
+    {
+      "label": "World Editor",
+      "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
+      "actions": {
+        "markCursorA": {
+          "label": "Mark selection corner A"
+        },
+        "markCursorB": {
+          "label": "Mark selection corner B"
+        },
+        "markCursorTarget": {
+          "label": "Mark paste target"
+        },
+        "clearCursorSelection": {
+          "label": "Clear cursor marks"
+        },
+        "copyVoxels": {
+          "label": "Capture voxels and props"
+        },
+        "capturePropsOnly": {
+          "label": "Capture props only from A/B selection"
+        },
+        "listProps": {
+          "label": "List props in source region"
+        },
+        "resolveRecipes": {
+          "label": "Resolve build recipes"
+        },
+        "saveBlueprint": {
+          "label": "Save world blueprint"
+        },
+        "loadBlueprint": {
+          "label": "Load world blueprint"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Refresh blueprint folder"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Rename blueprint to new name"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Duplicate blueprint to new name"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Delete blueprint and image",
+          "confirm": "Delete the named blueprint and its image from the export folder?"
+        },
+        "pasteVoxels": {
+          "label": "Paste active blueprint",
+          "confirm": "Write the active blueprint to the target anchor?"
+        },
+        "previewPaste": {
+          "label": "Preview placement plan (log only)"
+        },
+        "undoVoxels": {
+          "label": "Undo last world paste"
+        },
+        "destroySelectedProp": {
+          "label": "Destroy selected listed prop"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Adds online F8 capture: the dedicated server reads the marked terrain and props, returns the complete V7 blueprint over Steam P2P, and the client validates and saves it locally. Verified live with 648 cells and two props, followed by placement and undo.",
+    "Queues P2P requests by authenticated client and request ID, separates concurrent uploads and each client's latest undo journal, and allows repeated F7 placement after confirmation. F4 undoes the latest placement. Incomplete recovery still blocks that client's next paste.",
+    "Fixes native F7 placement and F4 undo for terrain, voxel cells, and original-size props, including rotated blueprints. The editor's own journal restores terrain and removes placed props independently of the game's limited undo history.",
+    "Uses the same guarded placement and undo flow for local worlds and Dedicated Server Steam P2P requests. Removes duplicate readiness checks and unnecessary scale-writer requirements, and waits for temporary grid unavailability instead of rejecting a valid target. Verified live with 1,170 cells and one prop on both targets.",
+    "Runs editor updates every 100 ms and limits additional readiness checks to at most once every two seconds, pausing those checks during active operations.",
+    "Moves remote server discovery fallback and client authorization into the loader-owned Network module; the editor now uses its automatic health-probe discovery.",
+    "Discovers the current SteamID of a local Dedicated Server after every restart and reports unanswered P2P requests after 60 seconds with an explicit unknown-outcome warning.",
+    "Persists the server-issued undo token across client restarts and automatically resumes it instead of losing the server's unresolved journal.",
+    "Automatically selects local native writes or Dedicated Server Steam P2P from the validated live world context. Pauses edits while that context is unknown.",
+    "Makes the world target explicit. Local/singleplayer stays on the direct client path. Dedicated-server edits use Steam P2P.",
+    "Routes multiplayer blueprint placement and undo over Steam P2P to the dedicated server's native world runtime. Preserves direct singleplayer edits.",
+    "Runs the same World Editor module headless on dedicated servers with an explicit SteamID64 allowlist and server-owned undo journal.",
+    "Removes the experimental client game-input blueprint paste path. Retains the existing SFBP V7 format and native direct planner.",
+    "Moves rotated and scaled ItemInfo placement-bound filtering into the registered native world query.",
+    "Preserves the native entity-template UUID through prop capture, blueprint files, and paste.",
+    "Preserves captured prop scale with a dedicated verified native transform update.",
+    "Adds V6 props-only blueprints and ShroudEdit-style world-space placement anchors with grid alignment checks.",
+    "Uses registered native world APIs for entity handles, transform reads, safe handle-targeted removal, and voxel grid metadata.",
+    "Packages the standalone mod as world-editor and exposes F3 rotation in Keyboard shortcuts.",
+    "Adds a single F2-controlled blueprint window with a contextual instruction line, blueprint library, and screenshot-folder browser in blueprint management.",
+    "Adds F3-F8 shortcuts, cursor-targeted paste, capture-to-blueprint workflow, rotation and paste modes, and conflict-checked undo. F1 remains available to the game."
+  ],
+  "strings": {}
+}

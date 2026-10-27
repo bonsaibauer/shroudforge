@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Ajuste l’endurance du planeur et ses commandes de vol."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Vol illimité",
+      "description": "Permet d’incliner le planeur vers le haut sans consommer d’endurance."
+    },
+    "turnSpeed": {
+      "label": "Vitesse de rotation",
+      "description": "Multiplicateur de la vitesse de rotation du planeur."
+    },
+    "moveSpeed": {
+      "label": "Vitesse de déplacement",
+      "description": "Multiplicateur de l’accélération vers l’avant du planeur."
+    },
+    "liftSpeed": {
+      "label": "Résistance à l’avancement",
+      "description": "Multiplicateur de la résistance longitudinale de l’air du planeur. Une valeur plus élevée augmente la traînée."
+    },
+    "descendSpeed": {
+      "label": "Vitesse de descente",
+      "description": "Multiplicateur de la résistance verticale de l’air du planeur. Une valeur plus élevée augmente la traînée."
+    }
+  },
+  "groups": [
+    {
+      "label": "Vol illimité",
+      "description": "Les changements de vitesse s’appliquent au planeur actif et à tous les joueurs qui utilisent le même type de planeur."
+    }
+  ],
+  "changelog": [
+    "Ajoute des commandes pour le vol ascendant, l’endurance, la rotation, l’accélération vers l’avant, la portance et la descente. Les valeurs d’origine du jeu sont rétablies à la désactivation du mod."
+  ],
+  "strings": {}
+}

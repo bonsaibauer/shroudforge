@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "グライダーのスタミナと飛行操作を調整します。"
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "無制限の飛行",
+      "description": "スタミナを消費せずにグライダーを上向きに傾けられます。"
+    },
+    "turnSpeed": {
+      "label": "回転速度",
+      "description": "グライダーの旋回速度の倍率です。"
+    },
+    "moveSpeed": {
+      "label": "移動速度",
+      "description": "グライダーの前進加速度の倍率です。"
+    },
+    "liftSpeed": {
+      "label": "リフト速度",
+      "description": "グライダーの前後方向の空気抵抗の倍率です。値を上げると空気抵抗が増します。"
+    },
+    "descendSpeed": {
+      "label": "下降速度",
+      "description": "グライダーの上下方向の空気抵抗の倍率です。値を上げると空気抵抗が増します。"
+    }
+  },
+  "groups": [
+    {
+      "label": "無制限フライト",
+      "description": "速度の変更は、使用中のグライダーと同じ種類のグライダーを使うすべてのプレイヤーに適用されます。"
+    }
+  ],
+  "changelog": [
+    "上昇飛行、スタミナ、旋回、前進、揚力、下降を調整する操作を追加します。Modを無効にするとゲームの元の値に戻します。"
+  ],
+  "strings": {}
+}

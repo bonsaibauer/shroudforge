@@ -1,0 +1,11 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Schaltet nach einem Neustart alle Baupläne frei, unabhängig von den ursprünglichen Freischaltbedingungen ihrer Rezepte. Warnung: Um diese Änderung rückgängig zu machen, muss der Fortschritt aller betroffenen Freischaltungen zurückgesetzt werden. Deshalb ist die Option standardmässig deaktiviert."
+  },
+  "changelog": [
+    "Berücksichtigt nur Rezepte und Register, deren Anforderungsdaten tatsächlich geändert wurden."
+  ],
+  "groups": []
+}

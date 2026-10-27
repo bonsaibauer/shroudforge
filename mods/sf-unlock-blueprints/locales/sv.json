@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Låser upp alla ritningar efter omstart, oavsett deras ursprungliga receptupplåsningskrav. Varning: För att återställa den här ändringen krävs att alla påverkade upplåsningsförlopp återställs. Därför är det här alternativet inaktiverat som standard."
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "Räknar endast recept och register vars kravdata faktiskt har ändrats."
+  ],
+  "strings": {}
+}

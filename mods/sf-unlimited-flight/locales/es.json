@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Ajusta la resistencia del planeador y sus controles de vuelo."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Vuelo ilimitado",
+      "description": "Permite inclinar el planeador hacia arriba sin gastar resistencia."
+    },
+    "turnSpeed": {
+      "label": "Velocidad de giro",
+      "description": "Multiplicador de la velocidad de giro del planeador."
+    },
+    "moveSpeed": {
+      "label": "Velocidad de movimiento",
+      "description": "Multiplicador de la aceleración hacia delante del planeador."
+    },
+    "liftSpeed": {
+      "label": "Velocidad de elevación",
+      "description": "Multiplicador de la resistencia aerodinámica longitudinal del planeador. Los valores más altos aumentan la resistencia."
+    },
+    "descendSpeed": {
+      "label": "Velocidad de descenso",
+      "description": "Multiplicador de la resistencia aerodinámica vertical del planeador. Los valores más altos aumentan la resistencia."
+    }
+  },
+  "groups": [
+    {
+      "label": "Vuelo ilimitado",
+      "description": "Los cambios de velocidad afectan al planeador activo y a todos los jugadores que usan el mismo tipo de planeador."
+    }
+  ],
+  "changelog": [
+    "Añade controles para el vuelo ascendente, la resistencia, el giro, el avance, la sustentación y el descenso. Al desactivar el mod, restaura los valores originales del juego."
+  ],
+  "strings": {}
+}

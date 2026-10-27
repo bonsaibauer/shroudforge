@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Aggiunge impostazioni per danni da caduta, rigenerazione della salute e del mana, resistenza, respirazione subacquea, durata dell'arma e protezione dal freddo."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Nessun danno da caduta",
+      "description": "Disattiva il danno da caduta per i giocatori che utilizzano lo stesso modello di personaggio."
+    },
+    "fastHealthRegen": {
+      "label": "Rigenerazione rapida della salute",
+      "description": "Aumenta la rigenerazione della salute fino a 100 volte. Richiede una rigenerazione naturale della salute."
+    },
+    "fastManaRegen": {
+      "label": "Rigenerazione mana veloce",
+      "description": "Aumenta la rigenerazione del mana fino a 100 volte. Richiede una rigenerazione naturale del mana."
+    },
+    "infiniteStamina": {
+      "label": "Resistenza infinita",
+      "description": "Mantiene la resistenza al massimo e si regola automaticamente quando cambia il suo massimo."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Respiro subacqueo infinito",
+      "description": "Mantiene piena la riserva respiratoria subacquea."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Durata infinita dell'arma",
+      "description": "Disabilita la perdita di durabilità per l'intero mondo ospitato, inclusi gli oggetti equipaggiati da altri giocatori. Ripristina l'impostazione del mondo precedente quando disabilitato."
+    },
+    "infiniteFrostTimer": {
+      "label": "Timer gelo infinito",
+      "description": "Mantiene al massimo il calore corporeo."
+    },
+    "infiniteMana": {
+      "label": "Mana infinito",
+      "description": "Mantiene il mana pieno e si regola automaticamente quando cambia il suo massimo."
+    }
+  },
+  "groups": [
+    {
+      "label": "Sopravvivenza",
+      "description": "Attiva o disattiva le opzioni di sopravvivenza individuali. Le modifiche vengono salvate immediatamente."
+    }
+  ],
+  "changelog": [
+    "Aggiunge otto impostazioni per danni da caduta, rigenerazione di salute e mana, resistenza, respirazione sott’acqua, durabilità delle armi, protezione dal freddo e mana."
+  ],
+  "strings": {}
+}

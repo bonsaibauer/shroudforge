@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "元のレシピのロック解除要件に関係なく、再起動後にすべてのブループリントのロックを解除します。警告: この変更を元に戻すには、影響を受けるすべてのロック解除の進行状況をリセットする必要があります。したがって、このオプションはデフォルトでは無効になっています。"
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "要件データが実際に変更されたレシピとレジストリのみをカウントします。"
+  ],
+  "strings": {}
+}

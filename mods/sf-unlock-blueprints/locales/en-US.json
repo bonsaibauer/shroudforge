@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Unlocks all blueprints after restart, regardless of their original recipe unlock requirements. Warning: Reverting this change requires resetting all affected unlock progress. Therefore, this option is disabled by default."
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "Counts only recipes and registries whose requirement data actually changed."
+  ],
+  "strings": {}
+}

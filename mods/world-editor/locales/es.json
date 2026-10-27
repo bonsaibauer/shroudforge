@@ -1,0 +1,290 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "World Editor",
+    "description": "Copia, rota, guarda y pega partes del mundo."
+  },
+  "settings": {
+    "rotateBlueprint": {
+      "label": "Girar plano 90°"
+    },
+    "undoVoxels": {
+      "label": "Deshacer el último pegado"
+    },
+    "markCursorNext": {
+      "label": "Marcar siguiente esquina de selección"
+    },
+    "resetEditor": {
+      "label": "Restablecer/liberar operación de servidor atascado"
+    },
+    "pasteAtCursor": {
+      "label": "Pegar en el cursor"
+    },
+    "captureAndSave": {
+      "label": "Capturar y guardar plano"
+    },
+    "panelWidth": {
+      "label": "Ancho del panel de planos"
+    },
+    "panelHeight": {
+      "label": "Altura del panel de planos"
+    },
+    "panelPositionX": {
+      "label": "Posición del panel X (−1 = centrado)"
+    },
+    "panelPositionY": {
+      "label": "Posición del panel Y (desde la parte superior del juego)"
+    },
+    "maximumCopyableProps": {
+      "label": "Máximo de accesorios por plano"
+    },
+    "sourceX": {
+      "label": "Celda de origen X (retroceso manual)"
+    },
+    "sourceY": {
+      "label": "Celda de origen Y (retroceso manual)"
+    },
+    "sourceZ": {
+      "label": "Celda de origen Z (retroceso manual)"
+    },
+    "sizeX": {
+      "label": "Tamaño X (retroceso manual)"
+    },
+    "sizeY": {
+      "label": "Tamaño Y (retroceso manual)"
+    },
+    "sizeZ": {
+      "label": "Tamaño Z (retroceso manual)"
+    },
+    "blueprintName": {
+      "label": "Nombre de plano persistente"
+    },
+    "blueprintNewName": {
+      "label": "Nuevo nombre para renombrar o duplicar"
+    },
+    "pasteVoxelMode": {
+      "label": "Modo vóxel",
+      "options": {
+        "replace": "Reemplazar vóxeles objetivo",
+        "add": "Agregar vóxeles de fuente ocupada"
+      }
+    },
+    "targetPropMode": {
+      "label": "Accesorios en el objetivo",
+      "options": {
+        "keep": "Mantener los accesorios existentes.",
+        "replace": "Reemplazar puntales que se cruzan"
+      }
+    },
+    "targetX": {
+      "label": "Célula objetivo X"
+    },
+    "targetY": {
+      "label": "Célula objetivo Y"
+    },
+    "targetZ": {
+      "label": "Célula objetivo Z"
+    },
+    "targetWorldX": {
+      "label": "Mundo objetivo X solo con accesorios"
+    },
+    "targetWorldY": {
+      "label": "Mundo objetivo Y solo accesorios"
+    },
+    "targetWorldZ": {
+      "label": "Mundo objetivo Z solo con accesorios"
+    },
+    "rotationQuarterTurns": {
+      "label": "Rotación de pegado inicial (0–3, rotar en el juego con el acceso directo configurado)"
+    },
+    "rotationAxis": {
+      "label": "Plano del eje superior (almacenado en la captura)",
+      "options": {
+        "x": "Eje X",
+        "y": "eje Y",
+        "z": "Eje Z"
+      }
+    },
+    "entityHandle": {
+      "label": "Identificador de entidad opaco"
+    },
+    "templateUuidHigh": {
+      "label": "Plantilla UUID alta (hexadecimal)"
+    },
+    "templateUuidLow": {
+      "label": "Plantilla UUID baja (hexadecimal)"
+    },
+    "trackingId": {
+      "label": "ID de seguimiento"
+    },
+    "feedbackId": {
+      "label": "ID de comentarios de material (solo ubicación)"
+    },
+    "entityX": {
+      "label": "Posición X"
+    },
+    "entityY": {
+      "label": "Posición Y"
+    },
+    "entityZ": {
+      "label": "Posición Z"
+    },
+    "boundsMinX": {
+      "label": "Límites mínimos X"
+    },
+    "boundsMinY": {
+      "label": "Límites mínimo Y"
+    },
+    "boundsMinZ": {
+      "label": "Límites min Z"
+    },
+    "boundsMaxX": {
+      "label": "Límites máximo X"
+    },
+    "boundsMaxY": {
+      "label": "Límites máx. Y"
+    },
+    "boundsMaxZ": {
+      "label": "Límites máximo Z"
+    }
+  },
+  "groups": [
+    {
+      "label": "Panel dentro del juego",
+      "description": "La posición es relativa a la ventana del juego en píxeles lógicos. X = −1 centra el panel. Y se mide hacia abajo desde arriba. Los cambios se aplican mientras el juego se está ejecutando."
+    },
+    {
+      "label": "Límites del editor mundial"
+    },
+    {
+      "label": "Atajos de teclado",
+      "description": "Edite los accesos directos aquí o en Compatibilidad → Teclas de acceso rápido. Los cambios se aplican mientras se juega. Un enlace vacío desactiva un acceso directo.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Girar plano 90°"
+        },
+        "undoVoxels": {
+          "label": "Deshacer el último pegado"
+        },
+        "markCursorNext": {
+          "label": "Marcar siguiente esquina de selección"
+        },
+        "resetEditor": {
+          "label": "Restablecer/liberar operación de servidor atascado",
+          "confirm": "Si un servidor para pegar o deshacer está bloqueado o incompleto, Restablecer/liberar le pide al servidor dedicado que lo abandone y libere su bloqueo. Es posible que queden terrenos o accesorios parciales. Pegar se desbloquea solo después de la confirmación del servidor."
+        },
+        "pasteAtCursor": {
+          "label": "Pegar en el cursor",
+          "confirm": "¿Escribir el plano activo en la posición actual del cursor?"
+        },
+        "captureAndSave": {
+          "label": "Capturar y guardar plano"
+        }
+      }
+    },
+    {
+      "label": "Operaciones de entidades nativas",
+      "description": "La generación y colocación utilizan operaciones nativas del juego.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Generación de accesorios de cola",
+          "confirm": "¿Pone en cola una generación de accesorios nativos utilizando estos UUID y valores de seguimiento?"
+        },
+        "placeEntity": {
+          "label": "Colocar en coordenadas",
+          "confirm": "¿Enviar ubicación nativa en estas coordenadas?"
+        },
+        "destroyEntity": {
+          "label": "Destruir en coordenadas",
+          "confirm": "¿Despachar eliminación nativa en estas coordenadas?"
+        }
+      }
+    },
+    {
+      "label": "Editor mundial",
+      "description": "Capture planos de vóxel y accesorios o solo de accesorios, obtenga una vista previa, pegue y deshaga a través de API del mundo nativo.",
+      "actions": {
+        "markCursorA": {
+          "label": "Esquina de selección de marca A"
+        },
+        "markCursorB": {
+          "label": "Esquina de selección de marca B"
+        },
+        "markCursorTarget": {
+          "label": "Marcar objetivo de pegar"
+        },
+        "clearCursorSelection": {
+          "label": "Borrar marcas del cursor"
+        },
+        "copyVoxels": {
+          "label": "Captura vóxeles y accesorios."
+        },
+        "capturePropsOnly": {
+          "label": "Capture accesorios solo desde la selección A/B"
+        },
+        "listProps": {
+          "label": "Listar accesorios en la región de origen"
+        },
+        "resolveRecipes": {
+          "label": "Resolver recetas de compilación"
+        },
+        "saveBlueprint": {
+          "label": "Salvar plano del mundo"
+        },
+        "loadBlueprint": {
+          "label": "Cargar plano del mundo"
+        },
+        "refreshBlueprintLibrary": {
+          "label": "Actualizar carpeta de planos"
+        },
+        "renameLibraryBlueprint": {
+          "label": "Cambiar el nombre del plano a un nuevo nombre"
+        },
+        "duplicateLibraryBlueprint": {
+          "label": "Duplicar plano a nuevo nombre"
+        },
+        "deleteLibraryBlueprint": {
+          "label": "Eliminar plano e imagen",
+          "confirm": "¿Eliminar el plano nombrado y su imagen de la carpeta de exportación?"
+        },
+        "pasteVoxels": {
+          "label": "Pegar plano activo",
+          "confirm": "¿Escribir el plano activo en el ancla de destino?"
+        },
+        "previewPaste": {
+          "label": "Vista previa del plan de ubicación (solo registro)"
+        },
+        "undoVoxels": {
+          "label": "Deshacer pegado del último mundo"
+        },
+        "destroySelectedProp": {
+          "label": "Destruir el accesorio listado seleccionado"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Agrega captura F8 en línea: el servidor dedicado lee el terreno y los accesorios marcados, devuelve el plano V7 completo a través de Steam P2P y el cliente lo valida y guarda localmente. Verificado en vivo con 648 celdas y dos accesorios, seguido de colocación y deshacer.",
+    "Pone en cola las solicitudes P2P por cliente autenticado e ID de solicitud, separa las cargas simultáneas y el último diario de deshacer de cada cliente y permite la colocación repetida de F7 después de la confirmación. F4 deshace la última colocación. La recuperación incompleta aún bloquea el próximo pegado de ese cliente.",
+    "Corrige la ubicación nativa de F7 y la función de deshacer F4 para terreno, celdas de vóxel y accesorios de tamaño original, incluidos planos rotados. El propio diario del editor restaura el terreno y elimina los accesorios colocados independientemente del limitado historial de deshacer del juego.",
+    "Utiliza la misma ubicación protegida y flujo de deshacer para mundos locales y solicitudes P2P de Steam del servidor dedicado. Elimina comprobaciones de preparación duplicadas y requisitos innecesarios de escritura de escala, y espera a que la cuadrícula no esté disponible temporalmente en lugar de rechazar un objetivo válido. Verificado en vivo con 1.170 celdas y un accesorio en ambos objetivos.",
+    "Ejecuta actualizaciones del editor cada 100 ms y limita las comprobaciones de preparación adicionales a un máximo de una vez cada dos segundos, pausando esas comprobaciones durante las operaciones activas.",
+    "Mueve la reserva de descubrimiento de servidor remoto y la autorización del cliente al módulo de red propiedad del cargador; el editor ahora utiliza su descubrimiento automático de sonda de estado.",
+    "Descubre el SteamID actual de un servidor dedicado local después de cada reinicio e informa solicitudes P2P sin respuesta después de 60 segundos con una advertencia explícita de resultado desconocido.",
+    "Persiste el token de deshacer emitido por el servidor durante los reinicios del cliente y lo reanuda automáticamente en lugar de perder el diario no resuelto del servidor.",
+    "Selecciona automáticamente escrituras nativas locales o servidor dedicado Steam P2P desde el contexto del mundo en vivo validado. Pausa las ediciones mientras se desconoce ese contexto.",
+    "Hace explícito el objetivo mundial. El jugador local/un jugador permanece en la ruta directa del cliente. Las ediciones de servidor dedicado utilizan Steam P2P.",
+    "Dirige la colocación de planos multijugador y la deshacer a través de Steam P2P al tiempo de ejecución mundial nativo del servidor dedicado. Conserva las ediciones directas para un jugador.",
+    "Ejecuta el mismo módulo World Editor sin cabeza en servidores dedicados con una lista de permitidos SteamID64 explícita y un diario de deshacer propiedad del servidor.",
+    "Elimina la ruta de pegado del plano de entrada del juego del cliente experimental. Conserva el formato SFBP V7 existente y el planificador directo nativo.",
+    "Mueve el filtrado vinculado a ubicación de ItemInfo rotado y escalado a la consulta del mundo nativo registrado.",
+    "Conserva el UUID de plantilla de entidad nativa mediante captura de accesorios, archivos de planos y pegado.",
+    "Conserva la escala de accesorios capturada con una actualización de transformación nativa verificada dedicada.",
+    "Agrega planos V6 solo de accesorios y anclajes de ubicación en el espacio mundial estilo ShroudEdit con comprobaciones de alineación de cuadrícula.",
+    "Utiliza API nativas registradas para identificadores de entidades, lecturas de transformación, eliminación segura de identificadores y metadatos de cuadrícula de vóxeles.",
+    "Empaqueta el mod independiente como editor mundial y expone la rotación F3 en los atajos de teclado.",
+    "Agrega una única ventana de planos controlada por F2 con una línea de instrucciones contextual, biblioteca de planos y explorador de carpetas de capturas de pantalla en la gestión de planos.",
+    "Agrega atajos F3-F8, pegado con cursor, flujo de trabajo de captura a plano, modos de rotación y pegado, y deshacer con verificación de conflictos. La F1 sigue disponible para el juego."
+  ],
+  "strings": {}
+}

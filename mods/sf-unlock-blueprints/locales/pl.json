@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Odblokowuje wszystkie plany po ponownym uruchomieniu, niezależnie od wymagań dotyczących odblokowania oryginalnej receptury. Ostrzeżenie: cofnięcie tej zmiany wymaga zresetowania wszystkich postępów odblokowania, których to dotyczy. Dlatego ta opcja jest domyślnie wyłączona."
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "Zlicza tylko receptury i rejestry, których dane zapotrzebowania faktycznie uległy zmianie."
+  ],
+  "strings": {}
+}

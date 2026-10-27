@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Adjusts glider stamina and flight controls."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Unlimited Flying",
+      "description": "Allows the glider to tilt upward without using stamina."
+    },
+    "turnSpeed": {
+      "label": "Turn Speed",
+      "description": "Multiplier for the glider's turning speed."
+    },
+    "moveSpeed": {
+      "label": "Move Speed",
+      "description": "Multiplier for the glider's forward acceleration."
+    },
+    "liftSpeed": {
+      "label": "Lift Speed",
+      "description": "Multiplier for the glider's longitudinal air resistance. Higher values increase drag."
+    },
+    "descendSpeed": {
+      "label": "Descend Speed",
+      "description": "Multiplier for the glider's vertical air resistance. Higher values increase drag."
+    }
+  },
+  "groups": [
+    {
+      "label": "Unlimited Flight",
+      "description": "Speed changes affect the active glider and every player using the same glider type."
+    }
+  ],
+  "changelog": [
+    "Adds controls for upward gliding, stamina, turning, forward movement, lift and descent. Restores original game values when the mod is disabled."
+  ],
+  "strings": {}
+}

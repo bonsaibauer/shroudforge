@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Regola la resistenza dell’aliante e i comandi di volo."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Volo illimitato",
+      "description": "Permette di inclinare l’aliante verso l’alto senza consumare stamina."
+    },
+    "turnSpeed": {
+      "label": "Velocità di svolta",
+      "description": "Moltiplicatore della velocità di virata dell’aliante."
+    },
+    "moveSpeed": {
+      "label": "Velocità di spostamento",
+      "description": "Moltiplicatore dell’accelerazione in avanti dell’aliante."
+    },
+    "liftSpeed": {
+      "label": "Velocità di sollevamento",
+      "description": "Moltiplicatore della resistenza aerodinamica longitudinale dell’aliante. Valori più alti aumentano la resistenza."
+    },
+    "descendSpeed": {
+      "label": "Velocità di discesa",
+      "description": "Moltiplicatore della resistenza aerodinamica verticale dell’aliante. Valori più alti aumentano la resistenza."
+    }
+  },
+  "groups": [
+    {
+      "label": "Volo illimitato",
+      "description": "Le modifiche alla velocità si applicano all’aliante attivo e a tutti i giocatori che usano lo stesso tipo di aliante."
+    }
+  ],
+  "changelog": [
+    "Aggiunge controlli per il volo verso l’alto, la resistenza, la virata, l’avanzamento, la portanza e la discesa. Quando la mod viene disattivata, ripristina i valori originali del gioco."
+  ],
+  "strings": {}
+}

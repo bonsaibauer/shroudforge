@@ -1,0 +1,38 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Passt Gleiter-Ausdauer und Flugsteuerung an."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Unbegrenztes Fliegen",
+      "description": "Ermöglicht dem Gleiter, ohne Ausdauerverbrauch nach oben zu neigen."
+    },
+    "turnSpeed": {
+      "label": "Drehgeschwindigkeit",
+      "description": "Multiplikator für die Drehgeschwindigkeit des Gleiters."
+    },
+    "moveSpeed": {
+      "label": "Bewegungsgeschwindigkeit",
+      "description": "Multiplikator für die Vorwärtsbeschleunigung des Gleiters."
+    },
+    "liftSpeed": {
+      "label": "Auftriebsgeschwindigkeit",
+      "description": "Multiplikator für den längsgerichteten Luftwiderstand des Gleiters. Höhere Werte erhöhen den Widerstand."
+    },
+    "descendSpeed": {
+      "label": "Sinkgeschwindigkeit",
+      "description": "Multiplikator für den vertikalen Luftwiderstand des Gleiters. Höhere Werte erhöhen den Widerstand."
+    }
+  },
+  "groups": [
+    {
+      "label": "Unbegrenzter Flug",
+      "description": "Geschwindigkeitsänderungen gelten für den aktiven Gleiter und alle Spieler, die denselben Gleitertyp verwenden."
+    }
+  ],
+  "changelog": [
+    "Ergänzt Einstellungen für Aufwärtsflug, Ausdauer, Drehen, Vorwärtsbewegung, Auftrieb und Sinken. Beim Deaktivieren der Mod werden die ursprünglichen Spielwerte wiederhergestellt."
+  ]
+}

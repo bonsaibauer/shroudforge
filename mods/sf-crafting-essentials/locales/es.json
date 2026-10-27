@@ -1,0 +1,45 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Crafting Essentials",
+    "description": "Ajusta los costos de recetas y los tiempos de producción y evita que los elementos admitidos se consuman cuando se usan."
+  },
+  "settings": {
+    "noResourceCost": {
+      "label": "Sin costos de recursos de recetas",
+      "description": "Elimina los ingredientes directos, los ingredientes de categoría y las cargas de agua de las recetas antes del inicio. Los requisitos de la receta se muestran como cero. Requiere reiniciar el juego. Los costos de construcción, actualización y otros costos de inventario compartido no cambian."
+    },
+    "infiniteItemUse": {
+      "label": "Sin consumo de artículos",
+      "description": "Los alimentos, pociones, vendas y otros artículos compatibles usados ​​permanecen en su inventario en lugar de consumirse. Se aplica en vivo a las acciones de uso admitidas. Los ingredientes de las recetas, los intercambios y las transferencias de inventario no cambian. Algunas acciones de elementos no son compatibles."
+    },
+    "productionTimeMode": {
+      "label": "Modo de tiempo de receta",
+      "description": "Cambiar el modo requiere un reinicio. El modo original escala el tiempo de cada receta mientras se ejecuta el juego. El modo fijo aplica una duración a cada receta cronometrada al inicio.",
+      "options": {
+        "original": "Live: Horarios de recetas originales",
+        "fixed": "Se requiere reinicio: un tiempo compartido para todas las recetas"
+      }
+    },
+    "productionSeconds": {
+      "label": "Tiempo de producción en segundos",
+      "description": "Establece la duración utilizada por cada receta temporizada en modo fijo. Entra en vigor después de un reinicio."
+    },
+    "workshopTimeFactorPercent": {
+      "label": "Escala de duración de producción",
+      "description": "Se aplica en vivo a los tiempos de recetas cargadas. Al 0%, la receta con el tiempo más corto toma 1 segundo y otras recetas mantienen sus tiempos relativos. Restaura al 100% los tiempos de la receta original. La configuración de velocidad mundial permanece sin cambios. Los cambios también afectan la producción en curso."
+    }
+  },
+  "groups": [
+    {
+      "label": "Recursos e inventario",
+      "description": "Los costos de agua y ingredientes de la receta se eliminan antes del inicio. Sin consumo de artículos evita que los artículos admitidos se consuman cuando se usan."
+    },
+    {
+      "label": "Producción",
+      "description": "Elija entre escalar los tiempos de las recetas a medida que se ejecuta la producción o usar una duración fija para todas las recetas cronometradas. Sólo están disponibles las configuraciones para el modo seleccionado."
+    }
+  ],
+  "changelog": [],
+  "strings": {}
+}

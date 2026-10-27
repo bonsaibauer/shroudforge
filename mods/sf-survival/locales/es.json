@@ -1,0 +1,51 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Survival",
+    "description": "Agrega configuraciones para daño por caída, regeneración de salud y maná, resistencia, respiración bajo el agua, durabilidad del arma y protección contra el frío."
+  },
+  "settings": {
+    "noFallDamage": {
+      "label": "Sin daños por caída",
+      "description": "Desactiva el daño por caída para jugadores que usan la misma plantilla de personaje."
+    },
+    "fastHealthRegen": {
+      "label": "Regeneración rápida de salud",
+      "description": "Aumenta la regeneración de salud hasta 100 veces. Requiere regeneración natural de la salud."
+    },
+    "fastManaRegen": {
+      "label": "Regeneración rápida de maná",
+      "description": "Aumenta la regeneración de maná hasta 100 veces. Requiere regeneración de maná natural."
+    },
+    "infiniteStamina": {
+      "label": "Resistencia infinita",
+      "description": "Mantiene la resistencia al máximo y se ajusta automáticamente cuando cambia su máximo."
+    },
+    "infiniteUnderwaterBreath": {
+      "label": "Aliento submarino infinito",
+      "description": "Mantiene llena la reserva de aliento bajo el agua."
+    },
+    "infiniteWeaponDurability": {
+      "label": "Durabilidad infinita del arma",
+      "description": "Desactiva la pérdida de durabilidad para todo el mundo alojado, incluidos los elementos equipados por otros jugadores. Restaura la configuración mundial anterior cuando está deshabilitado."
+    },
+    "infiniteFrostTimer": {
+      "label": "Temporizador de escarcha infinita",
+      "description": "Mantiene el calor corporal al máximo."
+    },
+    "infiniteMana": {
+      "label": "Maná Infinito",
+      "description": "Mantiene el maná lleno y se ajusta automáticamente cuando cambia su máximo."
+    }
+  },
+  "groups": [
+    {
+      "label": "Supervivencia",
+      "description": "Activa o desactiva las opciones de supervivencia individuales. Los cambios se guardan inmediatamente."
+    }
+  ],
+  "changelog": [
+    "Agrega ocho configuraciones para daño por caída, salud y regeneración de maná, resistencia, respiración bajo el agua, durabilidad del arma, protección contra el frío y maná."
+  ],
+  "strings": {}
+}

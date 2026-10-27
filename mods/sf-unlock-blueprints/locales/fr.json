@@ -1,0 +1,13 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlock Blueprints",
+    "description": "Déverrouille tous les plans après le redémarrage, quelles que soient les exigences de déverrouillage de la recette d'origine. Avertissement : L'annulation de cette modification nécessite la réinitialisation de toute la progression du déverrouillage concerné. Par conséquent, cette option est désactivée par défaut."
+  },
+  "settings": {},
+  "groups": [],
+  "changelog": [
+    "Compte uniquement les recettes et les registres dont les données d'exigence ont réellement changé."
+  ],
+  "strings": {}
+}

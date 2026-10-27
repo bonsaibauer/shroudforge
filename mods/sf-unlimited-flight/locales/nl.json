@@ -1,0 +1,39 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "SF Unlimited Flight",
+    "description": "Past het uithoudingsvermogen en de vlieginstellingen van het zweefvliegtuig aan."
+  },
+  "settings": {
+    "unlimitedFlying": {
+      "label": "Onbeperkt vliegen",
+      "description": "Laat het zweefvliegtuig omhoog kantelen zonder uithoudingsvermogen te verbruiken."
+    },
+    "turnSpeed": {
+      "label": "Draaisnelheid",
+      "description": "Factor voor de draaisnelheid van het zweefvliegtuig."
+    },
+    "moveSpeed": {
+      "label": "Bewegingssnelheid",
+      "description": "Factor voor de voorwaartse versnelling van het zweefvliegtuig."
+    },
+    "liftSpeed": {
+      "label": "Hefsnelheid",
+      "description": "Factor voor de longitudinale luchtweerstand van het zweefvliegtuig. Hogere waarden verhogen de luchtweerstand."
+    },
+    "descendSpeed": {
+      "label": "Daalsnelheid",
+      "description": "Factor voor de verticale luchtweerstand van het zweefvliegtuig. Hogere waarden verhogen de luchtweerstand."
+    }
+  },
+  "groups": [
+    {
+      "label": "Onbeperkte vlucht",
+      "description": "Snelheidswijzigingen gelden voor het actieve zweefvliegtuig en alle spelers die hetzelfde type gebruiken."
+    }
+  ],
+  "changelog": [
+    "Voegt bediening toe voor omhoog vliegen, uithoudingsvermogen, draaien, voorwaarts bewegen, stijgen en dalen. Bij uitschakelen van de mod worden de oorspronkelijke spelwaarden hersteld."
+  ],
+  "strings": {}
+}

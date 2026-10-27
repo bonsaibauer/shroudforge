@@ -12,19 +12,19 @@
     "support-bmac": "https://buymeacoffee.com/bonsaibauer"
   },
   "changelog": [
-    "Uses the shared typed runtime API for a native pitch-rate controller, glider stamina and four ItemInfo controls. Independent mod with automatic API restoration. Upward tilt is prepared for live verification in pitch-speed input mode."
+    "Adds controls for upward gliding, stamina, turning, forward movement, lift and descent. Restores original game values when the mod is disabled."
   ],
   "settings": {
     "unlimitedFlying": {
       "value": true,
       "label": "Unlimited Flying",
-      "description": "Allows upward glider tilt without glider stamina drain. Requires pitch-speed controls and one player in the authoritative world. The sampled upward control must be verified in the live game.",
+      "description": "Allows the glider to tilt upward without using stamina.",
       "control": "checkbox"
     },
     "turnSpeed": {
       "value": 100,
       "label": "Turn Speed",
-      "description": "Multiplier for the original glider yaw rate. 100% keeps the item value.",
+      "description": "Multiplier for the glider's turning speed.",
       "control": "slider",
       "min": 25,
       "max": 400,
@@ -33,7 +33,7 @@
     "moveSpeed": {
       "value": 100,
       "label": "Move Speed",
-      "description": "Multiplier for the original forward acceleration coefficient. 100% keeps the item value.",
+      "description": "Multiplier for the glider's forward acceleration.",
       "control": "slider",
       "min": 25,
       "max": 400,
@@ -42,7 +42,7 @@
     "liftSpeed": {
       "value": 100,
       "label": "Lift Speed",
-      "description": "Multiplier for the original longitudinal air resistance. This field is a drag coefficient, so higher values increase resistance.",
+      "description": "Multiplier for the glider's longitudinal air resistance. Higher values increase drag.",
       "control": "slider",
       "min": 25,
       "max": 400,
@@ -51,7 +51,7 @@
     "descendSpeed": {
       "value": 100,
       "label": "Descend Speed",
-      "description": "Multiplier for the original vertical air resistance. This field is a drag coefficient, so higher values increase resistance.",
+      "description": "Multiplier for the glider's vertical air resistance. Higher values increase drag.",
       "control": "slider",
       "min": 25,
       "max": 400,
@@ -61,7 +61,7 @@
   "groups": [
     {
       "label": "Unlimited Flight",
-      "description": "Uses the active glider's original controls. ItemInfo settings are shared by every user of the same glider type. Speed sliders apply once that glider is used.",
+      "description": "Speed changes affect the active glider and every player using the same glider type.",
       "settings": [
         "unlimitedFlying",
         "turnSpeed",
