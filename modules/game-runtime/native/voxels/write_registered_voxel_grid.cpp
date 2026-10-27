@@ -4,9 +4,12 @@
 #include "impact/resolve_registered_operation.h"
 #include "code-inventory/resolve_original_call_graph.h"
 #include "named-services/named_service_contract.h"
+#include <atomic>
 #include <deque>
 #include <map>
+#include <mutex>
 #include <set>
+#include <thread>
 
 namespace WorldRuntime::RegisteredVoxelGrid {
 namespace {
@@ -284,27 +287,66 @@ bool registered_root(const NamedServiceImplementation::BindingContract& binding,
         ImpactRuntime::ResolveResult::Found || operation.arguments != 9) return false;
     root = operation.callback; return true;
 }
+
+// The registered root of the local authority's world, read under the Scene
+// gate. With a region, that region must also be pinned there.
+bool authority_root(PinnedRegion* region, std::uintptr_t& root) {
+    const auto binding = NamedServiceImplementation::binding_contract("impact::ImpactSystem");
+    EngineContext::EcsView owner;
+    if (!EngineContext::ResolveEcs(owner) || owner.role != EngineContext::EcsRole::LocalAuthority) return false;
+    std::unique_lock operation(NamedServiceImplementation::operation_mutex, std::try_to_lock);
+    if (!operation.owns_lock()) return false;
+    EngineContext::EcsWriteGuard scene;
+    return scene.TryAcquire(owner) && scene.Validate() && (!region || region->AvailablePinned(owner)) &&
+        registered_root(binding, owner, root) && scene.Validate();
+}
+
+// The first resolution decodes the code reachable from the root, about 1.2 s
+// in game: it would stall the first write's caller (the mods' loop). A worker
+// does it once the world accepts writes; it only reads the game's code.
+std::mutex preparation_mutex;
+std::thread preparation;
+std::atomic<bool> prepared{}, preparing{};
+std::atomic<std::uint64_t> next_preparation_ms{};
 }
 
 bool WriteAvailable() {
     try {
         if (!Healthy()) return false;
-        const auto binding = NamedServiceImplementation::binding_contract("impact::ImpactSystem");
         const std::int32_t origin[3]{}; const std::uint32_t dimensions[3]{1, 1, 1};
         PinnedRegion region(origin, dimensions);
         std::uintptr_t root{};
-        {
-            EngineContext::EcsView owner;
-            if (!EngineContext::ResolveEcs(owner) || owner.role != EngineContext::EcsRole::LocalAuthority) return false;
-            std::unique_lock operation(NamedServiceImplementation::operation_mutex, std::try_to_lock);
-            if (!operation.owns_lock()) return false;
-            EngineContext::EcsWriteGuard scene;
-            if (!scene.TryAcquire(owner) || !scene.Validate() || !region.AvailablePinned(owner) ||
-                !registered_root(binding, owner, root) || !scene.Validate()) return false;
-        }
+        if (!authority_root(&region, root)) return false;
         WriterCode code;
         return resolve_writer(root, code);
     } catch (...) { return false; }
+}
+
+void PrepareWriter() {
+    if (prepared.load(std::memory_order_acquire) || preparing.load(std::memory_order_acquire)) return;
+    const auto now = GetTickCount64();
+    if (now < next_preparation_ms.load(std::memory_order_relaxed)) return;
+    next_preparation_ms.store(now + 1000, std::memory_order_relaxed);
+    try {
+        std::uintptr_t root{};
+        if (!Healthy() || !authority_root(nullptr, root)) return;
+        std::scoped_lock lock(preparation_mutex);
+        if (preparation.joinable()) preparation.join();
+        preparing.store(true, std::memory_order_release);
+        preparation = std::thread([root] {
+            bool resolved{};
+            try { WriterCode code; resolved = resolve_writer(root, code); } catch (...) {}
+            // Not resolved: tried again later, the write still resolves it itself.
+            if (!resolved) next_preparation_ms.store(GetTickCount64() + 30000, std::memory_order_relaxed);
+            prepared.store(resolved, std::memory_order_release);
+            preparing.store(false, std::memory_order_release);
+        });
+    } catch (...) { preparing.store(false, std::memory_order_release); }
+}
+
+void StopPreparingWriter() {
+    std::scoped_lock lock(preparation_mutex);
+    if (preparation.joinable()) preparation.join();
 }
 
 bool WriteForSession(std::uint64_t expected_session, const std::int32_t origin[3],
