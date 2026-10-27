@@ -291,6 +291,10 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldCursorRead(
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeWorldCursorReadInput(
     size_t component_size, uint64_t expected_session, uint8_t* buffer,
     size_t capacity, uint64_t* sequence);
+/* Optional. How the last scan chose among several player inputs (multiplayer:
+   one ClientPlayerInput per player), or what it tried when it could not.
+   Returns the text length. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeWorldCursorInputDetail(char* buffer, size_t capacity);
 /* Optional ABI-12 client input extension. Exact build only. Dispatch is not a
    replicated-world acknowledgement. kind: select=0, place=1, remove=2, undo=3.
    Status: unknown=0, queued=1, pressed=2, dispatched=3, timeout=4, cancelled=5. */

@@ -20,6 +20,11 @@ constexpr int32_t k_ready = 1;
 constexpr int32_t k_steam_identity_type = 16;
 constexpr int32_t k_steam_identity_size = 8;
 constexpr int32_t k_steam_send_reliable = 8;
+// k_nSteamNetworkingSend_AutoRestartBrokenSession: without it, once a session
+// with a peer has failed (the peer did not accept in time, or the connection
+// dropped), every later send to that peer fails with k_EResultConnectFailed
+// until the process restarts.
+constexpr int32_t k_steam_send_restart_broken_session = 32;
 constexpr int32_t k_steam_messages_session_request_callback = 1251;
 constexpr int32_t k_network_service_channel = 65535;
 constexpr size_t k_max_message_bytes = 512u * 1024u;
@@ -123,9 +128,30 @@ struct Interfaces {
     ReceiveMessages receive{};
     AcceptSession accept{};
     ReleaseMessage release{};
-    InterfaceAccessor sockets_accessor{};
+    void* sockets{};
     GetIdentity get_identity{};
 };
+
+using FindInterface = void* (__cdecl*)(int32_t, const char*);
+using HandleFunction = int32_t (__cdecl*)();
+
+// The flat accessors of steam_api64.dll keep their first result until the
+// next SteamAPI_Init: asked once too early in the game's startup, they keep
+// returning null for the whole session (seen on 24/10/2026: Steam running,
+// user handle 1, accessor null, while the game's own interface worked).
+// Without a result, ask Steam directly for the interface by version.
+void* find_interface(InterfaceAccessor accessor, bool server, const char* version) {
+    if (accessor) {
+        if (auto* found = accessor()) return found;
+    }
+    const auto find = steam_export<FindInterface>(server
+        ? "SteamInternal_FindOrCreateGameServerInterface"
+        : "SteamInternal_FindOrCreateUserInterface");
+    const auto user = steam_export<HandleFunction>(server ? "SteamGameServer_GetHSteamUser" : "SteamAPI_GetHSteamUser");
+    if (!find || !user) return nullptr;
+    const auto handle = user();
+    return handle ? find(handle, version) : nullptr;
+}
 
 Interfaces resolve() {
     const bool server = is_dedicated_server();
@@ -136,12 +162,12 @@ Interfaces resolve() {
         ? "SteamAPI_SteamGameServerNetworkingSockets_SteamAPI_v012"
         : "SteamAPI_SteamNetworkingSockets_SteamAPI_v012");
     Interfaces result{};
-    if (messages_accessor) result.messages = messages_accessor();
+    result.messages = find_interface(messages_accessor, server, "SteamNetworkingMessages002");
     result.send = steam_export<SendMessage>("SteamAPI_ISteamNetworkingMessages_SendMessageToUser");
     result.receive = steam_export<ReceiveMessages>("SteamAPI_ISteamNetworkingMessages_ReceiveMessagesOnChannel");
     result.accept = steam_export<AcceptSession>("SteamAPI_ISteamNetworkingMessages_AcceptSessionWithUser");
     result.release = steam_export<ReleaseMessage>("SteamAPI_SteamNetworkingMessage_t_Release");
-    result.sockets_accessor = sockets_accessor;
+    result.sockets = find_interface(sockets_accessor, server, "SteamNetworkingSockets012");
     result.get_identity = steam_export<GetIdentity>("SteamAPI_ISteamNetworkingSockets_GetIdentity");
     return result;
 }
@@ -285,7 +311,7 @@ int32_t send_service_message(const Interfaces& api, uint64_t peer, const std::st
     if (!peer || !api.messages || !api.send) return -1;
     const auto target = identity(peer);
     const auto result = api.send(api.messages, target, text.data(), static_cast<uint32_t>(text.size()),
-        k_steam_send_reliable, k_network_service_channel);
+        k_steam_send_reliable | k_steam_send_restart_broken_session, k_network_service_channel);
     g_last_send_result.store(result, std::memory_order_release);
     return result;
 }
@@ -297,8 +323,8 @@ KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkStatus(uint64_t* local_steam_id
     try {
         const auto api = resolve();
         if (!ready(api)) return 0;
-        if (local_steam_id && api.sockets_accessor && api.get_identity) {
-            if (auto* sockets = api.sockets_accessor()) {
+        if (local_steam_id && api.sockets && api.get_identity) {
+            if (auto* sockets = api.sockets) {
                 SteamNetworkingIdentity local{};
                 if (api.get_identity(sockets, &local) && local.type == k_steam_identity_type &&
                     local.size == k_steam_identity_size) {
@@ -323,8 +349,8 @@ KFC_RUNTIME_API void __cdecl KfcRuntimeNetworkServiceTick(
         if (!ready(api)) return;
         const auto now = GetTickCount64();
         std::vector<uint64_t> peers;
-        if (is_dedicated_server() && api.sockets_accessor && api.get_identity) {
-            if (auto* sockets = api.sockets_accessor()) {
+        if (is_dedicated_server() && api.sockets && api.get_identity) {
+            if (auto* sockets = api.sockets) {
                 SteamNetworkingIdentity local{};
                 if (api.get_identity(sockets, &local) && local.type == k_steam_identity_type &&
                     local.size == k_steam_identity_size)
@@ -497,7 +523,7 @@ KFC_RUNTIME_API int32_t __cdecl KfcRuntimeNetworkSend(
         if (!ready(api)) return -1;
         const auto peer = identity(peer_steam_id);
         return api.send(api.messages, peer, payload, static_cast<uint32_t>(size),
-            reliable ? k_steam_send_reliable : 0, channel);
+            (reliable ? k_steam_send_reliable : 0) | k_steam_send_restart_broken_session, channel);
     } catch (...) { return -1; }
 }
 

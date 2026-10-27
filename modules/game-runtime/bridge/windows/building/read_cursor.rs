@@ -41,7 +41,18 @@ pub fn world_cursor_read_input(component_size: usize) -> Result<(Vec<u8>, u64), 
         5 => {
             Err("Local cursor query is still scanning or changed. Retry on the next update".into())
         }
-        6 => Err("local cursor input is ambiguous in the main-client ECS manager".into()),
+        6 => Err(match input_detail() {
+            Some(detail) => format!("local cursor input is ambiguous in the main-client ECS manager ({detail})"),
+            None => "local cursor input is ambiguous in the main-client ECS manager".into(),
+        }),
         _ => Err("native local cursor reader returned an unsupported result".into()),
     }
+}
+
+/// How the native reader chose among several player inputs, or why it could not.
+fn input_detail() -> Option<String> {
+    let detail = provider()?.world_cursor_input_detail?;
+    let mut buffer = [0u8; 2048];
+    let length = unsafe { detail(buffer.as_mut_ptr(), buffer.len()) }.min(buffer.len() - 1);
+    (length > 0).then(|| String::from_utf8_lossy(&buffer[..length]).into_owned())
 }

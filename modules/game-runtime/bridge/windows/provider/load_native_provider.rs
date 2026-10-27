@@ -160,6 +160,10 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                             "KfcRuntimeWorldCursorReadInput",
                             WorldCursorReadInput
                         ),
+                        world_cursor_input_detail: optional_symbol!(
+                            "KfcRuntimeWorldCursorInputDetail",
+                            WorldCursorInputDetail
+                        ),
                         world_voxel_read_for_session: optional_symbol!(
                             "KfcRuntimeWorldVoxelReadForSession",
                             WorldVoxelReadForSession
