@@ -119,7 +119,7 @@ export function Hotkeys({ data }: { data: Snapshot }) {
               key={row.id}
               label={label(row)}
               detail={detail || undefined}
-              rowClass={`hotkey-list-row${conflicts.length ? ' warning' : ''}`}
+              rowClass={`keybind-setting-row${conflicts.length ? ' warning' : ''}`}
               control={<KeybindInput
                 value={row.binding}
                 label={label(row)}

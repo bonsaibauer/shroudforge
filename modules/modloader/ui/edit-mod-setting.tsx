@@ -183,6 +183,7 @@ export function ModSetting({
         </div>
       }
       rowClass={[
+        control === 'keybind' ? 'keybind-setting-row' : '',
         control === 'slider' ? 'slider-setting' : '',
         control === 'radio' || control === 'segmented' ? 'expanded' : '',
         disabled ? 'disabled' : '',

@@ -249,6 +249,7 @@ export function ModulePreferencesEditor({
                   <SettingsRow
                     key={key}
                     label={t(label)}
+                    rowClass={key === 'toggleKey' ? 'keybind-setting-row' : ''}
                     control={
                       key === 'toggleKey' ? (
                         <KeybindInput
