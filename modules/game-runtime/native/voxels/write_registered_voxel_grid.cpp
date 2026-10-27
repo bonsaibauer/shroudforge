@@ -305,7 +305,13 @@ bool authority_root(PinnedRegion* region, std::uintptr_t& root) {
 // in game: it would stall the first write's caller (the mods' loop). A worker
 // does it once the world accepts writes; it only reads the game's code.
 std::mutex preparation_mutex;
-std::thread preparation;
+// A game closed without the runtime shutdown never joins the worker: a
+// joinable std::thread destroyed at exit ends the process (0xC0000409).
+// The process' other threads are gone by then, so it is let go.
+struct Preparation {
+    std::thread thread;
+    ~Preparation() { if (thread.joinable()) thread.detach(); }
+} preparation;
 std::atomic<bool> prepared{}, preparing{};
 std::atomic<std::uint64_t> next_preparation_ms{};
 }
@@ -331,9 +337,9 @@ void PrepareWriter() {
         std::uintptr_t root{};
         if (!Healthy() || !authority_root(nullptr, root)) return;
         std::scoped_lock lock(preparation_mutex);
-        if (preparation.joinable()) preparation.join();
+        if (preparation.thread.joinable()) preparation.thread.join();
         preparing.store(true, std::memory_order_release);
-        preparation = std::thread([root] {
+        preparation.thread = std::thread([root] {
             bool resolved{};
             try { WriterCode code; resolved = resolve_writer(root, code); } catch (...) {}
             // Not resolved: tried again later, the write still resolves it itself.
@@ -346,7 +352,7 @@ void PrepareWriter() {
 
 void StopPreparingWriter() {
     std::scoped_lock lock(preparation_mutex);
-    if (preparation.joinable()) preparation.join();
+    if (preparation.thread.joinable()) preparation.thread.join();
 }
 
 bool WriteForSession(std::uint64_t expected_session, const std::int32_t origin[3],
