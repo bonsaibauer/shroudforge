@@ -6,7 +6,7 @@ This page shows and edits ShroudForge window shortcuts and mod shortcuts that a 
 
 Click the field and press the key or combination you want. Input uses physical SDL3 scancodes such as `SDL:64` for F7, `Ctrl+SDL:29`, or `Shift+SDL:100`. This keeps the physical key position consistent across keyboard layouts. SDL supplies readable labels for the current operating-system layout. Modifiers such as Ctrl, Alt, Shift, and Meta must match exactly.
 
-While recording, ShroudForge blocks its window shortcuts and declared mod shortcuts across processes. Protection remains active after cancellation or a window focus change until all keys and mouse buttons are released, followed by three seconds without another key press or mouse click. New input restarts the waiting period after release.
+While recording, ShroudForge blocks its window shortcuts and declared mod shortcuts across processes. Protection remains active after cancellation or a window focus change until all keys and mouse buttons are released, followed by three seconds without another key press or mouse click. New input restarts the waiting period after release. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous shortcut.
 
 Use **Clear** to disable a shortcut. For ShroudForge windows, you can restore the built-in default. Mod shortcuts remain part of each mod's own settings. The fields in the mod settings and under **Compatibility → Hotkeys** edit the same saved value.
 
