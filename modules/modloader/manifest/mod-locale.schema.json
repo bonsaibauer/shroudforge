@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "title": "ShroudForge mod locale catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "mod": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+      "additionalProperties": { "$ref": "#/$defs/setting" }
+    },
+    "groups": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/group" }
+    },
+    "changelog": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    },
+    "strings": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 4000 }
+    }
+  },
+  "$defs": {
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 500 },
+        "options": {
+          "type": "object",
+          "propertyNames": { "type": "string" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 500 },
+        "actions": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+          "additionalProperties": { "$ref": "#/$defs/action" }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "confirm": { "type": "string", "maxLength": 500 }
+      }
+    }
+  }
+}

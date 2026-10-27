@@ -10,7 +10,13 @@ pub(crate) fn refresh_installed_mod(
     webview: &wry::WebView,
     next_refresh: &mut Instant,
 ) {
-    let result = if read_mods(&arguments.root)
+    let config = super::read_ui_configuration::read_central_config(&arguments.root);
+    let locale = config
+        .pointer("/general/locale")
+        .and_then(|value| value.as_str())
+        .filter(|locale| super::save_language::is_valid_locale(locale))
+        .unwrap_or("en-GB");
+    let result = if read_mods(&arguments.root, locale)
         .iter()
         .any(|mod_info| mod_info.id == id)
     {

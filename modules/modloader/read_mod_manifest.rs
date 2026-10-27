@@ -1,6 +1,6 @@
 #[cfg(test)]
 use crate::parse_manifest;
-use crate::{FileSystem, ModManifest};
+use crate::{FileSystem, ModManifest, validate_mod_locale_catalogs};
 use crate::{infer_api_contract, parse_manifest_with_extension};
 use serde_json::Value;
 #[cfg(test)]
@@ -26,6 +26,8 @@ pub fn read_manifest(root: &Path, fs: &mut FileSystem) -> Result<ModManifest, St
     let mut source = String::new();
     collect_lua_sources(fs, camino::Utf8Path::new("src"), &mut source)?;
     infer_api_contract(&mut manifest, &source);
+    manifest.locales = crate::read_mod_locale_catalogs::read_mod_locale_catalogs(root, fs)?;
+    validate_mod_locale_catalogs(&manifest)?;
     Ok(manifest)
 }
 

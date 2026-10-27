@@ -1070,7 +1070,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     next_refresh = Instant::now()
                         + Duration::from_millis(module_config.refresh_milliseconds.clamp(250, 10_000));
                     let central = read_central_config(&arguments.root);
-                    let mods = read_mods(&arguments.root);
+                    let locale = central
+                        .pointer("/general/locale")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or("en-GB");
+                    let mods = read_mods(&arguments.root, locale);
                     let notification_mods: Vec<_> = mods.iter().map(|item| shroudforge_news::ModNotification {
                         id: &item.id, name: &item.name, version: &item.version, ecosystem: item.ecosystem, changelog: &item.changelog,
                     }).collect();

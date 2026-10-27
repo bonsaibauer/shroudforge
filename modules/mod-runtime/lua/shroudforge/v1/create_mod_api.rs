@@ -210,6 +210,23 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         lua.create_function(move |_, ()| Ok(read_ui_locale(&locale_dir)))?,
     )?;
 
+    let locales = r#mod.info().locales.clone();
+    let i18n = lua.create_table()?;
+    i18n.raw_set(
+        "get",
+        lua.create_function(
+            move |_, (key, locale, fallback): (String, String, Option<String>)| {
+                Ok(mod_loader::localized_string(
+                    &locales,
+                    &key,
+                    &locale,
+                    fallback.as_deref(),
+                ))
+            },
+        )?,
+    )?;
+    table.raw_set("i18n", i18n)?;
+
     let notifications = lua.create_table()?;
     notifications.raw_set(
         "publish",

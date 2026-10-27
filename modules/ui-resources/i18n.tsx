@@ -52,7 +52,7 @@ const locales = Object.entries(catalogs)
 const I18nContext = createContext<I18nValue | null>(null)
 
 function resolveLocale(locale: string | null): Locale {
-  const requested = locale === 'en' && catalogs['en-US'] ? 'en-US' : locale
+  const requested = locale === 'en' && catalogs['en-GB'] ? 'en-GB' : locale
   return requested && catalogs[requested] ? requested : defaultLocale
 }
 

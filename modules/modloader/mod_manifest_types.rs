@@ -1,5 +1,6 @@
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +38,8 @@ pub struct ModManifest {
     pub actions: Vec<ModAction>,
     #[serde(default)]
     pub settings: Vec<SettingDefinition>,
+    #[serde(default)]
+    pub locales: BTreeMap<String, ModLocaleCatalog>,
 }
 
 impl ModManifest {
@@ -60,6 +63,53 @@ impl ModManifest {
 
 fn empty_settings() -> serde_json::Value {
     serde_json::json!({})
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModLocaleCatalog {
+    #[serde(default, rename = "mod")]
+    pub mod_info: ModLocaleMetadata,
+    #[serde(default)]
+    pub settings: BTreeMap<String, ModSettingLocale>,
+    #[serde(default)]
+    pub groups: Vec<ModGroupLocale>,
+    #[serde(default)]
+    pub changelog: Option<Vec<String>>,
+    #[serde(default)]
+    pub strings: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModLocaleMetadata {
+    pub name: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModSettingLocale {
+    pub label: Option<String>,
+    pub description: Option<String>,
+    #[serde(default)]
+    pub options: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModGroupLocale {
+    pub label: Option<String>,
+    pub description: Option<String>,
+    #[serde(default)]
+    pub actions: BTreeMap<String, ModActionLocale>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModActionLocale {
+    pub label: Option<String>,
+    pub confirm: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]

@@ -9,6 +9,11 @@ pub const EXTENDED_MOD: Document = Document {
     schema: include_str!("manifest/extended.mod.schema.json"),
     storage: Storage::Config("extended-mod/extended-mod.json"),
 };
+pub const MOD_LOCALE: Document = Document {
+    name: "mod-locale",
+    schema: include_str!("manifest/mod-locale.schema.json"),
+    storage: Storage::Package,
+};
 pub const RULES: Document = Document {
     name: "rules",
     schema: include_str!("conflicts/rules.schema.json"),

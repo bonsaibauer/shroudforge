@@ -43,6 +43,23 @@ shroudforge_notifications = {}
 --- @param notice ShroudForgeNotification
 function shroudforge_notifications.publish(notice) end
 
+--- @class ShroudForgeI18n
+--- Reads mod-authored text from the same `locales/<locale>.json` files that
+--- localize the mod's Modloader name, settings, groups, actions and changelog.
+shroudforge_i18n = {}
+
+--- Returns this mod's translated string for the requested locale.
+--- Regional catalogs take precedence over their base language. Missing keys
+--- return `fallback`, or the key itself when no fallback is supplied.
+--- Pass a value returned by `shroudforge.locale()` and cache it between
+--- settings changes. The catalog is loaded with the mod, so lookup does not
+--- read files or loader settings.
+--- @param key string String key declared under `strings` in a mod locale file.
+--- @param locale string Locale code, for example `"de"` or `"de-AT"`.
+--- @param fallback? string Text to return when this mod has no translation.
+--- @return string
+function shroudforge_i18n.get(key, locale, fallback) end
+
 --- @class ShroudForgeInput
 shroudforge_input = {}
 
@@ -84,6 +101,7 @@ function shroudforge_input.keybind_label(setting_key) end
 --- @field ui ShroudForgeUi Register Modloader button callbacks and request the UI toggle.
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
+--- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
 shroudforge = {}
 
 --- Language the player chose for ShroudForge in the Modloader, such as `"en"`,

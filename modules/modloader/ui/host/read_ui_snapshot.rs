@@ -6,7 +6,6 @@ use super::read_release_status::read_release_status;
 use super::read_runtime_profiles::active_runtime_profile;
 use super::read_runtime_profiles::runtime_profile_ids;
 use super::read_storage_paths::storage_paths;
-use super::read_ui_configuration::load_user_config;
 use super::save_language::is_valid_locale;
 use super::ui_snapshot_types::ModInfo;
 use super::ui_snapshot_types::Snapshot;
@@ -32,6 +31,12 @@ pub(crate) fn read_ui_snapshot(
         .pointer("/logging/minimumLevel")
         .and_then(|v| v.as_str())
         .unwrap_or("INFO")
+        .to_owned();
+    let locale = central
+        .pointer("/general/locale")
+        .and_then(|value| value.as_str())
+        .filter(|locale| is_valid_locale(locale))
+        .unwrap_or("en-GB")
         .to_owned();
     let export_enabled = central
         .pointer("/exports/enabled")
