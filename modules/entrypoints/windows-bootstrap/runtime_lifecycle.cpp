@@ -4,20 +4,23 @@ using namespace BootstrapImplementation;
 
 
 namespace BootstrapImplementation {
-void write_runtime_heartbeat(const std::filesystem::path& root) {
+long long seconds_now() {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+void write_runtime_heartbeat(const std::filesystem::path& root, long long updated_at) {
     const auto directory = ShroudforgeConfig::Directory(root, "runtime", "shroudforge/runtime");
     std::error_code error;
     std::filesystem::create_directories(directory, error);
     if (error) return;
     const auto path = directory / L"heartbeat.json";
     const auto temporary = directory / L"heartbeat.json.tmp";
-    const auto now = std::chrono::duration_cast<std::chrono::seconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
     std::ofstream stream(temporary, std::ios::trunc);
     if (!stream) return;
     stream << "{\"schemaVersion\":1,\"pid\":" << GetCurrentProcessId()
         << ",\"mode\":\"" << (std::filesystem::is_regular_file(root / L"enshrouded.exe") ? "CLIENT" : "SERVER")
-        << "\",\"updatedAt\":" << now << "}";
+        << "\",\"updatedAt\":" << updated_at << "}";
     stream.close();
     if (stream) MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
 }
@@ -128,13 +131,31 @@ DWORD WINAPI run(void*) {
     auto previous = std::chrono::steady_clock::now();
     auto next_runtime_status = previous;
     std::string previous_runtime_status;
+    // The heartbeat is written by a thread of its own: its flush to the disk
+    // held every mod up to half a second while the game loads. updatedAt
+    // stays the loop's last turn, so a stalled loop still reads as inactive.
+    std::atomic<long long> last_turn{seconds_now()};
+    const HANDLE heartbeat_stop = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    std::thread heartbeat;
+    if (heartbeat_stop) {
+        try {
+            heartbeat = std::thread([&] {
+                do write_runtime_heartbeat(root, last_turn.load(std::memory_order_relaxed));
+                while (WaitForSingleObject(heartbeat_stop, 2000) == WAIT_TIMEOUT);
+            });
+        } catch (...) {
+            log('W', "Could not start the heartbeat thread: the mods loop writes it");
+        }
+    }
+    const bool heartbeat_thread = heartbeat.joinable();
     while (WaitForSingleObject(stop_event, 16) == WAIT_TIMEOUT) {
         const auto now = std::chrono::steady_clock::now();
         const auto delta = std::chrono::duration<double>(now - previous).count();
         previous = now;
+        last_turn.store(seconds_now(), std::memory_order_relaxed);
         EcsRuntime::Tick();
         if (now >= next_runtime_status) {
-            write_runtime_heartbeat(root);
+            if (!heartbeat_thread) write_runtime_heartbeat(root, last_turn.load(std::memory_order_relaxed));
             const auto status = EcsRuntime::Status();
             const auto state = runtime_status_state(status);
             if (state != previous_runtime_status) {
@@ -149,6 +170,9 @@ DWORD WINAPI run(void*) {
             break;
         }
     }
+    if (heartbeat_stop) SetEvent(heartbeat_stop);
+    if (heartbeat.joinable()) heartbeat.join();
+    if (heartbeat_stop) CloseHandle(heartbeat_stop);
     destroy(handle);
     EcsRuntime::Shutdown();
     stop_world_editor_ui();
