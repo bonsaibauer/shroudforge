@@ -1,6 +1,5 @@
 use super::read_activity_log::read_activity;
 use super::read_game_version::read_game_version;
-use super::read_host_arguments::Arguments;
 use super::read_missing_updater_announcement;
 use super::read_release_status::read_release_status;
 use super::read_runtime_profiles::active_runtime_profile;
@@ -14,11 +13,15 @@ use super::validate_message_name::default_message_name_fallback;
 use super::validate_message_name::normalize_message_name;
 use shroudforge_loader_config::runtime_status::runtime_is_active;
 use shroudforge_package::config_revision;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 pub(crate) fn read_ui_snapshot(
-    arguments: &Arguments,
+    root: &Path,
+    game_pid: u32,
+    desktop: bool,
+    server: bool,
     provider: &serde_json::Value,
     release: &Arc<Mutex<serde_json::Value>>,
     release_announcement: &Arc<Mutex<serde_json::Value>>,
@@ -42,7 +45,7 @@ pub(crate) fn read_ui_snapshot(
         .pointer("/exports/enabled")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
-    let release_snapshot = read_release_status(&arguments.root, &central, release);
+    let release_snapshot = read_release_status(root, &central, release);
     let version = release_snapshot["currentVersion"]
         .as_str()
         .unwrap_or(env!("CARGO_PKG_VERSION"))
@@ -62,7 +65,7 @@ pub(crate) fn read_ui_snapshot(
         player_name_detection.resolve_name(username_mode == "manual", &fallback_username);
     let detected_username = player_name_detection.name.clone();
     let diagnostic_jobs = shroudforge_runtime_diagnostics::diagnostic_job_catalog(
-        &arguments.root,
+        root,
         &central["modules"]["runtimeDiagnostics"],
     );
     let notification_mods: Vec<_> = mods
@@ -75,46 +78,46 @@ pub(crate) fn read_ui_snapshot(
             changelog: &item.changelog,
         })
         .collect();
-    let hotkey_conflicts = hotkey_conflicts(&central, &mods, arguments.server);
+    let hotkey_conflicts = hotkey_conflicts(&central, &mods, server);
     let snapshot = Snapshot {
-        diagnostics: shroudforge_runtime_diagnostics::status(&arguments.root),
-        dll_candidates: shroudforge_package::dll_manager::discover_dll_candidates(&arguments.root),
-        dll_chain_entries: shroudforge_package::dll_manager::chain_load_entries(&arguments.root),
-        windows: shroudforge_loader_config::config::window_state(&arguments.root),
+        diagnostics: shroudforge_runtime_diagnostics::status(root),
+        dll_candidates: shroudforge_package::dll_manager::discover_dll_candidates(root),
+        dll_chain_entries: shroudforge_package::dll_manager::chain_load_entries(root),
+        windows: shroudforge_loader_config::config::window_state(root),
         configuration: super::read_configuration_status::configuration(
-            &arguments.root,
-            arguments.server,
+            root,
+            server,
             env!("CARGO_PKG_VERSION"),
-            (!arguments.desktop).then_some(arguments.game_pid),
+            (!desktop).then_some(game_pid),
         ),
-        connected: !arguments.desktop && runtime_is_active(&arguments.root),
-        mode: if arguments.desktop {
+        connected: !desktop && runtime_is_active(root),
+        mode: if desktop {
             "DESKTOP"
-        } else if !arguments.server {
+        } else if !server {
             "CLIENT"
         } else {
             "SERVER"
         },
-        game_version: read_game_version(&arguments.root),
+        game_version: read_game_version(root),
         version,
-        notices: shroudforge_news::read_notifications(&arguments.root, &notification_mods),
+        notices: shroudforge_news::read_notifications(root, &notification_mods),
         mods,
         hotkey_conflicts,
-        activity: read_activity(&arguments.root).unwrap_or_default(),
-        news_templates: shroudforge_news::read(&arguments.root)
+        activity: read_activity(root).unwrap_or_default(),
+        news_templates: shroudforge_news::read(root)
             .ok()
             .and_then(|value| value.get("templates").cloned())
             .unwrap_or_else(|| serde_json::json!({})),
-        read_notice_ids: shroudforge_news::read_news_state(&arguments.root),
+        read_notice_ids: shroudforge_news::read_news_state(root),
         release: release_snapshot,
         release_announcement: release_announcement
             .lock()
             .map(|value| value.clone())
-            .unwrap_or_else(|_| read_missing_updater_announcement::read_cached(&arguments.root)),
-        update_queue: read_update_queue(&arguments.root),
+            .unwrap_or_else(|_| read_missing_updater_announcement::read_cached(root)),
+        update_queue: read_update_queue(root),
         backup_management: shroudforge_game_assets::originals::management_status(
-            &arguments.root,
-            if arguments.server { "server" } else { "client" },
+            root,
+            if server { "server" } else { "client" },
         ),
         settings: SnapshotSettings {
             config_revision: config_revision(&central),
@@ -148,10 +151,10 @@ pub(crate) fn read_ui_snapshot(
                 .pointer("/runtime/profileId")
                 .and_then(serde_json::Value::as_str)
                 .map(str::to_owned),
-            active_runtime_profile: active_runtime_profile(&arguments.root),
-            runtime_profiles: runtime_profile_ids(&arguments.root),
+            active_runtime_profile: active_runtime_profile(root),
+            runtime_profiles: runtime_profile_ids(root),
             runtime_profile_directory: shroudforge_loader_config::paths::runtime_profiles_dir(
-                &arguments.root,
+                root,
             )
             .display()
             .to_string(),
@@ -164,7 +167,7 @@ pub(crate) fn read_ui_snapshot(
                 .as_str()
                 .unwrap_or_default()
                 .to_owned(),
-            paths: storage_paths(&arguments.root),
+            paths: storage_paths(root),
         },
         catalog: catalog
             .lock()

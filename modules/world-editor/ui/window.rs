@@ -102,6 +102,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
         .with_html(html)
         .with_ipc_handler(handler)
         .build(&window)?;
+    let _ = webview.set_visible(window.is_visible());
     // The document paints the opaque panel. The Tao background matches its
     // dark base color so uncovered client pixels cannot flash white.
     log_world_editor(
@@ -120,6 +121,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
     let mut library_expanded_height = initial_state.panel_height;
     let mut module_enabled = preferences["enabled"] != false;
     let mut native_visible = false;
+    let mut state_watcher_active = false;
     let _ = shroudforge_loader_config::config::publish_window_visibility(
         &arguments.root,
         "worldEditor",
@@ -134,7 +136,8 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
     let mut next_settings_poll = Instant::now();
     // Keep disk enumeration and thumbnail reads off the window thread.
     // Bound the channel so slow rendering cannot accumulate snapshots.
-    let state_updates = watch_editor_state(arguments.root.clone(), refresh_ms);
+    let (state_updates, state_watcher_visibility) =
+        watch_editor_state(arguments.root.clone(), refresh_ms);
     let mut next_refresh = Instant::now();
     let mut last_payload = String::new();
     let mut last_ui_surface = String::new();
@@ -365,51 +368,60 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                         if native_visible { "World Editor window shown." } else { "World Editor window hidden." },
                     );
                 }
+                let refresh_window_visible = window.is_visible() && !window.is_minimized();
+                if refresh_window_visible != state_watcher_active {
+                    state_watcher_active = refresh_window_visible;
+                    let _ = webview.set_visible(state_watcher_active);
+                    let _ = state_watcher_visibility.send(state_watcher_active);
+                    if state_watcher_active {
+                        next_refresh = Instant::now();
+                    }
+                }
+                if !state_watcher_active {
+                    let _ = state_updates.try_iter().last();
+                }
                 if Instant::now() >= next_refresh {
-                    if let Some(state) = state_updates.try_iter().last() {
-                        if let Ok(payload) = serde_json::to_string(&state) {
-                            let state_changed = payload != last_payload;
-                            if state_changed {
-                                if state.panel_width != panel_width
-                                    || state.panel_height != panel_height
-                                    || state.panel_position_x != panel_position_x
-                                    || state.panel_position_y != panel_position_y
-                                {
-                                    panel_width = state.panel_width;
-                                    panel_height = state.panel_height;
-                                    panel_position_x = state.panel_position_x;
-                                    panel_position_y = state.panel_position_y;
-                                    let height = if manager_open {
-                                        560.0
-                                    } else if library_expanded {
-                                        library_expanded_height as f64
-                                    } else {
-                                        panel_height as f64
-                                    };
-                                    set_fixed_size(&window, panel_width, height);
-                                    window.set_inner_size(LogicalSize::new(
-                                        panel_width as f64,
-                                        height,
-                                    ));
-                                    position_window(
-                                        &window,
-                                        arguments.game_pid,
-                                        panel_width as f64,
-                                        panel_position_x,
-                                        panel_position_y,
-                                    );
-                                }
-                                last_payload = payload.clone();
-                            }
-                            let script = super::fallback::render_script(&last_payload);
-                            if let Err(error) = webview.evaluate_script(&script) {
-                                log_world_editor(
-                                    &arguments.root,
-                                    'E',
-                                    "ui",
-                                    &format!("Could not send the visible interface state to the window: {error}"),
-                                );
-                            }
+                    if state_watcher_active
+                        && let Some(state) = state_updates.try_iter().last()
+                        && let Ok(payload) = serde_json::to_string(&state)
+                        && payload != last_payload
+                    {
+                        if state.panel_width != panel_width
+                            || state.panel_height != panel_height
+                            || state.panel_position_x != panel_position_x
+                            || state.panel_position_y != panel_position_y
+                        {
+                            panel_width = state.panel_width;
+                            panel_height = state.panel_height;
+                            panel_position_x = state.panel_position_x;
+                            panel_position_y = state.panel_position_y;
+                            let height = if manager_open {
+                                560.0
+                            } else if library_expanded {
+                                library_expanded_height as f64
+                            } else {
+                                panel_height as f64
+                            };
+                            set_fixed_size(&window, panel_width, height);
+                            window.set_inner_size(LogicalSize::new(panel_width as f64, height));
+                            position_window(
+                                &window,
+                                arguments.game_pid,
+                                panel_width as f64,
+                                panel_position_x,
+                                panel_position_y,
+                            );
+                        }
+                        let script = super::fallback::render_script(&payload);
+                        if let Err(error) = webview.evaluate_script(&script) {
+                            log_world_editor(
+                                &arguments.root,
+                                'E',
+                                "ui",
+                                &format!("Could not send the visible interface state to the window: {error}"),
+                            );
+                        } else {
+                            last_payload = payload;
                         }
                     }
                     next_refresh = Instant::now() + Duration::from_millis(refresh_ms);

@@ -18,14 +18,18 @@ pub(crate) fn foreground_process() -> u32 {
 }
 
 pub(crate) fn foreground_is_shroudforge_window() -> bool {
+    foreground_title().starts_with("ShroudForge")
+}
+
+pub(crate) fn foreground_title() -> String {
     let window = unsafe { GetForegroundWindow() };
     if window.is_null() {
-        return false;
+        return String::new();
     }
     let mut title = [0u16; 256];
     let length = unsafe { GetWindowTextW(window, title.as_mut_ptr(), title.len() as i32) };
     if length <= 0 {
-        return false;
+        return String::new();
     }
-    String::from_utf16_lossy(&title[..length as usize]).starts_with("ShroudForge")
+    String::from_utf16_lossy(&title[..length as usize])
 }
