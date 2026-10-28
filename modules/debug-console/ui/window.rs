@@ -393,7 +393,7 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let Some(minimum_level) = refresh_console_settings(&arguments, &window, &mut preferences, &mut effective_window_geometry, &mut config, &mut user_enabled, &mut last_config_error, control_flow) else { return; };
                     next_refresh =
                         Instant::now() + Duration::from_millis(config.refresh_milliseconds);
-                    if visible {
+                    if refresh_window_visible {
                         let (settings, logs) = read_console_snapshot(&arguments, &config, &preferences, minimum_level, auto_open_alert, &mut followers);
                         let settings_text = settings.to_string();
                         let has_logs = !logs["game"].is_null() || !logs["loader"].is_null();
