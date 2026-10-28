@@ -2,6 +2,7 @@ import type { ModInfo } from './mod-types'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { useEffect, useRef, useState } from 'react'
 import type { CommandResult } from '../../notifications/ui/notification-types'
+import { applySettingChange } from './apply-setting-presets'
 
 function settingsValues(mod: ModInfo): Record<string, unknown> {
   return Object.fromEntries(
@@ -107,7 +108,12 @@ export function useModSettings(mod: ModInfo) {
     })
   }
   const updateSetting = (key: string, value: unknown) => {
-    const next = { ...valuesRef.current, [key]: value }
+    const next = applySettingChange(
+      valuesRef.current,
+      latestMod.current.presets,
+      key,
+      value,
+    )
     valuesRef.current = next
     setValues(next)
     pendingAutoSave.current = true

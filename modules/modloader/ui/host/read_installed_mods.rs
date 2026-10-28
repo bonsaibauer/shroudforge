@@ -174,6 +174,10 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
                 .and_then(|value| value.as_array())
                 .cloned()
                 .unwrap_or_default(),
+            presets: value
+                .get("presets")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
             changelog: value
                 .get("changelog")
                 .and_then(|value| value.as_array())
