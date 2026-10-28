@@ -113,7 +113,7 @@ Native DLL handles are process-owned. `modules/modloader/dll_manager.rs` detects
 ## The two mod information files
 
 - **mod.json** follows the EML format. It contains the mod's identity, version, dependencies, and permissions.
-- **extended.mod.json** is an optional ShroudForge file. It contains the enabled state, setting values, groups, actions, links, short update notes, and optional `launcher` provenance (`EML` or `SF`).
+- **extended.mod.json** is an optional ShroudForge file. It contains the enabled state, setting values, groups, actions, setting presets, links, short update notes, and optional `launcher` provenance (`EML` or `SF`). `validate_setting_presets.rs` checks presets when the manifest is read. `ui/apply-setting-presets.ts` applies a chosen preset, or selects its custom value, when a setting changes in the Modloader.
 
 Locale catalogs live at **locales/<locale>.json** inside the same mod folder. `read_mod_locale_catalogs.rs` validates them with `manifest/mod-locale.schema.json`. `resolve_mod_locale.rs` applies them to the Modloader manifest and resolves Lua strings. Lua reads the selected Modloader code through `shroudforge.locale()`.
 
