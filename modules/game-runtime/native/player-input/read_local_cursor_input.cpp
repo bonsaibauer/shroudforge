@@ -163,8 +163,10 @@ bool choose_local_input(LocalInputState& state, const ResolvedLayout& layout){
         }
         bool is_marked{};
         if (present) {
+            // Copied under SEH (read_bytes): no page query, which alone can
+            // take longer than the 1 ms budget of this selection.
             std::uintptr_t address{};
-            if (!component_address(state.candidates[index].first, layout, type, address) ||
+            if (!component_address(state.candidates[index].first, layout, type, address, false) ||
                 !read_bytes(address, bytes.data(), type.size)) {
                 selection_complete = false;
                 break;
