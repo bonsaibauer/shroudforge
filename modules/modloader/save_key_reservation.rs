@@ -25,9 +25,7 @@ pub fn save_key_reservation(
             .or_insert_with(|| serde_json::json!({}))
             .as_object_mut()
             .ok_or("inputReservations choices must be an object")?;
-        let choice = choices
-            .entry(key)
-            .or_insert_with(|| serde_json::json!({}));
+        let choice = choices.entry(key).or_insert_with(|| serde_json::json!({}));
         let device = match device {
             InputDevice::Keyboard => "keyboard",
             InputDevice::Mouse => "mouse",
@@ -44,7 +42,10 @@ mod tests {
 
     #[test]
     fn saves_a_padlock_among_the_choices() {
-        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("shroudforge-key-reservation-{suffix}"));
         let package = shroudforge_loader_config::paths::mods_dir(&root).join("example");
         std::fs::create_dir_all(&package).unwrap();
@@ -65,16 +66,32 @@ mod tests {
             &serde_json::json!({"enabled":true,"settings":{"keyMark":"SDL:30"}}),
         );
 
-        save_key_reservation(&root, "example", "keyMark", InputDevice::Keyboard, false, &revision)
-            .unwrap();
+        save_key_reservation(
+            &root,
+            "example",
+            "keyMark",
+            InputDevice::Keyboard,
+            false,
+            &revision,
+        )
+        .unwrap();
 
         let saved: serde_json::Value =
             serde_json::from_slice(&std::fs::read(package.join("extended.mod.json")).unwrap())
                 .unwrap();
-        assert_eq!(saved["inputReservations"]["choices"]["keyMark"]["keyboard"], false);
+        assert_eq!(
+            saved["inputReservations"]["choices"]["keyMark"]["keyboard"],
+            false
+        );
         assert_eq!(saved["settings"]["keyMark"]["value"], "SDL:30");
-        let refused =
-            save_key_reservation(&root, "example", "keyOther", InputDevice::Mouse, true, &revision);
+        let refused = save_key_reservation(
+            &root,
+            "example",
+            "keyOther",
+            InputDevice::Mouse,
+            true,
+            &revision,
+        );
         assert!(refused.unwrap_err().contains("cannot be reserved"));
         std::fs::remove_dir_all(root).unwrap();
     }

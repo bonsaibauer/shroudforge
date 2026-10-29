@@ -7,7 +7,9 @@ use crate::{ModManifest, SettingControl, SettingValueType};
 pub(crate) fn validate_input_reservations(manifest: &ModManifest) -> Result<(), String> {
     for (context, label) in &manifest.input_contexts {
         if !valid_identifier(context) {
-            return Err(format!("input context '{context}' is not a valid identifier"));
+            return Err(format!(
+                "input context '{context}' is not a valid identifier"
+            ));
         }
         if label.trim().is_empty() || label.chars().count() > 120 {
             return Err(format!(
@@ -88,9 +90,15 @@ mod tests {
         .unwrap();
         let setting = |key: &str| parsed.settings.iter().find(|s| s.key == key).unwrap();
         use shroudforge_hotkeys::InputDevice::{Keyboard, Mouse};
-        assert!(!setting("keyMark").reserves(Keyboard), "the player's padlock wins");
+        assert!(
+            !setting("keyMark").reserves(Keyboard),
+            "the player's padlock wins"
+        );
         assert!(!setting("keyUndo").reserves(Keyboard) && !setting("keyUndo").reserves(Mouse));
-        assert_eq!(setting("wheelDistance").wheel.as_ref().unwrap().when, "hammer");
+        assert_eq!(
+            setting("wheelDistance").wheel.as_ref().unwrap().when,
+            "hammer"
+        );
         assert_eq!(parsed.input_contexts["hammer"], "Hammer in hand");
     }
 
@@ -103,23 +111,42 @@ mod tests {
             .unwrap_err()
         };
         let keybind = serde_json::json!({"keyMark": {"value": "SDL:30", "control": "keybind"}});
-        assert!(with(keybind.clone(), serde_json::json!({"keys": {"keyMark": {"when": "hammer"}}}))
-            .contains("unknown input context"));
-        assert!(with(keybind.clone(), serde_json::json!({"keys": {"other": {"when": "hammer"}}}))
-            .contains("unknown setting 'other'"));
-        assert!(with(
-            serde_json::json!({"size": {"value": 2}}),
-            serde_json::json!({"contexts": {"hammer": "Hammer in hand"},
+        assert!(
+            with(
+                keybind.clone(),
+                serde_json::json!({"keys": {"keyMark": {"when": "hammer"}}})
+            )
+            .contains("unknown input context")
+        );
+        assert!(
+            with(
+                keybind.clone(),
+                serde_json::json!({"keys": {"other": {"when": "hammer"}}})
+            )
+            .contains("unknown setting 'other'")
+        );
+        assert!(
+            with(
+                serde_json::json!({"size": {"value": 2}}),
+                serde_json::json!({"contexts": {"hammer": "Hammer in hand"},
                 "keys": {"size": {"when": "hammer"}}})
-        )
-        .contains("only valid on a keybind"));
-        assert!(with(
-            serde_json::json!({"name": {"value": "x"}}),
-            serde_json::json!({"contexts": {"hammer": "Hammer in hand"},
+            )
+            .contains("only valid on a keybind")
+        );
+        assert!(
+            with(
+                serde_json::json!({"name": {"value": "x"}}),
+                serde_json::json!({"contexts": {"hammer": "Hammer in hand"},
                 "wheels": {"name": {"when": "hammer"}}})
-        )
-        .contains("only valid on a boolean"));
-        assert!(with(keybind, serde_json::json!({"choices": {"keyMark": {"keyboard": true}}}))
-            .contains("no reserve"));
+            )
+            .contains("only valid on a boolean")
+        );
+        assert!(
+            with(
+                keybind,
+                serde_json::json!({"choices": {"keyMark": {"keyboard": true}}})
+            )
+            .contains("no reserve")
+        );
     }
 }
