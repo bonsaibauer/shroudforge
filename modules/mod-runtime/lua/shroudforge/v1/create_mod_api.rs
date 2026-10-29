@@ -184,6 +184,12 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                 .map(|binding| binding.label()))
         })?,
     )?;
+    super::reserve_mod_input::register_input_reservations(
+        &r#mod.info().id,
+        &r#mod.info().settings,
+        &r#mod.info().input_contexts,
+    );
+    super::reserve_mod_input::add_input_reservation_api(lua, &input, &r#mod.info().id)?;
     table.raw_set("input", input)?;
 
     let ui = lua.create_table()?;
@@ -268,7 +274,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     Ok(table)
 }
 
-fn read_keybind(
+pub(super) fn read_keybind(
     lua: &mlua::Lua,
     mod_id: &str,
     declared: &[mod_loader::SettingDefinition],
