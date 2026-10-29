@@ -33,7 +33,7 @@ impl IngameRuntime {
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         let mut diagnostics =
-            shroudforge_runtime_diagnostics::Session::new(env.game_dir().as_std_path());
+            shroudforge_runtime_diagnostics::Session::new(env.game_dir().as_std_path()).with_background_io();
         let file_name: String = file_name.into();
         let state = AppState::new(
             env.clone(),
@@ -113,6 +113,7 @@ impl IngameRuntime {
                 )
             })
             .collect();
+        let package_revisions = super::watch_package_revisions::PackageRevisions::start(root.clone());
         let runtime = Self {
             diagnostics,
             runner,
@@ -124,6 +125,7 @@ impl IngameRuntime {
             errors,
             configurations,
             observed: Default::default(),
+            package_revisions,
             next_status: std::time::Instant::now(),
             processed_reload_request: None,
             publish_on_drop: true,
