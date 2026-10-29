@@ -214,7 +214,6 @@ export function ModPage({
                           key: definition.key,
                           device,
                           enabled: reserved,
-                          revision: mod.revision,
                         })
                       }
                     />

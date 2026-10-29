@@ -279,7 +279,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .keybind-device:last-child .key-lock-tip{left:auto;right:0}
 .key-lock.reserved .key-lock-tip{border-color:rgba(201,173,110,.55)}
 .key-lock-tip strong{color:var(--sf-gold-bright)}
-.key-lock:hover .key-lock-tip,.key-lock:focus-within .key-lock-tip{display:flex}
+.key-lock:hover .key-lock-tip,.key-lock:has(.key-lock-button:focus-visible) .key-lock-tip{display:flex}
 .keybind-setting-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,min(460px,46%));align-items:center}
 .keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:2;width:100%;max-width:460px;min-width:0;flex:none}
 @media(max-width:760px){.keybind-setting-row{grid-template-columns:minmax(0,1fr)}.keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:1;width:min(460px,100%)}}

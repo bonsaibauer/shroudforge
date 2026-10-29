@@ -1,5 +1,6 @@
 import type { SettingDefinition } from './mod-types'
 import type React from 'react'
+import { useEffect, useState } from 'react'
 
 import { SettingSwitch, SettingsRow } from '../../ui-resources/edit-setting'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
@@ -27,6 +28,16 @@ export function ModSetting({
   onReserve?(device: InputDevice, reserved: boolean): void
 }) {
   const { t } = useI18n()
+  // A padlock turns at the click; the saved state replaces it when the page
+  // refreshes, or after a few seconds if the save failed.
+  const [turned, setTurned] = useState<Partial<Record<InputDevice, boolean>>>({})
+  const savedPadlocks = JSON.stringify(definition.reserved ?? {})
+  useEffect(() => setTurned({}), [savedPadlocks])
+  useEffect(() => {
+    if (Object.keys(turned).length === 0) return
+    const timer = window.setTimeout(() => setTurned({}), 4000)
+    return () => window.clearTimeout(timer)
+  }, [turned])
   const control =
     definition.control ||
     (definition.type === 'boolean'
@@ -194,8 +205,12 @@ export function ModSetting({
                   device,
                   {
                     condition: contexts[reserve.when] ?? reserve.when,
-                    reserved: definition.reserved?.[device] ?? reserve[device] ?? false,
-                    onToggle: (reserved: boolean) => onReserve(device, reserved),
+                    reserved:
+                      turned[device] ?? definition.reserved?.[device] ?? reserve[device] ?? false,
+                    onToggle: (reserved: boolean) => {
+                      setTurned((current) => ({ ...current, [device]: reserved }))
+                      onReserve(device, reserved)
+                    },
                   },
                 ]),
               )

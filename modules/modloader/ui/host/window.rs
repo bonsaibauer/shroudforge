@@ -872,13 +872,12 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             &webview,
                             &mut next_refresh,
                         ),
-                        Command::SaveKeyReservation(id, key, device, reserved, revision, request_id) => {
+                        Command::SaveKeyReservation(id, key, device, reserved, request_id) => {
                             apply_key_reservation(
                                 id,
                                 key,
                                 device,
                                 reserved,
-                                revision,
                                 request_id,
                                 &arguments,
                                 &webview,

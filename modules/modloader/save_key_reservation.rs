@@ -3,16 +3,23 @@ use std::path::Path;
 
 /// Saves the player's padlock of one keybind on one device (true: the game
 /// is denied it while the mod's context is active) in the
-/// `inputReservations.choices` of extended.mod.json.
+/// `inputReservations.choices` of extended.mod.json. A padlock does not
+/// depend on the setting values the page showed, so it is saved over the
+/// current ones: a keybind saved just before does not refuse it.
 pub fn save_key_reservation(
     root: &Path,
     id: &str,
     key: &str,
     device: InputDevice,
     reserved: bool,
-    revision: &str,
 ) -> Result<(), String> {
-    crate::update_mod_configuration::update_mod_configuration(root, id, revision, |extension| {
+    let package =
+        crate::package_lookup::find_mod_package(root, id).ok_or("mod package not found")?;
+    let manifest = crate::config::read_manifest_path(root, &package)?;
+    let revision = crate::config_revision(
+        &serde_json::json!({"enabled": manifest.enabled, "settings": manifest.setting_values}),
+    );
+    crate::update_mod_configuration::update_mod_configuration(root, id, &revision, |extension| {
         let block = extension
             .get_mut("inputReservations")
             .and_then(serde_json::Value::as_object_mut)
@@ -62,19 +69,7 @@ mod tests {
                     "keys":{"keyMark":{"when":"hammer","keyboard":true}}}}"#,
         )
         .unwrap();
-        let revision = crate::config_revision(
-            &serde_json::json!({"enabled":true,"settings":{"keyMark":"SDL:30"}}),
-        );
-
-        save_key_reservation(
-            &root,
-            "example",
-            "keyMark",
-            InputDevice::Keyboard,
-            false,
-            &revision,
-        )
-        .unwrap();
+        save_key_reservation(&root, "example", "keyMark", InputDevice::Keyboard, false).unwrap();
 
         let saved: serde_json::Value =
             serde_json::from_slice(&std::fs::read(package.join("extended.mod.json")).unwrap())
@@ -84,14 +79,7 @@ mod tests {
             false
         );
         assert_eq!(saved["settings"]["keyMark"]["value"], "SDL:30");
-        let refused = save_key_reservation(
-            &root,
-            "example",
-            "keyOther",
-            InputDevice::Mouse,
-            true,
-            &revision,
-        );
+        let refused = save_key_reservation(&root, "example", "keyOther", InputDevice::Mouse, true);
         assert!(refused.unwrap_err().contains("cannot be reserved"));
         std::fs::remove_dir_all(root).unwrap();
     }
