@@ -1,6 +1,6 @@
 use super::read_host_arguments::Arguments;
-use super::report_command_result::report_command_result;
-use shroudforge_package::save_mod_settings;
+use super::report_command_result::report_command_result_with_revision;
+use shroudforge_package::{read_mod_config_revision, save_mod_settings};
 use std::time::Instant;
 
 pub(crate) fn apply_mod_settings(
@@ -13,7 +13,12 @@ pub(crate) fn apply_mod_settings(
     next_refresh: &mut Instant,
 ) {
     let result = save_mod_settings(&arguments.root, &id, &values, &revision);
-    report_command_result(
+    // The page saves the next change against this revision.
+    let saved = result
+        .is_ok()
+        .then(|| read_mod_config_revision(&arguments.root, &id).ok())
+        .flatten();
+    report_command_result_with_revision(
         &arguments.root,
         &webview,
         &request_id,
@@ -23,6 +28,7 @@ pub(crate) fn apply_mod_settings(
         "settings.saved",
         None,
         false,
+        saved.as_deref(),
     );
     *next_refresh = Instant::now();
 }
