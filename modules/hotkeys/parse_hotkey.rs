@@ -95,6 +95,16 @@ impl Hotkey {
             Trigger::Mouse(_) => None,
         })
     }
+    /// The chords of this setting on `device` only, or None without one.
+    pub fn on_device(&self, device: InputDevice) -> Option<Self> {
+        let chords: Vec<_> = self
+            .chords
+            .iter()
+            .filter(|chord| chord.trigger.device() == device)
+            .cloned()
+            .collect();
+        (!chords.is_empty()).then_some(Self { chords })
+    }
     pub fn overlaps(&self, other: &Self) -> bool {
         self.chords.iter().any(|left| {
             other.chords.iter().any(|right| {
