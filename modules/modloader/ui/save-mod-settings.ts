@@ -16,6 +16,11 @@ function settingsValues(mod: ModInfo): Record<string, unknown> {
   )
 }
 
+type ModChangeRequest = {
+  command: 'save-mod-settings' | 'set-mod-enabled'
+  modId: string
+}
+
 export function useModSettings(mod: ModInfo) {
   const [enabled, setLocalEnabled] = useState(mod.enabled)
   const initial = () => settingsValues(mod)
@@ -27,13 +32,13 @@ export function useModSettings(mod: ModInfo) {
   const pendingAutoSave = useRef(false)
   const latestMod = useRef(mod)
   latestMod.current = mod
-  const requests = useRef(new Map<string, string>())
+  const requests = useRef(new Map<string, ModChangeRequest>())
   const request = (
     command: 'save-mod-settings' | 'set-mod-enabled',
     payload: Record<string, unknown> & { modId: string },
   ) => {
     const requestId = postRequest(command, payload)
-    requests.current.set(requestId, payload.modId)
+    requests.current.set(requestId, { command, modId: payload.modId })
   }
   useEffect(() => {
     const changedMod = modIdRef.current !== mod.id
@@ -76,27 +81,33 @@ export function useModSettings(mod: ModInfo) {
   useEffect(() => {
     const restoreFailedChange = (event: Event) => {
       const result = (event as CustomEvent<CommandResult>).detail
-      const requestedModId = requests.current.get(result.requestId)
-      if (!requestedModId) return
+      const request = requests.current.get(result.requestId)
+      if (!request) return
       requests.current.delete(result.requestId)
       // Saved: the next change is saved against the new revision, without
       // waiting for the next snapshot (a slider moved again within a second
       // was refused as "changed since displayed").
-      if (result.success && result.revision && requestedModId === modIdRef.current) {
+      if (result.success && result.revision && request.modId === modIdRef.current) {
         revisionRef.current = result.revision
         return
       }
       const current = latestMod.current
-      if (result.success || requestedModId !== current.id || requestedModId !== modIdRef.current) return
+      if (
+        result.success ||
+        request.modId !== current.id ||
+        request.modId !== modIdRef.current
+      ) return
+      if (request.command === 'set-mod-enabled') {
+        setLocalEnabled(current.enabled)
+        return
+      }
       if (autoSaveTimer.current !== undefined) {
         window.clearTimeout(autoSaveTimer.current)
         autoSaveTimer.current = undefined
       }
       pendingAutoSave.current = false
       valuesRef.current = settingsValues(current)
-      revisionRef.current = current.revision
       setValues(valuesRef.current)
-      setLocalEnabled(current.enabled)
     }
     window.addEventListener('shroudforge-command-result', restoreFailedChange)
     return () => window.removeEventListener('shroudforge-command-result', restoreFailedChange)
