@@ -43,7 +43,8 @@
     "groups": {
       "type": "array",
       "items": { "$ref": "#/$defs/group" }
-    }
+    },
+    "inputReservations": { "$ref": "#/$defs/inputReservations" }
   },
   "$defs": {
     "setting": {
@@ -118,6 +119,57 @@
           "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
         },
         "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
+      }
+    },
+    "inputReservations": {
+      "description": "Keys and mouse wheel the game may be denied while the mod reports one of its contexts. A ShroudForge without input reservations ignores this block.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contexts": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+        },
+        "keys": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["when"],
+            "properties": {
+              "when": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+              "keyboard": { "type": "boolean" },
+              "mouse": { "type": "boolean" }
+            }
+          }
+        },
+        "wheels": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["when"],
+            "properties": {
+              "when": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
+            }
+          }
+        },
+        "choices": {
+          "description": "The player's padlocks, written by the Modloader.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "keyboard": { "type": "boolean" },
+              "mouse": { "type": "boolean" }
+            }
+          }
+        }
       }
     }
   }
