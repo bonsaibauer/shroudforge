@@ -79,7 +79,10 @@ fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
             }
         }
         if let Some(wheel) = &setting.wheel {
-            let reserved = matches!(current.raw_get::<Value>(setting.key.as_str())?, Value::Boolean(true));
+            let reserved = matches!(
+                current.raw_get::<Value>(setting.key.as_str())?,
+                Value::Boolean(true)
+            );
             signature.push_str(&format!("{}={reserved};", setting.key));
             wheels.push(ReadWheel {
                 setting: setting.key.clone(),
@@ -197,11 +200,29 @@ mod tests {
 
         lua.load(r#"input.set_context("hammer", true); input.set_context("free", false)"#)
             .exec()?;
-        assert_eq!(lua.load(r#"return input.wheel_steps("wheelDistance")"#).eval::<i32>()?, 0);
-        let unknown = lua.load(r#"input.set_context("flying", true)"#).exec().unwrap_err();
-        assert!(unknown.to_string().contains("input context 'flying' is not declared"));
-        let not_a_wheel = lua.load(r#"return input.wheel_steps("keyMark")"#).exec().unwrap_err();
-        assert!(not_a_wheel.to_string().contains("not declared in extended.mod.json inputReservations.wheels"));
+        assert_eq!(
+            lua.load(r#"return input.wheel_steps("wheelDistance")"#)
+                .eval::<i32>()?,
+            0
+        );
+        let unknown = lua
+            .load(r#"input.set_context("flying", true)"#)
+            .exec()
+            .unwrap_err();
+        assert!(
+            unknown
+                .to_string()
+                .contains("input context 'flying' is not declared")
+        );
+        let not_a_wheel = lua
+            .load(r#"return input.wheel_steps("keyMark")"#)
+            .exec()
+            .unwrap_err();
+        assert!(
+            not_a_wheel
+                .to_string()
+                .contains("not declared in extended.mod.json inputReservations.wheels")
+        );
         shroudforge_hotkeys::release_reserved_input("reserving-mod");
         Ok(())
     }
