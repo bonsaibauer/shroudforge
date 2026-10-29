@@ -16,6 +16,9 @@ struct ModReservations {
     /// All settings of the mod (enabledWhen may name any of them).
     settings: Vec<SettingDefinition>,
     contexts: Vec<String>,
+    /// The reserved settings and those their enabledWhen names: their raw
+    /// values tell whether the reservations changed.
+    watched: Vec<String>,
     /// What the filter has, to send it again only after a change.
     applied: Option<String>,
 }
@@ -37,6 +40,18 @@ pub(crate) fn register_input_reservations(
         ModReservations {
             settings: settings.to_vec(),
             contexts: contexts.keys().cloned().collect(),
+            watched: settings
+                .iter()
+                .filter(|setting| setting.reserve.is_some() || setting.wheel.is_some())
+                .flat_map(|setting| {
+                    std::iter::once(setting.key.clone()).chain(
+                        setting
+                            .enabled_when
+                            .as_ref()
+                            .map(|condition| condition.setting.clone()),
+                    )
+                })
+                .collect(),
             applied: None,
         },
     );
@@ -52,9 +67,24 @@ fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
         return Ok(());
     };
     let current: Table = lua.named_registry_value(&format!("shroudforge.settings.{mod_id}"))?;
+    // The raw values of the reserved settings and of the settings their
+    // enabledWhen names: unchanged since the last time (the usual case, at
+    // every report), nothing to parse or send.
+    let mut signature = String::new();
+    for key in &reservations.watched {
+        signature.push_str(key);
+        signature.push('=');
+        match current.raw_get::<Value>(key.as_str())? {
+            Value::String(value) => signature.push_str(&value.to_str()?),
+            other => signature.push_str(&format!("{other:?}")),
+        }
+        signature.push(';');
+    }
+    if reservations.applied.as_deref() == Some(signature.as_str()) {
+        return Ok(());
+    }
     let mut keys = Vec::new();
     let mut wheels = Vec::new();
-    let mut signature = String::new();
     for setting in &reservations.settings {
         if let Some(reserve) = &setting.reserve
             && matches!(setting.control, Some(SettingControl::Keybind))
@@ -70,7 +100,6 @@ fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
                     continue;
                 }
                 if let Some(hotkey) = binding.as_ref().and_then(|hotkey| hotkey.on_device(device)) {
-                    signature.push_str(&format!("{}={};", setting.key, hotkey.normalized()));
                     keys.push(ReservedKey {
                         context: reserve.when.clone(),
                         hotkey,
@@ -83,7 +112,6 @@ fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
                 current.raw_get::<Value>(setting.key.as_str())?,
                 Value::Boolean(true)
             );
-            signature.push_str(&format!("{}={reserved};", setting.key));
             wheels.push(ReadWheel {
                 setting: setting.key.clone(),
                 context: wheel.when.clone(),
@@ -91,10 +119,8 @@ fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
             });
         }
     }
-    if reservations.applied.as_deref() != Some(signature.as_str()) {
-        shroudforge_hotkeys::set_reserved_input(mod_id, keys, wheels);
-        reservations.applied = Some(signature);
-    }
+    shroudforge_hotkeys::set_reserved_input(mod_id, keys, wheels);
+    reservations.applied = Some(signature);
     Ok(())
 }
 
