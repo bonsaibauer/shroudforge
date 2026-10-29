@@ -205,8 +205,12 @@ void Tick() {
     const auto table_address = manager + (direct_read ? owners.layout.manager_table : KfcRuntimeCompatibility::EnshroudedClient::entity_manager_table);
     std::uint64_t count{};
     std::uintptr_t table{};
+    // The table's first entry read under SEH tells it is readable, without
+    // VirtualQuery: queried at every tick, it took 3 to 14 ms in game and
+    // slowed the mods' loop as the session went on (26/10).
+    std::uintptr_t first_entry{};
     if (!read(count_address, count) || !count || count > (1u << 20) ||
-        !read(table_address, table) || !readable(table, sizeof(std::uintptr_t))) {
+        !read(table_address, table) || !table || !read(table, first_entry)) {
         std::scoped_lock operation_lock(operation_mutex);
         std::scoped_lock lock(state_mutex);
         if (layout_ready) {
