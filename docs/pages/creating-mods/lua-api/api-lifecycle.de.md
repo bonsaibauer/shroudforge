@@ -11,7 +11,8 @@
     ]
   },
   "apiSymbols": [
-    "runtime.lifecycle"
+    "runtime.lifecycle",
+    "shroudforge.clock"
   ],
   "apiPrefixes": [
     "runtime.lifecycle."
@@ -43,3 +44,5 @@ return {
 `on_load` läuft beim Start der Mod-Laufzeit. `on_update` erhält die verstrichene Zeit in Sekunden. `on_unload` läuft beim Beenden oder Entladen. Das Updateintervall ist standardmäßig 50 ms und erlaubt 8 bis 1000 ms. Verpasste Intervalle werden nicht nachgeholt.
 
 Nutze `on_update` nicht für unnötige Arbeit pro Frame. Lies live änderbare Werte in der Callback-Funktion erneut. Prüfe bei Netzwerk- und nativen Aufrufen Rückgabewerte und Status.
+
+Um zu messen, wie lange die eigene Arbeit dauert, rufe `shroudforge.clock()` davor und danach auf: Die Funktion liefert Sekunden einer monotonen Uhr (0 beim ersten Aufruf im Spielprozess), da die Lua-Sandbox keine `os`-Bibliothek hat. Ein Mod kann damit aufwendige Arbeit auf mehrere Updates verteilen und jedes Update beenden, sobald ein Zeitbudget verbraucht ist.
