@@ -3,6 +3,7 @@ use super::apply_loader_setting::apply_loader_setting;
 use super::apply_loader_settings::apply_loader_settings;
 use super::assess_hotkey_change::assess_hotkey_change;
 use super::apply_mod_enabled::apply_mod_enabled;
+use super::apply_key_reservation::apply_key_reservation;
 use super::apply_mod_settings::apply_mod_settings;
 use super::change_notice_read_state::change_notice_read_state;
 use super::change_storage_folder::change_storage_folder;
@@ -871,6 +872,19 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             &webview,
                             &mut next_refresh,
                         ),
+                        Command::SaveKeyReservation(id, key, device, reserved, revision, request_id) => {
+                            apply_key_reservation(
+                                id,
+                                key,
+                                device,
+                                reserved,
+                                revision,
+                                request_id,
+                                &arguments,
+                                &webview,
+                                &mut next_refresh,
+                            )
+                        }
                         Command::AssessHotkey(target, request_id) => assess_hotkey_change(
                             target,
                             request_id,

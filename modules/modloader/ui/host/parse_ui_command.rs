@@ -83,6 +83,14 @@ pub(crate) enum Command {
     ReloadSettings(String),
     OpenUrl(String, String),
     SetModEnabled(String, bool, String, String),
+    SaveKeyReservation(
+        String,
+        String,
+        shroudforge_hotkeys::InputDevice,
+        bool,
+        String,
+        String,
+    ),
     SaveModSettings(String, serde_json::Value, String, String),
     AssessHotkey(HotkeyAssessmentTarget, String),
     SaveSettings(UiSettings, String),
@@ -141,6 +149,17 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
             (Some(id), Some(values)) => Command::SaveModSettings(
                 id,
                 values,
+                value.revision.unwrap_or_default(),
+                value.request_id.unwrap_or_default(),
+            ),
+            _ => return None,
+        },
+        "save-key-reservation" => match (value.mod_id, value.key, value.device, value.enabled) {
+            (Some(id), Some(key), Some(device), Some(reserved)) => Command::SaveKeyReservation(
+                id,
+                key,
+                device,
+                reserved,
                 value.revision.unwrap_or_default(),
                 value.request_id.unwrap_or_default(),
             ),

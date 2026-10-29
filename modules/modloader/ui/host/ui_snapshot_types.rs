@@ -44,6 +44,7 @@ pub(crate) struct ModInfo {
     pub(crate) changelog: Vec<String>,
     pub(crate) assets: std::collections::HashMap<String, String>,
     pub(crate) setting_values: serde_json::Value,
+    pub(crate) input_contexts: serde_json::Value,
 }
 
 #[derive(Clone, Serialize)]

@@ -261,6 +261,25 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .keybind-device .button{box-sizing:border-box;width:100%;min-height:30px;padding:4px 8px;font-size:10px}
 .keybind-device .keybind-input{width:100%;overflow-wrap:anywhere}
 .keybind-reset{box-sizing:border-box;grid-column:1/-1;justify-self:center;width:calc((100% - 12px)/2);min-height:30px;font-size:10px}
+/* Input reservations: the padlock in front of a key the mod may keep from the game, its tooltip, and the condition under a reserved key. */
+.keybind-device{position:relative}
+.keybind-binding{display:flex;gap:6px;align-items:stretch;min-width:0}
+.keybind-binding>.keybind-input{flex:1 1 auto;min-width:0}
+.keybind-input.reserved{color:#16171b;border-color:var(--sf-gold-bright);background:var(--sf-gold);font-weight:700}
+.keybind-input.fixed{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:30px;padding:4px 8px;font-size:10px;text-transform:none;border-style:dashed;cursor:default}
+.keybind-input.fixed.reserved{border-style:solid}
+.keybind-reserved-when{color:var(--sf-gold-bright);font-size:10px;text-align:center}
+.key-lock{display:inline-flex;flex:0 0 30px}
+.key-lock-button{box-sizing:border-box;width:30px;min-height:30px;padding:0;display:grid;place-items:center;color:#b4c3c4;border:1px solid rgba(151,181,181,.4);border-radius:8px;background:transparent;cursor:pointer;transition:var(--sf-transition)}
+.key-lock-button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.key-lock.reserved .key-lock-button{color:#16171b;border-color:var(--sf-gold-bright);background:var(--sf-gold)}
+.key-lock-button:focus-visible{outline:2px solid var(--sf-gold);outline-offset:2px}
+.key-lock-button:disabled{cursor:not-allowed;opacity:.5}
+.key-lock-tip{position:absolute;top:calc(100% + 6px);left:0;z-index:20;box-sizing:border-box;width:max(100%,260px);display:none;flex-direction:column;gap:4px;padding:10px 12px;color:var(--sf-text);border:1px solid rgba(151,181,181,.4);border-radius:9px;background:var(--sf-glass-strong);box-shadow:var(--sf-shadow-soft);font-size:11px;line-height:1.5}
+.keybind-device:last-child .key-lock-tip{left:auto;right:0}
+.key-lock.reserved .key-lock-tip{border-color:rgba(201,173,110,.55)}
+.key-lock-tip strong{color:var(--sf-gold-bright)}
+.key-lock:hover .key-lock-tip,.key-lock:focus-within .key-lock-tip{display:flex}
 .keybind-setting-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,min(460px,46%));align-items:center}
 .keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:2;width:100%;max-width:460px;min-width:0;flex:none}
 @media(max-width:760px){.keybind-setting-row{grid-template-columns:minmax(0,1fr)}.keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:1;width:min(460px,100%)}}
