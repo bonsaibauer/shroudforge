@@ -1,8 +1,11 @@
 use crate::config::validate_settings;
 use crate::read_mod_settings::parse_setting_definition;
-use crate::{ModManifest, SettingGroup, validate_manifest};
+use crate::{ModManifest, SettingGroup, SettingPreset, validate_manifest};
 use serde_json::{Value, json};
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 const MOD_FIELDS: &[&str] = &[
     "$schema",
@@ -27,6 +30,7 @@ const EXTENDED_MOD_FIELDS: &[&str] = &[
     "changelog",
     "settings",
     "groups",
+    "presets",
 ];
 
 fn unknown_manifest_fields_allowed(root: &Path) -> Result<bool, String> {
@@ -184,6 +188,14 @@ pub fn parse_manifest_with_extension(
         })
         .transpose()?
         .unwrap_or_default();
+    let presets = extension
+        .get("presets")
+        .map(|value| {
+            serde_json::from_value::<BTreeMap<String, SettingPreset>>(value.clone())
+                .map_err(|error| format!("extended.mod.json presets: {error}"))
+        })
+        .transpose()?
+        .unwrap_or_default();
     let object = value.as_object_mut().ok_or("mod.json must be an object")?;
     object.remove("$schema");
     object.insert("enabled".into(), json!(enabled));
@@ -194,6 +206,7 @@ pub fn parse_manifest_with_extension(
     object.insert("settingValues".into(), Value::Object(effective));
     object.insert("settings".into(), json!(definitions));
     object.insert("groups".into(), json!(groups));
+    object.insert("presets".into(), json!(presets));
     object.insert(
         "changelog".into(),
         extension

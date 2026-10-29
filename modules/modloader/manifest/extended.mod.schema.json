@@ -43,6 +43,12 @@
     "groups": {
       "type": "array",
       "items": { "$ref": "#/$defs/group" }
+    },
+    "presets": {
+      "description": "Setting presets, keyed by the string setting that chooses them. Choosing a preset sets each listed setting. Editing one of them selects the custom value.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+      "additionalProperties": { "$ref": "#/$defs/preset" }
     }
   },
   "$defs": {
@@ -118,6 +124,34 @@
           "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
         },
         "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
+      }
+    },
+    "preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["settings", "values"],
+      "properties": {
+        "custom": {
+          "description": "Controller value meaning hand-tuned settings. Defaults to custom.",
+          "type": "string",
+          "minLength": 1
+        },
+        "settings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
+        },
+        "values": {
+          "description": "One entry per preset value of the controller, giving a value to every listed setting.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": { "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+            "additionalProperties": { "type": ["boolean", "string", "number", "array"] }
+          }
+        }
       }
     }
   }

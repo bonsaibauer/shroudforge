@@ -25,6 +25,7 @@
 - `targets` selects the process that loads the mod. It does not replicate changes over the network.
 - `settings` stores mod-specific values.
 - `groups` organizes values in the Modloader. Ungrouped settings also appear, under a default group.
+- `presets` lets one choice, such as Quality, set several settings at once. See [Presets](#doc-setting-presets).
 - `launcher` preserves the origin of an imported EML mod.
 
 ## Example
