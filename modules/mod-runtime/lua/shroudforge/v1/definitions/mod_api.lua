@@ -102,7 +102,26 @@ function shroudforge_input.keybind_label(setting_key) end
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 --- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
+--- @field contents ShroudForgeContents Read bytes of game contents without waiting for the game files.
 shroudforge = {}
+
+--- @class ShroudForgeContentReadJob
+local ShroudForgeContentReadJob = {}
+--- Nil until the read is done, then `{data = bytes, seconds = read time}`, or `{error = text}`.
+--- @return table?
+function ShroudForgeContentReadJob:result() end
+
+--- @class ShroudForgeContents
+shroudforge.contents = {}
+
+--- Read bytes of a game content (the levels of a texture, for instance) on a thread of its own:
+--- ask the returned job at the next updates, the mod never waits for the game files. `hash`: a
+--- content hash as a resource holds it (`texture.content.hash`), or `{size, hash0, hash1, hash2}`;
+--- `start`: first byte (0); `count`: bytes (to the end). Contents of the game files only, not
+--- those a mod created.
+--- @param params {hash: any, start: integer?, count: integer?}
+--- @return ShroudForgeContentReadJob
+function shroudforge.contents.read(params) end
 
 --- Language the player chose for ShroudForge in the Modloader, such as `"en"`,
 --- `"de"`, `"fr"` or a regional variant such as `"de-AT"`; `"en"` when the

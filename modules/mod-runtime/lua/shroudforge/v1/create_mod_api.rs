@@ -18,6 +18,7 @@ use crate::lua::LuaValue;
 pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let table = lua.create_table()?;
     table.raw_set("version", env!("CARGO_PKG_VERSION"))?;
+    table.raw_set("contents", super::read_game_content::create(lua)?)?;
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
 
     let log = lua.create_table()?;

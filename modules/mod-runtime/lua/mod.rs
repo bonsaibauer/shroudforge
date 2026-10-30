@@ -26,6 +26,7 @@ pub(crate) mod shroudforge {
     pub(crate) mod v1 {
         mod create_mod_api;
         mod dispatch_mod_ui_actions;
+        mod read_game_content;
         pub(crate) mod read_runtime_operations;
         mod read_ui_locale;
         mod set_mod_settings;
