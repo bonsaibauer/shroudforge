@@ -319,6 +319,13 @@ impl AppState {
         Ok(guid)
     }
 
+    pub fn contains_content(&self, guid: &ContentHash) -> bool {
+        // Lua may resolve a reference written earlier in this patch session.
+        // Such content is not in the original KFC index until publication.
+        self.new_contents.borrow().contains_key(guid)
+            || self.kfc_file().contents().contains_key(guid)
+    }
+
     pub fn get_content(&self, guid: &ContentHash) -> mlua::Result<Option<Vec<u8>>> {
         if let Some(value) = self.new_contents.borrow().get(guid) {
             // OPTIMIZE: cloning here can be quite expensive
