@@ -57,6 +57,26 @@ pub(crate) fn register_input_reservations(
     );
 }
 
+/// Gives the game back what `mod_id` reserved (the mod stopped), and forgets
+/// that it was sent: a mod started again (turned off and on in the Modloader,
+/// its Lua state kept) sends it again at its next report.
+pub(crate) fn release_input_reservations(mod_id: &str) {
+    shroudforge_hotkeys::release_reserved_input(mod_id);
+    if let Ok(mut guard) = MOD_RESERVATIONS.lock()
+        && let Some(reservations) = guard.as_mut().and_then(|all| all.get_mut(mod_id))
+    {
+        reservations.applied = None;
+    }
+}
+
+fn sent(mod_id: &str) -> bool {
+    MOD_RESERVATIONS
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref()?.get(mod_id).map(|r| r.applied.is_some()))
+        .unwrap_or(false)
+}
+
 /// Sends the reservations of `mod_id`, with its keybinds as bound now, to
 /// the input filter when they changed since the last time.
 fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
@@ -250,6 +270,32 @@ mod tests {
                 .contains("not declared in extended.mod.json inputReservations.wheels")
         );
         shroudforge_hotkeys::release_reserved_input("reserving-mod");
+        Ok(())
+    }
+
+    #[test]
+    fn sends_its_reservations_again_when_started_again() -> mlua::Result<()> {
+        let lua = mlua::Lua::new();
+        let settings = vec![setting(
+            "wheelDistance",
+            serde_json::json!(true),
+            serde_json::json!({"control": "toggle", "wheel": {"when": "free"}}),
+        )];
+        let contexts = BTreeMap::from([("free".to_owned(), "Free point on".to_owned())]);
+        super::super::set_settings(&lua, "restarted-mod", &serde_json::json!({"wheelDistance": true}))?;
+        register_input_reservations("restarted-mod", &settings, &contexts);
+        let input = lua.create_table()?;
+        add_input_reservation_api(&lua, &input, "restarted-mod")?;
+        lua.globals().set("input", input)?;
+        lua.load(r#"input.set_context("free", true)"#).exec()?;
+        assert!(sent("restarted-mod"));
+        // Turned off in the Modloader: the game gets the wheel back; turned on
+        // again, the same Lua state reports and the wheel is reserved again.
+        release_input_reservations("restarted-mod");
+        assert!(!sent("restarted-mod"));
+        lua.load(r#"input.set_context("free", true)"#).exec()?;
+        assert!(sent("restarted-mod"));
+        release_input_reservations("restarted-mod");
         Ok(())
     }
 }

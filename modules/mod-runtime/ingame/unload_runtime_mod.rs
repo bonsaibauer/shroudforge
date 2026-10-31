@@ -11,8 +11,8 @@ impl Lifecycle {
         });
         let cleanup =
             crate::env::runtime_overrides::cleanup(lua, &self.id).map_err(mlua::Error::runtime);
-        // The game gets back what the mod reserved.
-        shroudforge_hotkeys::release_reserved_input(&self.id);
+        // The game gets back what the mod reserved, sent again if it starts again.
+        crate::env::shroudforge::release_input_reservations(&self.id);
         callback?;
         cleanup?;
         self.cleanup_pending = false;
