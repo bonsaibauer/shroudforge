@@ -99,8 +99,10 @@ impl StructValue {
             )));
         }
 
+        let field_type = self.r#type.get_field_type(&key)
+            .ok_or_else(|| LuaError::generic("struct field type is unavailable"))?;
         let value =
-            validate_and_clone_lua_value(value, &self.r#type, lua).map_err(LuaError::external)?;
+            validate_and_clone_lua_value(value, &field_type, lua).map_err(LuaError::external)?;
 
         self.fields.borrow_mut().insert(key, value);
 
