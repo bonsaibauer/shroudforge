@@ -45,7 +45,7 @@ pub fn fingerprint(env: &ModEnvironment, server: bool, api: &str) -> Result<Stri
                 files.sort_by_key(|entry| entry.path().to_path_buf());
                 for entry in files
                     .into_iter()
-                    .filter(|entry| entry.file_type().is_file())
+                    .filter(|entry| entry.file_type().is_file() && !is_log_file(entry.path()))
                 {
                     hash.update(
                         entry
@@ -70,6 +70,14 @@ pub fn matches(root: &Path, fingerprint: &str) -> bool {
         .ok()
         .is_some_and(|value| value["status"] == "applied" && value["fingerprint"] == fingerprint)
 }
+/// Logs are output, not input. Native mod DLLs such as Hands-Free Lantern
+/// write `*.log` files into their own package folder after the startup pass,
+/// which would otherwise invalidate the applied record on every game start.
+fn is_log_file(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("log"))
+}
+
 fn file_digest(path: &Path) -> Result<Vec<u8>, String> {
     use std::{
         collections::HashMap,
@@ -107,4 +115,59 @@ fn file_digest(path: &Path) -> Result<Vec<u8>, String> {
         cache.insert(path.to_path_buf(), (metadata.len(), stamp, digest.clone()));
     }
     Ok(digest)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fingerprint;
+
+    #[test]
+    fn mod_log_files_do_not_change_the_preparation_fingerprint() {
+        let root = std::env::temp_dir().join(format!(
+            "sf-prepared-fingerprint-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(root.clone());
+        let package = root.join("mods").join("lantern");
+        std::fs::create_dir_all(package.join("src")).unwrap();
+        std::fs::write(
+            package.join("mod.json"),
+            r#"{"id":"lantern","name":"lantern","version":"1.0.0","capabilities":["patch"]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            package.join("extended.mod.json"),
+            r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"]}"#,
+        )
+        .unwrap();
+        std::fs::write(package.join("src/mod.lua"), "-- patch").unwrap();
+        std::fs::write(root.join("enshrouded.exe"), b"test executable identity").unwrap();
+        shroudforge_loader_config::config::initialize_loader_config(&root).unwrap();
+        let read = || {
+            let environment = crate::ModEnvironment::load(root.to_str().unwrap()).unwrap();
+            fingerprint(&environment, false, "1.0.0").unwrap()
+        };
+        let prepared = read();
+
+        std::fs::write(
+            package.join("hfl-lantern.log"),
+            b"written by the native DLL",
+        )
+        .unwrap();
+        std::fs::write(package.join("Session.LOG"), b"case does not matter").unwrap();
+        assert_eq!(read(), prepared);
+
+        std::fs::write(package.join("src/mod.lua"), "-- changed patch").unwrap();
+        assert_ne!(read(), prepared);
+    }
 }
