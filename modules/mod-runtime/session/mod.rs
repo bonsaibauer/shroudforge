@@ -49,7 +49,7 @@ pub struct AppState {
     inline_field_bytes: Cell<usize>,
 
     ref_file: Rc<KFCFile>,
-    reader: RefCell<KFCCursor<KFCReader>>,
+    reader: RefCell<Option<KFCCursor<KFCReader>>>,
     writer: RefCell<Option<KFCWriter<Rc<KFCFile>, Rc<TypeRegistry>>>>,
     asset_transaction: Cell<bool>,
     asset_stem: String,
@@ -128,7 +128,7 @@ impl AppState {
                 crate::lua::ingame::ecs::attributes::Catalog::load(
                     &self.type_registry,
                     &self.ref_file,
-                    &mut self.reader.borrow_mut(),
+                    &mut self.reader(),
                 )
             })
             .as_ref()
@@ -199,6 +199,10 @@ impl AppState {
 impl Drop for AppState {
     fn drop(&mut self) {
         if self.asset_transaction.get() {
+            // Windows cannot recover a published file set while the session
+            // still has its source resource file open.
+            self.writer.get_mut().take();
+            self.reader.get_mut().take();
             if let Err(error) = shroudforge_game_assets::transaction::abort(
                 self.env.game_dir().as_std_path(),
                 &self.asset_stem,

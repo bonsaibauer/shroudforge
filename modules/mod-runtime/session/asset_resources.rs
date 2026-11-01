@@ -146,7 +146,9 @@ impl AppState {
 
     #[inline]
     pub fn reader(&self) -> RefMut<'_, KFCCursor<KFCReader>> {
-        self.reader.borrow_mut()
+        RefMut::map(self.reader.borrow_mut(), |reader| {
+            reader.as_mut().expect("KFC reader is closed after asset publication")
+        })
     }
 
     #[inline]
@@ -161,6 +163,9 @@ impl AppState {
         if !self.asset_transaction.get() {
             return Err(LuaError::generic("typed asset transaction is unavailable"));
         }
+        // The reader keeps the current .kfc_resources file open. Release it
+        // before the transaction replaces that file on Windows.
+        self.reader.borrow_mut().take();
         shroudforge_game_assets::transaction::commit(
             self.env.game_dir().as_std_path(),
             &self.asset_stem,
@@ -284,7 +289,7 @@ impl AppState {
             Ok(Some(value.clone()))
         } else {
             // OPTIMIZE: consider using a reader for this
-            Ok(self.reader.borrow_mut().read_content(guid)?)
+            Ok(self.reader().read_content(guid)?)
         }
     }
 
