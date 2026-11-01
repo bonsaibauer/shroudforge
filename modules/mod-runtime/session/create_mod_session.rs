@@ -180,7 +180,7 @@ impl AppState {
             inline_field_bytes: Cell::new(0),
 
             ref_file,
-            reader: RefCell::new(reader),
+            reader: RefCell::new(Some(reader)),
             writer: RefCell::new(writer),
             asset_transaction: Cell::new(options.patch),
             asset_stem: file_name.clone(),

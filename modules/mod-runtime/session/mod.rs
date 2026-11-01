@@ -31,6 +31,9 @@ use crate::{
     type_aliases::{MappedValue, PathBuf},
 };
 
+pub(crate) const GAME_FILE_HANDLES_RELEASED: &str =
+    "game asset files were released for the asset transaction";
+
 pub struct AppState {
     pub(crate) runtime_configured: Cell<bool>,
     runtime_active_mods: RefCell<HashSet<String>>,
@@ -49,7 +52,10 @@ pub struct AppState {
     inline_field_bytes: Cell<usize>,
 
     ref_file: Rc<KFCFile>,
-    reader: RefCell<KFCCursor<KFCReader>>,
+    /// Open handles on the game's resource and container files. Released
+    /// before the asset transaction publishes or rolls back, because Wine
+    /// refuses to replace a file name while any handle on it is open.
+    reader: RefCell<Option<KFCCursor<KFCReader>>>,
     writer: RefCell<Option<KFCWriter<Rc<KFCFile>, Rc<TypeRegistry>>>>,
     asset_transaction: Cell<bool>,
     asset_stem: String,
@@ -124,12 +130,13 @@ impl AppState {
         &self,
     ) -> Result<&crate::lua::ingame::ecs::attributes::Catalog, String> {
         self.attribute_catalog
-            .get_or_init(|| {
-                crate::lua::ingame::ecs::attributes::Catalog::load(
+            .get_or_init(|| match self.reader.borrow_mut().as_mut() {
+                Some(reader) => crate::lua::ingame::ecs::attributes::Catalog::load(
                     &self.type_registry,
                     &self.ref_file,
-                    &mut self.reader.borrow_mut(),
-                )
+                    reader,
+                ),
+                None => Err(GAME_FILE_HANDLES_RELEASED.to_owned()),
             })
             .as_ref()
             .map_err(Clone::clone)
@@ -199,6 +206,10 @@ impl AppState {
 impl Drop for AppState {
     fn drop(&mut self) {
         if self.asset_transaction.get() {
+            // Struct fields drop only after this body, so the handles must be
+            // closed explicitly before the rollback replaces any file.
+            self.reader.get_mut().take();
+            self.writer.get_mut().take();
             if let Err(error) = shroudforge_game_assets::transaction::abort(
                 self.env.game_dir().as_std_path(),
                 &self.asset_stem,
