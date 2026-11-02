@@ -47,7 +47,7 @@
   "compatibility.dependencies.summary": "{mods} mods have dependencies or conflicts. {problems} need attention.",
   "compatibility.dependencies.ok": "No dependency issues found for enabled mods.",
   "compatibility.dependencies.noDependencies": "The installed mods have no dependencies or known conflicts.",
-  "about.description": "Native mod management for Enshrouded.",
+  "about.description": "Mod management for Enshrouded.",
   "about.interface": "Interface",
   "about.license": "Licence",
   "about.module": "Module",
