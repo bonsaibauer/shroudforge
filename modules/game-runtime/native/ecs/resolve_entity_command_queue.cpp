@@ -1,5 +1,6 @@
 #include "ecs/resolve_entity_command_queue.h"
 #include "named-services/named_service_contract.h"
+#include <limits>
 
 namespace EcsRuntime {
 namespace {
@@ -7,22 +8,8 @@ using NamedServiceImplementation::add;
 using NamedServiceImplementation::field;
 using NamedServiceImplementation::read;
 
-// Derived from the original manager construction, ecs::Tasks registration,
-// thread-context preparation and command-drain data flow. No code address,
-// function signature, manually selected operation hash or profile is used.
-constexpr std::size_t task_state_offset = 0x538;
-constexpr std::size_t task_records_offset = 0x528;
-constexpr std::size_t task_count_offset = 0x530;
-constexpr std::size_t queue_records_offset = 0xeb9f08;
-constexpr std::size_t queue_count_offset = 0xeb9f10;
-constexpr std::size_t task_record_stride = 0xe0;
-constexpr std::size_t entity_id_counter_offset = 0x498;
-constexpr std::size_t active_tracking_contexts_offset = 0xebbfc0;
-constexpr std::size_t shared_tracker_offset = 0xebc030;
-constexpr std::uint64_t original_buffer_capacity = 0x100000;
-
 bool extent(std::uintptr_t base, std::uint64_t count, std::size_t stride) {
-    return base && count && count <= maximum_entity_command_queues &&
+    return base && count && stride && count <= maximum_entity_command_queues &&
         count <= (UINTPTR_MAX - base) / stride;
 }
 
@@ -39,9 +26,9 @@ bool image_vtable(std::uintptr_t address, std::uintptr_t image) {
         NamedServiceImplementation::executable_callback(entries[1]);
 }
 
-bool header_valid(const EntityCommandQueueHeader& header, std::uintptr_t counter) {
+bool header_valid(const EntityCommandQueueHeader& header, std::uintptr_t counter, std::uint64_t capacity) {
     return header.vtable && header.allocator && header.buffer && !(header.buffer & 0x3f) &&
-        header.capacity == original_buffer_capacity &&
+        header.capacity == capacity &&
         header.buffer <= UINTPTR_MAX - header.capacity &&
         header.byte_cursor <= header.capacity &&
         ((!header.byte_cursor && !header.command_count) ||
@@ -53,47 +40,52 @@ bool header_valid(const EntityCommandQueueHeader& header, std::uintptr_t counter
 bool snapshot(const NamedServiceImplementation::BindingContract& binding,
     const EngineContext::EcsView& owner, EntityCommandQueueSelection& result) {
     if (binding.key != "ecs::Tasks" || owner.role != EngineContext::EcsRole::LocalAuthority ||
-        !owner.manager || !owner.registry_owner || !owner.owners.image) return false;
+        !owner.manager || !owner.execution_owner || !owner.registry_owner || !owner.owners.image ||
+        !owner.entity_command_queue_layout) return false;
+    const auto& layout = *owner.entity_command_queue_layout;
+    // The admitted spawn adapter snapshots 160 bytes before and after dispatch.
+    if (layout.task_record_stride < sizeof(EntityCommandQueueTaskLinks) || layout.buffer_capacity < 160 ||
+        layout.buffer_capacity > std::numeric_limits<std::uint32_t>::max()) return false;
     std::uintptr_t registry{}, expected_state{}, counter{}, expected_tracker{};
     std::uint8_t mode{};
     std::uint64_t task_count{};
     EntityCommandQueueSelection current;
     current.manager = owner.manager;
-    if (!read(owner.manager, registry) || registry != owner.registry_owner ||
-        !field(owner.manager, 8, mode) || mode ||
-        !add(owner.manager, task_state_offset, expected_state) ||
-        !add(owner.manager, entity_id_counter_offset, counter) ||
-        !add(owner.manager, shared_tracker_offset, expected_tracker) ||
+    if (!field(owner.manager, layout.manager_owner, registry) || registry != owner.registry_owner ||
+        !field(owner.execution_owner, layout.execution_mode, mode) || mode != layout.authority_mode ||
+        !add(owner.manager, layout.task_state, expected_state) ||
+        !add(owner.manager, layout.entity_id_counter, counter) ||
+        !add(owner.manager, layout.shared_tracker, expected_tracker) ||
         !NamedServiceImplementation::resolve_binding(binding, owner, current.tasks_service) ||
         !read(current.tasks_service, current.task_state) || current.task_state != expected_state ||
-        !field(owner.manager, task_records_offset, current.task_records) ||
-        !field(owner.manager, task_count_offset, task_count) ||
-        !field(owner.manager, queue_records_offset, current.queue_records) ||
-        !field(owner.manager, queue_count_offset, current.queue_count) || task_count != current.queue_count ||
-        !extent(current.task_records, task_count, task_record_stride) ||
+        !field(owner.manager, layout.task_records, current.task_records) ||
+        !field(owner.manager, layout.task_count, task_count) ||
+        !field(owner.manager, layout.queue_records, current.queue_records) ||
+        !field(owner.manager, layout.queue_count, current.queue_count) || task_count != current.queue_count ||
+        !extent(current.task_records, task_count, layout.task_record_stride) ||
         !extent(current.queue_records, current.queue_count, sizeof(EntityCommandQueueHeader)) ||
         (current.task_records & 7) || (current.queue_records & 0x3f) ||
-        !field(owner.manager, active_tracking_contexts_offset, current.active_tracking_contexts) ||
+        !field(owner.manager, layout.active_tracking_contexts, current.active_tracking_contexts) ||
         current.active_tracking_contexts ||
         !NamedServiceImplementation::writable(counter, sizeof(std::uint32_t)) ||
         !NamedServiceImplementation::writable(current.task_records,
-            static_cast<std::size_t>(task_count) * task_record_stride) ||
+            static_cast<std::size_t>(task_count) * layout.task_record_stride) ||
         !NamedServiceImplementation::writable(current.queue_records,
             static_cast<std::size_t>(current.queue_count) * sizeof(EntityCommandQueueHeader))) return false;
     std::uintptr_t vtable{}, allocator{}, tracker{};
     bool selected{};
     for (std::size_t index = 0; index < current.queue_count; ++index) {
         const auto queue = current.queue_records + index * sizeof(EntityCommandQueueHeader);
-        const auto task = current.task_records + index * task_record_stride;
+        const auto task = current.task_records + index * layout.task_record_stride;
         auto& links = current.task_links[index];
         auto& header = current.headers[index];
         if (!read(task, links) || links.manager != owner.manager || links.queue != queue || links.tracker != expected_tracker ||
-            !read(queue, header) || !header_valid(header, counter)) return false;
+            !read(queue, header) || !header_valid(header, counter, layout.buffer_capacity)) return false;
         if (!index) {
             vtable = header.vtable; allocator = header.allocator; tracker = links.tracker;
             if (!image_vtable(vtable, owner.owners.image) || !tracker) return false;
         } else if (header.vtable != vtable || header.allocator != allocator || links.tracker != tracker) return false;
-        // Original 1 MiB buffers are independent allocations. Overlapping them
+        // Original fixed-capacity buffers are independent allocations. Overlapping them
         // would make a command publication overwrite another worker's commands.
         for (std::size_t previous = 0; previous < index; ++previous) {
             const auto& other = current.headers[previous];
@@ -110,7 +102,7 @@ bool snapshot(const NamedServiceImplementation::BindingContract& binding,
         EntityCommandQueueHeader header;
         EntityCommandQueueTaskLinks links;
         if (!read(current.queue_records + index * sizeof(header), header) || header != current.headers[index] ||
-            !read(current.task_records + index * task_record_stride, links) || links != current.task_links[index]) return false;
+            !read(current.task_records + index * layout.task_record_stride, links) || links != current.task_links[index]) return false;
     }
     std::uintptr_t service{}, state{}, tasks{}, queues{}, registry_again{};
     std::uint64_t tasks_again{}, queues_again{};
@@ -118,16 +110,16 @@ bool snapshot(const NamedServiceImplementation::BindingContract& binding,
     std::uint8_t mode_again{};
     if (!NamedServiceImplementation::resolve_binding(binding, owner, service) || service != current.tasks_service ||
         !read(service, state) || state != current.task_state ||
-        !read(owner.manager, registry_again) || registry_again != registry ||
-        !field(owner.manager, 8, mode_again) || mode_again != mode ||
-        !field(owner.manager, task_records_offset, tasks) || tasks != current.task_records ||
-        !field(owner.manager, task_count_offset, tasks_again) || tasks_again != task_count ||
-        !field(owner.manager, queue_records_offset, queues) || queues != current.queue_records ||
-        !field(owner.manager, queue_count_offset, queues_again) || queues_again != current.queue_count ||
-        !field(owner.manager, active_tracking_contexts_offset, active) || active != current.active_tracking_contexts)
+        !field(owner.manager, layout.manager_owner, registry_again) || registry_again != registry ||
+        !field(owner.execution_owner, layout.execution_mode, mode_again) || mode_again != mode ||
+        !field(owner.manager, layout.task_records, tasks) || tasks != current.task_records ||
+        !field(owner.manager, layout.task_count, tasks_again) || tasks_again != task_count ||
+        !field(owner.manager, layout.queue_records, queues) || queues != current.queue_records ||
+        !field(owner.manager, layout.queue_count, queues_again) || queues_again != current.queue_count ||
+        !field(owner.manager, layout.active_tracking_contexts, active) || active != current.active_tracking_contexts)
         return false;
     current.queue_address = selected ? current.queue_records + current.selected_index * sizeof(current.header) : 0;
-    current.task_record = selected ? current.task_records + current.selected_index * task_record_stride : 0;
+    current.task_record = selected ? current.task_records + current.selected_index * layout.task_record_stride : 0;
     if (selected) current.header = current.headers[current.selected_index];
     result = current;
     return true;
@@ -166,7 +158,7 @@ bool RereadEntityCommandQueue(const NamedServiceImplementation::BindingContract&
     }
     found.selected_index = expected.selected_index;
     found.queue_address = found.queue_records + found.selected_index * sizeof(found.header);
-    found.task_record = found.task_records + found.selected_index * task_record_stride;
+    found.task_record = found.task_records + found.selected_index * owner.entity_command_queue_layout->task_record_stride;
     if (found.queue_address != expected.queue_address || found.task_record != expected.task_record) return false;
     found.header = found.headers[found.selected_index];
     output = found;
