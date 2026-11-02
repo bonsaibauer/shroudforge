@@ -6,6 +6,12 @@ namespace EngineContext {
 bool Configure(const nlohmann::json& profile, std::string& error) {
     using namespace KfcRuntimeCompatibility::EnshroudedClient;
     try {
+        const auto& version_value = profile.at("schemaVersion");
+        if (!version_value.is_number_integer() || (version_value != 1 && version_value != 2))
+            throw std::runtime_error("unsupported engine owner profile format");
+        const auto version = version_value.get<unsigned>();
+        if (version == 1 && (profile.contains("entityCommandQueueLayout") || profile.contains("buildingPropSpawnLayout")))
+            throw std::runtime_error("explicit queue and spawn layouts require profile format version 2");
         const auto& identity = profile.at("image");
         if (!image_size || image_sha256.empty() || profile.at("target") != image_target ||
             identity.at("sha256") != image_sha256 || identity.at("timestamp") != image_timestamp ||
@@ -175,6 +181,70 @@ bool Configure(const nlohmann::json& profile, std::string& error) {
                 throw std::runtime_error("invalid native-thread ECS write gate layout");
             std::copy(name.begin(), name.end(), w.name.begin());
             w.name_size = name.size();
+        }
+        if (version == 2 && layout.authority && layout.write.enabled &&
+            (!profile.contains("entityCommandQueueLayout") || !profile.contains("buildingPropSpawnLayout")))
+            throw std::runtime_error("version 2 profile requires explicit queue and spawn layouts");
+        if (version == 1 && layout.authority && layout.write.enabled && profile.value("kfcFormat", 0) == 4) {
+            // Preserve the original V1 data ABI without rewriting historical profiles.
+            layout.entity_command_queue_layout = EntityCommandQueueLayout{
+                .task_state=0x538, .task_records=0x528, .task_count=0x530,
+                .queue_records=0xeb9f08, .queue_count=0xeb9f10, .task_record_stride=0xe0,
+                .entity_id_counter=0x498, .active_tracking_contexts=0xebbfc0, .shared_tracker=0xebc030,
+                .manager_owner=0, .execution_mode=layout.entity_manager_offset + 8,
+                .buffer_capacity=0x100000, .authority_mode=0};
+            layout.building_prop_spawn_layout = BuildingPropSpawnLayout{2088, 0};
+        }
+        if (version == 2 && profile.contains("entityCommandQueueLayout")) {
+            const auto& model = profile.at("entityCommandQueueLayout");
+            if (!layout.ecs || !layout.authority || !layout.write.enabled || !model.is_object() || model.size() != 10 ||
+                model.at("id") != "ecs-entity-command-queue-v1")
+                throw std::runtime_error("invalid original entity command queue layout");
+            const auto number = [&](const char* key, std::uint64_t maximum = 0x4000000) {
+                const auto& value = model.at(key);
+                if (!value.is_number_integer() ||
+                    (!value.is_number_unsigned() && value.get<std::int64_t>() < 0) ||
+                    !value.get<std::uint64_t>() || value.get<std::uint64_t>() > maximum)
+                    throw std::runtime_error(std::string("invalid entity command queue value: ") + key);
+                return value.get<std::size_t>();
+            };
+            EntityCommandQueueLayout queue;
+            queue.task_state = number("taskStateOffset");
+            queue.task_records = number("taskRecordsOffset");
+            queue.task_count = number("taskCountOffset");
+            queue.queue_records = number("queueRecordsOffset");
+            queue.queue_count = number("queueCountOffset");
+            queue.task_record_stride = number("taskRecordStride", 0x10000);
+            queue.entity_id_counter = number("entityIdCounterOffset");
+            queue.active_tracking_contexts = number("activeTrackingContextsOffset");
+            queue.buffer_capacity = number("bufferCapacity", std::numeric_limits<std::uint32_t>::max());
+            // Cover the largest command snapshot used by the admitted adapters.
+            if (queue.task_record_stride < 3 * sizeof(std::uintptr_t) || queue.buffer_capacity < 160)
+                throw std::runtime_error("invalid original entity command queue extent");
+            queue.shared_tracker = layout.write.tracking_context;
+            queue.manager_owner = layout.manager_owner_offset;
+            queue.execution_mode = layout.write.execution_mode;
+            queue.authority_mode = layout.write.authority_mode;
+            layout.entity_command_queue_layout = queue;
+        }
+        if (version == 2 && profile.contains("buildingPropSpawnLayout")) {
+            const auto& model = profile.at("buildingPropSpawnLayout");
+            if (!layout.entity_command_queue_layout || !model.is_object() || model.size() != 3 ||
+                model.at("id") != "building-prop-spawn-v1")
+                throw std::runtime_error("invalid original building prop spawn layout");
+            const auto number = [&](const char* key, std::uint64_t minimum, std::uint64_t maximum) {
+                const auto& value = model.at(key);
+                if (!value.is_number_integer() ||
+                    (!value.is_number_unsigned() && value.get<std::int64_t>() < 0) ||
+                    value.get<std::uint64_t>() < minimum || value.get<std::uint64_t>() > maximum)
+                    throw std::runtime_error(std::string("invalid building prop spawn value: ") + key);
+                return value.get<std::uint64_t>();
+            };
+            BuildingPropSpawnLayout spawn;
+            spawn.source_entity_ids = static_cast<std::size_t>(number("sourceEntityIdsOffset", 1, 0x4000000));
+            spawn.allocation_failure_marker = static_cast<std::uint32_t>(number("allocationFailureMarkerValue", 0,
+                std::numeric_limits<std::uint32_t>::max()));
+            layout.building_prop_spawn_layout = spawn;
         }
         if (profile.contains("resourceWriteLayout")) {
             const auto& model = profile.at("resourceWriteLayout");
