@@ -14,7 +14,8 @@
     "io.",
     "buffer.",
     "Buffer:",
-    "game.assets."
+    "game.assets.",
+    "shroudforge.contents."
   ]
 }
 ---
@@ -35,3 +36,21 @@ Export functions require `export` in `mod.json`. Check the API result before rep
 4. Check its result and log a useful success or failure message.
 
 The loader keeps paths inside the mod's permitted area. Export is not unrestricted access to arbitrary files on the computer.
+
+## Read large game contents without waiting
+
+`game.assets` reads a content's bytes on the mods' loop, which every mod waits for. For large contents, such as the levels of a texture, use `shroudforge.contents.read`: it reads the bytes on a thread of its own and returns a job that the mod asks at its next updates.
+
+```lua
+local job = shroudforge.contents.read({hash = texture.content.hash, start = 0, count = 65536})
+
+-- At a later update:
+local result = job:result()
+if result and result.data then
+  -- result.data holds the bytes, result.seconds the read time.
+elseif result then
+  shroudforge.log.warn(result.error)
+end
+```
+
+`hash` is a content hash as a resource holds it. `start` and `count` select a byte range, the whole content by default. Only contents of the game files can be read, not those a mod created.
