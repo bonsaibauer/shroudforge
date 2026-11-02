@@ -8,8 +8,8 @@ pub mod check_mod_conflicts;
 mod check_hotkey_conflicts;
 pub use check_hotkey_conflicts::{
     HotkeyAssessment, HotkeyAssessmentTarget, HotkeyConflict, ProtectedHotkey,
-    ProtectedHotkeyAction, assess_hotkey_change, find_hotkey_conflicts,
-    protected_hotkeys, validate_hotkey_configuration,
+    ProtectedHotkeyGroups, assess_hotkey_change, find_hotkey_conflicts, protected_hotkeys,
+    validate_hotkey_configuration,
 };
 pub use validate_mod_settings::setting_is_enabled;
 pub mod dll_manager;

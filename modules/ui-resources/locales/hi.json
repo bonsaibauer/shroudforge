@@ -1,4 +1,6 @@
 {
+  "locale.name": "हिंदी",
+  "locale.flag": "in",
   "hotkeys.keyboard": "कीबोर्ड",
   "hotkeys.mouse": "माउस",
   "compatibility.tab.hotkeys": "कीबोर्ड शॉर्टकट",
@@ -257,8 +259,6 @@
   "installed.empty.title": "स्थापित नहीं है",
   "installed.subtitle": "स्थानीय मोड और उनकी प्रबंधनीय सेटिंग्स।.",
   "installed.title": "स्थापित",
-  "locale.name": "हिंदी",
-  "locale.flag": "in",
   "mod.activity.empty.text": "स्थापना और सेटिंग परिवर्तन यहाँ दिखाई देते हैं।.",
   "mod.activity.empty.title": "कोई मोड गतिविधि नहीं",
   "mod.activation": "सक्रियण",

@@ -130,12 +130,14 @@ if (!token) {
     if (!isRecord(item)) return null
     const value = isRecord(item.data) ? item.data : item
     const language = isRecord(value.language) ? value.language : {}
+    // Match Crowdin language identifiers and filename codes, not the locale
+    // fallback. Crowdin's generic `en` language reports locale `en-US`, which
+    // would collide with the distinct `en-US` target language.
     const codes = [
-      language.locale,
       language.id,
+      value.languageId,
       language.twoLettersCode,
       language.editorCode,
-      value.languageId,
     ]
 
     for (const code of codes) {

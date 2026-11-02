@@ -1,4 +1,6 @@
 {
+  "locale.name": "Svenska",
+  "locale.flag": "se",
   "hotkeys.keyboard": "Tangentbord",
   "hotkeys.mouse": "Mus",
   "compatibility.tab.hotkeys": "Kortkommandon",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Inga mods installerade",
   "installed.subtitle": "Lokala mods och deras hanterbara inställningar.",
   "installed.title": "Installerad",
-  "locale.name": "Svenska",
-  "locale.flag": "se",
   "mod.activity.empty.text": "Installationer och inställningsändringar visas här.",
   "mod.activity.empty.title": "Ingen mod aktivitet",
   "mod.activation": "Aktivering",

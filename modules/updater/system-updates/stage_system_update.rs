@@ -112,15 +112,19 @@ pub(crate) fn stage_system_update(root: &Path, request: &serde_json::Value) -> R
     for index in 0..archive.len() {
         check_update_cancelled(root)?;
         let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
+        let entry_name = entry
+            .name()
+            .map_err(|error| error.to_string())?
+            .into_owned();
         let relative = entry
             .enclosed_name()
-            .ok_or_else(|| format!("unsafe archive path: {}", entry.name()))?
+            .ok_or_else(|| format!("unsafe archive path: {entry_name}"))?
             .to_path_buf();
         if relative
             .components()
             .any(|part| !matches!(part, std::path::Component::Normal(_)))
         {
-            return Err(format!("unsafe archive path: {}", entry.name()));
+            return Err(format!("unsafe archive path: {entry_name}"));
         }
         expanded = expanded.saturating_add(entry.size());
         if expanded > 8 * MAX_UPDATE_BYTES {
