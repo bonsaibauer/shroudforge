@@ -56,6 +56,7 @@ const classAliases = {
   ShroudForgeSettings: "shroudforge.settings",
   ShroudForgeUi: "shroudforge.ui",
   ShroudForgeInput: "shroudforge.input",
+  ShroudForgeNative: "shroudforge.native",
   TypeRegistry: "game.types",
 };
 
@@ -441,6 +442,7 @@ function publicName(name) {
     ["shroudforge_i18n.", "shroudforge.i18n."],
     ["shroudforge_settings.", "shroudforge.settings."],
     ["shroudforge_ui.", "shroudforge.ui."],
+    ["shroudforge_native.", "shroudforge.native."],
   ];
   const alias = aliases.find(([internal]) => name.startsWith(internal));
   return alias ? alias[1] + name.slice(alias[0].length) : name;

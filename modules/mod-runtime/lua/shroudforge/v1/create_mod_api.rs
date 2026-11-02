@@ -264,6 +264,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         })?,
     )?;
     table.raw_set("notifications", notifications)?;
+    table.raw_set("native", super::call_mod_native_functions::create(lua, &r#mod.info().id)?)?;
 
     Ok(table)
 }

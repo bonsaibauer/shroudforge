@@ -24,6 +24,7 @@ pub(crate) mod resource_values;
 pub(crate) mod values;
 pub(crate) mod shroudforge {
     pub(crate) mod v1 {
+        mod call_mod_native_functions;
         mod create_mod_api;
         mod dispatch_mod_ui_actions;
         pub(crate) mod read_runtime_operations;
