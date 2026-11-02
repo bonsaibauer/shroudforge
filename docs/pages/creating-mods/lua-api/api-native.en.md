@@ -20,7 +20,7 @@
 
 A mod can ship a DLL in its folder, declared in `native-plugin.ini` or registered with `loader.runtime.register_dll`. ShroudForge loads it once per game process. When the DLL exports `ShroudforgeModNativeInit`, ShroudForge calls it right after the load. The DLL registers named functions there, and the same mod's Lua code calls them through `shroudforge.native`.
 
-The bridge connects two parts of the same mod. A mod reaches only the functions its own DLLs registered. The bridge gives neither the DLL nor the Lua code any access to the game or to other mods. A DLL without the export is loaded exactly as before.
+The bridge connects two parts of the same mod. A mod reaches only the functions its own DLLs registered, never another mod's. The only game data the host gives the DLL is the local camera, read only, under the same conditions as the Lua API (see below). A DLL without the export is loaded exactly as before.
 
 ## The DLL side
 
@@ -72,3 +72,18 @@ A call is synchronous. It runs on the mod runtime thread, never on the game thre
 Functions belong to the process like the DLL itself. They survive a reload of the mods' Lua code, so a reloaded mod finds them again.
 
 A native function must not throw an exception or unwind into ShroudForge. A crash in the DLL ends the game process like any other native crash.
+
+## The local camera
+
+A DLL that draws every frame, for example as a Vulkan layer, cannot wait for the mod's Lua update to learn where the player looks. Since ABI 2, `host->read_local_camera` reads the local player's camera from the same input sample as `runtime.world.cursor.get`, on any thread:
+
+```c
+double view[SHROUDFORGE_MOD_NATIVE_VIEW_VALUES];
+if (host->abi_version >= 2
+    && host->read_local_camera(host, view, SHROUDFORGE_MOD_NATIVE_VIEW_VALUES) == 1) {
+    /* view[0..2] position in meters, view[3..6] orientation,
+       view[7] fovY, view[8] aspect ratio, then the building cursor. */
+}
+```
+
+It answers only while the mod is an active ingame runtime mod with the `runtime` capability, in a game client, which are the conditions of the Lua runtime API. Result 7 means the mod has no runtime access at that moment. The field layout comes from the game's reflection and becomes known once a `runtime.world.cursor.get` call decoded the camera, so result 3 is expected until then. The header lists every result code.

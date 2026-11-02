@@ -35,6 +35,10 @@ impl HostRecord {
     pub(crate) fn host(&'static self) -> *const ModHost {
         &self.host
     }
+
+    pub(super) fn mod_id(&self) -> &str {
+        &self.mod_id
+    }
 }
 
 fn functions() -> MutexGuard<'static, BTreeMap<String, BTreeMap<String, Registered>>> {
@@ -43,7 +47,7 @@ fn functions() -> MutexGuard<'static, BTreeMap<String, BTreeMap<String, Register
 
 /// `host` must be null or a pointer ShroudForge handed to a DLL: only hosts
 /// created by open_host are handed out, so the cast is sound for those.
-unsafe fn record<'a>(host: *const ModHost) -> Option<&'a HostRecord> {
+pub(super) unsafe fn record<'a>(host: *const ModHost) -> Option<&'a HostRecord> {
     (!host.is_null()).then(|| unsafe { &*host.cast::<HostRecord>() })
 }
 
@@ -99,6 +103,7 @@ pub(crate) fn open_host(mod_id: &str, mod_directory: &Path) -> Result<&'static H
             mod_directory: directory.as_ptr(),
             log: host_log,
             register_function: host_register_function,
+            read_local_camera: super::read_local_camera::host_read_local_camera,
         },
         mod_id: mod_id.to_owned(),
         accepting: AtomicBool::new(true),

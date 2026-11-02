@@ -66,3 +66,11 @@ pub fn set_local_camera_layout(component_size: usize, offsets: &[u32]) -> bool {
     };
     unsafe { set(component_size, offsets.as_ptr(), offsets.len()) == 1 }
 }
+
+/// Reads the local camera, and the building cursor when `output` has room
+/// for it, into `output` (KfcRuntimeReadLocalCamera). Any thread. None when
+/// the runtime lacks the reader, otherwise its result code.
+pub fn read_local_camera(output: &mut [f64]) -> Option<u32> {
+    let read = provider()?.read_local_camera?;
+    Some(unsafe { read(output.as_mut_ptr(), output.len()) })
+}

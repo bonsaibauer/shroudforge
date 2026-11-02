@@ -20,7 +20,7 @@
 
 Ein Mod kann eine DLL in seinem Ordner mitliefern, angegeben in `native-plugin.ini` oder registriert mit `loader.runtime.register_dll`. ShroudForge lädt sie einmal pro Spielprozess. Exportiert die DLL `ShroudforgeModNativeInit`, ruft ShroudForge diese Funktion direkt nach dem Laden auf. Dort registriert die DLL benannte Funktionen, und der Lua-Code desselben Mods ruft sie über `shroudforge.native` auf.
 
-Die Brücke verbindet zwei Teile desselben Mods. Ein Mod erreicht nur die Funktionen, die seine eigenen DLLs registriert haben. Weder die DLL noch der Lua-Code erhalten dadurch Zugriff auf das Spiel oder auf andere Mods. Eine DLL ohne diesen Export wird genau wie bisher geladen.
+Die Brücke verbindet zwei Teile desselben Mods. Ein Mod erreicht nur die Funktionen, die seine eigenen DLLs registriert haben, nie die eines anderen Mods. Die einzigen Spieldaten, die der Host der DLL gibt, sind die lokale Kamera, nur lesend und unter denselben Bedingungen wie die Lua-API (siehe unten). Eine DLL ohne diesen Export wird genau wie bisher geladen.
 
 ## Die Seite der DLL
 
@@ -72,3 +72,18 @@ Ein Aufruf ist synchron. Er läuft im Thread der Mod-Laufzeit, nie im Spielthrea
 Funktionen gehören wie die DLL selbst zum Prozess. Sie überstehen ein Neuladen des Lua-Codes der Mods, sodass ein neu geladener Mod sie wiederfindet.
 
 Eine native Funktion darf keine Ausnahme werfen und nicht in ShroudForge hinein abwickeln. Ein Absturz in der DLL beendet den Spielprozess wie jeder andere native Absturz.
+
+## Die lokale Kamera
+
+Eine DLL, die jedes Bild zeichnet, zum Beispiel als Vulkan-Layer, kann nicht auf das Lua-Update des Mods warten, um zu erfahren, wohin der Spieler blickt. Seit ABI 2 liest `host->read_local_camera` die Kamera des lokalen Spielers aus derselben Eingabeprobe wie `runtime.world.cursor.get`, in jedem Thread:
+
+```c
+double view[SHROUDFORGE_MOD_NATIVE_VIEW_VALUES];
+if (host->abi_version >= 2
+    && host->read_local_camera(host, view, SHROUDFORGE_MOD_NATIVE_VIEW_VALUES) == 1) {
+    /* view[0..2] position in meters, view[3..6] orientation,
+       view[7] fovY, view[8] aspect ratio, then the building cursor. */
+}
+```
+
+Sie antwortet nur, solange der Mod ein aktiver Ingame-Laufzeitmod mit der Fähigkeit `runtime` in einem Spielclient ist. Das sind die Bedingungen der Lua-Laufzeit-API. Ergebnis 7 bedeutet, dass der Mod in diesem Moment keinen Laufzeitzugriff hat. Die Feldanordnung stammt aus der Reflexion des Spiels und ist bekannt, sobald ein Aufruf von `runtime.world.cursor.get` die Kamera dekodiert hat. Bis dahin ist Ergebnis 3 zu erwarten. Der Header listet alle Ergebniscodes.
