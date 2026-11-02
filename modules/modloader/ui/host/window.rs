@@ -49,7 +49,6 @@ use shroudforge_window_management::WindowDefaults;
 use shroudforge_window_management::apply_window_geometry;
 use shroudforge_window_management::current_window_geometry;
 use shroudforge_window_management::save_window_geometry;
-use std::borrow::Cow;
 use std::fs;
 use std::process::Child;
 use std::sync::Arc;
@@ -72,7 +71,6 @@ use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 use windows_sys::Win32::System::Threading::WaitForSingleObject;
 use wry::WebContext;
 use wry::WebViewBuilder;
-use wry::WebViewBuilderExtWindows;
 
 #[derive(Clone)]
 pub(crate) enum UiEvent {
