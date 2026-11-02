@@ -1,7 +1,9 @@
 import type { SettingDefinition } from './mod-types'
 import type React from 'react'
+import { useMemo, useState } from 'react'
 
 import { SettingSwitch, SettingsRow } from '../../ui-resources/edit-setting'
+import { useI18n } from '../../ui-resources/i18n'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
 import type { KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
 
@@ -85,45 +87,12 @@ export function ModSetting({
     )
   else if (control === 'multiselect')
     return (
-      <div className={`mod-multiselect ${disabled ? 'disabled' : ''}`}>
-        <div className="mod-multiselect-title">
-          <strong>{definition.label}</strong>
-          {definition.description && <small>{definition.description}</small>}
-        </div>
-        <div className="settings-options">
-          {(definition.options || []).map((option) => {
-            const selected =
-              Array.isArray(value) &&
-              value.some((item) => String(item) === String(option.value))
-            return (
-              <SettingsRow
-                key={String(option.value)}
-                label={option.label}
-                rowClass={disabled ? 'disabled' : ''}
-                control={
-                  <SettingSwitch
-                    label={option.label}
-                    checked={selected}
-                    disabled={disabled}
-                    onChange={() =>
-                      onChange(
-                        selected
-                          ? (value as unknown[]).filter(
-                              (item) => String(item) !== String(option.value),
-                            )
-                          : [
-                              ...(Array.isArray(value) ? value : []),
-                              option.value,
-                            ],
-                      )
-                    }
-                  />
-                }
-              />
-            )
-          })}
-        </div>
-      </div>
+      <MultiSelectSetting
+        definition={definition}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
     )
   else if (control === 'textarea')
     input = (
@@ -191,6 +160,113 @@ export function ModSetting({
         .filter(Boolean)
         .join(' ')}
     />
+  )
+}
+
+// Long choice lists (more than MULTISELECT_SEARCH_FROM options) get a search
+// field and an "only switched on" filter; short lists render as before.
+const MULTISELECT_SEARCH_FROM = 12
+
+function MultiSelectSetting({
+  definition,
+  value,
+  onChange,
+  disabled,
+}: {
+  definition: SettingDefinition
+  value: unknown
+  onChange(value: unknown): void
+  disabled: boolean
+}) {
+  const { t } = useI18n()
+  const [query, setQuery] = useState('')
+  const [selectedOnly, setSelectedOnly] = useState(false)
+  const options = definition.options || []
+  const selectedValues = useMemo(
+    () => new Set(Array.isArray(value) ? value.map((item) => String(item)) : []),
+    [value],
+  )
+  const searchable = options.length > MULTISELECT_SEARCH_FROM
+  const needle = query.trim().toLocaleLowerCase()
+  const shown = options.filter((option) => {
+    if (selectedOnly && !selectedValues.has(String(option.value))) return false
+    if (!needle) return true
+    return (
+      String(option.label ?? '').toLocaleLowerCase().includes(needle) ||
+      String(option.value).toLocaleLowerCase().includes(needle)
+    )
+  })
+  return (
+    <div className={`mod-multiselect ${disabled ? 'disabled' : ''}`}>
+      <div className="mod-multiselect-title">
+        <strong>{definition.label}</strong>
+        {definition.description && <small>{definition.description}</small>}
+      </div>
+      {searchable && (
+        <div className="mod-multiselect-filter">
+          <input
+            className="mod-input"
+            type="search"
+            value={query}
+            aria-label={t('mod.settings.multiselect.search')}
+            placeholder={t('mod.settings.multiselect.search')}
+            disabled={disabled}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+          <label className="mod-multiselect-selected-only">
+            <input
+              type="checkbox"
+              className="settings-checkbox"
+              checked={selectedOnly}
+              disabled={disabled}
+              onChange={(event) => setSelectedOnly(event.currentTarget.checked)}
+            />
+            {t('mod.settings.multiselect.selectedOnly')}
+          </label>
+          <small>
+            {t('mod.settings.multiselect.count', {
+              shown: shown.length,
+              total: options.length,
+              selected: selectedValues.size,
+            })}
+          </small>
+        </div>
+      )}
+      <div className="settings-options">
+        {shown.length === 0 && searchable && (
+          <p className="hint">{t('mod.settings.multiselect.noMatch')}</p>
+        )}
+        {shown.map((option) => {
+          const selected = selectedValues.has(String(option.value))
+          return (
+            <SettingsRow
+              key={String(option.value)}
+              label={option.label}
+              rowClass={disabled ? 'disabled' : ''}
+              control={
+                <SettingSwitch
+                  label={option.label}
+                  checked={selected}
+                  disabled={disabled}
+                  onChange={() =>
+                    onChange(
+                      selected
+                        ? (value as unknown[]).filter(
+                            (item) => String(item) !== String(option.value),
+                          )
+                        : [
+                            ...(Array.isArray(value) ? value : []),
+                            option.value,
+                          ],
+                    )
+                  }
+                />
+              }
+            />
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
