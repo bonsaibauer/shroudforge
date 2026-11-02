@@ -4047,6 +4047,7 @@ name = "shroudforge-ui-resources"
 version = "1.0.0"
 dependencies = [
  "image",
+ "wry",
 ]
 
 [[package]]

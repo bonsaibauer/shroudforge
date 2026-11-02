@@ -302,31 +302,12 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
         env!("CARGO_MANIFEST_DIR"),
         "/../../../build/ui/modloader/index.html"
     ));
-    let webview = WebViewBuilder::new_with_web_context(&mut web_context)
-        .with_custom_protocol("shroudforge".into(), move |_webview_id, request| {
-            let (status, content_type, body) = if request.uri().path() == "/index.html" {
-                (
-                    wry::http::StatusCode::OK,
-                    "text/html; charset=utf-8",
-                    Cow::Borrowed(html.as_bytes()),
-                )
-            } else {
-                (
-                    wry::http::StatusCode::NOT_FOUND,
-                    "text/plain; charset=utf-8",
-                    Cow::Borrowed(&[][..]),
-                )
-            };
-            wry::http::Response::builder()
-                .status(status)
-                .header(wry::http::header::CONTENT_TYPE, content_type)
-                .body(body)
-                .expect("Modloader UI response is valid")
-        })
-        .with_https_scheme(true)
-        .with_url("shroudforge://localhost/index.html")
-        .with_ipc_handler(handler)
-        .build(&window)?;
+    let webview = shroudforge_ui_resources::with_embedded_document(
+        WebViewBuilder::new_with_web_context(&mut web_context),
+        html.as_bytes(),
+    )
+    .with_ipc_handler(handler)
+    .build(&window)?;
     let _ = webview.set_visible(window.is_visible() && !window.is_minimized());
 
     let mut shown = arguments.desktop;
