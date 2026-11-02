@@ -1,4 +1,6 @@
 {
+  "locale.name": "English (UK)",
+  "locale.flag": "gb",
   "hotkeys.keyboard": "Keyboard",
   "hotkeys.mouse": "Mouse",
   "compatibility.tab.hotkeys": "Hotkeys",
@@ -257,8 +259,6 @@
   "installed.empty.title": "No mods installed",
   "installed.subtitle": "Local mods and their manageable settings.",
   "installed.title": "Installed",
-  "locale.name": "English (UK)",
-  "locale.flag": "gb",
   "mod.activity.empty.text": "Installations and setting changes appear here.",
   "mod.activity.empty.title": "No mod activity",
   "mod.activation": "Activation",

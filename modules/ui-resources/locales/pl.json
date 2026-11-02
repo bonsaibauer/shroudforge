@@ -1,4 +1,6 @@
 {
+  "locale.name": "Polski",
+  "locale.flag": "pl",
   "hotkeys.keyboard": "Klawiatura",
   "hotkeys.mouse": "Mysz",
   "compatibility.tab.hotkeys": "Skróty klawiszowe",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Brak zainstalowanych modów",
   "installed.subtitle": "Lokalne mody i ich ustawienia.",
   "installed.title": "Instalowane",
-  "locale.name": "Polski",
-  "locale.flag": "pl",
   "mod.activity.empty.text": "Instalacje i zmiany ustawień pojawiają się tutaj.",
   "mod.activity.empty.title": "Brak aktywności modu",
   "mod.activation": "Aktywacja",

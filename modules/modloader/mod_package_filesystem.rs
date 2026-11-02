@@ -343,10 +343,10 @@ impl ZipFileSystem {
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
 
-            let path = file.name();
+            let path = file.name().map_err(Error::other)?;
             let is_file = file.is_file();
 
-            let components: Vec<&str> = Path::new(path)
+            let components: Vec<&str> = Path::new(path.as_ref())
                 .components()
                 .map(|c| c.as_str())
                 .filter(|s| !s.is_empty())
@@ -369,7 +369,10 @@ impl ZipFileSystem {
     fn files(&self) -> Vec<Result<PathBuf>> {
         self.archive
             .file_names()
-            .map(|name| Ok(PathBuf::from(name)))
+            .map(|name| {
+                name.map(|name| PathBuf::from(name.into_owned()))
+                    .map_err(Error::other)
+            })
             .collect()
     }
 

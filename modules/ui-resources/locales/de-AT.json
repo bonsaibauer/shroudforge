@@ -1,4 +1,6 @@
 {
+  "locale.name": "Österreichisch (Wienerisch)",
+  "locale.flag": "at",
   "hotkeys.keyboard": "Tastatur",
   "hotkeys.mouse": "Maus",
   "compatibility.tab.hotkeys": "Tastenkombis",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Ka Mods installiert",
   "installed.subtitle": "Lokale Mods und ihre verwaltbaren Einstellungn.",
   "installed.title": "Installiert",
-  "locale.name": "Österreichisch (Wienerisch)",
-  "locale.flag": "at",
   "mod.activity.empty.text": "Installationen und Einstellungsänderungen erscheinen da.",
   "mod.activity.empty.title": "Ka modbezogene Aktivität",
   "mod.activation": "Aktivierung",
@@ -782,7 +782,6 @@
   "updater.checking": "Such nach Updates …",
   "updater.complete": "Update abgeschlossen",
   "updater.completeDetail": "ShroudForge is worn guad gangen aktualisiert.",
-  "updater.current": "Bei ShroudForge is ois am neuesten Stand.",
   "updater.downloading": "Update wird grad runtergeladen …",
   "updater.extracting": "Update-Dateien werdn vorbereitet …",
   "updater.failed": "Update schiefgangen",
@@ -848,5 +847,6 @@
   "updater.updateNow": "Jetzt aktualisiern",
   "updater.required": "Pflichtupdate",
   "updater.verifying": "Download wird überprüft …",
-  "updater.waiting": "Des Update wird installiert, wenn Enshrouded aus is."
+  "updater.waiting": "Des Update wird installiert, wenn Enshrouded aus is.",
+  "updater.current": "Bei ShroudForge is ois am neuesten Stand."
 }

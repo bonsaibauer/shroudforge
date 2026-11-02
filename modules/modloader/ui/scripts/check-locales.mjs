@@ -14,6 +14,10 @@ if (!source) throw new Error('Missing source locale: locales/en-GB.json')
 
 const sourceKeys = Object.keys(source).sort()
 const metadataKeys = ['locale.name', 'locale.flag']
+const canonicalOrder = [
+  ...metadataKeys,
+  ...Object.keys(source).filter(key => !metadataKeys.includes(key)),
+]
 const placeholders = value => [...value.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map(match => match[1]).sort()
 const failures = []
 
@@ -23,6 +27,13 @@ for (const [locale, messages] of Object.entries(catalogs)) {
   const extra = keys.filter(key => !(key in source))
   if (missing.length) failures.push(`${locale}: missing keys: ${missing.join(', ')}`)
   if (extra.length) failures.push(`${locale}: extra keys: ${extra.join(', ')}`)
+  const actualOrder = Object.keys(messages)
+  const firstOrderMismatch = canonicalOrder.findIndex((key, index) => actualOrder[index] !== key)
+  if (firstOrderMismatch !== -1) {
+    failures.push(
+      `${locale}: keys are out of source order at position ${firstOrderMismatch + 1}`,
+    )
+  }
   for (const key of sourceKeys) {
     if (typeof messages[key] !== 'string' || !messages[key].trim()) failures.push(`${locale}: empty or invalid value: ${key}`)
     if (JSON.stringify(placeholders(source[key])) !== JSON.stringify(placeholders(messages[key] ?? ''))) failures.push(`${locale}: placeholder mismatch: ${key}`)

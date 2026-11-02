@@ -1,4 +1,6 @@
 {
+  "locale.name": "简体中文",
+  "locale.flag": "cn",
   "hotkeys.keyboard": "键盘",
   "hotkeys.mouse": "鼠标",
   "compatibility.tab.hotkeys": "快捷键",
@@ -257,8 +259,6 @@
   "installed.empty.title": "未安装模组",
   "installed.subtitle": "本地模组及其可管理设置。",
   "installed.title": "已安装",
-  "locale.name": "简体中文",
-  "locale.flag": "cn",
   "mod.activity.empty.text": "此处显示安装和设置更改。",
   "mod.activity.empty.title": "无模组活动",
   "mod.activation": "激活",

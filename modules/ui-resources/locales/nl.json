@@ -1,4 +1,6 @@
 {
+  "locale.name": "Nederlands",
+  "locale.flag": "nl",
   "hotkeys.keyboard": "Toetsenbord",
   "hotkeys.mouse": "Muis",
   "compatibility.tab.hotkeys": "Sneltoetsen",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Geen mods geïnstalleerd",
   "installed.subtitle": "Lokale mods en hun beheerbare instellingen.",
   "installed.title": "Geïnstalleerd",
-  "locale.name": "Nederlands",
-  "locale.flag": "nl",
   "mod.activity.empty.text": "Installaties en wijzigingen in instellingen verschijnen hier.",
   "mod.activity.empty.title": "Geen mod-activiteit",
   "mod.activation": "Activering",

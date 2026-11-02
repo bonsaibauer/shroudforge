@@ -61,7 +61,8 @@ bool Initialize() {
         if (!loaded || !data || !size) continue;
         try {
             const auto candidate = json::parse(data, data + size);
-            if (candidate.value("schemaVersion", 0) != 1 ||
+            const auto version = candidate.value("schemaVersion", 0);
+            if ((version != 1 && version != 2) ||
                 candidate.value("target", std::string{}) != image_target ||
                 candidate.value("kfcFormat", 0) != 4 ||
                 !candidate.contains("provenance") ||
