@@ -31,7 +31,7 @@ The guide includes separate instructions for your PC and game server, pictures o
 </p>
 
 <p align="center">
-  <a href="https://github.com/bonsaibauer/shroudforge/releases/latest"><img src="assets\shroudforge-banner-2-github_v1.svg" width="100%" alt="ShroudForge Download Link"></a>
+  <a href="https://github.com/bonsaibauer/shroudforge/releases/latest"><img src="assets\shroudforge-banner-2-github_v2.svg" width="100%" alt="ShroudForge Download Link"></a>
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@ The guide includes separate instructions for your PC and game server, pictures o
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=V57iZcn-hfo"><img src="assets\shroudforge-banner-1-ohne-strich_v1.svg" width="100%" alt="ShroudForge on YouTube: watch the trailer"></a>
+  <a href="https://www.youtube.com/watch?v=V57iZcn-hfo"><img src="assets\shroudforge-banner-1-ohne-strich_v2.svg" width="100%" alt="ShroudForge on YouTube: watch the trailer"></a>
 </p>
 
 ![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)

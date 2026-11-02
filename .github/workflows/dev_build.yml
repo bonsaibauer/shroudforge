@@ -119,9 +119,6 @@ jobs:
 
       - name: Build, test and package
         shell: pwsh
-        env:
-          CROWDIN_PROJECT_ID: ${{ vars.CROWDIN_PROJECT_ID || '938941' }}
-          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
         run: .\dev\build\dev_build.ps1 -BuildNumber "${{ github.run_id }}"
 
       - name: Upload release packages for malware scan
