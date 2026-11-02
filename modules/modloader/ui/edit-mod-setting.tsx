@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 
 import { SettingSwitch, SettingsRow } from '../../ui-resources/edit-setting'
 import { useI18n } from '../../ui-resources/i18n'
+import { Segmented } from '../../ui-resources/choose-segment'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
 import type { KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
 
@@ -181,7 +182,21 @@ function MultiSelectSetting({
   const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedOnly, setSelectedOnly] = useState(false)
+  const [category, setCategory] = useState('')
   const options = definition.options || []
+  // Options with a "group" get inner tabs (All + one per group, in the order
+  // the groups first appear); the search still covers every group.
+  const categories = useMemo(
+    () => [
+      ...new Set(
+        options
+          .map((option) => option.group)
+          .filter((group): group is string => Boolean(group)),
+      ),
+    ],
+    [options],
+  )
+  const activeCategory = categories.includes(category) ? category : ''
   const selectedValues = useMemo(
     () => new Set(Array.isArray(value) ? value.map((item) => String(item)) : []),
     [value],
@@ -189,6 +204,7 @@ function MultiSelectSetting({
   const searchable = options.length > MULTISELECT_SEARCH_FROM
   const needle = query.trim().toLocaleLowerCase()
   const shown = options.filter((option) => {
+    if (activeCategory && option.group !== activeCategory) return false
     if (selectedOnly && !selectedValues.has(String(option.value))) return false
     if (!needle) return true
     return (
@@ -202,6 +218,16 @@ function MultiSelectSetting({
         <strong>{definition.label}</strong>
         {definition.description && <small>{definition.description}</small>}
       </div>
+      {categories.length > 0 && (
+        <Segmented
+          value={activeCategory || 'all'}
+          onChange={(next) => setCategory(next === 'all' ? '' : next)}
+          items={[
+            ['all', t('common.all')],
+            ...categories.map((group) => [group, group] as [string, string]),
+          ]}
+        />
+      )}
       {searchable && (
         <div className="mod-multiselect-filter">
           <input

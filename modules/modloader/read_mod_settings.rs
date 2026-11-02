@@ -58,12 +58,30 @@ pub(crate) fn parse_setting_definition(
                         }
                         _ => Value::String(option.clone()),
                     };
+                    // A label is a string, or { "label": ..., "group": ... }
+                    // to sort the choice into a category.
+                    let (label, group) = match label {
+                        Value::String(text) => (text.clone(), None),
+                        Value::Object(entry) => (
+                            entry
+                                .get("label")
+                                .and_then(Value::as_str)
+                                .ok_or_else(|| format!("option label for '{key}' must be a string"))?
+                                .to_owned(),
+                            match entry.get("group") {
+                                None => None,
+                                Some(Value::String(group)) => Some(group.clone()),
+                                Some(_) => {
+                                    return Err(format!("option group for '{key}' must be a string"));
+                                }
+                            },
+                        ),
+                        _ => return Err(format!("option label for '{key}' must be a string")),
+                    };
                     Ok(SettingOption {
                         value: option_value,
-                        label: label
-                            .as_str()
-                            .ok_or_else(|| format!("option label for '{key}' must be a string"))?
-                            .to_owned(),
+                        label,
+                        group,
                     })
                 })
                 .collect::<Result<Vec<_>, String>>()

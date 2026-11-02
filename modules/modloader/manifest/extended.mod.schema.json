@@ -75,7 +75,20 @@
         "options": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 120 },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label"],
+                "properties": {
+                  "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "group": { "type": "string", "minLength": 1, "maxLength": 60 }
+                }
+              }
+            ]
+          }
         }
       },
       "allOf": [
@@ -117,7 +130,8 @@
           "uniqueItems": true,
           "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" }
         },
-        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } }
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+        "tab": { "type": "boolean" }
       }
     }
   }

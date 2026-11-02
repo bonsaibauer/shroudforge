@@ -1,4 +1,8 @@
-export type SettingOption = { value: string | number | boolean; label: string }
+export type SettingOption = {
+  value: string | number | boolean
+  label: string
+  group?: string
+}
 export type SettingCondition = { setting: string; equals: string | number | boolean }
 
 export type SettingDefinition = {
@@ -45,6 +49,7 @@ export type SettingGroup = {
   description?: string
   settings: string[]
   actions: ModAction[]
+  tab?: boolean
 }
 
 export type ModDependencyInfo = {

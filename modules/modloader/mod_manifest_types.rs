@@ -144,6 +144,9 @@ pub struct SettingGroup {
     pub settings: Vec<String>,
     #[serde(default)]
     pub actions: Vec<ModAction>,
+    /// Shown as its own tab on the mod page instead of inside "Settings".
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tab: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -228,6 +231,9 @@ pub enum SettingControl {
 pub struct SettingOption {
     pub value: serde_json::Value,
     pub label: String,
+    /// Optional category; a multi-select shows one inner tab per group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
