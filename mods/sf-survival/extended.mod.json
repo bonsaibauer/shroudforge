@@ -9,7 +9,8 @@
   "links": {
     "source-github": "https://github.com/bonsaibauer/shroudforge",
     "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
-    "support-bmac": "https://buymeacoffee.com/bonsaibauer"
+    "support-bmac": "https://buymeacoffee.com/bonsaibauer",
+    "support-patreon": "https://www.patreon.com/cw/bonsaibauer"
   },
   "changelog": [
     "Adds eight settings for fall damage, health and mana regeneration, stamina, underwater breathing, weapon durability, cold protection and mana."
