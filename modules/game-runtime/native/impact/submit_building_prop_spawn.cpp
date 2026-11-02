@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <charconv>
 
 namespace ImpactRuntime {
 namespace {
@@ -267,7 +268,7 @@ ret
 lea|edx|m0:rax:-:0:-1
 mov|rax|m64:rcx:-:0:0
 add|rdx|rdx
-mov|rcx|m64:rax:-:0:2088
+mov|rcx|m64:rax:-:0:@sourceEntityIdsOffset
 mov|eax|m32:rcx:rdx:8:0
 mov|m32:r8:-:0:0|eax
 mov|rax|r8
@@ -550,9 +551,52 @@ bool matches(const Procedure& code, std::string_view expected) {
     return canonical(code) == expected;
 }
 
+std::string source_contract_recipe(const EngineContext::BuildingPropSpawnLayout& layout) {
+    std::string expected(source_recipe);
+    constexpr std::string_view field = "@sourceEntityIdsOffset";
+    expected.replace(expected.find(field), field.size(), std::to_string(layout.source_entity_ids));
+    return expected;
+}
+
+std::string helper_contract_recipe(const EngineContext::BuildingPropSpawnLayout& layout) {
+    if (!layout.allocation_failure_marker) return std::string(helper_recipe);
+    std::vector<std::string_view> lines;
+    for (std::size_t begin = 0; begin < helper_recipe.size();) {
+        const auto end = helper_recipe.find('\n', begin);
+        if (end == std::string_view::npos) return {};
+        lines.push_back(helper_recipe.substr(begin, end - begin));
+        begin = end + 1;
+    }
+    std::vector<std::size_t> insertions;
+    for (std::size_t index = 1; index + 1 < lines.size(); ++index)
+        if (lines[index - 1] == "call|external" && lines[index] == "call|external" && lines[index + 1] == "int3")
+            insertions.push_back(index);
+    if (insertions.size() != 4) return {};
+    std::ostringstream expected;
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        if (std::find(insertions.begin(), insertions.end(), index) != insertions.end())
+            expected << "mov|rax|rip64\nmov|m32:rax:-:0:0|" << layout.allocation_failure_marker << '\n';
+        const auto line = lines[index];
+        const auto label = line.find("|label");
+        if (label == std::string_view::npos) expected << line;
+        else {
+            std::size_t target{};
+            const auto digits = line.substr(label + 6);
+            const auto parsed = std::from_chars(digits.data(), digits.data() + digits.size(), target);
+            if (parsed.ec != std::errc{} || parsed.ptr != digits.data() + digits.size() || target >= lines.size()) return {};
+            const auto preceding = std::count_if(insertions.begin(), insertions.end(),
+                [target](std::size_t insertion) { return insertion <= target; });
+            expected << line.substr(0, label + 6) << target + preceding * 2;
+        }
+        expected << '\n';
+    }
+    return expected.str();
+}
+
 struct Contract {
     std::uintptr_t helper{}, spawn_flag{}, explicit_id{};
     OriginalCode::CodeEvidence code;
+    EngineContext::BuildingPropSpawnLayout layout;
 };
 
 bool capture_code(const Procedure& code, Contract& contract) {
@@ -583,18 +627,23 @@ bool rip_operands(const Procedure& code, ZydisMnemonic mnemonic,
 // Scene gates. The complete instruction recipes establish call positions and
 // operand data flow before those call targets are assigned semantic roles.
 bool resolve_contract(Contract& output) {
+    const auto layout = EngineContext::ConfiguredBuildingPropSpawnLayout();
+    if (!layout) return false;
     static std::mutex mutex;
     static Contract cached;
     std::scoped_lock lock(mutex);
-    if(cached.helper && validate_code(cached)) { output=cached;return true; }
+    if(cached.helper && cached.layout == *layout && validate_code(cached)) { output=cached;return true; }
+    const auto expected_helper = helper_contract_recipe(*layout);
+    const auto expected_source = source_contract_recipe(*layout);
+    if (expected_helper.empty() || expected_source.empty()) return false;
     std::uintptr_t root{}, helper{};
     if (!OriginalCode::ResolveNamedSystemCode("player_building_place_prop", root) ||
         !OriginalCode::FindUniqueReachable(root, 2,
-            [](const Procedure& code) { return matches(code, helper_recipe); }, helper)) return false;
+            [&expected_helper](const Procedure& code) { return matches(code, expected_helper); }, helper)) return false;
     Procedure body, queue, source, transform, prepare, append, allocate;
-    if (!OriginalCode::ReadProcedure(helper, body) || !matches(body, helper_recipe) || body.calls.size() != 13 ||
+    if (!OriginalCode::ReadProcedure(helper, body) || !matches(body, expected_helper) || body.calls.size() != 13 ||
         !OriginalCode::ReadProcedure(body.calls[0], queue) || !matches(queue, queue_recipe) ||
-        !OriginalCode::ReadProcedure(body.calls[1], source) || !matches(source, source_recipe) ||
+        !OriginalCode::ReadProcedure(body.calls[1], source) || !matches(source, expected_source) ||
         !OriginalCode::ReadProcedure(body.calls[2], transform) || !matches(transform, transform_recipe) ||
         !OriginalCode::ReadProcedure(body.calls[3], prepare) || !matches(prepare, prepare_recipe) ||
         prepare.calls.size() != 1 || !OriginalCode::ReadProcedure(prepare.calls[0], append) ||
@@ -611,6 +660,7 @@ bool resolve_contract(Contract& output) {
     if (!NamedServiceImplementation::read(constants[0], multiplier) || multiplier != 4294967296.0f ||
         !NamedServiceImplementation::read(constants[1], rounding) || rounding != 0.5f) return false;
     Contract found;
+    found.layout = *layout;
     found.helper = helper;
     found.spawn_flag = flags[0];
     found.explicit_id = defaults[0];

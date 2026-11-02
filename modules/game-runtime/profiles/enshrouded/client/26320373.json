@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "enshrouded-client-26320373",
   "target": "enshrouded.exe",
   "kfcFormat": 4,
@@ -266,6 +266,23 @@
     "changeTrackerManagerOffset": 656,
     "changeTrackerQueueBOffset": 320,
     "maximumTrackingQueueCapacity": 1048576
+  },
+  "entityCommandQueueLayout": {
+    "id": "ecs-entity-command-queue-v1",
+    "taskStateOffset": 1336,
+    "taskRecordsOffset": 1320,
+    "taskCountOffset": 1328,
+    "queueRecordsOffset": 8101640,
+    "queueCountOffset": 8101648,
+    "taskRecordStride": 224,
+    "entityIdCounterOffset": 1176,
+    "activeTrackingContextsOffset": 8110016,
+    "bufferCapacity": 1048576
+  },
+  "buildingPropSpawnLayout": {
+    "id": "building-prop-spawn-v1",
+    "sourceEntityIdsOffset": 2096,
+    "allocationFailureMarkerValue": 42
   },
   "attributeCalculationModel": "attribute-command-v1",
   "resourceWriteLayout": {
