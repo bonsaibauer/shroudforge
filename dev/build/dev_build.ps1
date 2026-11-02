@@ -11,15 +11,102 @@ $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $actions = Join-Path $repositoryRoot 'dev\build'
 $cargoTargetPath = if ([IO.Path]::IsPathRooted($CargoTargetDir)) { [IO.Path]::GetFullPath($CargoTargetDir) } else { [IO.Path]::GetFullPath((Join-Path $repositoryRoot $CargoTargetDir)) }
 if ($BuildNumber -notmatch '^[A-Za-z0-9._-]+$') { throw 'BuildNumber contains invalid path characters.' }
-& (Join-Path $repositoryRoot 'dev\parser\prepare_parser.ps1')
+
+function Invoke-BuildPhase {
+    param([string]$Name, [scriptblock]$Action)
+
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    Write-Host "[build-timing] START $Name"
+    try {
+        & $Action
+    } finally {
+        $stopwatch.Stop()
+        Write-Host ("[build-timing] END {0} elapsed_seconds={1:N1}" -f $Name, $stopwatch.Elapsed.TotalSeconds)
+    }
+}
+
+function Start-BuildPhaseJob {
+    param([string]$Name, [string]$ScriptPath, [hashtable]$Parameters = @{})
+
+    $parametersJson = ConvertTo-Json -InputObject $Parameters -Compress
+    Start-Job -Name $Name -ArgumentList $Name, $ScriptPath, $parametersJson -ScriptBlock {
+        param($PhaseName, $PhaseScriptPath, $SerializedParameters)
+
+        $ErrorActionPreference = 'Stop'
+        $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+        Write-Output "[build-timing] START $PhaseName"
+        try {
+            $phaseParameters = ConvertFrom-Json -InputObject $SerializedParameters -AsHashtable
+            & $PhaseScriptPath @phaseParameters
+            if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "$PhaseName exited with code $LASTEXITCODE." }
+        } catch {
+            $stopwatch.Stop()
+            Write-Output ("[build-timing] END {0} status=failed elapsed_seconds={1:N1}" -f $PhaseName, $stopwatch.Elapsed.TotalSeconds)
+            throw
+        }
+
+        $stopwatch.Stop()
+        Write-Output ("[build-timing] END {0} status=success elapsed_seconds={1:N1}" -f $PhaseName, $stopwatch.Elapsed.TotalSeconds)
+    }
+}
+
+function Wait-BuildPhaseJobs {
+    param([System.Management.Automation.Job[]]$Jobs)
+
+    try {
+        $remainingJobs = @($Jobs)
+        while ($remainingJobs.Count -gt 0) {
+            $job = Wait-Job -Job $remainingJobs -Any
+            Receive-Job -Job $job -ErrorAction Continue 2>&1 | ForEach-Object {
+                Write-Host "[$($job.Name)] $_"
+            }
+            $remainingJobs = @($remainingJobs | Where-Object Id -ne $job.Id)
+        }
+
+        $failedJobs = @($Jobs | Where-Object State -ne 'Completed')
+        if ($failedJobs.Count -gt 0) {
+            throw "Build phase(s) failed: $($failedJobs.Name -join ', ')"
+        }
+    } finally {
+        Remove-Job -Job $Jobs -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Invoke-BuildPhase -Name 'prepare-parser' -Action {
+    & (Join-Path $repositoryRoot 'dev\parser\prepare_parser.ps1')
+}
 $version = (Get-Content -LiteralPath (Join-Path $repositoryRoot 'VERSION') -Raw).Trim()
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "VERSION must use MAJOR.MINOR.PATCH: $version" }
-& (Join-Path $actions 'build_modloader_frontend.ps1') -UseInstalledDependencies:$UseInstalledDependencies -SkipUiBuild:$SkipUiBuild
-& (Join-Path $actions 'build_kfc_runtime.ps1')
-& (Join-Path $actions 'build_windows_proxies.ps1') -CargoTargetDir $cargoTargetPath
-if (-not $SkipTests) {
-    & (Join-Path $repositoryRoot 'dev\tests\run_workspace_tests.ps1')
+
+$parallelTasksStopwatch = [Diagnostics.Stopwatch]::StartNew()
+$parallelTasks = @(
+    (Start-BuildPhaseJob -Name 'modloader-frontend' -ScriptPath (Join-Path $actions 'build_modloader_frontend.ps1') -Parameters @{
+        UseInstalledDependencies = $UseInstalledDependencies.IsPresent
+        SkipUiBuild = $SkipUiBuild.IsPresent
+    })
+    (Start-BuildPhaseJob -Name 'kfc-runtime' -ScriptPath (Join-Path $actions 'build_kfc_runtime.ps1'))
+    (Start-BuildPhaseJob -Name 'windows-proxies' -ScriptPath (Join-Path $actions 'build_windows_proxies.ps1') -Parameters @{
+        CargoTargetDir = $cargoTargetPath
+    })
+)
+try {
+    Wait-BuildPhaseJobs -Jobs $parallelTasks
+} finally {
+    $parallelTasksStopwatch.Stop()
+    Write-Host ("[build-timing] END parallel-foundation elapsed_seconds={0:N1}" -f $parallelTasksStopwatch.Elapsed.TotalSeconds)
 }
-& (Join-Path $actions 'build_modloader.ps1') -CargoTargetDir $cargoTargetPath -UseInstalledDependencies -SkipUiBuild
-& (Join-Path $actions 'build_windows_bootstrap.ps1')
-& (Join-Path $actions 'package_release.ps1') -BuildNumber $BuildNumber -Version $version
+
+if (-not $SkipTests) {
+    Invoke-BuildPhase -Name 'workspace-tests' -Action {
+        & (Join-Path $repositoryRoot 'dev\tests\run_workspace_tests.ps1')
+    }
+}
+Invoke-BuildPhase -Name 'modloader-workspace-build' -Action {
+    & (Join-Path $actions 'build_modloader.ps1') -CargoTargetDir $cargoTargetPath -UseInstalledDependencies -SkipUiBuild
+}
+Invoke-BuildPhase -Name 'windows-bootstrap' -Action {
+    & (Join-Path $actions 'build_windows_bootstrap.ps1')
+}
+Invoke-BuildPhase -Name 'package-release' -Action {
+    & (Join-Path $actions 'package_release.ps1') -BuildNumber $BuildNumber -Version $version
+}
