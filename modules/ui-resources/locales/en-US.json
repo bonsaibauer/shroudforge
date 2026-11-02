@@ -426,7 +426,7 @@
   "news.notice.discord.message": "Have a question, an idea, or just want to see what others are building? The Enshrouded Modding Discord brings players and mod authors together to share and help out. You can just read along at first. Joining is completely optional.",
   "news.notice.discord.join": "Join Discord",
   "news.notice.localization.title": "Welcome! Herzlich willkommen! Bienvenue ! ¡Te damos la bienvenida!",
-  "news.notice.localization.message": "French and Spanish are now in beta. Help translate ShroudForge on Crowdin, suggest a language, or report an issue below.",
+  "news.notice.localization.message": "Help translate ShroudForge on Crowdin, suggest a language, or report an issue below.",
   "news.localization.reportIssue": "Report a translation issue",
   "news.localization.contribute": "Help translate on Crowdin",
   "news.localization.requestLanguage": "Suggest a language",
