@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 500" role="img" aria-labelledby="title description">
-  <title id="title">Help translate ShroudForge into 14 locales.</title>
+  <title id="title">Help bring ShroudForge to players worldwide.</title>
   <desc id="description">Translate ShroudForge in Fink, then review and submit changes on GitHub. The lower rows show the project locale flags.</desc>
   <defs>
     <symbol id="flag-de" viewBox="0 0 30 20"><rect width="30" height="20" fill="#ffce00"/><rect width="30" height="13.33" fill="#dd0000"/><rect width="30" height="6.67" fill="#000"/></symbol>
@@ -25,7 +25,7 @@
       <rect x="52" y="36" width="280" height="32" rx="16" fill="#202e42"/>
       <circle cx="70" cy="52" r="5" fill="#a9e87e"/>
       <text x="84" y="57" fill="#c8d5e5" font-size="12" font-weight="700" letter-spacing="1">SHROUDFORGE TRANSLATIONS</text>
-      <text x="52" y="106" fill="#f6f4ee" font-size="36" font-weight="750" letter-spacing="-1">Help translate ShroudForge into 14 locales.</text>
+      <text x="52" y="106" fill="#f6f4ee" font-size="36" font-weight="750" letter-spacing="-1">Help bring ShroudForge to players worldwide.</text>
       <text x="54" y="132" fill="#9daec2" font-size="15">Join in and contribute translations in Fink, then submit a pull request on GitHub.</text>
     </g>
 

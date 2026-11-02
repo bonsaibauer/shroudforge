@@ -1,6 +1,6 @@
 # Translate the Modloader
 
-Help make ShroudForge easier to use in 14 locales. Edit text in Fink or send your changes as a pull request to the GitHub repository.
+Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub.
 
 [![Edit ShroudForge translations with Fink. The illustration shows the supported languages.](./illustration.svg)](https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang)
 

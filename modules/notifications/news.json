@@ -7,7 +7,7 @@
       "beta": false,
       "englishOnly": true,
       "title": "Welcome! Herzlich willkommen! Bienvenue ! ¡Te damos la bienvenida!",
-      "message": "Help translate ShroudForge with Fink, suggest a language, or report an issue below.",
+      "message": "Help bring ShroudForge to players worldwide by contributing translations with Fink, suggesting a language, or reporting an issue below.",
       "level": "info",
       "links": [
         { "labelKey": "news.localization.reportIssue", "url": "https://github.com/bonsaibauer/shroudforge/issues/new?template=translation_issue.yml" },
