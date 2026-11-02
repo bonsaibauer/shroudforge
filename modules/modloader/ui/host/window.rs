@@ -364,6 +364,19 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
     let mut loaded_settings_revision = live_settings_revision(&arguments.root);
     let mut keybind_layout_revision = shroudforge_hotkeys::layout_revision();
     let mut pending_window_geometry_save: Option<Instant> = None;
+    let main_menu_preload_event_name = (!arguments.desktop && !arguments.server).then(|| {
+        format!(
+            "Local\\ShroudForge.ModloaderUI.MainMenu.{}",
+            arguments.game_pid
+        )
+    });
+    let mut main_menu_preload_event = main_menu_preload_event_name
+        .as_deref()
+        .map(open_event)
+        .unwrap_or(std::ptr::null_mut());
+    let mut initial_snapshot_requested = false;
+    let mut initial_snapshot_running = false;
+    let mut next_main_menu_preload_retry = Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(50));
         match event {
@@ -411,6 +424,25 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     }
                     *control_flow = ControlFlow::Exit;
                     return;
+                }
+                if !initial_snapshot_requested {
+                    if main_menu_preload_event.is_null()
+                        && Instant::now() >= next_main_menu_preload_retry
+                    {
+                        if let Some(name) = main_menu_preload_event_name.as_deref() {
+                            main_menu_preload_event = open_event(name);
+                        }
+                        next_main_menu_preload_retry =
+                            Instant::now() + Duration::from_millis(250);
+                    }
+                    if !main_menu_preload_event.is_null()
+                        && unsafe { WaitForSingleObject(main_menu_preload_event, 0) }
+                            == WAIT_OBJECT_0
+                    {
+                        refresher.request(&active_provider);
+                        initial_snapshot_requested = true;
+                        initial_snapshot_running = true;
+                    }
                 }
                 if arguments.desktop && Instant::now() >= next_client_handoff_poll {
                     let mut retry_after = Duration::from_millis(250);
@@ -1078,11 +1110,18 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         + Duration::from_millis(
                             module_config.refresh_milliseconds.clamp(250, 10_000),
                         );
-                    if visible {
+                    if visible && !initial_snapshot_running {
                         refresher.request(&active_provider);
+                        if !initial_snapshot_requested {
+                            initial_snapshot_requested = true;
+                            initial_snapshot_running = true;
+                        }
                     }
                 }
                 if let Some(refreshed) = refresher.take() {
+                    if initial_snapshot_running {
+                        initial_snapshot_running = false;
+                    }
                     let next_position =
                         refreshed.central["modules"][window_config_module]["window"]["position"]
                             .clone();
@@ -1241,6 +1280,10 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
             }
             Event::LoopDestroyed => {
                 cancel_keybind_capture(&capture_owner, None);
+                if !main_menu_preload_event.is_null() {
+                    unsafe { CloseHandle(main_menu_preload_event) };
+                    main_menu_preload_event = std::ptr::null_mut();
+                }
                 if !arguments.desktop {
                     let pid = unsafe { GetCurrentProcessId() };
                     let _ = shroudforge_loader_config::config::clear_modloader_client_pid(
