@@ -4,9 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "npm run crowdin:progress && npm run locale:check && npm run flags:build && vite build && vite build --mode updater",
-    "dev": "npm run crowdin:progress && npm run locale:check && npm run flags:build && vite",
-    "crowdin:progress": "node ../../../dev/build/capture_crowdin_progress.mjs",
+    "build": "npm run locale:check && npm run flags:build && vite build && vite build --mode updater",
+    "dev": "npm run locale:check && npm run flags:build && vite",
     "flags:build": "node scripts/generate-flags.mjs",
     "locale:check": "node scripts/check-locales.mjs"
   },
