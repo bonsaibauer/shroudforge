@@ -1,6 +1,5 @@
 import { Flag } from '../../ui-resources/show-flag'
 import { useI18n } from '../../ui-resources/i18n'
-import { intlLocaleFor } from '../../ui-resources/intl-locale'
 import crowdinProgressSnapshot from '@generated-crowdin-progress'
 
 type LanguageProgress = {
@@ -73,11 +72,10 @@ export function CrowdinProgressPanel() {
   const { locale, locales, t } = useI18n()
   const progress = buildProgress
   const targetLocales = locales.filter((language) => language.locale !== 'en')
-  const formatLocale = intlLocaleFor(locale)
-  const number = new Intl.NumberFormat(formatLocale)
+  const number = new Intl.NumberFormat(locale)
   const date =
     progress?.updatedAt &&
-    new Intl.DateTimeFormat(formatLocale, {
+    new Intl.DateTimeFormat(locale, {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(new Date(progress.updatedAt))
