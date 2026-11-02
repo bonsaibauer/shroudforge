@@ -1,4 +1,6 @@
 {
+  "locale.name": "Schwiizerdütsch (Züritüütsch)",
+  "locale.flag": "ch",
   "hotkeys.keyboard": "Tastatur",
   "hotkeys.mouse": "Maus",
   "compatibility.tab.hotkeys": "Tastenkombis",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Kei Mods installiert",
   "installed.subtitle": "Lokale Mods und ihre verwaltbaren Iistellige.",
   "installed.title": "Installiert",
-  "locale.name": "Schwiizerdütsch (Züritüütsch)",
-  "locale.flag": "ch",
   "mod.activity.empty.text": "Installationen und Einstellungsänderungen erscheinen da.",
   "mod.activity.empty.title": "Kei modbezogene Aktivität",
   "mod.activation": "Aktivierung",
@@ -782,7 +782,6 @@
   "updater.checking": "Suech nach Updates …",
   "updater.complete": "Update abgeschlossen",
   "updater.completeDetail": "ShroudForge isch worde erfolgrich aktualisiert.",
-  "updater.current": "ShroudForge isch uf em neuste Stand.",
   "updater.downloading": "Update wird grad abe glade …",
   "updater.extracting": "Update-Dateie werde vorbereitet …",
   "updater.failed": "Update fehlgschlage",
@@ -848,5 +847,6 @@
   "updater.updateNow": "Jetzt aktualisiere",
   "updater.required": "Pflichtupdate",
   "updater.verifying": "Download wird überprüeft …",
-  "updater.waiting": "S Update wird installiert, sobald Enshrouded gschlosse isch."
+  "updater.waiting": "S Update wird installiert, sobald Enshrouded gschlosse isch.",
+  "updater.current": "ShroudForge isch uf em neuste Stand."
 }

@@ -1,4 +1,6 @@
 {
+  "locale.name": "Español",
+  "locale.flag": "es",
   "hotkeys.keyboard": "Teclado",
   "hotkeys.mouse": "Ratón",
   "compatibility.tab.hotkeys": "Atajos de teclado",
@@ -257,8 +259,6 @@
   "installed.empty.title": "No hay mods instalados",
   "installed.subtitle": "Mods locales y sus ajustes disponibles.",
   "installed.title": "Instalados",
-  "locale.name": "Español",
-  "locale.flag": "es",
   "mod.activity.empty.text": "Las instalaciones y los cambios de ajustes aparecerán aquí.",
   "mod.activity.empty.title": "Aún no hay actividad de mods",
   "mod.activation": "Activación",

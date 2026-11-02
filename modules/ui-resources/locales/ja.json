@@ -1,4 +1,6 @@
 {
+  "locale.name": "日本語",
+  "locale.flag": "jp",
   "hotkeys.keyboard": "キーボード",
   "hotkeys.mouse": "マウス",
   "compatibility.tab.hotkeys": "キー割り当て",
@@ -257,8 +259,6 @@
   "installed.empty.title": "インストールされていないMOD",
   "installed.subtitle": "ローカルMODと管理可能な設定.",
   "installed.title": "インストール済み",
-  "locale.name": "日本語",
-  "locale.flag": "jp",
   "mod.activity.empty.text": "インストールと設定の変更がここに表示されます.",
   "mod.activity.empty.title": "Mod アクティビティなし",
   "mod.activation": "アクティビティ",

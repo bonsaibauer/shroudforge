@@ -1,4 +1,6 @@
 {
+  "locale.name": "Deutsch",
+  "locale.flag": "de",
   "hotkeys.keyboard": "Tastatur",
   "hotkeys.mouse": "Maus",
   "compatibility.tab.hotkeys": "Tastenkürzel",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Keine Mods installiert",
   "installed.subtitle": "Lokale Mods und ihre verwaltbaren Einstellungen.",
   "installed.title": "Installiert",
-  "locale.name": "Deutsch",
-  "locale.flag": "de",
   "mod.activity.empty.text": "Installationen und Einstellungsänderungen erscheinen hier.",
   "mod.activity.empty.title": "Keine modbezogene Aktivität",
   "mod.activation": "Aktivierung",
@@ -782,7 +782,6 @@
   "updater.checking": "Suche nach Updates …",
   "updater.complete": "Update abgeschlossen",
   "updater.completeDetail": "ShroudForge wurde erfolgreich aktualisiert.",
-  "updater.current": "ShroudForge ist auf dem aktuellen Stand.",
   "updater.downloading": "Update wird heruntergeladen …",
   "updater.extracting": "Update-Dateien werden vorbereitet …",
   "updater.failed": "Update fehlgeschlagen",
@@ -848,5 +847,6 @@
   "updater.updateNow": "Jetzt aktualisieren",
   "updater.required": "Pflichtupdate",
   "updater.verifying": "Download wird verifiziert …",
-  "updater.waiting": "Das Update wird installiert, sobald Enshrouded beendet ist."
+  "updater.waiting": "Das Update wird installiert, sobald Enshrouded beendet ist.",
+  "updater.current": "ShroudForge ist auf dem aktuellen Stand."
 }

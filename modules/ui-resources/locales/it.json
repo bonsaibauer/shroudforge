@@ -1,4 +1,6 @@
 {
+  "locale.name": "Italiano",
+  "locale.flag": "it",
   "hotkeys.keyboard": "Tastiera",
   "hotkeys.mouse": "Mouse",
   "compatibility.tab.hotkeys": "Scorciatoie da tastiera",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Nessuna mod installata",
   "installed.subtitle": "Mod locali e relative impostazioni gestibili.",
   "installed.title": "Installato",
-  "locale.name": "Italiano",
-  "locale.flag": "it",
   "mod.activity.empty.text": "Le installazioni e le modifiche alle impostazioni vengono visualizzate qui.",
   "mod.activity.empty.title": "Nessuna attività mod",
   "mod.activation": "Attivazione",

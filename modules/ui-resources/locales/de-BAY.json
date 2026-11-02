@@ -1,4 +1,6 @@
 {
+  "locale.name": "Boarisch (Minga)",
+  "locale.flag": "bavaria",
   "hotkeys.keyboard": "Tastatur",
   "hotkeys.mouse": "Maus",
   "compatibility.tab.hotkeys": "Tastnkombis",
@@ -257,8 +259,6 @@
   "installed.empty.title": "Koa Mods installiert",
   "installed.subtitle": "Lokale Mods und ihre verwaltbaren Eistellunga.",
   "installed.title": "Installiert",
-  "locale.name": "Boarisch (Minga)",
-  "locale.flag": "bavaria",
   "mod.activity.empty.text": "Installationen und Einstellungsänderungen erscheinen do.",
   "mod.activity.empty.title": "Koa modbezogene Aktivität",
   "mod.activation": "Aktivierung",
@@ -782,7 +782,6 @@
   "updater.checking": "Schau nach Updates …",
   "updater.complete": "Update abgeschlossen",
   "updater.completeDetail": "ShroudForge is worn guad ganga aktualisiert.",
-  "updater.current": "Bei ShroudForge is ois aufm neuesten Stand.",
   "updater.downloading": "Update werd grad owa gladn …",
   "updater.extracting": "Update-Dateia wean vorbereitet …",
   "updater.failed": "Update schiefgangen",
@@ -848,5 +847,6 @@
   "updater.updateNow": "Etz aktualisiern",
   "updater.required": "Pflichtupdate",
   "updater.verifying": "Download werd verifiziert …",
-  "updater.waiting": "Des Update wird installiert, wenn Enshrouded aus is."
+  "updater.waiting": "Des Update wird installiert, wenn Enshrouded aus is.",
+  "updater.current": "Bei ShroudForge is ois aufm neuesten Stand."
 }
