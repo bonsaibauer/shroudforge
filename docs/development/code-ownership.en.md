@@ -274,7 +274,7 @@ Initialize the Git submodules before building. The pinned parser revision includ
 | Build the native runtime | `./dev/build/build_kfc_runtime.ps1` | Configures and builds `kfc-runtime.dll`. |
 | Build the Windows bootstrap | `./dev/build/build_windows_bootstrap.ps1` | Builds the Windows bootstrap project. |
 | Build Windows proxies | `./dev/build/build_windows_proxies.ps1` | Builds the EML-compatible proxy DLLs. |
-| Scan packaged release files with Microsoft Defender | `./dev/build/scan_release_with_defender.ps1` | Updates Defender signatures, scans release package contents, and writes machine-readable scan results. |
+| Scan packaged release files with Microsoft Defender | `./dev/build/scan_release_with_defender.ps1` | Updates Defender signatures, checks service and engine availability, retries failed scans up to three times with a 30-second delay and a Defender recovery attempt, and writes machine-readable scan results. |
 | Scan release ZIP files with the VirusTotal API | `./dev/build/scan_release_with_virustotal.sh` | Uploads each run's release ZIP, waits for the API analysis, and writes the full final Analysis response together with its machine-readable summary in one JSON report. |
 | Write per-scanner and unified release security reports | `./dev/build/write_release_security_report.py` | Normalizes scanner output and writes scanner findings, job outcomes, and unified Markdown and JSON reports. |
 | Package release security reports | `./dev/build/package_release_security_report.py` | Bundles the displayed report and all available scanner files into one release ZIP and writes its SHA-256 sidecar. |
