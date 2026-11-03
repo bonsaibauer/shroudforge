@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: shroudforge-${{ github.ref }}
-  cancel-in-progress: true
+  group: shroudforge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   security:
@@ -90,14 +90,233 @@ jobs:
         shell: bash
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ ! "$GITHUB_REF_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "The selected branch must be a version such as 1.0.0." >&2
+              exit 1
+            fi
             echo "build_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "build_release=false" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
+  native:
+    name: Build native runtime and bootstrap
     if: needs.release-check.outputs.build_release == 'true'
     needs: release-check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize native JSON dependency
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive -- modules/game-runtime/native/json
+          if ($LASTEXITCODE -ne 0) { throw 'Native dependency checkout failed.' }
+
+      - name: Build native runtime
+        shell: pwsh
+        run: .\dev\build\build_kfc_runtime.ps1 -ParallelJobs 2
+
+      - name: Build Windows bootstrap
+        shell: pwsh
+        run: .\dev\build\build_windows_bootstrap.ps1
+
+      - name: Check Windows bootstrap startup gating
+        shell: pwsh
+        run: |
+          & pwsh -NoProfile -File modules/entrypoints/windows-bootstrap/tests/run.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows bootstrap tests failed.' }
+
+      - name: Save native build outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-native-${{ github.run_id }}
+          path: |
+            build/x64/kfc-runtime.dll
+            build/x64/winmm.dll
+          if-no-files-found: error
+          retention-days: 1
+
+  proxies:
+    name: Build or restore verified proxy DLLs
+    if: needs.release-check.outputs.build_release == 'true'
+    needs: release-check
+    runs-on: windows-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize proxy source
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive -- kfc-parser
+          if ($LASTEXITCODE -ne 0) { throw 'Proxy source checkout failed.' }
+          .\dev\parser\prepare_parser.ps1
+
+      - name: Fingerprint proxy inputs
+        id: proxy-context
+        shell: pwsh
+        run: .\dev\build\get_component_cache_context.ps1 -Component proxies
+
+      - name: Restore exact proxy component cache
+        id: proxy-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v5
+        with:
+          path: build/component-cache/proxies
+          key: shroudforge-proxies-v1-${{ steps.proxy-context.outputs.key }}
+
+      - name: Verify cached proxies or build from source
+        shell: pwsh
+        run: .\dev\build\build_windows_proxies.ps1 -CargoTargetDir target/proxies -ComponentCacheDirectory build/component-cache/proxies -CacheKey "${{ steps.proxy-context.outputs.key }}"
+
+      - name: Save verified proxy component cache
+        if: steps.proxy-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: build/component-cache/proxies
+          key: shroudforge-proxies-v1-${{ steps.proxy-context.outputs.key }}
+
+      - name: Save proxy build outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-proxies-${{ github.run_id }}
+          path: |
+            build/x64/dbghelp.dll
+            build/x64/dinput8.dll
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Save proxy Cargo timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-cargo-timings-proxies-${{ github.run_id }}
+          path: target/proxies/cargo-timings/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
+  diagnostics:
+    name: Run diagnostic tests
+    if: needs.release-check.outputs.build_release == 'true'
+    needs: release-check
+    runs-on: windows-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize diagnostic build dependencies
+        shell: pwsh
+        run: |
+          # loader-config depends on hotkeys, which builds the pinned SDL source.
+          git submodule update --init --recursive -- kfc-parser modules/hotkeys/SDL
+          if ($LASTEXITCODE -ne 0) { throw 'Diagnostic dependency checkout failed.' }
+          .\dev\parser\prepare_parser.ps1
+
+      - name: Restore diagnostics dependency cache
+        uses: ./.github/actions/restore-build-caches
+        with:
+          scope: diagnostics
+          frontend: "false"
+
+      - name: Run diagnostic tests
+        shell: pwsh
+        run: .\dev\tests\run_workspace_tests.ps1 -RustOnly -TestGroup Diagnostics
+
+      - name: Save diagnostics Cargo timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-cargo-timings-diagnostics-${{ github.run_id }}
+          path: target/cargo-timings/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
+  rust:
+    name: Build frontend and Rust programs and run main tests
+    if: needs.release-check.outputs.build_release == 'true'
+    needs: release-check
+    runs-on: windows-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize Rust build dependencies
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive -- kfc-parser modules/hotkeys/SDL
+          if ($LASTEXITCODE -ne 0) { throw 'Rust dependency checkout failed.' }
+          .\dev\parser\prepare_parser.ps1
+
+      - name: Set build version from branch
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ github.ref_name }}
+        run: |
+          if ($env:BUILD_VERSION -notmatch '^\d+\.\d+\.\d+$') {
+            throw "The selected branch must be a version such as 1.0.0."
+          }
+          Set-Content -LiteralPath VERSION -Value $env:BUILD_VERSION -Encoding ascii
+
+      - name: Restore dependency caches
+        uses: ./.github/actions/restore-build-caches
+        with:
+          scope: main
+
+      - name: Fingerprint SDL build inputs
+        id: sdl-context
+        shell: pwsh
+        run: .\dev\build\get_component_cache_context.ps1 -Component sdl
+
+      - name: Restore exact SDL component cache
+        id: sdl-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v5
+        with:
+          path: build/component-cache/sdl
+          key: shroudforge-sdl-v1-${{ steps.sdl-context.outputs.key }}
+
+      - name: Build frontend and Rust programs and run main tests
+        shell: pwsh
+        run: .\dev\build\release_build.ps1 -RustOnly -SkipProxies -SkipDiagnostics -BuildNumber "${{ github.run_id }}"
+
+      - name: Save verified SDL component cache
+        if: steps.sdl-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: build/component-cache/sdl
+          key: shroudforge-sdl-v1-${{ steps.sdl-context.outputs.key }}
+
+      - name: Save Rust build outputs and SDL license
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-rust-${{ github.run_id }}
+          # Keep the repository root as the common ancestor for these paths.
+          path: |
+            build/x64/shroudforge-runtime.dll
+            build/x64/shroudforge.exe
+            build/x64/shroudforge-updater.exe
+            modules/hotkeys/SDL/LICENSE.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Save main Cargo timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-cargo-timings-main-${{ github.run_id }}
+          path: target/cargo-timings/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
+  build:
+    name: Package verified build outputs
+    needs: [native, proxies, rust, diagnostics]
     permissions:
       contents: read
     runs-on: windows-latest
@@ -105,8 +324,6 @@ jobs:
       version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          submodules: recursive
 
       - name: Set version from branch
         id: version
@@ -119,17 +336,33 @@ jobs:
           Set-Content -LiteralPath VERSION -Value $version -Encoding ascii
           "value=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Build, test and package
+      - name: Download native build outputs
+        uses: actions/download-artifact@v7
+        with:
+          name: shroudforge-native-${{ github.run_id }}
+          path: build/x64
+
+      - name: Download Rust build outputs and SDL license
+        uses: actions/download-artifact@v7
+        with:
+          name: shroudforge-rust-${{ github.run_id }}
+          path: .
+
+      - name: Download verified proxy DLLs
+        uses: actions/download-artifact@v7
+        with:
+          name: shroudforge-proxies-${{ github.run_id }}
+          path: build/x64
+
+      - name: Package verified build outputs
         shell: pwsh
-        env:
-          CROWDIN_PROJECT_ID: ${{ vars.CROWDIN_PROJECT_ID || '938941' }}
-          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
-        run: .\dev\build\release_build.ps1 -BuildNumber "${{ github.run_id }}"
+        run: .\dev\build\package_release.ps1 -BuildNumber "${{ github.run_id }}" -Version "${{ steps.version.outputs.value }}"
 
       - name: Upload release packages for malware scan
         uses: actions/upload-artifact@v7
         with:
           name: shroudforge-release-${{ github.run_id }}
+          compression-level: 0
           path: |
             build/shroudforge-*.zip
             build/shroudforge-*.zip.sha256
@@ -248,8 +481,6 @@ jobs:
     steps:
       - name: Check out release source
         uses: actions/checkout@v7
-        with:
-          submodules: recursive
 
       - name: Download release packages
         uses: actions/download-artifact@v7
@@ -257,10 +488,13 @@ jobs:
           name: shroudforge-release-${{ github.run_id }}
           path: build
 
-      - name: Expand release packages for scanning
+      - name: Install release scanning tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends unzip
+          sudo apt-get install --yes --no-install-recommends unzip clamav clamav-freshclam
+
+      - name: Expand release packages for scanning
+        run: |
           shopt -s nullglob
           archives=(build/*.zip)
           if (( ${#archives[@]} == 0 )); then
@@ -298,11 +532,9 @@ jobs:
           sarif_file: trivy-release.sarif
           category: trivy-release
 
-      - name: Install ClamAV and update signatures
+      - name: Update ClamAV signatures
         id: clamav_signatures
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends clamav clamav-freshclam
           sudo systemctl stop clamav-freshclam.service 2>/dev/null || true
           sudo freshclam 2>&1 | tee freshclam.log
 
@@ -356,7 +588,7 @@ jobs:
   security-report:
     name: Unified release security report
     if: always()
-    needs: [build, security, defender, clamav, virustotal]
+    needs: [build, native, proxies, rust, diagnostics, security, defender, clamav, virustotal]
     runs-on: ubuntu-24.04
     permissions:
       actions: read
@@ -403,7 +635,12 @@ jobs:
       - name: Write unified release security report
         if: always()
         env:
-          BUILD_JOB_RESULT: ${{ needs.build.result }}
+          BUILD_JOB_RESULT: >-
+            ${{ (needs.native.result == 'failure' || needs.proxies.result == 'failure' ||
+            needs.rust.result == 'failure' || needs.diagnostics.result == 'failure') && 'failure' ||
+            (needs.native.result == 'cancelled' || needs.proxies.result == 'cancelled' ||
+            needs.rust.result == 'cancelled' || needs.diagnostics.result == 'cancelled') && 'cancelled' ||
+            needs.build.result }}
           TRIVY_SOURCE_JOB_RESULT: ${{ needs.security.result }}
           DEFENDER_JOB_RESULT: ${{ needs.defender.result }}
           RELEASE_SCAN_JOB_RESULT: ${{ needs.clamav.result }}
@@ -433,6 +670,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: shroudforge-security-report-${{ github.run_id }}
+          compression-level: 0
           path: |
             release-assets/*.zip
             release-assets/*.zip.sha256

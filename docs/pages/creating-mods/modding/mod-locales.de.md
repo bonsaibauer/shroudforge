@@ -18,7 +18,7 @@ Der Modloader stellt die gewählte Sprache über `general.locale` ein. PR #42 er
 
 ## Dateien im Mod-Ordner
 
-Lege für jede unterstützte Sprache eine JSON-Datei mit dem unveränderten Locale-Code an. Die aktuellen Codes aus der Modloader-Sprachauswahl sind `de`, `de-AT`, `de-BAY`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` und `zh`. Der Dateiname muss exakt dem Code entsprechen, zum Beispiel `de-AT.json`.
+Lege für jede unterstützte Sprache eine JSON-Datei mit dem unveränderten Locale-Code an. Die aktuellen Codes aus der Modloader-Sprachauswahl sind `de`, `de-AT`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` und `zh`. Der Dateiname muss exakt dem Code entsprechen, zum Beispiel `de-AT.json`.
 
 ```text
 mods/your-mod/

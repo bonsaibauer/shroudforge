@@ -15,8 +15,12 @@ pub fn extract_zip(root: &Path, archive_path: &Path, target: &Path) -> Result<()
     for index in 0..archive.len() {
         crate::check_update_cancelled::check_update_cancelled(root)?;
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
+        let entry_name = entry
+            .name()
+            .map_err(|error| error.to_string())?
+            .into_owned();
         let Some(relative) = entry.enclosed_name() else {
-            return Err(format!("Unsicherer Archivpfad: {}", entry.name()));
+            return Err(format!("Unsicherer Archivpfad: {entry_name}"));
         };
         if relative.components().any(|component| {
             matches!(
@@ -24,7 +28,7 @@ pub fn extract_zip(root: &Path, archive_path: &Path, target: &Path) -> Result<()
                 Component::ParentDir | Component::RootDir | Component::Prefix(_)
             )
         }) {
-            return Err(format!("Unsicherer Archivpfad: {}", entry.name()));
+            return Err(format!("Unsicherer Archivpfad: {entry_name}"));
         }
         if entry
             .unix_mode()
@@ -32,7 +36,7 @@ pub fn extract_zip(root: &Path, archive_path: &Path, target: &Path) -> Result<()
         {
             return Err(format!(
                 "Update archive contains a disallowed symbolic link: {}",
-                entry.name()
+                entry_name
             ));
         }
         expanded = expanded.saturating_add(entry.size());

@@ -18,7 +18,7 @@ The Modloader stores the selected language in `general.locale`. PR #42 adds `shr
 
 ## Files in the mod folder
 
-Add one JSON file for each language you support, using the locale code unchanged. Current codes from the Modloader language selector are `de`, `de-AT`, `de-BAY`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv`, and `zh`. The filename must exactly match its code, for example `de-AT.json`.
+Add one JSON file for each language you support, using the locale code unchanged. Current codes from the Modloader language selector are `de`, `de-AT`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv`, and `zh`. The filename must exactly match its code, for example `de-AT.json`.
 
 ```text
 mods/your-mod/

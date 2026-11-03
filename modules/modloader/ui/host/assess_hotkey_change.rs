@@ -18,7 +18,7 @@ pub(crate) fn assess_hotkey_change(
             serde_json::json!({
                 "requestId": request_id,
                 "allowed": true,
-                "confirmation": { "scancode": key.scancode, "label": key.label },
+                "confirmation": key,
             }),
             None,
         ),

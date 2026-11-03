@@ -26,41 +26,12 @@ New to mods? Start with the illustrated guide. It explains everything in simple 
 
 The guide includes separate instructions for your PC and game server, pictures of the Modloader, a first-mod lesson, and an interactive preview for mod settings.
 
-# 🚀 ShroudForge v1.7.4 – Full Enshrouded 1.0 Support!
-
-**ShroudForge has officially completed its migration to Enshrouded 1.0!** 🎉
-
-This major release introduces **native mod support for both singleplayer and multiplayer**, including dedicated servers!
-
-## 🔥 Release Highlights
-
-- ✅ **Full Enshrouded 1.0 Migration** – Updated runtime systems and native game integration.
-- 🛠️ **Hotfix 1.0.0.3 Compatibility** – Client and dedicated server profiles updated for today's Keen Games hotfix!
-- 🌐 **Native Singleplayer & Multiplayer Modding** – Mods now work with native game integration in singleplayer and on dedicated servers.
-- 🖥️ **Dedicated Server Support** – Native ECS, resource, ItemRegistry, and service access for server build `25988414`.
-- 🏗️ **World Editor** – Capture, place, rotate, and undo blueprints, including experimental multiplayer support.
-- ⚒️ **SF Crafting Essentials** – Native crafting controls, item-use configuration, and live production scaling.
-- ⚡ **Performance Improvements** – Faster ECS lookups, optimized runtime operations, and reduced memory usage.
-- 🛡️ **Security Improvements** – Automated release scans using Microsoft Defender, ClamAV, Trivy, and VirusTotal.
-
-## 📋 Additional Changes (Click to Reveal)
-
-- 🔹 Improved multiplayer blueprint capture and placement via Steam P2P.
-- 🔹 Added client-specific operation queues and independent undo handling.
-- 🔹 Improved World Editor placement and undo for terrain, voxels, and props.
-- 🔹 Expanded Lua, Python, Rust, and runtime diagnostics.
-- 🔹 Reduced unnecessary background checks and repeated log messages.
-- 🔹 Added French and Spanish translations.
-- 🔹 Improved UI scaling, settings, notifications, and window management.
-- 🔹 Expanded modding documentation and security reporting.
-- 🔹 Improved loader stability and error recovery.
-
 <p align="center">
   <a href="https://github.com/bonsaibauer/shroudforge/releases/latest"><img src="assets\shroudforge-banner-4-release-1.0.svg" width="100%" alt="ShroudForge 10 Support"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/bonsaibauer/shroudforge/releases/latest"><img src="assets\shroudforge-banner-2-github_v1.svg" width="100%" alt="ShroudForge Download Link"></a>
+  <a href="https://github.com/bonsaibauer/shroudforge/releases/latest"><img src="assets\shroudforge-banner-2-github_v2.svg" width="100%" alt="ShroudForge Download Link"></a>
 </p>
 
 <p align="center">
@@ -68,7 +39,7 @@ This major release introduces **native mod support for both singleplayer and mul
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=V57iZcn-hfo"><img src="assets\shroudforge-banner-1-ohne-strich_v1.svg" width="100%" alt="ShroudForge on YouTube: watch the trailer"></a>
+  <a href="https://www.youtube.com/watch?v=V57iZcn-hfo"><img src="assets\shroudforge-banner-1-ohne-strich_v2.svg" width="100%" alt="ShroudForge on YouTube: watch the trailer"></a>
 </p>
 
 ![ShroudForge Modloader in Enshrouded](assets/modloader-ui-2.png)
@@ -151,20 +122,12 @@ The website's [first-mod lesson](https://bonsaibauer.github.io/shroudforge/en/#f
 
 To look up functions or Enshrouded game information, open the [searchable API reference](https://bonsaibauer.github.io/shroudforge/en/#api).
 
-## Mods included in the release
 
-The release build validates each mod's manifest, ID, Lua entry point, and Lua syntax. The table below lists the ShroudForge mods included in the release and the targets declared by each mod.
+## Contribute translations
 
-**Target support** means the package can be installed for that process. In multiplayer, the game process that handles an action determines where its effect must run. A checkmark does not by itself confirm that every gameplay effect has been verified end to end on a live server.
+Help bring ShroudForge to players worldwide by contributing translations in Fink. Submit your changes as a GitHub pull request. Read the [translation guide](modules/wiki/articles/translations/en.md) for the steps.
 
-| Icon | Mod | Description | Version | Client install | Dedicated server install | Singleplayer | Multiplayer |
-| --- | --- | --- | ---: |:---:|:---:|:---:|:---:|
-| <img src="mods/sf-survival/icon.svg" width="28" alt="SF Survival"> | **SF Survival** | Eight survival settings for health, mana, stamina, breath, body heat, durability, and fall damage. | 1.0.0 | ✅ | ✅ | ✅ | ✅* |
-| <img src="mods/sf-unlimited-flight/icon.svg" width="28" alt="SF Unlimited Flight"> | **SF Unlimited Flight** | Controls original glider stamina and movement values, including upward pitch. | 1.2.0 | ✅ | ✅ | ✅ | ✅* |
-
-\* Multiplayer support depends on installing and enabling the mod in the process that handles the relevant game action. For asset changes such as recipe data or production time, prepare both client and server before starting them. A client-side change alone does not prove that the server accepted or persisted the result.
-
-The source tree currently contains the two release mods listed above. The earlier reference and diagnostic package directories have been removed. See the [architecture guide](docs/sf/Architecture.md) for current source locations and concrete build actions.
+[![Help bring ShroudForge to players worldwide. Contribute translations in Fink and submit a pull request on GitHub.](modules/wiki/articles/translations/illustration.svg)](https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang)
 
 ## Repository structure
 

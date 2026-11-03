@@ -8,14 +8,15 @@ use serde_json::json;
 use std::{io::Read, path::Path};
 fn read_package_json(fs: &mut FileSystem, name: &str) -> Result<Value, String> {
     let reader = fs.read_file(name).map_err(|e| format!("{name}: {e}"))?;
-    serde_json::from_reader(reader).map_err(|e| format!("{name}: {e}"))
+    // Buffered: serde_json reads a bare file one byte per system call.
+    serde_json::from_reader(std::io::BufReader::new(reader)).map_err(|e| format!("{name}: {e}"))
 }
 
 pub fn read_manifest(root: &Path, fs: &mut FileSystem) -> Result<ModManifest, String> {
     let mut value = read_package_json(fs, "mod.json")?;
     let mut extended = match fs.read_file("extended.mod.json") {
         Ok(reader) => Some(
-            serde_json::from_reader(reader)
+            serde_json::from_reader(std::io::BufReader::new(reader))
                 .map_err(|error| format!("extended.mod.json: {error}"))?,
         ),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,

@@ -11,7 +11,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "enum": [1, 2]
     },
     "id": {
       "type": "string",
@@ -1152,6 +1152,44 @@
         }
       }
     },
+    "entityCommandQueueLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "taskStateOffset",
+        "taskRecordsOffset",
+        "taskCountOffset",
+        "queueRecordsOffset",
+        "queueCountOffset",
+        "taskRecordStride",
+        "entityIdCounterOffset",
+        "activeTrackingContextsOffset",
+        "bufferCapacity"
+      ],
+      "properties": {
+        "id": {"const": "ecs-entity-command-queue-v1"},
+        "taskStateOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "taskRecordsOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "taskCountOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "queueRecordsOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "queueCountOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "taskRecordStride": {"type": "integer", "minimum": 24, "maximum": 65536},
+        "entityIdCounterOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "activeTrackingContextsOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "bufferCapacity": {"type": "integer", "minimum": 160, "maximum": 4294967295}
+      }
+    },
+    "buildingPropSpawnLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceEntityIdsOffset", "allocationFailureMarkerValue"],
+      "properties": {
+        "id": {"const": "building-prop-spawn-v1"},
+        "sourceEntityIdsOffset": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "allocationFailureMarkerValue": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+      }
+    },
     "systemDependencyLayout": {
       "type": "object",
       "additionalProperties": false,
@@ -1246,11 +1284,11 @@
       "properties": {
         "rootObjectRva": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 0
         },
         "rootVtableRva": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 0
         },
         "clientPointerOffset": {
           "type": "integer",
@@ -2089,6 +2127,60 @@
     }
   ],
   "allOf": [
+    {
+      "if": {
+        "required": ["schemaVersion", "target"],
+        "properties": {"schemaVersion": {"const": 2}, "target": {"const": "enshrouded_server.exe"}}
+      },
+      "then": {
+        "properties": {"ownerLayout": {"properties": {
+          "rootObjectRva": {"const": 0}, "rootVtableRva": {"const": 0}, "clientPointerOffset": {"const": 0}
+        }}}
+      },
+      "else": {
+        "properties": {"ownerLayout": {"properties": {
+          "rootObjectRva": {"minimum": 1}, "rootVtableRva": {"minimum": 1}
+        }}}
+      }
+    },
+    {
+      "if": {
+        "required": ["schemaVersion", "ecsWriteLayout"],
+        "properties": {
+          "schemaVersion": {"const": 2},
+          "ecsWriteLayout": {"required": ["enabled"], "properties": {"enabled": {"const": true}}}
+        }
+      },
+      "then": {"required": ["entityCommandQueueLayout", "buildingPropSpawnLayout"]}
+    },
+    {
+      "if": {"required": ["buildingPropSpawnLayout"]},
+      "then": {
+        "required": ["entityCommandQueueLayout"],
+        "properties": {"schemaVersion": {"const": 2}}
+      }
+    },
+    {
+      "if": {"required": ["entityCommandQueueLayout"]},
+      "then": {
+        "required": ["ownerLayout", "ecsReadLayout", "ecsWriteLayout", "provenance"],
+        "properties": {
+          "schemaVersion": {"const": 2},
+          "kfcFormat": {"const": 4},
+          "image": {"required": ["sha256"]},
+          "ecsWriteLayout": {"properties": {"enabled": {"const": true}}},
+          "provenance": {
+            "required": ["ecsReadValidated", "ecsAuthorityReadValidated", "ecsWriteGateValidated", "ecsChangeTrackingValidated"],
+            "properties": {
+              "ecsReadValidated": {"const": true},
+              "ecsAuthorityReadValidated": {"const": true},
+              "ecsWriteGateValidated": {"const": true},
+              "ecsChangeTrackingValidated": {"const": true}
+            }
+          }
+        }
+      }
+    },
     {
       "if": {"required": ["resourceWriteLayout"]},
       "then": {

@@ -44,7 +44,12 @@ pub fn package_has_file(package: &Path, relative: &str) -> Result<bool, String> 
     }
     let file = File::open(package).map_err(|error| error.to_string())?;
     let archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
-    Ok(archive.file_names().any(|name| name == relative))
+    for name in archive.file_names() {
+        if name.map_err(|error| error.to_string())? == relative {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn write_package_json(
@@ -81,7 +86,10 @@ pub fn write_zip_entry(package: &Path, relative: &str, replacement: &[u8]) -> Re
     let mut found = false;
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
-        let name = entry.name().to_owned();
+        let name = entry
+            .name()
+            .map_err(|error| error.to_string())?
+            .into_owned();
         let is_dir = entry.is_dir();
         let mode = entry.unix_mode();
         let options = zip::write::SimpleFileOptions::default()

@@ -58,6 +58,8 @@ struct Layout {
     std::uint8_t entry_ready_state{};
     EngineContext::EcsLayout entities;
     WriteLayout write;
+    std::optional<EngineContext::EntityCommandQueueLayout> entity_command_queue_layout;
+    std::optional<EngineContext::BuildingPropSpawnLayout> building_prop_spawn_layout;
     ResourceWriteLayout resource_write;
 };
 

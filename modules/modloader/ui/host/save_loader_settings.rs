@@ -11,7 +11,7 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
         == Some(true)
         && !shroudforge_loader_config::paths::updater_available(root)
     {
-        return Err(super::report_command_result::disable_missing_updater(root));
+        return Err(super::report_command_result::missing_updater_message(root));
     }
     let base_url = settings.base_url.trim_end_matches('/');
     let project_id = settings.project_id.trim();
