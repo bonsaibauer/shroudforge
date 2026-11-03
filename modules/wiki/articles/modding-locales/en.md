@@ -4,7 +4,7 @@ Translate visible Modloader text and Lua text from the same locale files in the 
 
 ## Locale files
 
-Add one file under `locales/<code>.json` for each language. Current codes from the Modloader language selector are `de`, `de-AT`, `de-BAY`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv`, and `zh`. The filename matches its code exactly. These files sit beside `mod.json` and `extended.mod.json`.
+Add one file under `locales/<code>.json` for each language. Current codes from the Modloader language selector are `de`, `de-AT`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv`, and `zh`. The filename matches its code exactly. These files sit beside `mod.json` and `extended.mod.json`.
 
 The schema is published as [`mod-locale.schema.json`](https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json). A locale catalog can translate `mod.name` and `mod.description`, setting and option labels, groups, actions, changelog lines, and Lua `strings`. Catalogs may be partial. Entries without a translation keep their source text.
 

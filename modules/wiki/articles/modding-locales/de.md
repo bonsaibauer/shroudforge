@@ -4,7 +4,7 @@
 
 ## Locale-Dateien
 
-Lege pro Sprache eine Datei unter `locales/<code>.json` an. Aktuelle Codes aus der Modloader-Sprachauswahl sind `de`, `de-AT`, `de-BAY`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` und `zh`. Der Dateiname entspricht exakt dem Code. Die Dateien sind zusätzlich zu `mod.json` und `extended.mod.json`.
+Lege pro Sprache eine Datei unter `locales/<code>.json` an. Aktuelle Codes aus der Modloader-Sprachauswahl sind `de`, `de-AT`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` und `zh`. Der Dateiname entspricht exakt dem Code. Die Dateien sind zusätzlich zu `mod.json` und `extended.mod.json`.
 
 Das Schema steht unter [`mod-locale.schema.json`](https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json). Ein Locale-Katalog kann `mod.name` und `mod.description`, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-`strings` enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
 

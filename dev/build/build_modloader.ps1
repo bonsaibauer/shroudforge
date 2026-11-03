@@ -5,7 +5,7 @@ $output = Join-Path $root 'build/x64'
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 $cargoTargetPath = if ([IO.Path]::IsPathRooted($CargoTargetDir)) { [IO.Path]::GetFullPath($CargoTargetDir) } else { [IO.Path]::GetFullPath((Join-Path $root $CargoTargetDir)) }
 & (Join-Path $PSScriptRoot 'build_modloader_frontend.ps1') -UseInstalledDependencies:$UseInstalledDependencies -SkipUiBuild:$SkipUiBuild
-& cargo build --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace --target-dir $cargoTargetPath
+& cargo build --locked --manifest-path (Join-Path $root 'Cargo.toml') --release --workspace --target-dir $cargoTargetPath --timings
 if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace build failed.' }
 
 $runtime = Join-Path $cargoTargetPath 'release\shroudforge_modloader.dll'

@@ -235,7 +235,24 @@ void observe_character_selection() noexcept {
 
 // Published callbacks, thunks and event handles stay alive until process exit.
 // A UI thread can retain a return address even after its CALL is restored.
-HANDLE enabled_event{}, open_event{};
+HANDLE enabled_event{}, open_event{}, modloader_preload_event{};
+std::atomic<bool> modloader_preload_signaled{};
+
+bool ensure_modloader_preload_event() {
+    const auto name = std::wstring(L"Local\\ShroudForge.ModloaderUI.MainMenu.") +
+        std::to_wstring(GetCurrentProcessId());
+    if (!modloader_preload_event) {
+        modloader_preload_event = CreateEventW(nullptr, TRUE, FALSE, name.c_str());
+    }
+    return modloader_preload_event != nullptr;
+}
+
+void signal_modloader_preload_if_ready(std::uint32_t state) noexcept {
+    if (state == 1 && modloader_preload_event &&
+        !modloader_preload_signaled.exchange(true, std::memory_order_acq_rel)) {
+        SetEvent(modloader_preload_event);
+    }
+}
 
 bool enabled() noexcept {
     return enabled_event && WaitForSingleObject(enabled_event, 0) == WAIT_OBJECT_0;
@@ -293,7 +310,10 @@ void Initialize() noexcept {
         // Screen classification is independent of ECS readiness and whether
         // the optional Mods row can be installed or is currently visible.
         ResolveGameFlow(game_flow);
-        main_menu_state.store(ReadGameFlowState(game_flow), std::memory_order_release);
+        const auto initial_state = ReadGameFlowState(game_flow);
+        main_menu_state.store(initial_state, std::memory_order_release);
+        ensure_modloader_preload_event();
+        signal_modloader_preload_if_ready(initial_state);
         if (!installed.empty()) {
             state = "unavailable"; reason = "previous-menu-calls-could-not-be-restored"; return;
         }
@@ -379,7 +399,9 @@ void Initialize() noexcept {
 void Tick() noexcept {
     try {
         std::lock_guard lock(lifecycle_mutex);
-        main_menu_state.store(ReadGameFlowState(game_flow), std::memory_order_release);
+        const auto state = ReadGameFlowState(game_flow);
+        main_menu_state.store(state, std::memory_order_release);
+        signal_modloader_preload_if_ready(state);
     } catch (...) { main_menu_state.store(0, std::memory_order_release); }
 }
 

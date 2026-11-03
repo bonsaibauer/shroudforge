@@ -16,6 +16,11 @@ tracing = "0.1"
 [build-dependencies]
 cc = "1.2"
 cmake = "0.1.58"
+serde_json.workspace = true
+sha2 = "0.10"
+
+[dev-dependencies]
+sha2 = "0.10"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [

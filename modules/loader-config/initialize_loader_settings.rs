@@ -30,9 +30,6 @@ pub fn initialize_loader_config(root: &Path) -> Result<(), String> {
             };
             config["paths"][key] = Value::String(resolved.to_string_lossy().into_owned());
         }
-        if !crate::paths::updater_available(&root) {
-            config["modules"]["updates"]["enabled"] = Value::Bool(false);
-        }
         Ok(())
     })
 }
