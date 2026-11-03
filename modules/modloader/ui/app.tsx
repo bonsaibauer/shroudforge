@@ -88,8 +88,9 @@ export function App() {
   const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
   const profileDiscovery = data.configuration?.gameProfileDiscovery
   const profileSearching = profileDiscovery?.state === 'searching'
-  const showRuntimeBlocker = runtimeCheck?.state === 'warning' && !profileSearching && !runtimeBlockerDismissed
-  const showProfileDiscovery = profileSearching || (profileDiscovery?.state === 'beta-active' && !runtimeCheck?.code)
+  const showRuntimeBlocker = runtimeCheck?.state === 'warning' && !runtimeBlockerDismissed
+  const showProfileDiscovery = runtimeCheck?.state !== 'warning' &&
+    (profileSearching || (profileDiscovery?.state === 'beta-active' && !runtimeCheck?.code))
   const navigate = (next: PageId) => {
     setSelectedMod(null)
     setSelectedWikiArticle(null)
