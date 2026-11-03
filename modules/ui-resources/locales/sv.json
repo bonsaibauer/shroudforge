@@ -605,6 +605,9 @@
   "settings.modules.modloaderUi.description": "Hantera fönster och kortkommandon. Inställningar sparas omedelbart.",
   "settings.modules.runtimeDiagnostics.title": "Runtime-diagnostik",
   "settings.modules.runtimeDiagnostics.description": "Diagnostiska sessioner är av som standard. Förändringar gäller inom 500 ms. Den registrerar runtime och världsstat, inte kompatibilitetsdata.",
+  "settings.modules.gameProfileDiscovery.title": "Dynamiskt skapande av spelprofiler (Beta)",
+  "settings.modules.gameProfileDiscovery.description": "Kontrollera den senaste motsvarande klient- eller serverversionen för en okänd spelversion och skapa en beta_-profil om kontrollerna godkänns. Vanliga profiler har företräde.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Börjar gälla när spelet har startats om.",
   "settings.modules.updates.title": "Uppdateringar",
   "settings.modules.updates.description": "Hantera system och mod uppdateringar på ett ställe.",
   "settings.modules.updates.auto": "Kontrollera uppdateringar automatiskt",
@@ -841,5 +844,15 @@
   "updater.required": "Krävd uppdatering",
   "updater.verifying": "Verifiera nedladdning..",
   "updater.waiting": "Uppdateringen installeras efter Enshrouded stängs.",
-  "updater.current": "ShroudForge är uppdaterad."
+  "updater.current": "ShroudForge är uppdaterad.",
+  "runtime.blocker.title": "Dina moddar fungerar inte just nu",
+  "runtime.blocker.profileUnavailable": "ShroudForge kan ännu inte bekräfta stöd för den här versionen av Enshrouded. Spelet kan nyligen ha uppdaterats. Sök efter en ShroudForge-uppdatering. Tills dess fungerar inte moddar som ändrar spelet.",
+  "runtime.blocker.profileSelectionInvalid": "Den valda Enshrouded-inställningen i ShroudForge hittades inte. Välj Automatiskt i ShroudForges inställningar.",
+  "runtime.blocker.profileError": "ShroudForge kunde inte läsa informationen för den valda Enshrouded-versionen. Öppna Detaljer för att läsa mer.",
+  "runtime.blocker.providerUnavailable": "En nödvändig del av ShroudForge kunde inte starta. Starta om Enshrouded. Uppdatera eller reparera ShroudForge om meddelandet finns kvar.",
+  "runtime.blocker.runtimeNotReady": "ShroudForge kunde ännu inte ansluta till Enshrouded. Dina moddar kanske inte fungerar. Öppna Detaljer om meddelandet finns kvar.",
+  "runtime.blocker.generic": "ShroudForge fungerar inte som det ska med Enshrouded just nu. Dina moddar kanske inte fungerar. Öppna Detaljer för att läsa mer.",
+  "runtime.blocker.checkUpdates": "Sök efter ShroudForge-uppdateringar",
+  "runtime.blocker.updateTo": "Uppdatera ShroudForge till {version}",
+  "runtime.blocker.reportVersion": "Rapportera Enshrouded-versionen"
 }

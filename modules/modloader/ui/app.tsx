@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { I18nProvider, useI18n } from '../../ui-resources/i18n'
 import { PageId, Snapshot, empty } from './ui-snapshot'
 import type { NoticeAction } from '../../notifications/ui/notification-types'
+import type { RuntimeProblemCode } from './ui-snapshot'
 import { Chirper } from '../../notifications/ui/show-notice-popup'
 import { useNotifications } from '../../notifications/ui/read-notifications'
 import { Toasts, useCommandToasts } from '../../notifications/ui/show-toasts'
@@ -15,9 +16,30 @@ import { TopBar } from './show-top-bar'
 import { Page } from './show-page'
 import { UiErrorBoundary } from './show-ui-error'
 import { compatibilityNavigationStatus } from './show-compatibility'
+import type { CompatibilityTab } from './show-compatibility'
 import { PageZoomProvider } from '../../ui-resources/show-page-header'
+import { FeatureBanner } from '../../ui-resources/show-feature-banner'
+import { Icon } from '../../ui-resources/show-icon'
+import type { TranslationKey } from '../../ui-resources/i18n'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
+
+function runtimeProblemMessage(code: RuntimeProblemCode | undefined): TranslationKey {
+  switch (code) {
+    case 'profile-unavailable':
+      return 'runtime.blocker.profileUnavailable'
+    case 'profile-selection-invalid':
+      return 'runtime.blocker.profileSelectionInvalid'
+    case 'profile-error':
+      return 'runtime.blocker.profileError'
+    case 'provider-unavailable':
+      return 'runtime.blocker.providerUnavailable'
+    case 'runtime-not-ready':
+      return 'runtime.blocker.runtimeNotReady'
+    default:
+      return 'runtime.blocker.generic'
+  }
+}
 
 export function App() {
   const { t, setLocale } = useI18n()
@@ -25,6 +47,8 @@ export function App() {
   const [page, setPage] = useState<PageId>('news')
   const [selectedMod, setSelectedMod] = useState<string | null>(null)
   const [selectedWikiArticle, setSelectedWikiArticle] = useState<string | null>(null)
+  const [compatibilityTab, setCompatibilityTab] = useState<CompatibilityTab>('mod-detection')
+  const [runtimeBlockerDismissed, setRuntimeBlockerDismissed] = useState(false)
   const [chirper, setChirper] = useState(false)
   const [settings, setSettings] = useState<Settings>(empty.settings)
   const [read, setRead] = useState<string[]>([])
@@ -61,6 +85,8 @@ export function App() {
     markRead,
   } = useNotifications(newsSource, settings, read, setRead)
   const activeMod = data.mods.find((mod) => mod.id === selectedMod)
+  const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
+  const showRuntimeBlocker = runtimeCheck?.state === 'warning' && !runtimeBlockerDismissed
   const navigate = (next: PageId) => {
     setSelectedMod(null)
     setSelectedWikiArticle(null)
@@ -70,6 +96,12 @@ export function App() {
     setSelectedMod(null)
     setSelectedWikiArticle(articleId)
     setPage('wiki')
+  }
+  const openCompatibility = (tab: CompatibilityTab) => {
+    setSelectedMod(null)
+    setSelectedWikiArticle(null)
+    setCompatibilityTab(tab)
+    setPage('compatibility')
   }
   const savePageZoom = (zoomPercent: number) => {
     setSettings((current) => ({ ...current, zoomPercent }))
@@ -138,7 +170,7 @@ export function App() {
                 label={t('nav.compatibility')}
                 status={compatibilityNavigationStatus(data)}
                 active={!activeMod && page === 'compatibility'}
-                onClick={() => navigate('compatibility')}
+                onClick={() => openCompatibility('mod-detection')}
               />
               <Nav
                 icon="settings"
@@ -197,6 +229,52 @@ export function App() {
             </NavGroup>
           </aside>
           <section className="content">
+            {showRuntimeBlocker && (
+              <FeatureBanner
+                variant="error"
+                brand="ShroudForge"
+                title={t('runtime.blocker.title')}
+                titleId="runtime-blocker-title"
+                description={t(runtimeProblemMessage(runtimeCheck?.code))}
+                media={<Icon name="warning" />}
+                badge={t('compatibility.status.error')}
+                role="alert"
+              >
+                <div className="feature-banner-actions runtime-blocker-actions">
+                  <button
+                    className="button ghost"
+                    onClick={() => openCompatibility('engine')}
+                  >
+                    {t('common.details')}
+                  </button>
+                  <button className="button ghost" onClick={() => navigate('updates')}>
+                    {data.release.updateAvailable && data.release.latestVersion
+                      ? t('runtime.blocker.updateTo', {
+                          version: data.release.latestVersion,
+                        })
+                      : t('runtime.blocker.checkUpdates')}
+                  </button>
+                  <button
+                    className="button ghost"
+                    onClick={() =>
+                      postRequest('open-url', {
+                        url: 'https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml',
+                      })
+                    }
+                  >
+                    {t('runtime.blocker.reportVersion')}
+                  </button>
+                  <button
+                    className="button ghost runtime-blocker-dismiss"
+                    aria-label={t('common.dismiss')}
+                    title={t('common.dismiss')}
+                    onClick={() => setRuntimeBlockerDismissed(true)}
+                  >
+                    ×
+                  </button>
+                </div>
+              </FeatureBanner>
+            )}
             {activeMod ? (
               <ModPage
                 key={activeMod.id}
@@ -221,6 +299,8 @@ export function App() {
                 openNews={() => navigate('news')}
                 selectMod={setSelectedMod}
                 onUpdaterCommand={postRequest}
+                compatibilityTab={compatibilityTab}
+                setCompatibilityTab={setCompatibilityTab}
               />
             )}
           </section>
