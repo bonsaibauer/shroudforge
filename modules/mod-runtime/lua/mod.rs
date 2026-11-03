@@ -27,6 +27,7 @@ pub(crate) mod shroudforge {
         mod create_mod_api;
         mod dispatch_mod_ui_actions;
         mod read_game_content;
+        mod read_monotonic_clock;
         pub(crate) mod read_runtime_operations;
         mod read_ui_locale;
         mod set_mod_settings;

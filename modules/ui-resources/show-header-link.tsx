@@ -56,7 +56,7 @@ export function HeaderLink({
 
 export const linkAssetIcons = Object.fromEntries(
   Object.entries(
-    import.meta.glob('../modloader/ui/links/assets/*.svg', {
+    import.meta.glob('../modloader/ui/links/*.svg', {
       eager: true,
       import: 'default',
       query: '?url',

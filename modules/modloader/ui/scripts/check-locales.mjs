@@ -39,7 +39,7 @@ for (const [locale, messages] of Object.entries(catalogs)) {
     if (JSON.stringify(placeholders(source[key])) !== JSON.stringify(placeholders(messages[key] ?? ''))) failures.push(`${locale}: placeholder mismatch: ${key}`)
   }
   for (const key of metadataKeys) {
-    if (!messages[key]?.trim()) failures.push(`${locale}: missing Crowdin locale metadata: ${key}`)
+    if (!messages[key]?.trim()) failures.push(`${locale}: missing locale metadata: ${key}`)
   }
   if (!/^(?:[a-z]{2}|bavaria)$/i.test(messages['locale.flag'] ?? '')) failures.push(`${locale}: locale.flag must be a two-letter country code or a supported custom flag`)
 }

@@ -3871,6 +3871,7 @@ dependencies = [
  "cmake",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tracing",
  "windows-sys 0.61.2",
 ]
@@ -4047,6 +4048,7 @@ name = "shroudforge-ui-resources"
 version = "1.0.0"
 dependencies = [
  "image",
+ "wry",
 ]
 
 [[package]]
