@@ -86,7 +86,10 @@ export function App() {
   } = useNotifications(newsSource, settings, read, setRead)
   const activeMod = data.mods.find((mod) => mod.id === selectedMod)
   const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
-  const showRuntimeBlocker = runtimeCheck?.state === 'warning' && !runtimeBlockerDismissed
+  const profileDiscovery = data.configuration?.gameProfileDiscovery
+  const profileSearching = profileDiscovery?.state === 'searching'
+  const showRuntimeBlocker = runtimeCheck?.state === 'warning' && !profileSearching && !runtimeBlockerDismissed
+  const showProfileDiscovery = profileSearching || (profileDiscovery?.state === 'beta-active' && !runtimeCheck?.code)
   const navigate = (next: PageId) => {
     setSelectedMod(null)
     setSelectedWikiArticle(null)
@@ -229,6 +232,29 @@ export function App() {
             </NavGroup>
           </aside>
           <section className="content">
+            {showProfileDiscovery && (
+              <FeatureBanner
+                variant="warning"
+                brand="ShroudForge"
+                title={t(profileSearching ? 'runtime.profileDiscovery.searchingTitle' : 'runtime.profileDiscovery.betaTitle')}
+                titleId="runtime-profile-discovery-title"
+                description={profileSearching
+                  ? t('runtime.profileDiscovery.searchingDescription')
+                  : t('runtime.profileDiscovery.betaDescription', { profile: profileDiscovery?.profileId || '' })}
+                media={<Icon name="warning" />}
+                badge={t('compatibility.status.warning')}
+                role="status"
+              >
+                <div className="feature-banner-actions">
+                  <button className="button ghost" onClick={() => openWikiArticle('game-profile-discovery')}>
+                    {t('runtime.profileDiscovery.openGuide')}
+                  </button>
+                  <button className="button ghost" onClick={() => navigate('settings')}>
+                    {t('nav.settings')}
+                  </button>
+                </div>
+              </FeatureBanner>
+            )}
             {showRuntimeBlocker && (
               <FeatureBanner
                 variant="error"

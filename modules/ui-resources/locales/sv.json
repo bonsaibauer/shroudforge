@@ -607,7 +607,7 @@
   "settings.modules.runtimeDiagnostics.description": "Diagnostiska sessioner är av som standard. Förändringar gäller inom 500 ms. Den registrerar runtime och världsstat, inte kompatibilitetsdata.",
   "settings.modules.gameProfileDiscovery.title": "Dynamiskt skapande av spelprofiler (Beta)",
   "settings.modules.gameProfileDiscovery.description": "Kontrollera den senaste motsvarande klient- eller serverversionen för en okänd spelversion och skapa en beta_-profil om kontrollerna godkänns. Vanliga profiler har företräde.",
-  "settings.modules.gameProfileDiscovery.restartHint": "Börjar gälla när spelet har startats om.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Börjar gälla när spelet har startats om. Starta en version som stöds med den här modulen aktiverad före nästa speluppdatering så att jämförelseunderlaget sparas.",
   "settings.modules.updates.title": "Uppdateringar",
   "settings.modules.updates.description": "Hantera system och mod uppdateringar på ett ställe.",
   "settings.modules.updates.auto": "Kontrollera uppdateringar automatiskt",
@@ -854,5 +854,10 @@
   "runtime.blocker.generic": "ShroudForge fungerar inte som det ska med Enshrouded just nu. Dina moddar kanske inte fungerar. Öppna Detaljer för att läsa mer.",
   "runtime.blocker.checkUpdates": "Sök efter ShroudForge-uppdateringar",
   "runtime.blocker.updateTo": "Uppdatera ShroudForge till {version}",
-  "runtime.blocker.reportVersion": "Rapportera Enshrouded-versionen"
+  "runtime.blocker.reportVersion": "Rapportera Enshrouded-versionen",
+  "runtime.profileDiscovery.searchingTitle": "Dynamisk profilsökning pågår",
+  "runtime.profileDiscovery.searchingDescription": "Det finns ingen vanlig profil för den här spelversionen. ShroudForge kontrollerar det sparade jämförelseunderlaget. Vänta på resultatet. Spelvärldens funktioner blir redo först när en värld har lästs in.",
+  "runtime.profileDiscovery.betaTitle": "Experimentell spelprofil är aktiv",
+  "runtime.profileDiscovery.betaDescription": "Aktiv profil: {profile}. Den här profilen skapades dynamiskt. Kontrollerna under körning är fortfarande aktiva.",
+  "runtime.profileDiscovery.openGuide": "Förlopp och hjälp"
 }

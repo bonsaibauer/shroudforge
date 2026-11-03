@@ -881,6 +881,15 @@
           },
           "additionalProperties": false
         },
+        "gameProfileDiscovery": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
         "updates": {
           "type": "object",
           "properties": {

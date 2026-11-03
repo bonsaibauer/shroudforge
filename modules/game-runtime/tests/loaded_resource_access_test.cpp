@@ -39,6 +39,7 @@ BOOL WINAPI counted_virtual_protect(LPVOID address, SIZE_T size, DWORD protectio
 #define ReadProcessMemory counted_read_process_memory
 #define VirtualProtect counted_virtual_protect
 #include "loaded-resources/initialize_resource_access.cpp"
+#include "profiles/read_installed_profiles.h"
 #include "loaded-resources/parse_resource_layout.cpp"
 #include "loaded-resources/resolve_loaded_resource.cpp"
 #include "loaded-resources/find_loaded_resources_by_type.cpp"
@@ -51,6 +52,7 @@ BOOL WINAPI counted_virtual_protect(LPVOID address, SIZE_T size, DWORD protectio
 #undef VirtualProtect
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 
 // This isolated fixture admits one explicitly configured read session. It does
 // not admit writes. The ECS fixture separately links the real SessionGuard.
@@ -140,6 +142,103 @@ std::int32_t relative(const void* field, const void* target) {
 
 int main() {
     namespace Profile = KfcRuntimeCompatibility::EnshroudedClient;
+    // Profiles have one external catalog. A different image, process target,
+    // format or approval class never supplies an execution fallback.
+    const json selection_image{{"target", "enshrouded.exe"}, {"sha256", std::string(64, 'a')},
+        {"timestamp", 42}, {"size", 65536}};
+    json selection_profile{{"schemaVersion", 2}, {"id", "enshrouded-client-fixture"},
+        {"target", "enshrouded.exe"}, {"kfcFormat", 4},
+        {"image", {{"sha256", std::string(64, 'a')}, {"timestamp", 42}, {"size", 65536}}},
+        {"provenance", {{"status", "read-validated"}, {"resourceReadValidated", true}}}};
+    const auto select = [&](const std::vector<json>& profiles, unsigned format = 4) {
+        return select_resource_profile(selection_image, format, profiles);
+    };
+    auto selected = select({selection_profile});
+    check(selected.profile == selection_profile && selected.error.empty());
+    check(selected.diagnostics["source"] == "installed" && selected.diagnostics["exactMatches"] == 1);
+    selected = select({});
+    check(selected.profile.is_null() && selected.error == "no-exact-resource-read-profile");
+    selected = select({selection_profile, selection_profile});
+    check(selected.profile.is_null() && selected.error == "ambiguous-exact-resource-read-profile");
+    auto beta_profile = selection_profile;
+    beta_profile["id"] = "beta_enshrouded-client-fixture";
+    selected = select({beta_profile, selection_profile});
+    check(selected.profile == selection_profile && selected.diagnostics["beta"] == false);
+    selected = select({selection_profile, beta_profile});
+    check(selected.profile == selection_profile && selected.diagnostics["normalExactMatches"] == 1);
+    selected = select({beta_profile});
+    check(selected.profile == beta_profile && selected.diagnostics["beta"] == true);
+    check(select({beta_profile, beta_profile}).error == "ambiguous-exact-resource-read-profile");
+    check(select({selection_profile, selection_profile, beta_profile}).error == "ambiguous-exact-resource-read-profile");
+    for (const auto key : {"sha256", "timestamp", "size"}) {
+        auto mismatch = selection_profile;
+        mismatch["image"][key] = key == std::string("sha256") ? json(std::string(64, 'b')) : json(13);
+        selected = select({mismatch});
+        check(selected.profile.is_null() && selected.error == "no-exact-resource-read-profile");
+        selected = select({mismatch, selection_profile});
+        check(selected.profile == selection_profile && selected.diagnostics["source"] == "installed");
+    }
+    for (unsigned mismatch_kind = 0; mismatch_kind != 4; ++mismatch_kind) {
+        auto mismatch = selection_profile;
+        if (mismatch_kind == 0) mismatch["target"] = "enshrouded_server.exe";
+        if (mismatch_kind == 1) mismatch["kfcFormat"] = 3;
+        if (mismatch_kind == 2) mismatch["provenance"]["status"] = "draft-requires-live-review";
+        if (mismatch_kind == 3) mismatch["provenance"]["resourceReadValidated"] = false;
+        check(select({mismatch}).profile.is_null());
+    }
+    check(select({selection_profile}, 3).profile.is_null());
+    auto missing_hash_image = selection_image;
+    missing_hash_image["sha256"] = "";
+    auto missing_hash_profile = selection_profile;
+    missing_hash_profile["image"]["sha256"] = "";
+    check(select_resource_profile(missing_hash_image, 4, {missing_hash_profile}).profile.is_null());
+
+    // Both profile readers honor the same configured directory and exclude the
+    // native-mod adapter catalog. All test files live in a unique temporary root.
+    const auto catalog_root = std::filesystem::temp_directory_path() /
+        ("shroudforge-profile-catalog-" + std::to_string(GetCurrentProcessId()) + "-" + std::to_string(GetTickCount64()));
+    check(KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe")
+        .discovery["enabled"] == true);
+    const auto configured_profiles = catalog_root / "custom-runtime" / "profiles";
+    std::filesystem::create_directories(configured_profiles / "client");
+    std::filesystem::create_directories(configured_profiles / "mod-profiles");
+    std::filesystem::create_directories(catalog_root / "shroudforge" / "config");
+    std::ofstream(catalog_root / "shroudforge" / "config" / "modloader-config.json") <<
+        R"({"paths":{"runtime":"custom-runtime"},"runtime":{"profileId":"manual-fixture"},"modules":{"gameProfileDiscovery":{"enabled":false}}})";
+    std::ofstream(configured_profiles / "client" / "current.json") << selection_profile.dump();
+    std::ofstream(configured_profiles / "mod-profiles" / "adapter.json") << selection_profile.dump();
+    std::ofstream(configured_profiles / "broken.json") << "{";
+    auto other_target = selection_profile;
+    other_target["target"] = "enshrouded_server.exe";
+    std::ofstream(configured_profiles / "server.json") << other_target.dump();
+    const auto installed = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
+    check(installed.directory == configured_profiles && installed.requested_id == "manual-fixture");
+    check(installed.profiles.size() == 1 && installed.profiles[0] == selection_profile);
+    check(installed.errors.size() == 1);
+    std::ofstream(configured_profiles / "client" / "beta_fixture.json") << beta_profile.dump();
+    auto discovery_catalog = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
+    check(discovery_catalog.profiles.size() == 1 && discovery_catalog.discovery["enabled"] == false);
+    std::ofstream(catalog_root / "shroudforge" / "config" / "modloader-config.json") <<
+        R"({"paths":{"runtime":"custom-runtime"},"modules":{"gameProfileDiscovery":{"enabled":true}}})";
+    discovery_catalog = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
+    check(discovery_catalog.profiles.size() == 1 && discovery_catalog.discovery["enabled"] == true);
+    check(discovery_catalog.profiles[0] == selection_profile);
+    std::ofstream(configured_profiles / "client" / "beta_mislabeled.json") << selection_profile.dump();
+    discovery_catalog = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
+    check(discovery_catalog.profiles.size() == 1 && discovery_catalog.errors.size() == 2);
+    // Configuration is UTF-8 even when the native Windows code page cannot
+    // represent an installation or Proton-mounted directory name.
+    const auto unicode_profiles = catalog_root / L"runtime-\u00e4-\u4e16\u754c" / "profiles";
+    std::filesystem::create_directories(unicode_profiles);
+    std::ofstream(unicode_profiles / "current.json") << selection_profile.dump();
+    std::ofstream(catalog_root / "shroudforge" / "config" / "modloader-config.json") <<
+        R"({"paths":{"runtime":"runtime-\u00e4-\u4e16\u754c"}})";
+    discovery_catalog = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
+    check(discovery_catalog.directory == unicode_profiles);
+    check(discovery_catalog.discovery["enabled"] == true);
+    check(discovery_catalog.profiles.size() == 1 && discovery_catalog.profiles[0] == selection_profile);
+    std::filesystem::remove_all(catalog_root);
+
     const auto image = address(GetModuleHandleW(nullptr));
     const auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(image);
     const auto nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(image + dos->e_lfanew);
@@ -232,6 +331,7 @@ int main() {
     check(registry_is_bound(layout, view));
     check(ResourceRuntime::Ready());
     check(json::parse(ResourceRuntime::Status())["available"] == true);
+    check(json::parse(ResourceRuntime::Status())["profileId"] == "private-fixture");
     std::size_t count{};
     check(ResourceRuntime::ResourcesByType(metadata.key.id.type_hash, nullptr, 0, &count) && count == 1);
     KfcRuntimeResourceId listed{};

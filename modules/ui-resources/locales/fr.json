@@ -607,7 +607,7 @@
   "settings.modules.runtimeDiagnostics.description": "Les diagnostics sont désactivés par défaut. Les changements prennent effet en moins de 500 ms. Les données enregistrées concernent l’état du runtime et du monde, pas la compatibilité.",
   "settings.modules.gameProfileDiscovery.title": "Création dynamique de profils de jeu (Bêta)",
   "settings.modules.gameProfileDiscovery.description": "Pour une version inconnue du jeu, vérifier la dernière version correspondante du client ou du serveur et créer un profil beta_ si les vérifications réussissent. Les profils habituels sont prioritaires.",
-  "settings.modules.gameProfileDiscovery.restartHint": "Prend effet après le redémarrage du jeu.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Prend effet après le redémarrage du jeu. Lancez une version prise en charge avec ce module activé avant la prochaine mise à jour du jeu pour enregistrer la base de comparaison.",
   "settings.modules.updates.title": "Mises à jour",
   "settings.modules.updates.description": "Gère les mises à jour du système et des mods au même endroit.",
   "settings.modules.updates.auto": "Rechercher automatiquement les mises à jour",
@@ -854,5 +854,10 @@
   "runtime.blocker.generic": "ShroudForge ne fonctionne pas correctement avec Enshrouded pour le moment. Vos mods risquent de ne pas fonctionner. Ouvrez Détails pour en savoir plus.",
   "runtime.blocker.checkUpdates": "Rechercher des mises à jour de ShroudForge",
   "runtime.blocker.updateTo": "Mettre ShroudForge à jour vers {version}",
-  "runtime.blocker.reportVersion": "Signaler la version d’Enshrouded"
+  "runtime.blocker.reportVersion": "Signaler la version d’Enshrouded",
+  "runtime.profileDiscovery.searchingTitle": "Recherche dynamique de profil en cours",
+  "runtime.profileDiscovery.searchingDescription": "Aucun profil standard n’est disponible pour cette version du jeu. ShroudForge vérifie la base de comparaison enregistrée. Attendez le résultat. Les fonctions liées au monde ne seront prêtes qu’une fois un monde chargé.",
+  "runtime.profileDiscovery.betaTitle": "Profil de jeu expérimental actif",
+  "runtime.profileDiscovery.betaDescription": "Profil actif : {profile}. Ce profil a été créé dynamiquement. Les vérifications à l’exécution restent actives.",
+  "runtime.profileDiscovery.openGuide": "Fonctionnement et aide"
 }

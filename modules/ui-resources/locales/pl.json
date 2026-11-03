@@ -607,7 +607,7 @@
   "settings.modules.runtimeDiagnostics.description": "Sesje diagnostyczne są domyślnie wyłączone. Zmiany obowiązują w ciągu 500 ms. Rejestruje czas biegania i stan światowy, a nie dane o kompatybilności.",
   "settings.modules.gameProfileDiscovery.title": "Dynamiczne tworzenie profili gry (Beta)",
   "settings.modules.gameProfileDiscovery.description": "Dla nieznanej wersji gry sprawdź ostatnią pasującą wersję klienta lub serwera i utwórz profil beta_, jeśli weryfikacja się powiedzie. Zwykłe profile mają pierwszeństwo.",
-  "settings.modules.gameProfileDiscovery.restartHint": "Zmiany zaczną działać po ponownym uruchomieniu gry.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Zmiany zaczną działać po ponownym uruchomieniu gry. Przed następną aktualizacją uruchom obsługiwaną wersję z włączonym modułem, aby zapisać punkt odniesienia do porównania.",
   "settings.modules.updates.title": "Aktualizacje",
   "settings.modules.updates.description": "Zarządzanie systemem i aktualizacji mod w jednym miejscu.",
   "settings.modules.updates.auto": "Automatyczne sprawdzanie aktualizacji",
@@ -854,5 +854,10 @@
   "runtime.blocker.generic": "ShroudForge nie działa teraz prawidłowo z Enshrouded. Twoje mody mogą nie działać. Otwórz Szczegóły, aby dowiedzieć się więcej.",
   "runtime.blocker.checkUpdates": "Sprawdź aktualizacje ShroudForge",
   "runtime.blocker.updateTo": "Zaktualizuj ShroudForge do wersji {version}",
-  "runtime.blocker.reportVersion": "Zgłoś wersję Enshrouded"
+  "runtime.blocker.reportVersion": "Zgłoś wersję Enshrouded",
+  "runtime.profileDiscovery.searchingTitle": "Trwa dynamiczne wyszukiwanie profilu",
+  "runtime.profileDiscovery.searchingDescription": "Brak standardowego profilu dla tej wersji gry. ShroudForge sprawdza zapisaną podstawę porównania. Poczekaj na wynik. Funkcje świata gry będą gotowe dopiero po wczytaniu świata.",
+  "runtime.profileDiscovery.betaTitle": "Eksperymentalny profil gry jest aktywny",
+  "runtime.profileDiscovery.betaDescription": "Aktywny profil: {profile}. Ten profil utworzono dynamicznie. Kontrole podczas działania pozostają aktywne.",
+  "runtime.profileDiscovery.openGuide": "Przebieg i pomoc"
 }

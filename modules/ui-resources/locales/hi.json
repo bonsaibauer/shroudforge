@@ -607,7 +607,7 @@
   "settings.modules.runtimeDiagnostics.description": "नैदानिक सत्र डिफ़ॉल्ट रूप से बंद हैं। परिवर्तन 500 ms के भीतर लागू होते हैं। यह रनटाइम और वर्ल्ड स्टेट रिकॉर्ड करता है, संगतता डेटा नहीं।.",
   "settings.modules.gameProfileDiscovery.title": "डायनेमिक गेम प्रोफ़ाइल बनाना (बीटा)",
   "settings.modules.gameProfileDiscovery.description": "अज्ञात गेम बिल्ड के लिए उसी प्रकार के नवीनतम क्लाइंट या सर्वर बिल्ड की जाँच करें और सफल होने पर beta_ प्रोफ़ाइल बनाएँ। सामान्य प्रोफ़ाइल को प्राथमिकता मिलती है।",
-  "settings.modules.gameProfileDiscovery.restartHint": "गेम फिर से शुरू करने के बाद लागू होता है।",
+  "settings.modules.gameProfileDiscovery.restartHint": "गेम फिर से शुरू करने के बाद लागू होता है। अगला गेम अपडेट आने से पहले इस मॉड्यूल को सक्षम करके कोई समर्थित बिल्ड शुरू करें, ताकि तुलना का आधार सहेजा जा सके।",
   "settings.modules.updates.title": "अपडेट",
   "settings.modules.updates.description": "एक स्थान पर सिस्टम और मॉड अपडेट प्रबंधित करें।.",
   "settings.modules.updates.auto": "स्वचालित रूप से अद्यतन की जाँच करें",
@@ -854,5 +854,10 @@
   "runtime.blocker.generic": "ShroudForge अभी Enshrouded के साथ ठीक से काम नहीं कर रहा है। आपके mods काम नहीं कर सकते। अधिक जानने के लिए Details खोलें।",
   "runtime.blocker.checkUpdates": "ShroudForge के अपडेट देखें",
   "runtime.blocker.updateTo": "ShroudForge को {version} पर अपडेट करें",
-  "runtime.blocker.reportVersion": "Enshrouded संस्करण की रिपोर्ट करें"
+  "runtime.blocker.reportVersion": "Enshrouded संस्करण की रिपोर्ट करें",
+  "runtime.profileDiscovery.searchingTitle": "डायनेमिक प्रोफ़ाइल खोज जारी है",
+  "runtime.profileDiscovery.searchingDescription": "गेम के इस संस्करण के लिए कोई नियमित प्रोफ़ाइल उपलब्ध नहीं है। ShroudForge सहेजे गए तुलना आधार की जाँच कर रहा है। परिणाम की प्रतीक्षा करें। गेम की दुनिया से जुड़ी सुविधाएँ दुनिया लोड होने के बाद ही तैयार होती हैं।",
+  "runtime.profileDiscovery.betaTitle": "प्रयोगात्मक गेम प्रोफ़ाइल सक्रिय है",
+  "runtime.profileDiscovery.betaDescription": "सक्रिय प्रोफ़ाइल: {profile}। यह प्रोफ़ाइल डायनेमिक रूप से बनाई गई थी। रनटाइम जाँचें सक्रिय रहती हैं।",
+  "runtime.profileDiscovery.openGuide": "प्रक्रिया और सहायता"
 }

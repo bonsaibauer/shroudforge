@@ -1,9 +1,70 @@
 use serde_json::{Value, json};
-use std::{fs, path::Path};
+use std::{fs, io::Read, path::Path};
+
+fn profile_discovery_notice(
+    root: &Path,
+    pid: Option<u32>,
+    provider: Option<&Value>,
+    now: u64,
+) -> Option<Value> {
+    let pid = pid?;
+    let path = shroudforge_loader_config::paths::cache_dir(root)
+        .join("game-profile-discovery")
+        .join(format!("status-{pid}.json"));
+    let progress = (|| {
+        let mut bytes = Vec::new();
+        fs::File::open(path)
+            .ok()?
+            .take(16 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        if bytes.len() > 16 * 1024 {
+            return None;
+        }
+        serde_json::from_slice::<Value>(&bytes).ok()
+    })();
+    if let Some(progress) = progress.filter(|value| {
+        value["schemaVersion"] == 1
+            && value["enabled"] == true
+            && value["state"] == "searching"
+            && value["pid"].as_u64() == Some(u64::from(pid))
+            && value["updatedAt"]
+                .as_u64()
+                .is_some_and(|time| time <= now && now - time <= 120)
+    }) {
+        return Some(json!({"state":"searching", "image":progress["image"]}));
+    }
+    let provider = provider.filter(|value| value["available"] == true)?;
+    let profile = provider.pointer("/resourceService/profileId")?.as_str()?;
+    profile
+        .starts_with("beta_")
+        .then(|| json!({"state":"beta-active", "profileId":profile}))
+}
 
 fn runtime_problem_code(provider: &Value) -> Option<&'static str> {
     if provider["available"] != true {
         return Some("provider-unavailable");
+    }
+
+    let resource_profile = provider
+        .pointer("/resourceService/profile")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let read_profile_expected =
+        provider.pointer("/resourceService/profileSelection/kfcFormat") == Some(&json!(4));
+    if read_profile_expected
+        && matches!(
+            resource_profile,
+            "no-exact-resource-read-profile" | "ambiguous-exact-resource-read-profile"
+        )
+    {
+        return Some("profile-unavailable");
+    }
+    if read_profile_expected
+        && (resource_profile.starts_with("resource-profile-error:")
+            || resource_profile.starts_with("engine-owner-profile-error:"))
+    {
+        return Some("profile-error");
     }
 
     let detail = provider["detail"].as_str().unwrap_or_default();
@@ -75,6 +136,10 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
         .filter(|_| runtime_fresh)
         .map(|value| &value["runtimeProvider"]);
     let runtime_problem = runtime_check.and_then(runtime_problem_code);
+    let discovery_notice = profile_discovery_notice(root, game_pid, runtime_check, now);
+    let profile_searching = discovery_notice
+        .as_ref()
+        .is_some_and(|value| value["state"] == "searching");
     let main_menu = runtime_fresh
         && !server
         && runtime_problem.is_none()
@@ -566,6 +631,10 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
     checks
         .push(json!({"id":"parser","group":"parser","state":parser_state,"detail":parser_detail}));
     let (runtime_state, runtime_detail) = match runtime_check {
+        _ if profile_searching => (
+            "neutral",
+            "The native game profile module is comparing the exact baseline and current executable images.".into(),
+        ),
         _ if desktop => (
             "ok",
             "Desktop mode. World access is not expected until a game world is entered.".into(),
@@ -611,7 +680,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
             "Waiting for a fresh status from the game process.".into(),
         ),
     };
-    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"code":runtime_problem,"detail":runtime_detail,"phase":if desktop {"desktop"} else if main_menu {"main-menu"} else if awaiting_world {"waiting-world"} else {"normal"}}));
+    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"code":runtime_problem,"detail":runtime_detail,"phase":if profile_searching {"searching-profile"} else if desktop {"desktop"} else if main_menu {"main-menu"} else if awaiting_world {"waiting-world"} else {"normal"}}));
     let state_path = shroudforge_loader_config::paths::state_file(root);
     let updates = match fs::read(&state_path) {
         Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {
@@ -635,12 +704,66 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
             errors.push(error);
         }
     }
-    json!({"errors":errors,"checks":checks,"assets":assets,"lastUpdate":updates,"modStates":mod_states})
+    json!({"errors":errors,"checks":checks,"assets":assets,"lastUpdate":updates,"modStates":mod_states,"gameProfileDiscovery":discovery_notice})
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn game_profile_discovery_banner_requires_live_beta_or_current_process_progress() {
+        let root = tempfile::tempdir().unwrap();
+        let path = shroudforge_loader_config::paths::cache_dir(root.path())
+            .join("game-profile-discovery/status-42.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let progress =
+            json!({"schemaVersion":1,"enabled":true,"state":"searching","pid":42,"updatedAt":100});
+        fs::write(&path, progress.to_string()).unwrap();
+        assert_eq!(
+            profile_discovery_notice(root.path(), Some(42), None, 101).unwrap()["state"],
+            "searching"
+        );
+        assert!(profile_discovery_notice(root.path(), Some(43), None, 101).is_none());
+        assert!(profile_discovery_notice(root.path(), Some(42), None, 221).is_none());
+        assert!(profile_discovery_notice(root.path(), Some(42), None, 99).is_none());
+        assert!(profile_discovery_notice(root.path(), None, None, 101).is_none());
+        let mut finished = progress;
+        finished["state"] = "finished".into();
+        fs::write(&path, finished.to_string()).unwrap();
+        assert!(profile_discovery_notice(root.path(), Some(42), None, 101).is_none());
+        let beta =
+            json!({"available":true,"resourceService":{"profileId":"beta_enshrouded-client-42"}});
+        let notice = profile_discovery_notice(root.path(), Some(42), Some(&beta), 101).unwrap();
+        assert_eq!(notice["state"], "beta-active");
+        assert_eq!(notice["profileId"], "beta_enshrouded-client-42");
+        let normal =
+            json!({"available":true,"resourceService":{"profileId":"enshrouded-client-42"}});
+        assert!(profile_discovery_notice(root.path(), Some(42), Some(&normal), 101).is_none());
+        let unavailable =
+            json!({"available":false,"resourceService":{"profileId":"beta_enshrouded-client-42"}});
+        assert!(profile_discovery_notice(root.path(), Some(42), Some(&unavailable), 101).is_none());
+    }
+
+    #[test]
+    fn game_profile_discovery_does_not_hide_missing_profiles_in_the_main_menu() {
+        let unavailable = json!({"available":true,"ready":false,"mainMenu":true,
+            "resourceService":{"profile":"no-exact-resource-read-profile","profileSelection":{"kfcFormat":4}}});
+        assert_eq!(
+            runtime_problem_code(&unavailable),
+            Some("profile-unavailable")
+        );
+        let beta_waiting = json!({"available":true,"ready":false,"mainMenu":true,
+            "resourceService":{"profile":"beta_enshrouded-client-42:exact-image-resource-service"}});
+        assert_eq!(runtime_problem_code(&beta_waiting), None);
+        let broken = json!({"available":true,"ready":true,
+            "resourceService":{"profile":"engine-owner-profile-error:contract-mismatch","profileSelection":{"kfcFormat":4}}});
+        assert_eq!(runtime_problem_code(&broken), Some("profile-error"));
+        let legacy = json!({"available":true,"ready":true,
+            "resourceService":{"profile":"no-exact-resource-read-profile","profileSelection":{"kfcFormat":3}},
+            "detail":"profile=enshrouded-client-1076226 game_thread=ready"});
+        assert_eq!(runtime_problem_code(&legacy), None);
+    }
 
     #[test]
     fn legacy_success_event_does_not_make_configuration_invalid() {

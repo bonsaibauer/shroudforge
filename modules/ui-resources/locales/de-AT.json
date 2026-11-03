@@ -607,7 +607,7 @@
   "settings.modules.runtimeDiagnostics.description": "Diagnosesitzungen san standardmäßig aus. Änderungen greifen innerhalb von 500 ms. Erfasst werdn Laufzeit- und Weltdaten, ka Kompatibilitätsdaten.",
   "settings.modules.gameProfileDiscovery.title": "Dynamische Spielprofilerstellung (Beta)",
   "settings.modules.gameProfileDiscovery.description": "Bei unbekannten Spielbuilds den letzten passenden Client- oder Serverbuild prüfen und bei Erfolg ein beta_-Profil erstellen. Reguläre Profile haben Vorrang.",
-  "settings.modules.gameProfileDiscovery.restartHint": "Wird nach einem Neustart des Spiels wirksam.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Wird nach einem Neustart des Spiels wirksam. Starte vor dem nächsten Spielupdate eine unterstützte Version mit aktivem Modul, damit die Vergleichsbasis gespeichert wird.",
   "settings.modules.updates.title": "Updates",
   "settings.modules.updates.description": "Verwaltet System- und Modupdates an ana Stelle.",
   "settings.modules.updates.auto": "Automatisch nach Updates suchn",
@@ -854,5 +854,10 @@
   "runtime.blocker.generic": "ShroudForge kann gerade nicht richtig mit Enshrouded zusammenarbeiten. Deine Mods funktionieren möglicherweise nicht. Öffne „Details“, um mehr zu erfahren.",
   "runtime.blocker.checkUpdates": "Nach ShroudForge-Updates suchen",
   "runtime.blocker.updateTo": "ShroudForge auf {version} aktualisieren",
-  "runtime.blocker.reportVersion": "Enshrouded-Version melden"
+  "runtime.blocker.reportVersion": "Enshrouded-Version melden",
+  "runtime.profileDiscovery.searchingTitle": "Dynamische Profilsuche läuft",
+  "runtime.profileDiscovery.searchingDescription": "Für diese Spielversion fehlt ein reguläres Profil. ShroudForge prüft die gespeicherte Vergleichsbasis. Warte auf das Ergebnis. Funktionen für die Spielwelt werden erst in einer geladenen Welt bereit.",
+  "runtime.profileDiscovery.betaTitle": "Experimentelles Spielprofil aktiv",
+  "runtime.profileDiscovery.betaDescription": "Aktives Profil: {profile}. Dieses Profil wurde dynamisch erstellt. Die Laufzeitprüfungen bleiben aktiv.",
+  "runtime.profileDiscovery.openGuide": "Ablauf und Hilfe"
 }

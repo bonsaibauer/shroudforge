@@ -607,7 +607,7 @@
   "settings.modules.runtimeDiagnostics.description": "診断セッションはデフォルトでオフです。 変更は500ms以内で適用します。 互換性データではなく、ランタイムと世界状態を記録します.",
   "settings.modules.gameProfileDiscovery.title": "動的なゲームプロファイル作成（ベータ）",
   "settings.modules.gameProfileDiscovery.description": "未知のゲームビルドでは、同じ種類の最新のクライアントまたはサーバービルドを検証し、検証に成功した場合に beta_ プロファイルを作成します。通常のプロファイルが優先されます。",
-  "settings.modules.gameProfileDiscovery.restartHint": "ゲームを再起動すると有効になります。",
+  "settings.modules.gameProfileDiscovery.restartHint": "ゲームを再起動すると有効になります。次のゲーム更新前に、このモジュールを有効にして対応済みのビルドを起動し、比較用の基準を保存してください。",
   "settings.modules.updates.title": "アップデート",
   "settings.modules.updates.description": "システムとMODの更新を1か所で管理します.",
   "settings.modules.updates.auto": "更新を自動的に確認",
@@ -854,5 +854,10 @@
   "runtime.blocker.generic": "ShroudForge は現在 Enshrouded と正しく動作していません。mod が動作しない可能性があります。詳しくは「詳細」を開いてください。",
   "runtime.blocker.checkUpdates": "ShroudForge の更新を確認",
   "runtime.blocker.updateTo": "ShroudForge を {version} に更新",
-  "runtime.blocker.reportVersion": "Enshrouded のバージョンを報告"
+  "runtime.blocker.reportVersion": "Enshrouded のバージョンを報告",
+  "runtime.profileDiscovery.searchingTitle": "動的なプロファイル検索を実行中",
+  "runtime.profileDiscovery.searchingDescription": "このゲームバージョンに対応する通常のプロファイルがありません。ShroudForge は保存済みの比較用データを確認しています。結果をお待ちください。ゲームワールドの機能は、ワールドが読み込まれてから利用可能になります。",
+  "runtime.profileDiscovery.betaTitle": "実験的なゲームプロファイルが有効",
+  "runtime.profileDiscovery.betaDescription": "有効なプロファイル: {profile}。このプロファイルは動的に作成されました。実行時のチェックは引き続き有効です。",
+  "runtime.profileDiscovery.openGuide": "処理の流れとヘルプ"
 }

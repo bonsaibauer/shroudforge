@@ -61,6 +61,7 @@ In the tables below, Python tool paths are relative to that `game_inspection/` s
 | File | Action |
 | --- | --- |
 | `compare/compare_runtime_builds.py` | Compares layouts and function evidence from two game builds. |
+| `compare/prepare_profile_rebase.py` | Copies a complete same-target baseline into an external candidate, records every changed leaf, ranks static RVA evidence, and lists unresolved target checks. Optional numeric review plans are bound to both exact images and hashed evidence artifacts. |
 | `compare/rank_cross_build_functions.py` | Ranks static function candidates across builds without authorizing calls. |
 | `compare/compare_recipe_resources.py` | Compares recipe resources from exported captures. |
 
@@ -107,6 +108,7 @@ In the tables below, Python tool paths are relative to that `game_inspection/` s
 | [`tests/python/test_components.py`](../../modules/runtime-diagnostics/tests/python/test_components.py) | Tests component registry parsing and validation with independent fixtures. |
 | [`tests/python/test_discovery.py`](../../modules/runtime-diagnostics/tests/python/test_discovery.py) | Tests PE, reflection, function, system, and anchor discovery with synthetic files. |
 | [`tests/python/test_mod_origins.py`](../../modules/runtime-diagnostics/tests/python/test_mod_origins.py) | Tests that known invalid runtime patch payloads fail validation. |
+| [`tests/python/test_profile_rebase.py`](../../modules/runtime-diagnostics/tests/python/test_profile_rebase.py) | Tests exact identity and target separation, complete baseline preservation, ambiguity, evidence-bound numeric edits, and production-output rejection. |
 
 ## Shared data and boundaries
 
@@ -121,6 +123,12 @@ In the tables below, Python tool paths are relative to that `game_inspection/` s
 The native CLI is compiled directly from `modules/game-runtime/native/CMakeLists.txt`. Its build targets and profile-directory definition point to these source folders and the shared catalog root. Python tools use the `game_inspection.*` package under the diagnostic job root. Direct file calls and the existing PowerShell capture action use the same implementations.
 
 Profile approval remains tied to the exact executable identity and its recorded evidence. A function match is not approval to call an engine function.
+
+`capture/capture_runtime.ps1` selects a unique exact profile automatically. For a new image, `-ClientBaselineProfile` and `-ServerBaselineProfile` choose explicit review anchors. Otherwise it uses the latest numeric build ID for the same target and KFC format, with ambiguous latest IDs rejected. `profile-selection.json` records the choice and distinguishes exact identity from a review baseline. No baseline selection authorizes runtime calls.
+
+The shipped JSON catalog under the installation's configured `runtime/profiles` directory is the runtime profile source. Profiles are not embedded into the native provider. Data-only profile updates do not require rebuilding the DLL. The [profile guide](../../docs/development/inspect-game-build-and-create-runtime-profile.de.md) documents complete-copy preparation and its remaining validation requirements.
+
+The optional native [`game-profile-discovery`](../../modules/game-profile-discovery/README.md) module creates `beta_*` profiles only after the complete profile contract has been established from exact old/new executable images. It compares mapped sections or derives original function, data and layout relations independently. Normal profiles have priority. Missing or ambiguous evidence produces no partial profile. The capture/rebase review tools remain available for investigating those unresolved fields.
 
 ## World Editor diagnostic jobs
 

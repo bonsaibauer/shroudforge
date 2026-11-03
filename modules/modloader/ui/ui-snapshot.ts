@@ -31,6 +31,7 @@ export type Snapshot = {
     }
   >
   configuration?: {
+    gameProfileDiscovery?: { state: 'searching' | 'beta-active'; profileId?: string } | null
     modStates?: Record<string, { state: string; code?: string; detail: string }>
     errors: string[]
     checks: Array<{
