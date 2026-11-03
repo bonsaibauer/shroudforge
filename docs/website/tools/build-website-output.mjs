@@ -15,6 +15,14 @@ fs.cpSync(sourceDirectory, outputDirectory, {
     return relative !== "tools" && relative !== "README.md";
   },
 });
+fs.copyFileSync(
+  path.join(root, "assets", "shroudedit-hammer.png"),
+  path.join(outputDirectory, "media", "shroudedit-hammer.png"),
+);
+fs.copyFileSync(
+  path.join(root, "assets", "shroudforge.ico"),
+  path.join(outputDirectory, "media", "shroudforge.ico"),
+);
 const dataDirectory = path.join(outputDirectory, "data");
 const schemasDirectory = path.join(outputDirectory, "schemas");
 const output = path.join(dataDirectory, "api.json");

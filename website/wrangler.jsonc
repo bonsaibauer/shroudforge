@@ -1,0 +1,33 @@
+{
+  "name": "shroudforge-net",
+  "compatibility_date": "2026-11-03",
+  "assets": {
+    "directory": "../build/download-website",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    {
+      "pattern": "shroudforge.net",
+      "custom_domain": true
+    }
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "env": {
+    "development": {
+      "name": "shroudforge-net-development",
+      "assets": {
+        "directory": "../build/download-website",
+        "not_found_handling": "404-page"
+      },
+      "routes": [
+        {
+          "pattern": "dev.shroudforge.net",
+          "custom_domain": true
+        }
+      ],
+      "workers_dev": false,
+      "preview_urls": false
+    }
+  }
+}

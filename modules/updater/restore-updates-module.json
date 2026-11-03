@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.restore-updates-module",
+  "revision": 1,
+  "name": "Restore Updates module after updater replacement",
+  "description": "Re-enables Updates when an earlier version disabled it during a temporary updater executable replacement.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "update-loader-settings",
+  "settings": [
+    {
+      "path": ["modules", "updates", "enabled"],
+      "previousValue": false,
+      "value": true
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 # Gestionnaire de DLL
 
-Consultez les DLL de mods trouvées par ShroudForge et leur état de chargement. Les mods connus ont des profils préparés. Pour les autres DLL, sélectionnez-les et confirmez-les une fois dans le gestionnaire de DLL.
+Dans le Modloader, ouvrez **Compatibilité → Gestionnaire DLL**. Le guide apparaît en haut de ce panneau. Vous y voyez les DLL de mods trouvées par ShroudForge et leur état de chargement. Les mods connus ont des profils préparés. Sélectionnez et confirmez les autres DLL dans ce gestionnaire.
+
+## Puis-je utiliser plusieurs mods avec des DLL natives ?
+
+Oui. Installez chaque mod dans son propre dossier directement sous `mods/` et conservez tous les fichiers et sous-dossiers du paquet. Un profil compatible peut déjà fournir la bonne sélection de DLL. Pour un mod sans profil compatible, ouvrez **Modifier la sélection des DLL** dans le gestionnaire DLL. Sélectionnez uniquement les DLL d'entrée indiquées par l'auteur. Choisissez la cible de chargement et confirmez que vous faites confiance à la DLL. Gardez **DLL normale** pour les bibliothèques natives classiques. Choisissez **Proxy DirectInput** uniquement pour une DLL proxy DirectInput qui exporte `DirectInput8Create`. Cliquez sur **Appliquer la sélection**, puis redémarrez le jeu. La détection seule ne charge pas une DLL sans profil. Elle nécessite une sélection confirmée dans le gestionnaire DLL, une déclaration dans `native-plugin.ini` ou `dinput8-chain.ini`, ou un enregistrement par son mod Lua.
 
 ## Que faire avec un mod téléchargé ?
 
@@ -8,9 +12,9 @@ Consultez les DLL de mods trouvées par ShroudForge et leur état de chargement.
 - **Une DLL est fournie :** Placez-la dans le dossier du mod, comme indiqué ci-dessous. Elle apparaîtra ensuite dans le gestionnaire de DLL. Un profil connu a déjà préparé son choix. Sinon, sélectionnez la DLL et confirmez-la dans le gestionnaire.
 - **D'autres fichiers sont fournis :** Gardez le dossier complet du mod. Ne supprimez pas les fichiers comme `mod.json`, `native-plugin.ini` ou les fichiers de configuration.
 
-## Si le mod contient plusieurs DLL
+## Si un mod contient plusieurs DLL
 
-De nombreux dossiers de mods contiennent des DLL qui ne sont que des fichiers auxiliaires. Sélectionnez uniquement les DLL indiquées pour le chargement par le profil ou les instructions de l'auteur. Si plusieurs DLL du mod doivent être chargées, définissez leur ordre dans le gestionnaire de DLL.
+De nombreux dossiers de mods contiennent des DLL qui ne sont que des fichiers auxiliaires. Sélectionnez uniquement les DLL indiquées pour le chargement par le profil ou les instructions de l'auteur. Les flèches définissent l'ordre des DLL sélectionnées dans ce dossier de mod uniquement. Le gestionnaire ne propose pas d'ordre manuel global entre plusieurs dossiers de mod pour les DLL ordinaires.
 
 ## Installer un mod avec une DLL
 
@@ -24,7 +28,7 @@ mods/
     config.ini      (si le paquet en contient un)
 ```
 
-Une DLL inconnue n'est pas chargée uniquement parce qu'elle se trouve dans le dossier. Sélectionnez-la dans le gestionnaire de DLL, vérifiez le mode de chargement proposé et confirmez-la.
+Une DLL n'est pas chargée uniquement parce qu'elle se trouve dans le dossier. Sélectionnez-la dans le gestionnaire de DLL comme indiqué ci-dessus.
 
 ## Pourquoi la DLL du mod peut-elle aussi s'appeler dinput8.dll ?
 
@@ -44,7 +48,7 @@ mods\mon-mod\dinput8.dll
 mods\autre-mod\native.dll
 ```
 
-Les entrées doivent désigner des fichiers dans des paquets de mods directs comme `mods/<dossier-du-mod>/`. Les DLL à la racine du jeu et les chemins hors de ces paquets sont refusés. Leur ordre est prioritaire sur les déclarations déduites automatiquement. Un même chemin résolu n'est chargé qu'une fois. La première implémentation DirectInput valide reçoit les appels transférés. Les fichiers de démarrage propres au chargeur sont ignorés. Un transfert récursif revient à la bibliothèque Windows d'origine.
+Les entrées doivent désigner des fichiers dans des paquets de mods directs comme `mods/<dossier-du-mod>/`. Les DLL à la racine du jeu et les chemins hors de ces paquets sont refusés. Leur ordre est prioritaire sur les déclarations déduites automatiquement. Ce fichier définit l'ordre de la chaîne des fournisseurs DirectInput, pas l'ordre global des DLL ordinaires entre plusieurs dossiers de mods. Un même chemin résolu n'est chargé qu'une fois. La première DLL valide qui exporte son propre `DirectInput8Create` reçoit les appels transférés. D'autres DLL proxy DirectInput peuvent être chargées, mais leurs exports DirectInput ne sont pas actifs dans cette chaîne. Ne présumez pas que plusieurs proxys fonctionneront ensemble. Les fichiers de démarrage propres au chargeur sont ignorés. Un transfert récursif revient à la bibliothèque Windows d'origine.
 
 ## Interrupteurs, cible et redémarrage
 

@@ -8,3 +8,6 @@ rust-version.workspace = true
 path = "lib.rs"
 [dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(windows)'.dependencies]
+wry = "0.57.0"

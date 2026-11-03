@@ -131,32 +131,24 @@ export function Hotkeys({ data }: { data: Snapshot }) {
           })}
         </div>
         {!rows.length && <p className="hint">{t('hotkeys.empty')}</p>}
-        {data.settings.protectedHotkeys?.length ? <div className="settings-options">
-          <p className="hint settings-module-description">{t('hotkeys.policyTitle')}</p>
-          <p className="hint settings-module-description">{t('hotkeys.policySource')}</p>
-          {data.settings.protectedHotkeys.map((key) => {
-            const detail = key.action === 'confirm'
-              ? key.scancode === 58
-                ? t('hotkeys.reservedF1')
-                : key.scancode === 69
-                  ? t('hotkeys.reservedF12')
-                  : t('hotkeys.policyConfirm', { key: key.label })
-              : key.action === 'cancel'
-                ? t('hotkeys.policyCancel', { key: key.label })
-                : t('hotkeys.policyBlocked', { key: key.label })
-            const icon = key.action === 'confirm'
-              ? '⚠'
-              : key.action === 'cancel'
-                ? '↩'
-                : '⊘'
-            return <SettingsRow
+        {data.settings.protectedHotkeys ? <div className="settings-options">
+          <p className="hint settings-module-description">Protected hotkeys</p>
+          <p className="hint settings-module-description">
+            Edit these rules in shroudforge/config/modloader-config.json.
+          </p>
+          {([
+            ['Confirm', 'confirm', data.settings.protectedHotkeys.confirm],
+            ['Cancel', 'cancel', data.settings.protectedHotkeys.cancel],
+          ] as const).map(([title, action, keys]) => keys.length > 0 && <div key={action}>
+            <p className="hint settings-module-description">{title}</p>
+            {keys.map((key) => <SettingsRow
               key={key.scancode}
               label={key.label}
-              detail={detail}
-              rowClass={`hotkey-policy-${key.action}`}
-              control={<span aria-hidden="true">{icon}</span>}
-            />
-          })}
+              detail={key.text.replace(/\{key\}/g, key.label)}
+              rowClass={`hotkey-policy-${action}`}
+              control={<span aria-hidden="true">{key.emoji}</span>}
+            />)}
+          </div>)}
         </div> : null}
       </Card>
     </div>
