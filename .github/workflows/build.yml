@@ -137,11 +137,110 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  rust:
-    name: Build and test Rust programs
+  proxies:
+    name: Build or restore verified proxy DLLs
     if: needs.release-check.outputs.build_release == 'true'
     needs: release-check
     runs-on: windows-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize proxy source
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive -- kfc-parser
+          if ($LASTEXITCODE -ne 0) { throw 'Proxy source checkout failed.' }
+          .\dev\parser\prepare_parser.ps1
+
+      - name: Fingerprint proxy inputs
+        id: proxy-context
+        shell: pwsh
+        run: .\dev\build\get_component_cache_context.ps1 -Component proxies
+
+      - name: Restore exact proxy component cache
+        id: proxy-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v5
+        with:
+          path: build/component-cache/proxies
+          key: shroudforge-proxies-v1-${{ steps.proxy-context.outputs.key }}
+
+      - name: Verify cached proxies or build from source
+        shell: pwsh
+        run: .\dev\build\build_windows_proxies.ps1 -CargoTargetDir target/proxies -ComponentCacheDirectory build/component-cache/proxies -CacheKey "${{ steps.proxy-context.outputs.key }}"
+
+      - name: Save verified proxy component cache
+        if: steps.proxy-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: build/component-cache/proxies
+          key: shroudforge-proxies-v1-${{ steps.proxy-context.outputs.key }}
+
+      - name: Save proxy build outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-proxies-${{ github.run_id }}
+          path: |
+            build/x64/dbghelp.dll
+            build/x64/dinput8.dll
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Save proxy Cargo timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-cargo-timings-proxies-${{ github.run_id }}
+          path: target/proxies/cargo-timings/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
+  diagnostics:
+    name: Run isolated diagnostics tests
+    if: needs.release-check.outputs.build_release == 'true'
+    needs: release-check
+    runs-on: windows-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize workspace manifests
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive -- kfc-parser
+          if ($LASTEXITCODE -ne 0) { throw 'Workspace manifest checkout failed.' }
+          .\dev\parser\prepare_parser.ps1
+
+      - name: Restore diagnostics dependency cache
+        uses: ./.github/actions/restore-build-caches
+        with:
+          scope: diagnostics
+          frontend: "false"
+
+      - name: Run diagnostics tests
+        shell: pwsh
+        run: .\dev\tests\run_workspace_tests.ps1 -RustOnly -TestGroup Diagnostics
+
+      - name: Save diagnostics Cargo timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-cargo-timings-diagnostics-${{ github.run_id }}
+          path: target/cargo-timings/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
+  rust:
+    name: Build frontend and Rust programs and run main tests
+    if: needs.release-check.outputs.build_release == 'true'
+    needs: release-check
+    runs-on: windows-latest
+    env:
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v7
 
@@ -164,10 +263,33 @@ jobs:
 
       - name: Restore dependency caches
         uses: ./.github/actions/restore-build-caches
+        with:
+          scope: main
 
-      - name: Build frontend, proxies and Rust programs and run Rust tests
+      - name: Fingerprint SDL build inputs
+        id: sdl-context
         shell: pwsh
-        run: .\dev\build\release_build.ps1 -RustOnly -BuildNumber "${{ github.run_id }}"
+        run: .\dev\build\get_component_cache_context.ps1 -Component sdl
+
+      - name: Restore exact SDL component cache
+        id: sdl-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v5
+        with:
+          path: build/component-cache/sdl
+          key: shroudforge-sdl-v1-${{ steps.sdl-context.outputs.key }}
+
+      - name: Build frontend and Rust programs and run main tests
+        shell: pwsh
+        run: .\dev\build\release_build.ps1 -RustOnly -SkipProxies -SkipDiagnostics -BuildNumber "${{ github.run_id }}"
+
+      - name: Save verified SDL component cache
+        if: steps.sdl-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v5
+        with:
+          path: build/component-cache/sdl
+          key: shroudforge-sdl-v1-${{ steps.sdl-context.outputs.key }}
 
       - name: Save Rust build outputs and SDL license
         uses: actions/upload-artifact@v7
@@ -175,8 +297,6 @@ jobs:
           name: shroudforge-rust-${{ github.run_id }}
           # Keep the repository root as the common ancestor for these paths.
           path: |
-            build/x64/dbghelp.dll
-            build/x64/dinput8.dll
             build/x64/shroudforge-runtime.dll
             build/x64/shroudforge.exe
             build/x64/shroudforge-updater.exe
@@ -184,9 +304,18 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Save main Cargo timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shroudforge-cargo-timings-main-${{ github.run_id }}
+          path: target/cargo-timings/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
   build:
     name: Package verified build outputs
-    needs: [native, rust]
+    needs: [native, proxies, rust, diagnostics]
     permissions:
       contents: read
     runs-on: windows-latest
@@ -217,6 +346,12 @@ jobs:
         with:
           name: shroudforge-rust-${{ github.run_id }}
           path: .
+
+      - name: Download verified proxy DLLs
+        uses: actions/download-artifact@v7
+        with:
+          name: shroudforge-proxies-${{ github.run_id }}
+          path: build/x64
 
       - name: Package verified build outputs
         shell: pwsh
@@ -452,7 +587,7 @@ jobs:
   security-report:
     name: Unified release security report
     if: always()
-    needs: [build, native, rust, security, defender, clamav, virustotal]
+    needs: [build, native, proxies, rust, diagnostics, security, defender, clamav, virustotal]
     runs-on: ubuntu-24.04
     permissions:
       actions: read
@@ -500,8 +635,10 @@ jobs:
         if: always()
         env:
           BUILD_JOB_RESULT: >-
-            ${{ (needs.native.result == 'failure' || needs.rust.result == 'failure') && 'failure' ||
-            (needs.native.result == 'cancelled' || needs.rust.result == 'cancelled') && 'cancelled' ||
+            ${{ (needs.native.result == 'failure' || needs.proxies.result == 'failure' ||
+            needs.rust.result == 'failure' || needs.diagnostics.result == 'failure') && 'failure' ||
+            (needs.native.result == 'cancelled' || needs.proxies.result == 'cancelled' ||
+            needs.rust.result == 'cancelled' || needs.diagnostics.result == 'cancelled') && 'cancelled' ||
             needs.build.result }}
           TRIVY_SOURCE_JOB_RESULT: ${{ needs.security.result }}
           DEFENDER_JOB_RESULT: ${{ needs.defender.result }}

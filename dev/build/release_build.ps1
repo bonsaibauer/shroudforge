@@ -11,6 +11,8 @@ param(
     [switch]$UseInstalledDependencies,
     [switch]$SkipUiBuild,
     [switch]$RustOnly,
+    [switch]$SkipProxies,
+    [switch]$SkipDiagnostics,
     [switch]$WithoutUpdater,
     [string]$CargoTargetDir = 'target'
 )

@@ -2,9 +2,12 @@
 .SYNOPSIS
 Build, test and package ShroudForge through the shared development and release phases.
 .PARAMETER RustOnly
-Build the frontend, Windows proxies and Rust workspace and run Rust tests. The separate
-native CI job owns the native runtime, Windows bootstrap and bootstrap tests. Packaging
-runs after both CI jobs, or as part of the default full build.
+Build the frontend, Windows proxies and Rust workspace and run Rust tests. Separate
+CI jobs may own proxies and diagnostics through the explicit switches below.
+.PARAMETER SkipProxies
+With RustOnly, leave the proxy build to the separate verified proxy CI job.
+.PARAMETER SkipDiagnostics
+With RustOnly, leave diagnostics tests to the separate required diagnostics CI job.
 #>
 param(
     [string]$BuildNumber = $(if ($env:SHROUDFORGE_BUILD_NUMBER) { $env:SHROUDFORGE_BUILD_NUMBER } else { 'dev' }),
@@ -12,6 +15,8 @@ param(
     [switch]$UseInstalledDependencies,
     [switch]$SkipUiBuild,
     [switch]$RustOnly,
+    [switch]$SkipProxies,
+    [switch]$SkipDiagnostics,
     [switch]$WithoutUpdater,
     [string]$CargoTargetDir = 'target'
 )
@@ -21,6 +26,9 @@ $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $actions = Join-Path $repositoryRoot 'dev\build'
 $cargoTargetPath = if ([IO.Path]::IsPathRooted($CargoTargetDir)) { [IO.Path]::GetFullPath($CargoTargetDir) } else { [IO.Path]::GetFullPath((Join-Path $repositoryRoot $CargoTargetDir)) }
 if ($BuildNumber -notmatch '^[A-Za-z0-9._-]+$') { throw 'BuildNumber contains invalid path characters.' }
+if (($SkipProxies -or $SkipDiagnostics) -and -not $RustOnly) {
+    throw 'SkipProxies and SkipDiagnostics require RustOnly. Full builds always include these phases.'
+}
 
 function Invoke-BuildPhase {
     param([string]$Name, [scriptblock]$Action)
@@ -94,9 +102,11 @@ $parallelTasks = @(
         UseInstalledDependencies = $UseInstalledDependencies.IsPresent
         SkipUiBuild = $SkipUiBuild.IsPresent
     })
-    (Start-BuildPhaseJob -Name 'windows-proxies' -ScriptPath (Join-Path $actions 'build_windows_proxies.ps1') -Parameters @{
-        CargoTargetDir = $cargoTargetPath
-    })
+    if (-not $SkipProxies) {
+        (Start-BuildPhaseJob -Name 'windows-proxies' -ScriptPath (Join-Path $actions 'build_windows_proxies.ps1') -Parameters @{
+            CargoTargetDir = $cargoTargetPath
+        })
+    }
     if (-not $RustOnly) {
         (Start-BuildPhaseJob -Name 'kfc-runtime' -ScriptPath (Join-Path $actions 'build_kfc_runtime.ps1'))
         (Start-BuildPhaseJob -Name 'windows-bootstrap' -ScriptPath (Join-Path $actions 'build_windows_bootstrap.ps1'))
@@ -111,7 +121,8 @@ try {
 
 if (-not $SkipTests) {
     Invoke-BuildPhase -Name 'workspace-tests' -Action {
-        & (Join-Path $repositoryRoot 'dev\tests\run_workspace_tests.ps1') -CargoTargetDir $cargoTargetPath -RustOnly:$RustOnly
+        $testGroup = if ($SkipDiagnostics) { 'Main' } else { 'All' }
+        & (Join-Path $repositoryRoot 'dev\tests\run_workspace_tests.ps1') -CargoTargetDir $cargoTargetPath -RustOnly:$RustOnly -TestGroup $testGroup
     }
 }
 Invoke-BuildPhase -Name 'modloader-workspace-build' -Action {

@@ -2,11 +2,14 @@
 .SYNOPSIS
 Run bootstrap and Rust workspace tests with a shared Cargo output directory.
 .PARAMETER RustOnly
-Run both Rust test groups. The separate native CI job runs the bootstrap tests.
+Leave bootstrap tests to the separate native CI job.
+.PARAMETER TestGroup
+Run All tests by default, or the Main/Diagnostics group in its required CI job.
 #>
 param(
     [string]$CargoTargetDir = 'target',
-    [switch]$RustOnly
+    [switch]$RustOnly,
+    [ValidateSet('All', 'Main', 'Diagnostics')][string]$TestGroup = 'All'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,9 +23,13 @@ if (-not $RustOnly) {
     if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Windows bootstrap tests failed.' }
 }
 
-& cargo test --manifest-path (Join-Path $root 'Cargo.toml') --locked --release --workspace --exclude shroudforge-runtime-diagnostics --target-dir $cargoTargetPath
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }
+if ($TestGroup -in @('All', 'Main')) {
+    & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --locked --release --workspace --exclude shroudforge-runtime-diagnostics --target-dir $cargoTargetPath --timings
+    if ($LASTEXITCODE -ne 0) { throw 'ShroudForge workspace tests failed.' }
+}
 
 # Keep mlua/serialize from diagnostic test helpers out of the product feature graph.
-& cargo test --manifest-path (Join-Path $root 'Cargo.toml') --locked --release -p shroudforge-runtime-diagnostics --target-dir $cargoTargetPath
-if ($LASTEXITCODE -ne 0) { throw 'ShroudForge runtime diagnostics tests failed.' }
+if ($TestGroup -in @('All', 'Diagnostics')) {
+    & cargo test --manifest-path (Join-Path $root 'Cargo.toml') --locked --release -p shroudforge-runtime-diagnostics --target-dir $cargoTargetPath --timings
+    if ($LASTEXITCODE -ne 0) { throw 'ShroudForge runtime diagnostics tests failed.' }
+}
