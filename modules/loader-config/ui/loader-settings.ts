@@ -10,13 +10,18 @@ export type DiagnosticJob = {
 export type ProtectedHotkey = {
   scancode: number
   label: string
-  action: 'block' | 'confirm' | 'cancel'
+  emoji: string
+  text: string
+}
+export type ProtectedHotkeyGroups = {
+  confirm: ProtectedHotkey[]
+  cancel: ProtectedHotkey[]
 }
 
 export type Settings = {
   configRevision?: string
   modulePreferences?: ModulePreferences
-  protectedHotkeys?: ProtectedHotkey[]
+  protectedHotkeys?: ProtectedHotkeyGroups
   compactMode: boolean
   reducedMotion: boolean
   showNativeModMenu: boolean

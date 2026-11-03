@@ -4,7 +4,7 @@ Les textes visibles dans le Modloader et les textes Lua utilisent les mêmes fic
 
 ## Fichiers de langue
 
-Ajoutez un fichier `locales/<code>.json` par langue. Les codes actuels du sélecteur du Modloader sont `de`, `de-AT`, `de-BAY`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` et `zh`. Le nom du fichier reprend exactement le code. Ces fichiers accompagnent `mod.json` et `extended.mod.json`.
+Ajoutez un fichier `locales/<code>.json` par langue. Les codes actuels du sélecteur du Modloader sont `de`, `de-AT`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` et `zh`. Le nom du fichier reprend exactement le code. Ces fichiers accompagnent `mod.json` et `extended.mod.json`.
 
 Le schéma est publié sous [`mod-locale.schema.json`](https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json). Le catalogue peut traduire `mod.name`, `mod.description`, les libellés des paramètres et des options, les groupes, les actions, les notes de version et les chaînes Lua sous `strings`. Les fichiers peuvent être incomplets. Le texte source est conservé pour les traductions manquantes.
 

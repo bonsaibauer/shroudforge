@@ -36,10 +36,27 @@
     }
   },
   "hotkeys": {
-    "protectedKeys": [
-      { "scancode": 41, "label": "Escape", "action": "cancel" },
-      { "scancode": 58, "label": "F1", "action": "confirm" },
-      { "scancode": 69, "label": "F12", "action": "confirm" }
+    "confirm": [
+      {
+        "scancode": 58,
+        "label": "F1",
+        "emoji": "⚠️",
+        "text": "Enshrouded uses F1 for its feedback window. This binding may also open the feedback window. Assign it anyway?"
+      },
+      {
+        "scancode": 69,
+        "label": "F12",
+        "emoji": "⚠️",
+        "text": "Steam uses F12 for screenshots. This binding may also take a screenshot. Assign it anyway?"
+      }
+    ],
+    "cancel": [
+      {
+        "scancode": 41,
+        "label": "Escape",
+        "emoji": "↩️",
+        "text": "Pressing Escape cancels recording and keeps the current assignment."
+      }
     ]
   },
   "control": {

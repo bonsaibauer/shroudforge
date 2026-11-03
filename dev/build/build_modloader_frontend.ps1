@@ -25,8 +25,6 @@ if ($SkipUiBuild) {
         }
         if (-not $UseInstalledDependencies -and $LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI dependencies failed to install.' }
 
-        $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw).Trim()
-        $env:CROWDIN_BRANCH = $version
         & npm run build
         if ($LASTEXITCODE -ne 0) { throw 'ShroudForge Modloader UI frontend build failed.' }
     } finally {

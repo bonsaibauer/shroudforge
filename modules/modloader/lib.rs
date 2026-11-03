@@ -8,8 +8,8 @@ pub mod check_mod_conflicts;
 mod check_hotkey_conflicts;
 pub use check_hotkey_conflicts::{
     HotkeyAssessment, HotkeyAssessmentTarget, HotkeyConflict, ProtectedHotkey,
-    ProtectedHotkeyAction, assess_hotkey_change, find_hotkey_conflicts,
-    protected_hotkeys, validate_hotkey_configuration,
+    ProtectedHotkeyGroups, assess_hotkey_change, find_hotkey_conflicts, protected_hotkeys,
+    validate_hotkey_configuration,
 };
 pub use validate_mod_settings::setting_is_enabled;
 pub mod dll_manager;
@@ -39,12 +39,14 @@ mod calculate_manifest_revision;
 pub use calculate_manifest_revision::*;
 pub use infer_mod_api_contract::infer_api_contract;
 mod calculate_mod_config_revision;
+mod read_mod_config_revision;
 mod read_mod_settings;
 mod save_mod_settings;
 mod set_mod_enabled;
 mod update_mod_configuration;
 mod validate_mod_settings;
 pub use calculate_mod_config_revision::*;
+pub use read_mod_config_revision::*;
 pub use save_mod_settings::*;
 pub use set_mod_enabled::*;
 pub mod calculate_preparation_fingerprint;
