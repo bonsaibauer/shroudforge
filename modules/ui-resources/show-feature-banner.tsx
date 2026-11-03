@@ -11,14 +11,14 @@ export function FeatureBanner({
   role,
   children,
 }: {
-  variant: 'promo' | 'warning' | 'info'
+  variant: 'promo' | 'warning' | 'info' | 'error'
   brand: string
   title: string
   titleId: string
   description: string
   media: ReactNode
   badge: string
-  role?: 'status'
+  role?: 'alert' | 'status'
   children?: ReactNode
 }) {
   return (
