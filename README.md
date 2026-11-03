@@ -161,8 +161,6 @@ build/                      # Generated build and website output
 target/                     # Cargo build output
 ~~~
 
-The `modules/game-runtime/` directory contains the native runtime and its Rust bridge. `modules/mod-runtime/` runs ShroudForge mods through that bridge. The actual mod source lives under `mods/`.
-
 ## License and support
 
 ShroudForge is shared under the [MIT License](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE).
