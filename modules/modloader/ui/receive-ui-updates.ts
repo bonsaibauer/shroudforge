@@ -116,12 +116,35 @@ export function useUiUpdates({
         postRequest('drag')
     }
     document.addEventListener('mousedown', drag)
+    // Wine drops the cursor the WebView2 browser process sets (cursor handles
+    // are per process there), so the page reports its CSS cursor and the host
+    // sets the same shape. The host ignores this message outside Wine.
+    let lastCursor = ''
+    const mirrorCursor = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      let cursor = getComputedStyle(target).cursor
+      if (cursor === 'auto')
+        cursor = target.closest(
+          'input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]),textarea,[contenteditable]:not([contenteditable=false])',
+        )
+          ? 'text'
+          : 'default'
+      if (cursor !== lastCursor) {
+        lastCursor = cursor
+        post('cursor', { id: cursor })
+      }
+    }
+    document.addEventListener('pointerover', mirrorCursor)
+    document.addEventListener('pointerdown', mirrorCursor)
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') postRequest('hide')
     }
     document.addEventListener('keydown', escape)
     return () => {
       document.removeEventListener('mousedown', drag)
+      document.removeEventListener('pointerover', mirrorCursor)
+      document.removeEventListener('pointerdown', mirrorCursor)
       document.removeEventListener('keydown', escape)
     }
   }, [])
