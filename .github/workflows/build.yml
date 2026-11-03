@@ -747,3 +747,16 @@ jobs:
           generate_release_notes: true
           prerelease: false
           make_latest: true
+
+  website:
+    name: Deploy download website after stable release
+    needs: [build, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/website-deploy.yml
+    with:
+      release_tag: v${{ needs.build.outputs.version }}-build.${{ github.run_id }}
+      source_sha: ${{ github.sha }}
+    secrets:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}

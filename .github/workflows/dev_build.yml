@@ -719,3 +719,18 @@ jobs:
           prerelease: true
           make_latest: false
 
+  website:
+    name: Deploy development download website after prerelease
+    if: github.event_name == 'push'
+    needs: [build, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/website-deploy.yml
+    with:
+      channel: development
+      release_tag: v${{ needs.build.outputs.version }}-dev.${{ github.run_id }}
+      source_sha: ${{ github.sha }}
+    secrets:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
