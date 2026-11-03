@@ -10,6 +10,13 @@ import type { ModInfo } from './mod-types'
 import type { DiagnosticStatus } from '../../runtime-diagnostics/ui/diagnostic-status'
 import type { Notice } from '../../notifications/ui/notification-types'
 
+export type RuntimeProblemCode =
+  | 'profile-unavailable'
+  | 'profile-selection-invalid'
+  | 'profile-error'
+  | 'provider-unavailable'
+  | 'runtime-not-ready'
+
 export type Snapshot = {
   diagnostics?: DiagnosticStatus
   dllCandidates: DllCandidate[]
@@ -30,6 +37,7 @@ export type Snapshot = {
       id: string
       group: string
       state: 'ok' | 'warning' | 'neutral'
+      code?: RuntimeProblemCode
       detail: string
       phase?: string
     }>
