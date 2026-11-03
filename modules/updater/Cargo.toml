@@ -29,7 +29,7 @@ mod-loader-bridge = { path = "../../kfc-parser/crates/mod-loader-bridge" }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 tokio = { version = "1", features = ["macros", "net", "rt", "time"] }
 sha2 = "0.10"
-zip = { version = "4.6", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 
 [build-dependencies]
 winres.workspace = true

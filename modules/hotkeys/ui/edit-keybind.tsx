@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { useI18n } from '../../ui-resources/i18n'
 import { postRequest } from '../../transport/ui/send-host-command'
+import type { ProtectedHotkey } from '../../loader-config/ui/loader-settings'
 
 const requestedLabels = new Set<string>()
 let labelRequestTimer: number | undefined
@@ -23,7 +24,7 @@ type KeybindAssessment = {
   requestId: string
   allowed: boolean
   cancelled?: boolean
-  confirmation?: { scancode: number; label: string } | null
+  confirmation?: ProtectedHotkey | null
 }
 
 function assessKeybind(
@@ -165,12 +166,8 @@ export function KeybindInput({
       return
     }
     if (assessment.confirmation) {
-      const { scancode, label: key } = assessment.confirmation
-      const warning = scancode === 58
-        ? tRef.current('hotkeys.reservedF1')
-        : scancode === 69
-          ? tRef.current('hotkeys.reservedF12')
-          : tRef.current('hotkeys.reservedOther', { key })
+      const { emoji, label: key, text } = assessment.confirmation
+      const warning = `${emoji} ${text.replace(/\{key\}/g, key)}`
       if (!window.confirm(warning)) return
     }
     apply()

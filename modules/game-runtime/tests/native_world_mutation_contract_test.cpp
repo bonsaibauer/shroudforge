@@ -9,6 +9,10 @@ namespace { HMODULE mapped_image{}; HMODULE contract_image(LPCWSTR) { return map
 #include <cstdio>
 #include <cstdlib>
 #include <numeric>
+#include <filesystem>
+#include <fstream>
+
+namespace { std::optional<EngineContext::BuildingPropSpawnLayout> fixture_spawn_layout; }
 
 // Exercise the public retry boundary with controlled clock and submit results.
 // The production adapter above remains available for read-only ABI inspection.
@@ -107,6 +111,7 @@ bool executable_callback(std::uintptr_t at) {
 BindingContract binding_contract(const char* name) { BindingContract value; value.key = name; return value; }
 }
 namespace EngineContext {
+std::optional<BuildingPropSpawnLayout> ConfiguredBuildingPropSpawnLayout() { return fixture_spawn_layout; }
 struct EcsWriteGuard::State {};
 EcsWriteGuard::EcsWriteGuard() = default;
 EcsWriteGuard::~EcsWriteGuard() = default;
@@ -222,7 +227,7 @@ bool check_public_spawn_retry() {
 }
 
 int wmain(int argc, wchar_t** argv) {
-    if (argc != 3 && argc != 4) { std::fprintf(stderr, "usage: native-contract-test <original.exe> <terraforming-analysis-rva> [writer-analysis-rva]\n"); return 2; }
+    if (argc < 3 || argc > 5) { std::fprintf(stderr, "usage: native-contract-test <original.exe> <terraforming-analysis-rva> [writer-analysis-rva] [profile.json]\n"); return 2; }
     mapped_image = LoadLibraryExW(argv[1], nullptr, DONT_RESOLVE_DLL_REFERENCES);
     if (!mapped_image) return 2;
     const auto base = reinterpret_cast<std::uintptr_t>(mapped_image);
@@ -232,13 +237,62 @@ int wmain(int argc, wchar_t** argv) {
     wchar_t* end{};
     const auto root = std::wcstoull(argv[2], &end, 0);
     if (*end || root >= nt->OptionalHeader.SizeOfImage) return 2;
+    std::filesystem::path fixture_path;
+    fixture_spawn_layout = EngineContext::BuildingPropSpawnLayout{2088, 0};
+    bool writer_argument = false;
+    if (argc >= 4) {
+        std::wcstoull(argv[3], &end, 0);
+        writer_argument = !*end;
+        if (!writer_argument) fixture_path = argv[3];
+    }
+    if (argc == 5) {
+        if (!writer_argument) return 2;
+        fixture_path = argv[4];
+    }
+    if (!fixture_path.empty()) try {
+        std::ifstream stream(fixture_path);
+        const auto fixture = nlohmann::json::parse(stream);
+        if (fixture.contains("image") &&
+            (fixture.at("image").at("timestamp") != nt->FileHeader.TimeDateStamp ||
+             fixture.at("image").at("size") != nt->OptionalHeader.SizeOfImage)) return 2;
+        const auto& layout = fixture.at("buildingPropSpawnLayout");
+        fixture_spawn_layout = EngineContext::BuildingPropSpawnLayout{
+            layout.at("sourceEntityIdsOffset").get<std::size_t>(),
+            layout.at("allocationFailureMarkerValue").get<std::uint32_t>()};
+    } catch (const std::exception& error) {
+        std::fprintf(stderr, "cannot read spawn profile fixture: %s\n", error.what()); return 2;
+    }
     namespace Voxel = WorldRuntime::RegisteredVoxelGrid;
     Voxel::WriterCode writer;
     ImpactRuntime::Contract spawn;
     const bool voxel_ok = Voxel::resolve_writer(base + root, writer);
     const bool spawn_ok = ImpactRuntime::resolve_contract(spawn);
+    bool spawn_contract_cases = spawn_ok;
+    if (spawn_ok) {
+        OriginalCode::Procedure body;
+        spawn_contract_cases = OriginalCode::ReadProcedure(spawn.helper, body);
+        if (spawn_contract_cases) {
+            auto altered = body;
+            altered.instructions.back().decoded.mnemonic = ZYDIS_MNEMONIC_NOP;
+            spawn_contract_cases = !ImpactRuntime::matches(altered,
+                ImpactRuntime::helper_contract_recipe(*fixture_spawn_layout));
+        }
+        const auto expected_layout = fixture_spawn_layout;
+        ImpactRuntime::Contract rejected;
+        fixture_spawn_layout.reset();
+        spawn_contract_cases = !ImpactRuntime::resolve_contract(rejected) && spawn_contract_cases;
+        fixture_spawn_layout = expected_layout;
+        ++fixture_spawn_layout->source_entity_ids;
+        spawn_contract_cases = !ImpactRuntime::resolve_contract(rejected) && spawn_contract_cases;
+        fixture_spawn_layout = expected_layout;
+        fixture_spawn_layout->allocation_failure_marker ^= 1;
+        spawn_contract_cases = !ImpactRuntime::resolve_contract(rejected) && spawn_contract_cases;
+        fixture_spawn_layout = expected_layout;
+        spawn_contract_cases = ImpactRuntime::resolve_contract(rejected) && spawn_contract_cases;
+    }
     nlohmann::json result{{"engine_calls",0},{"world_available",false},
-        {"voxel_contract",voxel_ok},{"spawn_contract",spawn_ok}};
+        {"voxel_contract",voxel_ok},{"spawn_contract",spawn_ok},
+        {"spawn_profile_contract_cases",spawn_contract_cases}};
     const bool retry_ok = check_public_write_retry();
     result["public_write_retry_cases"] = retry_ok;
     const bool spawn_retry_ok=check_public_spawn_retry();
@@ -261,7 +315,7 @@ int wmain(int argc, wchar_t** argv) {
             }
         }
     }
-    if(argc==4) {
+    if(writer_argument) {
         const auto candidate=std::wcstoull(argv[3],&end,0);
         OriginalCode::Procedure body;
         if(!*end && candidate<nt->OptionalHeader.SizeOfImage && OriginalCode::ReadProcedure(base+candidate,body)) {
@@ -331,12 +385,12 @@ int wmain(int argc, wchar_t** argv) {
                 }
                 result["spawn_stages"][role]=item;
             };
-            compare("body",body,ImpactRuntime::helper_recipe);
+            compare("body",body,ImpactRuntime::helper_contract_recipe(*fixture_spawn_layout));
             if(body.calls.size()>=4) {
                 OriginalCode::Procedure q,s,t,p,a,alloc;
                 const auto read=[&](std::uintptr_t at,OriginalCode::Procedure& code){return OriginalCode::ReadProcedure(at,code);};
                 if(read(body.calls[0],q))compare("queue",q,ImpactRuntime::queue_recipe);
-                if(read(body.calls[1],s))compare("source",s,ImpactRuntime::source_recipe);
+                if(read(body.calls[1],s))compare("source",s,ImpactRuntime::source_contract_recipe(*fixture_spawn_layout));
                 if(read(body.calls[2],t))compare("transform",t,ImpactRuntime::transform_recipe);
                 if(read(body.calls[3],p)) {
                     compare("prepare",p,ImpactRuntime::prepare_recipe);
@@ -349,5 +403,5 @@ int wmain(int argc, wchar_t** argv) {
         }
     }
     std::puts(result.dump(2).c_str());
-    return voxel_ok && spawn_ok && inputs_ok && retry_ok && spawn_retry_ok ? 0 : 1;
+    return voxel_ok && spawn_ok && spawn_contract_cases && inputs_ok && retry_ok && spawn_retry_ok ? 0 : 1;
 }

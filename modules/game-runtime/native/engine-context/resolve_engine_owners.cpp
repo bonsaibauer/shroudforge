@@ -163,6 +163,7 @@ bool resolve_ecs(const Layout& layout, EngineContext::EcsView& output, std::stri
         !field(view.manager, layout.entities.manager_table, table_again) || table_again != table)
         return fail("ecs-engine-owner-changed-during-read");
     view.layout = layout.entities;
+    view.entity_command_queue_layout = layout.entity_command_queue_layout;
     output = view;
     if (reason) reason->clear();
     return true;
@@ -187,6 +188,11 @@ nlohmann::json SystemDependencyLayout() {
 nlohmann::json ServiceLayout() {
     std::scoped_lock lock(context_mutex);
     return configured ? service_layout : nlohmann::json{};
+}
+
+std::optional<BuildingPropSpawnLayout> ConfiguredBuildingPropSpawnLayout() {
+    std::scoped_lock lock(context_mutex);
+    return configured ? active_layout.building_prop_spawn_layout : std::nullopt;
 }
 
 const char* RoleName(EcsRole role) { return role == EcsRole::LocalAuthority ? "local-authority" : "client-replica"; }

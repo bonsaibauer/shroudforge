@@ -10,15 +10,15 @@ use std::{fs, path::Path};
 pub struct ProtectedHotkey {
     pub scancode: u16,
     pub label: String,
-    pub action: ProtectedHotkeyAction,
+    pub emoji: String,
+    pub text: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum ProtectedHotkeyAction {
-    Block,
-    Confirm,
-    Cancel,
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtectedHotkeyGroups {
+    pub confirm: Vec<ProtectedHotkey>,
+    pub cancel: Vec<ProtectedHotkey>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -31,6 +31,11 @@ pub struct HotkeyConflict {
 
 pub enum HotkeyAssessment {
     Allowed,
+    Confirm(ProtectedHotkey),
+    Cancel,
+}
+
+enum ProtectedHotkeyPolicy {
     Confirm(ProtectedHotkey),
     Cancel,
 }
@@ -53,14 +58,20 @@ struct ConfiguredBinding {
     changed: bool,
 }
 
-pub fn protected_hotkeys(config: &Value) -> Vec<ProtectedHotkey> {
-    config
-        .pointer("/hotkeys/protectedKeys")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|value| serde_json::from_value(value.clone()).ok())
-        .collect()
+pub fn protected_hotkeys(config: &Value) -> ProtectedHotkeyGroups {
+    let read_group = |name: &str| {
+        config
+            .pointer(&format!("/hotkeys/{name}"))
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|value| serde_json::from_value(value.clone()).ok())
+            .collect()
+    };
+    ProtectedHotkeyGroups {
+        confirm: read_group("confirm"),
+        cancel: read_group("cancel"),
+    }
 }
 
 pub fn find_hotkey_conflicts(bindings: &[(String, Hotkey)]) -> Vec<HotkeyConflict> {
@@ -81,19 +92,14 @@ pub fn find_hotkey_conflicts(bindings: &[(String, Hotkey)]) -> Vec<HotkeyConflic
 
 fn reject_protected_binding(
     binding: &Hotkey,
-    protected: &[ProtectedHotkey],
+    protected: &ProtectedHotkeyGroups,
 ) -> Result<(), String> {
     for scancode in binding.keyboard_scancodes() {
-        if let Some(key) = protected.iter().find(|key| key.scancode == scancode) {
-            if matches!(
-                key.action,
-                ProtectedHotkeyAction::Block | ProtectedHotkeyAction::Cancel
-            ) {
-                return Err(format!(
-                    "{} is protected by ShroudForge's hotkey configuration",
-                    key.label
-                ));
-            }
+        if let Some(key) = protected.cancel.iter().find(|key| key.scancode == scancode) {
+            return Err(format!(
+                "{} is protected by ShroudForge's hotkey configuration",
+                key.label
+            ));
         }
     }
     Ok(())
@@ -332,30 +338,29 @@ fn assess_binding(
     let binding = shroudforge_hotkeys::parse_value(value)?;
     let policy = binding.as_ref().and_then(|binding| {
         let protected = protected_hotkeys(config);
-        binding
-            .keyboard_scancodes()
-            .find_map(|scancode| {
-                protected
-                    .iter()
-                    .find(|key| key.scancode == scancode)
-                    .cloned()
-            })
+        binding.keyboard_scancodes().find_map(|scancode| {
+            protected
+                .cancel
+                .iter()
+                .any(|key| key.scancode == scancode)
+                .then_some(ProtectedHotkeyPolicy::Cancel)
+                .or_else(|| {
+                    protected
+                        .confirm
+                        .iter()
+                        .find(|key| key.scancode == scancode)
+                        .cloned()
+                        .map(ProtectedHotkeyPolicy::Confirm)
+                })
+        })
     });
-    if let Some(key) = &policy {
-        match key.action {
-            ProtectedHotkeyAction::Cancel => return Ok(HotkeyAssessment::Cancel),
-            ProtectedHotkeyAction::Block => {
-                return Err(format!(
-                    "{} is protected by ShroudForge's hotkey configuration",
-                    key.label
-                ));
-            }
-            ProtectedHotkeyAction::Confirm => {}
-        }
+    if matches!(policy.as_ref(), Some(ProtectedHotkeyPolicy::Cancel)) {
+        return Ok(HotkeyAssessment::Cancel);
     }
     validate_hotkey_configuration(root, config, changed_mod)?;
     Ok(match policy {
-        Some(key) => HotkeyAssessment::Confirm(key),
+        Some(ProtectedHotkeyPolicy::Confirm(key)) => HotkeyAssessment::Confirm(key),
         None => HotkeyAssessment::Allowed,
+        Some(ProtectedHotkeyPolicy::Cancel) => unreachable!("cancel policy returned above"),
     })
 }

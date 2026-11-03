@@ -82,7 +82,7 @@ impl Action {
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 7] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 8] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -123,6 +123,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 7] = [
         Trigger::AfterInstall,
         "migration.legacy-toggle-key-settings",
         Action::MigrateLegacyToggleKeys,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.restore-updates-module",
+        Action::UpdateLoaderSettings,
         1,
     ),
 ];
@@ -181,6 +187,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
     (
         "migrate-legacy-toggle-key-settings.json",
         include_str!("migrate-legacy-toggle-key-settings.json"),
+    ),
+    (
+        "restore-updates-module.json",
+        include_str!("restore-updates-module.json"),
     ),
     (
         "purge-expired-recycle-bin.json",
