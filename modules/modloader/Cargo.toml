@@ -27,4 +27,4 @@ tracing = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 
-zip = "4.2.0"
+zip = "9.0.5"

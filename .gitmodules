@@ -1,7 +1,6 @@
 [submodule "kfc-parser"]
 	path = kfc-parser
 	url = https://github.com/bonsaibauer/kfc-parser.git
-	branch = kfc4_compatibility
 [submodule "nlohmann-json"]
 	path = modules/game-runtime/native/json
 	url = https://github.com/nlohmann/json.git

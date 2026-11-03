@@ -43,6 +43,8 @@ SIZE_T WINAPI counted_ecs_virtual_query(LPCVOID address, PMEMORY_BASIC_INFORMATI
 #include <cstdio>
 #include <cstdlib>
 #include <source_location>
+#include <filesystem>
+#include <fstream>
 
 namespace {
 unsigned checks{};
@@ -217,6 +219,7 @@ int main() {
     for (std::size_t index = 0; index < 16; ++index)
         authority_execution.tracker.queues[index].data = reinterpret_cast<std::uintptr_t>(tracking_ids[index]);
     nlohmann::json profile{
+        {"schemaVersion", 1},
         {"target", "private-ecs-test.exe"},
         {"image", {{"sha256", "private-fixture-identity"}, {"timestamp", nt->FileHeader.TimeDateStamp}, {"size", image_size}}},
         {"provenance", {{"ecsReadValidated", true}, {"ecsAuthorityReadValidated", true}}},
@@ -259,6 +262,7 @@ int main() {
     EcsRuntime::Tick();
     check(component_registry_ready && component_registry_world_bound && read_only_binding);
     check(read_only_view.role == EngineContext::EcsRole::ClientReplica);
+    check(!read_only_view.entity_command_queue_layout);
     check(KfcRuntimeEcsReady() && !KfcRuntimeEcsCanWrite());
     // The compact report uses the same validated catalog and retains every
     // matching role instead of choosing one alias and hiding ambiguity.
@@ -680,6 +684,148 @@ int main() {
     invalid_policy["ecsWriteLayout"]["phasePolicy"] = "private-controlled";
     check(!EngineContext::Configure(invalid_policy, error));
     tracker_scene_gate = &scene_owner.gate;
+    check(EngineContext::Configure(profile,error));
+    const auto profile_directory = std::filesystem::path(__FILE__).parent_path() / "../profiles";
+    const auto read_profile = [&](const char* relative) {
+        std::ifstream stream(profile_directory / relative);
+        return nlohmann::json::parse(stream);
+    };
+    const auto historical = read_profile("enshrouded/client/26082781.json");
+    const auto current = read_profile("enshrouded/client/26320373.json");
+    check(historical.at("schemaVersion") == 1 && !historical.contains("entityCommandQueueLayout") &&
+        !historical.contains("buildingPropSpawnLayout"));
+    const auto historical_before = historical.dump();
+    profile["kfcFormat"] = 4;
+    check(EngineContext::Configure(profile,error));
+    EngineContext::EcsView queue_view;
+    check(EngineContext::ResolveEcs(queue_view) && queue_view.entity_command_queue_layout.has_value());
+    const auto& legacy_queue = *queue_view.entity_command_queue_layout;
+    check(legacy_queue.task_state == 0x538 && legacy_queue.task_records == 0x528 && legacy_queue.task_count == 0x530 &&
+        legacy_queue.queue_records == 0xeb9f08 && legacy_queue.queue_count == 0xeb9f10 && legacy_queue.task_record_stride == 0xe0 &&
+        legacy_queue.entity_id_counter == 0x498 && legacy_queue.active_tracking_contexts == 0xebbfc0 &&
+        legacy_queue.shared_tracker == 0xebc030 && legacy_queue.buffer_capacity == 0x100000 &&
+        legacy_queue.manager_owner == 0 && legacy_queue.execution_mode == offsetof(Execution,manager) + 8 &&
+        legacy_queue.authority_mode == 0);
+    const auto legacy_spawn = EngineContext::ConfiguredBuildingPropSpawnLayout();
+    check(legacy_spawn && legacy_spawn->source_entity_ids == 2088 && !legacy_spawn->allocation_failure_marker);
+    auto queue_profile = profile;
+    queue_profile["schemaVersion"] = 2;
+    for (const auto& fixture : {current}) {
+        queue_profile["entityCommandQueueLayout"] = fixture.at("entityCommandQueueLayout");
+        queue_profile["buildingPropSpawnLayout"] = fixture.at("buildingPropSpawnLayout");
+        check(EngineContext::Configure(queue_profile,error));
+        check(EngineContext::ResolveEcs(queue_view) && queue_view.entity_command_queue_layout.has_value());
+        const auto& queue = *queue_view.entity_command_queue_layout;
+        const auto& expected = fixture.at("entityCommandQueueLayout");
+        check(queue.task_state == expected.at("taskStateOffset") && queue.task_records == expected.at("taskRecordsOffset") &&
+            queue.task_count == expected.at("taskCountOffset") && queue.queue_records == expected.at("queueRecordsOffset") &&
+            queue.queue_count == expected.at("queueCountOffset") && queue.task_record_stride == expected.at("taskRecordStride") &&
+            queue.entity_id_counter == expected.at("entityIdCounterOffset") &&
+            queue.active_tracking_contexts == expected.at("activeTrackingContextsOffset") && queue.buffer_capacity == expected.at("bufferCapacity"));
+        check(queue.shared_tracker == offsetof(Execution,tracker)-offsetof(Execution,manager) &&
+            queue.manager_owner == 0 && queue.execution_mode == offsetof(Execution,manager)+8 && queue.authority_mode == 0);
+        const auto spawn = EngineContext::ConfiguredBuildingPropSpawnLayout();
+        check(spawn && spawn->source_entity_ids == fixture.at("buildingPropSpawnLayout").at("sourceEntityIdsOffset") &&
+            spawn->allocation_failure_marker == fixture.at("buildingPropSpawnLayout").at("allocationFailureMarkerValue"));
+    }
+    check(historical.dump() == historical_before);
+    auto version_one_with_new_fields = queue_profile;
+    version_one_with_new_fields["schemaVersion"] = 1;
+    check(!EngineContext::Configure(version_one_with_new_fields,error));
+    for (const auto* missing : {"entityCommandQueueLayout", "buildingPropSpawnLayout"}) {
+        auto incomplete = queue_profile;
+        incomplete.erase(missing);
+        check(!EngineContext::Configure(incomplete,error));
+    }
+    for (const auto* key : {"sourceEntityIdsOffset", "allocationFailureMarkerValue"}) {
+        auto malformed = queue_profile;
+        malformed["buildingPropSpawnLayout"].erase(key);
+        check(!EngineContext::Configure(malformed,error));
+        for (const nlohmann::json value : {nlohmann::json(-1), nlohmann::json(1.5), nlohmann::json(true),
+            nlohmann::json("1"), nlohmann::json(nullptr), nlohmann::json(UINT64_MAX)}) {
+            malformed = queue_profile;
+            malformed["buildingPropSpawnLayout"][key] = value;
+            check(!EngineContext::Configure(malformed,error));
+        }
+    }
+    for (const auto entry : {std::pair{"sourceEntityIdsOffset",std::uint64_t{0}},
+        std::pair{"sourceEntityIdsOffset",std::uint64_t{0x4000001}},
+        std::pair{"allocationFailureMarkerValue",std::uint64_t{UINT32_MAX}+1}}) {
+        auto malformed = queue_profile;
+        malformed["buildingPropSpawnLayout"][entry.first] = entry.second;
+        check(!EngineContext::Configure(malformed,error));
+    }
+    for (const auto entry : {std::pair{"sourceEntityIdsOffset",std::uint64_t{1}},
+        std::pair{"sourceEntityIdsOffset",std::uint64_t{0x4000000}},
+        std::pair{"allocationFailureMarkerValue",std::uint64_t{0}},
+        std::pair{"allocationFailureMarkerValue",std::uint64_t{UINT32_MAX}}}) {
+        auto boundary = queue_profile;
+        boundary["buildingPropSpawnLayout"][entry.first] = entry.second;
+        check(EngineContext::Configure(boundary,error));
+    }
+    auto invalid_spawn = queue_profile;
+    invalid_spawn["buildingPropSpawnLayout"]["id"] = "unknown-spawn-abi";
+    check(!EngineContext::Configure(invalid_spawn,error));
+    invalid_spawn = queue_profile;
+    invalid_spawn["buildingPropSpawnLayout"]["fallback"] = 1;
+    check(!EngineContext::Configure(invalid_spawn,error));
+    auto non_authority = profile;
+    non_authority["ecsWriteLayout"]["enabled"] = false;
+    check(EngineContext::Configure(non_authority,error));
+    check(EngineContext::ResolveEcs(queue_view) && !queue_view.entity_command_queue_layout &&
+        !EngineContext::ConfiguredBuildingPropSpawnLayout());
+    for (const nlohmann::json version : {nlohmann::json(0), nlohmann::json(3), nlohmann::json(2.0), nlohmann::json(true)}) {
+        auto invalid = profile;
+        invalid["schemaVersion"] = version;
+        check(!EngineContext::Configure(invalid,error));
+    }
+    for (const auto* key : {"taskStateOffset", "taskRecordsOffset", "taskCountOffset", "queueRecordsOffset",
+        "queueCountOffset", "taskRecordStride", "entityIdCounterOffset", "activeTrackingContextsOffset", "bufferCapacity"}) {
+        auto malformed = queue_profile;
+        malformed["entityCommandQueueLayout"].erase(key);
+        check(!EngineContext::Configure(malformed,error));
+        for (const nlohmann::json value : {nlohmann::json(0), nlohmann::json(-1), nlohmann::json(1.5),
+            nlohmann::json(true), nlohmann::json("1"), nlohmann::json(nullptr), nlohmann::json(UINT64_MAX)}) {
+            malformed = queue_profile;
+            malformed["entityCommandQueueLayout"][key] = value;
+            check(!EngineContext::Configure(malformed,error));
+        }
+    }
+    for (const auto* key : {"taskStateOffset", "taskRecordsOffset", "taskCountOffset", "queueRecordsOffset",
+        "queueCountOffset", "entityIdCounterOffset", "activeTrackingContextsOffset"}) {
+        auto malformed = queue_profile;
+        malformed["entityCommandQueueLayout"][key] = 0x4000001;
+        check(!EngineContext::Configure(malformed,error));
+    }
+    for (const auto entry : {std::pair{"taskRecordStride",std::uint64_t{23}},
+        std::pair{"taskRecordStride",std::uint64_t{0x10001}}, std::pair{"bufferCapacity",std::uint64_t{159}},
+        std::pair{"bufferCapacity",std::uint64_t{UINT32_MAX}+1}}) {
+        auto malformed = queue_profile;
+        malformed["entityCommandQueueLayout"][entry.first] = entry.second;
+        check(!EngineContext::Configure(malformed,error));
+    }
+    for (const auto entry : {std::pair{"taskRecordStride",std::uint64_t{24}},
+        std::pair{"taskRecordStride",std::uint64_t{0x10000}}, std::pair{"bufferCapacity",std::uint64_t{160}},
+        std::pair{"bufferCapacity",std::uint64_t{UINT32_MAX}}}) {
+        auto boundary = queue_profile;
+        boundary["entityCommandQueueLayout"][entry.first] = entry.second;
+        check(EngineContext::Configure(boundary,error));
+    }
+    auto malformed_queue = queue_profile;
+    malformed_queue["entityCommandQueueLayout"]["id"] = "unknown-queue-abi";
+    check(!EngineContext::Configure(malformed_queue,error));
+    malformed_queue = queue_profile;
+    malformed_queue["entityCommandQueueLayout"]["fallback"] = 1;
+    check(!EngineContext::Configure(malformed_queue,error));
+    malformed_queue = queue_profile;
+    malformed_queue["ecsWriteLayout"]["enabled"] = false;
+    check(!EngineContext::Configure(malformed_queue,error));
+    malformed_queue = queue_profile;
+    malformed_queue.erase("ecsWriteLayout");
+    check(!EngineContext::Configure(malformed_queue,error));
+    malformed_queue = queue_profile;
+    malformed_queue.erase("ecsReadLayout");
+    check(!EngineContext::Configure(malformed_queue,error));
     check(EngineContext::Configure(profile,error));
     EcsRuntime::Tick();
     check(KfcRuntimeEcsReady() && KfcRuntimeEcsCanWrite() && !GameThreadDispatcher::Ready());

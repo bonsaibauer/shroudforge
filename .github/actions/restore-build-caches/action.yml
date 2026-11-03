@@ -1,0 +1,37 @@
+name: Restore Rust and frontend caches
+description: Cache external build dependencies with the same invalidation rules for dev and release.
+inputs:
+  scope:
+    description: Separate immutable cache ownership for the main and diagnostics jobs.
+    default: main
+  frontend:
+    description: Set up Node.js and the npm download cache for frontend builds.
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js and npm download cache
+      if: inputs.frontend == 'true'
+      uses: actions/setup-node@v7
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: modules/modloader/ui/package-lock.json
+
+    - name: Fingerprint dependency build inputs
+      id: context
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        .\dev\build\get_component_cache_context.ps1 -Component rust
+
+    - name: Restore external Rust dependencies
+      uses: Swatinem/rust-cache@v2.9.3
+      with:
+        workspaces: ". -> target"
+        shared-key: shroudforge-${{ inputs.scope }}-dependencies-${{ steps.context.outputs.key }}
+        # Include Windows SDK/toolset overrides in addition to Cargo/Rust/C/CMake flags.
+        env-vars: VCTools VCINSTALLDIR VSINSTALLDIR WindowsSdk WindowsSDK UCRT INCLUDE LIB CL _CL_
+        cache-workspace-crates: "false"
+        cache-bin: "false"
+        # Every build still runs. Local source, generated UI and package outputs are not cached.

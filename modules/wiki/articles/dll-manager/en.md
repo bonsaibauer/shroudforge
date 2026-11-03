@@ -1,6 +1,10 @@
 # DLL Manager
 
-See which mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, choose and confirm them once in the DLL Manager.
+In the Modloader, open **Compatibility → DLL Manager**. The guide is shown at the top of that panel. It lists the mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, select and confirm them there.
+
+## Can I use more than one native DLL mod?
+
+Yes. Install each mod in its own folder directly under `mods/`, and keep the files and subfolders supplied by the author. A matching profile may already provide the right DLL selection. For a mod without a matching profile, open **Adjust DLL selection** in the DLL Manager. Select only the entry DLLs named by the author. Choose the load target and confirm that you trust the DLL. Keep **Normal DLL** for ordinary native libraries. Choose **DirectInput proxy** only for a DLL intended to provide DirectInput that exports `DirectInput8Create`. Click **Apply selection**, then restart the game. Detection alone does not load an unprofiled DLL. It needs a confirmed DLL Manager selection, a declaration in `native-plugin.ini` or `dinput8-chain.ini`, or registration by its Lua mod.
 
 ## What should I do with a downloaded mod?
 
@@ -8,9 +12,9 @@ See which mod DLLs ShroudForge found and whether they loaded. Known mods have pr
 - **DLL included:** Put the mod DLL in its mod folder as shown below. It then appears in the DLL Manager. A known profile already has its selection prepared. Otherwise, select the DLL there and confirm it.
 - **Other mod files included:** Keep the complete mod folder. Do not remove files such as `mod.json`, `native-plugin.ini` or configuration files.
 
-## If the mod contains several DLL files
+## If one mod contains several DLL files
 
-Many mod folders contain DLLs that are only helper files. Select only the DLLs named for loading by the mod profile or the mod author's instructions. If several mod DLLs need to load, set their order in the DLL Manager.
+Many mod folders contain DLLs that are only helper files. Select only the DLLs named for loading by the mod profile or the mod author's instructions. The up and down controls set the order of selected DLLs within that mod folder. They do not set a global manual order for ordinary DLLs across separate mod folders.
 
 ## Installing a mod DLL
 
@@ -24,7 +28,7 @@ mods/
     config.ini      (if included)
 ```
 
-An unknown DLL does not load just because it is in the folder. Select it in the DLL Manager, check the suggested loading mode and confirm it.
+A DLL does not load just because it is in the folder. Select it in the DLL Manager as described above.
 
 ## Why can the mod file also be named dinput8.dll?
 
@@ -44,7 +48,7 @@ mods\my-mod\dinput8.dll
 mods\another-mod\native.dll
 ```
 
-Entries must resolve to files inside direct mod packages such as `mods/<mod-folder>/`. Game-root DLLs and paths outside those packages are rejected. Their order takes priority over automatically derived declarations. The same resolved file path is loaded only once. The first valid DirectInput implementation receives forwarded calls. Own startup files are skipped, and recursive forwarding falls back to the original Windows library.
+Entries must resolve to files inside direct mod packages such as `mods/<mod-folder>/`. Game-root DLLs and paths outside those packages are rejected. Their order takes priority over automatically derived declarations. This file sets order for the DirectInput provider chain, not for ordinary DLLs across mod folders. The same resolved file path is loaded only once. The first valid DLL exporting its own `DirectInput8Create` receives forwarded calls. Later DirectInput proxy DLLs may still load, but their DirectInput exports are not active in the chain. Do not assume that multiple proxies will work together. Own startup files are skipped, and recursive forwarding falls back to the original Windows library.
 
 ## Switches, process target and restarting
 

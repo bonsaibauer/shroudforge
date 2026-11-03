@@ -242,6 +242,13 @@ def report_notes(report: dict[str, Any]) -> str:
         notes.append(f"Signature update: {signature_status_label(report['signature_update_status'])}")
     if report.get("signature_update_message"):
         notes.append(str(report["signature_update_message"]))
+    for attempt in report.get("signature_update_attempts", []) or []:
+        attempt_number = attempt.get("attempt", "?")
+        attempt_status = signature_status_label(attempt.get("status", "unknown"))
+        notes.append(f"Signature update attempt {attempt_number}: {attempt_status}")
+        attempt_message = attempt.get("message")
+        if attempt_message:
+            notes.append(str(attempt_message))
     metadata = report.get("metadata", {})
     if isinstance(metadata, dict):
         if metadata.get("signature_version"):
@@ -250,12 +257,41 @@ def report_notes(report: dict[str, Any]) -> str:
             notes.append(f"Updated: {metadata['signature_last_updated']}")
         if metadata.get("engine_version"):
             notes.append(f"Engine: {metadata['engine_version']}")
+        if metadata.get("defender_service_status"):
+            notes.append(f"Defender service: {metadata['defender_service_status']}")
+        if metadata.get("defender_service_start_type"):
+            notes.append(f"Defender service start type: {metadata['defender_service_start_type']}")
         if metadata.get("cloud_protection_level") is not None:
             notes.append(f"Cloud protection level: {metadata['cloud_protection_level']}")
         if metadata.get("real_time_protection_enabled") is not None:
             notes.append(f"Real-time protection: {metadata['real_time_protection_enabled']}")
+    if str(report.get("scanner", "")).lower().startswith("microsoft defender"):
+        if report.get("scan_attempt_count") is not None:
+            notes.append(f"Scan attempts: {report['scan_attempt_count']}")
+        for attempt in report.get("scan_attempt_errors", []) or []:
+            attempt_number = attempt.get("attempt", "?")
+            attempt_error = attempt.get("error")
+            if attempt_error:
+                notes.append(f"Attempt {attempt_number}: {attempt_error}")
+            service_status = attempt.get("defender_service_status")
+            service_start_type = attempt.get("defender_service_start_type")
+            engine_version = attempt.get("engine_version")
+            if service_status or service_start_type or engine_version:
+                service_details = []
+                if service_status:
+                    service_details.append(f"service {service_status}")
+                if service_start_type:
+                    service_details.append(f"start type {service_start_type}")
+                if engine_version:
+                    service_details.append(f"engine {engine_version}")
+                notes.append(f"Attempt {attempt_number} Defender state: {', '.join(service_details)}")
+            recovery = attempt.get("recovery")
+            if recovery:
+                notes.append(f"Attempt {attempt_number} recovery: {recovery}")
     for warning in report.get("metadata_warnings", []) or []:
         notes.append(str(warning))
+    if report.get("prepared_file_count") is not None:
+        notes.append(f"Files prepared for scan: {report['prepared_file_count']}")
     if report.get("scanned_file_count") is not None:
         notes.append(f"Files scanned: {report['scanned_file_count']}")
     if str(report.get("scanner", "")).lower() == "virustotal":

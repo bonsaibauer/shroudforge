@@ -231,6 +231,7 @@ int main(int argc, char** argv) {
     put(system,0x40,reinterpret_cast<std::uintptr_t>(payload)); put(system,0x240,reinterpret_cast<std::uintptr_t>(payload));
     put(system,0x440,std::uint8_t{1}); put(system,0x441,std::uint8_t{1});
     nlohmann::json profile{
+        {"schemaVersion",1},
         {"target","private-service-test.exe"},
         {"image",{{"sha256","private-service-fixture"},{"timestamp",nt->FileHeader.TimeDateStamp},{"size",image_size}}},
         {"provenance",{{"ecsReadValidated",true},{"ecsAuthorityReadValidated",true},{"ecsWriteGateValidated",true},
