@@ -89,12 +89,6 @@ export default defineConfig(({ mode }) => {
             import.meta.url,
           ),
         ),
-        '@generated-crowdin-progress': fileURLToPath(
-          new URL(
-            '../../../build/ui/modloader-inputs/crowdin-progress.json',
-            import.meta.url,
-          ),
-        ),
       },
       dedupe: ['react', 'react-dom'],
     },

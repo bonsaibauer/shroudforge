@@ -172,7 +172,7 @@ int main() {
     root = {address(&root_type), address(&client)};
     check(main.allocator < image || main.allocator - image >= Profile::image_size);
 
-    json owner_profile = {{"target", Profile::image_target},
+    json owner_profile = {{"schemaVersion", 1}, {"target", Profile::image_target},
         {"image", {{"size", Profile::image_size}, {"timestamp", Profile::image_timestamp},
             {"sha256", Profile::image_sha256}}},
         {"ownerLayout", {{"rootObjectRva", address(&root) - image},

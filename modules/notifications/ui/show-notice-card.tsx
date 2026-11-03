@@ -6,7 +6,6 @@ import type { NewsItem, NoticeAction } from './notification-types'
 import { EcosystemBadge } from '../../ui-resources/show-ecosystem-badge'
 import { Icon } from '../../ui-resources/show-icon'
 import { ContributorList } from './show-contributors'
-import { CrowdinProgressPanel } from './show-crowdin-progress'
 import buyMeACoffeeButton from './assets/buymeacoffee-button.png'
 import modSupportFeedbackDe from './assets/mod-support-feedback.de.svg'
 import modSupportFeedbackEn from './assets/mod-support-feedback.en.svg'
@@ -209,9 +208,6 @@ export function NoticeCard({
               height={41}
             />
           </button>
-        )}
-        {!compact && item.kind === 'notice.localization' && (
-          <CrowdinProgressPanel />
         )}
         {!compact && item.kind === 'notice.welcome' && <ContributorList />}
         {!compact && item.changelog?.length ? (

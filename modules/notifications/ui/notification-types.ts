@@ -98,4 +98,6 @@ export type CommandResult = {
   batchKey?: string
   restoreSettings?: boolean
   ecosystem?: 'EML' | 'SF' | null
+  /** New revision of a saved mod state: the next save uses it. */
+  revision?: string | null
 }

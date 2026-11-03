@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" fill="none">
+  <defs>
+    <linearGradient id="book" x1="16" y1="16" x2="80" y2="75" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CAAA67" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#CAAA67" stop-opacity=".04"/>
+    </linearGradient>
+  </defs>
+  <path d="M12 17h19c8 0 14 3 17 9 3-6 9-9 17-9h19v56H65c-8 0-14 2-17 7-3-5-9-7-17-7H12V17Z" fill="url(#book)" stroke="#E2CD98" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M48 26v54" stroke="#CAAA67" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M21 31h12m-12 9h14m-14 9h12m28-18h12m-12 9h14m-14 9h12" stroke="#CAAA67" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M34 65h9m-3-3 3 3-3 3m22 0h-9m3-3-3 3 3 3" stroke="#5BCB92" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

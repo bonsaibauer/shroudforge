@@ -1,7 +1,10 @@
 use std::{env, path::PathBuf};
 
+mod build_sdl_cache;
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_sdl_cache.rs");
     println!("cargo:rerun-if-changed=sdl_keyboard.c");
     println!("cargo:rerun-if-changed=SDL/src/events/scancodes_windows.h");
     println!("cargo:rerun-if-changed=SDL");
@@ -62,11 +65,21 @@ fn main() {
     ] {
         configuration.define(format!("SDL_{subsystem}"), "OFF");
     }
+    let compile_jobs = std::thread::available_parallelism().map_or(1, |count| count.get().min(2));
     if msvc {
         // Match Cargo's CRT choice instead of SDL selecting a different CRT.
         configuration.static_crt(static_crt);
+        configuration.cflag(format!("/MP{compile_jobs}"));
+        configuration.cxxflag(format!("/MP{compile_jobs}"));
     }
-    let installed = configuration.build();
+    let installed = build_sdl_cache::build_or_restore(
+        &directory,
+        &source,
+        msvc,
+        static_crt,
+        compile_jobs,
+        || configuration.build(),
+    );
     let profile = env::var("PROFILE").unwrap();
     let build_config = installed
         .join("build")
