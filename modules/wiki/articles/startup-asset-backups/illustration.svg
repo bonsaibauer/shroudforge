@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc">
+  <title id="title">Incompatible asset backup</title>
+  <desc id="desc">A backup file with a warning is compared with the current game files.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14263a" />
+      <stop offset="1" stop-color="#0b1422" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#72d0e4" />
+      <stop offset="1" stop-color="#4d8fc5" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="304" height="184" rx="20" fill="url(#bg)" stroke="#29445f" stroke-width="2" />
+  <rect x="29" y="42" width="105" height="117" rx="11" fill="#192b40" stroke="#39516a" stroke-width="2" />
+  <path d="M48 64h54M48 77h42M48 105h51M48 118h37" stroke="#71869b" stroke-width="5" stroke-linecap="round" />
+  <rect x="45" y="137" width="61" height="15" rx="7.5" fill="#563c2b" />
+  <text x="75.5" y="148" fill="#ffd28a" font-family="Segoe UI,Arial,sans-serif" font-size="9" font-weight="700" text-anchor="middle">.KFC.BAK</text>
+  <circle cx="157" cy="98" r="18" fill="#263d54" />
+  <path d="M150 98h14m-5-6 6 6-6 6" fill="none" stroke="#9ab2c7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="194" y="51" width="96" height="42" rx="10" fill="#162d3c" stroke="#315c6a" stroke-width="2" />
+  <path d="M208 68h24m-24 9h48" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" />
+  <path d="M242 112 266 154h-48z" fill="#513d2a" stroke="#e0a852" stroke-width="2" />
+  <path d="M242 126v12m0 7v1" stroke="#ffe0a5" stroke-width="4" stroke-linecap="round" />
+</svg>

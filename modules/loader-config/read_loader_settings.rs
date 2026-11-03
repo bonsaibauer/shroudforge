@@ -124,6 +124,7 @@ pub(crate) fn read_loader_unvalidated(root: &Path) -> Result<Value, String> {
         {
             system.remove("channel");
         }
+        migrate_legacy_hotkeys(loaded, &result)?;
     }
     fn merge(target: &mut Value, source: Value) {
         match (target, source) {
@@ -148,6 +149,96 @@ pub(crate) fn read_loader_unvalidated(root: &Path) -> Result<Value, String> {
         }
     }
     Ok(result)
+}
+
+fn migrate_legacy_hotkeys(loaded: &mut Value, defaults: &Value) -> Result<(), String> {
+    let Some(hotkeys) = loaded
+        .pointer_mut("/hotkeys")
+        .and_then(Value::as_object_mut)
+    else {
+        return Ok(());
+    };
+    let Some(legacy) = hotkeys.remove("protectedKeys") else {
+        return Ok(());
+    };
+    let legacy = legacy
+        .as_array()
+        .ok_or("hotkeys.protectedKeys must be an array")?;
+    let mut confirm = match hotkeys.remove("confirm") {
+        Some(Value::Array(keys)) => keys,
+        Some(_) => return Err("hotkeys.confirm must be an array".into()),
+        None => Vec::new(),
+    };
+    let mut cancel = match hotkeys.remove("cancel") {
+        Some(Value::Array(keys)) => keys,
+        Some(_) => return Err("hotkeys.cancel must be an array".into()),
+        None => Vec::new(),
+    };
+
+    for value in legacy {
+        let mut entry = value
+            .as_object()
+            .cloned()
+            .ok_or("hotkeys.protectedKeys entries must be objects")?;
+        let action = entry
+            .get("action")
+            .and_then(Value::as_str)
+            .ok_or("legacy protected hotkey is missing its action")?;
+        let scancode = entry
+            .get("scancode")
+            .and_then(Value::as_u64)
+            .ok_or("legacy protected hotkey is missing its scancode")?;
+        let group = if action == "confirm" {
+            "confirm"
+        } else {
+            "cancel"
+        };
+        let keys = if group == "confirm" {
+            &mut confirm
+        } else {
+            &mut cancel
+        };
+        if keys
+            .iter()
+            .any(|key| key["scancode"].as_u64() == Some(scancode))
+        {
+            continue;
+        }
+
+        let default_entry = defaults
+            .pointer(&format!("/hotkeys/{group}"))
+            .and_then(Value::as_array)
+            .and_then(|keys| {
+                keys.iter()
+                    .find(|key| key["scancode"].as_u64() == Some(scancode))
+            });
+        let (fallback_emoji, fallback_text) = if group == "confirm" {
+            ("⚠️", "Another application may use {key}. Assign it anyway?")
+        } else {
+            (
+                "↩️",
+                "Pressing {key} cancels recording and keeps the current assignment.",
+            )
+        };
+        entry.remove("action");
+        entry.entry("emoji").or_insert_with(|| {
+            default_entry
+                .and_then(|key| key.get("emoji"))
+                .cloned()
+                .unwrap_or_else(|| Value::String(fallback_emoji.into()))
+        });
+        entry.entry("text").or_insert_with(|| {
+            default_entry
+                .and_then(|key| key.get("text"))
+                .cloned()
+                .unwrap_or_else(|| Value::String(fallback_text.into()))
+        });
+        keys.push(Value::Object(entry));
+    }
+
+    hotkeys.insert("confirm".into(), Value::Array(confirm));
+    hotkeys.insert("cancel".into(), Value::Array(cancel));
+    Ok(())
 }
 
 #[cfg(test)]

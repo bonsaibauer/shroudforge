@@ -41,10 +41,11 @@ pub(crate) fn read_mod_locale_catalogs(
         if !normalized_codes.insert(locale.to_ascii_lowercase()) {
             return Err(format!("locales: duplicate locale code '{locale}'"));
         }
-        let mut value: Value = serde_json::from_reader(
+        // Buffered: serde_json reads a bare file one byte per system call.
+        let mut value: Value = serde_json::from_reader(std::io::BufReader::new(
             fs.read_file(&path)
                 .map_err(|error| format!("{path}: {error}"))?,
-        )
+        ))
         .map_err(|error| format!("{path}: {error}"))?;
         shroudforge_loader_config::config::validate_document(
             root,

@@ -177,6 +177,8 @@ scan_archive() {
   local encoded_analysis_id
   local analysis_status
   local attempt
+  local max_analysis_attempts=$((max_analysis_wait_seconds / poll_interval_seconds))
+  local analysis_not_found_count=0
   local result_json
 
   archive_name="$(basename -- "$archive_path")"
@@ -218,12 +220,21 @@ scan_archive() {
   encoded_analysis_id="$(jq -rn --arg id "$analysis_id" '$id | @uri')"
 
   source='new_analysis'
-  for ((attempt = 1; attempt <= max_analysis_wait_seconds / poll_interval_seconds; attempt++)); do
+  for ((attempt = 1; attempt <= max_analysis_attempts; attempt++)); do
     sleep "$poll_interval_seconds"
     if ! api_request "$analysis_path" --request GET "https://www.virustotal.com/api/v3/analyses/$encoded_analysis_id"; then
+      if [[ "$api_http_status" == "404" ]]; then
+        analysis_not_found_count=$((analysis_not_found_count + 1))
+        if ((attempt < max_analysis_attempts)); then
+          printf 'VirusTotal analysis is not available yet (HTTP 404). Retrying in %s seconds (%s/%s).\n' \
+            "$poll_interval_seconds" "$attempt" "$max_analysis_attempts" >&2
+        fi
+        continue
+      fi
       append_scan_result "$(make_error_result "$archive_name" "$sha256" "VirusTotal analysis polling failed with HTTP $api_http_status: $api_error_message")"
       return 1
     fi
+    analysis_not_found_count=0
 
     analysis_status="$(jq -r '.data.attributes.status // empty' "$analysis_path")"
     case "$analysis_status" in
@@ -244,7 +255,11 @@ scan_archive() {
     esac
   done
 
-  append_scan_result "$(make_error_result "$archive_name" "$sha256" "VirusTotal analysis did not complete within ${max_analysis_wait_seconds} seconds.")"
+  if ((analysis_not_found_count > 0)); then
+    append_scan_result "$(make_error_result "$archive_name" "$sha256" "VirusTotal analysis remained unavailable after ${analysis_not_found_count} consecutive HTTP 404 responses over up to ${max_analysis_wait_seconds} seconds: $api_error_message")"
+  else
+    append_scan_result "$(make_error_result "$archive_name" "$sha256" "VirusTotal analysis did not complete within ${max_analysis_wait_seconds} seconds.")"
+  fi
   return 1
 }
 

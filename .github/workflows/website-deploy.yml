@@ -1,0 +1,195 @@
+name: Deploy ShroudForge download website
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Website channel to rebuild from its published release
+        type: choice
+        required: true
+        default: stable
+        options:
+          - stable
+          - development
+  workflow_call:
+    inputs:
+      channel:
+        description: Website channel, stable or development
+        type: string
+        required: false
+        default: stable
+      release_tag:
+        description: Release published by the calling workflow
+        type: string
+        required: true
+      source_sha:
+        description: Exact source commit of that release
+        type: string
+        required: true
+    secrets:
+      CF_API_TOKEN:
+        required: true
+      CF_ACCOUNT_ID:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shroudforge-download-website-${{ inputs.channel || 'stable' }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  deploy:
+    name: Build approved website and deploy static assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DEPLOYMENT_CHANNEL: ${{ inputs.channel || 'stable' }}
+      WEBSITE_ORIGIN: ${{ inputs.channel == 'development' && 'https://dev.shroudforge.net' || 'https://shroudforge.net' }}
+    steps:
+      - name: Select the current published release for this channel
+        id: release
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ "$DEPLOYMENT_CHANNEL" == 'development' ]]; then
+            cat > "$RUNNER_TEMP/shroudforge-development-release.jq" <<'JQ'
+          def uploaded_asset($name; $repository; $tag):
+            [.assets[]? | select(.name == $name)] as $matches
+            | ($matches | length) == 1
+              and $matches[0].state == "uploaded"
+              and ($matches[0].size | type) == "number"
+              and $matches[0].size > 0
+              and $matches[0].browser_download_url == "https://github.com/\($repository)/releases/download/\($tag)/\($name)";
+          [
+            .[][]
+            | select(.draft == false and .prerelease == true)
+            | (.tag_name | strings | capture("^v(?<major>0|[1-9][0-9]*)\\.(?<minor>0|[1-9][0-9]*)\\.(?<patch>0|[1-9][0-9]*)-dev\\.(?<build>0|[1-9][0-9]*)$")) as $version
+            | "shroudforge-\($version.major).\($version.minor).\($version.patch)-\($version.build).zip" as $archive
+            | select(uploaded_asset($archive; $repository; .tag_name)
+                and uploaded_asset("\($archive).sha256"; $repository; .tag_name))
+            | select(.html_url == "https://github.com/\($repository)/releases/tag/\(.tag_name)")
+            | select((.published_at | type) == "string" and .published_at != "")
+            | {
+                tag: .tag_name,
+                order: ([$version.major, $version.minor, $version.patch, $version.build] | map([length, .]))
+              }
+          ] | max_by(.order) | .tag // empty
+          JQ
+            tag="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              | jq -er --arg repository "$GITHUB_REPOSITORY" -f "$RUNNER_TEMP/shroudforge-development-release.jq")"
+          elif [[ "$DEPLOYMENT_CHANNEL" == 'stable' ]]; then
+            release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")"
+            tag="$(jq -er 'select(.draft == false and .prerelease == false) | .tag_name' <<< "$release_json")"
+            if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-build\.[0-9]+$ ]]; then
+              echo "The latest release is not a ShroudForge stable build tag." >&2
+              exit 1
+            fi
+          else
+            echo "The website channel must be stable or development." >&2
+            exit 1
+          fi
+          if [[ -n "$REQUESTED_TAG" && "$tag" != "$REQUESTED_TAG" ]]; then
+            echo "::notice::A different $DEPLOYMENT_CHANNEL release is current. Skipping this older website deployment."
+            echo "selected=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "selected=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the published release source
+        if: steps.release.outputs.selected == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+          persist-credentials: false
+
+      - name: Verify the approved source commit
+        if: steps.release.outputs.selected == 'true'
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.source_sha }}
+        run: |
+          if [[ -n "$EXPECTED_SHA" && "$(git rev-parse HEAD)" != "$EXPECTED_SHA" ]]; then
+            echo "The release tag does not match the published source commit." >&2
+            exit 1
+          fi
+          if [[ ! -f website/tools/build-site.mjs || ! -f website/wrangler.jsonc ]]; then
+            echo "Publish a $DEPLOYMENT_CHANNEL release containing the download website before rebuilding it." >&2
+            exit 1
+          fi
+          worker_name='shroudforge-net'
+          if [[ "$DEPLOYMENT_CHANNEL" == 'development' ]]; then
+            worker_name='shroudforge-net-development'
+          fi
+          if ! jq -e --arg channel "$DEPLOYMENT_CHANNEL" --arg name "$worker_name" --arg host "${WEBSITE_ORIGIN#https://}" '
+            (if $channel == "development" then .env.development else . end)
+            | .name == $name
+              and .assets.directory == "../build/download-website"
+              and (.routes | length) == 1
+              and .routes[0].pattern == $host
+              and .routes[0].custom_domain == true
+              and .workers_dev == false
+              and .preview_urls == false
+          ' website/wrangler.jsonc > /dev/null; then
+            echo "The published source must declare the isolated $DEPLOYMENT_CHANNEL website target." >&2
+            exit 1
+          fi
+
+      - name: Set up Node
+        if: steps.release.outputs.selected == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install website build dependencies
+        if: steps.release.outputs.selected == 'true'
+        run: npm ci
+
+      - name: Build and validate the download website
+        if: steps.release.outputs.selected == 'true'
+        run: npm run downloads:check
+
+      - name: Confirm the selected release is still current
+        if: steps.release.outputs.selected == 'true'
+        id: current
+        shell: bash
+        env:
+          SELECTED_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if [[ "$DEPLOYMENT_CHANNEL" == 'development' ]]; then
+            latest_tag="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              | jq -er --arg repository "$GITHUB_REPOSITORY" -f "$RUNNER_TEMP/shroudforge-development-release.jq")"
+          else
+            latest_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
+          fi
+          if [[ "$latest_tag" == "$SELECTED_TAG" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::A different $DEPLOYMENT_CHANNEL release became current during this build. Skipping deployment."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy Cloudflare static assets
+        if: steps.current.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          wranglerVersion: "4.115.0"
+          command: deploy --config website/wrangler.jsonc --env=${{ inputs.channel == 'development' && 'development' || '' }}
+
+      - name: Record the deployed website source
+        if: steps.current.outputs.deploy == 'true'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          printf 'Website: %s\n\nChannel: `%s`\n\nRelease source: `%s`\n\nCommit: `%s`\n' \
+            "$WEBSITE_ORIGIN" "$DEPLOYMENT_CHANNEL" "$RELEASE_TAG" "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
