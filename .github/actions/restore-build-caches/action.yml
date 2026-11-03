@@ -1,0 +1,59 @@
+name: Restore Rust and frontend caches
+description: Cache external build dependencies with the same invalidation rules for dev and release.
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js and npm download cache
+      uses: actions/setup-node@v7
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: modules/modloader/ui/package-lock.json
+
+    - name: Fingerprint dependency build inputs
+      id: context
+      shell: pwsh
+      env:
+        BUILD_INPUTS_HASH: ${{ hashFiles('.github/actions/restore-build-caches/action.yml', 'Cargo.toml', 'Cargo.lock', 'modules/**/Cargo.toml', 'kfc-parser/**/Cargo.toml', 'kfc-parser/Cargo.lock', '**/build.rs', 'modules/entrypoints/build_windows_app_icon.rs', '.cargo/**', 'kfc-parser/.cargo/**', 'rust-toolchain*', 'kfc-parser/rust-toolchain*', 'dev/build/*.ps1', 'dev/parser/**', '.gitmodules') }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
+        if (-not $env:BUILD_INPUTS_HASH) { throw 'The dependency build input hash is missing.' }
+        $visualStudio = & .\dev\build\find_visual_studio.ps1
+        $toolsVersion = (Get-Content -LiteralPath (Join-Path $visualStudio 'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt') -Raw).Trim()
+        $compiler = Join-Path $visualStudio "VC/Tools/MSVC/$toolsVersion/bin/Hostx64/x64/cl.exe"
+        $parserRevision = & git -C kfc-parser rev-parse HEAD
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot fingerprint the parser submodule.' }
+        $sdlRevision = & git -C modules/hotkeys/SDL rev-parse HEAD
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot fingerprint the SDL submodule.' }
+        $context = [ordered]@{
+          format = 1
+          runnerOs = $env:RUNNER_OS
+          runnerArch = $env:RUNNER_ARCH
+          imageOs = $env:ImageOS
+          imageVersion = $env:ImageVersion
+          msvc = (Get-FileHash -LiteralPath $compiler -Algorithm SHA256).Hash
+          rustc = (& rustc -Vv) -join "`n"
+          cargo = & cargo -V
+          node = & node --version
+          npm = & npm --version
+          parser = $parserRevision
+          sdl = $sdlRevision
+          buildInputs = $env:BUILD_INPUTS_HASH
+        } | ConvertTo-Json -Compress
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot fingerprint the build toolchain.' }
+        $fingerprint = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($context))).ToLowerInvariant()
+        "value=$fingerprint" >> $env:GITHUB_OUTPUT
+        Write-Host "Dependency cache context: $fingerprint"
+
+    - name: Restore external Rust dependencies
+      uses: Swatinem/rust-cache@v2.9.3
+      with:
+        # Both Cargo workspaces use this target directory. Clean/cache it only once.
+        workspaces: ". -> target"
+        shared-key: shroudforge-windows-release-${{ steps.context.outputs.value }}
+        # Include Windows SDK/toolset overrides in addition to Cargo/Rust/C/CMake flags.
+        env-vars: VCTools VCINSTALLDIR VSINSTALLDIR WindowsSdk WindowsSDK UCRT INCLUDE LIB CL _CL_
+        cache-workspace-crates: "false"
+        cache-bin: "false"
+        # Every build still runs. Local source, generated UI and package outputs are not cached.

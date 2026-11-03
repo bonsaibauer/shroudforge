@@ -265,7 +265,13 @@ System updates manage the program files and bundled mods. They do not replace **
 
 Run commands from the repository root. Each PowerShell file performs the action named by its filename and contains its actual build or package steps.
 
-Initialize the Git submodules before building. The pinned parser revision includes the recorded integration, checked with `./dev/parser/prepare_parser.ps1`. The script can also prepare the legacy revision from its recorded patch. Both GitHub workflows run the same full build, tests, and packaging through `dev/build/dev_build.ps1` or `dev/build/release_build.ps1`. A version-branch push publishes a prerelease. Manually running the release workflow publishes a regular release and marks it latest. Both scripts run this preparation step themselves.
+Initialize the Git submodules before building. The pinned parser revision includes the recorded integration, checked with `./dev/parser/prepare_parser.ps1`. The script can also prepare the legacy revision from its recorded patch. Local development and release entrypoints share the full build, tests, and packaging sequence. A version-branch push publishes a prerelease. Manually running the release workflow publishes a regular release and marks it latest. Both entrypoints prepare the parser themselves.
+
+Both GitHub workflows build native components and Rust programs on separate Windows runners. The native job builds the runtime and bootstrap and runs the bootstrap tests. The Rust job calls the selected entrypoint with `-RustOnly`, building both frontends, the proxy DLLs and Rust programs and running both Rust test groups. Only after both jobs succeed does the packaging job combine their outputs through `package_release.ps1`. The Rust artifact also carries the pinned SDL license required by packaging. The existing malware scans, unified security report and publication gates consume that package.
+
+The shared composite action at `.github/actions/restore-build-caches/action.yml` caches npm downloads and external Rust dependencies. Its Rust cache context includes the runner image, MSVC compiler, Rust/Cargo and Node/npm versions, parser and SDL revisions, Cargo manifests and locks, build scripts, parser preparation, toolchain/configuration files and cache configuration. The cache also fingerprints Cargo/Rust/C/CMake flags and Windows SDK/toolset overrides. Own workspace crates, generated frontends, native runtime outputs and release ZIPs are not cached. Build commands always run after cache restore, and Cargo uses `--locked`. Source or embedded asset changes are rebuilt rather than accepted merely because a cache exists.
+
+The main Rust test invocation excludes `shroudforge-runtime-diagnostics`, which is tested in a second invocation. Its test-only `mlua/serialize` feature therefore does not expand the entire product test graph. Both groups use the same Cargo target directory. Native runtime compilation accepts `-ParallelJobs` (default 2), capped to the available processor count.
 
 | Action | File | What it does |
 | --- | --- | --- |
@@ -288,7 +294,7 @@ Initialize the Git submodules before building. The pinned parser revision includ
 
 `dev/build/find_visual_studio.ps1` is a shared helper called by the native runtime and Windows bootstrap build actions. It locates the installed C++ toolchain and is not a separate product build.
 
-Both build entry points run the same full build sequence and call the concrete build actions. Tests are an explicit action, `dev/tests/run_workspace_tests.ps1`. Nothing in these instructions creates a second game installation.
+Both build entry points call the same concrete build actions. The default local full build starts independent frontend, proxy, native runtime and bootstrap phases in parallel. Tests are an explicit action, `dev/tests/run_workspace_tests.ps1`, whose `-RustOnly` switch leaves bootstrap checks to the native CI job. Nothing in these instructions creates a second game installation.
 
 For executable inspection, captures and profile preparation, start with [dev/profiles/README.md](../../dev/profiles/README.md). Sources, capture inputs and generated outputs have separate owners. Approved runtime profiles remain in **modules/game-runtime/profiles/**. Local captures remain in **dev/profiles/captures/**. Generated release and website files belong in **build/**.
 

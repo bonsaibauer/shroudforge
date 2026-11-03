@@ -1,8 +1,18 @@
+<#
+.SYNOPSIS
+Build, test and package ShroudForge through the shared development and release phases.
+.PARAMETER RustOnly
+Build the frontend, Windows proxies and Rust workspace and run Rust tests. The separate
+native CI job owns the native runtime, Windows bootstrap and bootstrap tests. Packaging
+runs after both CI jobs, or as part of the default full build.
+#>
 param(
     [string]$BuildNumber = $(if ($env:SHROUDFORGE_BUILD_NUMBER) { $env:SHROUDFORGE_BUILD_NUMBER } else { 'dev' }),
     [switch]$SkipTests,
     [switch]$UseInstalledDependencies,
     [switch]$SkipUiBuild,
+    [switch]$RustOnly,
+    [switch]$WithoutUpdater,
     [string]$CargoTargetDir = 'target'
 )
 
@@ -84,10 +94,13 @@ $parallelTasks = @(
         UseInstalledDependencies = $UseInstalledDependencies.IsPresent
         SkipUiBuild = $SkipUiBuild.IsPresent
     })
-    (Start-BuildPhaseJob -Name 'kfc-runtime' -ScriptPath (Join-Path $actions 'build_kfc_runtime.ps1'))
     (Start-BuildPhaseJob -Name 'windows-proxies' -ScriptPath (Join-Path $actions 'build_windows_proxies.ps1') -Parameters @{
         CargoTargetDir = $cargoTargetPath
     })
+    if (-not $RustOnly) {
+        (Start-BuildPhaseJob -Name 'kfc-runtime' -ScriptPath (Join-Path $actions 'build_kfc_runtime.ps1'))
+        (Start-BuildPhaseJob -Name 'windows-bootstrap' -ScriptPath (Join-Path $actions 'build_windows_bootstrap.ps1'))
+    }
 )
 try {
     Wait-BuildPhaseJobs -Jobs $parallelTasks
@@ -98,15 +111,14 @@ try {
 
 if (-not $SkipTests) {
     Invoke-BuildPhase -Name 'workspace-tests' -Action {
-        & (Join-Path $repositoryRoot 'dev\tests\run_workspace_tests.ps1')
+        & (Join-Path $repositoryRoot 'dev\tests\run_workspace_tests.ps1') -CargoTargetDir $cargoTargetPath -RustOnly:$RustOnly
     }
 }
 Invoke-BuildPhase -Name 'modloader-workspace-build' -Action {
     & (Join-Path $actions 'build_modloader.ps1') -CargoTargetDir $cargoTargetPath -UseInstalledDependencies -SkipUiBuild
 }
-Invoke-BuildPhase -Name 'windows-bootstrap' -Action {
-    & (Join-Path $actions 'build_windows_bootstrap.ps1')
-}
-Invoke-BuildPhase -Name 'package-release' -Action {
-    & (Join-Path $actions 'package_release.ps1') -BuildNumber $BuildNumber -Version $version
+if (-not $RustOnly) {
+    Invoke-BuildPhase -Name 'package-release' -Action {
+        & (Join-Path $actions 'package_release.ps1') -BuildNumber $BuildNumber -Version $version -WithoutUpdater:$WithoutUpdater
+    }
 }
