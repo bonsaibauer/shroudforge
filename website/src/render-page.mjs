@@ -37,7 +37,7 @@ function downloadCard(release, { title, description, kind }, securityReport) {
 		<div class="card-version"><h2>${escapeHtml(release.version)}</h2>${badge(release.prerelease)}</div>
 		<p class="card-description">${description}</p>
 		<div class="card-metadata"><span>Build ${escapeHtml(release.build)}</span><span aria-hidden="true">·</span><time datetime="${escapeHtml(release.publishedAt)}">${formatDate(release.publishedAt)}</time><span aria-hidden="true">·</span><span>${formatSize(release.asset.size)}</span></div>
-		<a class="button ${kind === 'stable' ? 'button-primary' : 'button-secondary'} download href="${escapeHtml(release.asset.url)}" aria-label="Download ${escapeHtml(release.asset.name)}">${icon('download')} Download ZIP</a>
+		<a class="button ${kind === 'stable' ? 'button-primary' : 'button-secondary'} download" href="${escapeHtml(release.asset.url)}" aria-label="Download ${escapeHtml(release.asset.name)}">${icon('download')} Download ZIP</a>
 		<a class="card-changelog" href="${escapeHtml(release.releaseUrl)}">View release notes ${icon('external')}</a>
 		${renderVirusTotalLink(securityReport, { card: true })}
 	</section>`
