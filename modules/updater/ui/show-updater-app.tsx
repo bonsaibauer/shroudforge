@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
+import { BrandMark } from '../../ui-resources/show-brand'
 import { Updates } from './show-updates'
 import type {
   BackupManagement,
@@ -88,7 +89,7 @@ export function UpdaterApp() {
     <main className="shell updater-standalone-shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">SF</span>
+          <BrandMark />
           <span>
             <strong>SHROUDFORGE</strong>
             <small>UPDATER</small>

@@ -19,7 +19,7 @@ export function WikiPage({
   const article = selected ? readWikiArticle(selected, locale) : undefined
   const filter = query.trim().toLocaleLowerCase()
   const articles = readWikiArticles(locale).filter((item) =>
-    `${item.title} ${item.summary} ${item.body}`.toLocaleLowerCase().includes(filter),
+    `${item.category || ''} ${item.title} ${item.summary} ${item.body}`.toLocaleLowerCase().includes(filter),
   )
   const opened = useRef(false)
   useEffect(() => {
@@ -64,7 +64,10 @@ export function WikiPage({
         {articles.map((item) => <button type="button" className="wiki-article-link" key={item.id}
           onClick={() => selectArticle(item.id)}>
           <WikiArtwork article={item} />
-          <span><strong>{item.title}</strong><small>{item.summary}</small></span>
+          <span>
+            {item.category && <small className="wiki-article-category">{item.category}</small>}
+            <strong>{item.title}</strong><small>{item.summary}</small>
+          </span>
           <Icon name="wiki" />
         </button>)}
       </div>

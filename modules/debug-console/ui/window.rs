@@ -77,10 +77,12 @@ pub(crate) fn run() -> Result<(), Box<dyn std::error::Error>> {
         shroudforge_loader_config::paths::webview_profile(&arguments.root).join("debug-console");
     std::fs::create_dir_all(&profile)?;
     let mut web_context = WebContext::new(Some(profile));
-    let webview = WebViewBuilder::new_with_web_context(&mut web_context)
-        .with_html(html)
-        .with_ipc_handler(handler)
-        .build(&window)?;
+    let webview = shroudforge_ui_resources::with_embedded_document(
+        WebViewBuilder::new_with_web_context(&mut web_context),
+        html.into_bytes(),
+    )
+    .with_ipc_handler(handler)
+    .build(&window)?;
     let mut shown = arguments.desktop;
     let mut window_topmost = false;
     let initial_window_state = shroudforge_loader_config::config::window_state(&arguments.root);

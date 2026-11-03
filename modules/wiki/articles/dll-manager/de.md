@@ -1,6 +1,10 @@
 # DLL Manager
 
-Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurden. Für bekannte Mods gibt es vorbereitete Profile. Andere DLLs wählst du einmal in der DLL-Verwaltung aus und bestätigst sie.
+Öffne im Modloader **Kompatibilität → DLL-Verwaltung**. Oben in dieser Ansicht steht der passende Wiki-Artikel. Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurden. Für bekannte Mods gibt es vorbereitete Profile. Andere DLLs wählst du dort aus und bestätigst sie.
+
+## Kann ich mehrere native DLL-Mods verwenden?
+
+Ja. Installiere jeden Mod in einem eigenen Ordner direkt unter `mods/` und übernimm alle mitgelieferten Dateien und Unterordner. Ein passendes Profil kann die richtige DLL-Auswahl bereits bereitstellen. Öffne bei einem Mod ohne passendes Profil in der DLL-Verwaltung **DLL-Auswahl anpassen**. Wähle nur die Einstiegs-DLLs aus, die laut Anleitung des Autors geladen werden sollen. Wähle das Ladeziel und bestätige, dass du der DLL vertraust. Lass **Normale DLL** für gewöhnliche native Bibliotheken eingestellt. Wähle **DirectInput-Proxy** nur für eine DLL, die als DirectInput-Proxy dient und `DirectInput8Create` exportiert. Klicke auf **Auswahl übernehmen** und starte das Spiel neu. Die Erkennung allein lädt keine DLL ohne Profil. Dafür braucht es eine bestätigte DLL-Auswahl, eine Deklaration in `native-plugin.ini` oder `dinput8-chain.ini` oder eine Registrierung durch die Lua-Mod.
 
 ## Was mache ich mit dem heruntergeladenen Mod?
 
@@ -8,9 +12,9 @@ Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurd
 - **DLL dabei:** Lege die Mod-DLL in den Modordner, wie unten gezeigt. Danach erscheint sie in der DLL-Verwaltung. Bei einem bekannten Profil ist die Auswahl vorbereitet. Sonst wählst du die DLL dort aus und bestätigst sie.
 - **Weitere Moddateien dabei:** Übernimm den Modordner vollständig. Lösche mitgelieferte Dateien wie `mod.json`, `native-plugin.ini` oder Konfigurationen nicht.
 
-## Wenn der Mod mehrere DLL-Dateien enthält
+## Wenn ein Mod mehrere DLL-Dateien enthält
 
-Viele Modordner enthalten DLL-Dateien, die nur Hilfsdateien sind. Wähle nur die DLLs aus, die das Modprofil oder die Anleitung des Modautors zum Laden nennt. Wenn mehrere Mod-DLLs geladen werden sollen, legst du ihre Reihenfolge in der DLL-Verwaltung fest.
+Viele Modordner enthalten DLL-Dateien, die nur Hilfsdateien sind. Wähle nur die DLLs aus, die das Modprofil oder die Anleitung des Modautors zum Laden nennt. Mit den Pfeilen legst du die Reihenfolge der ausgewählten DLLs innerhalb dieses Modordners fest. Für gewöhnliche DLLs aus verschiedenen Modordnern gibt es keine globale manuelle Reihenfolge.
 
 ## Mod mit DLL installieren
 
@@ -24,7 +28,7 @@ mods/
     config.ini      (falls enthalten)
 ```
 
-Eine unbekannte DLL wird nicht allein durch das Ablegen geladen. Wähle sie in der DLL-Verwaltung aus, prüfe die vorgeschlagene Ladeart und bestätige sie.
+Eine DLL wird nicht allein durch das Ablegen geladen. Wähle sie wie oben beschrieben in der DLL-Verwaltung aus.
 
 ## Warum darf die Moddatei auch dinput8.dll heißen?
 
@@ -44,7 +48,7 @@ mods\mein-mod\dinput8.dll
 mods\anderer-mod\native.dll
 ```
 
-Die Einträge müssen auf Dateien innerhalb direkter Modpakete wie `mods/<Modordner>/` verweisen. DLLs im Spielhauptordner und Pfade außerhalb dieser Pakete werden abgewiesen. Die Reihenfolge hat Vorrang vor automatisch ermittelten Deklarationen. Derselbe aufgelöste Dateipfad wird nur einmal geladen. Die erste gültige DirectInput-Implementierung erhält die weitergeleiteten Aufrufe. Eigene Startdateien werden übersprungen, rekursive Weiterleitung fällt auf die originale Windows-Bibliothek zurück.
+Die Einträge müssen auf Dateien innerhalb direkter Modpakete wie `mods/<Modordner>/` verweisen. DLLs im Spielhauptordner und Pfade außerhalb dieser Pakete werden abgewiesen. Die Reihenfolge hat Vorrang vor automatisch ermittelten Deklarationen. Die Datei legt die Reihenfolge der DirectInput-Chain fest, nicht die Reihenfolge gewöhnlicher DLLs aus verschiedenen Modordnern. Derselbe aufgelöste Dateipfad wird nur einmal geladen. Die erste gültige DLL mit eigenem `DirectInput8Create`-Export erhält die weitergeleiteten Aufrufe. Weitere DirectInput-Proxy-DLLs können geladen werden, ihre DirectInput-Exporte sind in dieser Chain aber nicht aktiv. Gehe nicht davon aus, dass mehrere Proxys zusammen funktionieren. Eigene Startdateien werden übersprungen, rekursive Weiterleitung fällt auf die originale Windows-Bibliothek zurück.
 
 ## Schalter, Ziel und Neustart
 

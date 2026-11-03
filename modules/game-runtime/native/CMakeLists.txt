@@ -7,6 +7,13 @@ endif()
 enable_language(RC)
 enable_language(C)
 
+set(SHROUDFORGE_NATIVE_COMPILE_JOBS 2 CACHE STRING
+    "Maximum compiler processes for the native runtime")
+if(NOT SHROUDFORGE_NATIVE_COMPILE_JOBS MATCHES "^[1-9][0-9]*$" OR
+   SHROUDFORGE_NATIVE_COMPILE_JOBS GREATER 65536)
+    message(FATAL_ERROR "SHROUDFORGE_NATIVE_COMPILE_JOBS must be an integer from 1 to 65536")
+endif()
+
 # Two typed original-operation adapters inspect directed call edges. Decode
 # actual instructions rather than scanning E8 bytes or storing function RVAs.
 include(FetchContent)
@@ -100,8 +107,8 @@ else()
 endif()
 string(APPEND profile_header_content "};\n${resource_read_header_content}};\n}")
 
-file(WRITE "${profile_resource_rc}" "${profile_rc_content}")
-file(WRITE "${profile_resource_header}" "${profile_header_content}")
+file(CONFIGURE OUTPUT "${profile_resource_rc}" CONTENT "@profile_rc_content@" @ONLY)
+file(CONFIGURE OUTPUT "${profile_resource_header}" CONTENT "@profile_header_content@" @ONLY)
 set_source_files_properties("${profile_resource_rc}" PROPERTIES
     GENERATED TRUE
     OBJECT_DEPENDS "${runtime_profiles};${resource_read_profiles}")
@@ -196,7 +203,8 @@ foreach(configuration DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
         RUNTIME_OUTPUT_DIRECTORY_${configuration} "${CMAKE_BINARY_DIR}/bin")
 endforeach()
 if(MSVC)
-    target_compile_options(kfc-runtime PRIVATE /W4 /EHsc)
+    target_compile_options(kfc-runtime PRIVATE /W4 /EHsc
+        "$<$<COMPILE_LANGUAGE:CXX>:/MP${SHROUDFORGE_NATIVE_COMPILE_JOBS}>")
 endif()
 
 # Development tools never run from the game or from the modloader.
