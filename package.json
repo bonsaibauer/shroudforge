@@ -2,10 +2,18 @@
   "name": "shroudforge-website",
   "private": true,
   "scripts": {
+    "downloads:build": "node website/tools/build-site.mjs",
+    "downloads:validate": "node website/tools/validate-site.mjs",
+    "downloads:test": "node --test website/tests/*.test.mjs",
+    "downloads:check": "npm run downloads:test && npm run downloads:build && npm run downloads:validate",
+    "downloads:preview": "node website/tools/preview-site.mjs",
     "site:build": "node docs/website/tools/build-website-output.mjs && node docs/website/tools/build-website-pages.mjs && npm run site:sanitize && npm run runtime:types",
     "site:sanitize": "node docs/website/tools/sanitize-snapshots.mjs",
     "runtime:types": "node docs/website/tools/build-runtime-ecs-reference.mjs",
     "site:validate": "node docs/website/tools/validate-website-output.mjs",
     "site:check": "npm run site:build && npm run site:validate"
+  },
+  "devDependencies": {
+    "fflate": "0.8.3"
   }
 }

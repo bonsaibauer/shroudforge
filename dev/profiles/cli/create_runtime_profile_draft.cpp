@@ -16,6 +16,7 @@ int generate_command(int argc, char** argv) {
     }
     try {
         auto profile = json::parse(std::ifstream(base_path));
+        if (kfc_format_text == "4" && profile.contains("ownerLayout")) profile["schemaVersion"] = 2;
         profile["kfcFormat"] = kfc_format_text == "3" ? 3 : 4;
         // A relocated signature does not prove calculation semantics in a new build.
         profile.erase("attributeCalculationModel");
@@ -23,6 +24,8 @@ int generate_command(int argc, char** argv) {
         // A new image's signature scan cannot transfer their authorization.
         profile.erase("ecsWriteLayout");
         profile.erase("resourceWriteLayout");
+        profile.erase("entityCommandQueueLayout");
+        profile.erase("buildingPropSpawnLayout");
         const auto image = json::parse(std::ifstream(image_path));
         const auto scan = json::parse(std::ifstream(scan_path));
         const auto observed_components = json::parse(std::ifstream(*components_path));

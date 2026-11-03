@@ -1,6 +1,6 @@
 use super::read_host_arguments::Arguments;
-use super::report_command_result::report_command_result;
-use shroudforge_package::set_mod_enabled;
+use super::report_command_result::report_command_result_with_revision;
+use shroudforge_package::{read_mod_config_revision, set_mod_enabled};
 use std::time::Instant;
 
 pub(crate) fn apply_mod_enabled(
@@ -19,7 +19,12 @@ pub(crate) fn apply_mod_enabled(
     } else {
         "mod.disabledToast"
     };
-    report_command_result(
+    // The page saves the next change against this revision.
+    let saved = result
+        .is_ok()
+        .then(|| read_mod_config_revision(&arguments.root, &id).ok())
+        .flatten();
+    report_command_result_with_revision(
         &arguments.root,
         &webview,
         &request_id,
@@ -29,6 +34,7 @@ pub(crate) fn apply_mod_enabled(
         message,
         None,
         false,
+        saved.as_deref(),
     );
     *next_refresh = Instant::now();
 }

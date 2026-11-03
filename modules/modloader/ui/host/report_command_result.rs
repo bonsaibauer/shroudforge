@@ -1,24 +1,18 @@
 use super::mark_control_action::mark_control_action;
-use super::notify_command_result::notify_command_result;
+use super::notify_command_result::notify_command_result_with_revision;
 use shroudforge_logging::{activity_log_level, write_activity_at_level};
 use shroudforge_package::package_lookup::mod_ecosystem;
 use std::path::Path;
 
 pub(crate) fn is_module_unavailable_warning(message: &str) -> bool {
     let message = message.to_ascii_lowercase();
-    message.contains("disabled in settings")
-        || message.contains("is disabled in module settings")
+    message.contains("disabled in settings") || message.contains("is disabled in module settings")
 }
 
-pub(crate) fn disable_missing_updater(root: &Path) -> String {
+pub(crate) fn missing_updater_message(root: &Path) -> String {
     let executable = shroudforge_loader_config::paths::updater_executable(root);
-    let initialization_error = shroudforge_loader_config::config::initialize_loader_config(root)
-        .err()
-        .map(|error| format!(" Could not save the disabled setting: {error}"))
-        .unwrap_or_default();
-    let _ = shroudforge_loader_config::config::request_window_visibility(root, "updates", false);
     format!(
-        "Updates module is disabled because shroudforge-updater.exe is missing: {}.{initialization_error}",
+        "ShroudForge Updater is temporarily unavailable because its executable could not be found: {}.",
         executable.display()
     )
 }
@@ -33,6 +27,34 @@ pub(crate) fn report_command_result(
     success_message: &str,
     batch_key: Option<&str>,
     restore_settings: bool,
+) {
+    report_command_result_with_revision(
+        root,
+        webview,
+        request_id,
+        source,
+        action,
+        result,
+        success_message,
+        batch_key,
+        restore_settings,
+        None,
+    );
+}
+
+/// Same, with the new revision of the saved mod state, so the page can save
+/// again at once instead of waiting for its next refresh.
+pub(crate) fn report_command_result_with_revision(
+    root: &Path,
+    webview: &wry::WebView,
+    request_id: &str,
+    source: &str,
+    action: &str,
+    result: Result<(), String>,
+    success_message: &str,
+    batch_key: Option<&str>,
+    restore_settings: bool,
+    revision: Option<&str>,
 ) {
     let unavailable = result
         .as_ref()
@@ -60,7 +82,7 @@ pub(crate) fn report_command_result(
     } else {
         result
     };
-    notify_command_result(
+    notify_command_result_with_revision(
         webview,
         request_id,
         notification_result,
@@ -69,5 +91,6 @@ pub(crate) fn report_command_result(
         batch_key,
         restore_settings,
         ecosystem,
+        revision,
     );
 }

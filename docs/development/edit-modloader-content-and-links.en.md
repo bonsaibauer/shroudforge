@@ -19,7 +19,9 @@ Visible text is looked up in the Modloader language files:
 - **modules/ui-resources/locales/en-GB.json** is the English (UK) source.
 - **modules/ui-resources/locales/de.json** contains the German translation.
 
-Add new text to the English (UK) file and provide its English (US) and German translations. **crowdin.yml** uses English (UK) as the source language.
+Add new text to the English (UK) file and provide its English (US) and German translations. The Fink project in **modules/ui-resources/project.inlang/settings.json** uses English (UK) as its source locale and edits these JSON catalogs in the GitHub repository. The Modloader's translation notice opens this project directly.
+
+Translators need a GitHub account to save changes. Fink requires the Inlang GitHub App to be installed on the repository for direct pushes. For protected branches, create a translation branch in GitHub first, open that branch in Fink, then review and submit the pull request on GitHub. Contributors without repository write access can use Fink's fork flow.
 
 ## Saved notices and events
 

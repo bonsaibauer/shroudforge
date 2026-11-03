@@ -1,5 +1,7 @@
 # Build output
 /build/
+/.wrangler/
+/website/.wrangler/
 x64/
 target/
 node_modules/
