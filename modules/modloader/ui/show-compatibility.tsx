@@ -20,6 +20,12 @@ import {
 } from '../../ui-resources/edit-setting'
 
 export type CompatibilityStatus = 'ok' | 'warning' | 'error' | 'neutral'
+export type CompatibilityTab =
+  | 'mod-detection'
+  | 'dll-manager'
+  | 'hotkeys'
+  | 'dependencies'
+  | 'engine'
 
 function combinedStatus(statuses: CompatibilityStatus[]): CompatibilityStatus {
   return statuses.includes('error') ? 'error'
@@ -100,15 +106,18 @@ export function Compatibility({
   openNews,
   selectMod,
   openLog,
+  tab,
+  setTab,
 }: {
   data: Snapshot
   news: NewsItem[]
   openNews(): void
   selectMod(id: string): void
   openLog(): void
+  tab: CompatibilityTab
+  setTab(tab: CompatibilityTab): void
 }) {
   const { t } = useI18n()
-  const [tab, setTab] = useState('mod-detection')
   const [showAllDependencies, setShowAllDependencies] = useState(false)
   const loggedTab = useRef<string | null>(null)
   useEffect(() => {
@@ -384,7 +393,7 @@ export function Compatibility({
       />
       <Segmented
         value={tab}
-        onChange={setTab}
+        onChange={(value) => setTab(value as CompatibilityTab)}
         items={[
           [
             'mod-detection',

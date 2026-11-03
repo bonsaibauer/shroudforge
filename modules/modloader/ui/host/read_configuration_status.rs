@@ -1,6 +1,37 @@
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
+fn runtime_problem_code(provider: &Value) -> Option<&'static str> {
+    if provider["available"] != true {
+        return Some("provider-unavailable");
+    }
+
+    let detail = provider["detail"].as_str().unwrap_or_default();
+    let profile = detail
+        .split_whitespace()
+        .find_map(|part| part.strip_prefix("profile="))
+        .unwrap_or_default();
+    if matches!(profile, "missing-or-ambiguous-profile" | "ambiguous-exact-profile") {
+        return Some("profile-unavailable");
+    }
+    if profile.starts_with("manual-profile-not-found:")
+        || profile.starts_with("manual-profile-id-ambiguous:")
+    {
+        return Some("profile-selection-invalid");
+    }
+    if profile.starts_with("profile-error:") {
+        return Some("profile-error");
+    }
+
+    if provider["ready"] != true
+        && provider["awaitingWorld"] != true
+        && provider["mainMenu"] != true
+    {
+        return Some("runtime-not-ready");
+    }
+    None
+}
+
 pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>) -> Value {
     let desktop = game_pid.is_none();
     let mut errors = Vec::new();
@@ -39,13 +70,20 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 .as_u64()
                 .is_some_and(|timestamp| timestamp <= now && now - timestamp <= 5)
     });
+    let runtime_check = runtime
+        .as_ref()
+        .filter(|_| runtime_fresh)
+        .map(|value| &value["runtimeProvider"]);
+    let runtime_problem = runtime_check.and_then(runtime_problem_code);
     let main_menu = runtime_fresh
         && !server
+        && runtime_problem.is_none()
         && runtime.as_ref().is_some_and(|value| {
             value["runtimeProvider"]["available"] == true
                 && value["runtimeProvider"]["mainMenu"] == true
         });
     let awaiting_world = runtime_fresh
+        && runtime_problem.is_none()
         && runtime.as_ref().is_some_and(|value| {
             value["runtimeProvider"]["available"] == true
                 && value["runtimeProvider"]["awaitingWorld"] == true
@@ -527,10 +565,6 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
     };
     checks
         .push(json!({"id":"parser","group":"parser","state":parser_state,"detail":parser_detail}));
-    let runtime_check = runtime
-        .as_ref()
-        .filter(|_| runtime_fresh)
-        .map(|value| &value["runtimeProvider"]);
     let (runtime_state, runtime_detail) = match runtime_check {
         _ if desktop => (
             "ok",
@@ -577,7 +611,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
             "Waiting for a fresh status from the game process.".into(),
         ),
     };
-    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"detail":runtime_detail,"phase":if desktop {"desktop"} else if main_menu {"main-menu"} else if awaiting_world {"waiting-world"} else {"normal"}}));
+    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"code":runtime_problem,"detail":runtime_detail,"phase":if desktop {"desktop"} else if main_menu {"main-menu"} else if awaiting_world {"waiting-world"} else {"normal"}}));
     let state_path = shroudforge_loader_config::paths::state_file(root);
     let updates = match fs::read(&state_path) {
         Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {

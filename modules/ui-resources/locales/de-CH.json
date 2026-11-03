@@ -605,6 +605,9 @@
   "settings.modules.modloaderUi.description": "Fänschter und Tastenkombis verwalte. Iistellige werded sofort gspeicheret.",
   "settings.modules.runtimeDiagnostics.title": "Laufzeitdiagnose",
   "settings.modules.runtimeDiagnostics.description": "Diagnosesitzungen sind standardmässig us. Änderige greifen innerhalb vo 500 ms. Erfasst werde Laufzeit- und Weltdaten, kei Kompatibilitätsdaten.",
+  "settings.modules.gameProfileDiscovery.title": "Dynamische Spielprofilerstellung (Beta)",
+  "settings.modules.gameProfileDiscovery.description": "Bei unbekannten Spielbuilds den letzten passenden Client- oder Serverbuild prüfen und bei Erfolg ein beta_-Profil erstellen. Reguläre Profile haben Vorrang.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Wird nach einem Neustart des Spiels wirksam.",
   "settings.modules.updates.title": "Updates",
   "settings.modules.updates.description": "Verwaltet System- und Modupdates an ere Stelle.",
   "settings.modules.updates.auto": "Automatisch nach Updates sueche",
@@ -841,5 +844,15 @@
   "updater.required": "Pflichtupdate",
   "updater.verifying": "Download wird überprüeft …",
   "updater.waiting": "S Update wird installiert, sobald Enshrouded gschlosse isch.",
-  "updater.current": "ShroudForge isch uf em neuste Stand."
+  "updater.current": "ShroudForge isch uf em neuste Stand.",
+  "runtime.blocker.title": "Deine Mods funktionieren gerade nicht",
+  "runtime.blocker.profileUnavailable": "ShroudForge kann diese Enshrouded-Version noch nicht sicher unterstützen. Vielleicht wurde das Spiel gerade aktualisiert. Suche nach einem ShroudForge-Update. Bis dahin funktionieren Mods, die das Spiel verändern, nicht.",
+  "runtime.blocker.profileSelectionInvalid": "Die gewählte Einstellung für Enshrouded wurde nicht gefunden. Wähle in den ShroudForge-Einstellungen „Automatisch“.",
+  "runtime.blocker.profileError": "ShroudForge kann die Informationen zur ausgewählten Enshrouded-Version nicht lesen. Öffne „Details“, um mehr zu erfahren.",
+  "runtime.blocker.providerUnavailable": "Ein wichtiger Teil von ShroudForge konnte nicht gestartet werden. Starte Enshrouded neu. Bleibt der Hinweis, aktualisiere oder repariere ShroudForge.",
+  "runtime.blocker.runtimeNotReady": "ShroudForge konnte sich noch nicht mit Enshrouded verbinden. Deine Mods funktionieren möglicherweise nicht. Öffne „Details“, wenn der Hinweis bleibt.",
+  "runtime.blocker.generic": "ShroudForge kann gerade nicht richtig mit Enshrouded zusammenarbeiten. Deine Mods funktionieren möglicherweise nicht. Öffne „Details“, um mehr zu erfahren.",
+  "runtime.blocker.checkUpdates": "Nach ShroudForge-Updates suchen",
+  "runtime.blocker.updateTo": "ShroudForge auf {version} aktualisieren",
+  "runtime.blocker.reportVersion": "Enshrouded-Version melden"
 }
