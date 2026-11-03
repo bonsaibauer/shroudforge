@@ -153,6 +153,7 @@ modules/
 .github/                    # GitHub workflows
 dev/                        # Build actions, parser setup, tests, and profile tools
 docs/                       # Guides, examples, evidence, and website source
+website/                    # Static download website for shroudforge.net
 mods/                       # Mod source included with the repository
 kfc-parser/                 # Direct Git submodule for the KFC parser
 assets/                     # Repository images and branding
