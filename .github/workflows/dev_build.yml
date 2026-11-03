@@ -193,7 +193,7 @@ jobs:
           retention-days: 7
 
   diagnostics:
-    name: Run isolated diagnostics tests
+    name: Run diagnostic tests
     if: needs.release-check.outputs.build_release == 'true'
     needs: release-check
     runs-on: windows-latest
@@ -202,11 +202,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Initialize workspace manifests
+      - name: Initialize diagnostic build dependencies
         shell: pwsh
         run: |
-          git submodule update --init --recursive -- kfc-parser
-          if ($LASTEXITCODE -ne 0) { throw 'Workspace manifest checkout failed.' }
+          # loader-config depends on hotkeys, which builds the pinned SDL source.
+          git submodule update --init --recursive -- kfc-parser modules/hotkeys/SDL
+          if ($LASTEXITCODE -ne 0) { throw 'Diagnostic dependency checkout failed.' }
           .\dev\parser\prepare_parser.ps1
 
       - name: Restore diagnostics dependency cache
@@ -215,7 +216,7 @@ jobs:
           scope: diagnostics
           frontend: "false"
 
-      - name: Run diagnostics tests
+      - name: Run diagnostic tests
         shell: pwsh
         run: .\dev\tests\run_workspace_tests.ps1 -RustOnly -TestGroup Diagnostics
 
