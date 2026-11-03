@@ -169,7 +169,7 @@ pub(crate) fn save_setting(
         && setting == &serde_json::Value::Bool(true)
         && !shroudforge_loader_config::paths::updater_available(root)
     {
-        return Err(super::report_command_result::disable_missing_updater(root));
+        return Err(super::report_command_result::missing_updater_message(root));
     }
     if module == "runtimeDiagnostics" && key == "jobId" {
         let job_id = setting.as_str().ok_or("diagnostic job id must be text")?;

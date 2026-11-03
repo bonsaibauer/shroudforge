@@ -6,19 +6,13 @@ use std::path::Path;
 
 pub(crate) fn is_module_unavailable_warning(message: &str) -> bool {
     let message = message.to_ascii_lowercase();
-    message.contains("disabled in settings")
-        || message.contains("is disabled in module settings")
+    message.contains("disabled in settings") || message.contains("is disabled in module settings")
 }
 
-pub(crate) fn disable_missing_updater(root: &Path) -> String {
+pub(crate) fn missing_updater_message(root: &Path) -> String {
     let executable = shroudforge_loader_config::paths::updater_executable(root);
-    let initialization_error = shroudforge_loader_config::config::initialize_loader_config(root)
-        .err()
-        .map(|error| format!(" Could not save the disabled setting: {error}"))
-        .unwrap_or_default();
-    let _ = shroudforge_loader_config::config::request_window_visibility(root, "updates", false);
     format!(
-        "Updates module is disabled because shroudforge-updater.exe is missing: {}.{initialization_error}",
+        "ShroudForge Updater is temporarily unavailable because its executable could not be found: {}.",
         executable.display()
     )
 }

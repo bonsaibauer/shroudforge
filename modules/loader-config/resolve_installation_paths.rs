@@ -1,5 +1,11 @@
 //! Canonical paths for game data and mutable ShroudForge state.
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
+const UPDATER_REPLACEMENT_GRACE_SECONDS: u64 = 120;
+static UPDATER_MISSING_SINCE: OnceLock<Mutex<HashMap<PathBuf, Instant>>> = OnceLock::new();
 
 fn configured_dir(root: &Path, key: &str) -> Option<PathBuf> {
     let value = crate::config::read_loader(root).ok()?;
@@ -60,7 +66,18 @@ pub fn updater_executable(root: &Path) -> PathBuf {
     data_dir(root).join("shroudforge-updater.exe")
 }
 pub fn updater_available(root: &Path) -> bool {
-    updater_executable(root).is_file()
+    let missing_since = UPDATER_MISSING_SINCE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut missing_since = missing_since
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if updater_executable(root).is_file() {
+        missing_since.remove(root);
+        return true;
+    }
+    let first_missing_at = *missing_since
+        .entry(root.to_path_buf())
+        .or_insert_with(Instant::now);
+    first_missing_at.elapsed() < Duration::from_secs(UPDATER_REPLACEMENT_GRACE_SECONDS)
 }
 pub fn shroudforge_program_files_present(root: &Path) -> bool {
     [

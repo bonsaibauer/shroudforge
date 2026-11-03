@@ -1,6 +1,6 @@
 use super::read_host_arguments::Arguments;
 use super::read_ui_configuration::read_central_config;
-use super::report_command_result::{disable_missing_updater, report_command_result};
+use super::report_command_result::{missing_updater_message, report_command_result};
 use std::process::Child;
 use std::time::Instant;
 use windows_sys::Win32::System::Threading::GetCurrentProcessId;
@@ -29,7 +29,7 @@ pub(crate) fn request_module_visibility(
             configuration_error.unwrap_or_default()
         ))
     } else if updater_missing {
-        Err(disable_missing_updater(&arguments.root))
+        Err(missing_updater_message(&arguments.root))
     } else if visible
         && matches!(
             module.as_str(),
@@ -114,7 +114,7 @@ fn start_updater_window(root: &std::path::Path) -> Result<(), String> {
     }
     let executable = shroudforge_loader_config::paths::updater_executable(root);
     if !executable.is_file() {
-        return Err(disable_missing_updater(root));
+        return Err(missing_updater_message(root));
     }
     let mut command = std::process::Command::new(&executable);
     command
@@ -132,12 +132,12 @@ fn start_updater_window(root: &std::path::Path) -> Result<(), String> {
     match command.spawn() {
         Ok(_) => Ok(()),
         Err(error) => {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                return Err(missing_updater_message(root));
+            }
             let _ = shroudforge_loader_config::config::request_window_visibility(
                 root, "updates", false,
             );
-            if error.kind() == std::io::ErrorKind::NotFound {
-                return Err(disable_missing_updater(root));
-            }
             Err(format!("could not open the updater window: {error}"))
         }
     }
