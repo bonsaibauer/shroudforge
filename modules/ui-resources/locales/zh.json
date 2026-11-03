@@ -612,6 +612,9 @@
   "settings.modules.modloaderUi.description": "管理窗口和快捷键。首选项会立即保存。",
   "settings.modules.runtimeDiagnostics.title": "运行时诊断",
   "settings.modules.runtimeDiagnostics.description": "诊断会话默认关闭。更改将在 500 毫秒内应用。它记录运行时和世界状态，而不是兼容性数据。",
+  "settings.modules.gameProfileDiscovery.title": "动态游戏配置文件创建（测试版）",
+  "settings.modules.gameProfileDiscovery.description": "遇到未知游戏版本时，检查相同类型的最新客户端或服务器版本，并在检查通过后创建 beta_ 配置文件。常规配置文件优先。",
+  "settings.modules.gameProfileDiscovery.restartHint": "重启游戏后生效。",
   "settings.modules.updates.title": "更新",
   "settings.modules.updates.description": "在一处管理系统和模组更新。",
   "settings.modules.updates.auto": "自动检查更新",
@@ -848,5 +851,15 @@
   "updater.required": "所需更新",
   "updater.verifying": "正在验证下载…",
   "updater.waiting": "更新将在 Enshrouded 关闭后安装。",
-  "updater.current": "ShroudForge 已更新。"
+  "updater.current": "ShroudForge 已更新。",
+  "runtime.blocker.title": "你的模组目前无法运行",
+  "runtime.blocker.profileUnavailable": "ShroudForge 尚未确认支持此 Enshrouded 版本。游戏可能刚刚更新。请检查 ShroudForge 更新。在此之前，无法使用模组修改游戏。",
+  "runtime.blocker.profileSelectionInvalid": "ShroudForge 中找不到所选的 Enshrouded 设置。请在 ShroudForge 设置中选择“自动”。",
+  "runtime.blocker.profileError": "ShroudForge 无法读取所选 Enshrouded 版本的信息。请打开“详情”了解更多。",
+  "runtime.blocker.providerUnavailable": "ShroudForge 的一个必要部分无法启动。请重新启动 Enshrouded。如果提示仍然存在，请更新或修复 ShroudForge。",
+  "runtime.blocker.runtimeNotReady": "ShroudForge 尚未连接到 Enshrouded。你的模组可能无法运行。如果提示仍然存在，请打开“详情”。",
+  "runtime.blocker.generic": "ShroudForge 目前无法与 Enshrouded 正常配合。你的模组可能无法运行。请打开“详情”了解更多。",
+  "runtime.blocker.checkUpdates": "检查 ShroudForge 更新",
+  "runtime.blocker.updateTo": "将 ShroudForge 更新到 {version}",
+  "runtime.blocker.reportVersion": "报告 Enshrouded 版本"
 }

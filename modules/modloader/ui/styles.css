@@ -233,6 +233,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .settings-option.slider-setting .mod-setting-control{flex-shrink:0}
 .slider-control input[type=range]{width:100%;min-width:0}
 .feature-banner-copy .feature-banner-contact{margin-top:10px}
+.feature-banner--error{border-color:rgba(239,112,112,.42);background:linear-gradient(145deg,rgba(54,24,29,.94),rgba(24,17,21,.94))}.feature-banner--error .feature-banner-art{color:var(--sf-red);border-color:rgba(239,112,112,.3);background:rgba(239,112,112,.09)}.feature-banner--error .feature-banner-brand,.feature-banner--error .feature-banner-badge{color:var(--sf-red)}.feature-banner--error .feature-banner-badge{border-color:rgba(239,112,112,.32);background:rgba(239,112,112,.08)}.runtime-blocker-actions{flex-wrap:wrap}.runtime-blocker-dismiss{min-width:32px;padding:0 8px}
 .settings-save-message.warning{color:#f4c26d;border-color:rgba(231,169,86,.35);background:rgba(231,169,86,.08)}
 
 /* Keep page actions outlined and aligned, with a small theme-colored hover lift. */

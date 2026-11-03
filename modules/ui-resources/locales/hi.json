@@ -612,6 +612,9 @@
   "settings.modules.modloaderUi.description": "विंडो और कीबोर्ड शॉर्टकट प्रबंधित करें। प्राथमिकताएँ तुरंत सहेजी जाती हैं।",
   "settings.modules.runtimeDiagnostics.title": "रनटाइम निदान",
   "settings.modules.runtimeDiagnostics.description": "नैदानिक सत्र डिफ़ॉल्ट रूप से बंद हैं। परिवर्तन 500 ms के भीतर लागू होते हैं। यह रनटाइम और वर्ल्ड स्टेट रिकॉर्ड करता है, संगतता डेटा नहीं।.",
+  "settings.modules.gameProfileDiscovery.title": "डायनेमिक गेम प्रोफ़ाइल बनाना (बीटा)",
+  "settings.modules.gameProfileDiscovery.description": "अज्ञात गेम बिल्ड के लिए उसी प्रकार के नवीनतम क्लाइंट या सर्वर बिल्ड की जाँच करें और सफल होने पर beta_ प्रोफ़ाइल बनाएँ। सामान्य प्रोफ़ाइल को प्राथमिकता मिलती है।",
+  "settings.modules.gameProfileDiscovery.restartHint": "गेम फिर से शुरू करने के बाद लागू होता है।",
   "settings.modules.updates.title": "अपडेट",
   "settings.modules.updates.description": "एक स्थान पर सिस्टम और मॉड अपडेट प्रबंधित करें।.",
   "settings.modules.updates.auto": "स्वचालित रूप से अद्यतन की जाँच करें",
@@ -848,5 +851,15 @@
   "updater.required": "आवश्यक अद्यतन",
   "updater.verifying": "डाउनलोड सत्यापित करें",
   "updater.waiting": "अद्यतन Enshrouded बंद होने के बाद स्थापित होगा।.",
-  "updater.current": "ShroudForge तारीख तक है।."
+  "updater.current": "ShroudForge तारीख तक है।.",
+  "runtime.blocker.title": "आपके mods अभी काम नहीं कर रहे हैं",
+  "runtime.blocker.profileUnavailable": "ShroudForge अभी Enshrouded के इस संस्करण का समर्थन करने की पुष्टि नहीं कर सकता। हो सकता है गेम अभी अपडेट हुआ हो। ShroudForge का अपडेट देखें। तब तक गेम में बदलाव करने वाले mods काम नहीं करेंगे।",
+  "runtime.blocker.profileSelectionInvalid": "ShroudForge में चुनी गई Enshrouded सेटिंग नहीं मिली। ShroudForge की सेटिंग में Automatic चुनें।",
+  "runtime.blocker.profileError": "ShroudForge चुने गए Enshrouded संस्करण की जानकारी नहीं पढ़ सका। अधिक जानने के लिए Details खोलें।",
+  "runtime.blocker.providerUnavailable": "ShroudForge का एक ज़रूरी हिस्सा शुरू नहीं हो सका। Enshrouded को फिर से शुरू करें। संदेश बना रहे तो ShroudForge अपडेट करें या उसकी मरम्मत करें।",
+  "runtime.blocker.runtimeNotReady": "ShroudForge अभी Enshrouded से जुड़ नहीं सका। आपके mods काम नहीं कर सकते। संदेश बना रहे तो Details खोलें।",
+  "runtime.blocker.generic": "ShroudForge अभी Enshrouded के साथ ठीक से काम नहीं कर रहा है। आपके mods काम नहीं कर सकते। अधिक जानने के लिए Details खोलें।",
+  "runtime.blocker.checkUpdates": "ShroudForge के अपडेट देखें",
+  "runtime.blocker.updateTo": "ShroudForge को {version} पर अपडेट करें",
+  "runtime.blocker.reportVersion": "Enshrouded संस्करण की रिपोर्ट करें"
 }

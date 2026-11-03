@@ -612,6 +612,9 @@
   "settings.modules.modloaderUi.description": "Beheer vensters en sneltoetsen. Voorkeuren worden direct opgeslagen.",
   "settings.modules.runtimeDiagnostics.title": "Runtimediagnostiek",
   "settings.modules.runtimeDiagnostics.description": "Diagnostische sessies zijn standaard uitgeschakeld. Wijzigingen zijn binnen 500 ms van toepassing. Het registreert de runtime en de wereldstatus, geen compatibiliteitsgegevens.",
+  "settings.modules.gameProfileDiscovery.title": "Dynamische spelprofielen maken (bèta)",
+  "settings.modules.gameProfileDiscovery.description": "Controleer bij een onbekende spelbuild de laatste overeenkomstige client- of serverbuild en maak een beta_-profiel als de controles slagen. Gewone profielen hebben voorrang.",
+  "settings.modules.gameProfileDiscovery.restartHint": "Wordt actief nadat het spel opnieuw is gestart.",
   "settings.modules.updates.title": "Updates",
   "settings.modules.updates.description": "Beheer systeem- en mod-updates op één plek.",
   "settings.modules.updates.auto": "Automatisch controleren op updates",
@@ -848,5 +851,15 @@
   "updater.required": "Vereiste update",
   "updater.verifying": "Download verifiëren…",
   "updater.waiting": "De update wordt geïnstalleerd nadat Enshrouded is gesloten.",
-  "updater.current": "ShroudForge is up-to-date."
+  "updater.current": "ShroudForge is up-to-date.",
+  "runtime.blocker.title": "Je mods werken op dit moment niet",
+  "runtime.blocker.profileUnavailable": "ShroudForge kan nog niet bevestigen dat deze versie van Enshrouded wordt ondersteund. De game is misschien net bijgewerkt. Controleer op een ShroudForge-update. Tot die tijd werken mods die de game aanpassen niet.",
+  "runtime.blocker.profileSelectionInvalid": "De gekozen Enshrouded-instelling in ShroudForge is niet gevonden. Kies Automatisch in de instellingen van ShroudForge.",
+  "runtime.blocker.profileError": "ShroudForge kon de informatie over de gekozen Enshrouded-versie niet lezen. Open Details voor meer informatie.",
+  "runtime.blocker.providerUnavailable": "Een noodzakelijk onderdeel van ShroudForge kon niet starten. Start Enshrouded opnieuw. Blijft deze melding staan, werk ShroudForge dan bij of herstel het.",
+  "runtime.blocker.runtimeNotReady": "ShroudForge kon nog geen verbinding maken met Enshrouded. Je mods werken mogelijk niet. Open Details als de melding blijft staan.",
+  "runtime.blocker.generic": "ShroudForge werkt momenteel niet goed samen met Enshrouded. Je mods werken mogelijk niet. Open Details voor meer informatie.",
+  "runtime.blocker.checkUpdates": "Controleren op ShroudForge-updates",
+  "runtime.blocker.updateTo": "ShroudForge bijwerken naar {version}",
+  "runtime.blocker.reportVersion": "Enshrouded-versie melden"
 }
