@@ -5,8 +5,8 @@ import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { useI18n } from '../../ui-resources/i18n'
 import { FeatureBanner } from '../../ui-resources/show-feature-banner'
-import { Icon } from '../../ui-resources/show-icon'
 import { wikiImage, type WikiArticle as Article } from './read-wiki-articles'
+import fallbackArtwork from './wiki-article-fallback.svg'
 import './wiki.css'
 
 function textContent(children: ReactNode): string {
@@ -39,7 +39,7 @@ class ArticleBoundary extends Component<{
 
 export function WikiArtwork({ article }: { article: Article }) {
   const [failedSource, setFailedSource] = useState<string>()
-  if (!article.illustration || failedSource === article.illustration) return <Icon name="wiki" />
+  if (!article.illustration || failedSource === article.illustration) return <img src={fallbackArtwork} alt="" />
   return <img src={article.illustration} alt="" onError={() => {
     setFailedSource(article.illustration)
     logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Load illustration', subject: article.id,

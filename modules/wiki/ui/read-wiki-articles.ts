@@ -4,6 +4,7 @@ export type WikiArticle = {
   title: string
   summary: string
   body: string
+  category?: string
   illustration?: string
   fallback: boolean
 }
@@ -33,9 +34,13 @@ export function readWikiArticle(id: string, requestedLocale: string): WikiArticl
   const heading = markdown.match(/^#\s+(.+)\n+/)
   const introduction = heading ? markdown.slice(heading[0].length) : markdown
   const [summary, ...sections] = introduction.split(/\n\s*\n/)
+  let body = sections.join('\n\n')
+  // An optional first body comment stores article category metadata without rendering it.
+  const category = body.match(/^<!--\s*wiki-category:\s*([a-z0-9-]+)\s*-->\n*/i)
+  if (category) body = body.slice(category[0].length).trim()
   return {
     id, locale, title: heading?.[1] || id,
-    summary: summary.replace(/\n/g, ' '), body: sections.join('\n\n'),
+    summary: summary.replace(/\n/g, ' '), body, category: category?.[1].toLowerCase(),
     illustration: images[`../articles/${id}/illustration.svg`],
     fallback: locale !== requestedLocale,
   }

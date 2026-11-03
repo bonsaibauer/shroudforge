@@ -6,6 +6,7 @@
 #include "logging_config.h"
 #include "startup_gate.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -45,7 +46,8 @@ void begin_log_session(const std::filesystem::path& root);
 void log(char level, const std::string& message);
 void log(const std::string& message);
 void log_shroudforge_banner(bool dedicated_server);
-void write_runtime_heartbeat(const std::filesystem::path& root);
+// updated_at: seconds since the epoch of the mods loop's last turn.
+void write_runtime_heartbeat(const std::filesystem::path& root, long long updated_at);
 void startup_stage(const std::filesystem::path& root, const char* stage);
 std::string_view status_value(std::string_view status, std::string_view key);
 std::string_view runtime_thread_state(std::string_view value);

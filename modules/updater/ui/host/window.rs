@@ -68,14 +68,17 @@ pub fn run(root: Option<PathBuf>) -> Result<(), String> {
             let _ = sender.send(command);
         }
     };
-    let webview = WebViewBuilder::new_with_web_context(&mut context)
-        .with_html(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../build/ui/updater/updater.html"
-        )))
-        .with_ipc_handler(handler)
-        .build(&window)
-        .map_err(|error| error.to_string())?;
+    let html = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../build/ui/updater/updater.html"
+    ));
+    let webview = shroudforge_ui_resources::with_embedded_document(
+        WebViewBuilder::new_with_web_context(&mut context),
+        html.as_bytes(),
+    )
+    .with_ipc_handler(handler)
+    .build(&window)
+    .map_err(|error| error.to_string())?;
     if let Some(root) = root.lock().ok().and_then(|root| root.clone()) {
         let _ =
             shroudforge_loader_config::config::publish_window_visibility(&root, "updates", true);

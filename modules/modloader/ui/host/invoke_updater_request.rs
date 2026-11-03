@@ -1,4 +1,4 @@
-use super::report_command_result::disable_missing_updater;
+use super::report_command_result::missing_updater_message;
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -49,7 +49,7 @@ fn invoke(root: &Path, request: &serde_json::Value) -> Result<serde_json::Value,
     }
     let executable = shroudforge_loader_config::paths::updater_executable(root);
     if !executable.is_file() {
-        return Err(disable_missing_updater(root));
+        return Err(missing_updater_message(root));
     }
     let mut command = Command::new(&executable);
     command
@@ -68,7 +68,7 @@ fn invoke(root: &Path, request: &serde_json::Value) -> Result<serde_json::Value,
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Err(disable_missing_updater(root));
+            return Err(missing_updater_message(root));
         }
         Err(error) => {
             return Err(format!(
