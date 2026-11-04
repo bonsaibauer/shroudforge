@@ -274,7 +274,13 @@ export function App() {
                   >
                     {t('common.details')}
                   </button>
-                  <button className="button ghost" onClick={() => navigate('updates')}>
+                  <button
+                    className="button ghost"
+                    onClick={() => {
+                      navigate('updates')
+                      window.setTimeout(() => postRequest('check-updates'), 2000)
+                    }}
+                  >
                     {data.release.updateAvailable && data.release.latestVersion
                       ? t('runtime.blocker.updateTo', {
                           version: data.release.latestVersion,
