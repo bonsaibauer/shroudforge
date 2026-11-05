@@ -85,6 +85,7 @@ export function App() {
     markRead,
   } = useNotifications(newsSource, settings, read, setRead)
   const activeMod = data.mods.find((mod) => mod.id === selectedMod)
+  const compatibilityStatus = compatibilityNavigationStatus(data)
   const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
   const profileDiscovery = data.configuration?.gameProfileDiscovery
   const profileSearching = profileDiscovery?.state === 'searching'
@@ -175,7 +176,10 @@ export function App() {
               <Nav
                 icon="compatibility"
                 label={t('nav.compatibility')}
-                status={compatibilityNavigationStatus(data)}
+                status={compatibilityStatus}
+                statusLabel={compatibilityStatus === 'restart-required'
+                  ? t('compatibility.status.restartRequired')
+                  : undefined}
                 active={!activeMod && page === 'compatibility'}
                 onClick={() => openCompatibility('mod-detection')}
               />

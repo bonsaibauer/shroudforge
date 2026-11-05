@@ -19,7 +19,7 @@ import {
   SettingSwitch,
 } from '../../ui-resources/edit-setting'
 
-export type CompatibilityStatus = 'ok' | 'warning' | 'error' | 'neutral'
+export type CompatibilityStatus = 'ok' | 'warning' | 'error' | 'neutral' | 'restart-required'
 export type CompatibilityTab =
   | 'mod-detection'
   | 'dll-manager'
@@ -30,13 +30,15 @@ export type CompatibilityTab =
 function combinedStatus(statuses: CompatibilityStatus[]): CompatibilityStatus {
   return statuses.includes('error') ? 'error'
     : statuses.includes('warning') ? 'warning'
+      : statuses.includes('restart-required') ? 'restart-required'
       : statuses.includes('neutral') ? 'neutral' : 'ok'
 }
 
 function assetCompatibilityStatus(state: string): CompatibilityStatus {
   return state === 'failed' ? 'error'
     : ['applied', 'not-required'].includes(state) ? 'ok'
-      : ['prepare-required', 'partial'].includes(state) ? 'warning' : 'neutral'
+      : state === 'prepare-required' ? 'restart-required'
+        : state === 'partial' ? 'warning' : 'neutral'
 }
 
 function modDetectionStatus(data: Snapshot): CompatibilityStatus {
@@ -329,6 +331,7 @@ export function Compatibility({
   const errorCount = engineRows.filter((row) => row.status === 'error').length
   const warningCount = engineRows.filter((row) => row.status === 'warning').length
   const pendingCount = engineRows.filter((row) => row.status === 'neutral').length
+  const restartCount = engineRows.filter((row) => row.status === 'restart-required').length
   const overall = engineStatus
   const headlineKey =
     overall === 'error'
@@ -353,6 +356,8 @@ export function Compatibility({
       ? 'error'
       : rows.some((row) => row.status === 'warning')
         ? 'warning'
+        : rows.some((row) => row.status === 'restart-required')
+          ? 'restart-required'
         : rows.some((row) => row.status === 'neutral')
           ? 'neutral'
           : 'ok'
@@ -552,28 +557,34 @@ export function Compatibility({
                 name={
                   overall === 'ok'
                     ? 'check'
-                    : overall === 'neutral'
+                    : overall === 'restart-required'
+                      ? 'refresh'
+                      : overall === 'neutral'
                       ? 'compatibility'
                       : 'warning'
                 }
               />
             </span>
             <div className="compatibility-summary-copy">
-              <strong>{t(`${headlineKey}.title` as TranslationKey)}</strong>
+              <strong>{overall === 'restart-required'
+                ? t('compatibility.status.restartRequired')
+                : t(`${headlineKey}.title` as TranslationKey)}</strong>
               <p>
-                {t(`${headlineKey}.message` as TranslationKey, {
-                  errors: errorCount,
-                  warnings: warningCount,
-                  pending: pendingCount,
-                  mods: data.mods.length,
-                })}
+                {overall === 'restart-required'
+                  ? t('compatibility.detail.assets.required')
+                  : t(`${headlineKey}.message` as TranslationKey, {
+                    errors: errorCount,
+                    warnings: warningCount,
+                    pending: pendingCount,
+                    mods: data.mods.length,
+                  })}
               </p>
             </div>
             <span className="compatibility-summary-count">
               {t('compatibility.summary.counts', {
                 checks: engineRows.length,
                 mods: data.mods.length,
-                attention: errorCount + warningCount,
+                attention: errorCount + warningCount + restartCount,
               })}
             </span>
           </section>
@@ -949,10 +960,13 @@ export function CompatibilityStatusBadge({
   status: CompatibilityStatus
 }) {
   const { t } = useI18n()
+  const label = status === 'restart-required'
+    ? t('compatibility.status.restartRequired')
+    : t(`compatibility.status.${status}` as TranslationKey)
   return (
     <span className={`compatibility-status ${status}`}>
       <Icon name={statusIcon(status)} />
-      {t(`compatibility.status.${status}` as TranslationKey)}
+      {label}
     </span>
   )
 }
@@ -962,6 +976,8 @@ function statusIcon(status: CompatibilityStatus) {
     ? 'issue'
     : status === 'warning'
       ? 'warning'
+      : status === 'restart-required'
+        ? 'refresh'
       : status === 'ok'
         ? 'check'
         : 'compatibility'

@@ -267,3 +267,9 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .keybind-setting-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,min(460px,46%));align-items:center}
 .keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:2;width:100%;max-width:460px;min-width:0;flex:none}
 @media(max-width:760px){.keybind-setting-row{grid-template-columns:minmax(0,1fr)}.keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:1;width:min(460px,100%)}}
+.compatibility-summary.restart-required{border-color:rgba(83,173,215,.28);background:rgba(83,173,215,.055)}
+.compatibility-summary-icon.restart-required{color:var(--sf-blue);background:rgba(83,173,215,.1)}
+.compatibility-status.restart-required{color:var(--sf-blue);border-color:rgba(83,173,215,.24);background:rgba(83,173,215,.08)}
+.compatibility-tab-label.restart-required,.nav-status.restart-required{color:var(--sf-blue)}
+.mod-state-chip.restart,.mod-state-panel .mod-state-chip.restart,.mod-status-row .mod-state-chip.restart{color:var(--sf-blue);background:rgba(83,173,215,.1);border-color:rgba(83,173,215,.24)}
+.mod-status-row .mod-state-chip.restart .icon{width:12px;height:12px}
