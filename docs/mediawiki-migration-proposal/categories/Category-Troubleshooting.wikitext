@@ -1,0 +1,3 @@
+Help diagnosing mod detection, startup, compatibility, and game asset preparation problems.
+
+[[Category:ShroudForge documentation]]

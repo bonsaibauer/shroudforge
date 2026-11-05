@@ -1,0 +1,42 @@
+<code>extended.mod.json</code> is an optional file alongside <code>mod.json</code>. Use it to define player-facing settings, organize them into groups, add actions and links, and store the enabled state.
+
+== Main fields ==
+
+* <code>schemaVersion</code> is currently <code>1</code>.
+* <code>enabled</code> stores whether the mod is switched on.
+* <code>targets</code> selects the process that loads the mod. It does not replicate changes over the network.
+* <code>settings</code> stores mod-specific values.
+* <code>groups</code> organizes settings in the Modloader. Ungrouped settings appear in a default group.
+* <code>launcher</code> can preserve the origin of an imported EML mod.
+
+== Example ==
+
+<pre>
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "schemaVersion": 1,
+  "enabled": false,
+  "targets": ["client"],
+  "settings": {
+    "greeting": {
+      "value": "Hello from my mod",
+      "label": "Greeting",
+      "control": "text"
+    }
+  },
+  "groups": [
+    {
+      "label": "Messages",
+      "settings": ["greeting"]
+    }
+  ]
+}
+</pre>
+
+The setting key is <code>greeting</code>. Lua code reads the value by using that exact key with <code>shroudforge.settings.get</code>. A group makes the setting visible in the Modloader.
+
+The [https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json canonical extended manifest schema] defines the structure and data types. The [https://bonsaibauer.github.io/shroudforge/ ShroudForge documentation] includes a live manifest builder.
+
+[[Category:Mod settings]]
+[[Category:Mod manifests]]
+[[Category:Modding]]
