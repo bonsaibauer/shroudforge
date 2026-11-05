@@ -39,7 +39,7 @@ Erzeugte Profile beginnen mit `beta_`. Die Einstellung **Automatisch** kann ein 
 
 ## Suche, Profil und laufende Welt unterscheiden
 
-Der orange Hinweis **Dynamische Profilsuche läuft** beschreibt eine laufende Profilprüfung. Unter **Ablauf und Hilfe** öffnest du diese Anleitung. Endet die Suche ohne passendes Profil, wird das Problem rot gemeldet. Der orange Hinweis **Experimentelles Spielprofil aktiv** nennt das tatsächlich ausgewählte Beta-Profil. Echte Runtimefehler werden weiterhin als Fehler angezeigt.
+Der blaue Hinweis **Dynamische Profilsuche läuft** beschreibt eine laufende Profilprüfung. Unter **Ablauf und Hilfe** öffnest du diese Anleitung. Endet die Suche ohne passendes Profil, wird das Problem rot gemeldet. Der orange Hinweis **Experimentelles Spielprofil aktiv** nennt das tatsächlich ausgewählte Beta-Profil. Echte Runtimefehler werden weiterhin als Fehler angezeigt.
 
 Die strukturelle EXE-Prüfung benötigt keine geladene Welt. Weltbezogene Zugriffe benötigen anschließend zusätzlich die jeweiligen laufenden Kontexte, Registrierungen und Sicherheitsprüfungen. Ein erzeugtes Profil bestätigt keine ausgeführten Spielbefehle oder sichtbaren Spieleffekte. Client und Server müssen auch bei Funktionstests getrennt geprüft werden.
 

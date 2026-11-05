@@ -2,7 +2,7 @@ import { post } from '../../transport/ui/send-host-command'
 
 type UiLogEvent = {
   level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG' | 'TRACE'
-  source: 'wiki' | 'compatibility'
+  source: 'wiki' | 'compatibility' | 'modloader'
   operation: string
   subject: string
   message: string

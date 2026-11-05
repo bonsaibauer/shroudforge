@@ -30,6 +30,7 @@ enum UiLogLevel {
 enum UiLogSource {
     Wiki,
     Compatibility,
+    Modloader,
 }
 
 pub(crate) fn record_ui_log(root: &Path, webview: &wry::WebView, event: UiLogEvent) {
@@ -55,6 +56,7 @@ pub(crate) fn record_ui_log(root: &Path, webview: &wry::WebView, event: UiLogEve
     let source = match event.source {
         UiLogSource::Wiki => "wiki",
         UiLogSource::Compatibility => "compatibility",
+        UiLogSource::Modloader => "modloader",
     };
     write_activity_at_level(
         root,

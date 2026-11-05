@@ -39,7 +39,7 @@ Changing the switch or profile selection requires a full restart of the affected
 
 ## Distinguish discovery, profiles and a running world
 
-The orange **Dynamic profile search in progress** notice describes an active profile search. **Workflow and help** opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange **Experimental game profile active** notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors.
+The blue **Dynamic profile search in progress** notice describes an active profile search. **Workflow and help** opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange **Experimental game profile active** notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors.
 
 Structural executable checks do not require a loaded world. World operations additionally need their live contexts, registrations and runtime safety checks. A generated profile does not establish that game commands were executed or produced visible effects. Functional checks must also test the client and server separately.
 
