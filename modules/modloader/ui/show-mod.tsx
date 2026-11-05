@@ -10,6 +10,8 @@ import { SettingSwitch } from '../../ui-resources/edit-setting'
 import { ModIcon } from './show-mod-icon'
 import { DependencyList } from './show-mod-dependencies'
 import { ModActionButton } from './run-mod-action'
+import { Segmented } from '../../ui-resources/choose-segment'
+import { useEffect, useState } from 'react'
 import { ModSetting, settingIsEnabled } from './edit-mod-setting'
 import { useModSettings } from './save-mod-settings'
 import linkOrder from '../mod_link_order.json'
@@ -42,6 +44,18 @@ export function ModPage({
       : []),
   ]
   const settings = mod.settings
+  // Groups marked "tab" get their own tab next to "Settings"; without such
+  // groups the page shows no tab bar, as before.
+  const tabGroups = groups.filter((group) => 'tab' in group && group.tab)
+  const [settingsTab, setSettingsTab] = useState('settings')
+  useEffect(() => setSettingsTab('settings'), [mod.id])
+  const activeTab = tabGroups.some((_, index) => `group-${index}` === settingsTab)
+    ? settingsTab
+    : 'settings'
+  const shownGroups =
+    activeTab === 'settings'
+      ? groups.filter((group) => !('tab' in group && group.tab))
+      : [tabGroups[Number(activeTab.slice('group-'.length))]]
   const remove = () => {
     if (window.confirm(t('mod.remove.confirm', { name: mod.name })))
       postRequest('remove-mod', { modId: mod.id })
@@ -174,8 +188,20 @@ export function ModPage({
         </div>
       </section>
       <Card title={t('mod.settings')}>
+        {tabGroups.length > 0 && (
+          <Segmented
+            value={activeTab}
+            onChange={setSettingsTab}
+            items={[
+              ['settings', t('mod.tab.settings')],
+              ...tabGroups.map(
+                (group, index) => [`group-${index}`, group.label] as [string, string],
+              ),
+            ]}
+          />
+        )}
         <div className="settings-module-list">
-          {groups.map((group, index) => (
+          {shownGroups.map((group, index) => (
             <section
               className="settings-module mod-settings-section"
               key={`${group.label}-${index}`}
@@ -224,7 +250,7 @@ export function ModPage({
               )}
             </section>
           ))}
-          {groups.length === 0 && (
+          {shownGroups.length === 0 && (
             <p className="hint">{t('mod.settings.empty')}</p>
           )}
         </div>
