@@ -109,6 +109,25 @@ and never trusted as an analysis cache. A bounded per-process status file in
 this module's cache directory lets the existing profile UI show an active
 scan.
 
+## Logging
+
+Discovery writes each stage to the normal ShroudForge process log under the
+`game-profile-discovery` source name. The entries cover configuration and
+catalog scanning, baseline selection, image comparison, static rebase, live
+layout proof, report publication, caller-side identity validation, and the
+final beta profile path. Failed analysis logs the exact unresolved report
+path. Successful analysis logs both the proof report and the saved beta
+profile path. Early baseline failures keep an unresolved report. Exceptions
+keep an error report when a valid image hash and cache directory are available.
+
+Set **Settings → General → Logging → Minimum level** to **Diagnostics** to
+save trace-level field evidence. **Extended** includes the debug summaries.
+The existing runtime-check transition logger records the warning or recovery
+before the same configuration snapshot reaches the Modloader banner. The
+Debug Console scans that same main log for warning and error entries, with
+automatic opening controlled by its existing popup mode. No Discovery-specific
+banner or alert channel is added.
+
 ## Boundaries and checks
 
 An absent cached source is an unresolved result. Enabling discovery only after

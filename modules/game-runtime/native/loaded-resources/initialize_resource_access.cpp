@@ -57,7 +57,8 @@ bool Initialize() {
             throw std::runtime_error("process-image-path-unavailable");
         const auto installed = KfcRuntimeCompatibility::ReadInstalledProfiles(process_path, image_target,
             {{"sha256", image_sha256}, {"timestamp", image_timestamp}, {"size", image_size},
-             {"kfcFormat", KfcRuntimeCompatibility::EnshroudedClient::kfc_format}});
+             {"kfcFormat", KfcRuntimeCompatibility::EnshroudedClient::kfc_format}},
+            "resource-profile-selection");
         const json image{{"target", image_target}, {"sha256", image_sha256},
             {"timestamp", image_timestamp}, {"size", image_size}};
         auto selection = select_resource_profile(image,
