@@ -2,6 +2,7 @@
 #include "ecs/entity_session.h"
 #include "loaded-resources/loaded_resource_access.h"
 #include "main-menu/native_main_menu.h"
+#include <windows.h>
 #include <algorithm>
 #include <cstring>
 #include <string>
@@ -36,6 +37,12 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimeInitialize() {
 KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
     NativeMainMenu::Tick();
     try { EcsRuntime::Tick(); } catch (...) { EcsRuntime::Shutdown(); }
+    static ULONGLONG next_resource_profile_retry{};
+    const auto now = GetTickCount64();
+    if (!ResourceRuntime::ProfileLoaded() && now >= next_resource_profile_retry) {
+        next_resource_profile_retry = now + 2000;
+        try { ResourceRuntime::Initialize(); } catch (...) {}
+    }
 }
 
 KFC_RUNTIME_API void __cdecl KfcRuntimeShutdown() {

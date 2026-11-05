@@ -1552,7 +1552,7 @@ bool RebaseProfile(const Image& source_image, const Image& target_image, const j
         for (const auto& [name, systems] : old_systems) for (const auto& system : systems)
             analysis.named_systems[name].insert(system.function);
         json layouts;
-        const bool layouts_proven = ProveProfileLayouts(baseline, analysis, offsets, layouts);
+        const bool layouts_proven = ProveProfileLayouts(baseline, analysis, offsets, layouts, layout_counterparts);
         std::map<std::string, std::uint64_t> required_layouts(offsets.begin(), offsets.end());
         std::set<std::string> proven_layouts;
         if (layouts.contains("fields")) for (const auto& field : layouts.at("fields")) {

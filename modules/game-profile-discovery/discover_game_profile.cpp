@@ -1,6 +1,7 @@
 #include "discover_game_profile.h"
 #include "verify_image_equivalence.h"
 #include "rebase_profile_contract.h"
+#include "live_profile_layout.h"
 #include <windows.h>
 #include <algorithm>
 #include <charconv>
@@ -43,8 +44,20 @@ struct MemoEntry {
     SuccessfulAnalysis analysis;
 };
 
+struct UnresolvedAnalysis {
+    json generated;
+    json comparison;
+    json rebase;
+};
+
+struct UnresolvedMemoEntry {
+    std::string key;
+    UnresolvedAnalysis analysis;
+};
+
 std::mutex analysis_memo_mutex;
 std::vector<MemoEntry> analysis_memo;
+std::vector<UnresolvedMemoEntry> unresolved_analysis_memo;
 constexpr std::size_t maximum_memo_entries = 8;
 
 std::string analysis_key(const json& baseline, const Detail::Image& source,
@@ -77,6 +90,22 @@ void remember_analysis(std::string key, SuccessfulAnalysis analysis) {
         if (entry.key == key) return;
     if (analysis_memo.size() == maximum_memo_entries) analysis_memo.erase(analysis_memo.begin());
     analysis_memo.push_back({std::move(key), std::move(analysis)});
+}
+
+std::optional<UnresolvedAnalysis> recalled_unresolved_analysis(const std::string& key) {
+    std::scoped_lock lock(analysis_memo_mutex);
+    for (const auto& entry : unresolved_analysis_memo)
+        if (entry.key == key) return entry.analysis;
+    return std::nullopt;
+}
+
+void remember_unresolved_analysis(std::string key, UnresolvedAnalysis analysis) {
+    std::scoped_lock lock(analysis_memo_mutex);
+    for (const auto& entry : unresolved_analysis_memo)
+        if (entry.key == key) return;
+    if (unresolved_analysis_memo.size() == maximum_memo_entries)
+        unresolved_analysis_memo.erase(unresolved_analysis_memo.begin());
+    unresolved_analysis_memo.push_back({std::move(key), std::move(analysis)});
 }
 
 bool matches(const json& profile, const ImageIdentity& identity) {
@@ -325,42 +354,82 @@ Result Prepare(const fs::path& executable_path, const fs::path& profile_director
             baseline.at("image").at("timestamp") != source.identity.timestamp ||
             baseline.at("image").at("size") != source.identity.size)
             throw std::runtime_error("cached-baseline-image-identity-mismatch");
-        // Reuse only a complete successful analysis of these freshly hashed
-        // files and this entire baseline. Persistent proof files are outputs,
-        // never trusted inputs. No memo mutex is held during either scan.
+        // Reuse analyses only after freshly hashing both images and binding
+        // the entire baseline and paths. A static unresolved result may be
+        // retried against fresh live memory without repeating the PE scan.
+        // Persistent proof files are outputs, never trusted inputs.
         const auto memo_key = analysis_key(baseline, source, current, source_path,
             executable_path, profile_directory, cache_directory);
         auto memo = recalled_analysis(memo_key);
+        auto unresolved_memo = memo ? std::optional<UnresolvedAnalysis>{} :
+            recalled_unresolved_analysis(memo_key);
         const AnalysisProgress progress(cache_root, identity);
-        result.diagnostics["analysisMemoHit"] = memo.has_value();
+        result.diagnostics["analysisMemoHit"] = memo.has_value() || unresolved_memo.has_value();
         json comparison;
+        json rebase;
         auto generated = baseline;
+        bool static_complete = memo.has_value();
+        bool static_rebase_performed{};
+        bool live_layout_used{};
         if (memo) {
             generated = std::move(memo->generated);
             comparison = std::move(memo->comparison);
+        } else if (unresolved_memo) {
+            generated = std::move(unresolved_memo->generated);
+            comparison = std::move(unresolved_memo->comparison);
+            rebase = std::move(unresolved_memo->rebase);
         } else if (!Detail::Equivalent(source, current, comparison)) {
-            json rebase;
-            if (!Detail::RebaseProfile(source, current, baseline, generated, rebase)) {
+            static_rebase_performed = true;
+            static_complete = Detail::RebaseProfile(source, current, baseline, generated, rebase);
+            if (!static_complete)
+                remember_unresolved_analysis(memo_key, {generated, comparison, rebase});
+        } else {
+            static_complete = true;
+        }
+        if (!static_complete) {
+            json live_profile = generated;
+            json live_layout;
+            if (Detail::ResolveLiveProfileLayouts(executable_path, identity, live_profile, rebase, live_layout)) {
+                rebase["staticComplete"] = false;
+                rebase["staticUnresolved"] = rebase.value("unresolved", json::array());
+                rebase["unresolved"] = json::array();
+                rebase["complete"] = true;
+                rebase["method"] = "original-image-profile-rebase-with-exact-process-live-layout-proof";
+                rebase["reason"] = "all-address-and-layout-fields-verified";
+                rebase["liveLayoutProof"] = std::move(live_layout);
+                for (auto& field : rebase["liveLayoutProof"]["fields"]) {
+                    field["role"] = "live-layout";
+                    rebase["fields"].push_back(std::move(field));
+                }
+                generated = std::move(live_profile);
+                comparison = std::move(rebase);
+                live_layout_used = true;
+            } else {
                 result.diagnostics["reason"] = "image-equivalence-not-established";
                 result.diagnostics["comparison"] = std::move(comparison);
                 result.diagnostics["rebase"] = std::move(rebase);
-                // Keep full failed evidence outside the production catalog.
-                // Runtime snapshots carry only its bounded summary and path.
-                try {
-                    const auto bytes = json_bytes(result.diagnostics);
-                    auto report_path = cache_root / (identity.sha256 + ".v2.unresolved.json");
-                    if (fs::exists(report_path) && file_bytes(report_path) != bytes)
-                        report_path = cache_root / (identity.sha256 + ".v2.unresolved-" +
-                            std::to_string(GetCurrentProcessId()) + "-" + std::to_string(GetTickCount64()) + ".json");
-                    publish(report_path, bytes);
-                    result.diagnostics["evidencePath"] = to_utf8(report_path);
-                } catch (const std::exception& error) {
-                    result.diagnostics["evidenceWriteError"] = error.what();
+                result.diagnostics["liveLayoutProof"] = std::move(live_layout);
+                // Keep the first complete failure report. Subsequent startup
+                // polls reuse the static evidence and retry only live memory.
+                if (!unresolved_memo) {
+                    try {
+                        const auto bytes = json_bytes(result.diagnostics);
+                        auto report_path = cache_root / (identity.sha256 + ".v2.unresolved.json");
+                        if (fs::exists(report_path) && file_bytes(report_path) != bytes)
+                            report_path = cache_root / (identity.sha256 + ".v2.unresolved-" +
+                                std::to_string(GetCurrentProcessId()) + "-" +
+                                std::to_string(GetTickCount64()) + ".json");
+                        publish(report_path, bytes);
+                        result.diagnostics["evidencePath"] = to_utf8(report_path);
+                    } catch (const std::exception& error) {
+                        result.diagnostics["evidenceWriteError"] = error.what();
+                    }
                 }
                 return result;
             }
-            comparison = std::move(rebase);
         }
+        if (static_complete && static_rebase_performed && !memo && !unresolved_memo)
+            comparison = std::move(rebase);
         const auto analyzed_profile = generated;
         const auto kind = identity.target == "enshrouded.exe" ? "client" : "server";
         const auto build_label = installed_build_number(executable_path).value_or(identity.sha256);
@@ -372,18 +441,22 @@ Result Prepare(const fs::path& executable_path, const fs::path& profile_director
         const auto profile_path = profile_directory / L"enshrouded" / kind / (id + ".json");
         const auto proof_path = cache_root / (identity.sha256 + ".v2.proof.json");
         const json proof = {{"schemaVersion", 1}, {"kind", "automatic-beta-profile-evidence"},
-            {"analysisVersion", 2},
+            {"analysisVersion", 3},
             {"baselineId", baseline.at("id")}, {"sourceSha256", baseline_hash},
             {"target", image_json(identity)}, {"comparison", comparison},
             {"differences", json::diff(baseline, generated)}, {"baselineFlagsPreserved", true},
-            {"gameplayEffectsTested", false}, {"beta", true}};
+            {"gameplayEffectsTested", false}, {"liveLayoutProof", live_layout_used}, {"beta", true}};
         publish(proof_path, json_bytes(proof));
         const bool created = publish(profile_path, json_bytes(generated));
-        if (!memo) remember_analysis(memo_key, {analyzed_profile, comparison});
+        if (!memo && !unresolved_memo && static_complete && !live_layout_used)
+            remember_analysis(memo_key, {analyzed_profile, comparison});
         result.profile = std::move(generated);
         result.profile_path = profile_path;
         result.diagnostics["state"] = created ? "beta-generated" : "beta-present";
-        result.diagnostics["reason"] = "complete-original-image-profile-contract-verified";
+        result.diagnostics["reason"] = live_layout_used ?
+            "complete-original-image-and-live-layout-contract-verified" :
+            "complete-original-image-profile-contract-verified";
+        result.diagnostics["liveLayoutProof"] = live_layout_used;
         result.diagnostics["beta"] = true;
         result.diagnostics["profileId"] = id;
         result.diagnostics["profilePath"] = to_utf8(profile_path);

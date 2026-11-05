@@ -1,6 +1,7 @@
 // Original-image fixtures with independent code, data, reflection and system
 // registrations. No game build IDs or production addresses appear here.
 #include "game-profile-discovery/rebase_profile_contract.h"
+#include "game-profile-discovery/prove_profile_layout.h"
 #include <windows.h>
 #include <array>
 #include <cstring>
@@ -265,6 +266,36 @@ void private_owner_field_change_is_not_hidden_by_another_literal() {
         "private-field failure identifies its actual owner-bound profile field");
 }
 
+void owner_bound_layout_pairs_survive_consumer_contract_validation() {
+    std::map<std::uint32_t, Procedure> source_functions, target_functions;
+    Procedure source_owner{.root = 0x1000, .ranges = {{0x1000, 0x1010}}, .signature = "owner"};
+    source_owner.call_arguments.push_back(CallArguments{.instruction = 0x1004, .target = 0x1100});
+    Procedure target_owner{.root = 0x2000, .ranges = {{0x2000, 0x2010}}, .signature = "owner"};
+    target_owner.call_arguments.push_back(CallArguments{.instruction = 0x2004, .target = 0x2100});
+    Procedure source_consumer{.root = 0x1100, .ranges = {{0x1100, 0x1110}}, .signature = "consumer"};
+    source_consumer.layout_uses.push_back(LayoutUse{0x1105, 0, 320, -1, "original-memory-displacement", 8, true, false});
+    Procedure target_consumer{.root = 0x2100, .ranges = {{0x2100, 0x2110}}, .signature = "consumer"};
+    target_consumer.layout_uses.push_back(LayoutUse{0x2105, 0, 320, -1, "original-memory-displacement", 8, true, false});
+    source_functions.emplace(source_owner.root, source_owner);
+    source_functions.emplace(source_consumer.root, source_consumer);
+    target_functions.emplace(target_owner.root, target_owner);
+    target_functions.emplace(target_consumer.root, target_consumer);
+    const std::map<std::string, ReflectedType> no_types;
+    auto verified_pairs = std::map<std::uint32_t, std::uint32_t>{{0x1000, 0x2000}};
+    ProfileRebaseAnalysis analysis{source_functions, target_functions, verified_pairs, no_types, no_types, {}, {}, {}};
+    json baseline{{"ecsWriteLayout", {{"changeTrackerRva", 0x1000}}}};
+    json evidence;
+    check(!ExactLayoutConsumerPair(analysis, 0x1100, 0x2100),
+        "owner-bound leaf is not independently matched before layout proof");
+    check(ProveProfileLayouts(baseline, analysis,
+            {{"/ecsWriteLayout/changeTrackerQueueBOffset", 320}}, evidence, verified_pairs),
+        "complete owner callsite and matching layout operand establish the field");
+    check(verified_pairs.at(0x1100) == 0x2100 && ExactLayoutConsumerPair(analysis, 0x1100, 0x2100),
+        "the exported owner-bound pair passes the final consumer-contract check");
+    check(evidence["fields"].size() == 1 && evidence["unresolved"].empty(),
+        "owner-bound layout proof remains resolved after contract verification");
+}
+
 void callsite_bound_unwindless_leaf_is_verified_completely() {
     for (const bool changed_leaf : {false, true}) {
         Fixture fixture;
@@ -398,6 +429,7 @@ int main() try {
     changed_direct_callee_is_not_masked_away();
     ambiguous_code_and_changed_reflection_reject();
     private_owner_field_change_is_not_hidden_by_another_literal();
+    owner_bound_layout_pairs_survive_consumer_contract_validation();
     callsite_bound_unwindless_leaf_is_verified_completely();
     every_unwindless_conditional_path_is_verified();
     original_image_relative_jump_tables_require_every_target();

@@ -1,6 +1,52 @@
 use serde_json::{Value, json};
 use std::{fs, io::Read, path::Path};
 
+fn reported_execution_profile(provider: &Value) -> &str {
+    provider["detail"]
+        .as_str()
+        .unwrap_or_default()
+        .split_whitespace()
+        .find_map(|part| {
+            part.strip_prefix("execution_profile=")
+                .or_else(|| part.strip_prefix("profile="))
+        })
+        .unwrap_or_default()
+}
+
+fn discovery_waits_for_world(provider: &Value) -> bool {
+    if provider["available"] != true {
+        return false;
+    }
+    let resource_profile = provider
+        .pointer("/resourceService/profile")
+        .and_then(Value::as_str);
+    let execution_profile = reported_execution_profile(provider);
+    let manual_selection_invalid = execution_profile.starts_with("manual-profile-not-found:")
+        || execution_profile.starts_with("manual-profile-id-ambiguous:");
+    let discovery = provider.pointer("/resourceService/profileSelection/discovery");
+    let live_error = discovery
+        .and_then(|value| value.pointer("/liveLayoutProof/error"))
+        .and_then(Value::as_str);
+    let waiting_for_world = provider["mainMenu"] == true || provider["awaitingWorld"] == true;
+
+    !manual_selection_invalid
+        && resource_profile == Some("no-exact-resource-read-profile")
+        && waiting_for_world
+        && discovery.is_some_and(|value| {
+            value["enabled"] == true
+                && value["state"] == "unresolved"
+                && value["reason"] == "image-equivalence-not-established"
+                && value["liveLayoutProof"]["complete"] == false
+        })
+        && matches!(
+            live_error,
+            Some(
+                "live-profile-pointer-out-of-user-range"
+                    | "live-profile-ready-scene-not-unique"
+            )
+        )
+}
+
 fn profile_discovery_notice(
     root: &Path,
     pid: Option<u32>,
@@ -8,6 +54,32 @@ fn profile_discovery_notice(
     now: u64,
 ) -> Option<Value> {
     let pid = pid?;
+    let provider = provider.filter(|value| value["available"] == true);
+    if let Some(provider) = provider {
+        if let Some(profile) = provider
+            .pointer("/resourceService/profileId")
+            .and_then(Value::as_str)
+            .filter(|profile| profile.starts_with("beta_"))
+        {
+            return Some(json!({"state":"beta-active", "profileId":profile}));
+        }
+
+        if discovery_waits_for_world(provider) {
+            return Some(json!({"state":"waiting-for-world"}));
+        }
+
+        let resource_profile = provider
+            .pointer("/resourceService/profile")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if resource_profile
+            .strip_suffix(":exact-image-resource-service")
+            .is_some_and(|profile| !profile.starts_with("beta_"))
+        {
+            return None;
+        }
+    }
+
     let path = shroudforge_loader_config::paths::cache_dir(root)
         .join("game-profile-discovery")
         .join(format!("status-{pid}.json"));
@@ -31,14 +103,13 @@ fn profile_discovery_notice(
             && value["updatedAt"]
                 .as_u64()
                 .is_some_and(|time| time <= now && now - time <= 120)
+            && provider
+                .and_then(|runtime| runtime.pointer("/resourceService/profileSelection/image"))
+                .is_none_or(|image| value["image"] == *image)
     }) {
         return Some(json!({"state":"searching", "image":progress["image"]}));
     }
-    let provider = provider.filter(|value| value["available"] == true)?;
-    let profile = provider.pointer("/resourceService/profileId")?.as_str()?;
-    profile
-        .starts_with("beta_")
-        .then(|| json!({"state":"beta-active", "profileId":profile}))
+    None
 }
 
 fn runtime_problem_code(provider: &Value) -> Option<&'static str> {
@@ -50,6 +121,12 @@ fn runtime_problem_code(provider: &Value) -> Option<&'static str> {
         .pointer("/resourceService/profile")
         .and_then(Value::as_str)
         .unwrap_or_default();
+    let execution_profile = reported_execution_profile(provider);
+    if execution_profile.starts_with("manual-profile-not-found:")
+        || execution_profile.starts_with("manual-profile-id-ambiguous:")
+    {
+        return Some("profile-selection-invalid");
+    }
     let read_profile_format = provider
         .pointer("/resourceService/profileSelection/kfcFormat")
         .and_then(Value::as_u64);
@@ -76,28 +153,13 @@ fn runtime_problem_code(provider: &Value) -> Option<&'static str> {
         .strip_suffix(":exact-image-resource-service")
         .is_some_and(|id| !id.is_empty());
     if !resource_profile_selected {
-        let detail = provider["detail"].as_str().unwrap_or_default();
-        let profile = detail
-            .split_whitespace()
-            .find_map(|part| part.strip_prefix("execution_profile="))
-            .or_else(|| {
-                detail
-                    .split_whitespace()
-                    .find_map(|part| part.strip_prefix("profile="))
-            })
-            .unwrap_or_default();
         if matches!(
-            profile,
+            execution_profile,
             "missing-or-ambiguous-profile" | "ambiguous-exact-profile"
         ) {
             return Some("profile-unavailable");
         }
-        if profile.starts_with("manual-profile-not-found:")
-            || profile.starts_with("manual-profile-id-ambiguous:")
-        {
-            return Some("profile-selection-invalid");
-        }
-        if profile.starts_with("profile-error:") {
+        if execution_profile.starts_with("profile-error:") {
             return Some("profile-error");
         }
     }
@@ -108,9 +170,13 @@ fn runtime_compatibility_check(
     provider: Option<&Value>,
     desktop: bool,
     server: bool,
-    profile_searching: bool,
+    profile_discovery_pending: bool,
 ) -> Value {
-    let phase = if profile_searching {
+    let waiting_for_discovery_world =
+        profile_discovery_pending && provider.is_some_and(discovery_waits_for_world);
+    let phase = if waiting_for_discovery_world {
+        "waiting-world"
+    } else if profile_discovery_pending {
         "searching-profile"
     } else if desktop {
         "desktop"
@@ -126,7 +192,7 @@ fn runtime_compatibility_check(
     } else {
         provider
             .and_then(runtime_problem_code)
-            .filter(|code| !profile_searching || *code == "provider-unavailable")
+            .filter(|code| !(profile_discovery_pending && *code == "profile-unavailable"))
             .or_else(|| {
                 (phase == "normal" && provider.is_some_and(|value| value["ready"] != true))
                     .then_some("runtime-not-ready")
@@ -158,7 +224,7 @@ fn runtime_compatibility_check(
         match phase {
             "searching-profile" => (
                 "neutral",
-                "The native game profile module is comparing the exact baseline and current executable images.".into(),
+                "ShroudForge is checking whether it can prepare a profile for this game build.".into(),
             ),
             "desktop" => (
                 "ok",
@@ -170,7 +236,11 @@ fn runtime_compatibility_check(
             ),
             "waiting-world" => (
                 "neutral",
-                "KFC Runtime is waiting for the player to enter a game world.".into(),
+                if waiting_for_discovery_world {
+                    "Live profile verification is waiting for a loaded game world. Enter a world on the client or wait for the server world to load.".into()
+                } else {
+                    "KFC Runtime is waiting for a loaded game world.".into()
+                },
             ),
             _ => (if provider.is_some() { "ok" } else { "neutral" }, provider_detail),
         }
@@ -221,11 +291,11 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
         .filter(|_| runtime_fresh)
         .map(|value| &value["runtimeProvider"]);
     let discovery_notice = profile_discovery_notice(root, game_pid, runtime_check, now);
-    let profile_searching = discovery_notice
-        .as_ref()
-        .is_some_and(|value| value["state"] == "searching");
+    let profile_discovery_pending = discovery_notice.as_ref().is_some_and(|value| {
+        matches!(value["state"].as_str(), Some("searching" | "waiting-for-world"))
+    });
     let runtime_status =
-        runtime_compatibility_check(runtime_check, desktop, server, profile_searching);
+        runtime_compatibility_check(runtime_check, desktop, server, profile_discovery_pending);
     let main_menu = runtime_status["phase"] == "main-menu" && runtime_status["code"].is_null();
     let awaiting_world =
         runtime_status["phase"] == "waiting-world" && runtime_status["code"].is_null();

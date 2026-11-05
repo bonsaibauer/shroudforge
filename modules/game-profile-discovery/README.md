@@ -63,6 +63,21 @@ Missing, changed or conflicting evidence leaves the entire candidate unresolved.
 The generator accepts only an old normal profile and its exact source image,
 plus the current image. A new manually validated profile is never an input.
 
+When static rebase evidence leaves private fields unresolved, discovery may
+complete the candidate with a read-only in-process layout proof. The initial
+profile read occurs before the game entrypoint, when engine registries may not
+exist yet. The resource runtime retries the live proof from its normal update
+loop every two seconds until a profile is loaded. Static image analysis is
+memoized only in process memory after both executable images are freshly
+hashed. Persistent proof files are never used as an analysis cache. The live
+proof requires the exact running executable path, loaded PE identity, target
+role and fresh live owner relationships. The verifier checks thread
+registrations, ready scenes, entity membership and generations, queues, system
+bindings, ResourceService buckets and chunks, and item-map payloads. Every
+unresolved field must be covered by a supported layout group and validated
+against the current process. This establishes observed layout values only. It
+does not approve engine calls, gameplay semantics or writes.
+
 For a completely proven candidate, the module copies the entire `read-validated`
 baseline, changes only independently established addresses, its `id` and the
 three exact image-identity fields, then publishes
@@ -86,11 +101,13 @@ has different contents. The runtime status contains a bounded summary and the
 evidence path. Existing conflicting artifacts are never replaced. Temporary
 files are uniquely named, flushed, and published atomically.
 
-Successful analyses may be reused within the same process only after freshly
-reading and hashing both images. The memo also binds the complete baseline and
-all relevant normalized paths. Persistent proof files are outputs and never
-trusted as an analysis cache. A bounded per-process status file in this module's
-cache directory lets the existing profile UI show an active scan.
+Static analyses may be reused within the same process only after freshly
+reading and hashing both images. This includes unresolved static evidence so
+later live retries do not rescan the PE files. The memo also binds the complete
+baseline and all relevant normalized paths. Persistent proof files are outputs
+and never trusted as an analysis cache. A bounded per-process status file in
+this module's cache directory lets the existing profile UI show an active
+scan.
 
 ## Boundaries and checks
 
@@ -120,3 +137,26 @@ identity changes. It starts no game or server and changes no world.
 check relocated code/data, reflection, vtables, named system descriptors,
 unrelated changes, changed callees, ambiguity, complete unwindless leaf bodies,
 and owner-bound private-field changes despite the same literal elsewhere.
+
+The excluded developer target `kfc-runtime-profile-rebase-report` runs the same
+static contract resolver against an exact cached source executable, a target
+executable and its normal baseline profile. Build it with
+`cmake --build build/native-runtime --config Release --target kfc-runtime-profile-rebase-report`.
+Then run:
+
+```powershell
+build/native-runtime/tools/kfc-runtime-profile-rebase-report.exe `
+  <cached-source.exe> <target.exe> <baseline-profile.json> `
+  <candidate-id> <new-report.json>
+```
+
+The command verifies that the cached image matches the baseline identity and
+that the target matches its executable and KFC format. It writes a new report
+without replacing an existing file. Exit code `0` means every profile field
+was proven and the report contains a candidate profile. Exit code `2` means
+the evidence is incomplete and the report contains the unresolved fields but no
+candidate profile. This developer tool never publishes into the runtime
+catalog. Add `--live-fields <report.json>` to bind a read-only live layout
+report to the exact target identity, baseline hash, static report hash and
+complete unresolved path/value inventory. A live report only completes fields
+covered by the runtime verifier.

@@ -3,6 +3,7 @@
 #include <iterator>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 
 namespace GameProfileDiscovery::Detail {
 namespace {
@@ -418,6 +419,40 @@ class LayoutProver {
         if (binding != owner_callsites.end()) proof["ownerCallsites"] = binding->second;
         return proof;
     }
+    json scope_evidence(const std::string& path) const {
+        if (path.starts_with("/resourceLayout/itemIdMap/") || path.starts_with("/resourceLayout/itemRegistry")) {
+            const auto registry = baseline.at("resourceLayout").at("itemIdMap").value("registry", std::string{});
+            const auto named_registry = named(registry);
+            return {{"namedRegistryFunctions", named_registry.size()}, {"registryCallGraphFunctions", item_registry.size()},
+                {"mapHeaderTupleConsumers", with_tuple(item_registry, {"/resourceLayout/itemIdMap/bitsPointerOffset",
+                    "/resourceLayout/itemIdMap/capacityOffset", "/resourceLayout/itemIdMap/keysPointerOffset",
+                    "/resourceLayout/itemIdMap/valuesPointerOffset"}).size()},
+                {"serviceResourceTupleConsumers", with_tuple(item_registry, {"/resourceLayout/itemRegistryServiceOffset",
+                    "/resourceLayout/itemRegistryHandleOffset", "/resourceLayout/itemRegistryResourcePointerOffset"}).size()}};
+        }
+        if (path.starts_with("/resourceLayout/map/")) {
+            const auto callback = at("/resourceLayout/resourceServiceIdCallbackRva");
+            const auto children_one = children(callback);
+            const auto children_two = children(callback, 2);
+            return {{"idCallbackFunctions", callback.size()}, {"idCallbackAndDirectCallees", children_one.size()},
+                {"idCallbackAndTwoCallLevels", children_two.size()}, {"selectedMapLookupFunctions", resource_key_lookups.size()},
+                {"headerValidatorFunctions", resource_header_validators.size()}};
+        }
+        if (path == "/resourceLayout/resourceServiceChunkTableOffset") {
+            return {{"registeredResourceServiceCallbacks", resource_callbacks.size()},
+                {"resourceServiceIdCallbackFunctions", at("/resourceLayout/resourceServiceIdCallbackRva").size()},
+                {"resourceServiceHandleCallbackFunctions", at("/resourceLayout/resourceServiceHandleCallbackRva").size()}};
+        }
+        if (path == "/ecsReadLayout/entityGeneration")
+            return {{"entityRecordSerializers", entity_records.size()}, {"managerOwnerFunctions", entity_record_owners.size()},
+                {"trackerFunctions", tracker.size()}};
+        if (path == "/ecsWriteLayout/changeTrackerQueueBOffset")
+            return {{"trackerFunctions", tracker.size()}, {"trackerAndTwoCallLevels", children(tracker, 2).size()}};
+        if (path == "/serviceLayout/systemNormalCountOffset")
+            return {{"bindingRecordFunctions", service_binding_records.size()}, {"bindingOwnerFunctions", service_binding_owners.size()},
+                {"namedSystems", analysis.named_systems.size()}};
+        return json::object();
+    }
     bool reflected_item_field(const std::string& path, std::uint64_t value, json& row) const {
         const char* field = path == "/resourceLayout/itemIdMap/itemIdOffset" ? "itemId" :
             path == "/resourceLayout/itemIdMap/guidOffset" ? "objectId" : nullptr;
@@ -641,6 +676,32 @@ class LayoutProver {
 public:
     bool exact_consumer_pair(std::uint32_t source_root, std::uint32_t target_root) const {
         return exact_layout_pair(source_root, target_root);
+    }
+
+    void export_owner_bound_pairs(std::map<std::uint32_t, std::uint32_t>& verified_pairs) const {
+        for (const auto& [source_root, target_root] : owner_counterparts) {
+            if (changed_owner_callees.contains(source_root)) continue;
+            const auto source = analysis.source_functions.find(source_root);
+            const auto target = analysis.target_functions.find(target_root);
+            const auto calls = owner_callsites.find(source_root);
+            if (source == analysis.source_functions.end() || target == analysis.target_functions.end() ||
+                calls == owner_callsites.end() || calls->second.empty() ||
+                !source->second.complete || !target->second.complete ||
+                source->second.signature != target->second.signature ||
+                source->second.ranges.size() != target->second.ranges.size()) continue;
+
+            const bool has_binding = std::any_of(calls->second.begin(), calls->second.end(), [&](const auto& call) {
+                return call.value("sourceCalleeRva", 0u) == source_root &&
+                    call.value("targetCalleeRva", 0u) == target_root &&
+                    call.contains("sourceProcedureRva") && call.contains("targetProcedureRva") &&
+                    call.contains("sourceInstructionRva") && call.contains("targetInstructionRva");
+            });
+            if (!has_binding) continue;
+
+            const auto [found, inserted] = verified_pairs.emplace(source_root, target_root);
+            if (!inserted && found->second != target_root)
+                throw std::runtime_error("owner-bound-layout-counterpart-conflicts-with-independent-match");
+        }
     }
 
     LayoutProver(const json& profile, const ProfileRebaseAnalysis& context) : baseline(profile), analysis(context) {
@@ -919,22 +980,28 @@ public:
                     }
         }
         bool observed{}, changed{};
+        std::size_t owner_function_count = selected.roots.size();
+        std::size_t matching_owner_use_count{}, unresolved_owner_use_count{};
+        const auto is_eligible = [&](const LayoutUse& use) {
+            return selected.argument >= 0 ?
+                use.kind == "original-argument-relative-field" && use.argument == selected.argument :
+                use.kind == "original-memory-displacement" ||
+                (selected.immediate && use.kind == "original-immediate") ||
+                (selected.element_stride && (use.kind == "original-call-argument-element-stride" ||
+                    use.kind == "original-index-byte-stride" || use.kind == "original-address-index-scale"));
+        };
         for (const auto root : selected.roots) {
             const auto& function = analysis.source_functions.at(root);
             unsigned retained{};
             for (const auto& use : function.layout_uses) {
                 if (use.value < 0 || static_cast<std::uint64_t>(use.value) != value) continue;
-                const bool eligible = selected.argument >= 0 ?
-                    use.kind == "original-argument-relative-field" && use.argument == selected.argument :
-                    use.kind == "original-memory-displacement" ||
-                    (selected.immediate && use.kind == "original-immediate") ||
-                    (selected.element_stride && (use.kind == "original-call-argument-element-stride" ||
-                        use.kind == "original-index-byte-stride" || use.kind == "original-address-index-scale"));
-                if (!eligible) continue;
+                if (!is_eligible(use)) continue;
                 observed = true;
+                ++matching_owner_use_count;
                 const auto proof = witness(function, use);
                 if (!proof) {
                     changed = true;
+                    ++unresolved_owner_use_count;
                     row["failedConsumers"].push_back({{"sourceProcedureRva", root}, {"sourceInstructionRva", use.instruction},
                         {"reason", "owner-consumer-lacks-identical-original-counterpart"}});
                 } else if (retained++ < 4) row["witnesses"].push_back(*proof);
@@ -942,13 +1009,25 @@ public:
         }
         if (observed && !changed) return true;
         row["reason"] = changed ? "original-layout-consumer-changed-or-unresolved" : "original-layout-owner-consumer-not-established";
+        row["ownerScope"] = selected.role;
+        row["ownerFunctionCount"] = owner_function_count;
+        row["matchingOwnerUseCount"] = matching_owner_use_count;
+        row["unresolvedOwnerUseCount"] = unresolved_owner_use_count;
+        const auto all_uses = source_uses_by_value.find(static_cast<std::int64_t>(value));
+        std::size_t matching_image_use_count{};
+        if (all_uses != source_uses_by_value.end()) for (const auto& [root, use] : all_uses->second)
+            if (is_eligible(*use)) ++matching_image_use_count;
+        row["matchingImageUseCount"] = matching_image_use_count;
+        const auto scope_details = scope_evidence(path);
+        if (!scope_details.empty()) row["scopeEvidence"] = scope_details;
         return false;
     }
 };
 }
 
 bool ProveProfileLayouts(const json& baseline, const ProfileRebaseAnalysis& analysis,
-    const std::vector<std::pair<std::string, std::uint64_t>>& fields, json& evidence) {
+    const std::vector<std::pair<std::string, std::uint64_t>>& fields, json& evidence,
+    std::map<std::uint32_t, std::uint32_t>& verified_pairs) {
     evidence = {{"fields", json::array()}, {"unresolved", json::array()}};
     const LayoutProver prover(baseline, analysis);
     for (const auto& [path, value] : fields) {
@@ -960,6 +1039,7 @@ bool ProveProfileLayouts(const json& baseline, const ProfileRebaseAnalysis& anal
             evidence["unresolved"].push_back(std::move(row));
         }
     }
+    prover.export_owner_bound_pairs(verified_pairs);
     return evidence["unresolved"].empty();
 }
 

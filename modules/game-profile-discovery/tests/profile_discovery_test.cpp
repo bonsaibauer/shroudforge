@@ -315,6 +315,11 @@ void changed_code_and_data_are_unresolved() {
         check(json::parse(std::ifstream(report_path)).at("rebase").at("complete") == false,
             "complete unresolved evidence is retained outside the profile catalog");
         check(!fs::exists(fixture.profiles), "unresolved image writes no profile");
+        const auto retry = fixture.run();
+        check(!retry.profile && retry.diagnostics.at("analysisMemoHit") == true &&
+            retry.diagnostics.at("liveLayoutProof").at("error") ==
+                result.diagnostics.at("liveLayoutProof").at("error"),
+            "live retries reuse exact-image static evidence but still probe the current process");
     }
 }
 

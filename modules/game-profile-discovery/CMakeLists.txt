@@ -7,7 +7,8 @@ add_library(shroudforge-game-profile-discovery STATIC
     discover_game_profile.cpp
     verify_image_equivalence.cpp
     rebase_profile_contract.cpp
-    prove_profile_layout.cpp)
+    prove_profile_layout.cpp
+    live_profile_layout.cpp)
 target_include_directories(shroudforge-game-profile-discovery PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
     "${CMAKE_CURRENT_SOURCE_DIR}/../game-runtime/native/json/single_include")
@@ -38,5 +39,15 @@ set_property(TARGET kfc-runtime-test-profile-rebase PROPERTY MSVC_RUNTIME_LIBRAR
     "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 foreach(configuration DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     set_target_properties(kfc-runtime-test-profile-rebase PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${configuration} "${CMAKE_BINARY_DIR}/tools")
+endforeach()
+
+add_executable(kfc-runtime-profile-rebase-report EXCLUDE_FROM_ALL tools/profile_rebase_report.cpp)
+target_link_libraries(kfc-runtime-profile-rebase-report PRIVATE shroudforge-game-profile-discovery)
+target_compile_definitions(kfc-runtime-profile-rebase-report PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+set_property(TARGET kfc-runtime-profile-rebase-report PROPERTY MSVC_RUNTIME_LIBRARY
+    "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+foreach(configuration DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+    set_target_properties(kfc-runtime-profile-rebase-report PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_${configuration} "${CMAKE_BINARY_DIR}/tools")
 endforeach()

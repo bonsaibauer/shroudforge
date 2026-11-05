@@ -43,6 +43,7 @@ In the tables below, Python tool paths are relative to that `game_inspection/` s
 | `capture/find_live_type_references.cpp` | Counts live process references to selected reflected types. |
 | `capture/export_observed_registry.py` | Exports a unique registry already observed by the production reader. |
 | `capture/export_runtime_bindings.py` | Exports a runtime discovery catalog and a compact build index. |
+| `../../../../dev/profiles/capture/verify_live_profile_fields.py` | Reads client or server process memory and verifies unresolved private layout fields against live owner, membership, generation, queue, resource-map, chunk and item-map evidence. It only writes a review report and does not modify the game. |
 
 ## Executable and resource inspection
 
@@ -128,7 +129,9 @@ Profile approval remains tied to the exact executable identity and its recorded 
 
 The shipped JSON catalog under the installation's configured `runtime/profiles` directory is the runtime profile source. Profiles are not embedded into the native provider. Data-only profile updates do not require rebuilding the DLL. The [profile guide](../../docs/development/inspect-game-build-and-create-runtime-profile.de.md) documents complete-copy preparation and its remaining validation requirements.
 
-The optional native [`game-profile-discovery`](../../modules/game-profile-discovery/README.md) module creates `beta_*` profiles only after the complete profile contract has been established from exact old/new executable images. It compares mapped sections or derives original function, data and layout relations independently. Normal profiles have priority. Missing or ambiguous evidence produces no partial profile. The capture/rebase review tools remain available for investigating those unresolved fields.
+The optional native [`game-profile-discovery`](../../modules/game-profile-discovery/README.md) module creates `beta_*` profiles only after exact old/new executable evidence and any required fresh in-process layout proof have established the complete profile contract. The live proof binds to the running executable path, loaded PE identity, target role and current owner relationships. Normal profiles have priority. Missing or ambiguous evidence produces no partial profile. The capture/rebase review tools remain available for investigating unresolved fields. Live layout proof establishes observed values and does not authorize gameplay calls or writes.
+
+For an exact rebase report, build the excluded `kfc-runtime-profile-rebase-report` target from `modules/game-profile-discovery/`. It accepts the cached source executable, the new executable, the matching normal profile, a candidate ID and a new report path. Add `--live-fields <report.json>` to bind a fresh live layout report to the exact target, source baseline, static report hash and complete unresolved field inventory. The report uses the production beta resolver and includes a candidate profile only when every field is proven. Exit code `2` indicates an incomplete contract. See the module README for the command syntax and validation rules.
 
 ## World Editor diagnostic jobs
 

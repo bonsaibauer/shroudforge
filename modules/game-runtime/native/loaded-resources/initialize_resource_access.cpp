@@ -100,6 +100,11 @@ void Shutdown() {
     profile_selection = json::object();
 }
 
+bool ProfileLoaded() {
+    std::scoped_lock lock(state_mutex);
+    return profile_loaded;
+}
+
 bool Ready() {
     Layout layout;
     {

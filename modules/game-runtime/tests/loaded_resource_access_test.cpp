@@ -142,6 +142,7 @@ std::int32_t relative(const void* field, const void* target) {
 
 int main() {
     namespace Profile = KfcRuntimeCompatibility::EnshroudedClient;
+    check(!ResourceRuntime::ProfileLoaded());
     // Profiles have one external catalog. A different image, process target,
     // format or approval class never supplies an execution fallback.
     const json selection_image{{"target", "enshrouded.exe"}, {"sha256", std::string(64, 'a')},
@@ -324,6 +325,7 @@ int main() {
     layout.maximum_resource_bytes = 1024;
     active_layout = layout;
     profile_loaded = true;
+    check(ResourceRuntime::ProfileLoaded());
 
     View view;
     check(resolve_view(layout, view, &reason));
