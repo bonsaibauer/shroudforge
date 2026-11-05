@@ -18,10 +18,12 @@ struct LayoutUse {
     std::string kind;
     unsigned memory_width_bytes{};
     bool memory_read{}, memory_write{};
+    std::int64_t index_stride{};
 };
 struct CallArguments {
     std::uint32_t instruction{}, target{};
     std::array<std::optional<std::int64_t>, 4> offsets;
+    std::array<std::optional<unsigned>, 4> original_arguments;
 };
 struct Procedure {
     std::uint32_t root{};

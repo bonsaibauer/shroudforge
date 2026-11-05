@@ -14,6 +14,7 @@
 #include <cctype>
 #include <tuple>
 #include <numeric>
+#include <deque>
 
 namespace GameProfileDiscovery::Detail {
 namespace {
@@ -83,10 +84,24 @@ struct Pe {
 
 class ImageBaseTrace {
     std::set<ZydisRegister> bases;
-    struct Bound { std::uint64_t maximum{}; std::uint32_t guard{}, fallthrough{}; unsigned bits{64}; };
+    struct CodeValues {
+        const std::vector<std::uint32_t>* targets{};
+        bool absolute{};
+        bool operator==(const CodeValues& other) const {
+            return absolute == other.absolute && targets && other.targets && *targets == *other.targets;
+        }
+    };
+    std::map<ZydisRegister, CodeValues> code_values;
+    struct Bound {
+        std::uint64_t maximum{}; std::uint32_t guard{}, fallthrough{}; unsigned bits{64};
+        bool operator==(const Bound&) const = default;
+    };
     std::map<ZydisRegister, std::uint64_t> maxima;
     std::map<ZydisRegister, Bound> bounds;
-    struct Comparison { ZydisRegister reg; std::uint64_t maximum; unsigned bits; };
+    struct Comparison {
+        ZydisRegister reg; std::uint64_t maximum; unsigned bits;
+        bool operator==(const Comparison&) const = default;
+    };
     std::optional<Comparison> comparison;
     static ZydisRegister reg(ZydisRegister value) {
         return ZydisRegisterGetLargestEnclosing(ZYDIS_MACHINE_MODE_LONG_64, value);
@@ -105,6 +120,10 @@ public:
     }
     void merge(const ImageBaseTrace& other) {
         std::erase_if(bases, [&](auto value) { return !other.bases.contains(value); });
+        std::erase_if(code_values, [&](const auto& item) {
+            const auto found = other.code_values.find(item.first);
+            return found == other.code_values.end() || !(found->second == item.second);
+        });
         std::erase_if(maxima, [&](const auto& item) { return !other.maxima.contains(item.first); });
         for (auto& [key, value] : maxima) value = std::max(value, other.maxima.at(key));
         std::erase_if(bounds, [&](const auto& item) {
@@ -115,15 +134,35 @@ public:
         for (auto& [key, bound] : bounds) bound.maximum = std::max(bound.maximum, other.bounds.at(key).maximum);
         comparison.reset();
     }
+    bool merge_dispatch(const ImageBaseTrace& other) {
+        const auto prior_bases = bases;
+        const auto prior_values = code_values;
+        const auto prior_maxima = maxima;
+        const auto prior_bounds = bounds;
+        const auto prior_comparison = comparison;
+        const auto shared_comparison = comparison == other.comparison ? comparison : std::nullopt;
+        merge(other);
+        comparison = shared_comparison;
+        return prior_bases != bases || prior_values != code_values || prior_maxima != maxima ||
+            prior_bounds != bounds || prior_comparison != comparison;
+    }
+    void loaded_code_values(ZydisRegister destination, const std::vector<std::uint32_t>& targets) {
+        code_values[reg(destination)] = {&targets, false};
+    }
+    const std::vector<std::uint32_t>* branch_targets(ZydisRegister input) const {
+        const auto found = code_values.find(reg(input));
+        return found != code_values.end() && found->second.absolute ? found->second.targets : nullptr;
+    }
     bool indexed_table(const ZydisDecodedOperand& operand) const {
         return operand.type == ZYDIS_OPERAND_TYPE_MEMORY && bases.contains(reg(operand.mem.base)) &&
             operand.mem.index != ZYDIS_REGISTER_NONE &&
+            operand.mem.base == reg(operand.mem.base) && operand.mem.index == reg(operand.mem.index) &&
             ((operand.mem.scale == 4 && operand.size == 32) || (operand.mem.scale == 1 && operand.size == 8)) &&
             operand.mem.disp.has_displacement && operand.mem.disp.value > 0;
     }
     Table table_bound(const ZydisDecodedOperand& operand, std::uint32_t instruction) const {
         const auto found = bounds.find(reg(operand.mem.index));
-        if (found == bounds.end() || found->second.bits < 32 || found->second.maximum >= 4096 ||
+        if (found == bounds.end() || found->second.bits < 64 || found->second.maximum >= 4096 ||
             instruction - found->second.fallthrough > 64) return {};
         return {static_cast<unsigned>(found->second.maximum + 1), found->second.guard, found->second.fallthrough};
     }
@@ -137,7 +176,7 @@ public:
             const auto key = reg(operands[0].reg.value);
             const auto width = operands[0].size;
             const auto known = maxima.find(key);
-            const bool full = width >= 32 || (known != maxima.end() && known->second < (std::uint64_t{1} << width));
+            const bool full = width >= 64 || (known != maxima.end() && known->second < (std::uint64_t{1} << width));
             comparison = Comparison{key, operands[1].imm.value.u, full ? 64u : width};
             return;
         }
@@ -154,6 +193,7 @@ public:
             for (const auto value : {ZYDIS_REGISTER_RAX, ZYDIS_REGISTER_RCX, ZYDIS_REGISTER_RDX, ZYDIS_REGISTER_R8,
                 ZYDIS_REGISTER_R9, ZYDIS_REGISTER_R10, ZYDIS_REGISTER_R11}) {
                 bases.erase(value); bounds.erase(value); maxima.erase(value);
+                code_values.erase(value);
             }
             return;
         }
@@ -163,14 +203,40 @@ public:
         if (instruction.operand_count_visible >= 2) {
             const auto& source = operands[1];
             if (instruction.mnemonic == ZYDIS_MNEMONIC_MOV && source.type == ZYDIS_OPERAND_TYPE_REGISTER)
-                image_base = bases.contains(reg(source.reg.value));
+                image_base = operands[0].size == 64 && source.size == 64 && bases.contains(reg(source.reg.value));
             else if (instruction.mnemonic == ZYDIS_MNEMONIC_LEA && source.type == ZYDIS_OPERAND_TYPE_MEMORY &&
-                source.mem.base == ZYDIS_REGISTER_RIP) {
+                operands[0].size == 64 && source.mem.base == ZYDIS_REGISTER_RIP) {
                 ZyanU64 target{};
                 image_base = ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&instruction, &source, rva, &target)) && target == 0;
             }
         }
         const auto destination = reg(operands[0].reg.value);
+        std::optional<CodeValues> copied_code;
+        if (instruction.operand_count_visible >= 2) {
+            const auto& input = operands[1];
+            if (instruction.mnemonic == ZYDIS_MNEMONIC_MOV && input.type == ZYDIS_OPERAND_TYPE_REGISTER) {
+                const auto found = code_values.find(reg(input.reg.value));
+                if (found != code_values.end() && operands[0].size >= 32 && input.size >= 32 &&
+                    (operands[0].size == 64 || !found->second.absolute))
+                    copied_code = found->second;
+            } else if (instruction.mnemonic == ZYDIS_MNEMONIC_ADD && operands[0].size == 64 &&
+                input.type == ZYDIS_OPERAND_TYPE_REGISTER) {
+                const auto left = code_values.find(destination), right = code_values.find(reg(input.reg.value));
+                if (left != code_values.end() && !left->second.absolute && bases.contains(reg(input.reg.value)))
+                    copied_code = CodeValues{left->second.targets, true};
+                else if (right != code_values.end() && !right->second.absolute && bases.contains(destination))
+                    copied_code = CodeValues{right->second.targets, true};
+            } else if (instruction.mnemonic == ZYDIS_MNEMONIC_LEA && operands[0].size == 64 &&
+                input.type == ZYDIS_OPERAND_TYPE_MEMORY && input.mem.scale == 1 &&
+                input.mem.base == reg(input.mem.base) && input.mem.index == reg(input.mem.index) &&
+                (!input.mem.disp.has_displacement || !input.mem.disp.value)) {
+                const auto left = code_values.find(reg(input.mem.base)), right = code_values.find(reg(input.mem.index));
+                if (left != code_values.end() && !left->second.absolute && bases.contains(reg(input.mem.index)))
+                    copied_code = CodeValues{left->second.targets, true};
+                else if (right != code_values.end() && !right->second.absolute && bases.contains(reg(input.mem.base)))
+                    copied_code = CodeValues{right->second.targets, true};
+            }
+        }
         std::optional<Bound> copied_bound;
         if (instruction.operand_count_visible >= 2 && operands[1].type == ZYDIS_OPERAND_TYPE_REGISTER &&
             (instruction.mnemonic == ZYDIS_MNEMONIC_MOV || instruction.mnemonic == ZYDIS_MNEMONIC_MOVZX ||
@@ -184,9 +250,13 @@ public:
             }
         }
         if (image_base) bases.insert(destination); else bases.erase(destination);
+        code_values.erase(destination);
+        if (copied_code) code_values[destination] = *copied_code;
         bounds.erase(destination);
         maxima.erase(destination);
         if (copied_bound) bounds[destination] = *copied_bound;
+        if (operands[0].size == 32 && destination >= ZYDIS_REGISTER_RAX && destination <= ZYDIS_REGISTER_R15)
+            maxima[destination] = UINT32_MAX;
         if (instruction.mnemonic == ZYDIS_MNEMONIC_MOVZX && instruction.operand_count_visible >= 2 && operands[1].size < 32)
             maxima[destination] = (std::uint64_t{1} << operands[1].size) - 1;
     }
@@ -198,9 +268,13 @@ public:
 // nearby constant or search for an arbitrary sum in unrelated procedures.
 class LayoutTrace {
     struct Expression {
-        int symbol{-1};
+        std::int64_t symbol{-1};
         std::int64_t coefficient{}, offset{};
         bool valid{};
+        std::int64_t second_symbol{-1};
+        std::int64_t second_coefficient{};
+        unsigned input_mask{}, symbol_input_mask{}, second_symbol_input_mask{};
+        bool operator==(const Expression&) const = default;
     };
     std::map<ZydisRegister, Expression> registers;
     static ZydisRegister reg(ZydisRegister value) { return ZydisRegisterGetLargestEnclosing(ZYDIS_MACHINE_MODE_LONG_64, value); }
@@ -214,18 +288,48 @@ class LayoutTrace {
     }
     static bool bounded(const Expression& value) {
         constexpr std::int64_t limit = 1ll << 40;
-        return value.coefficient > -limit && value.coefficient < limit && value.offset > -limit && value.offset < limit;
+        return value.coefficient > -limit && value.coefficient < limit &&
+            value.second_coefficient > -limit && value.second_coefficient < limit &&
+            value.offset > -limit && value.offset < limit;
     }
     static Expression add(Expression a, Expression b) {
-        if (!a.valid || !b.valid || (a.coefficient && b.coefficient && a.symbol != b.symbol)) return {};
-        if (!a.coefficient) a.symbol = b.symbol;
-        a.coefficient += b.coefficient; a.offset += b.offset;
-        return bounded(a) ? a : Expression{};
+        const auto mask = a.input_mask | b.input_mask;
+        if (!a.valid || !b.valid) { Expression unknown; unknown.input_mask = mask; return unknown; }
+        // Keep at most two independent terms. Canonical ordering makes joins
+        // compare the complete address, regardless of ADD/LEA operand order.
+        using Term = std::tuple<std::int64_t, std::int64_t, unsigned>;
+        std::array<Term, 4> terms{{
+            {a.symbol, a.coefficient, a.symbol_input_mask}, {a.second_symbol, a.second_coefficient, a.second_symbol_input_mask},
+            {b.symbol, b.coefficient, b.symbol_input_mask}, {b.second_symbol, b.second_coefficient, b.second_symbol_input_mask}}};
+        std::sort(terms.begin(), terms.end());
+        Expression result{-1, 0, a.offset + b.offset, true};
+        result.input_mask = mask;
+        unsigned retained{};
+        for (std::size_t i = 0; i < terms.size();) {
+            const auto symbol = std::get<0>(terms[i]);
+            std::int64_t coefficient{};
+            unsigned term_mask{};
+            do { coefficient += std::get<1>(terms[i]); term_mask |= std::get<2>(terms[i++]); }
+            while (i < terms.size() && std::get<0>(terms[i]) == symbol);
+            if (!coefficient) continue;
+            if (symbol < 0 || retained == 2) { Expression unknown; unknown.input_mask = mask; return unknown; }
+            if (retained++ == 0) { result.symbol = symbol; result.coefficient = coefficient; result.symbol_input_mask = term_mask; }
+            else { result.second_symbol = symbol; result.second_coefficient = coefficient; result.second_symbol_input_mask = term_mask; }
+        }
+        if (bounded(result)) return result;
+        Expression unknown; unknown.input_mask = mask; return unknown;
     }
     static Expression multiply(Expression a, std::int64_t factor) {
-        if (!a.valid || factor < -4096 || factor > 4096) return {};
-        a.coefficient *= factor; a.offset *= factor;
-        return bounded(a) ? a : Expression{};
+        if (!a.valid || factor < -4096 || factor > 4096) {
+            Expression unknown; unknown.input_mask = a.input_mask; return unknown;
+        }
+        a.coefficient *= factor; a.second_coefficient *= factor; a.offset *= factor;
+        if (!a.coefficient) {
+            a.symbol = -1; a.second_symbol = -1; a.second_coefficient = 0;
+            a.input_mask = a.symbol_input_mask = a.second_symbol_input_mask = 0;
+        }
+        if (bounded(a)) return a;
+        Expression unknown; unknown.input_mask = a.input_mask; return unknown;
     }
     Expression address(const ZydisDecodedOperand& operand) {
         auto value = operand.mem.base == ZYDIS_REGISTER_NONE ? Expression{-1, 0, 0, true} : get(operand.mem.base);
@@ -236,12 +340,36 @@ class LayoutTrace {
 public:
     LayoutTrace() {
         const std::array<ZydisRegister, 4> arguments{ZYDIS_REGISTER_RCX, ZYDIS_REGISTER_RDX, ZYDIS_REGISTER_R8, ZYDIS_REGISTER_R9};
-        for (unsigned i = 0; i != arguments.size(); ++i) registers[arguments[i]] = {static_cast<int>(i), 1, 0, true};
+        for (unsigned i = 0; i != arguments.size(); ++i)
+            registers[arguments[i]] = {static_cast<int>(i), 1, 0, true, -1, 0, 1u << i, 1u << i};
+    }
+    bool merge(const LayoutTrace& other, std::uint32_t instruction) {
+        bool changed{};
+        auto inputs = other.registers;
+        for (const auto& [key, value] : registers) inputs.try_emplace(key, value);
+        for (const auto& [key, unused] : inputs) {
+            const auto before = get(key);
+            auto incoming = other.registers.find(key);
+            const auto after = incoming == other.registers.end() ?
+                Expression{1000 + static_cast<int>(key), 1, 0, true} : incoming->second;
+            // A phi names this instruction's newly joined value. It preserves
+            // arithmetic performed on that same value, without identifying
+            // either incoming pointer as an original argument. Once formed it
+            // absorbs further incoming values, including changing backedges.
+            const auto phi = (std::int64_t{1} << 40) + (std::int64_t{instruction} << 10) + static_cast<int>(key);
+            const auto mask = before.input_mask | after.input_mask;
+            if (before == after) continue;
+            if (before.valid && before.symbol == phi && before.coefficient == 1 && !before.offset && !before.second_coefficient &&
+                before.input_mask == mask) continue;
+            registers[key] = {phi, 1, 0, true, -1, 0, mask, mask};
+            changed = true;
+        }
+        return changed;
     }
     void observe(Procedure& function, std::uint32_t rva, const ZydisDecodedInstruction& instruction,
-                 const ZydisDecodedOperand* operands) {
+                 const ZydisDecodedOperand* operands, bool emit = true, bool aliases = true) {
         if (instruction.mnemonic == ZYDIS_MNEMONIC_NOP) return;
-        for (unsigned index = 0; index < instruction.operand_count_visible; ++index) {
+        for (unsigned index = 0; emit && index < instruction.operand_count_visible; ++index) {
             const auto& operand = operands[index];
             if (operand.type == ZYDIS_OPERAND_TYPE_MEMORY && operand.mem.base != ZYDIS_REGISTER_RIP) {
                 const auto base = get(operand.mem.base);
@@ -255,23 +383,39 @@ public:
                 const bool write = (operand.actions & ZYDIS_OPERAND_ACTION_MASK_WRITE) != 0;
                 function.layout_uses.push_back({rva, index,
                     operand.mem.disp.has_displacement ? operand.mem.disp.value : 0, -1, "original-memory-displacement", width, read, write});
-                if (expression.valid && expression.coefficient == 1 && expression.symbol >= 0 && expression.symbol < 4)
-                    function.layout_uses.push_back({rva, index, expression.offset, expression.symbol, "original-argument-relative-field", width, read, write});
+                if (aliases && expression.valid && !expression.second_coefficient &&
+                    expression.coefficient == 1 && expression.symbol >= 0 && expression.symbol < 4)
+                    function.layout_uses.push_back({rva, index, expression.offset, static_cast<int>(expression.symbol), "original-argument-relative-field", width, read, write});
+                if (aliases && expression.valid && expression.coefficient == 1 &&
+                    expression.symbol >= 0 && expression.symbol < 4 &&
+                    expression.second_symbol >= 2000 && expression.second_coefficient > 1 && !expression.second_symbol_input_mask) {
+                    // The second term must have an explicit instruction origin.
+                    // Another original argument or an undefined entry register
+                    // cannot be reinterpreted as a record index.
+                    LayoutUse use{rva, index, expression.offset, static_cast<int>(expression.symbol),
+                        "original-indexed-argument-relative-field", width, read, write};
+                    use.index_stride = expression.second_coefficient;
+                    function.layout_uses.push_back(std::move(use));
+                }
                 if (width && operand.mem.index != ZYDIS_REGISTER_NONE && operand.mem.scale > 1)
                     function.layout_uses.push_back({rva, index, operand.mem.scale, -1, "original-address-index-scale", width, read, write});
             } else if (operand.type == ZYDIS_OPERAND_TYPE_IMMEDIATE && !operand.imm.is_relative)
                 function.layout_uses.push_back({rva, index, operand.imm.value.s, -1, "original-immediate"});
         }
         if (instruction.meta.category == ZYDIS_CATEGORY_CALL) {
-            if (instruction.operand_count_visible == 1 && operands[0].type == ZYDIS_OPERAND_TYPE_IMMEDIATE) {
+            if (emit && instruction.operand_count_visible == 1 && operands[0].type == ZYDIS_OPERAND_TYPE_IMMEDIATE) {
                 ZyanU64 target{};
                 if (ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&instruction, operands, rva, &target)) && target <= UINT32_MAX) {
                     CallArguments call{rva, static_cast<std::uint32_t>(target), {}};
                     const std::array<ZydisRegister, 4> arguments{ZYDIS_REGISTER_RCX, ZYDIS_REGISTER_RDX, ZYDIS_REGISTER_R8, ZYDIS_REGISTER_R9};
                     for (unsigned i = 0; i != arguments.size(); ++i) {
                         const auto expression = get(arguments[i]);
-                        if (expression.valid && expression.coefficient == 1) call.offsets[i] = expression.offset;
-                        if (expression.valid && expression.offset == 0 && expression.coefficient > 1)
+                        if (aliases && expression.valid && !expression.second_coefficient && expression.coefficient == 1) {
+                            call.offsets[i] = expression.offset;
+                            if (expression.symbol >= 0 && expression.symbol < 4)
+                                call.original_arguments[i] = static_cast<unsigned>(expression.symbol);
+                        }
+                        if (aliases && expression.valid && !expression.second_coefficient && expression.offset == 0 && expression.coefficient > 1)
                             function.layout_uses.push_back({rva, i, expression.coefficient, -1, "original-call-argument-element-stride"});
                     }
                     function.call_arguments.push_back(call);
@@ -279,17 +423,22 @@ public:
             }
             for (const auto volatile_reg : {ZYDIS_REGISTER_RAX, ZYDIS_REGISTER_RCX, ZYDIS_REGISTER_RDX,
                 ZYDIS_REGISTER_R8, ZYDIS_REGISTER_R9, ZYDIS_REGISTER_R10, ZYDIS_REGISTER_R11})
-                registers[volatile_reg] = {2000 + static_cast<int>(rva % 1000000), 1, 0, true};
+                registers[volatile_reg] = {2000 + static_cast<int>(rva), 1, 0, true};
             return;
         }
         if (!instruction.operand_count_visible || operands[0].type != ZYDIS_OPERAND_TYPE_REGISTER ||
             !(operands[0].actions & ZYDIS_OPERAND_ACTION_MASK_WRITE)) return;
         const auto destination = reg(operands[0].reg.value);
         Expression value;
+        // Unsupported register arithmetic still carries input taint into a
+        // later phi. Renaming an input must never turn it into a local index.
+        for (unsigned i = 0; i < instruction.operand_count_visible; ++i)
+            if (operands[i].type == ZYDIS_OPERAND_TYPE_REGISTER && (operands[i].actions & ZYDIS_OPERAND_ACTION_MASK_READ))
+                value.input_mask |= get(operands[i].reg.value).input_mask;
         if (instruction.mnemonic == ZYDIS_MNEMONIC_MOV && instruction.operand_count_visible >= 2) {
             if (operands[1].type == ZYDIS_OPERAND_TYPE_REGISTER) value = get(operands[1].reg.value);
             else if (operands[1].type == ZYDIS_OPERAND_TYPE_IMMEDIATE) value = {-1, 0, operands[1].imm.value.s, true};
-            else value = {2000 + static_cast<int>(rva % 1000000), 1, 0, true};
+            else value = {2000 + static_cast<int>(rva), 1, 0, true};
         } else if (instruction.mnemonic == ZYDIS_MNEMONIC_LEA && instruction.operand_count_visible >= 2 &&
                    operands[1].type == ZYDIS_OPERAND_TYPE_MEMORY && operands[1].mem.base != ZYDIS_REGISTER_RIP)
             value = address(operands[1]);
@@ -299,7 +448,7 @@ public:
         else if (instruction.mnemonic == ZYDIS_MNEMONIC_SHL && instruction.operand_count_visible >= 2 &&
                  operands[1].type == ZYDIS_OPERAND_TYPE_IMMEDIATE && operands[1].imm.value.u <= 11) {
             value = multiply(get(destination), std::int64_t{1} << operands[1].imm.value.u);
-            if (value.valid && value.coefficient > 1 && value.offset == 0)
+            if (emit && aliases && value.valid && !value.second_coefficient && value.coefficient > 1 && value.offset == 0)
                 function.layout_uses.push_back({rva, 0, value.coefficient, -1, "original-index-byte-stride"});
         }
         else if (instruction.mnemonic == ZYDIS_MNEMONIC_IMUL && instruction.operand_count_visible >= 2) {
@@ -307,12 +456,143 @@ public:
             if (factor.type == ZYDIS_OPERAND_TYPE_IMMEDIATE)
                 value = multiply(instruction.operand_count_visible == 3 && operands[1].type == ZYDIS_OPERAND_TYPE_REGISTER ?
                     get(operands[1].reg.value) : get(destination), factor.imm.value.s);
-            if (value.valid && value.coefficient > 1 && value.offset == 0)
+            if (emit && aliases && value.valid && !value.second_coefficient && value.coefficient > 1 && value.offset == 0)
                 function.layout_uses.push_back({rva, 0, value.coefficient, -1, "original-index-byte-stride"});
         }
         registers[destination] = value;
     }
 };
+
+struct LayoutInstruction {
+    std::uint32_t rva{};
+    std::array<std::uint8_t, ZYDIS_MAX_INSTRUCTION_LENGTH> bytes{};
+    unsigned length{};
+    ZydisInstructionCategory category{};
+    std::optional<std::uint32_t> branch;
+    std::vector<std::uint32_t> table_targets;
+    ImageBaseTrace::Table table_bound;
+    std::optional<unsigned> byte_maximum;
+    bool indirect_branch{}, stop{};
+};
+
+LayoutInstruction layout_instruction(std::uint32_t rva, const std::uint8_t* code,
+    const ZydisDecodedInstruction& instruction, const ZydisDecodedOperand* operands) {
+    LayoutInstruction result;
+    result.rva = rva; result.length = instruction.length; result.category = instruction.meta.category;
+    std::copy_n(code, instruction.length, result.bytes.begin());
+    result.stop = instruction.meta.category == ZYDIS_CATEGORY_RET ||
+        instruction.mnemonic == ZYDIS_MNEMONIC_INT3 || instruction.mnemonic == ZYDIS_MNEMONIC_UD2;
+    if (instruction.meta.category == ZYDIS_CATEGORY_COND_BR || instruction.meta.category == ZYDIS_CATEGORY_UNCOND_BR) {
+        ZyanU64 target{};
+        if (instruction.operand_count_visible == 1 && operands[0].type == ZYDIS_OPERAND_TYPE_IMMEDIATE &&
+            operands[0].imm.is_relative &&
+            ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&instruction, operands, rva, &target)) && target <= UINT32_MAX)
+            result.branch = static_cast<std::uint32_t>(target);
+        else result.indirect_branch = true;
+    }
+    return result;
+}
+
+// Propagate argument aliases along actual instruction edges. A return path
+// cannot clobber an alternative block located later in the compiler range.
+// At joins original aliases survive only when shared by every incoming path.
+// Otherwise an opaque phi retains arithmetic on the new value without claiming
+// either origin, including loop backedges. Raw operands and calls remain separate
+// from these dataflow claims, even for unreachable or indirect-branch code.
+void trace_layout(Procedure& function, const std::vector<LayoutInstruction>& instructions) {
+    if (instructions.empty()) return;
+    ZydisDecoder decoder;
+    ZydisDecoderInit(&decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
+    std::unordered_map<std::uint32_t, std::size_t> indices;
+    bool aliases = true;
+    for (std::size_t i = 0; i < instructions.size(); ++i) {
+        indices.emplace(instructions[i].rva, i);
+    }
+    for (const auto& site : instructions) if (site.branch && !indices.contains(*site.branch))
+        for (const auto& [begin, end] : function.ranges)
+            if (*site.branch >= begin && *site.branch < end) aliases = false;
+    struct State {
+        LayoutTrace layout;
+        ImageBaseTrace dispatch;
+        bool merge(const State& other, std::uint32_t instruction) {
+            const auto layout_changed = layout.merge(other.layout, instruction);
+            const auto dispatch_changed = dispatch.merge_dispatch(other.dispatch);
+            return layout_changed || dispatch_changed;
+        }
+    };
+    std::vector<std::optional<State>> incoming(instructions.size());
+    std::deque<std::size_t> pending;
+    std::vector<bool> queued(instructions.size());
+    const auto entry = indices.find(function.root);
+    if (entry == indices.end()) aliases = false;
+    else { incoming[entry->second].emplace(); pending.push_back(entry->second); queued[entry->second] = true; }
+    std::size_t visits{};
+    while (aliases && !pending.empty()) {
+        const auto index = pending.front(); pending.pop_front(); queued[index] = false;
+        if (++visits > instructions.size() * 128) { aliases = false; break; }
+        const auto& site = instructions[index];
+        ZydisDecodedInstruction instruction;
+        ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
+        if (!ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, site.bytes.data(), site.length, &instruction, operands))) {
+            aliases = false; break;
+        }
+        auto state = *incoming[index];
+        const auto branch_dispatch = state.dispatch.fork();
+        bool proven_table{};
+        ImageBaseTrace::Table bound;
+        if (site.table_bound.entries && instruction.operand_count_visible == 2 &&
+            operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER && state.dispatch.indexed_table(operands[1])) {
+            bound = state.dispatch.table_bound(operands[1], site.rva);
+            proven_table = bound.entries == site.table_bound.entries && bound.guard == site.table_bound.guard &&
+                bound.fallthrough == site.table_bound.fallthrough;
+        }
+        state.layout.observe(function, site.rva, instruction, operands, false);
+        state.dispatch.observe(site.rva, instruction, operands);
+        if (proven_table && !site.table_targets.empty())
+            state.dispatch.loaded_code_values(operands[0].reg.value, site.table_targets);
+        if (proven_table && site.byte_maximum)
+            state.dispatch.loaded_byte_values(operands[0].reg.value, *site.byte_maximum, bound);
+        const auto propagate = [&](std::uint32_t target, const State& output) {
+            const auto found = indices.find(target);
+            if (found == indices.end()) {
+                for (const auto& [begin, end] : function.ranges)
+                    if (target >= begin && target < end) aliases = false;
+                return;
+            }
+            const auto next = found->second;
+            bool changed = !incoming[next];
+            if (changed) incoming[next] = output;
+            else changed = incoming[next]->merge(output, target);
+            if (changed && !queued[next]) { queued[next] = true; pending.push_back(next); }
+        };
+        if (site.branch) {
+            auto taken = state;
+            if (site.category == ZYDIS_CATEGORY_COND_BR) taken.dispatch = branch_dispatch;
+            propagate(*site.branch, taken);
+        }
+        if (site.indirect_branch) {
+            const auto* targets = instruction.operand_count_visible == 1 &&
+                operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER ? state.dispatch.branch_targets(operands[0].reg.value) : nullptr;
+            if (!targets) { aliases = false; break; }
+            for (const auto target : *targets) propagate(target, state);
+        }
+        if (!site.stop && site.category != ZYDIS_CATEGORY_UNCOND_BR)
+            propagate(site.rva + site.length, state);
+    }
+    for (std::size_t i = 0; i < instructions.size(); ++i) {
+        const auto& site = instructions[i];
+        ZydisDecodedInstruction instruction;
+        ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT];
+        if (!ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, site.bytes.data(), site.length, &instruction, operands))) continue;
+        if (aliases && incoming[i]) {
+            auto state = incoming[i]->layout;
+            state.observe(function, site.rva, instruction, operands);
+        } else {
+            LayoutTrace state;
+            state.observe(function, site.rva, instruction, operands, true, false);
+        }
+    }
+}
 
 template<class T> void append(std::string& output, const T& value) {
     output.append(reinterpret_cast<const char*>(&value), sizeof(value));
@@ -361,12 +641,12 @@ std::map<std::uint32_t, Procedure> procedures(const Pe& pe) {
         std::map<std::uint32_t, std::uint32_t> observed_states;
         ImageBaseTrace continuation;
         bool has_continuation{};
+        std::vector<LayoutInstruction> layout_instructions;
         for (unsigned ordinal = 0; ordinal < function.ranges.size(); ++ordinal) {
             const auto [begin, end] = function.ranges[ordinal];
             auto code = pe.bytes(begin, end - begin);
             function.code_bytes += code.size();
             std::size_t offset{};
-            LayoutTrace layout_trace;
             ImageBaseTrace image_base_trace = has_continuation ? continuation : ImageBaseTrace{};
             bool reachable = begin == root || has_continuation;
             while (offset < code.size()) {
@@ -407,7 +687,7 @@ std::map<std::uint32_t, Procedure> procedures(const Pe& pe) {
                     function.reference_failure = "instruction-decode-failed";
                     break;
                 }
-                layout_trace.observe(function, begin + static_cast<std::uint32_t>(offset), instruction, operands);
+                layout_instructions.push_back(layout_instruction(instruction_rva, code.data() + offset, instruction, operands));
                 std::vector<std::uint32_t> table_targets;
                 struct ByteValues { ZydisRegister destination; unsigned maximum; ImageBaseTrace::Table bound; };
                 std::optional<ByteValues> loaded_byte_values;
@@ -458,13 +738,27 @@ std::map<std::uint32_t, Procedure> procedures(const Pe& pe) {
                                     indexed_rva = candidate; relative = true;
                                     displacement = instruction.raw.disp.offset; width = instruction.raw.disp.size / 8;
                                     if (embedded) embedded_tables[candidate] = {table_entries, table_width, bound.guard, bound.fallthrough, instruction_rva};
-                                    if (table_width == 4) for (unsigned entry = 0; entry < table_entries; ++entry)
-                                        table_targets.push_back(pe.read<std::uint32_t>(candidate + entry * 4));
-                                    else if (instruction.operand_count_visible >= 2 && operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER &&
+                                    if (table_width == 4) {
+                                        for (unsigned entry = 0; entry < table_entries; ++entry)
+                                            table_targets.push_back(pe.read<std::uint32_t>(candidate + entry * 4));
+                                        if (bound.guard && bound.entries >= 2 && bound.entries <= table_entries &&
+                                            index == 1 && instruction.operand_count_visible == 2 &&
+                                            operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER && instruction.mnemonic == ZYDIS_MNEMONIC_MOV) {
+                                            auto& layout = layout_instructions.back();
+                                            layout.table_bound = bound;
+                                            layout.table_targets.assign(table_targets.begin(), table_targets.begin() + bound.entries);
+                                        }
+                                    } else if (instruction.operand_count_visible >= 2 && operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER &&
                                         instruction.mnemonic == ZYDIS_MNEMONIC_MOVZX) {
                                         const auto values = pe.bytes(candidate, table_entries);
                                         loaded_byte_values = ByteValues{operands[0].reg.value,
                                             *std::max_element(values.begin(), values.end()), bound};
+                                        if (bound.guard && bound.entries >= 2 && bound.entries == table_entries && index == 1 &&
+                                            instruction.operand_count_visible == 2) {
+                                            auto& layout = layout_instructions.back();
+                                            layout.table_bound = bound;
+                                            layout.byte_maximum = loaded_byte_values->maximum;
+                                        }
                                     }
                                 }
                             }
@@ -560,6 +854,7 @@ std::map<std::uint32_t, Procedure> procedures(const Pe& pe) {
                 function.complete = false;
             }
         }
+        trace_layout(function, layout_instructions);
     }
     return result;
 }

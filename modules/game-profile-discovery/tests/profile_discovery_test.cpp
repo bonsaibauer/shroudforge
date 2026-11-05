@@ -401,7 +401,18 @@ void changed_current_identity_is_not_cached() {
     wrong.sha256[0] = wrong.sha256[0] == 'a' ? 'b' : 'a';
     const auto result = Prepare(fixture.source_path, fixture.profiles, fixture.cache, {fixture.baseline}, wrong);
     check(!result.profile && result.diagnostics.at("reason") == "current-executable-identity-changed", "caller identity is checked against real file");
-    check(!fs::exists(fixture.cache), "mismatched current image writes no cache");
+    check(result.profile_path.empty(), "mismatched current image publishes no beta profile path");
+    if (fs::exists(fixture.profiles)) for (const auto& entry : fs::recursive_directory_iterator(fixture.profiles))
+        check(!entry.is_regular_file() || !entry.path().filename().wstring().starts_with(L"beta_"),
+            "mismatched current image publishes no beta file");
+    if (fs::exists(fixture.cache)) for (const auto& entry : fs::recursive_directory_iterator(fixture.cache))
+        check(!entry.is_regular_file() || entry.path().extension() != L".exe",
+            "mismatched current image caches no executable");
+    const auto report_path = fs::path(result.diagnostics.at("evidencePath").get<std::string>());
+    check(fs::is_regular_file(report_path) && report_path.extension() == L".json",
+        "identity rejection retains its diagnostic report");
+    check(json::parse(std::ifstream(report_path)).at("reason") == "current-executable-identity-changed",
+        "retained diagnostic report explains the identity rejection");
 }
 
 void malformed_certificate_extent_is_rejected() {
