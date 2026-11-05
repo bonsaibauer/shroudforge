@@ -61,7 +61,13 @@ function renderSidebar(releases, repositoryUrl) {
 		if (entry) entry.count += 1
 		else versions.set(release.version, { release, count: 1 })
 	}
-	return `<aside class="sidebar" aria-label="Download navigation"><div class="version-panel panel"><h2>ShroudForge version</h2><nav aria-label="Release versions"><a class="version-option is-active" href="#all-versions" data-version-link="" aria-current="true"><span>All versions</span><span class="version-count">${releases.length}</span></a>${[...versions].map(([version, { release, count }]) => `<a class="version-option" href="#${releaseId(release)}" data-version-link="${escapeHtml(version)}"><span>${escapeHtml(version)}</span><span class="version-count">${count}</span></a>`).join('')}</nav></div><div class="sidebar-note">${icon('github')}<p>Official releases.<br>Downloaded directly from <a href="${repositoryUrl}">GitHub ${icon('external')}</a>.</p></div></aside>`
+	const latestVersion = versions.keys().next().value
+	const allVersionsActive = latestVersion === undefined
+	const versionLinks = [...versions].map(([version, { release, count }]) => {
+		const active = version === latestVersion
+		return `<a class="version-option${active ? ' is-active' : ''}" href="#${releaseId(release)}" data-version-link="${escapeHtml(version)}"${active ? ' aria-current="true"' : ''}><span>${escapeHtml(version)}</span><span class="version-count">${count}</span></a>`
+	}).join('')
+	return `<aside class="sidebar" aria-label="Download navigation"><div class="version-panel panel"><h2>ShroudForge version</h2><nav aria-label="Release versions"><a class="version-option${allVersionsActive ? ' is-active' : ''}" href="#all-versions" data-version-link=""${allVersionsActive ? ' aria-current="true"' : ''}><span>All versions</span><span class="version-count">${releases.length}</span></a>${versionLinks}</nav></div><div class="sidebar-note">${icon('github')}<p>Official releases.<br>Downloaded directly from <a href="${repositoryUrl}">GitHub ${icon('external')}</a>.</p></div></aside>`
 }
 
 export function renderPage({ releases, generatedAt, siteUrl, config, securityReports = {} }) {
