@@ -291,6 +291,9 @@
       "jobId": "runtime.overview",
       "requestId": 0
     },
+    "gameProfileDiscovery": {
+      "enabled": true
+    },
     "updates": {
       "enabled": true,
       "window": {

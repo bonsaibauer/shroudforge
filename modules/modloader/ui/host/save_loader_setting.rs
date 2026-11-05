@@ -145,6 +145,7 @@ pub(crate) fn save_setting(
         }
         "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
         "network" => matches!(key, "enabled" | "serverSteamId" | "allowedClientSteamIds"),
+        "gameProfileDiscovery" => key == "enabled",
         "runtimeDiagnostics" => matches!(
             key,
             "enabled"
@@ -258,4 +259,62 @@ pub(crate) fn save_setting(
         }
         Ok(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn game_profile_discovery_single_save_persists_enabled_and_disabled() {
+        let root = tempfile::tempdir().unwrap();
+        for enabled in [true, false] {
+            save_setting(
+                root.path(),
+                "module",
+                Some("gameProfileDiscovery"),
+                "enabled",
+                &json!(enabled),
+            )
+            .unwrap();
+            let saved = shroudforge_loader_config::config::read_loader(root.path()).unwrap();
+            assert_eq!(saved["modules"]["gameProfileDiscovery"]["enabled"], enabled);
+        }
+    }
+
+    #[test]
+    fn game_profile_discovery_single_save_rejects_invalid_values_without_writing() {
+        let root = tempfile::tempdir().unwrap();
+        save_setting(
+            root.path(),
+            "module",
+            Some("gameProfileDiscovery"),
+            "enabled",
+            &json!(true),
+        )
+        .unwrap();
+        let path = shroudforge_loader_config::paths::loader_config(root.path());
+        let before = std::fs::read(&path).unwrap();
+        for invalid in [json!("true"), json!(1), serde_json::Value::Null] {
+            assert!(save_setting(
+                root.path(),
+                "module",
+                Some("gameProfileDiscovery"),
+                "enabled",
+                &invalid,
+            )
+            .is_err());
+            assert_eq!(std::fs::read(&path).unwrap(), before);
+        }
+        assert!(save_setting(
+            root.path(),
+            "module",
+            Some("gameProfileDiscovery"),
+            "profileId",
+            &json!("beta_client"),
+        )
+        .is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
 }

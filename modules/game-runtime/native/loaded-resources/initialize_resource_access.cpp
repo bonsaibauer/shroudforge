@@ -1,4 +1,6 @@
 #include "loaded-resources/loaded_resource_state.h"
+#include "loaded-resources/select_resource_profile.h"
+#include "profiles/read_installed_profiles.h"
 
 using namespace ResourceImplementation;
 
@@ -12,6 +14,8 @@ bool profile_loaded{};
 bool owns_attribute_model{};
 
 std::string profile_status{"not-initialized"};
+
+json profile_selection = json::object();
 
 // Protected by state_mutex. Literal pointers avoid allocation while the
 // original lifetime guard is held. An uncertain operation disables every mod's
@@ -44,44 +48,33 @@ bool Initialize() {
     active_layout = {};
     scalar_write_fault = nullptr;
     profile_status = "no-exact-resource-read-profile";
-    std::size_t exact_matches{};
+    profile_selection = {{"kfcFormat", KfcRuntimeCompatibility::EnshroudedClient::kfc_format}};
     Layout selected{};
     json selected_profile;
-    for (const auto resource_id : KfcRuntimeEmbedded::resource_read_profile_ids) {
-        if (!resource_id) continue;
-        HMODULE self{};
-        if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                reinterpret_cast<LPCWSTR>(&Initialize), &self)) continue;
-        const auto resource = FindResourceW(self, MAKEINTRESOURCEW(resource_id), MAKEINTRESOURCEW(10));
-        if (!resource) continue;
-        const auto loaded = LoadResource(self, resource);
-        const auto size = SizeofResource(self, resource);
-        const auto* data = static_cast<const char*>(LockResource(loaded));
-        if (!loaded || !data || !size) continue;
-        try {
-            const auto candidate = json::parse(data, data + size);
-            const auto version = candidate.value("schemaVersion", 0);
-            if ((version != 1 && version != 2) ||
-                candidate.value("target", std::string{}) != image_target ||
-                candidate.value("kfcFormat", 0) != 4 ||
-                !candidate.contains("provenance") ||
-                candidate["provenance"].value("status", std::string{}) != "read-validated" ||
-                !candidate["provenance"].value("resourceReadValidated", false)) continue;
-            const auto& image = candidate.at("image");
-            if (image.value("timestamp", 0u) != image_timestamp ||
-                image.value("size", 0u) != image_size ||
-                image.value("sha256", std::string{}) != image_sha256) continue;
-            ++exact_matches;
-            selected = parse_layout(candidate);
-            selected_profile = candidate;
-        } catch (const std::exception& error) {
-            profile_status = std::string("resource-profile-error:") + error.what();
+    try {
+        wchar_t process_path[32768]{};
+        if (!GetModuleFileNameW(nullptr, process_path, 32768))
+            throw std::runtime_error("process-image-path-unavailable");
+        const auto installed = KfcRuntimeCompatibility::ReadInstalledProfiles(process_path, image_target,
+            {{"sha256", image_sha256}, {"timestamp", image_timestamp}, {"size", image_size},
+             {"kfcFormat", KfcRuntimeCompatibility::EnshroudedClient::kfc_format}});
+        const json image{{"target", image_target}, {"sha256", image_sha256},
+            {"timestamp", image_timestamp}, {"size", image_size}};
+        auto selection = select_resource_profile(image,
+            KfcRuntimeCompatibility::EnshroudedClient::kfc_format, installed.profiles);
+        profile_selection = std::move(selection.diagnostics);
+        const auto directory = installed.directory.u8string();
+        profile_selection["directory"] = std::string(directory.begin(), directory.end());
+        profile_selection["discovery"] = installed.discovery;
+        if (!installed.errors.empty()) profile_selection["catalogErrors"] = installed.errors;
+        if (!selection.error.empty()) {
+            profile_status = selection.error;
             return false;
         }
-    }
-    if (exact_matches != 1) {
-        profile_status = exact_matches ? "ambiguous-exact-resource-read-profile" : "no-exact-resource-read-profile";
+        selected_profile = std::move(selection.profile);
+        selected = parse_layout(selected_profile);
+    } catch (const std::exception& error) {
+        profile_status = std::string("resource-profile-error:") + error.what();
         return false;
     }
     std::string owner_error;
@@ -104,6 +97,12 @@ void Shutdown() {
     active_layout = {};
     scalar_write_fault = nullptr;
     profile_status = "shutdown";
+    profile_selection = json::object();
+}
+
+bool ProfileLoaded() {
+    std::scoped_lock lock(state_mutex);
+    return profile_loaded;
 }
 
 bool Ready() {
@@ -132,13 +131,16 @@ bool CanWrite() {
 std::string Status() {
     Layout layout;
     std::string detail;
+    json selection;
     const char* write_fault{};
     {
         std::scoped_lock lock(state_mutex);
         detail = profile_status;
+        selection = profile_selection;
         write_fault = scalar_write_fault;
         if (!profile_loaded) return json({{"available", false}, {"profile", detail},
-            {"mode", "resource-service"}, {"resourceWritesConfigured", false}, {"resourceWrites", false}}).dump();
+            {"mode", "resource-service"}, {"profileSelection", std::move(selection)},
+            {"resourceWritesConfigured", false}, {"resourceWrites", false}}).dump();
         layout = active_layout;
     }
     View view{};
@@ -148,6 +150,7 @@ std::string Status() {
     const bool writes_configured = EngineContext::ResourceWriteConfigured();
     const bool writes_available = writes_configured && CanWrite();
     return json({{"available", available}, {"profile", detail},
+        {"profileId", layout.profile_id}, {"profileSelection", std::move(selection)},
         {"mode", "resource-service"}, {"reason", available ? "ready" : reason},
         {"bucketCount", view.bucket_count}, {"resourceIndexCount", view.key_count},
         {"chunkCount", view.chunk_count}, {"resourceEngineCalls", false},

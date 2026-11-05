@@ -11,6 +11,7 @@ import { Installed } from './show-installed-mods'
 import { SettingsPage } from '../../loader-config/ui/show-loader-settings'
 import { ActivityPage } from '../../logging/ui/show-activity'
 import { Compatibility } from './show-compatibility'
+import type { CompatibilityTab } from './show-compatibility'
 import { RecycleBin } from '../../updater/ui/show-recycle-bin'
 import type { UpdaterCommand } from '../../updater/ui/update-types'
 import { WikiPage } from '../../wiki/ui/show-wiki'
@@ -31,6 +32,8 @@ export function Page({
   openNews,
   selectMod,
   onUpdaterCommand,
+  compatibilityTab,
+  setCompatibilityTab,
 }: {
   id: PageId
   data: Snapshot
@@ -47,6 +50,8 @@ export function Page({
   openNews(): void
   selectMod(id: string): void
   onUpdaterCommand: UpdaterCommand
+  compatibilityTab: CompatibilityTab
+  setCompatibilityTab(tab: CompatibilityTab): void
 }) {
   if (id === 'activity')
     return <ActivityPage activity={data.activity} mods={data.mods} />
@@ -108,6 +113,8 @@ export function Page({
         news={news}
         openNews={openNews}
         selectMod={selectMod}
+        tab={compatibilityTab}
+        setTab={setCompatibilityTab}
         openLog={() =>
           runNoticeAction({
             id: 'open-debug-console',

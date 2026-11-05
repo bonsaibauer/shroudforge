@@ -1,0 +1,14 @@
+ShroudForge 1.7.8 is the latest stable release listed in the repository on 3 November 2026.
+
+== Highlights ==
+
+* Adds game profiles for Enshrouded Hotfix #4.
+* Improves the loading of large mod manifests and Modloader responsiveness.
+* Adds <code>shroudforge.clock()</code>.
+* Improves automatic discovery of beta game profiles.
+* Adds a runtime compatibility banner.
+
+See the [https://github.com/bonsaibauer/shroudforge/releases/tag/v1.7.8-build.41706360752 full GitHub release notes] for the build number, downloads, and complete changes.
+
+[[Category:ShroudForge documentation]]
+[[Category:Modding]]
