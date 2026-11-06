@@ -17,18 +17,13 @@
 
 # Shroudforge Network
 
-<table align="center">
-  <tr>
-    <td align="center">
-      <strong>🔨 <a href="https://shroudforge.net/">Check out the official download page →</a></strong><br>
-      <a href="https://status.shroudforge.net/"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/32xnl.svg" alt="ShroudForge website status"></a>
-    </td>
-    <td align="center">
-      <strong>📖 <a href="https://wiki.shroudforge.net/">Visit the official Modloader Wiki →</a></strong><br>
-      <a href="https://status.shroudforge.net/"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/33ehg.svg" alt="ShroudForge Wiki status"></a>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <strong>🔨 <a href="https://shroudforge.net/">Check out the official download page →</a></strong>
+  &nbsp;<a href="https://status.shroudforge.net/"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/32xnl.svg" alt="ShroudForge website status"></a>
+  &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+  <strong>📖 <a href="https://wiki.shroudforge.net/">Visit the official Modloader Wiki →</a></strong>
+  &nbsp;<a href="https://status.shroudforge.net/"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/33ehg.svg" alt="ShroudForge Wiki status"></a>
+</p>
 
 ## Welcome!
 
