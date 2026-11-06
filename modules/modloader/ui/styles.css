@@ -275,3 +275,9 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .compatibility-tab-label.restart-required,.nav-status.restart-required{color:var(--sf-blue)}
 .mod-state-chip.restart,.mod-state-panel .mod-state-chip.restart,.mod-status-row .mod-state-chip.restart{color:var(--sf-blue);background:rgba(83,173,215,.1);border-color:rgba(83,173,215,.24)}
 .mod-status-row .mod-state-chip.restart .icon{width:12px;height:12px}
+/* Tab hit area: each segment button also takes the bar padding and half of
+   the gap next to it, so quick clicks near a tab edge still land on the tab. */
+.segments button{position:relative}
+.segments button::after{content:"";position:absolute;inset:-4px -1px}
+.segments button:first-child::after{left:-4px}
+.segments button:last-child::after{right:-4px}
