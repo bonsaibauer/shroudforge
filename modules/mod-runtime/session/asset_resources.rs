@@ -105,7 +105,7 @@ impl ResourceInfo {
             .get_or_try_init(|| {
                 let bytes = match self.source {
                     ResourceSource::KfcFile => app_state
-                        .reader()
+                        .reader()?
                         .read_resource(&self.resource_id)?
                         .map(|bytes| Rc::<[u8]>::from(bytes)),
                     ResourceSource::AssetTransaction => None,
@@ -145,8 +145,9 @@ impl AppState {
     }
 
     #[inline]
-    pub fn reader(&self) -> RefMut<'_, KFCCursor<KFCReader>> {
-        self.reader.borrow_mut()
+    pub fn reader(&self) -> mlua::Result<RefMut<'_, KFCCursor<KFCReader>>> {
+        RefMut::filter_map(self.reader.borrow_mut(), Option::as_mut)
+            .map_err(|_| LuaError::generic(super::GAME_FILE_HANDLES_RELEASED))
     }
 
     #[inline]
@@ -161,6 +162,10 @@ impl AppState {
         if !self.asset_transaction.get() {
             return Err(LuaError::generic("typed asset transaction is unavailable"));
         }
+        // Publishing replaces enshrouded.kfc_resources, which the reader keeps
+        // open. Windows replaces open files with POSIX semantics, Wine/Proton
+        // rejects that with "Access denied (os error 5)".
+        self.reader.borrow_mut().take();
         shroudforge_game_assets::transaction::commit(
             self.env.game_dir().as_std_path(),
             &self.asset_stem,
@@ -284,7 +289,7 @@ impl AppState {
             Ok(Some(value.clone()))
         } else {
             // OPTIMIZE: consider using a reader for this
-            Ok(self.reader.borrow_mut().read_content(guid)?)
+            Ok(self.reader()?.read_content(guid)?)
         }
     }
 
