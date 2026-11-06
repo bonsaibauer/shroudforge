@@ -21,9 +21,9 @@
 [![ShroudForge Wiki Status](https://incidents.betterstack.com/status-badges/v1/monitor/33ehg.svg)](https://status.shroudforge.net/)
 
 <p align="center">
-  <strong>🚀 <a href="https://shroudforge.net/">Check out the official download page →</a></strong>
+  <strong>🔨 <a href="https://shroudforge.net/">ShroudForge Downloads →</a></strong>
   &nbsp;&nbsp;·&nbsp;&nbsp;
-  <strong>📚 <a href="https://wiki.shroudforge.net/">Visit the official Modloader Wiki →</a></strong>
+  <strong>📖 <a href="https://wiki.shroudforge.net/">Official Modloader Wiki →</a></strong>
 </p>
 
 ## Welcome!
