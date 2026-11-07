@@ -197,6 +197,13 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
     value
         .raw_set("attachedToProp", attached)
         .map_err(|error| error.to_string())?;
+    // The local player's state flags from the same input snapshot. Left out
+    // when this game's layout has no such field: the cursor stays readable.
+    if let Ok(flags) = reflected_player_state_mask(lua, state, metadata.index, &bytes) {
+        value
+            .raw_set("playerStateMask", flags)
+            .map_err(|error| error.to_string())?;
+    }
     let result = lua.create_table().map_err(|error| error.to_string())?;
     result
         .raw_set("sequence", sequence)
@@ -205,6 +212,80 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
         .raw_set("value", value)
         .map_err(|error| error.to_string())?;
     Ok(result)
+}
+
+// The state flags the local client sends with its input (data.mask, a
+// keen::ecs::ClientPlayerStateMask), by name as the value codec gives a
+// bitmask: bit n is the enum value n; a set bit without a name keeps its
+// number as a string. PlayerInput.fromClient.mask holds the same flags in the
+// authority world, which a player who joined cannot read.
+fn reflected_player_state_mask(
+    lua: &mlua::Lua,
+    state: &AppState,
+    root: kfc::reflection::TypeIndex,
+    bytes: &[u8],
+) -> Result<mlua::Table, String> {
+    let registry = state.type_registry();
+    let field = state.inline_field(root, "data.mask")?;
+    let mut ty = registry
+        .get(field.type_index())
+        .ok_or("local player state type is unresolved")?;
+    for _ in 0..64 {
+        if ty.primitive_type != PrimitiveType::Typedef {
+            break;
+        }
+        ty = ty
+            .inner_type
+            .and_then(|index| registry.get(index))
+            .ok_or("local player state storage is unresolved")?;
+    }
+    let width = match ty.primitive_type {
+        PrimitiveType::Bitmask8 => 1,
+        PrimitiveType::Bitmask16 => 2,
+        PrimitiveType::Bitmask32 => 4,
+        PrimitiveType::Bitmask64 => 8,
+        _ => return Err("local player state is not a bitmask".into()),
+    };
+    let mut bits = ty
+        .inner_type
+        .and_then(|index| registry.get(index))
+        .ok_or("local player state flags are unresolved")?;
+    for _ in 0..64 {
+        if bits.primitive_type != PrimitiveType::Typedef {
+            break;
+        }
+        bits = bits
+            .inner_type
+            .and_then(|index| registry.get(index))
+            .ok_or("local player state flags are unresolved")?;
+    }
+    let source = bytes
+        .get(field.byte_range())
+        .filter(|source| source.len() == width)
+        .ok_or("local player state exceeds its reflected snapshot")?;
+    let mut raw = [0u8; 8];
+    raw[..width].copy_from_slice(source);
+    let mut value = u64::from_le_bytes(raw);
+    let flags = lua.create_table().map_err(|error| error.to_string())?;
+    let mut count = 0;
+    for flag in bits.enum_fields.values() {
+        if flag.value < 64 && value & (1 << flag.value) != 0 {
+            value &= !(1 << flag.value);
+            count += 1;
+            flags
+                .raw_set(count, flag.name.as_str())
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    for bit in 0..64u64 {
+        if value & (1 << bit) != 0 {
+            count += 1;
+            flags
+                .raw_set(count, bit.to_string())
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(flags)
 }
 
 // Cursor snapshots expose numeric flags/enums for compatibility. The general
