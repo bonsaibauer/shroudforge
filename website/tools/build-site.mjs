@@ -9,7 +9,7 @@ const websiteDirectory = path.resolve(import.meta.dirname, "..");
 const repositoryDirectory = path.resolve(websiteDirectory, "..");
 const buildDirectory = path.join(repositoryDirectory, "build");
 const outputDirectory = path.join(buildDirectory, "download-website");
-const browserAssets = ["styles.css", "filters.js", "theme.js"];
+const browserAssets = ["styles.css", "filters.js", "installation-guide.js", "theme.js"];
 
 export function resolveSiteUrl(value) {
   let url;

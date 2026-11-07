@@ -192,6 +192,47 @@ impl ModLoader {
 #[repr(C)]
 pub struct RuntimeHandle(ModLoader);
 
+/// Receives native game-profile discovery messages and appends them to the
+/// same process log that the Debug Console reads. This optional host export is
+/// independent of the KFC runtime provider ABI.
+#[cfg(windows)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn shroudforge_game_profile_discovery_log(
+    level: u8,
+    game_root: *const u16,
+    message: *const std::ffi::c_char,
+) {
+    use std::{
+        ffi::{CStr, OsString},
+        os::windows::ffi::OsStringExt,
+        path::PathBuf,
+    };
+
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if game_root.is_null()
+            || message.is_null()
+            || !matches!(level, b'T' | b'D' | b'I' | b'W' | b'E')
+        {
+            return;
+        }
+        let mut length = 0usize;
+        unsafe {
+            while length < 32768 && *game_root.add(length) != 0 {
+                length += 1;
+            }
+        }
+        if length == 0 || length == 32768 {
+            return;
+        }
+        let root = PathBuf::from(OsString::from_wide(unsafe {
+            std::slice::from_raw_parts(game_root, length)
+        }));
+        let detail = unsafe { CStr::from_ptr(message) }.to_string_lossy();
+        let _ =
+            shroudforge_logging::append(root, char::from(level), "game-profile-discovery", &detail);
+    }));
+}
+
 fn panic_detail(payload: &(dyn Any + Send)) -> String {
     if let Some(message) = payload.downcast_ref::<&str>() {
         (*message).to_owned()

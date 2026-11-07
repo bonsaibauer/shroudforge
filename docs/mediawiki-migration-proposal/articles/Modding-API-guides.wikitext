@@ -1,0 +1,17 @@
+The API reference lists implemented functions and types. These guides explain common modding tasks, their requirements, and the flow between a manifest and Lua code.
+
+== Guides by task ==
+
+* '''Settings:''' declare values in <code>extended.mod.json</code> and read them with <code>shroudforge.settings.get</code>.
+* '''Modloader actions:''' connect an action ID to <code>shroudforge.ui.on_action</code>.
+* '''Notifications:''' publish notices with <code>shroudforge.notifications.publish</code>.
+* '''Logging:''' write useful messages to the ShroudForge log.
+* '''Files and exports:''' review package files and export capabilities.
+* '''Runtime:''' understand lifecycle callbacks, client and server targets, and native support.
+* '''Game state:''' detect the main menu with <code>runtime.is_main_menu()</code> and read the selected local character name with <code>runtime.player.name()</code>.
+* '''Localization:''' translate mod text and settings with the localization functions.
+
+Use the [https://bonsaibauer.github.io/shroudforge/ ShroudForge documentation and API reference] for the full current list of functions. API functions may be EML-specific or ShroudForge-specific.
+
+[[Category:Lua API]]
+[[Category:Modding]]

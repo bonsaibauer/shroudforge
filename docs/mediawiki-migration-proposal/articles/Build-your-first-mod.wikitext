@@ -1,0 +1,67 @@
+[[File:Modding-First-Mod.png|thumb|right|The ShroudForge Modloader can show a mod's settings and status.]]
+
+This beginner guide takes about 10–15 minutes. You need a text editor. You do not need prior programming experience.
+
+A mod package has one required information file, a Lua file for the instruction in this example, and an optional settings file:
+
+* <code>mod.json</code> describes the mod, its version, and the capabilities it requests.
+* <code>src/mod.lua</code> contains the Lua code.
+* <code>extended.mod.json</code> is optional. It can define player-facing settings.
+
+== 1. Make a folder for the mod ==
+
+Open your Enshrouded game folder, then open its <code>mods</code> folder. Make a new folder called <code>yourname.first-mod</code>.
+
+<pre>
+mods/yourname.first-mod/
+├── mod.json
+└── src/
+    └── mod.lua
+</pre>
+
+== 2. Add mod.json ==
+
+Create <code>mod.json</code> in the new folder. Change the ID, name, author, and description to match your mod.
+
+<pre>
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+  "id": "yourname.first-mod",
+  "name": "My First Mod",
+  "version": "1.0.0",
+  "authors": ["Your name"],
+  "description": "Writes a message.",
+  "license": null,
+  "icon": null,
+  "capabilities": [],
+  "dependencies": []
+}
+</pre>
+
+The <code>id</code> should uniquely identify the package. The <code>name</code> is the display name. Leave <code>version</code> as <code>1.0.0</code> for this example. The empty <code>capabilities</code> and <code>dependencies</code> lists are enough for this example.
+
+See [[mod.json]] for the fields and the canonical schema.
+
+== 3. Add the Lua instruction ==
+
+Inside the <code>src</code> folder, create <code>mod.lua</code> and add this line:
+
+<pre>
+shroudforge.log.info("My first mod loaded")
+</pre>
+
+This sends a message to the ShroudForge log.
+
+== 4. Find the mod in the game ==
+
+Start Enshrouded. Press <kbd>F9</kbd> to open the Mods window. Your mod should appear in the list. Press <kbd>F10</kbd> to open the messages and look for <code>My first mod loaded</code>.
+
+If ShroudForge cannot find the mod, check that its folder is inside the game's <code>mods</code> folder. Downloaded mods can use different folder layouts, so follow their creator's instructions.
+
+== Next steps ==
+
+Add player-facing switches or sliders with [[extended.mod.json]]. For Lua features, start with [[Modding with Lua]] and [[Modding API guides]].
+
+[[Category:Modding guides]]
+[[Category:Mod manifests]]
+[[Category:Modding]]

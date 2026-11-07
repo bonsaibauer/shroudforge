@@ -1,0 +1,89 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Quickstart: Shroudforge
+description: Follow these steps to put ShroudForge in your game folder, open the Mods window, and add a mod you downloaded.
+language: en-GB
+picture:ShroudForge-Wiki-Quickstart-Shroudforge.png
+creator: Bonsaibauer
+-->
+
+[[File:ShroudForge-Wiki-Quickstart-Shroudforge.png|thumb|left|600px|ShroudForge Modloader]]
+<br style="clear:both;" />
+
+<translate>
+
+Follow these steps to put ShroudForge in your game folder, open the Mods window, and add a mod you downloaded.
+
+== Before you start ==
+
+Close Enshrouded. A "mod" is an extra made by a player that changes or adds something in the game. ShroudForge has a window that shows your mods. Your game folder is the one containing <code>enshrouded.exe</code>.
+
+== 1. Download ShroudForge ==
+
+Open the [https://github.com/bonsaibauer/shroudforge/releases/latest latest release] and save the Windows ZIP file. A ZIP is a packed folder. You need to extract it before use.
+
+== 2. Copy the files into the game folder ==
+
+Right-click the ZIP file and choose "Extract All". Open the extracted folder and copy <b>all files and folders</b> from the ZIP into the folder that contains <code>enshrouded.exe</code>.
+
+A common Steam folder is:
+
+<code>C:\Program Files (x86)\Steam\steamapps\common\Enshrouded</code>
+
+The game folder should look similar to this:
+
+<pre>
+Enshrouded/
+├─ enshrouded.exe
+├─ dbghelp.dll
+├─ dinput8.dll
+├─ winmm.dll
+├─ shroudforge/
+│  └─ shroudforge.exe
+└─ mods/
+</pre>
+
+The loader files and <code>mods/</code> folder come from the ShroudForge release ZIP.
+
+== 3. Start Enshrouded and open the Mods window ==
+
+Start Enshrouded. Press <kbd>F9</kbd> to open the ShroudForge window and see your mods. Press <kbd>F10</kbd> to read ShroudForge messages if something is not working.
+
+* '''F9''' opens the Mods window.
+* '''F10''' opens ShroudForge messages.
+
+== 4. Find and add a mod ==
+
+Find an Enshrouded mod on a community site, for example [https://www.nexusmods.com/enshrouded/mods/ Nexus Mods]. Read the creator’s instructions, then download and extract the mod. Copy its folder into <code>Enshrouded/mods/</code>. Your mods folder might look like this:
+
+<pre>
+mods/
+└─ my-mod/
+   ├─ mod.json
+   ├─ extended.mod.json (optional)
+   └─ src/mod.lua
+</pre>
+
+Follow the mod creator’s installation instructions.
+
+== 5. Check that the mod is ready ==
+
+Press <kbd>F9</kbd> and open <b>Installed</b>. If your mod is listed, you can switch it on. Some mods need you to restart the game.
+
+=== Mods that change game files ===
+
+Mods that change game files need to be prepared before the game starts. Close the game and start it from the game folder with this command:
+
+<pre>
+./shroudforge/shroudforge.exe launch "."
+</pre>
+
+== Playing on a server? ==
+
+Your PC and the game server are separate. Copy the mod to both places if you want to use it in a shared world. See the [https://bonsaibauer.github.io/shroudforge/en/#server server instructions].
+
+</translate>
+
+[[Category:guide:Shroudforge]]
+

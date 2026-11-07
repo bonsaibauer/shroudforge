@@ -3,6 +3,8 @@ param(
     [string]$ClientDirectory = 'C:\Program Files (x86)\Steam\steamapps\common\Enshrouded',
     [string]$ServerDirectory = 'C:\Program Files (x86)\Steam\steamapps\common\EnshroudedServer',
     [ValidateSet('client', 'server', 'both')][string]$Target = 'both',
+    [string]$ClientBaselineProfile,
+    [string]$ServerBaselineProfile,
     [string]$OutputDirectory,
     [switch]$Offline,
     [string]$NativeVerifier,
@@ -38,11 +40,78 @@ foreach ($kind in @('client', 'server')) {
     $directory = if ($kind -eq 'client') { $ClientDirectory } else { $ServerDirectory }
     $stem = if ($kind -eq 'client') { 'enshrouded' } else { 'enshrouded_server' }
     $exe = (Resolve-Path -LiteralPath (Join-Path $directory "$stem.exe")).Path
+    # Reuse the inspection package's PE/KFC readers instead of inferring identity
+    # from filenames, modification times, or the newest profile in a directory.
+    Push-Location -LiteralPath $pythonRoot
+    try {
+        $identityJson = & $Python -c @'
+import json, sys
+from game_inspection.inspect.read_pe_image import PE
+from game_inspection.capture.discover_runtime_build import build_version
+pe = PE(sys.argv[1])
+print(json.dumps(dict(image=pe.identity(), kfcFormat=build_version(pe)[1])))
+'@ $exe
+    } finally {
+        Pop-Location
+    }
+    if ($LASTEXITCODE -ne 0) { throw "$kind executable identity inspection failed" }
+    $identity = $identityJson | ConvertFrom-Json
     $arguments = @($exe, '--functions', '--out', (Join-Path $OutputDirectory $kind))
-    # A previous profile supplies review anchors only. The scanner checks its PE
-    # identity independently and discovers reflection/allocated tables without it.
     $profiles = @(Get-ChildItem -LiteralPath (Join-Path $runtimeRoot "profiles/enshrouded/$kind") -Filter '*.json')
-    if ($profiles.Count -eq 1) { $arguments += @('--profile', $profiles[0].FullName) }
+    $profileRecords = @($profiles | ForEach-Object {
+        $document = Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json
+        $buildId = 0L
+        $prefix = [regex]::Escape("enshrouded-$kind-")
+        if ($document.id -match "^$prefix([1-9][0-9]*)$") {
+            [long]::TryParse($Matches[1], [ref]$buildId) | Out-Null
+        }
+        [pscustomobject]@{ File = $_; Document = $document; BuildId = $buildId }
+    })
+    $matchingProfiles = @($profileRecords | Where-Object {
+        $_.Document.target -eq $identity.image.target -and
+        $_.Document.kfcFormat -eq $identity.kfcFormat -and
+        $_.Document.image.sha256 -eq $identity.image.sha256 -and
+        $_.Document.image.timestamp -eq $identity.image.timestamp -and
+        $_.Document.image.size -eq $identity.image.size
+    } | ForEach-Object { $_.File })
+    if ($matchingProfiles.Count -gt 1) {
+        throw "$kind has multiple exact profiles: $($matchingProfiles.FullName -join ', '). Resolve the ambiguity before capturing."
+    }
+    $selectedProfile = $null
+    $selectionReason = 'no-exact-profile-or-explicit-baseline'
+    if ($matchingProfiles.Count -eq 1) {
+        $selectedProfile = $matchingProfiles[0].FullName
+        $selectionReason = 'exact-image-profile'
+    } else {
+        $baseline = if ($kind -eq 'client') { $ClientBaselineProfile } else { $ServerBaselineProfile }
+        if ($baseline) {
+            $selectedProfile = (Resolve-Path -LiteralPath $baseline).Path
+            $document = Get-Content -LiteralPath $selectedProfile -Raw | ConvertFrom-Json
+            if ($document.target -ne $identity.image.target -or $document.kfcFormat -ne $identity.kfcFormat) {
+                throw "$kind baseline must describe $($identity.image.target) and KFC$($identity.kfcFormat)"
+            }
+            $selectionReason = 'explicit-same-target-baseline'
+        } else {
+            $baselines = @($profileRecords | Where-Object {
+                $_.Document.target -eq $identity.image.target -and
+                $_.Document.kfcFormat -eq $identity.kfcFormat -and $_.BuildId -gt 0
+            } | Sort-Object BuildId -Descending)
+            if ($baselines.Count -gt 1 -and $baselines[0].BuildId -eq $baselines[1].BuildId) {
+                throw "$kind has multiple latest review baselines for build $($baselines[0].BuildId). Supply an explicit baseline."
+            }
+            if ($baselines.Count -gt 0) {
+                $selectedProfile = $baselines[0].File.FullName
+                $selectionReason = 'latest-same-target-kfc-review-baseline'
+            }
+        }
+    }
+    if ($selectedProfile) {
+        $arguments += @('--profile', $selectedProfile)
+        Write-Output "$kind profile review anchors: $selectedProfile ($selectionReason)"
+    } else {
+        $parameter = if ($kind -eq 'client') { '-ClientBaselineProfile' } else { '-ServerBaselineProfile' }
+        Write-Warning "$kind has no exact profile. Supply $parameter for explicit review anchors. Capturing profile-independent evidence only."
+    }
     if (-not $Offline) {
         $processes = @(Get-Process -Name $stem -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and [IO.Path]::GetFullPath($_.Path) -eq $exe })
@@ -59,10 +128,24 @@ foreach ($kind in @('client', 'server')) {
     }
     if ($LASTEXITCODE -ne 0) { throw "$kind discovery failed with exit code $LASTEXITCODE" }
     $capture = [IO.Path]::GetFullPath((Join-Path $OutputDirectory $kind))
-    $sha256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
-    $matchingProfiles = @($profiles | Where-Object {
-        (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).image.sha256 -eq $sha256
-    })
+    # Persist the selected baseline even when the catalog contains many profiles.
+    # It supplies review anchors and never grants target execution approval.
+    $capturedIdentity = (Get-Content -LiteralPath (Join-Path $capture 'reflection.json') -Raw | ConvertFrom-Json).image
+    if ($capturedIdentity.sha256 -ne $identity.image.sha256 -or
+        $capturedIdentity.timestamp -ne $identity.image.timestamp -or
+        $capturedIdentity.size -ne $identity.image.size -or
+        $capturedIdentity.target -ne $identity.image.target) {
+        throw "$kind executable changed during capture; partial evidence is retained at $capture"
+    }
+    [ordered]@{
+        schemaVersion = 1
+        image = $capturedIdentity
+        selection = $selectionReason
+        profile = $selectedProfile
+        exactImageMatch = ($matchingProfiles.Count -eq 1)
+        purpose = 'review-anchors-only'
+        productionApproval = $false
+    } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $capture 'profile-selection.json') -Encoding utf8
     if ($VerifyRuntimeOrigins) {
         & $ResourceExporter $exe (Join-Path $capture 'resources.json')
         if ($LASTEXITCODE -ne 0) { throw "$kind KFC resource inspection failed" }

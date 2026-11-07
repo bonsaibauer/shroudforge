@@ -55,6 +55,7 @@ modules/                       # Product modules and application entrypoints
     bridge/                   # Rust adapters grouped by native operation
     native/                   # C++ owners, ECS, resources, hooks and game-thread queue
     profiles/                 # Complete approved profiles for individual game builds
+  game-profile-discovery/     # Optional native beta-profile preparation from exact cached images
 kfc-parser/                   # Direct parser Git submodule
 mods/                         # Independent Lua mod packages, including world-editor
 dev/
@@ -157,6 +158,8 @@ setting and assign it in Compatibility → Hotkeys.
 
 `modules/game-runtime/native/main-menu/` owns the native Enshrouded **Mods** entry. It resolves the menu builder and entry renderer from the loaded executable's string references and decoded call graph, independently of ECS profiles. The native callback and `shroudforge.ui.toggle_modloader()` signal the same per-game-process event consumed by `modules/modloader/ui/host/native_menu_toggle.rs`. That host also publishes the existing `general.showNativeModMenu` setting through the visibility event. Native lifecycle and diagnostics include the menu binding.
 
+`modules/game-profile-discovery/` owns optional native `beta_*` profile preparation, exact baseline executable caching, original-image address and layout comparison, proof output, and its inline settings view on the game-profile card. It is linked statically into the existing KFC runtime. The shared runtime catalog reader owns configuration/path inputs and normal-profile precedence. Discovery defaults to enabled and preserves an explicit disabled preference, uses the existing cache and profile catalog, and generates no profile when code/data/layout evidence is unresolved. Developer capture and full-copy review remain under `runtime-diagnostics/diagnostics-jobs/game_inspection/`.
+
 `modules/wiki/` owns offline help. Articles live at `articles/<article-id>/<locale>.md`, with a shared `illustration.svg` beside the translations. The first H1 supplies the title and the first paragraph supplies the banner summary. `ui/read-wiki-articles.ts` discovers articles and illustrations automatically during the frontend build and selects the available translation. The Wiki page and contextual help use the same reader and article content, without a second route list. Published website articles remain under `docs/pages/`.
 
 `modules/logging/ui/log-ui-event.ts` sends bounded Wiki and Compatibility UI events through the existing host command transport. `modules/modloader/ui/host/record_ui_log.rs` validates the source, level and text and writes each event through `write_activity_at_level`, retaining the configured log filter. Explicit warning and error notifications use the existing command-result toast path. UI events do not repeat native DLL execution results.
@@ -212,7 +215,7 @@ The module guide is [modules/README.md](../../modules/README.md). Public entry p
 
 The native C++ runtime is built and shipped with the loader. It is not a separate player download. The Windows bridge checks the runtime interface version before using it.
 
-A **profile** is reviewed information for a particular Enshrouded build and target, such as the client. It tells supported native operations which game structures to use. Approved profiles are under **modules/game-runtime/profiles/** and are included in the runtime during the build.
+A **profile** is reviewed information for a particular Enshrouded build and target, such as the client. It tells supported native operations which game structures to use. Approved profiles are under **modules/game-runtime/profiles/** and are shipped as JSON files in the configured **runtime/profiles/** directory. Both native readers use this external catalog, without embedded profile copies.
 
 `modules/game-runtime/native/impact/` owns typed adapters for separately admitted original Impact operations and resolves their callbacks by registered name. `native/ecs/resolve_entity_command_queue.*` validates the original queue and its ownership for those adapters. `native/building/remove_building_prop.cpp` connects entity destruction to the existing ABI and confirms completion through the session-bound entity reader. Queue submission and confirmed world effects are distinct results. The Lua availability policy lives in `modules/mod-runtime/lua/ingame/check_ingame_access.rs`.
 
