@@ -1,0 +1,75 @@
+# Translation of Translate mod text to Italian
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: it\n"
+"X-Message-Group: page-Translate mod text\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Translate_mod_text/Page_display_title"
+msgid "Translate mod text"
+msgstr "Tradurre il testo delle mod"
+
+#
+msgctxt "Translate_mod_text/1"
+msgid "Translate visible Modloader text and Lua text from the same locale files in the mod folder. Read the Modloader language through <code>shroudforge.locale()</code>, added by PR #42."
+msgstr "Traduci il testo visibile del Modloader e il testo Lua usando gli stessi file locale nella cartella della mod. Leggi la lingua del Modloader tramite <code>shroudforge.locale()</code>, aggiunta dalla PR #42."
+
+#
+msgctxt "Translate_mod_text/2"
+msgid "== Locale files =="
+msgstr "== File locale =="
+
+#
+msgctxt "Translate_mod_text/3"
+msgid "Add one file under <code>locales/&lt;code&gt;.json</code> for each language. Current codes from the Modloader language selector are <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code>, and <code>zh</code>. The filename matches its code exactly. These files sit beside <code>mod.json</code> and <code>extended.mod.json</code>."
+msgstr "Aggiungi un file <code>locales/&lt;code&gt;.json</code> per ogni lingua. I codici attuali del selettore della lingua del Modloader sono <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code> e <code>zh</code>. Il nome del file deve corrispondere esattamente al codice. Questi file si trovano accanto a <code>mod.json</code> e <code>extended.mod.json</code>."
+
+#
+msgctxt "Translate_mod_text/4"
+msgid "The schema is published as [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. A locale catalog can translate <code>mod.name</code> and <code>mod.description</code>, setting and option labels, groups, actions, changelog lines, and Lua <code>strings</code>. Catalogs may be partial. Entries without a translation keep their source text."
+msgstr "Lo schema è pubblicato come [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. Un catalogo locale può tradurre <code>mod.name</code> e <code>mod.description</code>, le etichette di impostazioni e opzioni, i gruppi, le azioni, le righe del changelog e le <code>strings</code> Lua. I cataloghi possono essere parziali. Le voci senza traduzione mantengono il testo sorgente."
+
+#
+msgctxt "Translate_mod_text/5"
+msgid "<pre>\n{\n  \"$schema\": \"https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
+msgstr "<pre>\n{\n  \"$schema\": \"https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
+
+#
+msgctxt "Translate_mod_text/6"
+msgid "Setting and option keys stay the same as in <code>extended.mod.json</code>. Group translations follow that file's group order. Action translations use the existing action ID. Saved values do not change."
+msgstr "Le chiavi di impostazioni e opzioni restano uguali a quelle di <code>extended.mod.json</code>. Le traduzioni dei gruppi seguono l'ordine dei gruppi in quel file. Le traduzioni delle azioni usano l'ID esistente dell'azione. I valori salvati non cambiano."
+
+#
+msgctxt "Translate_mod_text/7"
+msgid "== Use the same text in Lua =="
+msgstr "== Usa lo stesso testo in Lua =="
+
+#
+msgctxt "Translate_mod_text/8"
+msgid "<pre>\nlocal locale = shroudforge.locale()\nlocal ready = shroudforge.i18n.get(\"overlay.ready\", locale, \"Ready\")\n</pre>"
+msgstr "<pre>\nlocal locale = shroudforge.locale()\nlocal ready = shroudforge.i18n.get(\"overlay.ready\", locale, \"Ready\")\n</pre>"
+
+#
+msgctxt "Translate_mod_text/9"
+msgid "<code>shroudforge.i18n.get(key, locale, fallback)</code> uses the same loaded catalog as the Modloader. It checks a regional code such as <code>de-AT</code> first, followed by its language <code>de</code>. A missing string returns the fallback text, or the key when no fallback is provided. The lookup does not read files again. PR #42 supplies the language API, and this feature connects it to each mod's catalog."
+msgstr "<code>shroudforge.i18n.get(key, locale, fallback)</code> usa lo stesso catalogo caricato dal Modloader. Controlla prima un codice regionale come <code>de-AT</code>, poi la relativa lingua <code>de</code>. Se manca una stringa, restituisce il testo di fallback o, se non è specificato, la chiave. La ricerca non rilegge i file. La PR #42 fornisce l'API della lingua e questa funzione la collega al catalogo di ogni mod."
+
+#
+msgctxt "Translate_mod_text/10"
+msgid "If <code>shroudforge.locale()</code> returns <code>en</code> because the configuration cannot be read, catalog lookup checks <code>en-GB.json</code> first and then <code>en.json</code>. <code>en-GB</code> is the Modloader's English default. <code>en-US</code> remains available as an explicitly selected variant."
+msgstr "Se <code>shroudforge.locale()</code> restituisce <code>en</code> perché non è possibile leggere la configurazione, il catalogo controlla prima <code>en-GB.json</code> e poi <code>en.json</code>. <code>en-GB</code> è la lingua inglese predefinita del Modloader. <code>en-US</code> resta disponibile come variante selezionabile esplicitamente."
+
+#
+msgctxt "Translate_mod_text/11"
+msgid "Locale files do not require the runtime capability. ShroudForge interface text stays in the shared Modloader translations."
+msgstr "I file locale non richiedono la capacità runtime. Il testo dell'interfaccia ShroudForge resta nelle traduzioni condivise del Modloader."

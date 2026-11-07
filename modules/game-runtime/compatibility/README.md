@@ -15,7 +15,7 @@ Automatic profile selection may use an explicitly opted-in profile after a game 
 | Path | Responsibility |
 | --- | --- |
 | `lib.rs` | Compatibility contract, availability states, and validation |
-| `../profiles/` | Authoritative native build profiles embedded into `kfc-runtime.dll` during the workspace CMake build |
+| `../profiles/` | Authoritative build-profile JSON catalog shipped to the configured installation `runtime/profiles` directory and read by both native selection paths |
 
 ## Development
 
@@ -23,4 +23,4 @@ Automatic profile selection may use an explicitly opted-in profile after a game 
 cargo test -p shroudforge-compatibility
 ```
 
-Build-specific data lives in JSON profiles under `modules/game-runtime/profiles/`. Changing a profile requires rebuilding the integrated native runtime. New hook calling conventions require runtime code changes. Incompatible provider ABI changes require a loader update.
+Build-specific data lives in JSON profiles under `modules/game-runtime/profiles/`. Both native selectors use the one installed external catalog. There is no embedded catalog or fallback. Data-only profile changes do not require rebuilding the native runtime. New hook calling conventions require runtime code changes. Incompatible provider ABI changes require a loader update.

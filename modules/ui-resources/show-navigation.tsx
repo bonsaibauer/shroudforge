@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Icon } from './show-icon'
 
-export type NavigationStatus = 'error' | 'warning' | 'ok' | 'neutral'
+export type NavigationStatus = 'error' | 'warning' | 'ok' | 'neutral' | 'restart-required'
 
 export function NavGroup({
   title,
@@ -25,6 +25,7 @@ export function Nav({
   label,
   badge,
   status,
+  statusLabel,
   active,
   onClick,
 }: {
@@ -32,6 +33,7 @@ export function Nav({
   label: string
   badge?: number
   status?: NavigationStatus
+  statusLabel?: string
   active: boolean
   onClick(): void
 }) {
@@ -40,9 +42,14 @@ export function Nav({
       <Icon name={icon} />
       <span>{label}</span>
       {status && status !== 'neutral' ? (
-        <i className={`nav-status ${status}`} aria-label={status}>
+        <i
+          className={`nav-status ${status}`}
+          aria-label={statusLabel || status}
+          title={status === 'restart-required' ? statusLabel : undefined}
+        >
           <Icon
-            name={status === 'error' ? 'issue' : status === 'warning' ? 'warning' : 'check'}
+            name={status === 'error' ? 'issue' : status === 'warning' ? 'warning' :
+              status === 'restart-required' ? 'refresh' : 'check'}
           />
         </i>
       ) : badge !== undefined ? (

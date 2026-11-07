@@ -1,0 +1,65 @@
+# Translation of Startup stops because asset backups are incompatible to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Startup stops because asset backups are incompatible\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/Page_display_title"
+msgid "Startup stops because asset backups are incompatible"
+msgstr "由于资源备份不兼容，启动已停止"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/1"
+msgid "Troubleshooting for older ShroudForge releases. Versions 1.6.8, 1.7.0 and 1.7.3 can stop before Enshrouded starts when their asset backup files do not match the installed game files."
+msgstr "适用于较旧 ShroudForge 版本的故障排除。如果资源备份文件与已安装的游戏文件不匹配，1.6.8、1.7.0 和 1.7.3 版本可能会在 Enshrouded 启动前停止。"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/2"
+msgid "== Why startup stops =="
+msgstr "== 启动停止的原因 =="
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/3"
+msgid "ShroudForge keeps working backups of <code>enshrouded.kfc</code> and <code>enshrouded.kfc_resources</code> so it can restore the game files before preparing asset mods. These <code>.bak</code> files may come from an older Enshrouded version or another mod. If the KFC backup does not match the current game file, older ShroudForge releases cannot safely restore it and stop startup."
+msgstr "ShroudForge 会保留 <code>enshrouded.kfc</code> 和 <code>enshrouded.kfc_resources</code> 的工作备份，以便在准备资源模组前恢复游戏文件。这些 <code>.bak</code> 文件可能来自较旧版本的 Enshrouded 或其他模组。如果 KFC 备份与当前游戏文件不匹配，较旧版本的 ShroudForge 无法安全地恢复它，因此会停止启动。"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/4"
+msgid "== If you use ShroudForge 1.7.5 or later =="
+msgstr "== 如果你使用 ShroudForge 1.7.5 或更高版本 =="
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/5"
+msgid "When the KFC backup is incompatible, these versions can move both working backups to the ShroudForge recycle bin and capture new backups from the current game files. This recovery requires <code>shroudforge/shroudforge-updater.exe</code> in the Enshrouded installation. If the log says the updater is unavailable, repair or reinstall ShroudForge with the complete release package, then start the game again. Keep the <code>.bak</code> files in place while repairing the installation."
+msgstr "当 KFC 备份不兼容时，这些版本可以将两份工作备份移入 ShroudForge 回收站，并根据当前游戏文件创建新备份。此恢复过程要求 Enshrouded 安装目录中存在 <code>shroudforge/shroudforge-updater.exe</code>。如果日志显示 updater 不可用，请使用完整发布包修复或重新安装 ShroudForge，然后再次启动游戏。修复安装期间请保留 <code>.bak</code> 文件。"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/6"
+msgid "== Manual fix for versions 1.6.8, 1.7.0 and 1.7.3 =="
+msgstr "== 1.6.8、1.7.0 和 1.7.3 版本的手动修复方法 =="
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/7"
+msgid "Use these steps only with the listed older ShroudForge versions."
+msgstr "仅在所列的较旧 ShroudForge 版本中执行以下步骤。"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/8"
+msgid "# Close ShroudForge and Enshrouded completely, including any dedicated server process.\n# Open the Enshrouded installation folder. A common Steam path is <code>SteamLibrary\\steamapps\\common\\Enshrouded</code>, but use the library folder where your game is installed.\n# If another mod may have changed the current <code>.kfc</code> files, verify Enshrouded's files through Steam first. If you want to keep a copy of the old backups, copy them outside the game folder before continuing.\n# Delete only these files if they are present:\n#* <code>enshrouded.kfc.bak</code>\n#* <code>enshrouded.kfc_resources.bak</code>\n# Restart ShroudForge. It should create fresh working backups from the current game files."
+msgstr "# 完全关闭 ShroudForge 和 Enshrouded，包括任何专用服务器进程。\n# 打开 Enshrouded 安装文件夹。常见的 Steam 路径是 <code>SteamLibrary\\steamapps\\common\\Enshrouded</code>，但请使用实际安装游戏的库文件夹。\n# 如果其他模组可能更改了当前的 <code>.kfc</code> 文件，请先通过 Steam 验证 Enshrouded 文件。如果要保留旧备份的副本，请在继续前将它们复制到游戏文件夹之外。\n# 仅在以下文件存在时删除它们：\n#* <code>enshrouded.kfc.bak</code>\n#* <code>enshrouded.kfc_resources.bak</code>\n# 重新启动 ShroudForge。它应根据当前游戏文件创建新的工作备份。"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/9"
+msgid "Do not delete the <code>.kfc</code> or <code>.kfc_resources</code> game files, or any other backup files. If startup still fails, keep the remaining files and share the ShroudForge log with support."
+msgstr "不要删除游戏的 <code>.kfc</code> 或 <code>.kfc_resources</code> 文件，也不要删除其他备份文件。如果启动仍然失败，请保留剩余文件，并将 ShroudForge 日志提供给支持团队。"

@@ -1,0 +1,40 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Übersetzungen für den Modloader
+description: Hilf mit, ShroudForge für Spieler weltweit verfügbar zu machen. Bearbeite Übersetzungen in Fink oder reiche deine Änderungen als Pull Request im GitHub-Repository ein.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/translations/de.md
+-->
+
+Hilf mit, ShroudForge für Spieler weltweit verfügbar zu machen. Bearbeite Übersetzungen in Fink oder reiche deine Änderungen als Pull Request im GitHub-Repository ein.
+
+[[File:ShroudForge-Wiki-translations.svg|thumb|right|alt=Übersetzungen für den Modloader|Übersetzungen für den Modloader]]
+
+== Mit Fink übersetzen ==
+
+Öffne den [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang Fink-Editor für ShroudForge]. Fink zeigt den englischen Ausgangstext und die Übersetzungen nebeneinander. Die Sprachdateien bleiben im Repository. Fink synchronisiert keine zweite Kopie in einem Übersetzungsdienst.
+
+Wähle im Editor das Projekt und den Branch aus. Prüfe die Meldung, ändere die Übersetzung und kontrolliere die Vorschau. Fink speichert deine Arbeit zunächst als lokalen Entwurf im Browser. Zum Speichern auf GitHub brauchst du ein GitHub-Konto.
+
+== Änderungen als Pull Request einreichen ==
+
+Wenn der Hauptbranch geschützt ist, lege zuerst in GitHub einen Übersetzungsbranch an. Öffne diesen Branch in Fink und übertrage deine Änderungen dorthin. Danach kannst du einen Pull Request erstellen und ihn vor dem Zusammenführen prüfen lassen. Fink legt den Branch nicht selbst an.
+
+Ohne Schreibzugriff auf das ShroudForge-Repository kannst du in Fink einen Fork verwenden. Installiere dazu die Inlang-GitHub-App auf deinem Konto, übertrage die Änderungen in deinen Fork und öffne anschließend den Pull Request. Fink öffnet die GitHub-Seite für den Pull Request. Du musst ihn dort noch prüfen und absenden.
+
+Die [https://github.com/bonsaibauer/shroudforge/pulls Pull Requests im ShroudForge-Repository] zeigen offene Übersetzungsbeiträge und ihren Prüfstatus. Weitere Details stehen in der [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink-Anleitung zu Branches und Pull Requests].
+
+== Übersetzungsdateien direkt bearbeiten ==
+
+Du kannst auch die JSON-Dateien unter <code>modules/ui-resources/locales/</code> ändern und einen Pull Request im Repository erstellen. Verwende für jede Sprache dieselben Schlüssel wie in der englischen Quelldatei <code>en-GB.json</code>. Ändere keine Platzhalternamen wie <code>&#123;count&#125;</code>. Sie müssen in jeder Übersetzung exakt erhalten bleiben.
+
+Vor dem Pull Request kannst du die Locale-Dateien prüfen:
+
+<pre>
+cd modules/modloader/ui
+npm run locale:check
+</pre>
+
+Die Fink-Projektdatei <code>modules/ui-resources/project.inlang/settings.json</code> verbindet den Editor mit diesen Katalogen. Der Beispiel-Link oben öffnet dieses Projekt. Wenn später ein anderer Editor-Link verwendet wird, ändere die URL im Link dieses Artikels und im SVG-Bild.
+
+[[Category:guide:shroudforge]]

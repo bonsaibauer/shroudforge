@@ -347,6 +347,16 @@ investigation material; keep them under **dev/profiles/captures/**.
 
 Before approval, check the game and build identity, where the information came from, the component map, and the required observations from the live game. The launcher installs profile files under `shroudforge/runtime/profiles/`, selects the matching profile automatically, and lets the player choose another profile. Structural execution-profile revalidation stays within the detected KFC format. A KFC3 execution profile cannot authorize a KFC4 process. Verified signatures and live layout checks still decide which execution operations work.
 
+Both native profile readers use that external catalog and the configured
+runtime directory. No profile is embedded in the provider DLL. Normal exact
+profiles take precedence over experimental `beta_*` profiles. The optional
+[game-profile-discovery module](../../modules/game-profile-discovery/README.md)
+compares exact cached baseline and current executable images before publishing
+a complete beta profile in the same client or server directory. Its toggle is
+on the game-profile card, which also shows the actual active profile when the
+selection is automatic. Missing or ambiguous evidence leaves the candidate
+unresolved. Existing live ownership and operation checks still apply.
+
 Maintainer tools live under **dev/profiles/**. Start with the [profile development guide](../../dev/profiles/README.md).
 
 The [runtime discovery tools](../../dev/profiles/README.md)

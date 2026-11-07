@@ -1,0 +1,69 @@
+# Translation of Dependencies to French
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: fr\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "Dépendances"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "Consultez les composants requis et les conflits connus entre mods. Cette vue explique ce qui bloque un mod actif et quelle dépendance vérifier."
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== Mods requis =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "Un mod peut déclarer d'autres mods et leurs versions requises dans <code>mod.json</code>. ShroudForge vérifie leur installation, leur activation et leur compatibilité avec le client ou serveur actuel. Une dépendance obligatoire absente ou désactivée empêche le démarrage du mod concerné. Une version incompatible le bloque également."
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "Ouvrez le mod indiqué, installez ou activez son prérequis, puis vérifiez cette vue à nouveau. Tous les mods installés n'ont pas à fonctionner dans le processus actuel. Un mod réservé au client n'a pas besoin de démarrer sur un serveur."
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== Dépendances facultatives =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "Une dépendance explicitement facultative peut être absente ou désactivée. Une fonction supplémentaire peut alors être indisponible. Si elle est présente et activée, sa version et ses autres prérequis doivent rester compatibles."
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "Les mods sans dépendance déclarée n'ont pas besoin d'une entrée de problème distincte ici. Leur état général reste disponible sur leur propre page."
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== Conflits et cycles =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "Les règles de conflit connues identifient deux mods actifs qui ne doivent pas fonctionner ensemble dans la combinaison indiquée. Utilisez le message pour choisir lequel désactiver. Un cycle signifie que des mods exigent chacun le démarrage préalable de l'autre. Cela nécessite une correction du paquet ou une modification par l'auteur."
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "Une exigence concernant <code>shroudforge-api</code> vise l'API de mods du chargeur. Elle est distincte de l'association automatique d'un profil de compatibilité de DLL."

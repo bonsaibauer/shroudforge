@@ -93,11 +93,12 @@ async function validate() {
   const navigation = html.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/i)?.[1];
   assert(navigation, "Website top navigation is missing.");
   const navLinks = [...navigation.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map(match => match[1].replace(/<[^>]*>/g, "").trim());
-  assert(navLinks.length === 4 && navLinks[0] === "Files" && navLinks[1] === "GitHub" && navLinks[2] === "Discord" && navLinks[3] === "YouTube", "Website navigation must contain Files, GitHub, Discord and YouTube in that order.");
+  assert(navLinks.length === 5 && navLinks[0] === "Files" && navLinks[1] === "Wiki" && navLinks[2] === "GitHub" && navLinks[3] === "Discord" && navLinks[4] === "YouTube", "Website navigation must contain Files, Wiki, GitHub, Discord and YouTube in that order.");
   const youtubeLink = tagsFrom(navigation).filter(tag => tag.name === "a").at(-1);
   assert(youtubeLink?.attributes.href === config.youtubeUrl, "The rightmost navigation link must point to the configured YouTube channel.");
   const repositoryUrl = `https://github.com/${config.repository}`;
   assert(tagsFrom(navigation).some(tag => tag.name === "a" && tag.attributes.href === repositoryUrl), "Website navigation must link to the project repository.");
+  assert(tagsFrom(navigation).some(tag => tag.name === "a" && tag.attributes.href === config.wikiUrl), "Website navigation must link to the configured Wiki.");
   const sidebar = html.match(/<aside\b[^>]*>([\s\S]*?)<\/aside>/i)?.[1] || "";
   assert(tagsFrom(sidebar).some(tag => tag.name === "a" && tag.attributes.href === repositoryUrl), "The sidebar GitHub reference must link to the project repository.");
   const footer = html.match(/<footer\b[^>]*>([\s\S]*?)<\/footer>/i)?.[1] || "";
@@ -106,6 +107,7 @@ async function validate() {
   assert(tags.some(tag => tag.name === "a" && tag.attributes.href === config.discordUrl), "Website Discord link does not match the project configuration.");
   assert(tags.some(tag => tag.name === "link" && tag.attributes.rel === "stylesheet" && tag.attributes.href === "/assets/styles.css"), "Website stylesheet is missing.");
   assert(tags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/filters.js"), "Website release filter script is missing.");
+  assert(tags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/installation-guide.js"), "Website installation guide script is missing.");
   const themeScript = tags.findIndex(tag => tag.name === "script" && tag.attributes.src === "/assets/theme.js");
   const stylesheet = tags.findIndex(tag => tag.name === "link" && tag.attributes.rel === "stylesheet");
   assert(themeScript >= 0 && themeScript < stylesheet, "Saved background preference must load before the stylesheet.");
@@ -145,7 +147,7 @@ async function validate() {
   const recommended = feed.releases.find(release => !release.prerelease);
   if (recommended) assert(software.softwareVersion === recommended.version, "Software metadata must describe the latest stable version.");
 
-  for (const relative of ["assets/styles.css", "assets/filters.js", "assets/theme.js", "assets/hammer.png", "assets/favicon.ico", "assets/inter-latin.woff2", "licenses/Inter-OFL.txt"]) {
+  for (const relative of ["assets/styles.css", "assets/filters.js", "assets/installation-guide.js", "assets/theme.js", "assets/hammer.png", "assets/favicon.ico", "assets/inter-latin.woff2", "licenses/Inter-OFL.txt"]) {
     await readRequired(relative);
   }
   const css = await readRequired("assets/styles.css");

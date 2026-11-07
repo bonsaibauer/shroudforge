@@ -1,0 +1,85 @@
+# Translation of Translate the Modloader to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Translate the Modloader\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Translate_the_Modloader/Page_display_title"
+msgid "Translate the Modloader"
+msgstr "翻译 Modloader"
+
+#
+msgctxt "Translate_the_Modloader/1"
+msgid "Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub."
+msgstr "帮助 ShroudForge 面向全球玩家提供。你可以在 Fink 中编辑翻译，也可以在 GitHub 上提交拉取请求。"
+
+#
+msgctxt "Translate_the_Modloader/2"
+msgid "== Translate with Fink =="
+msgstr "== 使用 Fink 翻译 =="
+
+#
+msgctxt "Translate_the_Modloader/3"
+msgid "Open the [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang Fink editor for ShroudForge]. Fink shows the English source text beside its translations. The language files stay in the repository. Fink does not keep a second synced copy in a translation service."
+msgstr "打开 [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang ShroudForge 的 Fink 编辑器]。Fink 会并排显示英文源文本及其译文。语言文件保存在代码库中。Fink 不会在翻译服务中保留另一份同步副本。"
+
+#
+msgctxt "Translate_the_Modloader/4"
+msgid "Choose the project and branch in the editor. Review a message, edit its translation and check the result. Fink first saves your work as a draft in your browser. You need a GitHub account to save changes to GitHub."
+msgstr "在编辑器中选择项目和分支。查看消息、编辑译文并检查结果。Fink 会先将你的工作保存为浏览器中的草稿。要将更改保存到 GitHub，你需要 GitHub 帐户。"
+
+#
+msgctxt "Translate_the_Modloader/5"
+msgid "== Send changes as a pull request =="
+msgstr "== 将更改作为拉取请求提交 =="
+
+#
+msgctxt "Translate_the_Modloader/6"
+msgid "If the default branch is protected, create a translation branch on GitHub first. Open that branch in Fink and push your changes there. Then create a pull request so the changes can be reviewed before they are merged. Fink does not create branches for you."
+msgstr "如果默认分支受到保护，请先在 GitHub 上创建翻译分支。在 Fink 中打开该分支并将更改推送到那里。然后创建拉取请求，以便在合并前审核更改。Fink 不会替你创建分支。"
+
+#
+msgctxt "Translate_the_Modloader/7"
+msgid "If you cannot write to the ShroudForge repository, use Fink's fork flow. Install the Inlang GitHub App on your account, push the changes to your fork, then open a pull request. Fink opens GitHub's pull request page. Review and submit the pull request there."
+msgstr "如果你无法写入 ShroudForge 代码库，请使用 Fink 的派生仓库流程。在你的帐户中安装 Inlang GitHub App，将更改推送到自己的派生仓库，然后创建拉取请求。Fink 会打开 GitHub 的拉取请求页面。请在那里审核并提交拉取请求。"
+
+#
+msgctxt "Translate_the_Modloader/8"
+msgid "The [https://github.com/bonsaibauer/shroudforge/pulls ShroudForge pull request list] shows open translation contributions and their review status. See the [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink guide to branches and pull requests] for more details."
+msgstr "[https://github.com/bonsaibauer/shroudforge/pulls ShroudForge 拉取请求列表]会显示尚未关闭的翻译贡献及其审核状态。更多信息请参阅 [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink 的分支、派生仓库和拉取请求指南]。"
+
+#
+msgctxt "Translate_the_Modloader/9"
+msgid "== Edit the translation files directly =="
+msgstr "== 直接编辑翻译文件 =="
+
+#
+msgctxt "Translate_the_Modloader/10"
+msgid "You can also change the JSON files under <code>modules/ui-resources/locales/</code> and create a pull request in the repository. Keep the same keys as the English source file <code>en-GB.json</code>. Do not rename placeholders such as <code>&#123;count&#125;</code>. Their names must stay exactly the same in each translation."
+msgstr "你也可以修改 <code>modules/ui-resources/locales/</code> 下的 JSON 文件，并在代码库中创建拉取请求。请保留与英文源文件 <code>en-GB.json</code> 相同的键。不要重命名 <code>&#123;count&#125;</code> 之类的占位符。每种译文中的占位符名称都必须完全相同。"
+
+#
+msgctxt "Translate_the_Modloader/11"
+msgid "Before opening a pull request, you can check the locale files:"
+msgstr "创建拉取请求之前，可以检查语言文件："
+
+#
+msgctxt "Translate_the_Modloader/12"
+msgid "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+msgstr "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+
+#
+msgctxt "Translate_the_Modloader/13"
+msgid "The Fink project file <code>modules/ui-resources/project.inlang/settings.json</code> connects the editor to these catalogs. The example link above opens that project. If you use a different editor URL later, update it in this article link and in the SVG illustration."
+msgstr "Fink 项目文件 <code>modules/ui-resources/project.inlang/settings.json</code> 将编辑器连接到这些目录。上面的示例链接会打开该项目。如果以后使用其他编辑器 URL，请同时更新本文中的链接和 SVG 插图。"
