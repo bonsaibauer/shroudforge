@@ -9,6 +9,8 @@ use std::{
 
 pub struct Session {
     pub(super) root: PathBuf,
+    // Settings read and status written off the caller's thread (in game).
+    pub(super) background_io: bool,
     pub(super) settings: Value,
     pub(super) active: bool,
     pub(super) started: Instant,
@@ -32,6 +34,7 @@ impl Session {
         let now = Instant::now();
         let mut session = Self {
             root: root.into(),
+            background_io: false,
             settings: defaults(),
             active: false,
             started: now,
@@ -52,5 +55,13 @@ impl Session {
         session.refresh();
         session.publish();
         session
+    }
+
+    /// From now on, reads the loader settings and writes the status off the
+    /// caller's thread: in game, the mods' loop, which one disk access could
+    /// stall for 100 ms at times. Settings are then up to 250 ms old.
+    pub fn with_background_io(mut self) -> Self {
+        self.background_io = true;
+        self
     }
 }
