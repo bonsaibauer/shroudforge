@@ -38,12 +38,14 @@ bool identical_layout_procedure(const Procedure& source, const Procedure& target
         const auto& b = target.layout_uses[i];
         if (a.instruction != b.instruction || a.operand != b.operand || a.value != b.value ||
             a.argument != b.argument || a.kind != b.kind || a.memory_width_bytes != b.memory_width_bytes ||
-            a.memory_read != b.memory_read || a.memory_write != b.memory_write) return false;
+            a.memory_read != b.memory_read || a.memory_write != b.memory_write ||
+            a.index_stride != b.index_stride) return false;
     }
     for (std::size_t i = 0; i < source.call_arguments.size(); ++i) {
         const auto& a = source.call_arguments[i];
         const auto& b = target.call_arguments[i];
-        if (a.instruction != b.instruction || a.target != b.target || a.offsets != b.offsets) return false;
+        if (a.instruction != b.instruction || a.target != b.target || a.offsets != b.offsets ||
+            a.original_arguments != b.original_arguments) return false;
     }
     return true;
 }
@@ -112,6 +114,7 @@ class LayoutProver {
         resources, resource_callbacks, resource_metadata_getters, resource_key_lookups, resource_header_validators,
         resource_workers, item_registry, services, dependencies, spawn;
     Roots service_system_records, service_system_owners, service_binding_records, service_binding_owners;
+    Roots item_registry_registrations, item_registry_factories, item_registry_required_factories;
 
     std::optional<std::uint64_t> number(const std::string& path) const {
         const auto pointer = json::json_pointer(path);
@@ -310,7 +313,7 @@ class LayoutProver {
             const auto records = with_tuple(item_registry, {"/resourceLayout/itemIdMap/bitsPointerOffset",
                 "/resourceLayout/itemIdMap/capacityOffset", "/resourceLayout/itemIdMap/keysPointerOffset",
                 "/resourceLayout/itemIdMap/valuesPointerOffset"});
-            return {records, "original-ItemRegistry-map-header-tuple", stride};
+            return {records, "original-ItemRegistry-map-header-tuple", stride, false, -1, item_registry_required_factories};
         }
         if (path.starts_with("/resourceLayout/map/")) {
             if (leaf == "keyStride") return {resource_key_lookups, "original-resource-key-index-byte-arithmetic", false, true};
@@ -339,7 +342,8 @@ class LayoutProver {
                 return {resource_metadata_getters, "original-common-resource-reader-metadata-getter", true};
             if (leaf.starts_with("itemRegistry")) return {with_tuple(item_registry,
                 {"/resourceLayout/itemRegistryServiceOffset", "/resourceLayout/itemRegistryHandleOffset",
-                 "/resourceLayout/itemRegistryResourcePointerOffset"}), "original-ItemRegistry-service-resource-tuple"};
+                 "/resourceLayout/itemRegistryResourcePointerOffset"}), "original-ItemRegistry-service-resource-tuple",
+                 false, false, -1, item_registry_required_factories};
             if (leaf == "mainActiveContextOffset" || leaf == "contextItemRegistryOffset")
                 return {task_callers, "original-world-context-service-constructor"};
             return {resource_callbacks, "original-ResourceService-exact-registered-callback", true};
@@ -394,13 +398,15 @@ class LayoutProver {
             const auto same = std::find_if(target.layout_uses.begin(), target.layout_uses.end(), [&](const auto& other) {
                 return other.instruction == instruction && other.operand == use.operand && other.kind == use.kind &&
                     other.argument == use.argument && other.value == use.value &&
-                    other.memory_width_bytes == use.memory_width_bytes && other.memory_read == use.memory_read && other.memory_write == use.memory_write;
+                    other.memory_width_bytes == use.memory_width_bytes && other.memory_read == use.memory_read &&
+                    other.memory_write == use.memory_write && other.index_stride == use.index_stride;
             });
             if (same == target.layout_uses.end()) return std::nullopt;
             json proof{{"sourceProcedureRva", source.root}, {"targetProcedureRva", target.root},
                 {"sourceInstructionRva", use.instruction}, {"targetInstructionRva", instruction},
                 {"operand", use.operand}, {"kind", use.kind}, {"sourceArgument", use.argument}, {"value", use.value},
-                {"memoryWidthBytes", use.memory_width_bytes}, {"memoryRead", use.memory_read}, {"memoryWrite", use.memory_write}};
+                {"memoryWidthBytes", use.memory_width_bytes}, {"memoryRead", use.memory_read},
+                {"memoryWrite", use.memory_write}, {"indexStride", use.index_stride}};
             const auto binding = owner_callsites.find(source.root);
             if (binding != owner_callsites.end()) proof["ownerCallsites"] = binding->second;
             return proof;
@@ -424,6 +430,8 @@ class LayoutProver {
             const auto registry = baseline.at("resourceLayout").at("itemIdMap").value("registry", std::string{});
             const auto named_registry = named(registry);
             return {{"namedRegistryFunctions", named_registry.size()}, {"registryCallGraphFunctions", item_registry.size()},
+                {"registryRegistrationFunctions", item_registry_registrations.size()},
+                {"resourceTypedFactories", item_registry_factories.size()},
                 {"mapHeaderTupleConsumers", with_tuple(item_registry, {"/resourceLayout/itemIdMap/bitsPointerOffset",
                     "/resourceLayout/itemIdMap/capacityOffset", "/resourceLayout/itemIdMap/keysPointerOffset",
                     "/resourceLayout/itemIdMap/valuesPointerOffset"}).size()},
@@ -590,7 +598,7 @@ class LayoutProver {
         if (old_uses == source_uses_by_value.end() || new_uses == target_uses_by_value.end() ||
             old_uses->second.empty() || new_uses->second.empty()) return false;
         using UseKey = std::tuple<std::uint32_t, std::uint32_t, unsigned, std::string, int,
-            std::int64_t, unsigned, bool, bool>;
+            std::int64_t, unsigned, bool, bool, std::int64_t>;
         std::multiset<UseKey> expected, actual;
         json witnesses = json::array();
         for (const auto& [source_root, use] : old_uses->second) {
@@ -616,20 +624,21 @@ class LayoutProver {
                     return candidate.instruction == *mapped_instruction && candidate.operand == use->operand &&
                         candidate.value == use->value && candidate.argument == use->argument &&
                         candidate.kind == use->kind && candidate.memory_width_bytes == use->memory_width_bytes &&
-                        candidate.memory_read == use->memory_read && candidate.memory_write == use->memory_write;
+                        candidate.memory_read == use->memory_read && candidate.memory_write == use->memory_write &&
+                        candidate.index_stride == use->index_stride;
                 });
             if (match == target->second.layout_uses.end()) {
                 row["reason"] = "original-global-layout-operand-changed";
                 return false;
             }
             expected.emplace(*paired_root, *mapped_instruction, use->operand, use->kind, use->argument,
-                use->value, use->memory_width_bytes, use->memory_read, use->memory_write);
+                use->value, use->memory_width_bytes, use->memory_read, use->memory_write, use->index_stride);
             if (witnesses.size() < 8) witnesses.push_back({{"sourceProcedureRva", source_root},
                 {"targetProcedureRva", *paired_root}, {"sourceInstructionRva", use->instruction},
                 {"targetInstructionRva", *mapped_instruction}, {"kind", use->kind},
                 {"operand", use->operand}, {"value", use->value},
-                {"memoryWidthBytes", use->memory_width_bytes}, {"memoryRead", use->memory_read},
-                {"memoryWrite", use->memory_write}});
+                    {"memoryWidthBytes", use->memory_width_bytes}, {"memoryRead", use->memory_read},
+                    {"memoryWrite", use->memory_write}, {"indexStride", use->index_stride}});
         }
         for (const auto& [target_root, use] : new_uses->second) {
             const auto source_root = target_counterparts.find(target_root);
@@ -654,14 +663,15 @@ class LayoutProver {
                     return candidate.instruction == *paired_instruction && candidate.operand == use->operand &&
                         candidate.value == use->value && candidate.argument == use->argument &&
                         candidate.kind == use->kind && candidate.memory_width_bytes == use->memory_width_bytes &&
-                        candidate.memory_read == use->memory_read && candidate.memory_write == use->memory_write;
+                        candidate.memory_read == use->memory_read && candidate.memory_write == use->memory_write &&
+                        candidate.index_stride == use->index_stride;
                 });
             if (match == source->second.layout_uses.end()) {
                 row["reason"] = "new-target-global-layout-operand";
                 return false;
             }
             actual.emplace(target_root, use->instruction, use->operand, use->kind, use->argument,
-                use->value, use->memory_width_bytes, use->memory_read, use->memory_write);
+                use->value, use->memory_width_bytes, use->memory_read, use->memory_write, use->index_stride);
         }
         if (expected != actual) {
             row["reason"] = "original-and-target-global-layout-use-counts-differ";
@@ -756,10 +766,12 @@ public:
             const auto& function = analysis.source_functions.at(owner);
             for (const auto& manager_call : function.call_arguments) {
                 const auto* manager = procedure(manager_call.target);
-                if (!manager || !queue_drains.contains(manager->root) || !manager_call.offsets[0]) continue;
+                if (!manager || !queue_drains.contains(manager->root) || !manager_call.offsets[0] ||
+                    !manager_call.original_arguments[0]) continue;
                 for (const auto& call : function.call_arguments) {
                     const auto* serializer = procedure(call.target);
-                    if (!serializer || !call.offsets[0]) continue;
+                    if (!serializer || !call.offsets[0] || !call.original_arguments[0] ||
+                        call.original_arguments[0] != manager_call.original_arguments[0]) continue;
                     const auto delta = *manager_call.offsets[0] - *call.offsets[0];
                     if (delta < 0 || !memory(*serializer, static_cast<std::uint64_t>(delta) + *table) ||
                         !memory(*serializer, static_cast<std::uint64_t>(delta) + *bits) ||
@@ -921,14 +933,50 @@ public:
         merge(resource_workers, at("/resourceWriteLayout/threadCallbackRva"));
         if (baseline.contains("resourceLayout") && baseline.at("resourceLayout").contains("itemIdMap")) {
             const auto name = baseline.at("resourceLayout").at("itemIdMap").value("registry", std::string{});
-            item_registry = children(named(name), 2);
+            const auto registrations = analysis.named_procedures.find(name);
+            if (registrations != analysis.named_procedures.end()) item_registry_registrations = registrations->second;
+            const auto separator = name.find_last_of(':');
+            const auto resource_name = std::string("keen::") + name.substr(separator == std::string::npos ? 0 : separator + 1) + "Resource";
+            const auto resource_type = analysis.source_types.find(resource_name);
+            const auto target_type = analysis.target_types.find(resource_name);
+            if (!item_registry_registrations.empty() && resource_type != analysis.source_types.end() &&
+                target_type != analysis.target_types.end() && resource_type->second.hash == target_type->second.hash &&
+                resource_type->second.layout == target_type->second.layout) {
+                bool first = true;
+                Roots common;
+                for (const auto registration : item_registry_registrations) {
+                    const auto candidates = children({registration});
+                    if (first) common = candidates;
+                    else {
+                        Roots intersection;
+                        std::set_intersection(common.begin(), common.end(), candidates.begin(), candidates.end(),
+                            std::inserter(intersection, intersection.end()));
+                        common = std::move(intersection);
+                    }
+                    first = false;
+                }
+                for (const auto candidate : common)
+                    if (analysis.source_functions.at(candidate).constants.contains(resource_type->second.hash))
+                        item_registry_factories.insert(candidate);
+                // A service may be registered by both client and authority
+                // constructors. Bind their one shared resource-typed factory,
+                // rather than discarding the name as ambiguous or mixing the
+                // other services constructed by those same owners.
+                if (item_registry_factories.size() == 1) {
+                    item_registry = children(item_registry_factories, 2);
+                    item_registry_required_factories = item_registry_factories;
+                }
+            }
+            if (item_registry.empty() && item_registry_registrations.size() == 1)
+                item_registry = children(item_registry_registrations, 2);
         }
         const auto system = analysis.named_systems.find("player_building_place_prop");
         if (system != analysis.named_systems.end() && system->second.size() == 1) spawn = children(system->second, 3);
         Roots binding_owners = owners;
         merge(binding_owners, tasks);
-        for (const auto* roots : {&scene_starters, &tracker, &resource_callbacks, &resources, &resource_workers,
-            &dependencies, &entity_definitions, &service_binding_owners, &service_system_owners}) merge(binding_owners, *roots);
+        for (const auto* roots : {&scene_starters, &registries, &tracker, &resource_callbacks, &resources, &resource_workers,
+            &dependencies, &entity_definitions, &service_binding_owners, &service_system_owners,
+            &item_registry_registrations, &item_registry_factories}) merge(binding_owners, *roots);
         if (system != analysis.named_systems.end() && system->second.size() == 1) merge(binding_owners, system->second);
         bind_owner_children(std::move(binding_owners));
     }
@@ -983,6 +1031,9 @@ public:
         std::size_t owner_function_count = selected.roots.size();
         std::size_t matching_owner_use_count{}, unresolved_owner_use_count{};
         const auto is_eligible = [&](const LayoutUse& use) {
+            if (path == "/ecsWriteLayout/changeTrackerQueueBOffset" &&
+                use.kind == "original-indexed-argument-relative-field")
+                return use.argument == 1 && use.index_stride > 0;
             return selected.argument >= 0 ?
                 use.kind == "original-argument-relative-field" && use.argument == selected.argument :
                 use.kind == "original-memory-displacement" ||

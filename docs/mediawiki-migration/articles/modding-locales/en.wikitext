@@ -1,0 +1,50 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Translate mod text
+description: Translate visible Modloader text and Lua text from the same locale files in the mod folder. Read the Modloader language through `shroudforge.locale()`, added by PR #42.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/modding-locales/en.md
+-->
+
+Translate visible Modloader text and Lua text from the same locale files in the mod folder. Read the Modloader language through <code>shroudforge.locale()</code>, added by PR #42.
+
+[[File:ShroudForge-Wiki-modding-locales.svg|thumb|right|alt=Translate mod text|Translate mod text]]
+
+== Locale files ==
+
+Add one file under <code>locales/&lt;code&gt;.json</code> for each language. Current codes from the Modloader language selector are <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code>, and <code>zh</code>. The filename matches its code exactly. These files sit beside <code>mod.json</code> and <code>extended.mod.json</code>.
+
+The schema is published as [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. A locale catalog can translate <code>mod.name</code> and <code>mod.description</code>, setting and option labels, groups, actions, changelog lines, and Lua <code>strings</code>. Catalogs may be partial. Entries without a translation keep their source text.
+
+<pre>
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "settings": {
+    "severity": {
+      "label": "Log level",
+      "options": { "info": "Information", "warn": "Warning" }
+    }
+  },
+  "groups": [
+    { "label": "Logging", "actions": { "write": { "label": "Write message" } } }
+  ],
+  "strings": { "overlay.ready": "Ready" }
+}
+</pre>
+
+Setting and option keys stay the same as in <code>extended.mod.json</code>. Group translations follow that file's group order. Action translations use the existing action ID. Saved values do not change.
+
+== Use the same text in Lua ==
+
+<pre>
+local locale = shroudforge.locale()
+local ready = shroudforge.i18n.get("overlay.ready", locale, "Ready")
+</pre>
+
+<code>shroudforge.i18n.get(key, locale, fallback)</code> uses the same loaded catalog as the Modloader. It checks a regional code such as <code>de-AT</code> first, followed by its language <code>de</code>. A missing string returns the fallback text, or the key when no fallback is provided. The lookup does not read files again. PR #42 supplies the language API, and this feature connects it to each mod's catalog.
+
+If <code>shroudforge.locale()</code> returns <code>en</code> because the configuration cannot be read, catalog lookup checks <code>en-GB.json</code> first and then <code>en.json</code>. <code>en-GB</code> is the Modloader's English default. <code>en-US</code> remains available as an explicitly selected variant.
+
+Locale files do not require the runtime capability. ShroudForge interface text stays in the shared Modloader translations.
+
+[[Category:guide:shroudforge]]

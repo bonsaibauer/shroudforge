@@ -1,0 +1,35 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles
+description: Dépannage pour les anciennes versions de ShroudForge. Les versions 1.6.8, 1.7.0 et 1.7.3 peuvent interrompre le démarrage avant l’ouverture d’Enshrouded si leurs sauvegardes ne correspondent pas aux fichiers du jeu installés.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/startup-asset-backups/fr.md
+-->
+
+Dépannage pour les anciennes versions de ShroudForge. Les versions 1.6.8, 1.7.0 et 1.7.3 peuvent interrompre le démarrage avant l’ouverture d’Enshrouded si leurs sauvegardes ne correspondent pas aux fichiers du jeu installés.
+
+[[File:ShroudForge-Wiki-startup-asset-backups.svg|thumb|right|alt=Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles|Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles]]
+
+== Pourquoi le démarrage s’arrête ==
+
+ShroudForge conserve des copies de travail de <code>enshrouded.kfc</code> et <code>enshrouded.kfc_resources</code> afin de pouvoir restaurer les fichiers du jeu avant de préparer les mods de ressources. Ces fichiers <code>.bak</code> peuvent provenir d’une ancienne version d’Enshrouded ou d’un autre mod. Si la sauvegarde KFC ne correspond pas au fichier actuel du jeu, les anciennes versions de ShroudForge ne peuvent pas la restaurer de manière sûre et interrompent le démarrage.
+
+== Avec ShroudForge 1.7.5 ou une version ultérieure ==
+
+Lorsque la sauvegarde KFC est incompatible, ces versions peuvent déplacer les deux copies de travail vers la corbeille ShroudForge et créer de nouvelles sauvegardes à partir des fichiers actuels du jeu. Cette récupération nécessite <code>shroudforge/shroudforge-updater.exe</code> dans l’installation d’Enshrouded. Si le journal indique que le programme de mise à jour est indisponible, réparez ou réinstallez ShroudForge avec le package complet, puis relancez le jeu. Conservez les fichiers <code>.bak</code> pendant la réparation.
+
+== Correction manuelle pour les versions 1.6.8, 1.7.0 et 1.7.3 ==
+
+Suivez ces étapes uniquement avec les anciennes versions de ShroudForge indiquées.
+
+# Fermez complètement ShroudForge et Enshrouded, y compris tout processus de serveur dédié.
+# Ouvrez le dossier d’installation d’Enshrouded. Un chemin Steam courant est <code>SteamLibrary\steamapps\common\Enshrouded</code>, mais utilisez la bibliothèque où le jeu est installé.
+# Si un autre mod a pu modifier les fichiers <code>.kfc</code> actuels, vérifiez d’abord les fichiers d’Enshrouded dans Steam. Si vous souhaitez conserver une copie des anciennes sauvegardes, copiez-les hors du dossier du jeu avant de continuer.
+# Supprimez uniquement les fichiers suivants, s’ils existent :
+#* <code>enshrouded.kfc.bak</code>
+#* <code>enshrouded.kfc_resources.bak</code>
+# Relancez ShroudForge. Il devrait créer de nouvelles copies de travail à partir des fichiers actuels du jeu.
+
+Ne supprimez pas les fichiers du jeu <code>.kfc</code> ou <code>.kfc_resources</code>, ni aucun autre fichier de sauvegarde. Si le démarrage échoue encore, conservez les autres fichiers et envoyez le journal ShroudForge au support.
+
+[[Category:guide:shroudforge]]

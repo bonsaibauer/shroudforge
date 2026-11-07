@@ -1,0 +1,135 @@
+# Translation of Modding to Spanish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: es\n"
+"X-Message-Group: page-Modding\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Modding/Page_display_title"
+msgid "Modding"
+msgstr "Modding"
+
+#
+msgctxt "Modding/1"
+msgid "Read the main-menu state and selected local character name through the Lua runtime. Both queries use the same native data as the Modloader and require no world access."
+msgstr "Consulta el estado del menú principal y el nombre del personaje local seleccionado mediante el runtime de Lua. Ambas consultas usan los mismos datos nativos que el Modloader y no requieren acceso al mundo."
+
+#
+msgctxt "Modding/2"
+msgid "== Prerequisites =="
+msgstr "== Requisitos =="
+
+#
+msgctxt "Modding/3"
+msgid "Enable the mod and declare the <code>runtime</code> capability in <code>mod.json</code>:"
+msgstr "Activa el mod y declara la capacidad <code>runtime</code> en <code>mod.json</code>:"
+
+#
+msgctxt "Modding/4"
+msgid "<pre>\n{\n  \"capabilities\": [\"runtime\"]\n}\n</pre>"
+msgstr "<pre>\n{\n  \"capabilities\": [\"runtime\"]\n}\n</pre>"
+
+#
+msgctxt "Modding/5"
+msgid "For these client queries, set <code>targets</code> to <code>&#91;\"client\"&#93;</code> in <code>extended.mod.json</code>. Call the functions from active runtime callbacks such as <code>on_load</code> and <code>on_update</code>. <code>runtime.phase == \"ingame\"</code> describes the started mod runtime and does not confirm entry into a world. Neither query needs an execution profile. Other world operations retain their own requirements."
+msgstr "Para estas consultas del cliente, establece <code>targets</code> en <code>&#91;\"client\"&#93;</code> dentro de <code>extended.mod.json</code>. Llama a las funciones desde callbacks activos del runtime, como <code>on_load</code> y <code>on_update</code>. <code>runtime.phase == \"ingame\"</code> indica que el runtime del mod está iniciado, pero no confirma la entrada en un mundo. Ninguna de estas consultas necesita un perfil de ejecución. Las demás operaciones del mundo mantienen sus propios requisitos."
+
+#
+msgctxt "Modding/6"
+msgid "== Detect the main menu =="
+msgstr "== Detectar el menú principal =="
+
+#
+msgctxt "Modding/7"
+msgid "<pre>\nlocal in_menu, reason = runtime.is_main_menu()\n</pre>"
+msgstr "<pre>\nlocal in_menu, reason = runtime.is_main_menu()\n</pre>"
+
+#
+msgctxt "Modding/8"
+msgid "{| class=\"wikitable\"\n! Return value !! Meaning\n|-\n| <code>true, nil</code> || The main menu, including character, world and server selection, has been confirmed.\n|-\n| <code>false, nil</code> || A different original game state has been validated.\n|-\n| <code>nil, reason</code> || The state is unknown, changing, or the query is unavailable.\n|}"
+msgstr "{| class=\"wikitable\"\n! Resultado !! Significado\n|-\n| <code>true, nil</code> || Se ha confirmado el menú principal, incluidas las pantallas de selección de personaje, mundo y servidor.\n|-\n| <code>false, nil</code> || Se ha validado otro estado original del juego.\n|-\n| <code>nil, reason</code> || El estado es desconocido, está cambiando o la consulta no está disponible.\n|}"
+
+#
+msgctxt "Modding/9"
+msgid "Check <code>in_menu == true</code> or <code>in_menu == false</code> explicitly. <code>nil</code> is not a confirmed state. <code>false</code> alone does not confirm a readable world either. Check the operation you need separately, such as <code>runtime.has(\"runtime.ecs.read\")</code>."
+msgstr "Comprueba explícitamente <code>in_menu == true</code> o <code>in_menu == false</code>. <code>nil</code> no es un estado confirmado. <code>false</code> tampoco confirma por sí solo que se pueda leer el mundo. Comprueba por separado la operación necesaria, por ejemplo <code>runtime.has(\"runtime.ecs.read\")</code>."
+
+#
+msgctxt "Modding/10"
+msgid "== Read the character name =="
+msgstr "== Leer el nombre del personaje =="
+
+#
+msgctxt "Modding/11"
+msgid "<pre>\nlocal name, reason = runtime.player.name()\nlocal display_name = name or \"Flameborn\"\n</pre>"
+msgstr "<pre>\nlocal name, reason = runtime.player.name()\nlocal display_name = name or \"Flameborn\"\n</pre>"
+
+#
+msgctxt "Modding/12"
+msgid "<code>name, nil</code> returns the character name selected in the local main menu as a UTF-8 string. Unicode characters, as in <code>Ikiju 育樹</code>, are preserved. <code>nil, reason</code> means that no name is available yet, or access is unavailable or not allowed."
+msgstr "<code>name, nil</code> devuelve como cadena UTF-8 el nombre del personaje seleccionado en el menú principal del cliente local. Los caracteres Unicode, como en <code>Ikiju 育樹</code>, se conservan. <code>nil, reason</code> significa que todavía no hay un nombre disponible, que la consulta no está disponible o que no se permite el acceso."
+
+#
+msgctxt "Modding/13"
+msgid "The mod chooses its own fallback name. The API inserts no default and does not use the Modloader's manual name selection. The value identifies no remote player and is neither a SteamID nor a Steam display name. A Dedicated Server has no local client character name."
+msgstr "El mod elige su propio nombre alternativo. La API no introduce un valor predeterminado ni usa el nombre manual del Modloader. El valor no identifica a un jugador remoto y no es un SteamID ni el nombre visible de Steam. Un servidor dedicado no tiene un nombre de personaje del cliente local."
+
+#
+msgctxt "Modding/14"
+msgid "== Shared cache =="
+msgstr "== Caché compartida =="
+
+#
+msgctxt "Modding/15"
+msgid "Lua and the Modloader read the same native cache. The existing runtime tick refreshes the menu state. The existing menu integration captures the name on the first available selection and again when selection or name metadata changes. Lua queries start no separate discovery and read no logs."
+msgstr "Lua y el Modloader leen la misma caché nativa. El tick existente del runtime actualiza el estado del menú. La integración existente del menú captura el nombre en la primera selección disponible y cuando cambian la selección o los metadatos del nombre. Las consultas Lua no inician otra búsqueda ni leen registros."
+
+#
+msgctxt "Modding/16"
+msgid "The last successfully captured name remains cached after joining a world. A cached name therefore does not confirm that the menu is open. <code>runtime.has(\"runtime.is_main_menu\")</code> and <code>runtime.has(\"runtime.player.name\")</code> report each query's availability. <code>runtime.status(...)</code> also supplies a reason."
+msgstr "El último nombre capturado correctamente permanece en la caché al entrar en un mundo. Por tanto, un nombre guardado no confirma que el menú esté abierto. <code>runtime.has(\"runtime.is_main_menu\")</code> y <code>runtime.has(\"runtime.player.name\")</code> indican la disponibilidad de cada consulta. <code>runtime.status(...)</code> también proporciona una explicación."
+
+#
+msgctxt "Modding/17"
+msgid "== Example for <code>src/mod.lua</code> =="
+msgstr "== Ejemplo para <code>src/mod.lua</code> =="
+
+#
+msgctxt "Modding/18"
+msgid "This example reads the cache on load and every 500 ms afterwards. It chooses a fallback name and logs only changes:"
+msgstr "Este ejemplo lee la caché al cargar el mod y después cada 500 ms. Elige un nombre alternativo y solo registra los cambios:"
+
+#
+msgctxt "Modding/19"
+msgid "<pre>\nruntime.require(\"runtime.lifecycle\")"
+msgstr "<pre>\nruntime.require(\"runtime.lifecycle\")"
+
+#
+msgctxt "Modding/20"
+msgid "local previous_message = nil"
+msgstr "local previous_message = nil"
+
+#
+msgctxt "Modding/21"
+msgid "local function refresh()\n    local in_menu = runtime.is_main_menu()\n    local name = runtime.player.name()\n    local state = \"unknown\"\n    if in_menu == true then\n        state = \"menu\"\n    elseif in_menu == false then\n        state = \"other\"\n    end"
+msgstr "local function refresh()\n    local in_menu = runtime.is_main_menu()\n    local name = runtime.player.name()\n    local state = \"unknown\"\n    if in_menu == true then\n        state = \"menu\"\n    elseif in_menu == false then\n        state = \"other\"\n    end"
+
+#
+msgctxt "Modding/22"
+msgid "local message = state .. \": \" .. (name or \"Flameborn\")\n    if message ~= previous_message then\n        previous_message = message\n        shroudforge.log.info(message)\n    end\nend"
+msgstr "local message = state .. \": \" .. (name or \"Flameborn\")\n    if message ~= previous_message then\n        previous_message = message\n        shroudforge.log.info(message)\n    end\nend"
+
+#
+msgctxt "Modding/23"
+msgid "return {\n    on_load = refresh,\n    on_update = function()\n        refresh()\n    end,\n    update_interval_ms = 500,\n}\n</pre>"
+msgstr "return {\n    on_load = refresh,\n    on_update = function()\n        refresh()\n    end,\n    update_interval_ms = 500,\n}\n</pre>"

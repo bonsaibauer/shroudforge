@@ -277,7 +277,9 @@ json validate_queues(const Memory& memory, Address manager, const json& layout) 
 }
 
 json validate_systems(const Memory& memory, Address owner, const json& layout) {
-    const auto count = memory.read<std::uint64_t>(owner + number<std::uint32_t>(layout, "systemCountOffset"));
+    // The original registry iterator and the production named-service reader
+    // consume this counter as uint16. Adjacent storage is not part of it.
+    const auto count = memory.read<std::uint16_t>(owner + number<std::uint32_t>(layout, "systemCountOffset"));
     require(count && count <= number<std::uint64_t>(layout, "maximumSystems"),
         "live-profile-system-count-invalid");
     const auto normal_offset = number<std::uint32_t>(layout, "systemNormalCountOffset");

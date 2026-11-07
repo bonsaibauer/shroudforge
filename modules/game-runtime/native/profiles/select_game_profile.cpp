@@ -23,7 +23,7 @@ bool Load() {
         unsigned exact_count{}, exact_beta_count{}, fallback_count{};
         const auto installed = ReadInstalledProfiles(process_path, process,
             {{"sha256", image_sha256}, {"timestamp", image_timestamp},
-             {"size", image_size}, {"kfcFormat", kfc_format}});
+             {"size", image_size}, {"kfcFormat", kfc_format}}, "game-profile-selection");
         const auto& requested_profile_id = installed.requested_id;
         auto load_external_profiles = [&](const std::string& id_filter) {
             std::vector<nlohmann::json> loaded_profiles;

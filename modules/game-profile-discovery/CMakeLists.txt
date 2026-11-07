@@ -4,6 +4,7 @@ if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
 endif()
 
 add_library(shroudforge-game-profile-discovery STATIC
+    profile_discovery_log.cpp
     discover_game_profile.cpp
     verify_image_equivalence.cpp
     rebase_profile_contract.cpp

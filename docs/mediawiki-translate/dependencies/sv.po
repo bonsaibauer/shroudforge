@@ -1,0 +1,69 @@
+# Translation of Dependencies to Swedish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: sv\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: sv\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "Beroenden"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "Hitta nödvändiga komponenter och kända konflikter mellan moddar. Vyn förklarar vad som blockerar en aktiv mod och vilket beroende som behöver åtgärdas."
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== Obligatoriska moddar =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "En mod kan ange andra moddar och deras obligatoriska versioner i <code>mod.json</code>. ShroudForge kontrollerar om de är installerade, aktiverade och lämpliga för den aktuella klienten eller servern. Om ett obligatoriskt beroende saknas eller är inaktiverat kan den berörda modden inte starta. En inkompatibel version blockerar den också."
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "Öppna den angivna modden, installera eller aktivera dess krav och kontrollera sedan vyn igen. Alla installerade moddar behöver inte köras i den aktuella processen. En mod som bara är avsedd för klienten behöver inte startas på en server."
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== Valfria beroenden =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "Ett uttryckligen valfritt beroende får saknas eller vara inaktiverat. En extra funktion kan då vara otillgänglig. Om beroendet finns och är aktiverat måste dess version och eventuella ytterligare krav ändå stämma."
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "Moddar utan angivna beroenden behöver ingen separat problemrad här. Deras övergripande status visas på deras egna moddsidor."
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== Konflikter och beroendecykler =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "Kända konfliktregler identifierar två aktiva moddar som inte bör köras tillsammans i den angivna kombinationen. Använd meddelandet för att avgöra vilken du ska inaktivera. En beroendecykel innebär att moddar kräver att varandra startar först. Paketet behöver korrigeras eller författaren behöver ändra det."
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "Ett krav på <code>shroudforge-api</code> avser laddarens mod-API. Det är separat från den automatiska matchningen av DLL-kompatibilitetsprofiler."

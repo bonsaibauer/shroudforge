@@ -18,5 +18,6 @@ struct InstalledProfiles {
 // this catalog neither selects a profile nor authorizes engine access.
 InstalledProfiles ReadInstalledProfiles(const std::filesystem::path& process_path,
                                        const std::string& target,
-                                       const nlohmann::json& image = nlohmann::json{});
+                                       const nlohmann::json& image = nlohmann::json{},
+                                       const char* caller = "runtime-profile-reader");
 }

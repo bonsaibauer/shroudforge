@@ -39,11 +39,19 @@ Changing the switch or profile selection requires a full restart of the affected
 
 ## Distinguish discovery, profiles and a running world
 
-The orange **Dynamic profile search in progress** notice describes an active profile search. **Workflow and help** opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange **Experimental game profile active** notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors.
+The blue **Dynamic profile search in progress** notice describes an active profile search. **Workflow and help** opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange **Experimental game profile active** notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors.
 
 Structural executable checks do not require a loaded world. World operations additionally need their live contexts, registrations and runtime safety checks. A generated profile does not establish that game commands were executed or produced visible effects. Functional checks must also test the client and server separately.
 
 If no profile is generated, read the reported reason and technical details. A missing saved baseline, unsuitable source profile or unresolved code and layout evidence each requires the relevant input or further analysis. A matching regular profile or a suitable ShroudForge update may provide support.
+
+## Detailed logging
+
+The Debug Console shows discovery messages from the main log under the `game-profile-discovery` source. To see every comparison and rebase field, set **Settings → General → Logging → Minimum level** to **Diagnostic**. **Advanced** shows additional summaries.
+
+The red runtime banner and the log entry `[compatibility-check] check=runtime` come from the same runtime check. The existing UI refresh logs the state change before sending the same status to the Modloader. The Debug Console applies its existing popup setting to warning and error lines from that main log.
+
+On failure, the main log gives the path to the current `*.v2.unresolved.json` or `*.v2.error.json` report. On success, it gives the path to the `*.v2.proof.json` evidence and the full save path of the generated `beta_*.json` profile. Reports are stored in the discovery cache.
 
 ## Linux and Proton
 

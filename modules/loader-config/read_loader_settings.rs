@@ -259,6 +259,7 @@ mod tests {
             "debugConsole",
             "worldEditor",
             "modloaderUi",
+            "wiki",
             "network",
             "runtimeDiagnostics",
             "updates",
@@ -289,6 +290,7 @@ mod tests {
             "debugConsole",
             "worldEditor",
             "modloaderUi",
+            "wiki",
             "runtimeDiagnostics",
             "updates",
         ] {

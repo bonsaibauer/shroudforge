@@ -39,11 +39,19 @@ Erzeugte Profile beginnen mit `beta_`. Die Einstellung **Automatisch** kann ein 
 
 ## Suche, Profil und laufende Welt unterscheiden
 
-Der orange Hinweis **Dynamische Profilsuche läuft** beschreibt eine laufende Profilprüfung. Unter **Ablauf und Hilfe** öffnest du diese Anleitung. Endet die Suche ohne passendes Profil, wird das Problem rot gemeldet. Der orange Hinweis **Experimentelles Spielprofil aktiv** nennt das tatsächlich ausgewählte Beta-Profil. Echte Runtimefehler werden weiterhin als Fehler angezeigt.
+Der blaue Hinweis **Dynamische Profilsuche läuft** beschreibt eine laufende Profilprüfung. Unter **Ablauf und Hilfe** öffnest du diese Anleitung. Endet die Suche ohne passendes Profil, wird das Problem rot gemeldet. Der orange Hinweis **Experimentelles Spielprofil aktiv** nennt das tatsächlich ausgewählte Beta-Profil. Echte Runtimefehler werden weiterhin als Fehler angezeigt.
 
 Die strukturelle EXE-Prüfung benötigt keine geladene Welt. Weltbezogene Zugriffe benötigen anschließend zusätzlich die jeweiligen laufenden Kontexte, Registrierungen und Sicherheitsprüfungen. Ein erzeugtes Profil bestätigt keine ausgeführten Spielbefehle oder sichtbaren Spieleffekte. Client und Server müssen auch bei Funktionstests getrennt geprüft werden.
 
 Wenn kein Profil entsteht, lies den gemeldeten Grund und die technischen Details. Eine fehlende gespeicherte Vergleichsbasis, ein ungeeignetes Ausgangsprofil oder unaufgelöste Code- und Layoutbelege benötigen jeweils eine passende Grundlage oder weitere Analyse. Behalte bis dahin ein reguläres Profil beziehungsweise ein passendes ShroudForge-Update als mögliche Lösung im Blick.
+
+## Ausführliches Protokoll
+
+Die Debug Console zeigt die Discovery-Meldungen aus dem Hauptprotokoll unter der Quelle `game-profile-discovery`. Für alle einzelnen Vergleichs- und Rebase-Felder stellst du unter **Einstellungen → Allgemein → Protokollierung → Mindeststufe** die Stufe **Diagnose** ein. **Erweitert** zeigt die zusätzlichen Zusammenfassungen.
+
+Der rote Runtime-Banner und der Logeintrag `[compatibility-check] check=runtime` werden aus demselben Runtime-Check erzeugt. Der bestehende UI-Refresh protokolliert den Zustandswechsel, bevor er denselben Status an den Modloader weitergibt. Die Debug Console wertet Warnungs- und Fehlerzeilen aus genau diesem Hauptprotokoll nach ihrer vorhandenen Popup-Einstellung aus.
+
+Bei einem Fehlschlag nennt das Hauptprotokoll den konkreten Pfad zum aktuellen `*.v2.unresolved.json`- oder `*.v2.error.json`-Bericht. Bei Erfolg nennt es den Pfad zum `*.v2.proof.json`-Beleg und den vollständigen Speicherpfad des erzeugten `beta_*.json`-Profils. Die Berichte liegen im Discovery-Cache.
 
 ## Linux und Proton
 

@@ -314,6 +314,7 @@ export function SettingsPage({
             <GameProfileDiscoverySettings
               enabled={modulePreferences.gameProfileDiscovery?.enabled !== false}
               onChange={changeProfileDiscovery}
+              wikiModuleSettings={modulePreferences.wiki}
             />
           </Card>
           <Card title={t('settings.logging.title')}>
