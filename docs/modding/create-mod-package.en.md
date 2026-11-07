@@ -40,10 +40,16 @@ Dll=bin/example.dll
 ~~~
 
 When enabled, ShroudForge loads the DLL with the Windows loader. Its `DllMain`
-initialization runs as part of that load. No plugin-specific exports or host ABI
-are required. The DLL path must stay inside the package. This is the same
+initialization runs as part of that load. No plugin-specific exports are
+required. The DLL path must stay inside the package. This is the same
 package-local DLL registration behavior exposed by EML's
 `loader.runtime.register_dll(path)` API.
+
+A DLL that should talk to the same mod's Lua code may also export
+`ShroudforgeModNativeInit` from `modules/mod-runtime/native_bridge/shroudforge_mod_native.h`.
+ShroudForge calls it once after the load. The DLL registers named functions,
+and the mod's Lua code calls them with `shroudforge.native.call`. See the
+`api-native` guide.
 
 The mod's **mod.json** contains its basic information:
 

@@ -7,6 +7,7 @@ use std::sync::Arc;
 mod ingame;
 mod logging;
 mod lua;
+mod native_bridge;
 mod native_dlls;
 pub mod reflection;
 mod session;

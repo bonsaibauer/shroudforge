@@ -197,6 +197,13 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
     value
         .raw_set("attachedToProp", attached)
         .map_err(|error| error.to_string())?;
+    // The local player's camera, from the same input snapshot. Left out when
+    // this game's layout has no such fields: the cursor stays readable.
+    if let Ok(camera) = reflected_local_camera(lua, state, metadata.index, metadata.size as usize, &bytes) {
+        value
+            .raw_set("camera", camera)
+            .map_err(|error| error.to_string())?;
+    }
     let result = lua.create_table().map_err(|error| error.to_string())?;
     result
         .raw_set("sequence", sequence)
@@ -205,6 +212,95 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
         .raw_set("value", value)
         .map_err(|error| error.to_string())?;
     Ok(result)
+}
+
+// The camera the local player's client sends with its input
+// (data.camera, a keen::ecs::ClientCamera): position in Q32.32 integers like
+// the cursor, orientation as {x, y, z, w}, vertical field of view, aspect
+// ratio, near and far planes and orbit distance as reflected.
+fn reflected_local_camera(
+    lua: &mlua::Lua,
+    state: &AppState,
+    root: kfc::reflection::TypeIndex,
+    component_size: usize,
+    bytes: &[u8],
+) -> Result<mlua::Table, String> {
+    share_local_camera_layout(state, root, component_size);
+    let field = |path: &str| -> Result<LuaValue, String> {
+        state
+            .inline_field(root, &format!("data.camera.{path}"))?
+            .read(lua, bytes)
+    };
+    let number = |path: &str| -> Result<f64, String> {
+        match field(path)? {
+            LuaValue::Number(value) if value.is_finite() => Ok(value),
+            LuaValue::Integer(value) => Ok(value as f64),
+            _ => Err(format!("local camera field is not a finite number: {path}")),
+        }
+    };
+    let camera = lua.create_table().map_err(|error| error.to_string())?;
+    let position = lua.create_table().map_err(|error| error.to_string())?;
+    for axis in ["x", "y", "z"] {
+        let LuaValue::Integer(value) = field(&format!("position.{axis}"))? else {
+            return Err(format!("local camera position is not an integer: {axis}"));
+        };
+        position
+            .raw_set(axis, value)
+            .map_err(|error| error.to_string())?;
+    }
+    let orientation = lua.create_table().map_err(|error| error.to_string())?;
+    for (index, axis) in ["x", "y", "z", "w"].iter().enumerate() {
+        orientation
+            .raw_set(index + 1, number(&format!("orientation.{axis}"))?)
+            .map_err(|error| error.to_string())?;
+    }
+    camera
+        .raw_set("position", position)
+        .map_err(|error| error.to_string())?;
+    camera
+        .raw_set("orientation", orientation)
+        .map_err(|error| error.to_string())?;
+    for name in ["fovY", "aspectRatio", "nearPlane", "farPlane", "distance"] {
+        camera
+            .raw_set(name, number(name)?)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(camera)
+}
+
+// The native runtime reads the camera for the game overlay at every frame,
+// at the byte offsets the reflection gives: sent once per component size.
+fn share_local_camera_layout(state: &AppState, root: kfc::reflection::TypeIndex, component_size: usize) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static SENT: AtomicUsize = AtomicUsize::new(0);
+    if SENT.load(Ordering::Relaxed) == component_size {
+        return;
+    }
+    // The camera, then the building cursor's transform and flags: the overlay
+    // also draws the aimed face at every frame.
+    let paths = [
+        "camera.position.x", "camera.position.y", "camera.position.z", "camera.orientation.x",
+        "camera.orientation.y", "camera.orientation.z", "camera.orientation.w", "camera.fovY",
+        "camera.aspectRatio", "cursorInput.primaryTransform.position.x", "cursorInput.primaryTransform.position.y",
+        "cursorInput.primaryTransform.position.z", "cursorInput.primaryTransform.orientation.x",
+        "cursorInput.primaryTransform.orientation.y", "cursorInput.primaryTransform.orientation.z",
+        "cursorInput.primaryTransform.orientation.w", "cursorInput.primaryFlags",
+    ];
+    let mut offsets = Vec::with_capacity(paths.len() + 1);
+    for path in paths {
+        match state.inline_field(root, &format!("data.{path}")) {
+            Ok(field) => offsets.push(field.byte_range().start as u32),
+            Err(_) => return,
+        }
+    }
+    // The flags' width (8, 16 or 32 bits as reflected).
+    match state.inline_field(root, "data.cursorInput.primaryFlags") {
+        Ok(field) => offsets.push(field.byte_range().len() as u32),
+        Err(_) => return,
+    }
+    if runtime_provider::set_local_camera_layout(component_size, &offsets) {
+        SENT.store(component_size, Ordering::Relaxed);
+    }
 }
 
 // Cursor snapshots expose numeric flags/enums for compatibility. The general

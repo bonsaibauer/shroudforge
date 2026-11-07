@@ -56,8 +56,10 @@ Dll=bin/example.dll
 ```
 
 The DLL path must stay inside the package. ShroudForge loads the DLL through
-the Windows loader, which runs its `DllMain`. it does not look for or call any
-plugin-specific exports. DLL loading runs on an isolated worker / runtime poll
+the Windows loader, which runs its `DllMain`. The only export it looks for is
+the optional `ShroudforgeModNativeInit` of the mod native bridge
+(`modules/mod-runtime/native_bridge/shroudforge_mod_native.h`), which lets the
+DLL register functions for the same mod's Lua code. DLL loading runs on an isolated worker / runtime poll
 path so a slow DLL initializer does not block Lua activation. This matches the
 behavior of EML's `loader.runtime.register_dll(path)` API.
 
