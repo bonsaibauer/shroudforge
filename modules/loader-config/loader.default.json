@@ -275,6 +275,12 @@
         "position": null
       }
     },
+    "wiki": {
+      "enabled": true,
+      "pageSize": 30,
+      "maxResultsPerQuery": 120,
+      "refreshIntervalMinutes": 5
+    },
     "network": {
       "enabled": true,
       "serverSteamId": "",

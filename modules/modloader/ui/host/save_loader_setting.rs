@@ -143,6 +143,10 @@ pub(crate) fn save_setting(
                 "enabled" | "startPage" | "toggleKey" | "refreshMilliseconds"
             ) || key == "window.position"
         }
+        "wiki" => matches!(
+            key,
+            "enabled" | "pageSize" | "maxResultsPerQuery" | "refreshIntervalMinutes"
+        ),
         "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
         "network" => matches!(key, "enabled" | "serverSteamId" | "allowedClientSteamIds"),
         "gameProfileDiscovery" => key == "enabled",

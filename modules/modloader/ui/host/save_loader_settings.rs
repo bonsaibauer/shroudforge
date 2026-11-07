@@ -47,6 +47,15 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                     &["enabled", "startPage", "toggleKey", "refreshMilliseconds"][..],
                 ),
                 (
+                    "wiki",
+                    &[
+                        "enabled",
+                        "pageSize",
+                        "maxResultsPerQuery",
+                        "refreshIntervalMinutes",
+                    ][..],
+                ),
+                (
                     "worldEditor",
                     &["enabled", "toggleKey", "refreshMilliseconds"][..],
                 ),

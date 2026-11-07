@@ -53,6 +53,7 @@ export function Page({
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
 }) {
+  const wikiModuleSettings = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
   if (id === 'activity')
     return <ActivityPage activity={data.activity} mods={data.mods} />
   if (id === 'news')
@@ -110,6 +111,7 @@ export function Page({
     return (
       <Compatibility
         data={data}
+        wikiModuleSettings={wikiModuleSettings}
         news={news}
         openNews={openNews}
         selectMod={selectMod}
@@ -128,6 +130,7 @@ export function Page({
       <WikiPage
         selectedArticleId={wikiArticleId}
         onSelectArticle={selectWikiArticle}
+        moduleSettings={wikiModuleSettings}
       />
     )
   return (
