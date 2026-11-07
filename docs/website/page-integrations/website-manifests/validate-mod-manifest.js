@@ -33,7 +33,7 @@ export function createManifestValidation({ locale }) {
         }
       }
     }
-    checkKeys(extended, ["$schema", "schemaVersion", "enabled", "targets", "launcher", "links", "changelog", "settings", "groups"], "extended.mod.json");
+    checkKeys(extended, ["$schema", "schemaVersion", "enabled", "targets", "launcher", "links", "changelog", "settings", "groups", "presets"], "extended.mod.json");
     if (extended.schemaVersion !== 1) fail("extended.mod.json: schemaVersion must be 1.");
     if (extended["$schema"] !== undefined && typeof extended["$schema"] !== "string") fail("extended.mod.json: $schema must be a text address.");
     if (typeof extended.enabled !== "boolean") fail("extended.mod.json: enabled must be true or false.");
@@ -68,6 +68,18 @@ export function createManifestValidation({ locale }) {
       if (group.description !== undefined && (typeof group.description !== "string" || group.description.length > 500)) fail("Group: description allows up to 500 characters.");
       if (group.settings !== undefined && (!Array.isArray(group.settings) || group.settings.some(key => typeof key !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(key) || !(key in settings)) || new Set(group.settings).size !== group.settings.length)) fail("Group: settings must be unique names that exist in the settings list.");
       if (group.actions !== undefined && (!Array.isArray(group.actions) || group.actions.some(action => !action || typeof action !== "object" || Array.isArray(action) || Object.keys(action).some(key => !["id", "label", "style", "confirm"].includes(key)) || typeof action.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(action.id) || typeof action.label !== "string" || !action.label || action.label.length > 120 || (action.style !== undefined && !["primary", "secondary", "danger"].includes(action.style)) || (action.confirm !== undefined && (typeof action.confirm !== "string" || action.confirm.length > 500))))) fail("Group: each action needs an id and label; style and confirmation are optional.");
+    }
+    if (extended.presets !== undefined && (!extended.presets || typeof extended.presets !== "object" || Array.isArray(extended.presets))) fail("extended.mod.json: presets must be an object.");
+    for (const [key, preset] of Object.entries(extended.presets && typeof extended.presets === "object" ? extended.presets : {})) {
+      if (!(key in settings)) fail(`Preset “${key}”: the key must name a setting.`);
+      if (!preset || typeof preset !== "object" || Array.isArray(preset)) { fail(`Preset “${key}” must be an object.`); continue; }
+      checkKeys(preset, ["custom", "settings", "values"], `Preset “${key}”`);
+      if (preset.custom !== undefined && (typeof preset.custom !== "string" || !preset.custom)) fail(`Preset “${key}”: custom must be a non-empty text.`);
+      const members = Array.isArray(preset.settings) ? preset.settings : [];
+      if (!members.length || members.some(member => typeof member !== "string" || !(member in settings) || member === key) || new Set(members).size !== members.length) fail(`Preset “${key}”: settings must be unique names of other settings.`);
+      const values = preset.values && typeof preset.values === "object" && !Array.isArray(preset.values) ? preset.values : null;
+      if (!values || !Object.keys(values).length) { fail(`Preset “${key}”: values need at least one preset.`); continue; }
+      for (const [name, entry] of Object.entries(values)) if (!entry || typeof entry !== "object" || Array.isArray(entry) || members.some(member => !(member in entry)) || Object.keys(entry).some(member => !members.includes(member))) fail(`Preset “${key}”: “${name}” must give a value to each of its settings and to no other.`);
     }
     return errors;
   }
