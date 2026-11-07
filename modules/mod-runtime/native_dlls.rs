@@ -57,11 +57,25 @@ fn executor() -> Result<&'static Executor, String> {
                             dll = %entry.path.display(), source = %entry.source, mode = ?entry.mode,
                             "Loading native DLL on the ordered process worker");
                         let (handle, result) = load_library(&root, &entry);
+                        // The optional bridge export runs right after the load, still in load order.
+                        let result = result.and_then(|()| match handle {
+                            Some(handle) => crate::native_bridge::initialize(
+                                handle,
+                                entry.mod_id.as_deref(),
+                                &shroudforge_loader_config::paths::mods_dir(&root)
+                                    .join(&entry.package_directory),
+                            ),
+                            None => Ok(false),
+                        });
                         let (state_name, detail) = match result {
-                            Ok(()) => {
+                            Ok(bridged) => {
                                 tracing::info!(target: "shroudforge::dll_manager", status_id = %entry.status_id,
-                                    dll = %entry.path.display(), "Native DLL loaded. Mod functionality is not independently verified");
-                                ("loaded", "Native DLL loaded for this process. Functionality is not independently verified".to_owned())
+                                    dll = %entry.path.display(), bridged, "Native DLL loaded. Mod functionality is not independently verified");
+                                ("loaded", if bridged {
+                                    "Native DLL loaded for this process and connected to its mod's Lua code. Functionality is not independently verified"
+                                } else {
+                                    "Native DLL loaded for this process. Functionality is not independently verified"
+                                }.to_owned())
                             }
                             Err(error) => {
                                 tracing::error!(target: "shroudforge::dll_manager", status_id = %entry.status_id,
