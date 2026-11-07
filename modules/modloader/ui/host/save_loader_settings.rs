@@ -47,9 +47,19 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                     &["enabled", "startPage", "toggleKey", "refreshMilliseconds"][..],
                 ),
                 (
+                    "wiki",
+                    &[
+                        "enabled",
+                        "pageSize",
+                        "maxResultsPerQuery",
+                        "refreshIntervalMinutes",
+                    ][..],
+                ),
+                (
                     "worldEditor",
                     &["enabled", "toggleKey", "refreshMilliseconds"][..],
                 ),
+                ("gameProfileDiscovery", &["enabled"][..]),
                 (
                     "runtimeDiagnostics",
                     &[
@@ -175,4 +185,64 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
         }
         Ok(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn settings(preferences: serde_json::Value) -> UiSettings {
+        serde_json::from_value(json!({
+            "modulePreferences": preferences,
+            "showNativeModMenu": true,
+            "logLevel": "INFO",
+            "baseUrl": "https://api.shroudedit.com",
+            "projectId": "shroudforge"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn game_profile_discovery_bulk_save_persists_toggle_and_preserves_missing_value() {
+        let root = tempfile::tempdir().unwrap();
+        save_settings(root.path(), &settings(json!({}))).unwrap();
+        let saved = shroudforge_loader_config::config::read_loader(root.path()).unwrap();
+        assert_eq!(saved["modules"]["gameProfileDiscovery"]["enabled"], true);
+        for enabled in [true, false, true] {
+            save_settings(
+                root.path(),
+                &settings(json!({"gameProfileDiscovery": {"enabled": enabled}})),
+            )
+            .unwrap();
+            save_settings(root.path(), &settings(json!({}))).unwrap();
+            save_settings(
+                root.path(),
+                &settings(json!({"gameProfileDiscovery": {}})),
+            )
+            .unwrap();
+            let saved = shroudforge_loader_config::config::read_loader(root.path()).unwrap();
+            assert_eq!(saved["modules"]["gameProfileDiscovery"]["enabled"], enabled);
+        }
+    }
+
+    #[test]
+    fn game_profile_discovery_bulk_save_rejects_invalid_values_without_writing() {
+        let root = tempfile::tempdir().unwrap();
+        save_settings(
+            root.path(),
+            &settings(json!({"gameProfileDiscovery": {"enabled": true}})),
+        )
+        .unwrap();
+        let path = shroudforge_loader_config::paths::loader_config(root.path());
+        let before = std::fs::read(&path).unwrap();
+        for invalid in [json!("false"), json!(0), serde_json::Value::Null] {
+            assert!(save_settings(
+                root.path(),
+                &settings(json!({"gameProfileDiscovery": {"enabled": invalid}})),
+            )
+            .is_err());
+            assert_eq!(std::fs::read(&path).unwrap(), before);
+        }
+    }
 }

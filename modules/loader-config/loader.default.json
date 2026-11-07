@@ -275,6 +275,12 @@
         "position": null
       }
     },
+    "wiki": {
+      "enabled": true,
+      "pageSize": 30,
+      "maxResultsPerQuery": 120,
+      "refreshIntervalMinutes": 5
+    },
     "network": {
       "enabled": true,
       "serverSteamId": "",
@@ -290,6 +296,9 @@
       "onlyChanges": true,
       "jobId": "runtime.overview",
       "requestId": 0
+    },
+    "gameProfileDiscovery": {
+      "enabled": true
     },
     "updates": {
       "enabled": true,

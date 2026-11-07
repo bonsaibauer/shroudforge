@@ -1,0 +1,3 @@
+Guides and reference material for creating, packaging, testing, and maintaining Enshrouded mods with ShroudForge.
+
+[[Category:ShroudForge documentation]]

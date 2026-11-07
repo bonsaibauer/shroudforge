@@ -1,0 +1,69 @@
+# Translation of Dependencies to German
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de_ch\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: de-ch\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "Abhängigkeiten"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "Hier findest du Voraussetzungen und bekannte Konflikte zwischen Mods. Die Übersicht zeigt, was einen aktiven Mod blockiert und welche Abhängigkeit du prüfen solltest."
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== Erforderliche Mods =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "Ein Mod kann in <code>mod.json</code> andere Mods und deren benötigte Version angeben. ShroudForge prüft, ob diese installiert, aktiviert und für den aktuellen Client oder Server geeignet sind. Eine fehlende oder deaktivierte erforderliche Abhängigkeit verhindert den Start des betroffenen Mods. Das gilt auch für eine nicht passende Version."
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "Öffne den genannten Mod, installiere oder aktiviere seine Voraussetzung und prüfe anschliessend die Übersicht erneut. Nicht jeder installierte Mod muss im aktuellen Prozess laufen. Ein reiner Client-Mod benötigt auf einem Server keinen eigenen Start."
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== Optionale Abhängigkeiten =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "Eine ausdrücklich optionale Abhängigkeit darf fehlen oder deaktiviert sein. Dadurch kann eine Zusatzfunktion entfallen. Ist sie aktiviert und vorhanden, müssen ihre Version und weiteren Voraussetzungen passen."
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "Mods ohne deklarierte Abhängigkeiten benötigen hier keine eigene Problemmeldung. Ihr allgemeiner Zustand bleibt auf der jeweiligen Modseite sichtbar."
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== Konflikte und Kreise =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "Bekannte Konfliktregeln nennen zwei aktive Mods, die in der angegebenen Kombination nicht gemeinsam laufen sollen. Entscheide anhand der Meldung, welchen du deaktivierst. Ein Abhängigkeitskreis bedeutet, dass Mods gegenseitig auf ihren Start warten. Dafür ist eine Korrektur des Pakets oder eine Änderung durch den Autor erforderlich."
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "Eine Anforderung an <code>shroudforge-api</code> bezieht sich auf die Mod-API des Loaders. Sie ist unabhängig von der automatischen Zuordnung eines DLL-Kompatibilitätsprofils."

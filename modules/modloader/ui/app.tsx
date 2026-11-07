@@ -1,9 +1,11 @@
 import type { Settings } from '../../loader-config/ui/loader-settings'
 import { post, postRequest } from '../../transport/ui/send-host-command'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { I18nProvider, useI18n } from '../../ui-resources/i18n'
 import { PageId, Snapshot, empty } from './ui-snapshot'
 import type { NoticeAction } from '../../notifications/ui/notification-types'
+import type { RuntimeProblemCode } from './ui-snapshot'
+import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { Chirper } from '../../notifications/ui/show-notice-popup'
 import { useNotifications } from '../../notifications/ui/read-notifications'
 import { Toasts, useCommandToasts } from '../../notifications/ui/show-toasts'
@@ -15,9 +17,30 @@ import { TopBar } from './show-top-bar'
 import { Page } from './show-page'
 import { UiErrorBoundary } from './show-ui-error'
 import { compatibilityNavigationStatus } from './show-compatibility'
+import type { CompatibilityTab } from './show-compatibility'
 import { PageZoomProvider } from '../../ui-resources/show-page-header'
+import { FeatureBanner } from '../../ui-resources/show-feature-banner'
+import { Icon } from '../../ui-resources/show-icon'
+import type { TranslationKey } from '../../ui-resources/i18n'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
+
+function runtimeProblemMessage(code: RuntimeProblemCode | undefined): TranslationKey {
+  switch (code) {
+    case 'profile-unavailable':
+      return 'runtime.blocker.profileUnavailable'
+    case 'profile-selection-invalid':
+      return 'runtime.blocker.profileSelectionInvalid'
+    case 'profile-error':
+      return 'runtime.blocker.profileError'
+    case 'provider-unavailable':
+      return 'runtime.blocker.providerUnavailable'
+    case 'runtime-not-ready':
+      return 'runtime.blocker.runtimeNotReady'
+    default:
+      return 'runtime.blocker.generic'
+  }
+}
 
 export function App() {
   const { t, setLocale } = useI18n()
@@ -25,9 +48,12 @@ export function App() {
   const [page, setPage] = useState<PageId>('news')
   const [selectedMod, setSelectedMod] = useState<string | null>(null)
   const [selectedWikiArticle, setSelectedWikiArticle] = useState<string | null>(null)
+  const [compatibilityTab, setCompatibilityTab] = useState<CompatibilityTab>('mod-detection')
+  const [dismissedBannerKey, setDismissedBannerKey] = useState<string | null>(null)
   const [chirper, setChirper] = useState(false)
   const [settings, setSettings] = useState<Settings>(empty.settings)
   const [read, setRead] = useState<string[]>([])
+  const previousBannerKey = useRef<string | null>(null)
   const {
     message: saveMessage,
     notifyCommandResult,
@@ -61,6 +87,64 @@ export function App() {
     markRead,
   } = useNotifications(newsSource, settings, read, setRead)
   const activeMod = data.mods.find((mod) => mod.id === selectedMod)
+  const compatibilityStatus = compatibilityNavigationStatus(data)
+  const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
+  const profileDiscovery = data.configuration?.gameProfileDiscovery
+  const profileSearching = profileDiscovery?.state === 'searching'
+  const profileWaitingForWorld = profileDiscovery?.state === 'waiting-for-world'
+  const profileBetaActive = profileDiscovery?.state === 'beta-active'
+  const profileDiscoveryPending = profileSearching || profileWaitingForWorld
+  const runtimeBannerKey = runtimeCheck?.state === 'warning'
+    ? `runtime:${runtimeCheck.code ?? 'generic'}`
+    : null
+  const profileBannerKey = runtimeCheck?.state !== 'warning' &&
+    profileDiscovery &&
+    (profileDiscoveryPending || (profileBetaActive && !runtimeCheck?.code))
+    ? `profile:${profileDiscovery.state}:${profileDiscovery.profileId ?? ''}`
+    : null
+  const activeBannerKey = runtimeBannerKey ?? profileBannerKey
+  useEffect(() => {
+    setDismissedBannerKey(null)
+    if (previousBannerKey.current !== activeBannerKey) {
+      const previous = previousBannerKey.current
+      previousBannerKey.current = activeBannerKey
+      if (activeBannerKey || previous) {
+        logUiEvent({
+          level: 'TRACE',
+          source: 'modloader',
+          operation: 'status-banner-changed',
+          subject: activeBannerKey ?? 'none',
+          message: `Active status banner changed from ${previous ?? 'none'} to ${activeBannerKey ?? 'none'}.`,
+        })
+      }
+    }
+  }, [activeBannerKey])
+  const showRuntimeBlocker = runtimeBannerKey !== null &&
+    dismissedBannerKey !== runtimeBannerKey
+  const showProfileDiscovery = profileBannerKey !== null &&
+    dismissedBannerKey !== profileBannerKey
+  const dismissBanner = () => {
+    if (activeBannerKey) {
+      logUiEvent({
+        level: 'DEBUG',
+        source: 'modloader',
+        operation: 'dismiss-status-banner',
+        subject: activeBannerKey,
+        message: 'User dismissed the status banner.',
+      })
+      setDismissedBannerKey(activeBannerKey)
+      notifyCommandResult({
+        requestId: `dismiss-${activeBannerKey}`,
+        success: true,
+        message: 'settings.modules.windowClosed',
+        level: 'info',
+      })
+    }
+  }
+  const bannerDismiss = {
+    label: t('common.dismiss'),
+    onClick: dismissBanner,
+  }
   const navigate = (next: PageId) => {
     setSelectedMod(null)
     setSelectedWikiArticle(null)
@@ -70,6 +154,12 @@ export function App() {
     setSelectedMod(null)
     setSelectedWikiArticle(articleId)
     setPage('wiki')
+  }
+  const openCompatibility = (tab: CompatibilityTab) => {
+    setSelectedMod(null)
+    setSelectedWikiArticle(null)
+    setCompatibilityTab(tab)
+    setPage('compatibility')
   }
   const savePageZoom = (zoomPercent: number) => {
     setSettings((current) => ({ ...current, zoomPercent }))
@@ -136,9 +226,12 @@ export function App() {
               <Nav
                 icon="compatibility"
                 label={t('nav.compatibility')}
-                status={compatibilityNavigationStatus(data)}
+                status={compatibilityStatus}
+                statusLabel={compatibilityStatus === 'restart-required'
+                  ? t('compatibility.status.restartRequired')
+                  : undefined}
                 active={!activeMod && page === 'compatibility'}
-                onClick={() => navigate('compatibility')}
+                onClick={() => openCompatibility('mod-detection')}
               />
               <Nav
                 icon="settings"
@@ -197,6 +290,82 @@ export function App() {
             </NavGroup>
           </aside>
           <section className="content">
+            {showProfileDiscovery && (
+              <FeatureBanner
+                variant={profileBetaActive ? 'warning' : 'info'}
+                brand="ShroudForge"
+                title={t(profileWaitingForWorld
+                  ? 'runtime.profileDiscovery.waitingWorldTitle'
+                  : profileBetaActive
+                    ? 'runtime.profileDiscovery.betaTitle'
+                    : 'runtime.profileDiscovery.searchingTitle')}
+                titleId="runtime-profile-discovery-title"
+                description={profileWaitingForWorld
+                  ? t('runtime.profileDiscovery.waitingWorldDescription')
+                  : profileBetaActive
+                    ? t('runtime.profileDiscovery.betaDescription')
+                    : t('runtime.profileDiscovery.searchingDescription')}
+                media={<Icon name={profileBetaActive ? 'warning' : 'refresh'} />}
+                badge={t(profileWaitingForWorld
+                  ? 'runtime.profileDiscovery.waitingWorldBadge'
+                  : profileBetaActive
+                    ? 'runtime.profileDiscovery.betaBadge'
+                    : 'runtime.profileDiscovery.searchingBadge')}
+                role="status"
+                dismiss={bannerDismiss}
+              >
+                <div className="feature-banner-actions">
+                  <button className="button ghost" onClick={() => openWikiArticle('game-profile-discovery')}>
+                    {t('runtime.profileDiscovery.openGuide')}
+                  </button>
+                </div>
+              </FeatureBanner>
+            )}
+            {showRuntimeBlocker && (
+              <FeatureBanner
+                variant="error"
+                brand="ShroudForge"
+                title={t('runtime.blocker.title')}
+                titleId="runtime-blocker-title"
+                description={t(runtimeProblemMessage(runtimeCheck?.code))}
+                media={<Icon name="warning" />}
+                badge={t('compatibility.status.error')}
+                role="alert"
+                dismiss={bannerDismiss}
+              >
+                <div className="feature-banner-actions runtime-blocker-actions">
+                  <button
+                    className="button ghost"
+                    onClick={() => openCompatibility('engine')}
+                  >
+                    {t('common.details')}
+                  </button>
+                  <button
+                    className="button ghost"
+                    onClick={() => {
+                      navigate('updates')
+                      window.setTimeout(() => postRequest('check-updates'), 2000)
+                    }}
+                  >
+                    {data.release.updateAvailable && data.release.latestVersion
+                      ? t('runtime.blocker.updateTo', {
+                          version: data.release.latestVersion,
+                        })
+                      : t('runtime.blocker.checkUpdates')}
+                  </button>
+                  <button
+                    className="button ghost"
+                    onClick={() =>
+                      postRequest('open-url', {
+                        url: 'https://github.com/bonsaibauer/shroudforge/issues/new?template=version_mismatch.yml',
+                      })
+                    }
+                  >
+                    {t('runtime.blocker.reportVersion')}
+                  </button>
+                </div>
+              </FeatureBanner>
+            )}
             {activeMod ? (
               <ModPage
                 key={activeMod.id}
@@ -221,6 +390,8 @@ export function App() {
                 openNews={() => navigate('news')}
                 selectMod={setSelectedMod}
                 onUpdaterCommand={postRequest}
+                compatibilityTab={compatibilityTab}
+                setCompatibilityTab={setCompatibilityTab}
               />
             )}
           </section>

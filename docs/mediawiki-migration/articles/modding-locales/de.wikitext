@@ -1,0 +1,50 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Mod-Texte übersetzen
+description: Übersetze sichtbare Modloader-Texte und Lua-Texte mit denselben Locale-Dateien im Mod-Ordner. Die Modloader-Sprache wird über `shroudforge.locale()` gelesen. PR #42 ergänzt diese Abfrage.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/modding-locales/de.md
+-->
+
+Übersetze sichtbare Modloader-Texte und Lua-Texte mit denselben Locale-Dateien im Mod-Ordner. Die Modloader-Sprache wird über <code>shroudforge.locale()</code> gelesen. PR #42 ergänzt diese Abfrage.
+
+[[File:ShroudForge-Wiki-modding-locales.svg|thumb|right|alt=Mod-Texte übersetzen|Mod-Texte übersetzen]]
+
+== Locale-Dateien ==
+
+Lege pro Sprache eine Datei unter <code>locales/&lt;code&gt;.json</code> an. Aktuelle Codes aus der Modloader-Sprachauswahl sind <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code> und <code>zh</code>. Der Dateiname entspricht exakt dem Code. Die Dateien sind zusätzlich zu <code>mod.json</code> und <code>extended.mod.json</code>.
+
+Das Schema steht unter [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. Ein Locale-Katalog kann <code>mod.name</code> und <code>mod.description</code>, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-<code>strings</code> enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
+
+<pre>
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "settings": {
+    "severity": {
+      "label": "Protokollstufe",
+      "options": { "info": "Information", "warn": "Warnung" }
+    }
+  },
+  "groups": [
+    { "label": "Protokoll", "actions": { "write": { "label": "Nachricht schreiben" } } }
+  ],
+  "strings": { "overlay.ready": "Bereit" }
+}
+</pre>
+
+Settings- und Optionsschlüssel bleiben dieselben wie in <code>extended.mod.json</code>. Gruppenübersetzungen folgen der Gruppenreihenfolge aus dieser Datei. Aktionsübersetzungen verwenden die vorhandene Aktions-ID. Gespeicherte Werte ändern sich nicht.
+
+== Dieselben Texte in Lua verwenden ==
+
+<pre>
+local locale = shroudforge.locale()
+local ready = shroudforge.i18n.get("overlay.ready", locale, "Ready")
+</pre>
+
+<code>shroudforge.i18n.get(key, locale, fallback)</code> verwendet denselben geladenen Katalog wie der Modloader. Es prüft zuerst einen regionalen Code wie <code>de-AT</code> und danach dessen Sprache <code>de</code>. Fehlt ein Text, liefert die Funktion den Rückfalltext oder den Schlüssel. Die Abfrage greift nicht erneut auf Dateien zu. Das API-Konzept stammt aus PR #42 und wird hier um den mod-eigenen Katalog erweitert.
+
+Wenn <code>shroudforge.locale()</code> bei einer nicht lesbaren Konfiguration <code>en</code> liefert, prüft der Katalog zuerst <code>en-GB.json</code> und dann <code>en.json</code>. <code>en-GB</code> ist der englische Standard des Modloaders. <code>en-US</code> bleibt als ausdrücklich auswählbare Variante verfügbar.
+
+Die Locale-Dateien benötigen keine Runtime-Berechtigung. ShroudForge-Oberflächentexte bleiben in den zentralen Übersetzungen des Modloaders.
+
+[[Category:guide:shroudforge]]

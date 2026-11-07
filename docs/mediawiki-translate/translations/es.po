@@ -1,0 +1,85 @@
+# Translation of Translate the Modloader to Spanish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: es\n"
+"X-Message-Group: page-Translate the Modloader\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Translate_the_Modloader/Page_display_title"
+msgid "Translate the Modloader"
+msgstr "Traducir Modloader"
+
+#
+msgctxt "Translate_the_Modloader/1"
+msgid "Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub."
+msgstr "Ayuda a que ShroudForge esté disponible para jugadores de todo el mundo. Edita las traducciones en Fink o envía tus cambios mediante una solicitud de incorporación de cambios en GitHub."
+
+#
+msgctxt "Translate_the_Modloader/2"
+msgid "== Translate with Fink =="
+msgstr "== Traducir con Fink =="
+
+#
+msgctxt "Translate_the_Modloader/3"
+msgid "Open the [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang Fink editor for ShroudForge]. Fink shows the English source text beside its translations. The language files stay in the repository. Fink does not keep a second synced copy in a translation service."
+msgstr "Abre el [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang editor de Fink para ShroudForge]. Fink muestra el texto original en inglés junto a sus traducciones. Los archivos de idioma permanecen en el repositorio. Fink no mantiene una segunda copia sincronizada en un servicio de traducción."
+
+#
+msgctxt "Translate_the_Modloader/4"
+msgid "Choose the project and branch in the editor. Review a message, edit its translation and check the result. Fink first saves your work as a draft in your browser. You need a GitHub account to save changes to GitHub."
+msgstr "Elige el proyecto y la rama en el editor. Revisa un mensaje, edita su traducción y comprueba el resultado. Al principio, Fink guarda tu trabajo como borrador en el navegador. Necesitas una cuenta de GitHub para guardar los cambios en GitHub."
+
+#
+msgctxt "Translate_the_Modloader/5"
+msgid "== Send changes as a pull request =="
+msgstr "== Enviar cambios mediante una solicitud de incorporación =="
+
+#
+msgctxt "Translate_the_Modloader/6"
+msgid "If the default branch is protected, create a translation branch on GitHub first. Open that branch in Fink and push your changes there. Then create a pull request so the changes can be reviewed before they are merged. Fink does not create branches for you."
+msgstr "Si la rama predeterminada está protegida, crea primero una rama de traducción en GitHub. Ábrela en Fink y envía allí tus cambios. Después crea una solicitud de incorporación para que se revisen antes de integrarlos. Fink no crea ramas por ti."
+
+#
+msgctxt "Translate_the_Modloader/7"
+msgid "If you cannot write to the ShroudForge repository, use Fink's fork flow. Install the Inlang GitHub App on your account, push the changes to your fork, then open a pull request. Fink opens GitHub's pull request page. Review and submit the pull request there."
+msgstr "Si no tienes permiso para escribir en el repositorio de ShroudForge, usa el flujo de bifurcación de Fink. Instala la aplicación de GitHub de Inlang en tu cuenta, envía los cambios a tu bifurcación y abre una solicitud de incorporación. Fink abre la página de solicitudes de incorporación de GitHub. Revisa y envía la solicitud allí."
+
+#
+msgctxt "Translate_the_Modloader/8"
+msgid "The [https://github.com/bonsaibauer/shroudforge/pulls ShroudForge pull request list] shows open translation contributions and their review status. See the [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink guide to branches and pull requests] for more details."
+msgstr "La [https://github.com/bonsaibauer/shroudforge/pulls lista de solicitudes de incorporación de ShroudForge] muestra las contribuciones de traducción abiertas y su estado de revisión. Consulta la [https://fink.inlang.com/docs/branches-forks-and-pull-requests guía de Fink sobre ramas, bifurcaciones y solicitudes de incorporación] para obtener más información."
+
+#
+msgctxt "Translate_the_Modloader/9"
+msgid "== Edit the translation files directly =="
+msgstr "== Editar directamente los archivos de traducción =="
+
+#
+msgctxt "Translate_the_Modloader/10"
+msgid "You can also change the JSON files under <code>modules/ui-resources/locales/</code> and create a pull request in the repository. Keep the same keys as the English source file <code>en-GB.json</code>. Do not rename placeholders such as <code>&#123;count&#125;</code>. Their names must stay exactly the same in each translation."
+msgstr "También puedes modificar los archivos JSON de <code>modules/ui-resources/locales/</code> y crear una solicitud de incorporación en el repositorio. Conserva las mismas claves que el archivo original en inglés <code>en-GB.json</code>. No cambies los nombres de los marcadores de posición, como <code>&#123;count&#125;</code>. Deben mantenerse exactamente iguales en cada traducción."
+
+#
+msgctxt "Translate_the_Modloader/11"
+msgid "Before opening a pull request, you can check the locale files:"
+msgstr "Antes de abrir una solicitud de incorporación, puedes comprobar los archivos de idioma:"
+
+#
+msgctxt "Translate_the_Modloader/12"
+msgid "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+msgstr "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+
+#
+msgctxt "Translate_the_Modloader/13"
+msgid "The Fink project file <code>modules/ui-resources/project.inlang/settings.json</code> connects the editor to these catalogs. The example link above opens that project. If you use a different editor URL later, update it in this article link and in the SVG illustration."
+msgstr "El archivo de proyecto de Fink <code>modules/ui-resources/project.inlang/settings.json</code> conecta el editor con estos catálogos. El enlace de ejemplo anterior abre ese proyecto. Si más adelante usas otra URL del editor, actualízala en el enlace de este artículo y en la ilustración SVG."

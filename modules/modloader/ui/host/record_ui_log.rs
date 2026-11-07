@@ -13,6 +13,8 @@ pub(crate) struct UiLogEvent {
     message: String,
     #[serde(default)]
     notify: bool,
+    #[serde(default, rename = "notifyMessage")]
+    notify_message: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -30,6 +32,7 @@ enum UiLogLevel {
 enum UiLogSource {
     Wiki,
     Compatibility,
+    Modloader,
 }
 
 pub(crate) fn record_ui_log(root: &Path, webview: &wry::WebView, event: UiLogEvent) {
@@ -55,6 +58,7 @@ pub(crate) fn record_ui_log(root: &Path, webview: &wry::WebView, event: UiLogEve
     let source = match event.source {
         UiLogSource::Wiki => "wiki",
         UiLogSource::Compatibility => "compatibility",
+        UiLogSource::Modloader => "modloader",
     };
     write_activity_at_level(
         root,
@@ -65,10 +69,15 @@ pub(crate) fn record_ui_log(root: &Path, webview: &wry::WebView, event: UiLogEve
         level,
     );
     if event.notify && matches!(level, LogLevel::Warn | LogLevel::Error) {
+        let notification = event
+            .notify_message
+            .as_deref()
+            .filter(|message| valid_text(message, 2000))
+            .unwrap_or(&event.message);
         notify_command_result(
             webview,
             "",
-            Err(event.message),
+            Err(notification.to_owned()),
             "",
             level,
             None,

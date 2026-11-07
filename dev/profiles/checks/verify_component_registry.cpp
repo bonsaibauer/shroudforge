@@ -214,28 +214,34 @@ int main(int argc, char** argv) try {
         // the profile into the game and never allocates or executes trampolines.
         exact_build_match = true;
         image_sha256 = profile.at("image").at("sha256");
-        for (const auto& [name, entry] : profile.at("runtimePatches").items()) {
-            RuntimePatch patch{};
-            patch.name = name;
-            patch.modifier_json = entry.at("modifier").dump();
-            patch.function_begin_rva = entry.at("function").at("beginRva");
-            patch.target_offset = entry.at("function").at("targetOffset");
-            runtime_patches.push_back(std::move(patch));
+        // Read-validated owner/resource profiles omit execution interventions.
+        // Present entries retain the execution profile's required-field checks.
+        if (const auto patches = profile.find("runtimePatches"); patches != profile.end()) {
+            for (const auto& [name, entry] : patches->items()) {
+                RuntimePatch patch{};
+                patch.name = name;
+                patch.modifier_json = entry.at("modifier").dump();
+                patch.function_begin_rva = entry.at("function").at("beginRva");
+                patch.target_offset = entry.at("function").at("targetOffset");
+                runtime_patches.push_back(std::move(patch));
+            }
         }
-        for (const auto& [name, entry] : profile.at("worldOperations").items()) {
-            RuntimeOperation operation{};
-            operation.name = name;
-            operation.function_rva = entry.value("functionRva", std::uintptr_t{});
-            operation.abi = entry.at("abi");
-            operation.thread = entry.at("thread");
-            operation.context = entry.at("context");
-            const auto guard = entry.value("guardBytes", std::vector<std::uint8_t>{});
-            const auto rva = entry.value("guardRva", std::size_t{});
-            operation.available = entry.value("validated", true) && !guard.empty() && rva < image.size() &&
-                guard.size() <= image.size() - rva && !std::memcmp(image.data() + rva, guard.data(), guard.size());
-            operation.status = entry.value("validated", true) ? "instruction-guard-checked" :
-                "unresolved:" + entry.at("unresolvedReason").get<std::string>();
-            runtime_operations.push_back(std::move(operation));
+        if (const auto operations = profile.find("worldOperations"); operations != profile.end()) {
+            for (const auto& [name, entry] : operations->items()) {
+                RuntimeOperation operation{};
+                operation.name = name;
+                operation.function_rva = entry.value("functionRva", std::uintptr_t{});
+                operation.abi = entry.at("abi");
+                operation.thread = entry.at("thread");
+                operation.context = entry.at("context");
+                const auto guard = entry.value("guardBytes", std::vector<std::uint8_t>{});
+                const auto rva = entry.value("guardRva", std::size_t{});
+                operation.available = entry.value("validated", true) && !guard.empty() && rva < image.size() &&
+                    guard.size() <= image.size() - rva && !std::memcmp(image.data() + rva, guard.data(), guard.size());
+                operation.status = entry.value("validated", true) ? "instruction-guard-checked" :
+                    "unresolved:" + entry.at("unresolvedReason").get<std::string>();
+                runtime_operations.push_back(std::move(operation));
+            }
         }
     }
     const auto functions = nlohmann::json::parse(FunctionInventory::Build(image.data(), base));

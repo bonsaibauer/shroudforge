@@ -161,6 +161,7 @@ export function ModPage({
               : status?.detail
           }
         >
+          {stateCode === 'restart' && <Icon name="refresh" />}
           {stateLabel}
         </strong>
         <div className="mod-enable-group">

@@ -1,0 +1,69 @@
+# Translation of Dependencies to Japanese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: ja\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "依存関係"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "必要なコンポーネントと既知の Mod 間の競合を確認できます。この画面では、アクティブな Mod の起動を妨げている要因と、対応が必要な依存関係を説明します。"
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== 必須 Mod =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "Mod は <code>mod.json</code> で、必要なバージョンとともに他の Mod を宣言できます。ShroudForge は、それらがインストール済みで有効になっており、現在のクライアントまたはサーバーに適しているかを確認します。必須の依存 Mod がない、または無効になっている場合、対象の Mod は起動しません。互換性のないバージョンも起動を妨げます。"
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "表示された Mod を開き、必要な依存 Mod をインストールまたは有効にしてから、この画面をもう一度確認してください。インストール済みのすべての Mod を現在のプロセスで実行する必要はありません。クライアント専用の Mod をサーバーで起動する必要はありません。"
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== 任意の依存関係 =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "明示的に任意とされた依存関係は、なくても無効でもかまいません。その場合、追加機能を利用できないことがあります。依存関係が存在して有効な場合は、そのバージョンと追加の要件も一致している必要があります。"
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "依存関係を宣言していない Mod については、ここに個別の問題項目は必要ありません。全体の状態は各 Mod のページで確認できます。"
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== 競合と循環依存 =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "既知の競合ルールは、指定された組み合わせで同時に実行すべきでない 2 つのアクティブな Mod を示します。どちらを無効にするかはメッセージを参考にしてください。依存関係の循環とは、Mod 同士が互いに先に起動することを要求している状態です。パッケージの修正または作者による変更が必要です。"
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "<code>shroudforge-api</code> の要件は、ローダーの Mod API を指します。DLL 互換性プロファイルの自動照合とは別のものです。"

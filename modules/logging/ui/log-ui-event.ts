@@ -2,11 +2,12 @@ import { post } from '../../transport/ui/send-host-command'
 
 type UiLogEvent = {
   level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG' | 'TRACE'
-  source: 'wiki' | 'compatibility'
+  source: 'wiki' | 'compatibility' | 'modloader'
   operation: string
   subject: string
   message: string
   notify?: boolean
+  notifyMessage?: string
 }
 
 const logText = (value: string, limit: number) =>
@@ -20,6 +21,7 @@ export function logUiEvent(event: UiLogEvent) {
       subject: logText(event.subject, 120),
       message: logText(event.message, 2000),
       notify: event.notify === true && ['WARN', 'ERROR'].includes(event.level),
+      notifyMessage: event.notifyMessage ? logText(event.notifyMessage, 2000) : undefined,
     },
   })
 }
