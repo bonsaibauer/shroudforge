@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { Card } from '../../ui-resources/show-card'
 import { WikiHelp } from '../../wiki/ui/show-wiki-help'
+import type { WikiModuleSettings } from '../../wiki/mediawiki-api'
 import type { ModDependencyInfo, ModInfo } from './mod-types'
 import { Hotkeys, hasHotkeyConflicts } from '../../hotkeys/ui/show-hotkeys'
 import {
@@ -19,7 +20,7 @@ import {
   SettingSwitch,
 } from '../../ui-resources/edit-setting'
 
-export type CompatibilityStatus = 'ok' | 'warning' | 'error' | 'neutral'
+export type CompatibilityStatus = 'ok' | 'warning' | 'error' | 'neutral' | 'restart-required'
 export type CompatibilityTab =
   | 'mod-detection'
   | 'dll-manager'
@@ -30,13 +31,15 @@ export type CompatibilityTab =
 function combinedStatus(statuses: CompatibilityStatus[]): CompatibilityStatus {
   return statuses.includes('error') ? 'error'
     : statuses.includes('warning') ? 'warning'
+      : statuses.includes('restart-required') ? 'restart-required'
       : statuses.includes('neutral') ? 'neutral' : 'ok'
 }
 
 function assetCompatibilityStatus(state: string): CompatibilityStatus {
   return state === 'failed' ? 'error'
     : ['applied', 'not-required'].includes(state) ? 'ok'
-      : ['prepare-required', 'partial'].includes(state) ? 'warning' : 'neutral'
+      : state === 'prepare-required' ? 'restart-required'
+        : state === 'partial' ? 'warning' : 'neutral'
 }
 
 function modDetectionStatus(data: Snapshot): CompatibilityStatus {
@@ -102,6 +105,7 @@ export type CompatibilityRowData = {
 
 export function Compatibility({
   data,
+  wikiModuleSettings,
   news,
   openNews,
   selectMod,
@@ -110,6 +114,7 @@ export function Compatibility({
   setTab,
 }: {
   data: Snapshot
+  wikiModuleSettings?: WikiModuleSettings
   news: NewsItem[]
   openNews(): void
   selectMod(id: string): void
@@ -329,6 +334,7 @@ export function Compatibility({
   const errorCount = engineRows.filter((row) => row.status === 'error').length
   const warningCount = engineRows.filter((row) => row.status === 'warning').length
   const pendingCount = engineRows.filter((row) => row.status === 'neutral').length
+  const restartCount = engineRows.filter((row) => row.status === 'restart-required').length
   const overall = engineStatus
   const headlineKey =
     overall === 'error'
@@ -353,6 +359,8 @@ export function Compatibility({
       ? 'error'
       : rows.some((row) => row.status === 'warning')
         ? 'warning'
+        : rows.some((row) => row.status === 'restart-required')
+          ? 'restart-required'
         : rows.some((row) => row.status === 'neutral')
           ? 'neutral'
           : 'ok'
@@ -434,7 +442,7 @@ export function Compatibility({
       />
       {tab === 'mod-detection' && (
         <div className="settings-module-list compatibility-sections">
-          <WikiHelp articleId="mod-detection" />
+          <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} />
           <Card title={t('compatibility.modDetection.title')}>
             <p className="hint settings-module-description">
               {t('compatibility.modDetection.description')}
@@ -487,11 +495,11 @@ export function Compatibility({
           </Card>
         </div>
       )}
-      {tab === 'dll-manager' && <DllManagerPanel data={data} />}
-      {tab === 'hotkeys' && <Hotkeys data={data} />}
+      {tab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} />}
+      {tab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} />}
       {tab === 'dependencies' && (
         <div className="settings-module-list compatibility-sections">
-          <WikiHelp articleId="dependencies" />
+          <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} />
           <section className="settings-module compatibility-section">
             <header>
               <div>
@@ -545,35 +553,41 @@ export function Compatibility({
       )}
       {tab === 'engine' && (
         <>
-          <WikiHelp articleId="engine" />
+          <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} />
           <section className={`compatibility-summary ${overall}`}>
             <span className={`compatibility-summary-icon ${overall}`}>
               <Icon
                 name={
                   overall === 'ok'
                     ? 'check'
-                    : overall === 'neutral'
+                    : overall === 'restart-required'
+                      ? 'refresh'
+                      : overall === 'neutral'
                       ? 'compatibility'
                       : 'warning'
                 }
               />
             </span>
             <div className="compatibility-summary-copy">
-              <strong>{t(`${headlineKey}.title` as TranslationKey)}</strong>
+              <strong>{overall === 'restart-required'
+                ? t('compatibility.status.restartRequired')
+                : t(`${headlineKey}.title` as TranslationKey)}</strong>
               <p>
-                {t(`${headlineKey}.message` as TranslationKey, {
-                  errors: errorCount,
-                  warnings: warningCount,
-                  pending: pendingCount,
-                  mods: data.mods.length,
-                })}
+                {overall === 'restart-required'
+                  ? t('compatibility.detail.assets.required')
+                  : t(`${headlineKey}.message` as TranslationKey, {
+                    errors: errorCount,
+                    warnings: warningCount,
+                    pending: pendingCount,
+                    mods: data.mods.length,
+                  })}
               </p>
             </div>
             <span className="compatibility-summary-count">
               {t('compatibility.summary.counts', {
                 checks: engineRows.length,
                 mods: data.mods.length,
-                attention: errorCount + warningCount,
+                attention: errorCount + warningCount + restartCount,
               })}
             </span>
           </section>
@@ -653,7 +667,10 @@ function normalizedDllNames(names: unknown): string[] {
     : []
 }
 
-function DllManagerPanel({ data }: { data: Snapshot }) {
+function DllManagerPanel({ data, wikiModuleSettings }: {
+  data: Snapshot
+  wikiModuleSettings?: WikiModuleSettings
+}) {
   const { t } = useI18n()
   const manager = data.settings.modulePreferences?.dllManager || {}
   const [enabled, setEnabled] = useState(manager.enabled !== false)
@@ -713,7 +730,7 @@ function DllManagerPanel({ data }: { data: Snapshot }) {
 
   return (
     <div className="settings-module-list compatibility-sections dll-manager">
-      <WikiHelp articleId="dll-manager" />
+      <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} />
       <Card title={t('compatibility.dllManager.title')}>
         <p className="hint settings-module-description">{t('compatibility.dllManager.description')}</p>
         <ModuleEnabledRow label={t('settings.modules.field.active')} enabled={enabled} onChange={(value) => {
@@ -949,10 +966,13 @@ export function CompatibilityStatusBadge({
   status: CompatibilityStatus
 }) {
   const { t } = useI18n()
+  const label = status === 'restart-required'
+    ? t('compatibility.status.restartRequired')
+    : t(`compatibility.status.${status}` as TranslationKey)
   return (
     <span className={`compatibility-status ${status}`}>
       <Icon name={statusIcon(status)} />
-      {t(`compatibility.status.${status}` as TranslationKey)}
+      {label}
     </span>
   )
 }
@@ -962,6 +982,8 @@ function statusIcon(status: CompatibilityStatus) {
     ? 'issue'
     : status === 'warning'
       ? 'warning'
+      : status === 'restart-required'
+        ? 'refresh'
       : status === 'ok'
         ? 'check'
         : 'compatibility'

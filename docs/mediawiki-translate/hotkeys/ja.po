@@ -1,0 +1,90 @@
+# Translation of Keyboard shortcuts to Japanese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: ja\n"
+"X-Message-Group: page-Keyboard shortcuts\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Keyboard_shortcuts/Page_display_title"
+msgid "Keyboard shortcuts"
+msgstr "キーボードショートカット"
+
+#
+msgctxt "Keyboard_shortcuts/1"
+msgid "This page shows and edits ShroudForge window shortcuts and mod shortcuts that a mod explicitly declares as <code>control: \"keybind\"</code> in its <code>extended.mod.json</code>."
+msgstr "このページでは、ShroudForge のウィンドウ用ショートカットと、Mod が <code>extended.mod.json</code> で <code>control: \"keybind\"</code> として明示的に宣言した Mod 用ショートカットを表示、編集できます。"
+
+#
+msgctxt "Keyboard_shortcuts/2"
+msgid "== Assign a shortcut =="
+msgstr "== ショートカットを割り当てる =="
+
+#
+msgctxt "Keyboard_shortcuts/3"
+msgid "Click the field and press the key or combination you want. Input uses physical SDL3 scancodes such as <code>SDL:64</code> for F7, <code>Ctrl+SDL:29</code>, or <code>Shift+SDL:100</code>. This keeps the physical key position consistent across keyboard layouts. SDL supplies readable labels for the current operating-system layout. Modifiers such as Ctrl, Alt, Shift, and Meta must match exactly."
+msgstr "フィールドをクリックして、割り当てたいキーまたはキーの組み合わせを押します。入力には物理的な SDL3 スキャンコードを使用します。例は F7 の <code>SDL:64</code>、<code>Ctrl+SDL:29</code>、<code>Shift+SDL:100</code> です。これにより、キーボード配列が異なっても物理キーの位置が一貫します。SDL は現在の OS 配列に対応した読みやすいラベルを表示します。Ctrl、Alt、Shift、Meta などの修飾キーは完全に一致する必要があります。"
+
+#
+msgctxt "Keyboard_shortcuts/4"
+msgid "While recording, ShroudForge blocks its window shortcuts and declared mod shortcuts across processes. Protection remains active after cancellation or a window focus change until no key or mouse button is held. A fixed three-second delay then runs, and new input does not reset it. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous shortcut. New F1 or F12 bindings require confirmation because Enshrouded or Steam may use them. Saving a binding that conflicts with another active ShroudForge shortcut is blocked."
+msgstr "記録中、ShroudForge はすべてのプロセスでウィンドウ用ショートカットと宣言済み Mod ショートカットをブロックします。キャンセル後やウィンドウのフォーカスが変わった後も、キーまたはマウスボタンが押されている間は保護が続きます。その後、固定の 3 秒間の遅延が始まり、新しい入力でもリセットされません。Escape は修飾キーの有無にかかわらず記録できません。ゲームでは一時停止メニューとウィンドウを閉じる操作に使われるため、押すと記録がキャンセルされ、以前のショートカットが維持されます。新しい F1 または F12 の割り当てには確認が必要です。Enshrouded または Steam が使用する可能性があるためです。ほかのアクティブな ShroudForge ショートカットと競合する割り当ては保存できません。"
+
+#
+msgctxt "Keyboard_shortcuts/5"
+msgid "Use '''Clear''' to disable a shortcut. For ShroudForge windows, you can restore the built-in default. Mod shortcuts remain part of each mod's own settings. The fields in the mod settings and under '''Compatibility → Hotkeys''' edit the same saved value."
+msgstr "ショートカットを無効にするには '''Clear''' を選択します。ShroudForge のウィンドウでは組み込みの既定値に戻すこともできます。Mod ショートカットは各 Mod の設定の一部です。Mod 設定内のフィールドと '''Compatibility → Hotkeys''' のフィールドは、同じ保存値を編集します。"
+
+#
+msgctxt "Keyboard_shortcuts/6"
+msgid "== Shortcuts in a ShroudForge mod =="
+msgstr "== ShroudForge Mod のショートカット =="
+
+#
+msgctxt "Keyboard_shortcuts/7"
+msgid "A mod author declares a shortcut as a setting in <code>extended.mod.json</code>:"
+msgstr "Mod の作者は <code>extended.mod.json</code> でショートカットを設定として宣言します。"
+
+#
+msgctxt "Keyboard_shortcuts/8"
+msgid "<pre>\n{\n  \"settings\": {\n    \"pasteKey\": {\n      \"value\": \"SDL:64\",\n      \"label\": \"Paste blueprint\",\n      \"control\": \"keybind\",\n      \"applyAt\": \"live\"\n    }\n  }\n}\n</pre>"
+msgstr "<pre>\n{\n  \"settings\": {\n    \"pasteKey\": {\n      \"value\": \"SDL:64\",\n      \"label\": \"Paste blueprint\",\n      \"control\": \"keybind\",\n      \"applyAt\": \"live\"\n    }\n  }\n}\n</pre>"
+
+#
+msgctxt "Keyboard_shortcuts/9"
+msgid "The mod reads this setting through the ShroudForge Lua API. It responds to the current value instead of hard-coding a key in the script:"
+msgstr "Mod は ShroudForge Lua API を使ってこの設定を読み取ります。スクリプトにキーを直接記述するのではなく、現在の値に応じて動作します。"
+
+#
+msgctxt "Keyboard_shortcuts/10"
+msgid "<pre>\nreturn {\n    on_update = function()\n        if shroudforge.input.was_keybind_pressed(\"pasteKey\") then\n            -- Run the action.\n        end\n    end,\n}\n</pre>"
+msgstr "<pre>\nreturn {\n    on_update = function()\n        if shroudforge.input.was_keybind_pressed(\"pasteKey\") then\n            -- Run the action.\n        end\n    end,\n}\n</pre>"
+
+#
+msgctxt "Keyboard_shortcuts/11"
+msgid "<code>shroudforge.input.was_keybind_pressed(\"pasteKey\")</code> retains short taps between runtime updates and returns <code>true</code> once per mod and setting. Live saved changes reach the runtime within one second. Use <code>is_keybind_down</code> for actions that should repeat while held. The former <code>is_key_down(\"F1\")</code> through <code>is_key_down(\"F8\")</code> API has been unsupported since ShroudForge 1.7.6. Calling it logs a migration message and raises a Lua error. Declare a <code>keybind</code> setting instead and assign it in the Hotkey Manager under '''Compatibility → Hotkeys'''. <code>shroudforge.input.keybind_label(\"pasteKey\")</code> returns the current readable SDL label for the operating-system layout. The key query works while a game window is focused. A declaration alone does not change a key hard-coded in a script. The mod must read this value through the API and use it for its action."
+msgstr "<code>shroudforge.input.was_keybind_pressed(\"pasteKey\")</code> は短いキー入力をランタイム更新間で保持し、Mod と設定ごとに 1 回だけ <code>true</code> を返します。保存済みの変更は 1 秒以内にランタイムへ反映されます。キーを押している間に動作を繰り返す場合は <code>is_keybind_down</code> を使います。以前の <code>is_key_down(\"F1\")</code> から <code>is_key_down(\"F8\")</code> までの API は ShroudForge 1.7.6 以降サポートされていません。呼び出すと移行メッセージがログに記録され、Lua エラーが発生します。代わりに <code>keybind</code> 設定を宣言し、Hotkey Manager の '''Compatibility → Hotkeys''' で割り当ててください。<code>shroudforge.input.keybind_label(\"pasteKey\")</code> は現在の OS 配列に対応する読みやすい SDL ラベルを返します。ゲームウィンドウがフォーカスされている間、キーを照会できます。宣言するだけではスクリプト内の固定キーは変わりません。Mod は API から値を読み取り、そのアクションで使用する必要があります。"
+
+#
+msgctxt "Keyboard_shortcuts/12"
+msgid "== Conflicts and other mods =="
+msgstr "== 競合と他の Mod =="
+
+#
+msgctxt "Keyboard_shortcuts/13"
+msgid "ShroudForge reports conflicts among active ShroudForge window shortcuts and declared mod keybinds. Saving cannot introduce a new conflict between active shortcuts whose key and modifier combinations overlap."
+msgstr "ShroudForge は、アクティブな ShroudForge ウィンドウ用ショートカットと宣言された Mod キーバインドの競合を報告します。キーと修飾キーの組み合わせが重なるアクティブなショートカット間では、新しい競合が生じる割り当てを保存できません。"
+
+#
+msgctxt "Keyboard_shortcuts/14"
+msgid "Standalone EML mods and DLL mods that manage their own shortcuts cannot be reliably remapped or intercepted here. Set those shortcuts in the respective mod's settings or configuration if the mod provides that option. An EML mod can also appear here if it explicitly declares a matching <code>keybind</code> setting in <code>extended.mod.json</code> and uses the ShroudForge Lua API for it. This does not take over its independently managed EML or DLL shortcuts."
+msgstr "単独で動作する EML Mod や独自にショートカットを管理する DLL Mod は、ここで確実に再割り当てまたはインターセプトできません。Mod にその設定がある場合は、各 Mod の設定または構成でショートカットを指定してください。EML Mod が <code>extended.mod.json</code> で一致する <code>keybind</code> 設定を明示的に宣言し、ShroudForge Lua API で使用する場合は、ここに表示されることもあります。独立して管理されている EML または DLL のショートカットをこの機能が引き継ぐことはありません。"

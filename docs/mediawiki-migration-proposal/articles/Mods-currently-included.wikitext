@@ -1,0 +1,18 @@
+The repository's <code>mods/</code> folder currently contains two mod packages shipped with ShroudForge. Their package files define their names, targets, and settings. Their mod settings are separate from general Modloader preferences.
+
+{| class="wikitable"
+! Mod !! ID !! Targets !! Settings
+|-
+| SF Survival || <code>sf-survival</code> || Client and Dedicated Server || 8
+|-
+| SF Unlimited Flight || <code>sf-unlimited-flight</code> || Client and Dedicated Server || 5
+|}
+
+== Historical reference packages ==
+
+Some older package pages remain useful as documentation, even though those packages are not in the current <code>mods/</code> folder. The World Editor belongs to this historical reference material. It is not a current Modloader preference or one of the two packages listed above.
+
+Check a package's source and release notes before treating a historical page as a current feature.
+
+[[Category:Built-in mods]]
+[[Category:Modding]]

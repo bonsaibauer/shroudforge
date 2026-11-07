@@ -1,0 +1,3 @@
+Historical documentation for the former World Editor package and its settings. Pages in this category do not imply that the package is currently bundled.
+
+[[Category:Built-in mods]]

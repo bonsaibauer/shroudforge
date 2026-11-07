@@ -12,6 +12,7 @@ import { Segmented } from '../../ui-resources/choose-segment'
 import { GamefileBackupManagement } from '../../game-files/ui/show-game-file-backups'
 import { StoragePathsEditor } from './show-storage-paths'
 import { ModulePreferencesEditor } from './show-module-settings'
+import { GameProfileDiscoverySettings } from '../../game-profile-discovery/ui/settings'
 
 export function SettingsPage({
   data,
@@ -107,6 +108,21 @@ export function SettingsPage({
       scope: 'runtime',
       key: 'profileId',
       value: profileId,
+    })
+  }
+  const changeProfileDiscovery = (enabled: boolean) => {
+    setSettings({
+      ...settings,
+      modulePreferences: {
+        ...modulePreferences,
+        gameProfileDiscovery: { ...modulePreferences.gameProfileDiscovery, enabled },
+      },
+    })
+    postRequest('save-setting', {
+      scope: 'module',
+      module: 'gameProfileDiscovery',
+      key: 'enabled',
+      value: enabled,
     })
   }
   const currentLocale = locales.find((option) => option.locale === locale)!
@@ -260,6 +276,13 @@ export function SettingsPage({
             />
           </Card>
           <Card title={t('settings.runtimeProfile.title')}>
+            <p className="hint">
+              {t('settings.runtimeProfile.active', {
+                profile:
+                  settings.activeRuntimeProfile ||
+                  t('settings.runtimeProfile.notRunning'),
+              })}
+            </p>
             <SettingsRow
               label={t('settings.runtimeProfile.selection')}
               control={
@@ -285,16 +308,14 @@ export function SettingsPage({
                   'shroudforge/runtime/profiles',
               })}
             </p>
-            <p className="hint">
-              {t('settings.runtimeProfile.active', {
-                profile:
-                  settings.activeRuntimeProfile ||
-                  t('settings.runtimeProfile.notRunning'),
-              })}
-            </p>
             {settings.activeRuntimeProfile?.includes('build-diff-warning') && (
               <p className="hint">{t('settings.runtimeProfile.buildDiff')}</p>
             )}
+            <GameProfileDiscoverySettings
+              enabled={modulePreferences.gameProfileDiscovery?.enabled !== false}
+              onChange={changeProfileDiscovery}
+              wikiModuleSettings={modulePreferences.wiki}
+            />
           </Card>
           <Card title={t('settings.logging.title')}>
             <Field label={t('settings.logging.minimumLevel')}>

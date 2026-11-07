@@ -1,0 +1,58 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Atajos de teclado
+description: Esta página muestra y permite cambiar los atajos de las ventanas de ShroudForge y los atajos que un mod declara explícitamente como `control: "keybind"` en su archivo `extended.mod.json`.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/hotkeys/es.md
+-->
+
+Esta página muestra y permite cambiar los atajos de las ventanas de ShroudForge y los atajos que un mod declara explícitamente como <code>control: "keybind"</code> en su archivo <code>extended.mod.json</code>.
+
+[[File:ShroudForge-Wiki-hotkeys.svg|thumb|right|alt=Atajos de teclado|Atajos de teclado]]
+
+== Asignar un atajo ==
+
+Haz clic en el campo y pulsa la tecla o combinación que quieras. La entrada usa códigos físicos de SDL3, como <code>SDL:64</code> para F7, <code>Ctrl+SDL:29</code> o <code>Shift+SDL:100</code>. Así se mantiene la misma posición física entre distribuciones de teclado. SDL proporciona etiquetas legibles para la distribución actual del sistema operativo. Los modificadores como Ctrl, Alt, Shift y Meta deben coincidir exactamente.
+
+Durante la grabación, ShroudForge bloquea los atajos de sus ventanas y los atajos declarados de los mods en todos sus procesos. El bloqueo también se mantiene después de cancelar o cambiar el foco de la ventana hasta que no quede ninguna tecla ni botón del ratón pulsado. Después se inicia un plazo fijo de tres segundos que las nuevas pulsaciones no reinician. Escape no se puede grabar, ni sola ni con modificadores: el juego la usa para su menú de pausa y para cerrar sus ventanas. Pulsarla cancela la grabación y conserva el atajo anterior. Las nuevas asignaciones de F1 o F12 requieren confirmación porque Enshrouded o Steam pueden usarlas. Se bloquea el guardado si la asignación entra en conflicto con otro atajo activo de ShroudForge.
+
+Usa '''Borrar''' para desactivar un atajo. En las ventanas de ShroudForge puedes restaurar el valor predeterminado integrado. Los atajos de cada mod siguen en sus propios ajustes. Los campos de los ajustes del mod y de '''Compatibility → Hotkeys''' modifican el mismo valor guardado.
+
+== Atajos en un mod de ShroudForge ==
+
+El autor del mod declara el atajo como un ajuste en <code>extended.mod.json</code>:
+
+<pre>
+{
+  "settings": {
+    "pasteKey": {
+      "value": "SDL:64",
+      "label": "Pegar plano",
+      "control": "keybind",
+      "applyAt": "live"
+    }
+  }
+}
+</pre>
+
+El mod lee este ajuste mediante la API Lua de ShroudForge. Así responde al valor actual en lugar de fijar una tecla en el script:
+
+<pre>
+return {
+    on_update = function()
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
+            -- Ejecutar la acción.
+        end
+    end,
+}
+</pre>
+
+<code>shroudforge.input.was_keybind_pressed("pasteKey")</code> conserva las pulsaciones breves entre actualizaciones del runtime y devuelve <code>true</code> una vez por mod y ajuste. Los cambios guardados en vivo llegan al runtime en un segundo como máximo. Usa <code>is_keybind_down</code> para acciones que deban repetirse mientras se mantenga pulsada la tecla. La API anterior <code>is_key_down("F1")</code> a <code>is_key_down("F8")</code> dejó de estar admitida en ShroudForge 1.7.6. Su llamada registra un mensaje de migración y genera un error de Lua. Declara un ajuste <code>keybind</code> y asígnalo en el administrador de atajos, en '''Compatibility → Hotkeys'''. <code>shroudforge.input.keybind_label("pasteKey")</code> devuelve la etiqueta legible actual de SDL para la distribución del sistema operativo. La consulta de teclas funciona cuando una ventana del juego está activa. La declaración por sí sola no cambia una tecla fijada en el script. El mod debe leer este valor mediante la API y usarlo para su acción.
+
+== Conflictos y otros mods ==
+
+ShroudForge informa de conflictos entre los atajos activos de sus ventanas y los keybinds declarados por los mods. Al guardar no se puede introducir un nuevo conflicto entre atajos activos cuya tecla y combinación de modificadores se solapen.
+
+Los mods EML independientes y los mods DLL que gestionan sus propios atajos no se pueden reasignar ni interceptar de forma fiable desde aquí. Configúralos en los ajustes o en el archivo de configuración del mod, si este ofrece esa opción. Un mod EML también puede aparecer aquí si declara explícitamente un ajuste <code>keybind</code> correspondiente en <code>extended.mod.json</code> y usa la API Lua de ShroudForge. Esto no incorpora sus atajos EML o DLL gestionados por separado.
+
+[[Category:guide:shroudforge]]

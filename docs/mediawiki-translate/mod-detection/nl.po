@@ -1,0 +1,70 @@
+# Translation of Mod Detection to Dutch
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: nl\n"
+"X-Message-Group: page-Mod Detection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Mod_Detection/Page_display_title"
+msgid "Mod Detection"
+msgstr "Moddetectie"
+
+#
+msgctxt "Mod_Detection/1"
+msgid "See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files."
+msgstr "Bekijk welke modmappen en bestanden ShroudForge herkent. Tijdens de detectie worden geen DLL's geladen en geen modbestanden gewijzigd."
+
+#
+msgctxt "Mod_Detection/2"
+msgid "== What is detected? =="
+msgstr "== Wat wordt gedetecteerd? =="
+
+#
+msgctxt "Mod_Detection/3"
+msgid "Installed mods are unpacked folders under <code>mods/&lt;mod-folder&gt;/</code> or your configured mods directory. ShroudForge reads <code>mod.json</code>, optional <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> and existing DLL files. A Lua-only mod needs no DLL of its own. A native mod can appear in the DLL Manager without a manifest or Lua file."
+msgstr "Geïnstalleerde mods zijn uitgepakte mappen onder <code>mods/&lt;mod-folder&gt;/</code> of in de ingestelde modmap. ShroudForge leest <code>mod.json</code>, indien aanwezig <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> en bestaande DLL-bestanden. Een mod die alleen Lua gebruikt, heeft geen eigen DLL nodig. Een native mod kan in DLL Manager verschijnen zonder manifest of Lua-bestand."
+
+#
+msgctxt "Mod_Detection/4"
+msgid "This view tells you whether a folder and its information were recognized. Actual native loading appears in the DLL Manager. The mod's own page shows its overall status."
+msgstr "Dit overzicht laat zien of een map en de bijbehorende gegevens zijn herkend. Het daadwerkelijk laden van native onderdelen zie je in DLL Manager. De eigen pagina van de mod toont de algemene status."
+
+#
+msgctxt "Mod_Detection/5"
+msgid "== Unknown manifest fields =="
+msgstr "== Onbekende manifestvelden =="
+
+#
+msgctxt "Mod_Detection/6"
+msgid "With the Mod Detection module and tolerant reading enabled, <code>mod.json</code> and <code>extended.mod.json</code> may contain extra fields unknown to ShroudForge. Those fields alone do not reject a package. Known fields must still contain valid values. Invalid JSON, missing required information and incorrect data types remain errors."
+msgstr "Als de module Mod Detection en tolerant lezen zijn ingeschakeld, mogen <code>mod.json</code> en <code>extended.mod.json</code> extra velden bevatten die ShroudForge niet kent. Alleen die velden zorgen er niet voor dat een pakket wordt afgewezen. Bekende velden moeten nog steeds geldige waarden bevatten. Ongeldige JSON, ontbrekende verplichte informatie en onjuiste gegevenstypen blijven fouten."
+
+#
+msgctxt "Mod_Detection/7"
+msgid "Disabling this compatibility option restores strict validation. It does not automatically delete or disable all installed mods."
+msgstr "Als je deze compatibiliteitsoptie uitschakelt, wordt strikte validatie hersteld. Dit verwijdert of schakelt niet automatisch alle geïnstalleerde mods uit."
+
+#
+msgctxt "Mod_Detection/8"
+msgid "== A mod is not recognized =="
+msgstr "== Een mod wordt niet herkend =="
+
+#
+msgctxt "Mod_Detection/9"
+msgid "Check the actual mod folder first. A download folder may contain another wrapper folder or a <code>mods</code> directory. The installer locates a single enclosed mod package. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. During normal operation, ShroudForge reads unpacked mod folders rather than archives."
+msgstr "Controleer eerst de daadwerkelijke modmap. Een downloadmap kan nog een bovenliggende map of een map <code>mods</code> bevatten. Het installatieprogramma zoekt naar één modpakket in die map. Een nieuw archief met meerdere modpakketten wordt niet automatisch als groep geïnstalleerd. Pak het uit en installeer telkens één modmap. Tijdens normaal gebruik leest ShroudForge uitgepakte modmappen, geen archieven."
+
+#
+msgctxt "Mod_Detection/10"
+msgid "Correct the reported JSON location or install the complete package again. A compatibility profile can supply an adapter for known differences. Recognition alone does not confirm that native hooks or mod APIs work."
+msgstr "Herstel de gemelde JSON-locatie of installeer het volledige pakket opnieuw. Een compatibiliteitsprofiel kan een adapter bieden voor bekende verschillen. Alleen herkenning bevestigt niet dat native hooks of mod-API's werken."

@@ -1,0 +1,6 @@
+{
+  "id": "shroudforge.game-profile-discovery",
+  "name": "ShroudForge Game Profile Discovery",
+  "version": "1.0.0",
+  "description": "Optional native discovery of experimental beta profiles from exact cached baseline images."
+}

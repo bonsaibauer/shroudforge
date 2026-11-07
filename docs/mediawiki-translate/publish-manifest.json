@@ -1,0 +1,415 @@
+{
+  "articles": [
+    {
+      "id": "dependencies",
+      "title": "Dependencies",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Dependencies",
+      "wikitext": "docs/mediawiki-translate/dependencies/en.wikitext",
+      "asset": "modules/wiki/articles/dependencies/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-dependencies.svg",
+      "po": "docs/mediawiki-translate/dependencies/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/dependencies/de-at.po",
+        "docs/mediawiki-translate/dependencies/de-ch.po",
+        "docs/mediawiki-translate/dependencies/de.po",
+        "docs/mediawiki-translate/dependencies/es.po",
+        "docs/mediawiki-translate/dependencies/fr.po",
+        "docs/mediawiki-translate/dependencies/hi.po",
+        "docs/mediawiki-translate/dependencies/it.po",
+        "docs/mediawiki-translate/dependencies/ja.po",
+        "docs/mediawiki-translate/dependencies/nl.po",
+        "docs/mediawiki-translate/dependencies/pl.po",
+        "docs/mediawiki-translate/dependencies/sv.po",
+        "docs/mediawiki-translate/dependencies/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "dll-manager",
+      "title": "DLL Manager",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-DLL Manager",
+      "wikitext": "docs/mediawiki-translate/dll-manager/en.wikitext",
+      "asset": "modules/wiki/articles/dll-manager/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-dll-manager.svg",
+      "po": "docs/mediawiki-translate/dll-manager/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/dll-manager/de-at.po",
+        "docs/mediawiki-translate/dll-manager/de-ch.po",
+        "docs/mediawiki-translate/dll-manager/de.po",
+        "docs/mediawiki-translate/dll-manager/es.po",
+        "docs/mediawiki-translate/dll-manager/fr.po",
+        "docs/mediawiki-translate/dll-manager/hi.po",
+        "docs/mediawiki-translate/dll-manager/it.po",
+        "docs/mediawiki-translate/dll-manager/ja.po",
+        "docs/mediawiki-translate/dll-manager/nl.po",
+        "docs/mediawiki-translate/dll-manager/pl.po",
+        "docs/mediawiki-translate/dll-manager/sv.po",
+        "docs/mediawiki-translate/dll-manager/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "engine",
+      "title": "Engine",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Engine",
+      "wikitext": "docs/mediawiki-translate/engine/en.wikitext",
+      "asset": "modules/wiki/articles/engine/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-engine.svg",
+      "po": "docs/mediawiki-translate/engine/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/engine/de-at.po",
+        "docs/mediawiki-translate/engine/de-ch.po",
+        "docs/mediawiki-translate/engine/de.po",
+        "docs/mediawiki-translate/engine/es.po",
+        "docs/mediawiki-translate/engine/fr.po",
+        "docs/mediawiki-translate/engine/hi.po",
+        "docs/mediawiki-translate/engine/it.po",
+        "docs/mediawiki-translate/engine/ja.po",
+        "docs/mediawiki-translate/engine/nl.po",
+        "docs/mediawiki-translate/engine/pl.po",
+        "docs/mediawiki-translate/engine/sv.po",
+        "docs/mediawiki-translate/engine/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "game-profile-discovery",
+      "title": "Automatic beta game profiles",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Automatic beta game profiles",
+      "wikitext": "docs/mediawiki-translate/game-profile-discovery/en.wikitext",
+      "asset": "modules/wiki/articles/game-profile-discovery/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-game-profile-discovery.svg",
+      "po": "docs/mediawiki-translate/game-profile-discovery/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/game-profile-discovery/de-at.po",
+        "docs/mediawiki-translate/game-profile-discovery/de-ch.po",
+        "docs/mediawiki-translate/game-profile-discovery/de.po",
+        "docs/mediawiki-translate/game-profile-discovery/es.po",
+        "docs/mediawiki-translate/game-profile-discovery/fr.po",
+        "docs/mediawiki-translate/game-profile-discovery/hi.po",
+        "docs/mediawiki-translate/game-profile-discovery/it.po",
+        "docs/mediawiki-translate/game-profile-discovery/ja.po",
+        "docs/mediawiki-translate/game-profile-discovery/nl.po",
+        "docs/mediawiki-translate/game-profile-discovery/pl.po",
+        "docs/mediawiki-translate/game-profile-discovery/sv.po",
+        "docs/mediawiki-translate/game-profile-discovery/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "hotkeys",
+      "title": "Keyboard shortcuts",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Keyboard shortcuts",
+      "wikitext": "docs/mediawiki-translate/hotkeys/en.wikitext",
+      "asset": "modules/wiki/articles/hotkeys/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-hotkeys.svg",
+      "po": "docs/mediawiki-translate/hotkeys/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/hotkeys/de-at.po",
+        "docs/mediawiki-translate/hotkeys/de-ch.po",
+        "docs/mediawiki-translate/hotkeys/de.po",
+        "docs/mediawiki-translate/hotkeys/es.po",
+        "docs/mediawiki-translate/hotkeys/fr.po",
+        "docs/mediawiki-translate/hotkeys/hi.po",
+        "docs/mediawiki-translate/hotkeys/it.po",
+        "docs/mediawiki-translate/hotkeys/ja.po",
+        "docs/mediawiki-translate/hotkeys/nl.po",
+        "docs/mediawiki-translate/hotkeys/pl.po",
+        "docs/mediawiki-translate/hotkeys/sv.po",
+        "docs/mediawiki-translate/hotkeys/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "mod-detection",
+      "title": "Mod Detection",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Mod Detection",
+      "wikitext": "docs/mediawiki-translate/mod-detection/en.wikitext",
+      "asset": "modules/wiki/articles/mod-detection/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-mod-detection.svg",
+      "po": "docs/mediawiki-translate/mod-detection/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/mod-detection/de-at.po",
+        "docs/mediawiki-translate/mod-detection/de-ch.po",
+        "docs/mediawiki-translate/mod-detection/de.po",
+        "docs/mediawiki-translate/mod-detection/es.po",
+        "docs/mediawiki-translate/mod-detection/fr.po",
+        "docs/mediawiki-translate/mod-detection/hi.po",
+        "docs/mediawiki-translate/mod-detection/it.po",
+        "docs/mediawiki-translate/mod-detection/ja.po",
+        "docs/mediawiki-translate/mod-detection/nl.po",
+        "docs/mediawiki-translate/mod-detection/pl.po",
+        "docs/mediawiki-translate/mod-detection/sv.po",
+        "docs/mediawiki-translate/mod-detection/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "modding",
+      "title": "Modding",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Modding",
+      "wikitext": "docs/mediawiki-translate/modding/en.wikitext",
+      "asset": "modules/wiki/articles/modding/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-modding.svg",
+      "po": "docs/mediawiki-translate/modding/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/modding/de-at.po",
+        "docs/mediawiki-translate/modding/de-ch.po",
+        "docs/mediawiki-translate/modding/de.po",
+        "docs/mediawiki-translate/modding/es.po",
+        "docs/mediawiki-translate/modding/fr.po",
+        "docs/mediawiki-translate/modding/hi.po",
+        "docs/mediawiki-translate/modding/it.po",
+        "docs/mediawiki-translate/modding/ja.po",
+        "docs/mediawiki-translate/modding/nl.po",
+        "docs/mediawiki-translate/modding/pl.po",
+        "docs/mediawiki-translate/modding/sv.po",
+        "docs/mediawiki-translate/modding/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "modding-locales",
+      "title": "Translate mod text",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Translate mod text",
+      "wikitext": "docs/mediawiki-translate/modding-locales/en.wikitext",
+      "asset": "modules/wiki/articles/modding-locales/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-modding-locales.svg",
+      "po": "docs/mediawiki-translate/modding-locales/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/modding-locales/de-at.po",
+        "docs/mediawiki-translate/modding-locales/de-ch.po",
+        "docs/mediawiki-translate/modding-locales/de.po",
+        "docs/mediawiki-translate/modding-locales/es.po",
+        "docs/mediawiki-translate/modding-locales/fr.po",
+        "docs/mediawiki-translate/modding-locales/hi.po",
+        "docs/mediawiki-translate/modding-locales/it.po",
+        "docs/mediawiki-translate/modding-locales/ja.po",
+        "docs/mediawiki-translate/modding-locales/nl.po",
+        "docs/mediawiki-translate/modding-locales/pl.po",
+        "docs/mediawiki-translate/modding-locales/sv.po",
+        "docs/mediawiki-translate/modding-locales/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "startup-asset-backups",
+      "title": "Startup stops because asset backups are incompatible",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Startup stops because asset backups are incompatible",
+      "wikitext": "docs/mediawiki-translate/startup-asset-backups/en.wikitext",
+      "asset": "modules/wiki/articles/startup-asset-backups/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-startup-asset-backups.svg",
+      "po": "docs/mediawiki-translate/startup-asset-backups/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/startup-asset-backups/de-at.po",
+        "docs/mediawiki-translate/startup-asset-backups/de-ch.po",
+        "docs/mediawiki-translate/startup-asset-backups/de.po",
+        "docs/mediawiki-translate/startup-asset-backups/es.po",
+        "docs/mediawiki-translate/startup-asset-backups/fr.po",
+        "docs/mediawiki-translate/startup-asset-backups/hi.po",
+        "docs/mediawiki-translate/startup-asset-backups/it.po",
+        "docs/mediawiki-translate/startup-asset-backups/ja.po",
+        "docs/mediawiki-translate/startup-asset-backups/nl.po",
+        "docs/mediawiki-translate/startup-asset-backups/pl.po",
+        "docs/mediawiki-translate/startup-asset-backups/sv.po",
+        "docs/mediawiki-translate/startup-asset-backups/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge",
+        "Problems:Shroudforge"
+      ]
+    },
+    {
+      "id": "translations",
+      "title": "Translate the Modloader",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Translate the Modloader",
+      "wikitext": "docs/mediawiki-translate/translations/en.wikitext",
+      "asset": "modules/wiki/articles/translations/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-translations.svg",
+      "po": "docs/mediawiki-translate/translations/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/translations/de-at.po",
+        "docs/mediawiki-translate/translations/de-ch.po",
+        "docs/mediawiki-translate/translations/de.po",
+        "docs/mediawiki-translate/translations/es.po",
+        "docs/mediawiki-translate/translations/fr.po",
+        "docs/mediawiki-translate/translations/hi.po",
+        "docs/mediawiki-translate/translations/it.po",
+        "docs/mediawiki-translate/translations/ja.po",
+        "docs/mediawiki-translate/translations/nl.po",
+        "docs/mediawiki-translate/translations/pl.po",
+        "docs/mediawiki-translate/translations/sv.po",
+        "docs/mediawiki-translate/translations/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    }
+  ]
+}

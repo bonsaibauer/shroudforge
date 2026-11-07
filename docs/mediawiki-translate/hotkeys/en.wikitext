@@ -1,0 +1,65 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Keyboard shortcuts
+description: This page shows and edits ShroudForge window shortcuts and mod shortcuts that a mod explicitly declares as `control: "keybind"` in its `extended.mod.json`.
+language: en-GB
+picture:ShroudForge-Wiki-hotkeys.svg
+creator: Bonsaibauer
+-->
+
+[[File:ShroudForge-Wiki-hotkeys.svg|thumb|left|600px|Keyboard shortcuts]]
+
+<br style="clear:both;" />
+
+<translate>
+
+This page shows and edits ShroudForge window shortcuts and mod shortcuts that a mod explicitly declares as <code>control: "keybind"</code> in its <code>extended.mod.json</code>.
+
+== Assign a shortcut ==
+
+Click the field and press the key or combination you want. Input uses physical SDL3 scancodes such as <code>SDL:64</code> for F7, <code>Ctrl+SDL:29</code>, or <code>Shift+SDL:100</code>. This keeps the physical key position consistent across keyboard layouts. SDL supplies readable labels for the current operating-system layout. Modifiers such as Ctrl, Alt, Shift, and Meta must match exactly.
+
+While recording, ShroudForge blocks its window shortcuts and declared mod shortcuts across processes. Protection remains active after cancellation or a window focus change until no key or mouse button is held. A fixed three-second delay then runs, and new input does not reset it. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous shortcut. New F1 or F12 bindings require confirmation because Enshrouded or Steam may use them. Saving a binding that conflicts with another active ShroudForge shortcut is blocked.
+
+Use '''Clear''' to disable a shortcut. For ShroudForge windows, you can restore the built-in default. Mod shortcuts remain part of each mod's own settings. The fields in the mod settings and under '''Compatibility → Hotkeys''' edit the same saved value.
+
+== Shortcuts in a ShroudForge mod ==
+
+A mod author declares a shortcut as a setting in <code>extended.mod.json</code>:
+
+<pre>
+{
+  "settings": {
+    "pasteKey": {
+      "value": "SDL:64",
+      "label": "Paste blueprint",
+      "control": "keybind",
+      "applyAt": "live"
+    }
+  }
+}
+</pre>
+
+The mod reads this setting through the ShroudForge Lua API. It responds to the current value instead of hard-coding a key in the script:
+
+<pre>
+return {
+    on_update = function()
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
+            -- Run the action.
+        end
+    end,
+}
+</pre>
+
+<code>shroudforge.input.was_keybind_pressed("pasteKey")</code> retains short taps between runtime updates and returns <code>true</code> once per mod and setting. Live saved changes reach the runtime within one second. Use <code>is_keybind_down</code> for actions that should repeat while held. The former <code>is_key_down("F1")</code> through <code>is_key_down("F8")</code> API has been unsupported since ShroudForge 1.7.6. Calling it logs a migration message and raises a Lua error. Declare a <code>keybind</code> setting instead and assign it in the Hotkey Manager under '''Compatibility → Hotkeys'''. <code>shroudforge.input.keybind_label("pasteKey")</code> returns the current readable SDL label for the operating-system layout. The key query works while a game window is focused. A declaration alone does not change a key hard-coded in a script. The mod must read this value through the API and use it for its action.
+
+== Conflicts and other mods ==
+
+ShroudForge reports conflicts among active ShroudForge window shortcuts and declared mod keybinds. Saving cannot introduce a new conflict between active shortcuts whose key and modifier combinations overlap.
+
+Standalone EML mods and DLL mods that manage their own shortcuts cannot be reliably remapped or intercepted here. Set those shortcuts in the respective mod's settings or configuration if the mod provides that option. An EML mod can also appear here if it explicitly declares a matching <code>keybind</code> setting in <code>extended.mod.json</code> and uses the ShroudForge Lua API for it. This does not take over its independently managed EML or DLL shortcuts.
+</translate>
+
+[[Category:guide:Shroudforge]]
