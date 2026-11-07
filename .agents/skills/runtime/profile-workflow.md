@@ -28,16 +28,18 @@ This reference applies to the create-profile-client and create-profile-server sk
 - Preserve the existing provenance.status. read-validated and approved have different runtime meanings.
 - Never set a status to approved manually. Use only the existing approval workflow, which requires a matching function scan, exact live capture, component evidence, zero unresolved mappings, and semantic checks.
 - Use the validator for the actual profile format. The CLI command validate-profile may expect a different schema from a read-validated resource profile. Check the schema and readers before interpreting a failure or success.
-- The native build handles read-validated profiles separately from approved execution profiles. Check the generated resource lists and do not claim execution hooks that the profile does not contain.
+- The shared external JSON catalog classifies read-validated profiles separately from approved execution profiles. Check the installed catalog path, exact image selection, and profile ID. Do not claim execution hooks that the profile does not contain. There is no embedded profile catalog or embedded fallback.
 
 ## Existing Tools and Build
 
 - Use the existing tools under dev/profiles/. The current command reference is in dev/profiles/README.md and kfc-runtime-dev.exe --help.
 - Inspect a generator before using it for a 1:1 copy. The existing create_runtime_profile_draft.cpp deliberately removes write layouts and resets draft gates. Do not run that destructive draft transformation as a substitute for copying the complete baseline.
+- `game_inspection/compare/prepare_profile_rebase.py` prepares a complete same-target candidate outside production profiles with an exact-image leaf diff and unresolved checks. Static rankings never change its numeric values. Copied provenance remains baseline evidence, not target approval. Its optional numeric review plan must bind both images and hashed concrete evidence.
 - For capture_runtime.ps1, explicitly choose -Target client or -Target server. Use -Offline only for executable analysis without a live process. Do not claim that this is a live check.
 - Explicitly build any required inspection tools before capture. capture_runtime.ps1 does not build programs in the background, and live capture expects exactly one matching process to be running.
 - Put capture output in a task-specific temporary directory using -OutputDirectory. Do not write investigation output to saves, settings, or profiles without being asked.
-- After creating the new profile, build the native runtime with dev/build/build_kfc_runtime.ps1. Check that the profile is embedded in the correct generated resource list. Inspect the provider with kfc-runtime-dev.exe inspect-provider and compare its ABI and required exports with the installed bridge.
+- Install the validated new JSON profile into the existing configured `runtime/profiles` catalog and verify the installed file hash and selected profile ID. Data-only profile changes do not require a provider rebuild. When native code changes, build with dev/build/build_kfc_runtime.ps1, inspect the provider with kfc-runtime-dev.exe inspect-provider, and compare its ABI and required exports with the installed bridge.
+- Normal profiles must always win over `beta_*` files and IDs. The optional native `modules/game-profile-discovery/` component owns automatic experimental generation. Keep its exact cached-image and mapped-image-equivalence proof separate from developer ranking and live gameplay checks. Do not bypass its unresolved result by turning a heuristic candidate into a runtime profile.
 
 ## Live Verification
 

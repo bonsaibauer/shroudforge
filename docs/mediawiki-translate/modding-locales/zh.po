@@ -1,0 +1,75 @@
+# Translation of Translate mod text to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Translate mod text\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Translate_mod_text/Page_display_title"
+msgid "Translate mod text"
+msgstr "翻译模组文本"
+
+#
+msgctxt "Translate_mod_text/1"
+msgid "Translate visible Modloader text and Lua text from the same locale files in the mod folder. Read the Modloader language through <code>shroudforge.locale()</code>, added by PR #42."
+msgstr "使用模组文件夹中的同一组语言文件，翻译 Modloader 界面文本和 Lua 文本。通过 PR #42 添加的 <code>shroudforge.locale()</code> 读取 Modloader 语言。"
+
+#
+msgctxt "Translate_mod_text/2"
+msgid "== Locale files =="
+msgstr "== 语言文件 =="
+
+#
+msgctxt "Translate_mod_text/3"
+msgid "Add one file under <code>locales/&lt;code&gt;.json</code> for each language. Current codes from the Modloader language selector are <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code>, and <code>zh</code>. The filename matches its code exactly. These files sit beside <code>mod.json</code> and <code>extended.mod.json</code>."
+msgstr "为每种语言在 <code>locales/&lt;code&gt;.json</code> 下添加一个文件。Modloader 语言选择器当前支持的代码为 <code>de</code>、<code>de-AT</code>、<code>de-CH</code>、<code>en-GB</code>、<code>en-US</code>、<code>es</code>、<code>fr</code>、<code>hi</code>、<code>it</code>、<code>ja</code>、<code>nl</code>、<code>pl</code>、<code>sv</code> 和 <code>zh</code>。文件名必须与代码完全一致。这些文件与 <code>mod.json</code> 和 <code>extended.mod.json</code> 放在一起。"
+
+#
+msgctxt "Translate_mod_text/4"
+msgid "The schema is published as [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. A locale catalog can translate <code>mod.name</code> and <code>mod.description</code>, setting and option labels, groups, actions, changelog lines, and Lua <code>strings</code>. Catalogs may be partial. Entries without a translation keep their source text."
+msgstr "架构已发布为 [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]。语言目录可以翻译 <code>mod.name</code> 和 <code>mod.description</code>、设置和选项标签、分组、操作、更新日志条目以及 Lua <code>strings</code>。目录可以只包含部分翻译。没有译文的条目会保留源文本。"
+
+#
+msgctxt "Translate_mod_text/5"
+msgid "<pre>\n{\n  \"$schema\": \"https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
+msgstr "<pre>\n{\n  \"$schema\": \"https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
+
+#
+msgctxt "Translate_mod_text/6"
+msgid "Setting and option keys stay the same as in <code>extended.mod.json</code>. Group translations follow that file's group order. Action translations use the existing action ID. Saved values do not change."
+msgstr "设置和选项的键与 <code>extended.mod.json</code> 中的键保持一致。分组翻译遵循该文件中的分组顺序。操作翻译使用现有的操作 ID。已保存的值不会改变。"
+
+#
+msgctxt "Translate_mod_text/7"
+msgid "== Use the same text in Lua =="
+msgstr "== 在 Lua 中使用相同文本 =="
+
+#
+msgctxt "Translate_mod_text/8"
+msgid "<pre>\nlocal locale = shroudforge.locale()\nlocal ready = shroudforge.i18n.get(\"overlay.ready\", locale, \"Ready\")\n</pre>"
+msgstr "<pre>\nlocal locale = shroudforge.locale()\nlocal ready = shroudforge.i18n.get(\"overlay.ready\", locale, \"Ready\")\n</pre>"
+
+#
+msgctxt "Translate_mod_text/9"
+msgid "<code>shroudforge.i18n.get(key, locale, fallback)</code> uses the same loaded catalog as the Modloader. It checks a regional code such as <code>de-AT</code> first, followed by its language <code>de</code>. A missing string returns the fallback text, or the key when no fallback is provided. The lookup does not read files again. PR #42 supplies the language API, and this feature connects it to each mod's catalog."
+msgstr "<code>shroudforge.i18n.get(key, locale, fallback)</code> 使用 Modloader 已加载的同一目录。它会先检查 <code>de-AT</code> 这样的区域代码，然后检查语言代码 <code>de</code>。如果缺少字符串，则返回备用文本；如果未提供备用文本，则返回键本身。查询时不会重新读取文件。PR #42 提供语言 API，此功能会将它连接到每个模组的目录。"
+
+#
+msgctxt "Translate_mod_text/10"
+msgid "If <code>shroudforge.locale()</code> returns <code>en</code> because the configuration cannot be read, catalog lookup checks <code>en-GB.json</code> first and then <code>en.json</code>. <code>en-GB</code> is the Modloader's English default. <code>en-US</code> remains available as an explicitly selected variant."
+msgstr "如果无法读取配置而使 <code>shroudforge.locale()</code> 返回 <code>en</code>，目录查询会先检查 <code>en-GB.json</code>，然后检查 <code>en.json</code>。<code>en-GB</code> 是 Modloader 的默认英语。<code>en-US</code> 仍可作为显式选择的变体使用。"
+
+#
+msgctxt "Translate_mod_text/11"
+msgid "Locale files do not require the runtime capability. ShroudForge interface text stays in the shared Modloader translations."
+msgstr "语言文件不需要 runtime 能力。ShroudForge 界面文本仍位于 Modloader 共享翻译中。"

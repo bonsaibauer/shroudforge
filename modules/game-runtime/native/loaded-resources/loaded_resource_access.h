@@ -8,6 +8,7 @@
 namespace ResourceRuntime {
 bool Initialize();
 void Shutdown();
+bool ProfileLoaded();
 bool Ready();
 bool CanWrite();
 bool ResourcesByType(std::uint32_t type_hash, KfcRuntimeResourceId* resources,

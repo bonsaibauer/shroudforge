@@ -10,7 +10,8 @@
 	if (!search || !resultCount || !clearButton || !noResults || !rows.length) return
 
 	let channel = 'all'
-	let version = ''
+	const defaultVersion = versionLinks.find((link) => link.dataset.versionLink)?.dataset.versionLink || ''
+	let version = defaultVersion
 
 	function applyFilters() {
 		const terms = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
@@ -36,7 +37,7 @@
 			else link.removeAttribute('aria-current')
 		}
 		resultCount.textContent = `Showing ${visible} of ${rows.length} releases${version ? ` · Version ${version}` : ''}`
-		clearButton.hidden = !terms.length && channel === 'all' && !version
+		clearButton.hidden = !terms.length && channel === 'all' && version === defaultVersion
 		noResults.hidden = visible !== 0
 	}
 
@@ -58,7 +59,7 @@
 	}
 	clearButton.addEventListener('click', () => {
 		channel = 'all'
-		version = ''
+		version = defaultVersion
 		search.value = ''
 		applyFilters()
 	})

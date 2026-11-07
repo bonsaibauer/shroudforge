@@ -4,6 +4,22 @@ Each JSON file describes one game executable build and process target. Keep the
 sections in this order so the file reads from identity, through runtime layout
 and ECS metadata, to executable patch definitions.
 
+This directory is the source of the shipped external JSON catalog. Packaging
+copies it to the installation's configured `runtime/profiles` directory, which
+is shared by execution and resource/read-owner selection. The provider embeds
+no profiles and has no embedded fallback. Updating profile data does not require
+rebuilding the provider. Exact image identity, provenance, guards and live
+ownership checks still apply.
+
+The optional `game-profile-discovery` native module publishes experimental
+`beta_*` profiles into this same installed catalog after comparing the exact
+old and current executable images. It can verify mapped-image equality or
+derive individual addresses and layout evidence from original code and data.
+Normal profiles always have selection priority. It preserves the complete
+baseline shape and existing gates. Generated files have a `beta_` filename and
+ID, with proof in the existing cache. A missing source image, ambiguous address
+or unproved layout field leaves the complete candidate unresolved.
+
 Historical game-build profiles are immutable references. Create a separate
 file for each new build and verify the baseline file's SHA-256 before and after
 the work. Do not migrate or normalize historical profile files when extending
