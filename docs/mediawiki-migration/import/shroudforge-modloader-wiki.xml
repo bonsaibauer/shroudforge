@@ -1,0 +1,2469 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/" version="0.11" xml:lang="en">
+  <siteinfo>
+    <sitename>ShroudForge Modloader Wiki migration</sitename>
+    <dbname>shroudforge_modloader_wiki</dbname>
+    <base>https://github.com/bonsaibauer/shroudforge</base>
+    <generator>ShroudForge MediaWiki migration package</generator>
+    <case>first-letter</case>
+    <namespaces>
+      <namespace key="0" case="first-letter" />
+      <namespace key="14" case="first-letter">Category</namespace>
+    </namespaces>
+  </siteinfo>
+  <page>
+    <title>Abhängigkeiten (de)</title>
+    <ns>0</ns>
+    <id>1</id>
+    <revision>
+      <id>1001</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Abhängigkeiten
+description: Hier findest du Voraussetzungen und bekannte Konflikte zwischen Mods. Die Übersicht zeigt, was einen aktiven Mod blockiert und welche Abhängigkeit du prüfen solltest.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/dependencies/de.md
+--&gt;
+
+Hier findest du Voraussetzungen und bekannte Konflikte zwischen Mods. Die Übersicht zeigt, was einen aktiven Mod blockiert und welche Abhängigkeit du prüfen solltest.
+
+[[File:ShroudForge-Wiki-dependencies.svg|thumb|right|alt=Abhängigkeiten|Abhängigkeiten]]
+
+== Erforderliche Mods ==
+
+Ein Mod kann in &lt;code&gt;mod.json&lt;/code&gt; andere Mods und deren benötigte Version angeben. ShroudForge prüft, ob diese installiert, aktiviert und für den aktuellen Client oder Server geeignet sind. Eine fehlende oder deaktivierte erforderliche Abhängigkeit verhindert den Start des betroffenen Mods. Das gilt auch für eine nicht passende Version.
+
+Öffne den genannten Mod, installiere oder aktiviere seine Voraussetzung und prüfe anschließend die Übersicht erneut. Nicht jeder installierte Mod muss im aktuellen Prozess laufen. Ein reiner Client-Mod benötigt auf einem Server keinen eigenen Start.
+
+== Optionale Abhängigkeiten ==
+
+Eine ausdrücklich optionale Abhängigkeit darf fehlen oder deaktiviert sein. Dadurch kann eine Zusatzfunktion entfallen. Ist sie aktiviert und vorhanden, müssen ihre Version und weiteren Voraussetzungen passen.
+
+Mods ohne deklarierte Abhängigkeiten benötigen hier keine eigene Problemmeldung. Ihr allgemeiner Zustand bleibt auf der jeweiligen Modseite sichtbar.
+
+== Konflikte und Kreise ==
+
+Bekannte Konfliktregeln nennen zwei aktive Mods, die in der angegebenen Kombination nicht gemeinsam laufen sollen. Entscheide anhand der Meldung, welchen du deaktivierst. Ein Abhängigkeitskreis bedeutet, dass Mods gegenseitig auf ihren Start warten. Dafür ist eine Korrektur des Pakets oder eine Änderung durch den Autor erforderlich.
+
+Eine Anforderung an &lt;code&gt;shroudforge-api&lt;/code&gt; bezieht sich auf die Mod-API des Loaders. Sie ist unabhängig von der automatischen Zuordnung eines DLL-Kompatibilitätsprofils.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Dependencies (en)</title>
+    <ns>0</ns>
+    <id>2</id>
+    <revision>
+      <id>1002</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Dependencies
+description: Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/dependencies/en.md
+--&gt;
+
+Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention.
+
+[[File:ShroudForge-Wiki-dependencies.svg|thumb|right|alt=Dependencies|Dependencies]]
+
+== Required mods ==
+
+A mod can declare other mods and their required versions in &lt;code&gt;mod.json&lt;/code&gt;. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it.
+
+Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server.
+
+== Optional dependencies ==
+
+An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match.
+
+Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages.
+
+== Conflicts and cycles ==
+
+Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author.
+
+A requirement for &lt;code&gt;shroudforge-api&lt;/code&gt; refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Dependencias (es)</title>
+    <ns>0</ns>
+    <id>3</id>
+    <revision>
+      <id>1003</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Dependencias
+description: Consulta los requisitos y conflictos conocidos entre mods. Esta vista explica qué bloquea un mod activo y qué dependencia necesita atención.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/dependencies/es.md
+--&gt;
+
+Consulta los requisitos y conflictos conocidos entre mods. Esta vista explica qué bloquea un mod activo y qué dependencia necesita atención.
+
+[[File:ShroudForge-Wiki-dependencies.svg|thumb|right|alt=Dependencias|Dependencias]]
+
+== Mods necesarios ==
+
+Un mod puede declarar otros mods y sus versiones necesarias en &lt;code&gt;mod.json&lt;/code&gt;. ShroudForge comprueba si están instalados, activados y son adecuados para el cliente o servidor actual. Una dependencia obligatoria ausente o desactivada impide iniciar el mod afectado. Una versión incompatible también lo bloquea.
+
+Abre el mod indicado, instala o activa su requisito y vuelve a comprobar esta vista. No todos los mods instalados tienen que ejecutarse en el proceso actual. Un mod exclusivo del cliente no necesita iniciarse en un servidor.
+
+== Dependencias opcionales ==
+
+Una dependencia declarada expresamente como opcional puede faltar o estar desactivada. En ese caso, una función adicional puede no estar disponible. Si la dependencia está presente y activada, su versión y sus demás requisitos deben ser compatibles.
+
+Los mods sin dependencias declaradas no necesitan una entrada de problema propia aquí. Su estado general sigue disponible en sus páginas individuales.
+
+== Conflictos y ciclos ==
+
+Las reglas de conflicto conocidas identifican dos mods activos que no deben ejecutarse juntos en la combinación indicada. Usa el mensaje para decidir cuál desactivar. Un ciclo significa que varios mods necesitan que los otros se inicien antes. Esto requiere corregir el paquete o que su autor lo modifique.
+
+Un requisito de &lt;code&gt;shroudforge-api&lt;/code&gt; se refiere a la API de mods del cargador. Es independiente de la asignación automática de perfiles de compatibilidad de DLL.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Dépendances (fr)</title>
+    <ns>0</ns>
+    <id>4</id>
+    <revision>
+      <id>1004</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Dépendances
+description: Consultez les composants requis et les conflits connus entre mods. Cette vue explique ce qui bloque un mod actif et quelle dépendance vérifier.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/dependencies/fr.md
+--&gt;
+
+Consultez les composants requis et les conflits connus entre mods. Cette vue explique ce qui bloque un mod actif et quelle dépendance vérifier.
+
+[[File:ShroudForge-Wiki-dependencies.svg|thumb|right|alt=Dépendances|Dépendances]]
+
+== Mods requis ==
+
+Un mod peut déclarer d'autres mods et leurs versions requises dans &lt;code&gt;mod.json&lt;/code&gt;. ShroudForge vérifie leur installation, leur activation et leur compatibilité avec le client ou serveur actuel. Une dépendance obligatoire absente ou désactivée empêche le démarrage du mod concerné. Une version incompatible le bloque également.
+
+Ouvrez le mod indiqué, installez ou activez son prérequis, puis vérifiez cette vue à nouveau. Tous les mods installés n'ont pas à fonctionner dans le processus actuel. Un mod réservé au client n'a pas besoin de démarrer sur un serveur.
+
+== Dépendances facultatives ==
+
+Une dépendance explicitement facultative peut être absente ou désactivée. Une fonction supplémentaire peut alors être indisponible. Si elle est présente et activée, sa version et ses autres prérequis doivent rester compatibles.
+
+Les mods sans dépendance déclarée n'ont pas besoin d'une entrée de problème distincte ici. Leur état général reste disponible sur leur propre page.
+
+== Conflits et cycles ==
+
+Les règles de conflit connues identifient deux mods actifs qui ne doivent pas fonctionner ensemble dans la combinaison indiquée. Utilisez le message pour choisir lequel désactiver. Un cycle signifie que des mods exigent chacun le démarrage préalable de l'autre. Cela nécessite une correction du paquet ou une modification par l'auteur.
+
+Une exigence concernant &lt;code&gt;shroudforge-api&lt;/code&gt; vise l'API de mods du chargeur. Elle est distincte de l'association automatique d'un profil de compatibilité de DLL.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>DLL Manager (de)</title>
+    <ns>0</ns>
+    <id>5</id>
+    <revision>
+      <id>1005</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: DLL Manager
+description: Öffne im Modloader **Kompatibilität → DLL-Verwaltung**. Oben in dieser Ansicht steht der passende Wiki-Artikel. Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurden. Für bekannte Mods gibt es vorbereitete Profile. Andere DLLs wählst du dort aus und bestätigst sie.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/dll-manager/de.md
+--&gt;
+
+Öffne im Modloader '''Kompatibilität → DLL-Verwaltung'''. Oben in dieser Ansicht steht der passende Wiki-Artikel. Hier siehst du, welche Mod-DLLs ShroudForge gefunden hat und ob sie geladen wurden. Für bekannte Mods gibt es vorbereitete Profile. Andere DLLs wählst du dort aus und bestätigst sie.
+
+[[File:ShroudForge-Wiki-dll-manager.svg|thumb|right|alt=DLL Manager|DLL Manager]]
+
+== Kann ich mehrere native DLL-Mods verwenden? ==
+
+Ja. Installiere jeden Mod in einem eigenen Ordner direkt unter &lt;code&gt;mods/&lt;/code&gt; und übernimm alle mitgelieferten Dateien und Unterordner. Ein passendes Profil kann die richtige DLL-Auswahl bereits bereitstellen. Öffne bei einem Mod ohne passendes Profil in der DLL-Verwaltung '''DLL-Auswahl anpassen'''. Wähle nur die Einstiegs-DLLs aus, die laut Anleitung des Autors geladen werden sollen. Wähle das Ladeziel und bestätige, dass du der DLL vertraust. Lass '''Normale DLL''' für gewöhnliche native Bibliotheken eingestellt. Wähle '''DirectInput-Proxy''' nur für eine DLL, die als DirectInput-Proxy dient und &lt;code&gt;DirectInput8Create&lt;/code&gt; exportiert. Klicke auf '''Auswahl übernehmen''' und starte das Spiel neu. Die Erkennung allein lädt keine DLL ohne Profil. Dafür braucht es eine bestätigte DLL-Auswahl, eine Deklaration in &lt;code&gt;native-plugin.ini&lt;/code&gt; oder &lt;code&gt;dinput8-chain.ini&lt;/code&gt; oder eine Registrierung durch die Lua-Mod.
+
+== Was mache ich mit dem heruntergeladenen Mod? ==
+
+* '''Keine DLL dabei:''' Installiere den Mod wie gewohnt. Mods, die für ShroudForge oder EML geschrieben wurden, brauchen keine zusätzliche DLL.
+* '''DLL dabei:''' Lege die Mod-DLL in den Modordner, wie unten gezeigt. Danach erscheint sie in der DLL-Verwaltung. Bei einem bekannten Profil ist die Auswahl vorbereitet. Sonst wählst du die DLL dort aus und bestätigst sie.
+* '''Weitere Moddateien dabei:''' Übernimm den Modordner vollständig. Lösche mitgelieferte Dateien wie &lt;code&gt;mod.json&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; oder Konfigurationen nicht.
+
+== Wenn ein Mod mehrere DLL-Dateien enthält ==
+
+Viele Modordner enthalten DLL-Dateien, die nur Hilfsdateien sind. Wähle nur die DLLs aus, die das Modprofil oder die Anleitung des Modautors zum Laden nennt. Mit den Pfeilen legst du die Reihenfolge der ausgewählten DLLs innerhalb dieses Modordners fest. Für gewöhnliche DLLs aus verschiedenen Modordnern gibt es keine globale manuelle Reihenfolge.
+
+== Mod mit DLL installieren ==
+
+Wenn der ShroudForge-Installer das heruntergeladene Modpaket erkennt, installiere es dort. Bei einer manuellen Installation bekommt jeder Mod einen eigenen Ordner direkt unter &lt;code&gt;mods/&lt;/code&gt;. Lege die Mod-DLL in diesen Ordner. Liegt sie im Archiv neben dem Modordner, lege sie zum Mod. Behalte den ursprünglichen Dateinamen und die mitgelieferten Unterordner bei.
+
+&lt;pre&gt;
+mods/
+  mein-mod/
+    mod.json        (falls enthalten)
+    dinput8.dll     (oder die DLL des Mods)
+    config.ini      (falls enthalten)
+&lt;/pre&gt;
+
+Eine DLL wird nicht allein durch das Ablegen geladen. Wähle sie wie oben beschrieben in der DLL-Verwaltung aus.
+
+== Warum darf die Moddatei auch dinput8.dll heißen? ==
+
+ShroudForges eigene Startdatei liegt unter &lt;code&gt;dinput8.dll&lt;/code&gt; im Spielordner. Die Moddatei liegt getrennt unter &lt;code&gt;mods/&amp;lt;Modordner&amp;gt;/dinput8.dll&lt;/code&gt;. ShroudForge lädt sie über diesen vollständigen Pfad. Bei einer passenden Profil- oder DLL-Manager-Zuordnung leitet ShroudForge DirectInput-Aufrufe an sie weiter. Beide Dateien dürfen denselben Namen tragen. Benenne die Moddatei nicht um und lege sie nicht in den Spielordner. Ersetze dort nicht ShroudForges Startdatei.
+
+== Profile verstehen ==
+
+Ein Profil ist eine vorbereitete Einstellung für einen bekannten Mod. Es legt fest, welche Dateien ShroudForge lädt und wie. ShroudForge ordnet das Profil anhand der Modkennung in &lt;code&gt;mod.json&lt;/code&gt; oder, wenn sie fehlt, anhand des Ordnernamens zu. Du kannst ein Profil auch in der DLL-Verwaltung auswählen. Profile ändern die Moddateien nicht. Eine eigene gespeicherte DLL-Auswahl ersetzt die Dateiauswahl des Profils.
+
+== Bestehende DirectInput-Chain ==
+
+Eine vorhandene &lt;code&gt;dinput8-chain.ini&lt;/code&gt; im Spielordner verwendet das etablierte Format:
+
+&lt;pre&gt;
+[Chain]
+mods\mein-mod\dinput8.dll
+mods\anderer-mod\native.dll
+&lt;/pre&gt;
+
+Die Einträge müssen auf Dateien innerhalb direkter Modpakete wie &lt;code&gt;mods/&amp;lt;Modordner&amp;gt;/&lt;/code&gt; verweisen. DLLs im Spielhauptordner und Pfade außerhalb dieser Pakete werden abgewiesen. Die Reihenfolge hat Vorrang vor automatisch ermittelten Deklarationen. Die Datei legt die Reihenfolge der DirectInput-Chain fest, nicht die Reihenfolge gewöhnlicher DLLs aus verschiedenen Modordnern. Derselbe aufgelöste Dateipfad wird nur einmal geladen. Die erste gültige DLL mit eigenem &lt;code&gt;DirectInput8Create&lt;/code&gt;-Export erhält die weitergeleiteten Aufrufe. Weitere DirectInput-Proxy-DLLs können geladen werden, ihre DirectInput-Exporte sind in dieser Chain aber nicht aktiv. Gehe nicht davon aus, dass mehrere Proxys zusammen funktionieren. Eigene Startdateien werden übersprungen, rekursive Weiterleitung fällt auf die originale Windows-Bibliothek zurück.
+
+== Schalter, Ziel und Neustart ==
+
+Der Hauptschalter steuert alle von ShroudForge ausgeführten DLL-Ladewege, einschließlich INI, Profil, Chain und Lua-Registrierung. Eine deaktivierte Auswahl unterdrückt das automatische Laden dieses Ordners. Client, Server oder beide bestimmen den Zielprozess. Dateinamenfilter gelten unmittelbar vor dem Laden. Sie erkennen keine Modfunktionen anhand des Namens.
+
+Geladene DLLs bleiben bis zum Prozessende im Speicher. Ausschalten, andere Reihenfolge oder ein anderes Profil erfordern deshalb einen Spielneustart. Doppelte Deklarationen derselben Datei erzeugen keine zweite Instanz.
+
+== Ein Ladefehler wird angezeigt ==
+
+Prüfe Modname, Dateipfad und Ursache. Windows-Fehler 126 kann eine fehlende Hauptdatei oder eine ihrer benötigten Bibliotheken bedeuten. Fehlt der DirectInput-Export, prüfe die ausgewählte Datei und ihren Lademodus. „Geladen“ bestätigt den Ladeschritt, nicht sämtliche Modfunktionen.
+
+Ein unbekanntes natives Pluginformat, ein Vulkan-Layer, ein zusätzlicher vollständiger Loader oder ein externes Programm benötigt seine vorgesehene Integration. Einfaches Laden ersetzt diese Schnittstelle nicht.
+
+== Pakete installieren ==
+
+Der Installer findet ein einzelnes Modpaket auch in verschachtelten Archivordnern. Bekannte Profile übernehmen ausdrücklich benannte Begleitdateien. Ein neues Archiv mit mehreren Modpaketen wird nicht automatisch gesammelt installiert. Entpacke es und installiere die einzelnen Modordner nacheinander. Im laufenden Betrieb werden keine Archive geöffnet und keine fremden Programme gestartet.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>DLL Manager (en)</title>
+    <ns>0</ns>
+    <id>6</id>
+    <revision>
+      <id>1006</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: DLL Manager
+description: In the Modloader, open **Compatibility → DLL Manager**. The guide is shown at the top of that panel. It lists the mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, select and confirm them there.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/dll-manager/en.md
+--&gt;
+
+In the Modloader, open '''Compatibility → DLL Manager'''. The guide is shown at the top of that panel. It lists the mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, select and confirm them there.
+
+[[File:ShroudForge-Wiki-dll-manager.svg|thumb|right|alt=DLL Manager|DLL Manager]]
+
+== Can I use more than one native DLL mod? ==
+
+Yes. Install each mod in its own folder directly under &lt;code&gt;mods/&lt;/code&gt;, and keep the files and subfolders supplied by the author. A matching profile may already provide the right DLL selection. For a mod without a matching profile, open '''Adjust DLL selection''' in the DLL Manager. Select only the entry DLLs named by the author. Choose the load target and confirm that you trust the DLL. Keep '''Normal DLL''' for ordinary native libraries. Choose '''DirectInput proxy''' only for a DLL intended to provide DirectInput that exports &lt;code&gt;DirectInput8Create&lt;/code&gt;. Click '''Apply selection''', then restart the game. Detection alone does not load an unprofiled DLL. It needs a confirmed DLL Manager selection, a declaration in &lt;code&gt;native-plugin.ini&lt;/code&gt; or &lt;code&gt;dinput8-chain.ini&lt;/code&gt;, or registration by its Lua mod.
+
+== What should I do with a downloaded mod? ==
+
+* '''No DLL included:''' Install the mod as usual. Mods made for ShroudForge or EML do not need an extra native DLL.
+* '''DLL included:''' Put the mod DLL in its mod folder as shown below. It then appears in the DLL Manager. A known profile already has its selection prepared. Otherwise, select the DLL there and confirm it.
+* '''Other mod files included:''' Keep the complete mod folder. Do not remove files such as &lt;code&gt;mod.json&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; or configuration files.
+
+== If one mod contains several DLL files ==
+
+Many mod folders contain DLLs that are only helper files. Select only the DLLs named for loading by the mod profile or the mod author's instructions. The up and down controls set the order of selected DLLs within that mod folder. They do not set a global manual order for ordinary DLLs across separate mod folders.
+
+== Installing a mod DLL ==
+
+If the ShroudForge installer recognizes the downloaded mod package, install it there. For a manual install, give each mod its own folder directly under &lt;code&gt;mods/&lt;/code&gt; and put the mod's DLL in that folder. If the DLL sits beside the mod folder in the archive, put it with the mod. Keep the original filename and the package's subfolders.
+
+&lt;pre&gt;
+mods/
+  my-mod/
+    mod.json        (if included)
+    dinput8.dll     (or the mod's DLL)
+    config.ini      (if included)
+&lt;/pre&gt;
+
+A DLL does not load just because it is in the folder. Select it in the DLL Manager as described above.
+
+== Why can the mod file also be named dinput8.dll? ==
+
+ShroudForge's own startup file is &lt;code&gt;dinput8.dll&lt;/code&gt; in the game folder. The mod file is separate at &lt;code&gt;mods/&amp;lt;mod-folder&amp;gt;/dinput8.dll&lt;/code&gt;. ShroudForge loads it from that full path. With a matching profile or DLL Manager selection, ShroudForge forwards DirectInput calls to it. Both files can keep the same name. Do not rename the mod file or put it in the game folder. Do not replace ShroudForge's startup file there.
+
+== Understanding profiles ==
+
+A profile is a prepared setting for a known mod. It tells ShroudForge which files to load and how. ShroudForge matches it by the mod ID in &lt;code&gt;mod.json&lt;/code&gt;, or by the folder name if there is no ID. You can also choose a profile in the DLL Manager. Profiles do not change mod files. A saved custom DLL selection replaces the profile's file selection.
+
+== Existing DirectInput chain ==
+
+An existing game-folder &lt;code&gt;dinput8-chain.ini&lt;/code&gt; uses the established format:
+
+&lt;pre&gt;
+[Chain]
+mods\my-mod\dinput8.dll
+mods\another-mod\native.dll
+&lt;/pre&gt;
+
+Entries must resolve to files inside direct mod packages such as &lt;code&gt;mods/&amp;lt;mod-folder&amp;gt;/&lt;/code&gt;. Game-root DLLs and paths outside those packages are rejected. Their order takes priority over automatically derived declarations. This file sets order for the DirectInput provider chain, not for ordinary DLLs across mod folders. The same resolved file path is loaded only once. The first valid DLL exporting its own &lt;code&gt;DirectInput8Create&lt;/code&gt; receives forwarded calls. Later DirectInput proxy DLLs may still load, but their DirectInput exports are not active in the chain. Do not assume that multiple proxies will work together. Own startup files are skipped, and recursive forwarding falls back to the original Windows library.
+
+== Switches, process target and restarting ==
+
+The main switch controls all native loading performed by ShroudForge, including INI, profile, chain and Lua registration. A disabled selection suppresses automatic loading for that folder. Client, server or both determines the target process. Filename exclusions apply immediately before loading. They do not identify a mod's functionality from its name.
+
+Loaded DLLs remain in memory until the process exits. Disabling them, changing the order or choosing another profile therefore requires restarting the game. Duplicate declarations of one file do not create another instance.
+
+== A loading error appears ==
+
+Check the mod name, file path and cause. Windows error 126 can mean a missing main file or one of its required libraries. If the DirectInput export is missing, check the selected file and its loading mode. “Loaded” confirms loading, rather than every feature of the mod.
+
+An unknown native plugin format, Vulkan layer, additional complete loader or external program needs its intended integration. Loading a library alone does not replace that interface.
+
+== Installing packages ==
+
+The installer also finds a single mod package in nested archive folders. Known profiles import explicitly named companion files. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. Normal runtime operation does not open archives or start external programs.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Gestor de DLL (es)</title>
+    <ns>0</ns>
+    <id>7</id>
+    <revision>
+      <id>1007</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Gestor de DLL
+description: En el Modloader, abre **Compatibilidad → Gestor de DLL**. La guía aparece en la parte superior de ese panel. Allí puedes ver qué DLL de mods ha encontrado ShroudForge y si se han cargado. Los mods conocidos tienen perfiles preparados. Selecciona y confirma allí las demás DLL.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/dll-manager/es.md
+--&gt;
+
+En el Modloader, abre '''Compatibilidad → Gestor de DLL'''. La guía aparece en la parte superior de ese panel. Allí puedes ver qué DLL de mods ha encontrado ShroudForge y si se han cargado. Los mods conocidos tienen perfiles preparados. Selecciona y confirma allí las demás DLL.
+
+[[File:ShroudForge-Wiki-dll-manager.svg|thumb|right|alt=Gestor de DLL|Gestor de DLL]]
+
+== ¿Puedo usar varios mods con DLL nativas? ==
+
+Sí. Instala cada mod en su propia carpeta directamente dentro de &lt;code&gt;mods/&lt;/code&gt; y conserva todos los archivos y subcarpetas del paquete. Un perfil compatible puede incluir ya la selección correcta de DLL. Para un mod sin perfil compatible, abre '''Ajustar selección de DLL''' en el Gestor de DLL. Selecciona solo las DLL de entrada que indique el autor. Elige el destino de carga y confirma que confías en la DLL. Mantén '''DLL normal''' para las bibliotecas nativas comunes. Elige '''Proxy DirectInput''' solo para una DLL que actúe como proxy de DirectInput y exporte &lt;code&gt;DirectInput8Create&lt;/code&gt;. Pulsa '''Aplicar selección''' y reinicia el juego. La detección por sí sola no carga una DLL sin perfil. Necesita una selección confirmada en el Gestor de DLL, una declaración en &lt;code&gt;native-plugin.ini&lt;/code&gt; o &lt;code&gt;dinput8-chain.ini&lt;/code&gt;, o un registro por parte de su mod Lua.
+
+== ¿Qué hago con el mod descargado? ==
+
+* '''No incluye DLL:''' Instala el mod como siempre. Los mods creados para ShroudForge o EML no necesitan una DLL nativa adicional.
+* '''Incluye una DLL:''' Coloca la DLL del mod en su carpeta, como se muestra abajo. Después aparecerá en el Gestor de DLL. Los perfiles conocidos ya tienen preparada su selección. Si no hay perfil, selecciona la DLL y confírmala allí.
+* '''Incluye otros archivos:''' Conserva la carpeta completa del mod. No borres archivos como &lt;code&gt;mod.json&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; o los archivos de configuración.
+
+== Si un mod contiene varias DLL ==
+
+Muchas carpetas de mods contienen DLL que solo sirven como archivos auxiliares. Selecciona únicamente las DLL que el perfil o las instrucciones del autor indiquen que deben cargarse. Los botones de flecha establecen el orden de las DLL seleccionadas dentro de esa carpeta del mod. No establecen un orden manual global para las DLL normales de carpetas de mods distintas.
+
+== Instalar un mod con DLL ==
+
+Si el instalador de ShroudForge reconoce el paquete descargado, instálalo allí. Para instalarlo manualmente, crea una carpeta propia para cada mod directamente dentro de &lt;code&gt;mods/&lt;/code&gt; y coloca allí la DLL del mod. Si la DLL está junto a la carpeta del mod en el archivo, colócala junto al mod. Conserva el nombre original y las subcarpetas incluidas en el paquete.
+
+&lt;pre&gt;
+mods/
+  mi-mod/
+    mod.json        (si está incluido)
+    dinput8.dll     (o la DLL del mod)
+    config.ini      (si está incluido)
+&lt;/pre&gt;
+
+Una DLL no se carga solo por estar en la carpeta. Selecciónala en el Gestor de DLL como se indica arriba.
+
+== ¿Por qué la DLL del mod también puede llamarse dinput8.dll? ==
+
+El archivo de inicio de ShroudForge es &lt;code&gt;dinput8.dll&lt;/code&gt; en la carpeta del juego. El archivo del mod está separado en &lt;code&gt;mods/&amp;lt;carpeta-del-mod&amp;gt;/dinput8.dll&lt;/code&gt;. ShroudForge lo carga desde esa ruta completa. Con un perfil o una selección adecuada en el Gestor de DLL, ShroudForge reenvía las llamadas DirectInput al mod. Ambos archivos pueden conservar el mismo nombre. No cambies el nombre de la DLL del mod ni la pongas en la carpeta del juego. No sustituyas allí el archivo de inicio de ShroudForge.
+
+== Entender los perfiles ==
+
+Un perfil es una configuración preparada para un mod conocido. Indica a ShroudForge qué archivos cargar y cómo hacerlo. ShroudForge lo relaciona con el identificador del mod en &lt;code&gt;mod.json&lt;/code&gt; o, si no existe, con el nombre de la carpeta. También puedes elegir un perfil en el Gestor de DLL. Los perfiles no modifican los archivos del mod. Una selección propia guardada sustituye la lista de archivos del perfil.
+
+== Cadena DirectInput existente ==
+
+Un &lt;code&gt;dinput8-chain.ini&lt;/code&gt; existente en la carpeta del juego utiliza el formato establecido:
+
+&lt;pre&gt;
+[Chain]
+mods\mi-mod\dinput8.dll
+mods\otro-mod\native.dll
+&lt;/pre&gt;
+
+Las entradas deben apuntar a archivos dentro de paquetes de mods directos como &lt;code&gt;mods/&amp;lt;carpeta-del-mod&amp;gt;/&lt;/code&gt;. Se rechazan las DLL del directorio raíz del juego y las rutas fuera de esos paquetes. Su orden tiene prioridad sobre las declaraciones calculadas automáticamente. Este archivo establece el orden de la cadena de proveedores DirectInput, no el orden de carga de las DLL normales entre carpetas de mods. Una misma ruta resuelta se carga una sola vez. La primera DLL válida que exporta su propio &lt;code&gt;DirectInput8Create&lt;/code&gt; recibe las llamadas reenviadas. Las demás DLL proxy de DirectInput pueden cargarse, pero sus exportaciones DirectInput no quedan activas en la cadena. No des por hecho que varios proxies funcionarán juntos. Se omiten los archivos de inicio propios y el reenvío recursivo recurre a la biblioteca original de Windows.
+
+== Interruptores, proceso de destino y reinicio ==
+
+El interruptor principal controla toda la carga nativa realizada por ShroudForge, incluidos INI, perfiles, cadenas y registros Lua. Una selección desactivada impide la carga automática de esa carpeta. Cliente, servidor o ambos determina el proceso de destino. Las exclusiones por nombre se aplican justo antes de cargar. No identifican las funciones de un mod a partir de su nombre.
+
+Las DLL cargadas permanecen en memoria hasta que termina el proceso. Desactivarlas, cambiar su orden o elegir otro perfil requiere reiniciar el juego. Las declaraciones duplicadas de un archivo no crean otra instancia.
+
+== Aparece un error de carga ==
+
+Comprueba el nombre del mod, la ruta y la causa. El error 126 de Windows puede indicar que falta el archivo principal o alguna biblioteca necesaria. Si falta la función exportada de DirectInput, comprueba el archivo seleccionado y su modo de carga. «Cargado» confirma la carga, no todas las funciones del mod.
+
+Un formato de plugin nativo desconocido, una capa Vulkan, un cargador completo adicional o un programa externo necesita su integración prevista. Cargar una biblioteca no sustituye esa interfaz.
+
+== Instalar paquetes ==
+
+El instalador también encuentra un único paquete de mod en carpetas anidadas del archivo. Los perfiles conocidos importan archivos auxiliares indicados expresamente. Una nueva instalación no instala automáticamente en conjunto un archivo con varios paquetes de mods. Descomprímelo e instala una carpeta de mod cada vez. El funcionamiento normal no abre archivos comprimidos ni inicia programas externos.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Gestionnaire de DLL (fr)</title>
+    <ns>0</ns>
+    <id>8</id>
+    <revision>
+      <id>1008</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Gestionnaire de DLL
+description: Dans le Modloader, ouvrez **Compatibilité → Gestionnaire DLL**. Le guide apparaît en haut de ce panneau. Vous y voyez les DLL de mods trouvées par ShroudForge et leur état de chargement. Les mods connus ont des profils préparés. Sélectionnez et confirmez les autres DLL dans ce gestionnaire.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/dll-manager/fr.md
+--&gt;
+
+Dans le Modloader, ouvrez '''Compatibilité → Gestionnaire DLL'''. Le guide apparaît en haut de ce panneau. Vous y voyez les DLL de mods trouvées par ShroudForge et leur état de chargement. Les mods connus ont des profils préparés. Sélectionnez et confirmez les autres DLL dans ce gestionnaire.
+
+[[File:ShroudForge-Wiki-dll-manager.svg|thumb|right|alt=Gestionnaire de DLL|Gestionnaire de DLL]]
+
+== Puis-je utiliser plusieurs mods avec des DLL natives ? ==
+
+Oui. Installez chaque mod dans son propre dossier directement sous &lt;code&gt;mods/&lt;/code&gt; et conservez tous les fichiers et sous-dossiers du paquet. Un profil compatible peut déjà fournir la bonne sélection de DLL. Pour un mod sans profil compatible, ouvrez '''Modifier la sélection des DLL''' dans le gestionnaire DLL. Sélectionnez uniquement les DLL d'entrée indiquées par l'auteur. Choisissez la cible de chargement et confirmez que vous faites confiance à la DLL. Gardez '''DLL normale''' pour les bibliothèques natives classiques. Choisissez '''Proxy DirectInput''' uniquement pour une DLL proxy DirectInput qui exporte &lt;code&gt;DirectInput8Create&lt;/code&gt;. Cliquez sur '''Appliquer la sélection''', puis redémarrez le jeu. La détection seule ne charge pas une DLL sans profil. Elle nécessite une sélection confirmée dans le gestionnaire DLL, une déclaration dans &lt;code&gt;native-plugin.ini&lt;/code&gt; ou &lt;code&gt;dinput8-chain.ini&lt;/code&gt;, ou un enregistrement par son mod Lua.
+
+== Que faire avec un mod téléchargé ? ==
+
+* '''Aucune DLL fournie :''' Installez le mod normalement. Les mods conçus pour ShroudForge ou EML n'ont pas besoin d'une DLL native supplémentaire.
+* '''Une DLL est fournie :''' Placez-la dans le dossier du mod, comme indiqué ci-dessous. Elle apparaîtra ensuite dans le gestionnaire de DLL. Un profil connu a déjà préparé son choix. Sinon, sélectionnez la DLL et confirmez-la dans le gestionnaire.
+* '''D'autres fichiers sont fournis :''' Gardez le dossier complet du mod. Ne supprimez pas les fichiers comme &lt;code&gt;mod.json&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; ou les fichiers de configuration.
+
+== Si un mod contient plusieurs DLL ==
+
+De nombreux dossiers de mods contiennent des DLL qui ne sont que des fichiers auxiliaires. Sélectionnez uniquement les DLL indiquées pour le chargement par le profil ou les instructions de l'auteur. Les flèches définissent l'ordre des DLL sélectionnées dans ce dossier de mod uniquement. Le gestionnaire ne propose pas d'ordre manuel global entre plusieurs dossiers de mod pour les DLL ordinaires.
+
+== Installer un mod avec une DLL ==
+
+Si l'installateur ShroudForge reconnaît le paquet téléchargé, installez-le avec celui-ci. Pour une installation manuelle, créez un dossier propre à chaque mod directement dans &lt;code&gt;mods/&lt;/code&gt; et placez-y la DLL du mod. Si la DLL se trouve à côté du dossier du mod dans l'archive, placez-la avec le mod. Gardez son nom d'origine et les sous-dossiers fournis avec le paquet.
+
+&lt;pre&gt;
+mods/
+  mon-mod/
+    mod.json        (si le paquet en contient un)
+    dinput8.dll     (ou la DLL du mod)
+    config.ini      (si le paquet en contient un)
+&lt;/pre&gt;
+
+Une DLL n'est pas chargée uniquement parce qu'elle se trouve dans le dossier. Sélectionnez-la dans le gestionnaire de DLL comme indiqué ci-dessus.
+
+== Pourquoi la DLL du mod peut-elle aussi s'appeler dinput8.dll ? ==
+
+Le fichier de démarrage de ShroudForge est &lt;code&gt;dinput8.dll&lt;/code&gt; dans le dossier du jeu. Le fichier du mod est séparé dans &lt;code&gt;mods/&amp;lt;dossier-du-mod&amp;gt;/dinput8.dll&lt;/code&gt;. ShroudForge le charge depuis ce chemin complet. Avec un profil ou une sélection adaptée dans le gestionnaire de DLL, ShroudForge redirige les appels DirectInput vers le mod. Les deux fichiers peuvent garder le même nom. Ne renommez pas la DLL du mod et ne la placez pas dans le dossier du jeu. Ne remplacez pas le fichier de démarrage de ShroudForge.
+
+== Comprendre les profils ==
+
+Un profil est un réglage préparé pour un mod connu. Il indique à ShroudForge quels fichiers charger et comment. ShroudForge l'associe à l'identifiant du mod dans &lt;code&gt;mod.json&lt;/code&gt; ou, s'il n'y en a pas, au nom du dossier. Vous pouvez aussi choisir un profil dans le gestionnaire de DLL. Les profils ne modifient pas les fichiers du mod. Une sélection personnelle enregistrée remplace la sélection de fichiers du profil.
+
+== Chaîne DirectInput existante ==
+
+Un &lt;code&gt;dinput8-chain.ini&lt;/code&gt; déjà présent dans le dossier du jeu utilise le format établi :
+
+&lt;pre&gt;
+[Chain]
+mods\mon-mod\dinput8.dll
+mods\autre-mod\native.dll
+&lt;/pre&gt;
+
+Les entrées doivent désigner des fichiers dans des paquets de mods directs comme &lt;code&gt;mods/&amp;lt;dossier-du-mod&amp;gt;/&lt;/code&gt;. Les DLL à la racine du jeu et les chemins hors de ces paquets sont refusés. Leur ordre est prioritaire sur les déclarations déduites automatiquement. Ce fichier définit l'ordre de la chaîne des fournisseurs DirectInput, pas l'ordre global des DLL ordinaires entre plusieurs dossiers de mods. Un même chemin résolu n'est chargé qu'une fois. La première DLL valide qui exporte son propre &lt;code&gt;DirectInput8Create&lt;/code&gt; reçoit les appels transférés. D'autres DLL proxy DirectInput peuvent être chargées, mais leurs exports DirectInput ne sont pas actifs dans cette chaîne. Ne présumez pas que plusieurs proxys fonctionneront ensemble. Les fichiers de démarrage propres au chargeur sont ignorés. Un transfert récursif revient à la bibliothèque Windows d'origine.
+
+== Interrupteurs, cible et redémarrage ==
+
+L'interrupteur principal contrôle tout chargement natif effectué par ShroudForge, y compris les INI, profils, chaînes et enregistrements Lua. Une sélection désactivée supprime le chargement automatique pour ce dossier. Client, serveur ou les deux détermine le processus cible. Les exclusions de noms s'appliquent juste avant le chargement. Elles ne déduisent pas les fonctions d'un mod de son nom.
+
+Les DLL chargées restent en mémoire jusqu'à la fermeture du processus. Les désactiver, modifier leur ordre ou choisir un autre profil nécessite donc de redémarrer le jeu. Plusieurs déclarations d'un même fichier ne créent pas une autre instance.
+
+== Une erreur de chargement apparaît ==
+
+Vérifiez le nom du mod, le chemin du fichier et la cause. L'erreur Windows 126 peut signaler l'absence du fichier principal ou d'une bibliothèque requise. Si la fonction exportée DirectInput manque, vérifiez le fichier sélectionné et son mode de chargement. « Chargée » confirme le chargement, pas toutes les fonctions du mod.
+
+Un format de plugin natif inconnu, une couche Vulkan, un chargeur complet supplémentaire ou un programme externe nécessite son intégration prévue. Charger une bibliothèque ne remplace pas cette interface.
+
+== Installer les paquets ==
+
+L'installateur trouve aussi un seul paquet de mod dans les dossiers imbriqués d'une archive. Les profils connus importent les fichiers annexes explicitement désignés. Une nouvelle archive contenant plusieurs paquets n'est pas installée automatiquement dans son ensemble. Décompressez-la et installez un dossier de mod à la fois. Le fonctionnement normal n'ouvre pas d'archives et ne démarre pas de programmes externes.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Engine (de)</title>
+    <ns>0</ns>
+    <id>9</id>
+    <revision>
+      <id>1009</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Engine
+description: Hier prüfst du die gemeinsamen Voraussetzungen von Spiel, Runtime, Mod-API und Parser. Diese Prüfungen erklären, warum eine Funktion bereit ist, noch wartet oder nicht verfügbar ist.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/engine/de.md
+--&gt;
+
+Hier prüfst du die gemeinsamen Voraussetzungen von Spiel, Runtime, Mod-API und Parser. Diese Prüfungen erklären, warum eine Funktion bereit ist, noch wartet oder nicht verfügbar ist.
+
+[[File:ShroudForge-Wiki-engine.svg|thumb|right|alt=Engine|Engine]]
+
+== Spiel und Runtime ==
+
+ShroudForge unterscheidet Client und Dedicated Server. Manche Funktionen sind nur für einen der beiden Prozesse vorgesehen. Die Runtime stellt unterstützten Mods den Zugriff auf das laufende Spiel bereit. Ein fehlender oder fehlerhafter Runtime-Start kann mehrere Mods zugleich betreffen.
+
+„Wartet auf Spiel“ oder eine noch ladende Welt beschreibt einen Betriebszustand. Das bedeutet allein nicht, dass ein Mod defekt ist. Weltbezogene Funktionen können erst bereit werden, wenn die benötigten Spieldaten vorhanden sind.
+
+== Spielprofile und Modprofile ==
+
+Spielprofile beschreiben unterstützte native Zugriffe auf einen Spielbuild. Ein fehlendes passendes Profil kann bestimmte Funktionen begrenzen. Prüfe die konkrete Meldung, statt daraus einen Ausfall sämtlicher Mods abzuleiten.
+
+DLL-Kompatibilitätsprofile haben eine andere Aufgabe. Sie ordnen einem Mod seine Dateien und bekannte Anpassungen zu. Ihre Zuordnung erfolgt über Modkennung oder Ordnername und verlangt keinen DLL-Hash oder exakten Modversionsabgleich.
+
+== Mod-API und Parser ==
+
+Die Mod-API stellt Funktionen für Lua-Mods bereit. Ein Mod muss die verwendete API und benötigte Berechtigungen unterstützen. Der Parser liest und verarbeitet Spieldaten für Assetänderungen. Ein Lua-Mod und eine native DLL können daher unterschiedliche Voraussetzungen haben.
+
+== Wenn der Start scheitert ==
+
+Lies die betroffene Komponente und Ursache. Bei fehlgeschlagener Asset-Vorbereitung kann ShroudForge den Spielstart zum Schutz konsistenter Dateien anhalten. Die Meldung nennt die erforderliche Wiederherstellung. Eine geladene DLL bestätigt dagegen nur ihren eigenen Ladeschritt, nicht alle Funktionen des Mods.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Engine (en)</title>
+    <ns>0</ns>
+    <id>10</id>
+    <revision>
+      <id>1010</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Engine
+description: Check shared requirements for the game, runtime, mod API and parser. These checks explain why a feature is ready, still waiting or unavailable.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/engine/en.md
+--&gt;
+
+Check shared requirements for the game, runtime, mod API and parser. These checks explain why a feature is ready, still waiting or unavailable.
+
+[[File:ShroudForge-Wiki-engine.svg|thumb|right|alt=Engine|Engine]]
+
+== Game and runtime ==
+
+ShroudForge distinguishes the client from the dedicated server. Some features are intended for only one process. The runtime gives supported mods access to the running game. A missing or failed runtime startup can affect several mods at once.
+
+“Waiting for game” or a world that is still loading describes an operating state. It does not by itself mean a mod is broken. World-dependent features become ready only after the required game data exists.
+
+== Game profiles and mod profiles ==
+
+Game profiles describe supported native access for a game build. A missing matching profile can limit particular features. Read the specific message instead of assuming that every mod is unavailable.
+
+DLL compatibility profiles serve a different purpose. They associate a mod with its files and known adaptations. Matching uses the mod ID or folder name without requiring a DLL hash or an exact mod-version match.
+
+== Mod API and parser ==
+
+The mod API supplies functions for Lua mods. A mod needs to support the API it uses and declare the necessary permissions. The parser reads and processes game data for asset changes. A Lua mod and a native DLL can therefore have different requirements.
+
+== If startup fails ==
+
+Read the affected component and its reported cause. When asset preparation fails, ShroudForge can stop game startup to protect file consistency. The message states the required recovery. A loaded DLL confirms its own loading step, rather than every feature of the mod.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Motor (es)</title>
+    <ns>0</ns>
+    <id>11</id>
+    <revision>
+      <id>1011</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Motor
+description: Comprueba los requisitos compartidos del juego, el runtime, la API de mods y el analizador. Estas comprobaciones explican por qué una función está lista, sigue esperando o no está disponible.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/engine/es.md
+--&gt;
+
+Comprueba los requisitos compartidos del juego, el runtime, la API de mods y el analizador. Estas comprobaciones explican por qué una función está lista, sigue esperando o no está disponible.
+
+[[File:ShroudForge-Wiki-engine.svg|thumb|right|alt=Motor|Motor]]
+
+== Juego y runtime ==
+
+ShroudForge distingue entre cliente y servidor dedicado. Algunas funciones solo están previstas para uno de ellos. El runtime permite a los mods compatibles acceder al juego en ejecución. Un runtime ausente o cuyo inicio falla puede afectar a varios mods a la vez.
+
+«Esperando al juego» o un mundo que sigue cargando describe un estado de funcionamiento. Por sí solo no significa que un mod esté averiado. Las funciones que dependen del mundo solo estarán listas cuando existan los datos necesarios.
+
+== Perfiles de juego y de mods ==
+
+Los perfiles de juego describen el acceso nativo compatible con una compilación del juego. La ausencia de un perfil adecuado puede limitar funciones concretas. Lee el mensaje específico en lugar de suponer que todos los mods quedan inutilizados.
+
+Los perfiles de compatibilidad de DLL tienen otra función. Asocian un mod con sus archivos y adaptaciones conocidas. La asignación usa el identificador del mod o el nombre de la carpeta, sin exigir hashes de DLL ni una coincidencia exacta de versión del mod.
+
+== API de mods y analizador ==
+
+La API proporciona funciones a los mods Lua. Cada mod debe admitir la API que utiliza y declarar los permisos necesarios. El analizador lee y procesa datos del juego para modificar recursos. Por eso un mod Lua y una DLL nativa pueden tener requisitos diferentes.
+
+== Si falla el inicio ==
+
+Lee el componente afectado y la causa indicada. Si falla la preparación de recursos, ShroudForge puede detener el inicio para proteger la coherencia de los archivos. El mensaje indica la recuperación necesaria. Una DLL cargada confirma su propio paso de carga, no todas las funciones del mod.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Moteur (fr)</title>
+    <ns>0</ns>
+    <id>12</id>
+    <revision>
+      <id>1012</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Moteur
+description: Vérifiez les prérequis communs du jeu, du runtime, de l'API de mods et du parseur. Ces contrôles expliquent pourquoi une fonction est prête, en attente ou indisponible.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/engine/fr.md
+--&gt;
+
+Vérifiez les prérequis communs du jeu, du runtime, de l'API de mods et du parseur. Ces contrôles expliquent pourquoi une fonction est prête, en attente ou indisponible.
+
+[[File:ShroudForge-Wiki-engine.svg|thumb|right|alt=Moteur|Moteur]]
+
+== Jeu et runtime ==
+
+ShroudForge distingue le client du serveur dédié. Certaines fonctions ne concernent que l'un des deux. Le runtime permet aux mods pris en charge d'accéder au jeu en cours d'exécution. Un runtime absent ou dont le démarrage échoue peut affecter plusieurs mods à la fois.
+
+« En attente du jeu » ou un monde encore en cours de chargement décrit un état de fonctionnement. Cela ne signifie pas à lui seul qu'un mod est défectueux. Les fonctions liées au monde ne deviennent disponibles qu'une fois les données nécessaires présentes.
+
+== Profils de jeu et profils de mods ==
+
+Les profils de jeu décrivent les accès natifs pris en charge pour une version du jeu. L'absence de profil adapté peut limiter certaines fonctions. Lisez le message précis avant de conclure que tous les mods sont indisponibles.
+
+Les profils de compatibilité de DLL ont une autre fonction. Ils associent un mod à ses fichiers et aux adaptations connues. L'association utilise l'identifiant du mod ou le nom du dossier, sans exiger de hash de DLL ni une correspondance exacte de version du mod.
+
+== API de mods et parseur ==
+
+L'API fournit des fonctions aux mods Lua. Un mod doit prendre en charge l'API utilisée et déclarer les autorisations nécessaires. Le parseur lit et traite les données du jeu pour les modifications de ressources. Un mod Lua et une DLL native peuvent donc avoir des prérequis différents.
+
+== Si le démarrage échoue ==
+
+Lisez le composant concerné et la cause indiquée. Si la préparation des ressources échoue, ShroudForge peut arrêter le démarrage pour protéger la cohérence des fichiers. Le message précise la restauration nécessaire. Une DLL chargée confirme sa propre étape de chargement, pas toutes les fonctions du mod.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Automatische Beta-Spielprofile (de)</title>
+    <ns>0</ns>
+    <id>13</id>
+    <revision>
+      <id>1013</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Automatische Beta-Spielprofile
+description: Die optionale Beta-Erkennung vergleicht einen neuen Spielbuild mit einer gespeicherten, unterstützten Version. Ein vollständiges Beta-Profil entsteht nur bei ausreichenden Belegen. Passende reguläre Spielprofile haben Vorrang.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/game-profile-discovery/de.md
+--&gt;
+
+Die optionale Beta-Erkennung vergleicht einen neuen Spielbuild mit einer gespeicherten, unterstützten Version. Ein vollständiges Beta-Profil entsteht nur bei ausreichenden Belegen. Passende reguläre Spielprofile haben Vorrang.
+
+[[File:ShroudForge-Wiki-game-profile-discovery.svg|thumb|right|alt=Automatische Beta-Spielprofile|Automatische Beta-Spielprofile]]
+
+== Vor einem Spielupdate vorbereiten ==
+
+Das Modul ist standardmäßig aktiviert und lässt sich ausschalten. Ein ausdrücklich gespeichertes Aus bleibt erhalten. Du findest den Schalter unter '''Einstellungen → Allgemein → Spielprofil''', direkt bei der Profilauswahl.
+
+# Prüfe, ob '''Dynamische Spielprofilerstellung (Beta)''' aktiviert ist. Schalte sie bei Bedarf ein.
+# Starte das Spiel oder den Dedicated Server vollständig neu, solange noch ein passendes reguläres Profil vorhanden ist.
+# ShroudForge prüft die genaue aktuelle EXE und speichert sie als Vergleichsbasis im Cache. Du musst keine historische EXE herunterladen.
+# Nach einem späteren Spielupdate startet die Prüfung mit dem neuen Spielprozess automatisch und verwendet die zuvor gespeicherte Vergleichsbasis.
+
+Client und Dedicated Server speichern ihre Vergleichsbasis getrennt. Ein Client ersetzt keine Serverbasis. Wenn das Modul erst nach einem Update aktiviert wird und keine passende Vergleichsbasis gespeichert wurde, kann es die frühere Version nicht nachträglich rekonstruieren.
+
+== Was beim Spielstart geschieht ==
+
+Die Analyse läuft während des Spielstarts. Das Spiel wartet auf ihr Ergebnis, bevor es weiterstartet. Dafür ist keine geladene Welt nötig.
+
+Zuerst sucht ShroudForge ein reguläres Profil für die genaue laufende EXE. Ist eines vorhanden, verwendet die automatische Auswahl dieses Profil. Das aktivierte Modul hält dabei die unterstützte EXE für künftige Updates im Cache fest.
+
+Fehlt ein passendes reguläres Profil, prüft das Modul die neueste geeignete reguläre Vergleichsbasis für denselben Prozess und dasselbe KFC-Format. Die zuvor automatisch gespeicherte EXE muss genau zu dieser Basis passen. Aus den Vergleichsbildern werden Code, Verweise, registrierte Typen und die benötigten Strukturverträge verglichen. Zieladressen müssen aus dem neuen Bild hervorgehen.
+
+Das Ergebnis übernimmt den vollständigen bisherigen Profilvertrag einschließlich seiner Funktionsschalter. Offene oder widersprüchliche Belege verhindern die Veröffentlichung des gesamten Beta-Profils. Das Modul gibt dann den Grund in der Diagnose aus. Eine längere Wartezeit oder ein Weltbeitritt beseitigt fehlende statische Belege nicht.
+
+== Speicherort und Auswahl ==
+
+Reguläre und erzeugte Profile liegen im selben konfigurierten Profilverzeichnis. Bei den Standardpfaden sind das:
+
+{| class="wikitable"
+! Inhalt !! Speicherort
+|-
+| Clientprofile || &lt;code&gt;shroudforge/runtime/profiles/enshrouded/client/&lt;/code&gt;
+|-
+| Serverprofile || &lt;code&gt;shroudforge/runtime/profiles/enshrouded/server/&lt;/code&gt;
+|-
+| Gespeicherte Vergleichsbilder und Belege || &lt;code&gt;shroudforge/cache/game-profile-discovery/&lt;/code&gt;
+|}
+
+Erzeugte Profile beginnen mit &lt;code&gt;beta_&lt;/code&gt;. Die Einstellung '''Automatisch''' kann ein vollständig geprüftes passendes Beta-Profil verwenden, wenn kein passendes reguläres Profil verfügbar ist. Die Profilauswahl zeigt die verfügbaren Profile an. Ein später hinzugefügtes passendes reguläres Profil hat Vorrang.
+
+Änderungen am Schalter oder an der Profilauswahl erfordern einen vollständigen Neustart des betroffenen Spiels oder Servers. Ein erneutes Öffnen des Modloader-Fensters startet die Runtime nicht neu.
+
+== Suche, Profil und laufende Welt unterscheiden ==
+
+Der orange Hinweis '''Dynamische Profilsuche läuft''' beschreibt eine laufende Profilprüfung. Unter '''Ablauf und Hilfe''' öffnest du diese Anleitung. Endet die Suche ohne passendes Profil, wird das Problem rot gemeldet. Der orange Hinweis '''Experimentelles Spielprofil aktiv''' nennt das tatsächlich ausgewählte Beta-Profil. Echte Runtimefehler werden weiterhin als Fehler angezeigt.
+
+Die strukturelle EXE-Prüfung benötigt keine geladene Welt. Weltbezogene Zugriffe benötigen anschließend zusätzlich die jeweiligen laufenden Kontexte, Registrierungen und Sicherheitsprüfungen. Ein erzeugtes Profil bestätigt keine ausgeführten Spielbefehle oder sichtbaren Spieleffekte. Client und Server müssen auch bei Funktionstests getrennt geprüft werden.
+
+Wenn kein Profil entsteht, lies den gemeldeten Grund und die technischen Details. Eine fehlende gespeicherte Vergleichsbasis, ein ungeeignetes Ausgangsprofil oder unaufgelöste Code- und Layoutbelege benötigen jeweils eine passende Grundlage oder weitere Analyse. Behalte bis dahin ein reguläres Profil beziehungsweise ein passendes ShroudForge-Update als mögliche Lösung im Blick.
+
+== Ausführliches Protokoll ==
+
+Die Debug Console zeigt die Discovery-Meldungen aus dem Hauptprotokoll unter der Quelle &lt;code&gt;game-profile-discovery&lt;/code&gt;. Für alle einzelnen Vergleichs- und Rebase-Felder stellst du unter '''Einstellungen → Allgemein → Protokollierung → Mindeststufe''' die Stufe '''Diagnose''' ein. '''Erweitert''' zeigt die zusätzlichen Zusammenfassungen.
+
+Der rote Runtime-Banner und der Logeintrag &lt;code&gt;&amp;#91;compatibility-check&amp;#93; check=runtime&lt;/code&gt; werden aus demselben Runtime-Check erzeugt. Der bestehende UI-Refresh protokolliert den Zustandswechsel, bevor er denselben Status an den Modloader weitergibt. Die Debug Console wertet Warnungs- und Fehlerzeilen aus genau diesem Hauptprotokoll nach ihrer vorhandenen Popup-Einstellung aus.
+
+Bei einem Fehlschlag nennt das Hauptprotokoll den konkreten Pfad zum aktuellen &lt;code&gt;''.v2.unresolved.json&lt;/code&gt;- oder &lt;code&gt;''.v2.error.json&lt;/code&gt;-Bericht. Bei Erfolg nennt es den Pfad zum &lt;code&gt;''.v2.proof.json&lt;/code&gt;-Beleg und den vollständigen Speicherpfad des erzeugten &lt;code&gt;beta_''.json&lt;/code&gt;-Profils. Die Berichte liegen im Discovery-Cache.
+
+== Linux und Proton ==
+
+Die Erkennung läuft im nativen Runtime-Modul und benötigt keine externen PowerShell- oder Python-Programme. Ein Live-Test dieses Ablaufs unter Proton steht noch aus.
+
+Weitere Hinweise zu Runtime, Mod-API und Parser findest du unter [[Engine (de)|Engine]].
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Automatic beta game profiles (en)</title>
+    <ns>0</ns>
+    <id>14</id>
+    <revision>
+      <id>1014</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Automatic beta game profiles
+description: Optional beta discovery compares a new game build with a saved, supported version. It creates a complete beta profile only when the required evidence is available. Matching regular game profiles take priority.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/game-profile-discovery/en.md
+--&gt;
+
+Optional beta discovery compares a new game build with a saved, supported version. It creates a complete beta profile only when the required evidence is available. Matching regular game profiles take priority.
+
+[[File:ShroudForge-Wiki-game-profile-discovery.svg|thumb|right|alt=Automatic beta game profiles|Automatic beta game profiles]]
+
+== Prepare before a game update ==
+
+The module is enabled by default and can be switched off. An explicitly saved disabled setting stays disabled. Its switch is under '''Settings → General → Game profile''', beside the profile selector.
+
+# Check that '''Dynamic game profile creation (Beta)''' is enabled. Switch it on if needed.
+# Fully restart the game or dedicated server while a matching regular profile is still available.
+# ShroudForge verifies the exact current executable and saves it as a comparison baseline in the cache. You do not need to download a historical executable.
+# After a later game update, the new game process starts the comparison automatically and uses the saved baseline.
+
+The client and dedicated server keep separate baselines. A client cannot replace a server baseline. If the module is first enabled after an update and no matching baseline was saved, it cannot reconstruct the previous version.
+
+== What happens at game startup ==
+
+Analysis runs during game startup. The game waits for the result before continuing startup. No loaded world is needed for this step.
+
+ShroudForge first looks for a regular profile matching the exact running executable. Automatic selection uses that profile when one exists. With discovery enabled, it also caches the supported executable for future updates.
+
+If no matching regular profile exists, the module checks the latest suitable regular baseline for the same process target and KFC format. The previously cached executable must match that baseline exactly. It compares code, references, registered types and the required structure contracts from the comparison images. Target addresses must be established from the new image.
+
+The result preserves the complete previous profile contract, including its feature flags. Unresolved or conflicting evidence prevents publication of the entire beta profile. Diagnostics state the reason. Waiting longer or entering a world does not resolve missing static evidence.
+
+== Storage and selection ==
+
+Regular and generated profiles share the configured profile directory. The default paths are:
+
+{| class="wikitable"
+! Content !! Location
+|-
+| Client profiles || &lt;code&gt;shroudforge/runtime/profiles/enshrouded/client/&lt;/code&gt;
+|-
+| Server profiles || &lt;code&gt;shroudforge/runtime/profiles/enshrouded/server/&lt;/code&gt;
+|-
+| Saved comparison images and evidence || &lt;code&gt;shroudforge/cache/game-profile-discovery/&lt;/code&gt;
+|}
+
+Generated profiles start with &lt;code&gt;beta_&lt;/code&gt;. '''Automatic''' selection can use a completely verified matching beta profile when no matching regular profile is available. The profile selector lists available profiles. A matching regular profile added later takes priority.
+
+Changing the switch or profile selection requires a full restart of the affected game or server. Reopening the Modloader window does not restart the runtime.
+
+== Distinguish discovery, profiles and a running world ==
+
+The orange '''Dynamic profile search in progress''' notice describes an active profile search. '''Workflow and help''' opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange '''Experimental game profile active''' notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors.
+
+Structural executable checks do not require a loaded world. World operations additionally need their live contexts, registrations and runtime safety checks. A generated profile does not establish that game commands were executed or produced visible effects. Functional checks must also test the client and server separately.
+
+If no profile is generated, read the reported reason and technical details. A missing saved baseline, unsuitable source profile or unresolved code and layout evidence each requires the relevant input or further analysis. A matching regular profile or a suitable ShroudForge update may provide support.
+
+== Linux and Proton ==
+
+Discovery runs inside the native runtime module and requires no external PowerShell or Python programs. This workflow has not yet been live-tested under Proton.
+
+For runtime, mod API and parser guidance, see [[Engine (en)|Engine]].
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Tastenkürzel (de)</title>
+    <ns>0</ns>
+    <id>15</id>
+    <revision>
+      <id>1015</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Tastenkürzel
+description: Hier siehst und änderst du Fensterkürzel von ShroudForge sowie Mod-Tastenkürzel, die ein Mod ausdrücklich als `control: "keybind"` in seiner `extended.mod.json` deklariert.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/hotkeys/de.md
+--&gt;
+
+Hier siehst und änderst du Fensterkürzel von ShroudForge sowie Mod-Tastenkürzel, die ein Mod ausdrücklich als &lt;code&gt;control: "keybind"&lt;/code&gt; in seiner &lt;code&gt;extended.mod.json&lt;/code&gt; deklariert.
+
+[[File:ShroudForge-Wiki-hotkeys.svg|thumb|right|alt=Tastenkürzel|Tastenkürzel]]
+
+== Ein Kürzel belegen ==
+
+Klicke auf das Feld und drücke die gewünschte Taste oder Kombination. Die Eingabe verwendet physische SDL3-Tastencodes, zum Beispiel &lt;code&gt;SDL:64&lt;/code&gt; für F7, &lt;code&gt;Ctrl+SDL:29&lt;/code&gt; oder &lt;code&gt;Shift+SDL:100&lt;/code&gt;. Dadurch bleibt die Tastenposition über verschiedene Tastaturlayouts hinweg gleich. SDL liefert die lesbare Beschriftung passend zum aktuellen Betriebssystemlayout. Zusatztasten wie Ctrl, Alt, Shift und Meta müssen genau übereinstimmen.
+
+Während der Aufnahme sperrt ShroudForge seine Fensterkürzel und die deklarierten Mod-Kürzel prozessübergreifend. Die Sperre bleibt auch nach Abbruch oder Fokuswechsel bestehen, bis keine Taste und keine Maustaste mehr gedrückt ist. Danach läuft eine feste Frist von drei Sekunden, die neue Eingaben nicht zurücksetzen. Escape lässt sich nicht aufnehmen, auch nicht mit Zusatztasten: Das Spiel nutzt die Taste für sein Pausenmenü und zum Schließen seiner Fenster. Ein Druck darauf bricht die Aufnahme ab und behält das bisherige Kürzel. Neue Belegungen mit F1 oder F12 erfordern wegen möglicher Funktionen von Enshrouded und Steam eine Bestätigung. Ein Konflikt mit einem anderen aktiven ShroudForge-Kürzel blockiert das Speichern.
+
+Mit '''Löschen''' deaktivierst du ein Kürzel. Für ShroudForge-Fenster kannst du den eingebauten Standard wiederherstellen. Mod-Tastenkürzel bleiben Teil der eigenen Mod-Einstellungen. Die Felder in den Mod-Einstellungen und unter '''Kompatibilität → Tastenkürzel''' bearbeiten denselben gespeicherten Wert.
+
+== Tastenkürzel in einem ShroudForge-Mod ==
+
+Ein Mod-Autor deklariert das Kürzel als Einstellung in &lt;code&gt;extended.mod.json&lt;/code&gt;:
+
+&lt;pre&gt;
+{
+  "settings": {
+    "pasteKey": {
+      "value": "SDL:64",
+      "label": "Bauplan einfügen",
+      "control": "keybind",
+      "applyAt": "live"
+    }
+  }
+}
+&lt;/pre&gt;
+
+Der Mod liest diese Einstellung über die ShroudForge-Lua-API aus. Damit reagiert er auf den aktuell eingestellten Wert, statt eine feste Taste im Skript zu verwenden:
+
+&lt;pre&gt;
+return {
+    on_update = function()
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
+            -- Die Aktion ausführen.
+        end
+    end,
+}
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.input.was_keybind_pressed("pasteKey")&lt;/code&gt; merkt auch kurze Tastendrücke zwischen zwei Runtime-Updates und liefert pro Mod und Einstellung einmal &lt;code&gt;true&lt;/code&gt;. Live gespeicherte Änderungen erreichen die Runtime innerhalb einer Sekunde. Für Aktionen, die während des Haltens wiederholt werden sollen, verwende &lt;code&gt;is_keybind_down&lt;/code&gt;. Die frühere API &lt;code&gt;is_key_down("F1")&lt;/code&gt; bis &lt;code&gt;is_key_down("F8")&lt;/code&gt; wird seit ShroudForge 1.7.6 nicht mehr unterstützt. Ein Aufruf protokolliert einen Migrationshinweis und löst einen Lua-Fehler aus. Deklariere stattdessen eine &lt;code&gt;keybind&lt;/code&gt;-Einstellung und weise sie im Hotkey-Manager unter '''Kompatibilität → Tastenkürzel''' zu. &lt;code&gt;shroudforge.input.keybind_label("pasteKey")&lt;/code&gt; liefert die aktuelle lesbare SDL-Beschriftung für das Betriebssystemlayout. Die Tastenabfrage funktioniert bei fokussiertem Spielfenster. Eine Deklaration allein ändert keine fest im Skript hinterlegte Taste. Der Mod muss den Wert über diese API abfragen und für seine Aktion verwenden.
+
+== Konflikte und fremde Mods ==
+
+ShroudForge weist auf Konflikte zwischen aktiven, von ShroudForge verwalteten Fensterkürzeln und deklarierten Mod-Keybinds hin. Aktive Kürzel mit überlappender Taste und Modifikatorkombination können beim Speichern nicht neu in Konflikt gebracht werden.
+
+Eigenständige EML-Mods und DLL-Mods, die ihre eigenen Tastenkürzel verwalten, lassen sich hier nicht zuverlässig umbelegen oder abfangen. Stelle solche Kürzel in den Einstellungen des jeweiligen Mods oder in dessen eigener Konfiguration ein, sofern der Mod das anbietet. Auch ein EML-Mod kann hier erscheinen, wenn er ausdrücklich eine passende &lt;code&gt;keybind&lt;/code&gt;-Einstellung in &lt;code&gt;extended.mod.json&lt;/code&gt; deklariert und die ShroudForge-Lua-API dafür verwendet. Seine unabhängig verwalteten EML- oder DLL-Kürzel werden dadurch nicht übernommen.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Keyboard shortcuts (en)</title>
+    <ns>0</ns>
+    <id>16</id>
+    <revision>
+      <id>1016</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Keyboard shortcuts
+description: This page shows and edits ShroudForge window shortcuts and mod shortcuts that a mod explicitly declares as `control: "keybind"` in its `extended.mod.json`.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/hotkeys/en.md
+--&gt;
+
+This page shows and edits ShroudForge window shortcuts and mod shortcuts that a mod explicitly declares as &lt;code&gt;control: "keybind"&lt;/code&gt; in its &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+[[File:ShroudForge-Wiki-hotkeys.svg|thumb|right|alt=Keyboard shortcuts|Keyboard shortcuts]]
+
+== Assign a shortcut ==
+
+Click the field and press the key or combination you want. Input uses physical SDL3 scancodes such as &lt;code&gt;SDL:64&lt;/code&gt; for F7, &lt;code&gt;Ctrl+SDL:29&lt;/code&gt;, or &lt;code&gt;Shift+SDL:100&lt;/code&gt;. This keeps the physical key position consistent across keyboard layouts. SDL supplies readable labels for the current operating-system layout. Modifiers such as Ctrl, Alt, Shift, and Meta must match exactly.
+
+While recording, ShroudForge blocks its window shortcuts and declared mod shortcuts across processes. Protection remains active after cancellation or a window focus change until no key or mouse button is held. A fixed three-second delay then runs, and new input does not reset it. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous shortcut. New F1 or F12 bindings require confirmation because Enshrouded or Steam may use them. Saving a binding that conflicts with another active ShroudForge shortcut is blocked.
+
+Use '''Clear''' to disable a shortcut. For ShroudForge windows, you can restore the built-in default. Mod shortcuts remain part of each mod's own settings. The fields in the mod settings and under '''Compatibility → Hotkeys''' edit the same saved value.
+
+== Shortcuts in a ShroudForge mod ==
+
+A mod author declares a shortcut as a setting in &lt;code&gt;extended.mod.json&lt;/code&gt;:
+
+&lt;pre&gt;
+{
+  "settings": {
+    "pasteKey": {
+      "value": "SDL:64",
+      "label": "Paste blueprint",
+      "control": "keybind",
+      "applyAt": "live"
+    }
+  }
+}
+&lt;/pre&gt;
+
+The mod reads this setting through the ShroudForge Lua API. It responds to the current value instead of hard-coding a key in the script:
+
+&lt;pre&gt;
+return {
+    on_update = function()
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
+            -- Run the action.
+        end
+    end,
+}
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.input.was_keybind_pressed("pasteKey")&lt;/code&gt; retains short taps between runtime updates and returns &lt;code&gt;true&lt;/code&gt; once per mod and setting. Live saved changes reach the runtime within one second. Use &lt;code&gt;is_keybind_down&lt;/code&gt; for actions that should repeat while held. The former &lt;code&gt;is_key_down("F1")&lt;/code&gt; through &lt;code&gt;is_key_down("F8")&lt;/code&gt; API has been unsupported since ShroudForge 1.7.6. Calling it logs a migration message and raises a Lua error. Declare a &lt;code&gt;keybind&lt;/code&gt; setting instead and assign it in the Hotkey Manager under '''Compatibility → Hotkeys'''. &lt;code&gt;shroudforge.input.keybind_label("pasteKey")&lt;/code&gt; returns the current readable SDL label for the operating-system layout. The key query works while a game window is focused. A declaration alone does not change a key hard-coded in a script. The mod must read this value through the API and use it for its action.
+
+== Conflicts and other mods ==
+
+ShroudForge reports conflicts among active ShroudForge window shortcuts and declared mod keybinds. Saving cannot introduce a new conflict between active shortcuts whose key and modifier combinations overlap.
+
+Standalone EML mods and DLL mods that manage their own shortcuts cannot be reliably remapped or intercepted here. Set those shortcuts in the respective mod's settings or configuration if the mod provides that option. An EML mod can also appear here if it explicitly declares a matching &lt;code&gt;keybind&lt;/code&gt; setting in &lt;code&gt;extended.mod.json&lt;/code&gt; and uses the ShroudForge Lua API for it. This does not take over its independently managed EML or DLL shortcuts.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Atajos de teclado (es)</title>
+    <ns>0</ns>
+    <id>17</id>
+    <revision>
+      <id>1017</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Atajos de teclado
+description: Esta página muestra y permite cambiar los atajos de las ventanas de ShroudForge y los atajos que un mod declara explícitamente como `control: "keybind"` en su archivo `extended.mod.json`.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/hotkeys/es.md
+--&gt;
+
+Esta página muestra y permite cambiar los atajos de las ventanas de ShroudForge y los atajos que un mod declara explícitamente como &lt;code&gt;control: "keybind"&lt;/code&gt; en su archivo &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+[[File:ShroudForge-Wiki-hotkeys.svg|thumb|right|alt=Atajos de teclado|Atajos de teclado]]
+
+== Asignar un atajo ==
+
+Haz clic en el campo y pulsa la tecla o combinación que quieras. La entrada usa códigos físicos de SDL3, como &lt;code&gt;SDL:64&lt;/code&gt; para F7, &lt;code&gt;Ctrl+SDL:29&lt;/code&gt; o &lt;code&gt;Shift+SDL:100&lt;/code&gt;. Así se mantiene la misma posición física entre distribuciones de teclado. SDL proporciona etiquetas legibles para la distribución actual del sistema operativo. Los modificadores como Ctrl, Alt, Shift y Meta deben coincidir exactamente.
+
+Durante la grabación, ShroudForge bloquea los atajos de sus ventanas y los atajos declarados de los mods en todos sus procesos. El bloqueo también se mantiene después de cancelar o cambiar el foco de la ventana hasta que no quede ninguna tecla ni botón del ratón pulsado. Después se inicia un plazo fijo de tres segundos que las nuevas pulsaciones no reinician. Escape no se puede grabar, ni sola ni con modificadores: el juego la usa para su menú de pausa y para cerrar sus ventanas. Pulsarla cancela la grabación y conserva el atajo anterior. Las nuevas asignaciones de F1 o F12 requieren confirmación porque Enshrouded o Steam pueden usarlas. Se bloquea el guardado si la asignación entra en conflicto con otro atajo activo de ShroudForge.
+
+Usa '''Borrar''' para desactivar un atajo. En las ventanas de ShroudForge puedes restaurar el valor predeterminado integrado. Los atajos de cada mod siguen en sus propios ajustes. Los campos de los ajustes del mod y de '''Compatibility → Hotkeys''' modifican el mismo valor guardado.
+
+== Atajos en un mod de ShroudForge ==
+
+El autor del mod declara el atajo como un ajuste en &lt;code&gt;extended.mod.json&lt;/code&gt;:
+
+&lt;pre&gt;
+{
+  "settings": {
+    "pasteKey": {
+      "value": "SDL:64",
+      "label": "Pegar plano",
+      "control": "keybind",
+      "applyAt": "live"
+    }
+  }
+}
+&lt;/pre&gt;
+
+El mod lee este ajuste mediante la API Lua de ShroudForge. Así responde al valor actual en lugar de fijar una tecla en el script:
+
+&lt;pre&gt;
+return {
+    on_update = function()
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
+            -- Ejecutar la acción.
+        end
+    end,
+}
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.input.was_keybind_pressed("pasteKey")&lt;/code&gt; conserva las pulsaciones breves entre actualizaciones del runtime y devuelve &lt;code&gt;true&lt;/code&gt; una vez por mod y ajuste. Los cambios guardados en vivo llegan al runtime en un segundo como máximo. Usa &lt;code&gt;is_keybind_down&lt;/code&gt; para acciones que deban repetirse mientras se mantenga pulsada la tecla. La API anterior &lt;code&gt;is_key_down("F1")&lt;/code&gt; a &lt;code&gt;is_key_down("F8")&lt;/code&gt; dejó de estar admitida en ShroudForge 1.7.6. Su llamada registra un mensaje de migración y genera un error de Lua. Declara un ajuste &lt;code&gt;keybind&lt;/code&gt; y asígnalo en el administrador de atajos, en '''Compatibility → Hotkeys'''. &lt;code&gt;shroudforge.input.keybind_label("pasteKey")&lt;/code&gt; devuelve la etiqueta legible actual de SDL para la distribución del sistema operativo. La consulta de teclas funciona cuando una ventana del juego está activa. La declaración por sí sola no cambia una tecla fijada en el script. El mod debe leer este valor mediante la API y usarlo para su acción.
+
+== Conflictos y otros mods ==
+
+ShroudForge informa de conflictos entre los atajos activos de sus ventanas y los keybinds declarados por los mods. Al guardar no se puede introducir un nuevo conflicto entre atajos activos cuya tecla y combinación de modificadores se solapen.
+
+Los mods EML independientes y los mods DLL que gestionan sus propios atajos no se pueden reasignar ni interceptar de forma fiable desde aquí. Configúralos en los ajustes o en el archivo de configuración del mod, si este ofrece esa opción. Un mod EML también puede aparecer aquí si declara explícitamente un ajuste &lt;code&gt;keybind&lt;/code&gt; correspondiente en &lt;code&gt;extended.mod.json&lt;/code&gt; y usa la API Lua de ShroudForge. Esto no incorpora sus atajos EML o DLL gestionados por separado.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Raccourcis clavier (fr)</title>
+    <ns>0</ns>
+    <id>18</id>
+    <revision>
+      <id>1018</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Raccourcis clavier
+description: Cette page affiche et modifie les raccourcis des fenêtres ShroudForge ainsi que ceux que les mods déclarent explicitement avec `control: "keybind"` dans leur fichier `extended.mod.json`.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/hotkeys/fr.md
+--&gt;
+
+Cette page affiche et modifie les raccourcis des fenêtres ShroudForge ainsi que ceux que les mods déclarent explicitement avec &lt;code&gt;control: "keybind"&lt;/code&gt; dans leur fichier &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+[[File:ShroudForge-Wiki-hotkeys.svg|thumb|right|alt=Raccourcis clavier|Raccourcis clavier]]
+
+== Attribuer un raccourci ==
+
+Cliquez sur le champ et appuyez sur la touche ou la combinaison souhaitée. La saisie utilise des codes physiques SDL3, par exemple &lt;code&gt;SDL:64&lt;/code&gt; pour F7, &lt;code&gt;Ctrl+SDL:29&lt;/code&gt; ou &lt;code&gt;Shift+SDL:100&lt;/code&gt;. La position physique reste ainsi cohérente entre les dispositions de clavier. SDL fournit des libellés lisibles pour la disposition actuelle du système d’exploitation. Les modificateurs comme Ctrl, Alt, Shift et Meta doivent correspondre exactement.
+
+Pendant l’enregistrement, ShroudForge bloque ses raccourcis de fenêtre et les raccourcis de mods déclarés dans tous ses processus. Cette protection reste active même après une annulation ou un changement de fenêtre active jusqu’à ce qu’aucune touche ni aucun bouton de souris ne soit maintenu. Un délai fixe de trois secondes commence ensuite, et les nouvelles pressions ne le relancent pas. Échap ne peut pas être enregistrée, seule ou avec des touches de modification : le jeu s’en sert pour son menu de pause et pour fermer ses fenêtres. L’appuyer annule l’enregistrement et garde le raccourci précédent. Une confirmation est requise pour toute nouvelle attribution de F1 ou F12, car Enshrouded ou Steam peut les utiliser. L’enregistrement est bloqué si le raccourci entre en conflit avec un autre raccourci ShroudForge actif.
+
+Utilisez '''Effacer''' pour désactiver un raccourci. Pour les fenêtres ShroudForge, vous pouvez restaurer la valeur par défaut intégrée. Les raccourcis d’un mod restent dans ses propres paramètres. Les champs des paramètres du mod et de '''Compatibility → Hotkeys''' modifient la même valeur enregistrée.
+
+== Raccourcis dans un mod ShroudForge ==
+
+L’auteur du mod déclare le raccourci comme paramètre dans &lt;code&gt;extended.mod.json&lt;/code&gt; :
+
+&lt;pre&gt;
+{
+  "settings": {
+    "pasteKey": {
+      "value": "SDL:64",
+      "label": "Coller le plan",
+      "control": "keybind",
+      "applyAt": "live"
+    }
+  }
+}
+&lt;/pre&gt;
+
+Le mod lit ce paramètre avec l’API Lua de ShroudForge. Il utilise ainsi la valeur actuelle au lieu d’imposer une touche dans le script :
+
+&lt;pre&gt;
+return {
+    on_update = function()
+        if shroudforge.input.was_keybind_pressed("pasteKey") then
+            -- Exécuter l’action.
+        end
+    end,
+}
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.input.was_keybind_pressed("pasteKey")&lt;/code&gt; conserve les pressions brèves entre les mises à jour du runtime et renvoie &lt;code&gt;true&lt;/code&gt; une fois par mod et paramètre. Les changements enregistrés en direct atteignent le runtime en une seconde au maximum. Utilisez &lt;code&gt;is_keybind_down&lt;/code&gt; pour les actions qui doivent se répéter tant que la touche reste enfoncée. L’ancienne API &lt;code&gt;is_key_down("F1")&lt;/code&gt; à &lt;code&gt;is_key_down("F8")&lt;/code&gt; n’est plus prise en charge depuis ShroudForge 1.7.6. Son appel inscrit un message de migration dans le journal et déclenche une erreur Lua. Déclarez un paramètre &lt;code&gt;keybind&lt;/code&gt; et attribuez-le dans le gestionnaire de raccourcis, sous '''Compatibility → Hotkeys'''. &lt;code&gt;shroudforge.input.keybind_label("pasteKey")&lt;/code&gt; renvoie le libellé lisible actuel de SDL pour la disposition du système d’exploitation. La lecture des touches fonctionne lorsqu’une fenêtre du jeu est active. La déclaration seule ne remplace pas une touche codée en dur dans le script. Le mod doit lire cette valeur avec l’API et l’utiliser pour son action.
+
+== Conflits et autres mods ==
+
+ShroudForge signale les conflits entre les raccourcis actifs de ses fenêtres et les raccourcis déclarés par les mods. L’enregistrement ne peut pas créer un nouveau conflit entre des raccourcis actifs dont la touche et les modificateurs se chevauchent.
+
+Les mods EML autonomes et les mods DLL qui gèrent leurs propres raccourcis ne peuvent pas être réattribués ou interceptés de façon fiable ici. Configurez-les dans les paramètres ou le fichier de configuration du mod, si celui-ci le permet. Un mod EML peut aussi apparaître ici s’il déclare explicitement un paramètre &lt;code&gt;keybind&lt;/code&gt; correspondant dans &lt;code&gt;extended.mod.json&lt;/code&gt; et utilise l’API Lua de ShroudForge. Ses raccourcis EML ou DLL gérés indépendamment ne sont pas repris pour autant.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Mod Detection (de)</title>
+    <ns>0</ns>
+    <id>19</id>
+    <revision>
+      <id>1019</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Mod Detection
+description: Hier siehst du, welche Modordner und Dateien ShroudForge erkennt. Die Erkennung lädt keine DLL und verändert keine Moddatei.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/mod-detection/de.md
+--&gt;
+
+Hier siehst du, welche Modordner und Dateien ShroudForge erkennt. Die Erkennung lädt keine DLL und verändert keine Moddatei.
+
+[[File:ShroudForge-Wiki-mod-detection.svg|thumb|right|alt=Mod Detection|Mod Detection]]
+
+== Was wird erkannt? ==
+
+Installierte Mods liegen entpackt unter &lt;code&gt;mods/&amp;lt;Modordner&amp;gt;/&lt;/code&gt; oder im eingestellten Modverzeichnis. ShroudForge liest &lt;code&gt;mod.json&lt;/code&gt;, die optionale &lt;code&gt;extended.mod.json&lt;/code&gt;, &lt;code&gt;src/mod.lua&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; und vorhandene DLL-Dateien. Ein reiner Lua-Mod benötigt keine eigene DLL. Ein nativer Mod kann auch ohne Manifest oder Lua-Datei im DLL Manager erscheinen.
+
+Die Anzeige beantwortet, ob ein Ordner und seine Informationen erkannt wurden. Den tatsächlichen DLL-Start findest du im DLL Manager. Den vollständigen Zustand eines Mods findest du auf seiner Modseite.
+
+== Unbekannte Manifestfelder ==
+
+Mit aktiviertem Mod-Detection-Modul und tolerantem Lesen dürfen &lt;code&gt;mod.json&lt;/code&gt; und &lt;code&gt;extended.mod.json&lt;/code&gt; zusätzliche, ShroudForge unbekannte Felder enthalten. Sie lösen dann allein keine Ablehnung aus. Bekannte Felder müssen weiterhin gültige Werte enthalten. Ungültiges JSON, fehlende Pflichtangaben und falsche Datentypen bleiben Fehler.
+
+Das Ausschalten dieser Kompatibilität stellt die strenge Prüfung wieder her. Es löscht oder deaktiviert nicht automatisch alle installierten Mods.
+
+== Ein Mod wird nicht erkannt ==
+
+Prüfe zuerst den tatsächlichen Modordner. Ein Downloadordner kann noch einen weiteren Ordner oder ein &lt;code&gt;mods&lt;/code&gt;-Verzeichnis enthalten. Der Installer sucht ein einzelnes enthaltenes Modpaket. Ein neues Archiv mit mehreren Modpaketen wird nicht automatisch gesammelt installiert. Entpacke es und installiere die einzelnen Modordner nacheinander. Im laufenden Betrieb werden entpackte Modordner gelesen, keine Archive.
+
+Korrigiere die angegebene JSON-Stelle oder installiere das vollständige Paket erneut. Ein Kompatibilitätsprofil kann bekannte Besonderheiten ergänzen. Die bloße Erkennung bestätigt noch keine funktionsfähigen Hooks oder Mod-APIs.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Mod Detection (en)</title>
+    <ns>0</ns>
+    <id>20</id>
+    <revision>
+      <id>1020</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Mod Detection
+description: See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/mod-detection/en.md
+--&gt;
+
+See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files.
+
+[[File:ShroudForge-Wiki-mod-detection.svg|thumb|right|alt=Mod Detection|Mod Detection]]
+
+== What is detected? ==
+
+Installed mods are unpacked folders under &lt;code&gt;mods/&amp;lt;mod-folder&amp;gt;/&lt;/code&gt; or your configured mods directory. ShroudForge reads &lt;code&gt;mod.json&lt;/code&gt;, optional &lt;code&gt;extended.mod.json&lt;/code&gt;, &lt;code&gt;src/mod.lua&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; and existing DLL files. A Lua-only mod needs no DLL of its own. A native mod can appear in the DLL Manager without a manifest or Lua file.
+
+This view tells you whether a folder and its information were recognized. Actual native loading appears in the DLL Manager. The mod's own page shows its overall status.
+
+== Unknown manifest fields ==
+
+With the Mod Detection module and tolerant reading enabled, &lt;code&gt;mod.json&lt;/code&gt; and &lt;code&gt;extended.mod.json&lt;/code&gt; may contain extra fields unknown to ShroudForge. Those fields alone do not reject a package. Known fields must still contain valid values. Invalid JSON, missing required information and incorrect data types remain errors.
+
+Disabling this compatibility option restores strict validation. It does not automatically delete or disable all installed mods.
+
+== A mod is not recognized ==
+
+Check the actual mod folder first. A download folder may contain another wrapper folder or a &lt;code&gt;mods&lt;/code&gt; directory. The installer locates a single enclosed mod package. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. During normal operation, ShroudForge reads unpacked mod folders rather than archives.
+
+Correct the reported JSON location or install the complete package again. A compatibility profile can supply an adapter for known differences. Recognition alone does not confirm that native hooks or mod APIs work.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Detección de mods (es)</title>
+    <ns>0</ns>
+    <id>21</id>
+    <revision>
+      <id>1021</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Detección de mods
+description: Consulta qué carpetas y archivos reconoce ShroudForge. La detección no carga DLL ni modifica los archivos de los mods.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/mod-detection/es.md
+--&gt;
+
+Consulta qué carpetas y archivos reconoce ShroudForge. La detección no carga DLL ni modifica los archivos de los mods.
+
+[[File:ShroudForge-Wiki-mod-detection.svg|thumb|right|alt=Detección de mods|Detección de mods]]
+
+== ¿Qué se detecta? ==
+
+Los mods instalados son carpetas descomprimidas en &lt;code&gt;mods/&amp;lt;carpeta-del-mod&amp;gt;/&lt;/code&gt; o en el directorio configurado. ShroudForge lee &lt;code&gt;mod.json&lt;/code&gt;, el archivo opcional &lt;code&gt;extended.mod.json&lt;/code&gt;, &lt;code&gt;src/mod.lua&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; y las DLL existentes. Un mod que solo usa Lua no necesita su propia DLL. Un mod nativo puede aparecer en el Gestor de DLL sin manifiesto ni archivo Lua.
+
+Esta vista indica si se han reconocido la carpeta y sus datos. La carga nativa real se muestra en el Gestor de DLL. El estado general del mod aparece en su propia página.
+
+== Campos desconocidos del manifiesto ==
+
+Con el módulo de detección y la lectura tolerante activados, &lt;code&gt;mod.json&lt;/code&gt; y &lt;code&gt;extended.mod.json&lt;/code&gt; pueden incluir campos que ShroudForge desconoce. Esos campos por sí solos no provocan el rechazo del paquete. Los campos conocidos deben seguir teniendo valores válidos. El JSON incorrecto, los datos obligatorios ausentes y los tipos erróneos siguen siendo errores.
+
+Desactivar esta compatibilidad restaura la validación estricta. No elimina ni desactiva automáticamente todos los mods instalados.
+
+== No se reconoce un mod ==
+
+Comprueba primero la carpeta real del mod. Una descarga puede contener otra carpeta envolvente o un directorio &lt;code&gt;mods&lt;/code&gt;. El instalador localiza un único paquete de mod. Una nueva instalación no instala automáticamente en conjunto un archivo con varios paquetes de mods. Descomprímelo e instala una carpeta de mod cada vez. Durante el funcionamiento normal se leen carpetas descomprimidas, no archivos comprimidos.
+
+Corrige la ubicación JSON indicada o vuelve a instalar el paquete completo. Un perfil de compatibilidad puede adaptar diferencias conocidas. Reconocer el mod no confirma que sus hooks nativos o sus funciones de API funcionen.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Détection des mods (fr)</title>
+    <ns>0</ns>
+    <id>22</id>
+    <revision>
+      <id>1022</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Détection des mods
+description: Consultez les dossiers et fichiers reconnus par ShroudForge. La détection ne charge aucune DLL et ne modifie pas les fichiers des mods.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/mod-detection/fr.md
+--&gt;
+
+Consultez les dossiers et fichiers reconnus par ShroudForge. La détection ne charge aucune DLL et ne modifie pas les fichiers des mods.
+
+[[File:ShroudForge-Wiki-mod-detection.svg|thumb|right|alt=Détection des mods|Détection des mods]]
+
+== Que détecte ShroudForge ? ==
+
+Les mods installés sont des dossiers décompressés dans &lt;code&gt;mods/&amp;lt;dossier-du-mod&amp;gt;/&lt;/code&gt; ou dans le répertoire configuré. ShroudForge lit &lt;code&gt;mod.json&lt;/code&gt;, le fichier facultatif &lt;code&gt;extended.mod.json&lt;/code&gt;, &lt;code&gt;src/mod.lua&lt;/code&gt;, &lt;code&gt;native-plugin.ini&lt;/code&gt; et les DLL présentes. Un mod uniquement Lua n'a pas besoin de sa propre DLL. Un mod natif peut apparaître dans le gestionnaire de DLL sans manifeste ni fichier Lua.
+
+Cette vue indique si le dossier et ses informations ont été reconnus. Le chargement natif réel apparaît dans le gestionnaire de DLL. La page du mod présente son état général.
+
+== Champs inconnus du manifeste ==
+
+Lorsque le module de détection et la lecture tolérante sont activés, &lt;code&gt;mod.json&lt;/code&gt; et &lt;code&gt;extended.mod.json&lt;/code&gt; peuvent contenir des champs inconnus de ShroudForge. Ces seuls champs ne provoquent pas le rejet du paquet. Les champs connus doivent toujours avoir des valeurs valides. Un JSON incorrect, des informations obligatoires absentes ou des types erronés restent des erreurs.
+
+Désactiver cette compatibilité rétablit la validation stricte. Cela ne supprime ni ne désactive automatiquement tous les mods installés.
+
+== Un mod n'est pas reconnu ==
+
+Vérifiez d'abord le véritable dossier du mod. Un téléchargement peut contenir un dossier supplémentaire ou un répertoire &lt;code&gt;mods&lt;/code&gt;. L'installateur recherche un seul paquet de mod. Une nouvelle archive contenant plusieurs paquets n'est pas installée automatiquement dans son ensemble. Décompressez-la et installez un dossier de mod à la fois. En fonctionnement normal, ShroudForge lit les dossiers décompressés et non les archives.
+
+Corrigez l'emplacement JSON indiqué ou réinstallez le paquet complet. Un profil de compatibilité peut adapter des particularités connues. La reconnaissance seule ne confirme pas le bon fonctionnement des hooks natifs ou des API du mod.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Modding (de)</title>
+    <ns>0</ns>
+    <id>23</id>
+    <revision>
+      <id>1023</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Modding
+description: Lies den Hauptmenüzustand und den ausgewählten lokalen Charakternamen mit der Lua-Runtime. Beide Abfragen nutzen dieselben nativen Daten wie der Modloader und benötigen keinen Weltzugriff.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/modding/de.md
+--&gt;
+
+Lies den Hauptmenüzustand und den ausgewählten lokalen Charakternamen mit der Lua-Runtime. Beide Abfragen nutzen dieselben nativen Daten wie der Modloader und benötigen keinen Weltzugriff.
+
+[[File:ShroudForge-Wiki-modding.svg|thumb|right|alt=Modding|Modding]]
+
+== Voraussetzungen ==
+
+Aktiviere die Mod und deklariere in &lt;code&gt;mod.json&lt;/code&gt; die Berechtigung &lt;code&gt;runtime&lt;/code&gt;:
+
+&lt;pre&gt;
+{
+  "capabilities": ["runtime"]
+}
+&lt;/pre&gt;
+
+Setze für diese Client-Abfragen in &lt;code&gt;extended.mod.json&lt;/code&gt; das Feld &lt;code&gt;targets&lt;/code&gt; auf &lt;code&gt;&amp;#91;"client"&amp;#93;&lt;/code&gt;. Verwende die Funktionen in aktiven Laufzeit-Callbacks wie &lt;code&gt;on_load&lt;/code&gt; und &lt;code&gt;on_update&lt;/code&gt;. &lt;code&gt;runtime.phase == "ingame"&lt;/code&gt; bezeichnet die gestartete Mod-Laufzeit und bestätigt keinen Weltbeitritt. Für diese beiden Abfragen ist kein Ausführungsprofil nötig. Andere Weltoperationen behalten ihre eigenen Voraussetzungen.
+
+== Hauptmenü erkennen ==
+
+&lt;pre&gt;
+local in_menu, reason = runtime.is_main_menu()
+&lt;/pre&gt;
+
+{| class="wikitable"
+! Rückgabe !! Bedeutung
+|-
+| &lt;code&gt;true, nil&lt;/code&gt; || Das Hauptmenü einschließlich Charakter-, Welt- und Serverauswahl wurde bestätigt.
+|-
+| &lt;code&gt;false, nil&lt;/code&gt; || Ein anderer ursprünglicher Spielzustand wurde bestätigt.
+|-
+| &lt;code&gt;nil, reason&lt;/code&gt; || Der Zustand ist unbekannt, wechselt gerade oder die Abfrage ist nicht verfügbar.
+|}
+
+Prüfe ausdrücklich &lt;code&gt;in_menu == true&lt;/code&gt; oder &lt;code&gt;in_menu == false&lt;/code&gt;. &lt;code&gt;nil&lt;/code&gt; ist kein bestätigter Zustand. Auch &lt;code&gt;false&lt;/code&gt; bestätigt für sich allein keinen lesbaren Weltzustand. Prüfe dafür die benötigte Operation, zum Beispiel &lt;code&gt;runtime.has("runtime.ecs.read")&lt;/code&gt;.
+
+== Charakternamen lesen ==
+
+&lt;pre&gt;
+local name, reason = runtime.player.name()
+local display_name = name or "Flameborn"
+&lt;/pre&gt;
+
+&lt;code&gt;name, nil&lt;/code&gt; liefert den im lokalen Hauptmenü ausgewählten Charakternamen als UTF-8-String. Unicode-Zeichen wie in &lt;code&gt;Ikiju 育樹&lt;/code&gt; bleiben erhalten. &lt;code&gt;nil, reason&lt;/code&gt; bedeutet, dass noch kein Name vorliegt oder der Zugriff nicht verfügbar beziehungsweise nicht erlaubt ist.
+
+Die Mod bestimmt ihren Ersatznamen selbst. Die API setzt keinen Standardnamen ein und übernimmt nicht die manuelle Namenswahl des Modloaders. Der Wert bezeichnet keinen entfernten Spieler, keine SteamID und keinen Steam-Anzeigenamen. Ein Dedicated Server besitzt keinen lokalen Client-Charakternamen.
+
+== Gemeinsamer Cache ==
+
+Lua und Modloader lesen denselben nativen Cache. Der vorhandene Runtime-Tick aktualisiert den Menüstatus. Die bestehende Menüanbindung erfasst den Namen bei der ersten verfügbaren Auswahl und erneut bei einer geänderten Auswahl oder geänderten Namensmetadaten. Lua-Abfragen starten keine eigene Suche und lesen keine Logs.
+
+Der zuletzt erfolgreich erfasste Name bleibt beim Weltbeitritt im Cache. Ein vorhandener Name bestätigt daher keinen Menüaufenthalt. &lt;code&gt;runtime.has("runtime.is_main_menu")&lt;/code&gt; und &lt;code&gt;runtime.has("runtime.player.name")&lt;/code&gt; melden die jeweilige Verfügbarkeit. &lt;code&gt;runtime.status(...)&lt;/code&gt; ergänzt eine Begründung.
+
+== Beispiel für &lt;code&gt;src/mod.lua&lt;/code&gt; ==
+
+Das Beispiel liest den Cache beim Laden und danach alle 500 ms. Es verwendet einen eigenen Ersatznamen und protokolliert nur Änderungen:
+
+&lt;pre&gt;
+runtime.require("runtime.lifecycle")
+
+local previous_message = nil
+
+local function refresh()
+    local in_menu = runtime.is_main_menu()
+    local name = runtime.player.name()
+    local state = "unknown"
+    if in_menu == true then
+        state = "menu"
+    elseif in_menu == false then
+        state = "other"
+    end
+
+    local message = state .. ": " .. (name or "Flameborn")
+    if message ~= previous_message then
+        previous_message = message
+        shroudforge.log.info(message)
+    end
+end
+
+return {
+    on_load = refresh,
+    on_update = function()
+        refresh()
+    end,
+    update_interval_ms = 500,
+}
+&lt;/pre&gt;
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Modding (en)</title>
+    <ns>0</ns>
+    <id>24</id>
+    <revision>
+      <id>1024</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Modding
+description: Read the main-menu state and selected local character name through the Lua runtime. Both queries use the same native data as the Modloader and require no world access.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/modding/en.md
+--&gt;
+
+Read the main-menu state and selected local character name through the Lua runtime. Both queries use the same native data as the Modloader and require no world access.
+
+[[File:ShroudForge-Wiki-modding.svg|thumb|right|alt=Modding|Modding]]
+
+== Prerequisites ==
+
+Enable the mod and declare the &lt;code&gt;runtime&lt;/code&gt; capability in &lt;code&gt;mod.json&lt;/code&gt;:
+
+&lt;pre&gt;
+{
+  "capabilities": ["runtime"]
+}
+&lt;/pre&gt;
+
+For these client queries, set &lt;code&gt;targets&lt;/code&gt; to &lt;code&gt;&amp;#91;"client"&amp;#93;&lt;/code&gt; in &lt;code&gt;extended.mod.json&lt;/code&gt;. Call the functions from active runtime callbacks such as &lt;code&gt;on_load&lt;/code&gt; and &lt;code&gt;on_update&lt;/code&gt;. &lt;code&gt;runtime.phase == "ingame"&lt;/code&gt; describes the started mod runtime and does not confirm entry into a world. Neither query needs an execution profile. Other world operations retain their own requirements.
+
+== Detect the main menu ==
+
+&lt;pre&gt;
+local in_menu, reason = runtime.is_main_menu()
+&lt;/pre&gt;
+
+{| class="wikitable"
+! Return value !! Meaning
+|-
+| &lt;code&gt;true, nil&lt;/code&gt; || The main menu, including character, world and server selection, has been confirmed.
+|-
+| &lt;code&gt;false, nil&lt;/code&gt; || A different original game state has been validated.
+|-
+| &lt;code&gt;nil, reason&lt;/code&gt; || The state is unknown, changing, or the query is unavailable.
+|}
+
+Check &lt;code&gt;in_menu == true&lt;/code&gt; or &lt;code&gt;in_menu == false&lt;/code&gt; explicitly. &lt;code&gt;nil&lt;/code&gt; is not a confirmed state. &lt;code&gt;false&lt;/code&gt; alone does not confirm a readable world either. Check the operation you need separately, such as &lt;code&gt;runtime.has("runtime.ecs.read")&lt;/code&gt;.
+
+== Read the character name ==
+
+&lt;pre&gt;
+local name, reason = runtime.player.name()
+local display_name = name or "Flameborn"
+&lt;/pre&gt;
+
+&lt;code&gt;name, nil&lt;/code&gt; returns the character name selected in the local main menu as a UTF-8 string. Unicode characters, as in &lt;code&gt;Ikiju 育樹&lt;/code&gt;, are preserved. &lt;code&gt;nil, reason&lt;/code&gt; means that no name is available yet, or access is unavailable or not allowed.
+
+The mod chooses its own fallback name. The API inserts no default and does not use the Modloader's manual name selection. The value identifies no remote player and is neither a SteamID nor a Steam display name. A Dedicated Server has no local client character name.
+
+== Shared cache ==
+
+Lua and the Modloader read the same native cache. The existing runtime tick refreshes the menu state. The existing menu integration captures the name on the first available selection and again when selection or name metadata changes. Lua queries start no separate discovery and read no logs.
+
+The last successfully captured name remains cached after joining a world. A cached name therefore does not confirm that the menu is open. &lt;code&gt;runtime.has("runtime.is_main_menu")&lt;/code&gt; and &lt;code&gt;runtime.has("runtime.player.name")&lt;/code&gt; report each query's availability. &lt;code&gt;runtime.status(...)&lt;/code&gt; also supplies a reason.
+
+== Example for &lt;code&gt;src/mod.lua&lt;/code&gt; ==
+
+This example reads the cache on load and every 500 ms afterwards. It chooses a fallback name and logs only changes:
+
+&lt;pre&gt;
+runtime.require("runtime.lifecycle")
+
+local previous_message = nil
+
+local function refresh()
+    local in_menu = runtime.is_main_menu()
+    local name = runtime.player.name()
+    local state = "unknown"
+    if in_menu == true then
+        state = "menu"
+    elseif in_menu == false then
+        state = "other"
+    end
+
+    local message = state .. ": " .. (name or "Flameborn")
+    if message ~= previous_message then
+        previous_message = message
+        shroudforge.log.info(message)
+    end
+end
+
+return {
+    on_load = refresh,
+    on_update = function()
+        refresh()
+    end,
+    update_interval_ms = 500,
+}
+&lt;/pre&gt;
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Modding (es)</title>
+    <ns>0</ns>
+    <id>25</id>
+    <revision>
+      <id>1025</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Modding
+description: Consulta el estado del menú principal y el nombre del personaje local seleccionado mediante el runtime de Lua. Ambas consultas usan los mismos datos nativos que el Modloader y no requieren acceso al mundo.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/modding/es.md
+--&gt;
+
+Consulta el estado del menú principal y el nombre del personaje local seleccionado mediante el runtime de Lua. Ambas consultas usan los mismos datos nativos que el Modloader y no requieren acceso al mundo.
+
+[[File:ShroudForge-Wiki-modding.svg|thumb|right|alt=Modding|Modding]]
+
+== Requisitos ==
+
+Activa el mod y declara la capacidad &lt;code&gt;runtime&lt;/code&gt; en &lt;code&gt;mod.json&lt;/code&gt;:
+
+&lt;pre&gt;
+{
+  "capabilities": ["runtime"]
+}
+&lt;/pre&gt;
+
+Para estas consultas del cliente, establece &lt;code&gt;targets&lt;/code&gt; en &lt;code&gt;&amp;#91;"client"&amp;#93;&lt;/code&gt; dentro de &lt;code&gt;extended.mod.json&lt;/code&gt;. Llama a las funciones desde callbacks activos del runtime, como &lt;code&gt;on_load&lt;/code&gt; y &lt;code&gt;on_update&lt;/code&gt;. &lt;code&gt;runtime.phase == "ingame"&lt;/code&gt; indica que el runtime del mod está iniciado, pero no confirma la entrada en un mundo. Ninguna de estas consultas necesita un perfil de ejecución. Las demás operaciones del mundo mantienen sus propios requisitos.
+
+== Detectar el menú principal ==
+
+&lt;pre&gt;
+local in_menu, reason = runtime.is_main_menu()
+&lt;/pre&gt;
+
+{| class="wikitable"
+! Resultado !! Significado
+|-
+| &lt;code&gt;true, nil&lt;/code&gt; || Se ha confirmado el menú principal, incluidas las pantallas de selección de personaje, mundo y servidor.
+|-
+| &lt;code&gt;false, nil&lt;/code&gt; || Se ha validado otro estado original del juego.
+|-
+| &lt;code&gt;nil, reason&lt;/code&gt; || El estado es desconocido, está cambiando o la consulta no está disponible.
+|}
+
+Comprueba explícitamente &lt;code&gt;in_menu == true&lt;/code&gt; o &lt;code&gt;in_menu == false&lt;/code&gt;. &lt;code&gt;nil&lt;/code&gt; no es un estado confirmado. &lt;code&gt;false&lt;/code&gt; tampoco confirma por sí solo que se pueda leer el mundo. Comprueba por separado la operación necesaria, por ejemplo &lt;code&gt;runtime.has("runtime.ecs.read")&lt;/code&gt;.
+
+== Leer el nombre del personaje ==
+
+&lt;pre&gt;
+local name, reason = runtime.player.name()
+local display_name = name or "Flameborn"
+&lt;/pre&gt;
+
+&lt;code&gt;name, nil&lt;/code&gt; devuelve como cadena UTF-8 el nombre del personaje seleccionado en el menú principal del cliente local. Los caracteres Unicode, como en &lt;code&gt;Ikiju 育樹&lt;/code&gt;, se conservan. &lt;code&gt;nil, reason&lt;/code&gt; significa que todavía no hay un nombre disponible, que la consulta no está disponible o que no se permite el acceso.
+
+El mod elige su propio nombre alternativo. La API no introduce un valor predeterminado ni usa el nombre manual del Modloader. El valor no identifica a un jugador remoto y no es un SteamID ni el nombre visible de Steam. Un servidor dedicado no tiene un nombre de personaje del cliente local.
+
+== Caché compartida ==
+
+Lua y el Modloader leen la misma caché nativa. El tick existente del runtime actualiza el estado del menú. La integración existente del menú captura el nombre en la primera selección disponible y cuando cambian la selección o los metadatos del nombre. Las consultas Lua no inician otra búsqueda ni leen registros.
+
+El último nombre capturado correctamente permanece en la caché al entrar en un mundo. Por tanto, un nombre guardado no confirma que el menú esté abierto. &lt;code&gt;runtime.has("runtime.is_main_menu")&lt;/code&gt; y &lt;code&gt;runtime.has("runtime.player.name")&lt;/code&gt; indican la disponibilidad de cada consulta. &lt;code&gt;runtime.status(...)&lt;/code&gt; también proporciona una explicación.
+
+== Ejemplo para &lt;code&gt;src/mod.lua&lt;/code&gt; ==
+
+Este ejemplo lee la caché al cargar el mod y después cada 500 ms. Elige un nombre alternativo y solo registra los cambios:
+
+&lt;pre&gt;
+runtime.require("runtime.lifecycle")
+
+local previous_message = nil
+
+local function refresh()
+    local in_menu = runtime.is_main_menu()
+    local name = runtime.player.name()
+    local state = "unknown"
+    if in_menu == true then
+        state = "menu"
+    elseif in_menu == false then
+        state = "other"
+    end
+
+    local message = state .. ": " .. (name or "Flameborn")
+    if message ~= previous_message then
+        previous_message = message
+        shroudforge.log.info(message)
+    end
+end
+
+return {
+    on_load = refresh,
+    on_update = function()
+        refresh()
+    end,
+    update_interval_ms = 500,
+}
+&lt;/pre&gt;
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Modding (fr)</title>
+    <ns>0</ns>
+    <id>26</id>
+    <revision>
+      <id>1026</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Modding
+description: Consultez l’état du menu principal et le nom du personnage local sélectionné avec le runtime Lua. Ces deux requêtes utilisent les mêmes données natives que le Modloader et ne nécessitent aucun accès au monde.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/modding/fr.md
+--&gt;
+
+Consultez l’état du menu principal et le nom du personnage local sélectionné avec le runtime Lua. Ces deux requêtes utilisent les mêmes données natives que le Modloader et ne nécessitent aucun accès au monde.
+
+[[File:ShroudForge-Wiki-modding.svg|thumb|right|alt=Modding|Modding]]
+
+== Prérequis ==
+
+Activez le mod et déclarez la capacité &lt;code&gt;runtime&lt;/code&gt; dans &lt;code&gt;mod.json&lt;/code&gt; :
+
+&lt;pre&gt;
+{
+  "capabilities": ["runtime"]
+}
+&lt;/pre&gt;
+
+Pour ces requêtes du client, définissez &lt;code&gt;targets&lt;/code&gt; sur &lt;code&gt;&amp;#91;"client"&amp;#93;&lt;/code&gt; dans &lt;code&gt;extended.mod.json&lt;/code&gt;. Appelez les fonctions depuis des callbacks actifs du runtime, comme &lt;code&gt;on_load&lt;/code&gt; et &lt;code&gt;on_update&lt;/code&gt;. &lt;code&gt;runtime.phase == "ingame"&lt;/code&gt; indique que le runtime du mod a démarré et ne confirme pas l’entrée dans un monde. Ces deux requêtes ne nécessitent aucun profil d’exécution. Les autres opérations du monde conservent leurs propres prérequis.
+
+== Détecter le menu principal ==
+
+&lt;pre&gt;
+local in_menu, reason = runtime.is_main_menu()
+&lt;/pre&gt;
+
+{| class="wikitable"
+! Résultat !! Signification
+|-
+| &lt;code&gt;true, nil&lt;/code&gt; || Le menu principal, y compris la sélection du personnage, du monde et du serveur, a été confirmé.
+|-
+| &lt;code&gt;false, nil&lt;/code&gt; || Un autre état d’origine du jeu a été validé.
+|-
+| &lt;code&gt;nil, reason&lt;/code&gt; || L’état est inconnu, change actuellement ou la requête est indisponible.
+|}
+
+Vérifiez explicitement &lt;code&gt;in_menu == true&lt;/code&gt; ou &lt;code&gt;in_menu == false&lt;/code&gt;. &lt;code&gt;nil&lt;/code&gt; ne représente pas un état confirmé. &lt;code&gt;false&lt;/code&gt; seul ne confirme pas non plus que le monde peut être lu. Vérifiez séparément l’opération nécessaire, par exemple &lt;code&gt;runtime.has("runtime.ecs.read")&lt;/code&gt;.
+
+== Lire le nom du personnage ==
+
+&lt;pre&gt;
+local name, reason = runtime.player.name()
+local display_name = name or "Flameborn"
+&lt;/pre&gt;
+
+&lt;code&gt;name, nil&lt;/code&gt; renvoie sous forme de chaîne UTF-8 le nom du personnage sélectionné dans le menu principal du client local. Les caractères Unicode, comme dans &lt;code&gt;Ikiju 育樹&lt;/code&gt;, sont préservés. &lt;code&gt;nil, reason&lt;/code&gt; signifie qu’aucun nom n’est encore disponible, que la requête est indisponible ou que l’accès n’est pas autorisé.
+
+Le mod choisit son propre nom de remplacement. L’API n’insère aucune valeur par défaut et n’utilise pas le nom manuel du Modloader. Cette valeur n’identifie aucun joueur distant et n’est ni un SteamID ni un nom affiché sur Steam. Un serveur dédié n’a pas de nom de personnage du client local.
+
+== Cache partagé ==
+
+Lua et le Modloader lisent le même cache natif. Le tick existant du runtime actualise l’état du menu. L’intégration existante du menu capture le nom à la première sélection disponible, puis lorsque la sélection ou les métadonnées du nom changent. Les requêtes Lua ne lancent aucune recherche supplémentaire et ne lisent aucun journal.
+
+Le dernier nom capturé avec succès reste en cache après l’entrée dans un monde. Un nom en cache ne confirme donc pas que le menu est ouvert. &lt;code&gt;runtime.has("runtime.is_main_menu")&lt;/code&gt; et &lt;code&gt;runtime.has("runtime.player.name")&lt;/code&gt; indiquent la disponibilité de chaque requête. &lt;code&gt;runtime.status(...)&lt;/code&gt; fournit aussi une explication.
+
+== Exemple pour &lt;code&gt;src/mod.lua&lt;/code&gt; ==
+
+Cet exemple lit le cache au chargement, puis toutes les 500 ms. Il choisit un nom de remplacement et ne journalise que les changements :
+
+&lt;pre&gt;
+runtime.require("runtime.lifecycle")
+
+local previous_message = nil
+
+local function refresh()
+    local in_menu = runtime.is_main_menu()
+    local name = runtime.player.name()
+    local state = "unknown"
+    if in_menu == true then
+        state = "menu"
+    elseif in_menu == false then
+        state = "other"
+    end
+
+    local message = state .. ": " .. (name or "Flameborn")
+    if message ~= previous_message then
+        previous_message = message
+        shroudforge.log.info(message)
+    end
+end
+
+return {
+    on_load = refresh,
+    on_update = function()
+        refresh()
+    end,
+    update_interval_ms = 500,
+}
+&lt;/pre&gt;
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Mod-Texte übersetzen (de)</title>
+    <ns>0</ns>
+    <id>27</id>
+    <revision>
+      <id>1027</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Mod-Texte übersetzen
+description: Übersetze sichtbare Modloader-Texte und Lua-Texte mit denselben Locale-Dateien im Mod-Ordner. Die Modloader-Sprache wird über `shroudforge.locale()` gelesen. PR #42 ergänzt diese Abfrage.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/modding-locales/de.md
+--&gt;
+
+Übersetze sichtbare Modloader-Texte und Lua-Texte mit denselben Locale-Dateien im Mod-Ordner. Die Modloader-Sprache wird über &lt;code&gt;shroudforge.locale()&lt;/code&gt; gelesen. PR #42 ergänzt diese Abfrage.
+
+[[File:ShroudForge-Wiki-modding-locales.svg|thumb|right|alt=Mod-Texte übersetzen|Mod-Texte übersetzen]]
+
+== Locale-Dateien ==
+
+Lege pro Sprache eine Datei unter &lt;code&gt;locales/&amp;lt;code&amp;gt;.json&lt;/code&gt; an. Aktuelle Codes aus der Modloader-Sprachauswahl sind &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt; und &lt;code&gt;zh&lt;/code&gt;. Der Dateiname entspricht exakt dem Code. Die Dateien sind zusätzlich zu &lt;code&gt;mod.json&lt;/code&gt; und &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+Das Schema steht unter [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. Ein Locale-Katalog kann &lt;code&gt;mod.name&lt;/code&gt; und &lt;code&gt;mod.description&lt;/code&gt;, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-&lt;code&gt;strings&lt;/code&gt; enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
+
+&lt;pre&gt;
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "settings": {
+    "severity": {
+      "label": "Protokollstufe",
+      "options": { "info": "Information", "warn": "Warnung" }
+    }
+  },
+  "groups": [
+    { "label": "Protokoll", "actions": { "write": { "label": "Nachricht schreiben" } } }
+  ],
+  "strings": { "overlay.ready": "Bereit" }
+}
+&lt;/pre&gt;
+
+Settings- und Optionsschlüssel bleiben dieselben wie in &lt;code&gt;extended.mod.json&lt;/code&gt;. Gruppenübersetzungen folgen der Gruppenreihenfolge aus dieser Datei. Aktionsübersetzungen verwenden die vorhandene Aktions-ID. Gespeicherte Werte ändern sich nicht.
+
+== Dieselben Texte in Lua verwenden ==
+
+&lt;pre&gt;
+local locale = shroudforge.locale()
+local ready = shroudforge.i18n.get("overlay.ready", locale, "Ready")
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.i18n.get(key, locale, fallback)&lt;/code&gt; verwendet denselben geladenen Katalog wie der Modloader. Es prüft zuerst einen regionalen Code wie &lt;code&gt;de-AT&lt;/code&gt; und danach dessen Sprache &lt;code&gt;de&lt;/code&gt;. Fehlt ein Text, liefert die Funktion den Rückfalltext oder den Schlüssel. Die Abfrage greift nicht erneut auf Dateien zu. Das API-Konzept stammt aus PR #42 und wird hier um den mod-eigenen Katalog erweitert.
+
+Wenn &lt;code&gt;shroudforge.locale()&lt;/code&gt; bei einer nicht lesbaren Konfiguration &lt;code&gt;en&lt;/code&gt; liefert, prüft der Katalog zuerst &lt;code&gt;en-GB.json&lt;/code&gt; und dann &lt;code&gt;en.json&lt;/code&gt;. &lt;code&gt;en-GB&lt;/code&gt; ist der englische Standard des Modloaders. &lt;code&gt;en-US&lt;/code&gt; bleibt als ausdrücklich auswählbare Variante verfügbar.
+
+Die Locale-Dateien benötigen keine Runtime-Berechtigung. ShroudForge-Oberflächentexte bleiben in den zentralen Übersetzungen des Modloaders.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Translate mod text (en)</title>
+    <ns>0</ns>
+    <id>28</id>
+    <revision>
+      <id>1028</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Translate mod text
+description: Translate visible Modloader text and Lua text from the same locale files in the mod folder. Read the Modloader language through `shroudforge.locale()`, added by PR #42.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/modding-locales/en.md
+--&gt;
+
+Translate visible Modloader text and Lua text from the same locale files in the mod folder. Read the Modloader language through &lt;code&gt;shroudforge.locale()&lt;/code&gt;, added by PR #42.
+
+[[File:ShroudForge-Wiki-modding-locales.svg|thumb|right|alt=Translate mod text|Translate mod text]]
+
+== Locale files ==
+
+Add one file under &lt;code&gt;locales/&amp;lt;code&amp;gt;.json&lt;/code&gt; for each language. Current codes from the Modloader language selector are &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt;, and &lt;code&gt;zh&lt;/code&gt;. The filename matches its code exactly. These files sit beside &lt;code&gt;mod.json&lt;/code&gt; and &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+The schema is published as [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. A locale catalog can translate &lt;code&gt;mod.name&lt;/code&gt; and &lt;code&gt;mod.description&lt;/code&gt;, setting and option labels, groups, actions, changelog lines, and Lua &lt;code&gt;strings&lt;/code&gt;. Catalogs may be partial. Entries without a translation keep their source text.
+
+&lt;pre&gt;
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "settings": {
+    "severity": {
+      "label": "Log level",
+      "options": { "info": "Information", "warn": "Warning" }
+    }
+  },
+  "groups": [
+    { "label": "Logging", "actions": { "write": { "label": "Write message" } } }
+  ],
+  "strings": { "overlay.ready": "Ready" }
+}
+&lt;/pre&gt;
+
+Setting and option keys stay the same as in &lt;code&gt;extended.mod.json&lt;/code&gt;. Group translations follow that file's group order. Action translations use the existing action ID. Saved values do not change.
+
+== Use the same text in Lua ==
+
+&lt;pre&gt;
+local locale = shroudforge.locale()
+local ready = shroudforge.i18n.get("overlay.ready", locale, "Ready")
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.i18n.get(key, locale, fallback)&lt;/code&gt; uses the same loaded catalog as the Modloader. It checks a regional code such as &lt;code&gt;de-AT&lt;/code&gt; first, followed by its language &lt;code&gt;de&lt;/code&gt;. A missing string returns the fallback text, or the key when no fallback is provided. The lookup does not read files again. PR #42 supplies the language API, and this feature connects it to each mod's catalog.
+
+If &lt;code&gt;shroudforge.locale()&lt;/code&gt; returns &lt;code&gt;en&lt;/code&gt; because the configuration cannot be read, catalog lookup checks &lt;code&gt;en-GB.json&lt;/code&gt; first and then &lt;code&gt;en.json&lt;/code&gt;. &lt;code&gt;en-GB&lt;/code&gt; is the Modloader's English default. &lt;code&gt;en-US&lt;/code&gt; remains available as an explicitly selected variant.
+
+Locale files do not require the runtime capability. ShroudForge interface text stays in the shared Modloader translations.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Traducir los textos de un mod (es)</title>
+    <ns>0</ns>
+    <id>29</id>
+    <revision>
+      <id>1029</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Traducir los textos de un mod
+description: Los textos visibles del Modloader y los textos de Lua usan los mismos archivos de idioma del mod. El idioma elegido en el Modloader se obtiene con `shroudforge.locale()`, incorporada en el PR #42.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/modding-locales/es.md
+--&gt;
+
+Los textos visibles del Modloader y los textos de Lua usan los mismos archivos de idioma del mod. El idioma elegido en el Modloader se obtiene con &lt;code&gt;shroudforge.locale()&lt;/code&gt;, incorporada en el PR #42.
+
+[[File:ShroudForge-Wiki-modding-locales.svg|thumb|right|alt=Traducir los textos de un mod|Traducir los textos de un mod]]
+
+== Archivos de idioma ==
+
+Añade un archivo &lt;code&gt;locales/&amp;lt;código&amp;gt;.json&lt;/code&gt; por cada idioma. Los códigos actuales del selector de idioma del Modloader son &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt; y &lt;code&gt;zh&lt;/code&gt;. El nombre del archivo debe coincidir exactamente con el código. Estos archivos se guardan junto a &lt;code&gt;mod.json&lt;/code&gt; y &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+El esquema está publicado en [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. El catálogo puede traducir &lt;code&gt;mod.name&lt;/code&gt;, &lt;code&gt;mod.description&lt;/code&gt;, las etiquetas de ajustes y opciones, los grupos, las acciones, las notas de versión y las cadenas Lua bajo &lt;code&gt;strings&lt;/code&gt;. Los catálogos pueden estar incompletos. El texto original se conserva si falta una traducción.
+
+&lt;pre&gt;
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "settings": {
+    "severity": {
+      "label": "Nivel del registro",
+      "options": { "info": "Información", "warn": "Aviso" }
+    }
+  },
+  "groups": [
+    { "label": "Registro", "actions": { "write": { "label": "Escribir mensaje" } } }
+  ],
+  "strings": { "overlay.ready": "Listo" }
+}
+&lt;/pre&gt;
+
+Las claves de ajustes y opciones se mantienen iguales que en &lt;code&gt;extended.mod.json&lt;/code&gt;. Los grupos siguen el mismo orden que en ese archivo. Las traducciones de acciones usan su identificador actual. Los valores guardados no cambian.
+
+== Usar los mismos textos en Lua ==
+
+&lt;pre&gt;
+local locale = shroudforge.locale()
+local ready = shroudforge.i18n.get("overlay.ready", locale, "Ready")
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.i18n.get(key, locale, fallback)&lt;/code&gt; usa el mismo catálogo cargado que el Modloader. Busca primero el código regional, como &lt;code&gt;de-AT&lt;/code&gt;, y después el idioma &lt;code&gt;de&lt;/code&gt;. Si falta un texto, devuelve el texto alternativo o la clave. La consulta no vuelve a leer archivos. El PR #42 aporta la API de idioma y esta función la conecta con el catálogo de cada mod.
+
+Si &lt;code&gt;shroudforge.locale()&lt;/code&gt; devuelve &lt;code&gt;en&lt;/code&gt; porque no se puede leer la configuración, la búsqueda consulta primero &lt;code&gt;en-GB.json&lt;/code&gt; y después &lt;code&gt;en.json&lt;/code&gt;. &lt;code&gt;en-GB&lt;/code&gt; es el inglés predeterminado del Modloader. &lt;code&gt;en-US&lt;/code&gt; sigue disponible como variante seleccionable explícitamente.
+
+Los archivos de idioma no requieren el permiso &lt;code&gt;runtime&lt;/code&gt;. Los textos propios de la interfaz de ShroudForge permanecen en las traducciones compartidas del Modloader.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Traduire les textes d’un mod (fr)</title>
+    <ns>0</ns>
+    <id>30</id>
+    <revision>
+      <id>1030</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Traduire les textes d’un mod
+description: Les textes visibles dans le Modloader et les textes Lua utilisent les mêmes fichiers de langue du mod. La langue choisie dans le Modloader se lit avec `shroudforge.locale()`, ajoutée par la PR #42.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/modding-locales/fr.md
+--&gt;
+
+Les textes visibles dans le Modloader et les textes Lua utilisent les mêmes fichiers de langue du mod. La langue choisie dans le Modloader se lit avec &lt;code&gt;shroudforge.locale()&lt;/code&gt;, ajoutée par la PR #42.
+
+[[File:ShroudForge-Wiki-modding-locales.svg|thumb|right|alt=Traduire les textes d’un mod|Traduire les textes d’un mod]]
+
+== Fichiers de langue ==
+
+Ajoutez un fichier &lt;code&gt;locales/&amp;lt;code&amp;gt;.json&lt;/code&gt; par langue. Les codes actuels du sélecteur du Modloader sont &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt; et &lt;code&gt;zh&lt;/code&gt;. Le nom du fichier reprend exactement le code. Ces fichiers accompagnent &lt;code&gt;mod.json&lt;/code&gt; et &lt;code&gt;extended.mod.json&lt;/code&gt;.
+
+Le schéma est publié sous [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. Le catalogue peut traduire &lt;code&gt;mod.name&lt;/code&gt;, &lt;code&gt;mod.description&lt;/code&gt;, les libellés des paramètres et des options, les groupes, les actions, les notes de version et les chaînes Lua sous &lt;code&gt;strings&lt;/code&gt;. Les fichiers peuvent être incomplets. Le texte source est conservé pour les traductions manquantes.
+
+&lt;pre&gt;
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "settings": {
+    "severity": {
+      "label": "Niveau du journal",
+      "options": { "info": "Information", "warn": "Avertissement" }
+    }
+  },
+  "groups": [
+    { "label": "Journal", "actions": { "write": { "label": "Écrire un message" } } }
+  ],
+  "strings": { "overlay.ready": "Prêt" }
+}
+&lt;/pre&gt;
+
+Les clés des paramètres et des options restent identiques à celles de &lt;code&gt;extended.mod.json&lt;/code&gt;. Les groupes suivent le même ordre que dans ce fichier. Les traductions d’action utilisent leur identifiant existant. Les valeurs enregistrées ne changent pas.
+
+== Utiliser les mêmes textes dans Lua ==
+
+&lt;pre&gt;
+local locale = shroudforge.locale()
+local ready = shroudforge.i18n.get("overlay.ready", locale, "Ready")
+&lt;/pre&gt;
+
+&lt;code&gt;shroudforge.i18n.get(key, locale, fallback)&lt;/code&gt; utilise le même catalogue chargé que le Modloader. Le code régional, comme &lt;code&gt;de-AT&lt;/code&gt;, est recherché avant sa langue &lt;code&gt;de&lt;/code&gt;. Si le texte manque, la fonction renvoie le texte de remplacement ou la clé. La recherche ne relit pas les fichiers. La PR #42 fournit l’API de langue, puis cette fonctionnalité la relie au catalogue de chaque mod.
+
+Si &lt;code&gt;shroudforge.locale()&lt;/code&gt; renvoie &lt;code&gt;en&lt;/code&gt; parce que la configuration est illisible, la recherche consulte d’abord &lt;code&gt;en-GB.json&lt;/code&gt;, puis &lt;code&gt;en.json&lt;/code&gt;. &lt;code&gt;en-GB&lt;/code&gt; est la langue anglaise par défaut du Modloader. &lt;code&gt;en-US&lt;/code&gt; reste disponible comme variante sélectionnée explicitement.
+
+Les fichiers de langue ne nécessitent pas la capacité runtime. Les textes de l’interface ShroudForge restent dans les traductions communes du Modloader.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Start wegen inkompatibler Asset-Sicherungen abgebrochen (de)</title>
+    <ns>0</ns>
+    <id>31</id>
+    <revision>
+      <id>1031</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Start wegen inkompatibler Asset-Sicherungen abgebrochen
+description: Fehlerbehebung für ältere ShroudForge-Versionen. Die Versionen 1.6.8, 1.7.0 und 1.7.3 können den Spielstart abbrechen, wenn ihre Asset-Sicherungen nicht zu den installierten Spieldateien passen.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/startup-asset-backups/de.md
+--&gt;
+
+Fehlerbehebung für ältere ShroudForge-Versionen. Die Versionen 1.6.8, 1.7.0 und 1.7.3 können den Spielstart abbrechen, wenn ihre Asset-Sicherungen nicht zu den installierten Spieldateien passen.
+
+[[File:ShroudForge-Wiki-startup-asset-backups.svg|thumb|right|alt=Start wegen inkompatibler Asset-Sicherungen abgebrochen|Start wegen inkompatibler Asset-Sicherungen abgebrochen]]
+
+== Warum der Start abgebrochen wird ==
+
+ShroudForge erstellt Arbeitskopien von &lt;code&gt;enshrouded.kfc&lt;/code&gt; und &lt;code&gt;enshrouded.kfc_resources&lt;/code&gt;, damit es die Spieldateien vor der Vorbereitung von Asset-Mods wiederherstellen kann. Diese &lt;code&gt;.bak&lt;/code&gt;-Dateien können von einer älteren Enshrouded-Version oder einem anderen Mod stammen. Wenn die KFC-Sicherung nicht zur aktuellen Spieldatei passt, können ältere ShroudForge-Versionen sie nicht sicher wiederherstellen und brechen den Start ab.
+
+== Bei ShroudForge 1.7.5 oder neuer ==
+
+Wenn die KFC-Sicherung inkompatibel ist, können diese Versionen beide Arbeitskopien in den ShroudForge-Papierkorb verschieben und neue Sicherungen aus den aktuellen Spieldateien erstellen. Dafür muss &lt;code&gt;shroudforge/shroudforge-updater.exe&lt;/code&gt; im Enshrouded-Installationsordner vorhanden sein. Meldet das Protokoll, dass der Updater nicht verfügbar ist, repariere oder installiere ShroudForge mit dem vollständigen Release-Paket neu und starte das Spiel danach erneut. Lass die &lt;code&gt;.bak&lt;/code&gt;-Dateien während der Reparatur liegen.
+
+== Manuelle Lösung für die Versionen 1.6.8, 1.7.0 und 1.7.3 ==
+
+Nutze diese Schritte nur mit den genannten älteren ShroudForge-Versionen.
+
+# Beende ShroudForge und Enshrouded vollständig. Beende auch einen eventuell laufenden Dedicated Server.
+# Öffne den Enshrouded-Installationsordner. Ein typischer Steam-Pfad ist &lt;code&gt;SteamLibrary\steamapps\common\Enshrouded&lt;/code&gt;. Verwende den Bibliotheksordner, in dem dein Spiel installiert ist.
+# Falls ein anderer Mod die aktuellen &lt;code&gt;.kfc&lt;/code&gt;-Dateien geändert haben könnte, überprüfe zuerst die Enshrouded-Dateien über Steam. Wenn du die alten Sicherungen behalten möchtest, kopiere sie vor dem nächsten Schritt aus dem Spielordner heraus.
+# Lösche ausschließlich diese Dateien, falls vorhanden:
+#* &lt;code&gt;enshrouded.kfc.bak&lt;/code&gt;
+#* &lt;code&gt;enshrouded.kfc_resources.bak&lt;/code&gt;
+# Starte ShroudForge erneut. Es sollte neue Arbeitskopien aus den aktuellen Spieldateien erstellen.
+
+Lösche nicht die &lt;code&gt;.kfc&lt;/code&gt;- oder &lt;code&gt;.kfc_resources&lt;/code&gt;-Spieldateien und keine anderen Sicherungen. Bricht der Start weiterhin ab, lass die übrigen Dateien unverändert und sende dem Support das ShroudForge-Protokoll.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Startup stops because asset backups are incompatible (en)</title>
+    <ns>0</ns>
+    <id>32</id>
+    <revision>
+      <id>1032</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Startup stops because asset backups are incompatible
+description: Troubleshooting for older ShroudForge releases. Versions 1.6.8, 1.7.0 and 1.7.3 can stop before Enshrouded starts when their asset backup files do not match the installed game files.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/startup-asset-backups/en.md
+--&gt;
+
+Troubleshooting for older ShroudForge releases. Versions 1.6.8, 1.7.0 and 1.7.3 can stop before Enshrouded starts when their asset backup files do not match the installed game files.
+
+[[File:ShroudForge-Wiki-startup-asset-backups.svg|thumb|right|alt=Startup stops because asset backups are incompatible|Startup stops because asset backups are incompatible]]
+
+== Why startup stops ==
+
+ShroudForge keeps working backups of &lt;code&gt;enshrouded.kfc&lt;/code&gt; and &lt;code&gt;enshrouded.kfc_resources&lt;/code&gt; so it can restore the game files before preparing asset mods. These &lt;code&gt;.bak&lt;/code&gt; files may come from an older Enshrouded version or another mod. If the KFC backup does not match the current game file, older ShroudForge releases cannot safely restore it and stop startup.
+
+== If you use ShroudForge 1.7.5 or later ==
+
+When the KFC backup is incompatible, these versions can move both working backups to the ShroudForge recycle bin and capture new backups from the current game files. This recovery requires &lt;code&gt;shroudforge/shroudforge-updater.exe&lt;/code&gt; in the Enshrouded installation. If the log says the updater is unavailable, repair or reinstall ShroudForge with the complete release package, then start the game again. Keep the &lt;code&gt;.bak&lt;/code&gt; files in place while repairing the installation.
+
+== Manual fix for versions 1.6.8, 1.7.0 and 1.7.3 ==
+
+Use these steps only with the listed older ShroudForge versions.
+
+# Close ShroudForge and Enshrouded completely, including any dedicated server process.
+# Open the Enshrouded installation folder. A common Steam path is &lt;code&gt;SteamLibrary\steamapps\common\Enshrouded&lt;/code&gt;, but use the library folder where your game is installed.
+# If another mod may have changed the current &lt;code&gt;.kfc&lt;/code&gt; files, verify Enshrouded's files through Steam first. If you want to keep a copy of the old backups, copy them outside the game folder before continuing.
+# Delete only these files if they are present:
+#* &lt;code&gt;enshrouded.kfc.bak&lt;/code&gt;
+#* &lt;code&gt;enshrouded.kfc_resources.bak&lt;/code&gt;
+# Restart ShroudForge. It should create fresh working backups from the current game files.
+
+Do not delete the &lt;code&gt;.kfc&lt;/code&gt; or &lt;code&gt;.kfc_resources&lt;/code&gt; game files, or any other backup files. If startup still fails, keep the remaining files and share the ShroudForge log with support.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>El inicio se detiene por copias de seguridad de recursos incompatibles (es)</title>
+    <ns>0</ns>
+    <id>33</id>
+    <revision>
+      <id>1033</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: El inicio se detiene por copias de seguridad de recursos incompatibles
+description: Solución de problemas para versiones antiguas de ShroudForge. Las versiones 1.6.8, 1.7.0 y 1.7.3 pueden detener el inicio antes de abrir Enshrouded si sus copias de seguridad no coinciden con los archivos del juego instalados.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/startup-asset-backups/es.md
+--&gt;
+
+Solución de problemas para versiones antiguas de ShroudForge. Las versiones 1.6.8, 1.7.0 y 1.7.3 pueden detener el inicio antes de abrir Enshrouded si sus copias de seguridad no coinciden con los archivos del juego instalados.
+
+[[File:ShroudForge-Wiki-startup-asset-backups.svg|thumb|right|alt=El inicio se detiene por copias de seguridad de recursos incompatibles|El inicio se detiene por copias de seguridad de recursos incompatibles]]
+
+== Por qué se detiene el inicio ==
+
+ShroudForge conserva copias de trabajo de &lt;code&gt;enshrouded.kfc&lt;/code&gt; y &lt;code&gt;enshrouded.kfc_resources&lt;/code&gt; para restaurar los archivos del juego antes de preparar mods de recursos. Los archivos &lt;code&gt;.bak&lt;/code&gt; pueden proceder de una versión anterior de Enshrouded o de otro mod. Si la copia KFC no coincide con el archivo actual del juego, las versiones antiguas de ShroudForge no pueden restaurarla con seguridad y detienen el inicio.
+
+== Si usas ShroudForge 1.7.5 o una versión posterior ==
+
+Cuando la copia KFC es incompatible, estas versiones pueden mover ambas copias de trabajo a la papelera de reciclaje de ShroudForge y crear copias nuevas a partir de los archivos actuales del juego. Esta recuperación requiere &lt;code&gt;shroudforge/shroudforge-updater.exe&lt;/code&gt; en la instalación de Enshrouded. Si el registro indica que el actualizador no está disponible, repara o reinstala ShroudForge con el paquete completo y vuelve a iniciar el juego. Mantén los archivos &lt;code&gt;.bak&lt;/code&gt; mientras reparas la instalación.
+
+== Solución manual para las versiones 1.6.8, 1.7.0 y 1.7.3 ==
+
+Sigue estos pasos únicamente con las versiones antiguas de ShroudForge indicadas.
+
+# Cierra ShroudForge y Enshrouded por completo, incluido cualquier proceso de servidor dedicado.
+# Abre la carpeta de instalación de Enshrouded. Una ruta habitual de Steam es &lt;code&gt;SteamLibrary\steamapps\common\Enshrouded&lt;/code&gt;, pero usa la biblioteca donde instalaste el juego.
+# Si otro mod pudo modificar los archivos &lt;code&gt;.kfc&lt;/code&gt; actuales, verifica primero los archivos de Enshrouded desde Steam. Si quieres conservar una copia de las copias antiguas, guárdalas fuera de la carpeta del juego antes de continuar.
+# Elimina únicamente estos archivos, si existen:
+#* &lt;code&gt;enshrouded.kfc.bak&lt;/code&gt;
+#* &lt;code&gt;enshrouded.kfc_resources.bak&lt;/code&gt;
+# Vuelve a iniciar ShroudForge. Debería crear copias de trabajo nuevas a partir de los archivos actuales del juego.
+
+No elimines los archivos del juego &lt;code&gt;.kfc&lt;/code&gt; o &lt;code&gt;.kfc_resources&lt;/code&gt; ni ninguna otra copia de seguridad. Si el inicio sigue fallando, conserva los demás archivos y envía el registro de ShroudForge al soporte.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles (fr)</title>
+    <ns>0</ns>
+    <id>34</id>
+    <revision>
+      <id>1034</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles
+description: Dépannage pour les anciennes versions de ShroudForge. Les versions 1.6.8, 1.7.0 et 1.7.3 peuvent interrompre le démarrage avant l’ouverture d’Enshrouded si leurs sauvegardes ne correspondent pas aux fichiers du jeu installés.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/startup-asset-backups/fr.md
+--&gt;
+
+Dépannage pour les anciennes versions de ShroudForge. Les versions 1.6.8, 1.7.0 et 1.7.3 peuvent interrompre le démarrage avant l’ouverture d’Enshrouded si leurs sauvegardes ne correspondent pas aux fichiers du jeu installés.
+
+[[File:ShroudForge-Wiki-startup-asset-backups.svg|thumb|right|alt=Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles|Le démarrage s’arrête à cause de sauvegardes de ressources incompatibles]]
+
+== Pourquoi le démarrage s’arrête ==
+
+ShroudForge conserve des copies de travail de &lt;code&gt;enshrouded.kfc&lt;/code&gt; et &lt;code&gt;enshrouded.kfc_resources&lt;/code&gt; afin de pouvoir restaurer les fichiers du jeu avant de préparer les mods de ressources. Ces fichiers &lt;code&gt;.bak&lt;/code&gt; peuvent provenir d’une ancienne version d’Enshrouded ou d’un autre mod. Si la sauvegarde KFC ne correspond pas au fichier actuel du jeu, les anciennes versions de ShroudForge ne peuvent pas la restaurer de manière sûre et interrompent le démarrage.
+
+== Avec ShroudForge 1.7.5 ou une version ultérieure ==
+
+Lorsque la sauvegarde KFC est incompatible, ces versions peuvent déplacer les deux copies de travail vers la corbeille ShroudForge et créer de nouvelles sauvegardes à partir des fichiers actuels du jeu. Cette récupération nécessite &lt;code&gt;shroudforge/shroudforge-updater.exe&lt;/code&gt; dans l’installation d’Enshrouded. Si le journal indique que le programme de mise à jour est indisponible, réparez ou réinstallez ShroudForge avec le package complet, puis relancez le jeu. Conservez les fichiers &lt;code&gt;.bak&lt;/code&gt; pendant la réparation.
+
+== Correction manuelle pour les versions 1.6.8, 1.7.0 et 1.7.3 ==
+
+Suivez ces étapes uniquement avec les anciennes versions de ShroudForge indiquées.
+
+# Fermez complètement ShroudForge et Enshrouded, y compris tout processus de serveur dédié.
+# Ouvrez le dossier d’installation d’Enshrouded. Un chemin Steam courant est &lt;code&gt;SteamLibrary\steamapps\common\Enshrouded&lt;/code&gt;, mais utilisez la bibliothèque où le jeu est installé.
+# Si un autre mod a pu modifier les fichiers &lt;code&gt;.kfc&lt;/code&gt; actuels, vérifiez d’abord les fichiers d’Enshrouded dans Steam. Si vous souhaitez conserver une copie des anciennes sauvegardes, copiez-les hors du dossier du jeu avant de continuer.
+# Supprimez uniquement les fichiers suivants, s’ils existent :
+#* &lt;code&gt;enshrouded.kfc.bak&lt;/code&gt;
+#* &lt;code&gt;enshrouded.kfc_resources.bak&lt;/code&gt;
+# Relancez ShroudForge. Il devrait créer de nouvelles copies de travail à partir des fichiers actuels du jeu.
+
+Ne supprimez pas les fichiers du jeu &lt;code&gt;.kfc&lt;/code&gt; ou &lt;code&gt;.kfc_resources&lt;/code&gt;, ni aucun autre fichier de sauvegarde. Si le démarrage échoue encore, conservez les autres fichiers et envoyez le journal ShroudForge au support.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Übersetzungen für den Modloader (de)</title>
+    <ns>0</ns>
+    <id>35</id>
+    <revision>
+      <id>1035</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Übersetzungen für den Modloader
+description: Hilf mit, ShroudForge für Spieler weltweit verfügbar zu machen. Bearbeite Übersetzungen in Fink oder reiche deine Änderungen als Pull Request im GitHub-Repository ein.
+language: de
+creator: Bonsaibauer
+source: modules/wiki/articles/translations/de.md
+--&gt;
+
+Hilf mit, ShroudForge für Spieler weltweit verfügbar zu machen. Bearbeite Übersetzungen in Fink oder reiche deine Änderungen als Pull Request im GitHub-Repository ein.
+
+[[File:ShroudForge-Wiki-translations.svg|thumb|right|alt=Übersetzungen für den Modloader|Übersetzungen für den Modloader]]
+
+== Mit Fink übersetzen ==
+
+Öffne den [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&amp;project=modules/ui-resources/project.inlang Fink-Editor für ShroudForge]. Fink zeigt den englischen Ausgangstext und die Übersetzungen nebeneinander. Die Sprachdateien bleiben im Repository. Fink synchronisiert keine zweite Kopie in einem Übersetzungsdienst.
+
+Wähle im Editor das Projekt und den Branch aus. Prüfe die Meldung, ändere die Übersetzung und kontrolliere die Vorschau. Fink speichert deine Arbeit zunächst als lokalen Entwurf im Browser. Zum Speichern auf GitHub brauchst du ein GitHub-Konto.
+
+== Änderungen als Pull Request einreichen ==
+
+Wenn der Hauptbranch geschützt ist, lege zuerst in GitHub einen Übersetzungsbranch an. Öffne diesen Branch in Fink und übertrage deine Änderungen dorthin. Danach kannst du einen Pull Request erstellen und ihn vor dem Zusammenführen prüfen lassen. Fink legt den Branch nicht selbst an.
+
+Ohne Schreibzugriff auf das ShroudForge-Repository kannst du in Fink einen Fork verwenden. Installiere dazu die Inlang-GitHub-App auf deinem Konto, übertrage die Änderungen in deinen Fork und öffne anschließend den Pull Request. Fink öffnet die GitHub-Seite für den Pull Request. Du musst ihn dort noch prüfen und absenden.
+
+Die [https://github.com/bonsaibauer/shroudforge/pulls Pull Requests im ShroudForge-Repository] zeigen offene Übersetzungsbeiträge und ihren Prüfstatus. Weitere Details stehen in der [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink-Anleitung zu Branches und Pull Requests].
+
+== Übersetzungsdateien direkt bearbeiten ==
+
+Du kannst auch die JSON-Dateien unter &lt;code&gt;modules/ui-resources/locales/&lt;/code&gt; ändern und einen Pull Request im Repository erstellen. Verwende für jede Sprache dieselben Schlüssel wie in der englischen Quelldatei &lt;code&gt;en-GB.json&lt;/code&gt;. Ändere keine Platzhalternamen wie &lt;code&gt;&amp;#123;count&amp;#125;&lt;/code&gt;. Sie müssen in jeder Übersetzung exakt erhalten bleiben.
+
+Vor dem Pull Request kannst du die Locale-Dateien prüfen:
+
+&lt;pre&gt;
+cd modules/modloader/ui
+npm run locale:check
+&lt;/pre&gt;
+
+Die Fink-Projektdatei &lt;code&gt;modules/ui-resources/project.inlang/settings.json&lt;/code&gt; verbindet den Editor mit diesen Katalogen. Der Beispiel-Link oben öffnet dieses Projekt. Wenn später ein anderer Editor-Link verwendet wird, ändere die URL im Link dieses Artikels und im SVG-Bild.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Translate the Modloader (en)</title>
+    <ns>0</ns>
+    <id>36</id>
+    <revision>
+      <id>1036</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">&lt;!-- ShroudForge MediaWiki migration metadata
+title: Translate the Modloader
+description: Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/translations/en.md
+--&gt;
+
+Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub.
+
+[[File:ShroudForge-Wiki-translations.svg|thumb|right|alt=Translate the Modloader|Translate the Modloader]]
+
+== Translate with Fink ==
+
+Open the [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&amp;project=modules/ui-resources/project.inlang Fink editor for ShroudForge]. Fink shows the English source text beside its translations. The language files stay in the repository. Fink does not keep a second synced copy in a translation service.
+
+Choose the project and branch in the editor. Review a message, edit its translation and check the result. Fink first saves your work as a draft in your browser. You need a GitHub account to save changes to GitHub.
+
+== Send changes as a pull request ==
+
+If the default branch is protected, create a translation branch on GitHub first. Open that branch in Fink and push your changes there. Then create a pull request so the changes can be reviewed before they are merged. Fink does not create branches for you.
+
+If you cannot write to the ShroudForge repository, use Fink's fork flow. Install the Inlang GitHub App on your account, push the changes to your fork, then open a pull request. Fink opens GitHub's pull request page. Review and submit the pull request there.
+
+The [https://github.com/bonsaibauer/shroudforge/pulls ShroudForge pull request list] shows open translation contributions and their review status. See the [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink guide to branches and pull requests] for more details.
+
+== Edit the translation files directly ==
+
+You can also change the JSON files under &lt;code&gt;modules/ui-resources/locales/&lt;/code&gt; and create a pull request in the repository. Keep the same keys as the English source file &lt;code&gt;en-GB.json&lt;/code&gt;. Do not rename placeholders such as &lt;code&gt;&amp;#123;count&amp;#125;&lt;/code&gt;. Their names must stay exactly the same in each translation.
+
+Before opening a pull request, you can check the locale files:
+
+&lt;pre&gt;
+cd modules/modloader/ui
+npm run locale:check
+&lt;/pre&gt;
+
+The Fink project file &lt;code&gt;modules/ui-resources/project.inlang/settings.json&lt;/code&gt; connects the editor to these catalogs. The example link above opens that project. If you use a different editor URL later, update it in this article link and in the SVG illustration.
+
+[[Category:guide:shroudforge]]
+</text>
+    </revision>
+  </page>
+  <page>
+    <title>Category:guide:shroudforge</title>
+    <ns>14</ns>
+    <id>37</id>
+    <revision>
+      <id>1037</id>
+      <timestamp>2026-11-05T12:00:00Z</timestamp>
+      <contributor>
+        <username>Bonsaibauer</username>
+      </contributor>
+      <comment>Initial import of a ShroudForge Modloader Wiki article</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">Guides and help articles from the ShroudForge Modloader Wiki.
+
+This category was requested as &lt;code&gt;guide:shroudforge&lt;/code&gt;.
+</text>
+    </revision>
+  </page>
+</mediawiki>

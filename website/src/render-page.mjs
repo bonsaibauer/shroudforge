@@ -57,11 +57,15 @@ function releaseRow(release, securityReport) {
 function renderSidebar(releases, repositoryUrl) {
 	const versions = new Map()
 	for (const release of releases) {
-		const entry = versions.get(release.version)
-		if (entry) entry.count += 1
-		else versions.set(release.version, { release, count: 1 })
+		if (!versions.has(release.version)) versions.set(release.version, release)
 	}
-	return `<aside class="sidebar" aria-label="Download navigation"><div class="version-panel panel"><h2>ShroudForge version</h2><nav aria-label="Release versions"><a class="version-option is-active" href="#all-versions" data-version-link="" aria-current="true"><span>All versions</span><span class="version-count">${releases.length}</span></a>${[...versions].map(([version, { release, count }]) => `<a class="version-option" href="#${releaseId(release)}" data-version-link="${escapeHtml(version)}"><span>${escapeHtml(version)}</span><span class="version-count">${count}</span></a>`).join('')}</nav></div><div class="sidebar-note">${icon('github')}<p>Official releases.<br>Downloaded directly from <a href="${repositoryUrl}">GitHub ${icon('external')}</a>.</p></div></aside>`
+	const latestVersion = versions.keys().next().value
+	const allVersionsActive = latestVersion === undefined
+	const versionLinks = [...versions].map(([version, release]) => {
+		const active = version === latestVersion
+		return `<a class="version-option${active ? ' is-active' : ''}" href="#${releaseId(release)}" data-version-link="${escapeHtml(version)}"${active ? ' aria-current="true"' : ''}><span>${escapeHtml(version)}</span></a>`
+	}).join('')
+	return `<aside class="sidebar" aria-label="Download navigation"><div class="version-panel panel"><h2>ShroudForge version</h2><nav aria-label="Release versions"><a class="version-option${allVersionsActive ? ' is-active' : ''}" href="#all-versions" data-version-link=""${allVersionsActive ? ' aria-current="true"' : ''}><span>All versions</span></a>${versionLinks}</nav></div><div class="sidebar-note">${icon('github')}<p>Official releases.<br>Downloaded directly from <a href="${repositoryUrl}">GitHub ${icon('external')}</a>.</p></div></aside>`
 }
 
 export function renderPage({ releases, generatedAt, siteUrl, config, securityReports = {} }) {
@@ -127,16 +131,33 @@ export function renderPage({ releases, generatedAt, siteUrl, config, securityRep
 	<meta name="twitter:image" content="${escapeHtml(new URL('/assets/hammer.png', siteUrl).href)}">
 	<script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, '\\u003c')}</script>
 	<script src="/assets/filters.js" defer></script>
+	<script src="/assets/installation-guide.js" defer></script>
 </head>
 <body>
 	<a class="skip-link" href="#main-content">Skip to downloads</a>
-	<header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="ShroudForge home"><img src="/assets/hammer.png" alt="" width="48" height="48" fetchpriority="high"><span>ShroudForge</span></a><nav class="primary-navigation" aria-label="Main navigation"><a class="nav-link nav-link-active" href="/" aria-current="page">${icon('file')} Files</a><a class="nav-link" href="${repositoryUrl}">${icon('github')} GitHub ${icon('external', 'nav-external')}</a><a class="nav-link" href="${escapeHtml(config.discordUrl)}">${icon('discord')} Discord ${icon('external', 'nav-external')}</a><a class="nav-link" href="${escapeHtml(config.youtubeUrl)}">${icon('youtube')} YouTube ${icon('external', 'nav-external')}</a></nav></div></header>
+	<header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="ShroudForge home"><img src="/assets/hammer.png" alt="" width="48" height="48" fetchpriority="high"><span>ShroudForge</span></a><nav class="primary-navigation" aria-label="Main navigation"><a class="nav-link nav-link-active" href="/" aria-current="page">${icon('file')} Files</a><a class="nav-link" href="${escapeHtml(config.wikiUrl)}">${icon('book-open')} Wiki ${icon('external', 'nav-external')}</a><a class="nav-link" href="${repositoryUrl}">${icon('github')} GitHub ${icon('external', 'nav-external')}</a><a class="nav-link" href="${escapeHtml(config.discordUrl)}">${icon('discord')} Discord ${icon('external', 'nav-external')}</a><a class="nav-link" href="${escapeHtml(config.youtubeUrl)}">${icon('youtube')} YouTube ${icon('external', 'nav-external')}</a></nav></div></header>
 	<div class="page-shell">
 		${renderSidebar(releases, repositoryUrl)}
 		<main id="main-content" class="main-content">
 			<section class="page-intro" aria-labelledby="page-title"><div class="eyebrow">FOR ENSHROUDED</div><h1 id="page-title">ShroudForge downloads</h1><p>The free, open-source modloader for Enshrouded. Download the latest release and start making the game your own.</p></section>
 			<div class="download-cards">${downloadCard(stable, { title: 'Latest stable', description: 'The recommended release for your next adventure.', kind: 'stable' }, securityReports[stable?.tag])}${downloadCard(development, { title: 'Latest development', description: 'Try the newest changes. Development builds may be less stable.', kind: 'development' }, securityReports[development?.tag])}</div>
-			<div class="download-notice">${icon('file')}<p>New to ShroudForge? Download a ZIP above to get started. <a href="https://bonsaibauer.github.io/shroudforge/en/#play">Installation guide ${icon('external')}</a></p></div>
+			<section class="installation-guide panel" aria-labelledby="installation-title">
+				<h2 id="installation-title">Copy the files into the game folder</h2>
+				<p>Right-click the ZIP file and choose <strong>“Extract All”</strong>. Open the extracted folder and copy all files and folders into the folder that contains <code>enshrouded.exe</code>.</p>
+				<figure class="installation-tree">
+					<figcaption class="visually-hidden">ShroudForge folder structure inside the Enshrouded game folder</figcaption>
+					<pre><code><span class="tree-root">Enshrouded/</span>  <span class="tree-description">your game folder</span>
+├─ <span class="tree-item">enshrouded.exe</span>  <span class="tree-description">the game</span>
+├─ <span class="tree-item">dbghelp.dll</span>     <span class="tree-description">ShroudForge DLL</span>
+├─ <span class="tree-item">dinput8.dll</span>     <span class="tree-description">ShroudForge DLL</span>
+├─ <span class="tree-item">winmm.dll</span>       <span class="tree-description">ShroudForge game hook</span>
+├─ <span class="tree-item">shroudforge/</span>    <span class="tree-description">loader, libraries, and settings</span>
+│  └─ <span class="tree-item">shroudforge.exe</span>
+└─ <span class="tree-item">mods/</span>           <span class="tree-description">mod packages</span></code></pre>
+				</figure>
+				<p class="installation-path">A common Steam folder is:<span class="installation-path-row"><code id="installation-path">C:\\Program Files (x86)\\Steam\\steamapps\\common\\Enshrouded</code><button class="copy-path-button" id="copy-installation-path" type="button">${icon('copy')}<span class="copy-path-label" aria-live="polite">Copy path</span></button></span></p>
+				<p class="installation-finish">That’s it. Start Enshrouded and press F9 to open the Modloader.</p>
+			</section>
 			<section class="archive-section" aria-labelledby="all-versions">
 				<div class="archive-heading"><div><h2 id="all-versions">All versions</h2><p>Find a specific release or explore the latest builds.</p></div><span class="total-count">${releases.length} ${releases.length === 1 ? 'release' : 'releases'}</span></div>
 				<div class="enhanced-filters" hidden><div class="search-field">${icon('search')}<label class="visually-hidden" for="release-search">Search releases</label><input id="release-search" type="search" placeholder="Search version or build…" autocomplete="off" spellcheck="false"></div><div class="channel-filters" role="group" aria-label="Release channel"><button type="button" class="filter-button is-active" data-channel-filter="all" aria-pressed="true">All</button><button type="button" class="filter-button" data-channel-filter="stable" aria-pressed="false">Stable</button><button type="button" class="filter-button" data-channel-filter="development" aria-pressed="false">Development</button></div></div>

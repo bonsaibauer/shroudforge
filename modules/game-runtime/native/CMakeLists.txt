@@ -27,91 +27,23 @@ FetchContent_Declare(zydis
     GIT_TAG a2278f1d254e492f6a6b39f6cb5d1f5d515659dc
     GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(zydis)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../game-profile-discovery"
+    "${CMAKE_BINARY_DIR}/modules/game-profile-discovery")
 set_property(TARGET Zydis Zycore PROPERTY MSVC_RUNTIME_LIBRARY
     "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# Each approved build is a complete, single-file compatibility profile.
-file(GLOB_RECURSE profile_json_files CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../profiles/*.json")
-set(runtime_profiles)
-set(resource_read_profiles)
-foreach(profile_file IN LISTS profile_json_files)
-    file(READ "${profile_file}" profile_contents)
-    string(JSON profile_provenance_type ERROR_VARIABLE profile_provenance_error
-        TYPE "${profile_contents}" provenance)
-    if(profile_provenance_error MATCHES "not found")
-        # Existing execution profiles predate provenance metadata. Keep their
-        # established runtime validation behavior while requiring provenance
-        # for newly introduced read-only resource profiles.
-        list(APPEND runtime_profiles "${profile_file}")
-    elseif(NOT profile_provenance_error STREQUAL "NOTFOUND" OR
-           NOT profile_provenance_type STREQUAL "OBJECT")
-        message(FATAL_ERROR "Profile provenance must be a JSON object: ${profile_file}")
-    else()
-        string(JSON profile_status ERROR_VARIABLE profile_status_error
-            GET "${profile_contents}" provenance status)
-        if(NOT profile_status_error STREQUAL "NOTFOUND")
-            message(FATAL_ERROR "Profile provenance status is required: ${profile_file}")
-        elseif(profile_status STREQUAL "approved")
-        list(APPEND runtime_profiles "${profile_file}")
-        elseif(profile_status STREQUAL "read-validated")
-            string(JSON resource_read_validated ERROR_VARIABLE resource_status_error
-                GET "${profile_contents}" provenance resourceReadValidated)
-            string(JSON resource_layout_type ERROR_VARIABLE resource_layout_error
-                TYPE "${profile_contents}" resourceLayout)
-            if(NOT resource_status_error STREQUAL "NOTFOUND" OR
-               NOT resource_read_validated OR
-               NOT resource_layout_error STREQUAL "NOTFOUND" OR
-               NOT resource_layout_type STREQUAL "OBJECT")
-                message(FATAL_ERROR "Read-validated profiles must contain a validated resourceLayout: ${profile_file}")
-            endif()
-            list(APPEND resource_read_profiles "${profile_file}")
-        else()
-            message(FATAL_ERROR "Unsupported profile provenance status: ${profile_file}")
-        endif()
-    endif()
-endforeach()
-if(NOT runtime_profiles)
-    message(FATAL_ERROR "No production profiles found under profiles/")
-endif()
-
+# Profiles are package data under paths.runtime/profiles. The provider embeds
+# licenses only, so a profile update never requires recompiling this DLL.
 set(generated_dir "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${generated_dir}")
-set(profile_resource_rc "${generated_dir}/embedded_profiles.rc")
-set(profile_resource_header "${generated_dir}/embedded_profile_ids.h")
-set(profile_rc_content "#include <windows.h>\n")
+set(runtime_license_rc "${generated_dir}/runtime_licenses.rc")
 file(TO_CMAKE_PATH "${zydis_SOURCE_DIR}/LICENSE" zydis_license_path)
 file(TO_CMAKE_PATH "${zydis_SOURCE_DIR}/dependencies/zycore/LICENSE" zycore_license_path)
-string(APPEND profile_rc_content
+set(runtime_license_content "#include <windows.h>\n")
+string(APPEND runtime_license_content
     "\"ZYDIS_LICENSE\" RCDATA \"${zydis_license_path}\"\n"
     "\"ZYCORE_LICENSE\" RCDATA \"${zycore_license_path}\"\n")
-set(profile_header_content "#pragma once\nnamespace KfcRuntimeEmbedded {\ninline constexpr int profile_resource_ids[] = {")
-set(resource_read_header_content "inline constexpr int resource_read_profile_ids[] = {")
-
-set(profile_resource_id 101)
-foreach(profile IN LISTS runtime_profiles)
-    file(TO_CMAKE_PATH "${profile}" profile_rc_path)
-    string(APPEND profile_rc_content "${profile_resource_id} RCDATA \"${profile_rc_path}\"\n")
-    string(APPEND profile_header_content "${profile_resource_id},")
-    math(EXPR profile_resource_id "${profile_resource_id} + 1")
-endforeach()
-if(resource_read_profiles)
-    foreach(profile IN LISTS resource_read_profiles)
-        file(TO_CMAKE_PATH "${profile}" profile_rc_path)
-        string(APPEND profile_rc_content "${profile_resource_id} RCDATA \"${profile_rc_path}\"\n")
-        string(APPEND resource_read_header_content "${profile_resource_id},")
-        math(EXPR profile_resource_id "${profile_resource_id} + 1")
-    endforeach()
-else()
-    string(APPEND resource_read_header_content "0,")
-endif()
-string(APPEND profile_header_content "};\n${resource_read_header_content}};\n}")
-
-file(CONFIGURE OUTPUT "${profile_resource_rc}" CONTENT "@profile_rc_content@" @ONLY)
-file(CONFIGURE OUTPUT "${profile_resource_header}" CONTENT "@profile_header_content@" @ONLY)
-set_source_files_properties("${profile_resource_rc}" PROPERTIES
-    GENERATED TRUE
-    OBJECT_DEPENDS "${runtime_profiles};${resource_read_profiles}")
+file(CONFIGURE OUTPUT "${runtime_license_rc}" CONTENT "@runtime_license_content@" @ONLY)
 
 add_library(kfc-runtime SHARED
     ecs/bind_world_entities.cpp
@@ -178,11 +110,13 @@ add_library(kfc-runtime SHARED
     engine-context/observe_entity_manager.cpp
     patches/set_runtime_patch.cpp
     profiles/select_game_profile.cpp
+    profiles/read_installed_profiles.cpp
+    loaded-resources/select_resource_profile.cpp
     profiles/identify_game_image.cpp
     profiles/read_game_profile.cpp
     player-input/apply_building_input.cpp
     ../../transport/native/steam_network.cpp
-    "${profile_resource_rc}")
+    "${runtime_license_rc}")
 target_include_directories(kfc-runtime PRIVATE
     "${generated_dir}"
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -196,7 +130,7 @@ target_include_directories(kfc-runtime PRIVATE
 target_compile_features(kfc-runtime PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime PRIVATE
     KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(kfc-runtime PRIVATE bcrypt Zydis)
+target_link_libraries(kfc-runtime PRIVATE bcrypt Zydis shroudforge-game-profile-discovery)
 set_property(TARGET kfc-runtime PROPERTY MSVC_RUNTIME_LIBRARY
     "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 foreach(configuration DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
@@ -211,7 +145,8 @@ endif()
 # Development tools never run from the game or from the modloader.
 add_executable(kfc-runtime-test-resource EXCLUDE_FROM_ALL
     ../tests/loaded_resource_access_test.cpp engine-context/resolve_engine_owners.cpp engine-context/resolve_registered_scene.cpp
-    engine-context/configure_engine_layout.cpp engine-context/hold_resource_lifetime.cpp engine-context/lock_scene_access.cpp)
+    engine-context/configure_engine_layout.cpp engine-context/hold_resource_lifetime.cpp engine-context/lock_scene_access.cpp
+    profiles/read_installed_profiles.cpp loaded-resources/select_resource_profile.cpp)
 target_include_directories(kfc-runtime-test-resource PRIVATE
     "${generated_dir}" "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/loaded-resources" "${CMAKE_CURRENT_SOURCE_DIR}/engine-context"
@@ -219,6 +154,7 @@ target_include_directories(kfc-runtime-test-resource PRIVATE
 target_compile_features(kfc-runtime-test-resource PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-test-resource PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
 set_property(TARGET kfc-runtime-test-resource PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+target_link_libraries(kfc-runtime-test-resource PRIVATE shroudforge-game-profile-discovery)
 get_target_property(prop_test_sources kfc-runtime SOURCES)
 list(REMOVE_ITEM prop_test_sources
     ecs/bind_world_entities.cpp
@@ -248,7 +184,7 @@ foreach(test_target kfc-runtime-test-prop-query kfc-runtime-test-ecs-read kfc-ru
     target_include_directories(${test_target} PRIVATE ${prop_test_includes})
     target_compile_features(${test_target} PRIVATE cxx_std_20)
     target_compile_definitions(${test_target} PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
-    target_link_libraries(${test_target} PRIVATE bcrypt Zydis)
+    target_link_libraries(${test_target} PRIVATE bcrypt Zydis shroudforge-game-profile-discovery)
     set_property(TARGET ${test_target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endforeach()
 
@@ -378,5 +314,5 @@ add_executable(kfc-runtime-test-world-context EXCLUDE_FROM_ALL
 target_include_directories(kfc-runtime-test-world-context PRIVATE ${prop_test_includes})
 target_compile_features(kfc-runtime-test-world-context PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-test-world-context PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(kfc-runtime-test-world-context PRIVATE bcrypt Zydis)
+target_link_libraries(kfc-runtime-test-world-context PRIVATE bcrypt Zydis shroudforge-game-profile-discovery)
 set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

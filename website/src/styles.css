@@ -95,8 +95,6 @@ h1, h2, h3 { color: var(--text-contrast); line-height: 1.25; }
 .version-option { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid transparent; border-radius: 10px; color: var(--text-primary); font-size: 14px; font-weight: 550; }
 .version-option:hover { background: var(--surface-3); }
 .version-option.is-active { color: var(--brand); background: var(--brand-highlight); border-color: rgb(99 201 245 / 13%); }
-.version-count { min-width: 23px; color: var(--text-secondary); font-size: 12px; font-weight: 500; text-align: center; }
-.version-option.is-active .version-count { color: var(--brand); }
 .sidebar-note { display: flex; gap: 9px; padding: 18px 13px; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
 .sidebar-note > .icon { margin-top: 3px; width: 16px; height: 16px; }
 .sidebar-note a { display: inline-flex; align-items: center; gap: 4px; }
@@ -137,10 +135,25 @@ h1, h2, h3 { color: var(--text-contrast); line-height: 1.25; }
 .download-card-empty { justify-content: center; min-height: 302px; }
 .download-card-empty h2 { margin-bottom: 12px; font-size: 21px; letter-spacing: -.5px; }
 .download-card-empty p { color: var(--text-secondary); font-size: 13px; }
-.download-notice { display: flex; align-items: flex-start; gap: 10px; padding: 15px 2px 0; color: var(--text-secondary); font-size: 12px; line-height: 1.75; }
-.download-notice > .icon { margin-top: 3px; width: 16px; height: 16px; }
-.download-notice a { display: inline-flex; align-items: center; gap: 4px; text-decoration: underline; text-decoration-color: rgb(99 201 245 / 35%); text-underline-offset: 3px; }
-.download-notice a .icon { width: 11px; height: 11px; }
+.installation-guide { margin-top: 24px; padding: 23px; background: linear-gradient(145deg, var(--card-gradient), transparent 78%), var(--surface-2); }
+.installation-guide h2 { margin-bottom: 10px; font-size: clamp(19px, 2.4vw, 23px); font-weight: 750; letter-spacing: -.6px; }
+.installation-guide > p { color: var(--text-primary); font-size: 13px; line-height: 1.75; }
+.installation-guide strong { color: var(--text-contrast); }
+.installation-guide p code { padding: 2px 6px; border: 1px solid var(--border-subtle); border-radius: 5px; background: var(--surface-1-5); color: var(--brand); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
+.installation-tree { margin: 17px 0; padding: 16px 19px; overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: 11px; background: var(--surface-1-5); scrollbar-width: thin; scrollbar-color: var(--surface-5) transparent; }
+.installation-tree pre { margin: 0; color: var(--text-secondary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.85; white-space: pre; }
+.tree-root { color: var(--text-contrast); }
+.tree-item { color: var(--brand); font-weight: 600; }
+.tree-description { color: var(--text-secondary); }
+.installation-path { margin-top: 17px; }
+.installation-path-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.installation-path code { max-width: 100%; overflow-wrap: anywhere; }
+.copy-path-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-1-5); color: var(--brand); font-size: 11px; font-weight: 600; line-height: 1.3; transition: background 150ms ease, border-color 150ms ease, color 150ms ease; }
+.copy-path-button:hover { border-color: var(--surface-5); background: var(--surface-3); color: var(--text-contrast); }
+.copy-path-button .icon { width: 14px; height: 14px; }
+.copy-path-button[data-state='success'] { border-color: var(--status-clean); color: var(--status-clean); }
+.copy-path-button[data-state='error'] { border-color: var(--status-error); color: var(--status-error); }
+.installation-finish { margin-top: 12px; color: var(--text-secondary); }
 
 .archive-section { margin-top: 39px; }
 .archive-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
@@ -319,7 +332,6 @@ html[data-theme='light'] .nav-link-active:hover { background: #dcecf7; }
 html[data-theme='light'] .eyebrow { color: var(--page-link); }
 html[data-theme='light'] .page-intro p,
 html[data-theme='light'] .sidebar-note,
-html[data-theme='light'] .download-notice,
 html[data-theme='light'] .archive-heading p,
 html[data-theme='light'] .filter-status,
 html[data-theme='light'] .archive-footnote,
@@ -328,16 +340,13 @@ html[data-theme='light'] .footer-links a,
 html[data-theme='light'] .theme-switch,
 html[data-theme='light'] .footer-meta { color: var(--page-text-secondary); }
 html[data-theme='light'] .sidebar-note a,
-html[data-theme='light'] .download-notice a,
 html[data-theme='light'] .text-button,
 html[data-theme='light'] .archive-footnote a { color: var(--page-link); }
 html[data-theme='light'] .sidebar-note a:hover,
-html[data-theme='light'] .download-notice a:hover,
 html[data-theme='light'] .text-button:hover,
 html[data-theme='light'] .archive-footnote a:hover,
 html[data-theme='light'] .footer-links a:hover,
 html[data-theme='light'] .theme-switch:hover { color: var(--page-link-hover); }
-html[data-theme='light'] .download-notice a { text-decoration-color: currentColor; }
 html[data-theme='light'] .theme-switch[aria-checked='true'] .theme-switch-track { border-color: var(--page-link); background: var(--page-link); }
 html[data-theme='light'] .theme-switch[aria-checked='true'] .theme-switch-thumb { background: #fff; }
 html[data-theme='light'] .footer-meta { opacity: 1; }
@@ -384,7 +393,12 @@ html[data-theme='light'] .footer-meta { opacity: 1; }
 	.card-label { margin-bottom: 17px; }
 	.download-card-empty { min-height: 190px; }
 	.card-version h2 { font-size: 29px; }
-	.download-notice { font-size: 11px; }
+	.installation-guide { padding: 17px; }
+	.installation-guide h2 { font-size: 19px; }
+	.installation-guide > p { font-size: 12px; }
+	.installation-tree { padding: 12px; }
+	.installation-tree pre { font-size: 10px; }
+	.installation-path code { font-size: 10px; }
 	.archive-section { margin-top: 30px; }
 	.archive-heading { margin-bottom: 17px; }
 	.archive-heading h2 { font-size: 21px; }

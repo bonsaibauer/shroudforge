@@ -1,0 +1,150 @@
+# Translation of Automatic beta game profiles to Swedish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: sv\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: sv\n"
+"X-Message-Group: page-Automatic beta game profiles\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Automatic_beta_game_profiles/Page_display_title"
+msgid "Automatic beta game profiles"
+msgstr "Automatiska betaspelprofiler"
+
+#
+msgctxt "Automatic_beta_game_profiles/1"
+msgid "Optional beta discovery compares a new game build with a saved, supported version. It creates a complete beta profile only when the required evidence is available. Matching regular game profiles take priority."
+msgstr "Valfri betasökning jämför en ny spelversion med en sparad version som stöds. En fullständig betaprofil skapas bara när de nödvändiga beläggen finns. Matchande vanliga spelprofiler har företräde."
+
+#
+msgctxt "Automatic_beta_game_profiles/2"
+msgid "== Prepare before a game update =="
+msgstr "== Förbered före en speluppdatering =="
+
+#
+msgctxt "Automatic_beta_game_profiles/3"
+msgid "The module is enabled by default and can be switched off. An explicitly saved disabled setting stays disabled. Its switch is under '''Settings → General → Game profile''', beside the profile selector."
+msgstr "Modulen är aktiverad som standard och kan stängas av. En uttryckligen sparad inaktiverad inställning förblir inaktiverad. Reglaget finns under '''Settings → General → Game profile''', bredvid profilväljaren."
+
+#
+msgctxt "Automatic_beta_game_profiles/4"
+msgid "# Check that '''Dynamic game profile creation (Beta)''' is enabled. Switch it on if needed.\n# Fully restart the game or dedicated server while a matching regular profile is still available.\n# ShroudForge verifies the exact current executable and saves it as a comparison baseline in the cache. You do not need to download a historical executable.\n# After a later game update, the new game process starts the comparison automatically and uses the saved baseline."
+msgstr "# Kontrollera att '''Dynamic game profile creation (Beta)''' är aktiverat. Slå på det vid behov.\n# Starta om spelet eller den dedikerade servern helt medan en matchande vanlig profil fortfarande finns tillgänglig.\n# ShroudForge verifierar den exakta aktuella körbara filen och sparar den i cachen som jämförelsebas. Du behöver inte ladda ned en historisk körbar fil.\n# Efter en senare speluppdatering startar den nya spelprocessen jämförelsen automatiskt och använder den sparade basen."
+
+#
+msgctxt "Automatic_beta_game_profiles/5"
+msgid "The client and dedicated server keep separate baselines. A client cannot replace a server baseline. If the module is first enabled after an update and no matching baseline was saved, it cannot reconstruct the previous version."
+msgstr "Klienten och den dedikerade servern har separata baser. En klient kan inte ersätta serverns bas. Om modulen aktiveras för första gången efter en uppdatering och ingen matchande bas har sparats går det inte att återskapa den tidigare versionen."
+
+#
+msgctxt "Automatic_beta_game_profiles/6"
+msgid "== What happens at game startup =="
+msgstr "== Vad händer när spelet startar? =="
+
+#
+msgctxt "Automatic_beta_game_profiles/7"
+msgid "Analysis runs during game startup. The game waits for the result before continuing startup. No loaded world is needed for this step."
+msgstr "Analysen körs när spelet startar. Spelet väntar på resultatet innan starten fortsätter. Det behövs ingen laddad värld i det här steget."
+
+#
+msgctxt "Automatic_beta_game_profiles/8"
+msgid "ShroudForge first looks for a regular profile matching the exact running executable. Automatic selection uses that profile when one exists. With discovery enabled, it also caches the supported executable for future updates."
+msgstr "ShroudForge letar först efter en vanlig profil som matchar den exakta körbara filen som körs. Om en sådan finns använder det automatiska valet profilen. När sökning är aktiverad sparas även den körbara fil som stöds i cachen inför framtida uppdateringar."
+
+#
+msgctxt "Automatic_beta_game_profiles/9"
+msgid "If no matching regular profile exists, the module checks the latest suitable regular baseline for the same process target and KFC format. The previously cached executable must match that baseline exactly. It compares code, references, registered types and the required structure contracts from the comparison images. Target addresses must be established from the new image."
+msgstr "Om det inte finns någon matchande vanlig profil kontrollerar modulen den senaste lämpliga vanliga basen för samma målprocess och KFC-format. Den tidigare cachade körbara filen måste matcha basen exakt. Jämförelsen granskar kod, referenser, registrerade typer och obligatoriska strukturkontrakt från jämförelsebilderna. Måladresser måste fastställas från den nya bilden."
+
+#
+msgctxt "Automatic_beta_game_profiles/10"
+msgid "The result preserves the complete previous profile contract, including its feature flags. Unresolved or conflicting evidence prevents publication of the entire beta profile. Diagnostics state the reason. Waiting longer or entering a world does not resolve missing static evidence."
+msgstr "Resultatet bevarar hela kontraktet från den tidigare profilen, inklusive dess funktionsflaggor. Olösta eller motstridiga belägg hindrar publicering av hela betaprofilen. Diagnostiken anger orsaken. Att vänta längre eller gå in i en värld löser inte saknade statiska belägg."
+
+#
+msgctxt "Automatic_beta_game_profiles/11"
+msgid "== Storage and selection =="
+msgstr "== Lagring och val =="
+
+#
+msgctxt "Automatic_beta_game_profiles/12"
+msgid "Regular and generated profiles share the configured profile directory. The default paths are:"
+msgstr "Vanliga och genererade profiler delar den konfigurerade profilmappen. Standardsökvägarna är:"
+
+#
+msgctxt "Automatic_beta_game_profiles/13"
+msgid "{| class=\"wikitable\"\n! Content !! Location\n|-\n| Client profiles || <code>shroudforge/runtime/profiles/enshrouded/client/</code>\n|-\n| Server profiles || <code>shroudforge/runtime/profiles/enshrouded/server/</code>\n|-\n| Saved comparison images and evidence || <code>shroudforge/cache/game-profile-discovery/</code>\n|}"
+msgstr "{| class=\"wikitable\"\n! Innehåll !! Plats\n|-\n| Klientprofiler || <code>shroudforge/runtime/profiles/enshrouded/client/</code>\n|-\n| Serverprofiler || <code>shroudforge/runtime/profiles/enshrouded/server/</code>\n|-\n| Sparade jämförelsebilder och belägg || <code>shroudforge/cache/game-profile-discovery/</code>\n|}"
+
+#
+msgctxt "Automatic_beta_game_profiles/14"
+msgid "Generated profiles start with <code>beta_</code>. '''Automatic''' selection can use a completely verified matching beta profile when no matching regular profile is available. The profile selector lists available profiles. A matching regular profile added later takes priority."
+msgstr "Genererade profiler börjar med <code>beta_</code>. Valet '''Automatic''' kan använda en fullständigt verifierad matchande betaprofil när ingen matchande vanlig profil finns. Profilväljaren visar tillgängliga profiler. En matchande vanlig profil som läggs till senare har företräde."
+
+#
+msgctxt "Automatic_beta_game_profiles/15"
+msgid "Changing the switch or profile selection requires a full restart of the affected game or server. Reopening the Modloader window does not restart the runtime."
+msgstr "Om du ändrar reglaget eller profilvalet måste spelet eller servern startas om helt. Att öppna Modloader-fönstret igen startar inte om runtime."
+
+#
+msgctxt "Automatic_beta_game_profiles/16"
+msgid "== Distinguish discovery, profiles and a running world =="
+msgstr "== Skillnaden mellan sökning, profiler och en aktiv värld =="
+
+#
+msgctxt "Automatic_beta_game_profiles/17"
+msgid "The blue '''Dynamic profile search in progress''' notice describes an active profile search. '''Workflow and help''' opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange '''Experimental game profile active''' notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors."
+msgstr "Det blå meddelandet '''Dynamic profile search in progress''' beskriver en pågående profilsökning. '''Workflow and help''' öppnar den här guiden. Om sökningen avslutas utan en matchande profil visas problemet i rött. Det orange meddelandet '''Experimental game profile active''' anger den betaprofil som faktiskt har valts. Verkliga runtimefel visas fortfarande som fel."
+
+#
+msgctxt "Automatic_beta_game_profiles/18"
+msgid "Structural executable checks do not require a loaded world. World operations additionally need their live contexts, registrations and runtime safety checks. A generated profile does not establish that game commands were executed or produced visible effects. Functional checks must also test the client and server separately."
+msgstr "Strukturella kontroller av körbara filer kräver ingen laddad värld. Världsberoende åtgärder behöver dessutom sina aktiva sammanhang, registreringar och säkerhetskontroller för runtime. En genererad profil visar inte att spelkommandon kördes eller gav synliga effekter. Funktionstester måste även kontrollera klienten och servern separat."
+
+#
+msgctxt "Automatic_beta_game_profiles/19"
+msgid "If no profile is generated, read the reported reason and technical details. A missing saved baseline, unsuitable source profile or unresolved code and layout evidence each requires the relevant input or further analysis. A matching regular profile or a suitable ShroudForge update may provide support."
+msgstr "Om ingen profil genereras läser du den rapporterade orsaken och de tekniska uppgifterna. En saknad sparad bas, en olämplig källprofil eller olösta kod- och layoutbelägg kräver relevant indata eller vidare analys. En matchande vanlig profil eller en lämplig ShroudForge-uppdatering kan ge stöd."
+
+#
+msgctxt "Automatic_beta_game_profiles/20"
+msgid "== Detailed logging =="
+msgstr "== Detaljerad loggning =="
+
+#
+msgctxt "Automatic_beta_game_profiles/21"
+msgid "The Debug Console shows discovery messages from the main log under the <code>game-profile-discovery</code> source. To see every comparison and rebase field, set '''Settings → General → Logging → Minimum level''' to '''Diagnostic'''. '''Advanced''' shows additional summaries."
+msgstr "Debug Console visar sökmeddelanden från huvudloggen under källan <code>game-profile-discovery</code>. Ställ in '''Settings → General → Logging → Minimum level''' på '''Diagnostic''' för att se alla jämförelser och rebasefält. '''Advanced''' visar ytterligare sammanfattningar."
+
+#
+msgctxt "Automatic_beta_game_profiles/22"
+msgid "The red runtime banner and the log entry <code>&#91;compatibility-check&#93; check=runtime</code> come from the same runtime check. The existing UI refresh logs the state change before sending the same status to the Modloader. The Debug Console applies its existing popup setting to warning and error lines from that main log."
+msgstr "Den röda runtime-bannern och loggposten <code>&#91;compatibility-check&#93; check=runtime</code> kommer från samma runtime-kontroll. Den befintliga UI-uppdateringen loggar statusändringen innan samma status skickas till Modloader. Debug Console använder den befintliga popup-inställningen för varnings- och felrader i huvudloggen."
+
+#
+msgctxt "Automatic_beta_game_profiles/23"
+msgid "On failure, the main log gives the path to the current <code>''.v2.unresolved.json</code> or <code>''.v2.error.json</code> report. On success, it gives the path to the <code>''.v2.proof.json</code> evidence and the full save path of the generated <code>beta_''.json</code> profile. Reports are stored in the discovery cache."
+msgstr "Vid fel anger huvudloggen sökvägen till den aktuella rapporten <code>''.v2.unresolved.json</code> eller <code>''.v2.error.json</code>. Vid lyckat resultat anges sökvägen till beläggen <code>''.v2.proof.json</code> och hela sökvägen där den genererade <code>beta_''.json</code>-profilen sparades. Rapporter sparas i sökcachen."
+
+#
+msgctxt "Automatic_beta_game_profiles/24"
+msgid "== Linux and Proton =="
+msgstr "== Linux och Proton =="
+
+#
+msgctxt "Automatic_beta_game_profiles/25"
+msgid "Discovery runs inside the native runtime module and requires no external PowerShell or Python programs. This workflow has not yet been live-tested under Proton."
+msgstr "Sökningen körs i den inbyggda runtime-modulen och kräver inga externa PowerShell- eller Python-program. Arbetsflödet har ännu inte testats live under Proton."
+
+#
+msgctxt "Automatic_beta_game_profiles/26"
+msgid "For runtime, mod API and parser guidance, see [[Special:MyLanguage/Engine|Engine]]."
+msgstr "Se [[Special:MyLanguage/Engine|Spelmotor]] för vägledning om runtime, mod-API och parser."

@@ -839,6 +839,30 @@
             }
           }
         },
+        "wiki": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "pageSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "maxResultsPerQuery": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "refreshIntervalMinutes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1440
+            }
+          },
+          "additionalProperties": false
+        },
         "runtimeDiagnostics": {
           "type": "object",
           "properties": {
@@ -877,6 +901,15 @@
             "requestId": {
               "type": "integer",
               "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "gameProfileDiscovery": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

@@ -1,0 +1,70 @@
+# Translation of Mod Detection to Japanese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: ja\n"
+"X-Message-Group: page-Mod Detection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Mod_Detection/Page_display_title"
+msgid "Mod Detection"
+msgstr "Mod の検出"
+
+#
+msgctxt "Mod_Detection/1"
+msgid "See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files."
+msgstr "ShroudForge が認識する Mod フォルダーとファイルを確認できます。検出時に DLL が読み込まれたり、Mod ファイルが変更されたりすることはありません。"
+
+#
+msgctxt "Mod_Detection/2"
+msgid "== What is detected? =="
+msgstr "== 検出されるもの =="
+
+#
+msgctxt "Mod_Detection/3"
+msgid "Installed mods are unpacked folders under <code>mods/&lt;mod-folder&gt;/</code> or your configured mods directory. ShroudForge reads <code>mod.json</code>, optional <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> and existing DLL files. A Lua-only mod needs no DLL of its own. A native mod can appear in the DLL Manager without a manifest or Lua file."
+msgstr "インストール済み Mod は、<code>mods/&lt;mod-folder&gt;/</code> または設定された Mod ディレクトリ内に展開されたフォルダーです。ShroudForge は <code>mod.json</code>、任意の <code>extended.mod.json</code>、<code>src/mod.lua</code>、<code>native-plugin.ini</code>、既存の DLL ファイルを読み取ります。Lua のみを使う Mod に専用 DLL は不要です。ネイティブ Mod はマニフェストや Lua ファイルがなくても DLL Manager に表示される場合があります。"
+
+#
+msgctxt "Mod_Detection/4"
+msgid "This view tells you whether a folder and its information were recognized. Actual native loading appears in the DLL Manager. The mod's own page shows its overall status."
+msgstr "この画面では、フォルダーとその情報が認識されたかどうかを確認できます。実際のネイティブ読み込み状況は DLL Manager に表示されます。Mod 自体のページでは全体の状態を確認できます。"
+
+#
+msgctxt "Mod_Detection/5"
+msgid "== Unknown manifest fields =="
+msgstr "== 未知のマニフェストフィールド =="
+
+#
+msgctxt "Mod_Detection/6"
+msgid "With the Mod Detection module and tolerant reading enabled, <code>mod.json</code> and <code>extended.mod.json</code> may contain extra fields unknown to ShroudForge. Those fields alone do not reject a package. Known fields must still contain valid values. Invalid JSON, missing required information and incorrect data types remain errors."
+msgstr "Mod Detection モジュールと寛容な読み取りを有効にすると、<code>mod.json</code> と <code>extended.mod.json</code> に ShroudForge が認識しない追加フィールドを含められます。それらのフィールドだけを理由にパッケージが拒否されることはありません。認識されるフィールドには引き続き有効な値が必要です。不正な JSON、必須情報の不足、誤ったデータ型は引き続きエラーです。"
+
+#
+msgctxt "Mod_Detection/7"
+msgid "Disabling this compatibility option restores strict validation. It does not automatically delete or disable all installed mods."
+msgstr "この互換性オプションを無効にすると厳密な検証に戻ります。インストール済みの Mod がすべて自動的に削除または無効化されるわけではありません。"
+
+#
+msgctxt "Mod_Detection/8"
+msgid "== A mod is not recognized =="
+msgstr "== Mod が認識されない場合 =="
+
+#
+msgctxt "Mod_Detection/9"
+msgid "Check the actual mod folder first. A download folder may contain another wrapper folder or a <code>mods</code> directory. The installer locates a single enclosed mod package. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. During normal operation, ShroudForge reads unpacked mod folders rather than archives."
+msgstr "まず実際の Mod フォルダーを確認してください。ダウンロードしたフォルダーの中に、さらにラッパーフォルダーや <code>mods</code> ディレクトリがある場合があります。インストーラーは内部にある単一の Mod パッケージを探します。複数の Mod パッケージを含む新しいアーカイブは、グループとして自動インストールされません。展開して、一度に 1 つの Mod フォルダーをインストールしてください。通常の動作中、ShroudForge はアーカイブではなく展開済みの Mod フォルダーを読み取ります。"
+
+#
+msgctxt "Mod_Detection/10"
+msgid "Correct the reported JSON location or install the complete package again. A compatibility profile can supply an adapter for known differences. Recognition alone does not confirm that native hooks or mod APIs work."
+msgstr "報告された JSON の場所を修正するか、パッケージ全体を再インストールしてください。互換性プロファイルは既知の違いに対するアダプターを提供できます。認識されたことだけでは、ネイティブフックや Mod API が機能するとは限りません。"

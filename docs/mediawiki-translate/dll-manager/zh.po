@@ -1,0 +1,155 @@
+# Translation of DLL Manager to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-DLL Manager\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "DLL_Manager/Page_display_title"
+msgid "DLL Manager"
+msgstr "DLL Manager"
+
+#
+msgctxt "DLL_Manager/1"
+msgid "In the Modloader, open '''Compatibility → DLL Manager'''. The guide is shown at the top of that panel. It lists the mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, select and confirm them there."
+msgstr "在 Modloader 中打开 '''Compatibility → DLL Manager'''。本指南显示在面板顶部。它会列出 ShroudForge 找到的模组 DLL，并显示它们是否已加载。已知模组已有准备好的配置文件。对于其他 DLL，请在此处选择并确认。"
+
+#
+msgctxt "DLL_Manager/2"
+msgid "== Can I use more than one native DLL mod? =="
+msgstr "== 可以使用多个原生 DLL 模组吗？ =="
+
+#
+msgctxt "DLL_Manager/3"
+msgid "Yes. Install each mod in its own folder directly under <code>mods/</code>, and keep the files and subfolders supplied by the author. A matching profile may already provide the right DLL selection. For a mod without a matching profile, open '''Adjust DLL selection''' in the DLL Manager. Select only the entry DLLs named by the author. Choose the load target and confirm that you trust the DLL. Keep '''Normal DLL''' for ordinary native libraries. Choose '''DirectInput proxy''' only for a DLL intended to provide DirectInput that exports <code>DirectInput8Create</code>. Click '''Apply selection''', then restart the game. Detection alone does not load an unprofiled DLL. It needs a confirmed DLL Manager selection, a declaration in <code>native-plugin.ini</code> or <code>dinput8-chain.ini</code>, or registration by its Lua mod."
+msgstr "可以。将每个模组安装在 <code>mods/</code> 目录下各自独立的文件夹中，并保留作者提供的文件和子文件夹。匹配的配置文件可能已经选择了正确的 DLL。对于没有匹配配置文件的模组，请在 DLL Manager 中打开 '''Adjust DLL selection'''。只选择作者指定的入口 DLL。选择加载目标，并确认你信任该 DLL。普通原生库请使用 '''Normal DLL'''。只有当 DLL 用于提供 DirectInput 并导出了 <code>DirectInput8Create</code> 时，才选择 '''DirectInput proxy'''。单击 '''Apply selection'''，然后重启游戏。仅被检测到并不会加载没有配置文件的 DLL。还需要在 DLL Manager 中确认选择、在 <code>native-plugin.ini</code> 或 <code>dinput8-chain.ini</code> 中声明，或由其 Lua 模组注册。"
+
+#
+msgctxt "DLL_Manager/4"
+msgid "== What should I do with a downloaded mod? =="
+msgstr "== 下载的模组应该如何处理？ =="
+
+#
+msgctxt "DLL_Manager/5"
+msgid "* '''No DLL included:''' Install the mod as usual. Mods made for ShroudForge or EML do not need an extra native DLL.\n* '''DLL included:''' Put the mod DLL in its mod folder as shown below. It then appears in the DLL Manager. A known profile already has its selection prepared. Otherwise, select the DLL there and confirm it.\n* '''Other mod files included:''' Keep the complete mod folder. Do not remove files such as <code>mod.json</code>, <code>native-plugin.ini</code> or configuration files."
+msgstr "* '''No DLL included:''' 按照通常方式安装模组。为 ShroudForge 或 EML 制作的模组不需要额外的原生 DLL。\n* '''DLL included:''' 按照下方所示将模组 DLL 放入其模组文件夹。随后它会显示在 DLL Manager 中。已知配置文件会预先设置选择。否则，请在此处选择并确认 DLL。\n* '''Other mod files included:''' 保留完整的模组文件夹。不要删除 <code>mod.json</code>、<code>native-plugin.ini</code> 或配置文件等内容。"
+
+#
+msgctxt "DLL_Manager/6"
+msgid "== If one mod contains several DLL files =="
+msgstr "== 如果一个模组包含多个 DLL 文件 =="
+
+#
+msgctxt "DLL_Manager/7"
+msgid "Many mod folders contain DLLs that are only helper files. Select only the DLLs named for loading by the mod profile or the mod author's instructions. The up and down controls set the order of selected DLLs within that mod folder. They do not set a global manual order for ordinary DLLs across separate mod folders."
+msgstr "许多模组文件夹中的 DLL 只是辅助文件。只选择模组配置文件或作者说明中指定要加载的 DLL。上下按钮用于设置同一模组文件夹内所选 DLL 的顺序。它们不会为不同模组文件夹中的普通 DLL 设置全局手动顺序。"
+
+#
+msgctxt "DLL_Manager/8"
+msgid "== Installing a mod DLL =="
+msgstr "== 安装模组 DLL =="
+
+#
+msgctxt "DLL_Manager/9"
+msgid "If the ShroudForge installer recognizes the downloaded mod package, install it there. For a manual install, give each mod its own folder directly under <code>mods/</code> and put the mod's DLL in that folder. If the DLL sits beside the mod folder in the archive, put it with the mod. Keep the original filename and the package's subfolders."
+msgstr "如果 ShroudForge 安装程序识别下载的模组包，请直接使用它安装。手动安装时，为每个模组在 <code>mods/</code> 下创建独立文件夹，并将模组 DLL 放入该文件夹。如果压缩包中的 DLL 与模组文件夹并列，请将它放入模组文件夹。保留原始文件名和软件包子文件夹。"
+
+#
+msgctxt "DLL_Manager/10"
+msgid "<pre>\nmods/\n  my-mod/\n    mod.json        (if included)\n    dinput8.dll     (or the mod's DLL)\n    config.ini      (if included)\n</pre>"
+msgstr "<pre>\nmods/\n  my-mod/\n    mod.json        (if included)\n    dinput8.dll     (or the mod's DLL)\n    config.ini      (if included)\n</pre>"
+
+#
+msgctxt "DLL_Manager/11"
+msgid "A DLL does not load just because it is in the folder. Select it in the DLL Manager as described above."
+msgstr "DLL 不会因为放在文件夹中就自动加载。请按照上面的说明在 DLL Manager 中选择它。"
+
+#
+msgctxt "DLL_Manager/12"
+msgid "== Why can the mod file also be named dinput8.dll? =="
+msgstr "== 为什么模组文件也可以命名为 dinput8.dll？ =="
+
+#
+msgctxt "DLL_Manager/13"
+msgid "ShroudForge's own startup file is <code>dinput8.dll</code> in the game folder. The mod file is separate at <code>mods/&lt;mod-folder&gt;/dinput8.dll</code>. ShroudForge loads it from that full path. With a matching profile or DLL Manager selection, ShroudForge forwards DirectInput calls to it. Both files can keep the same name. Do not rename the mod file or put it in the game folder. Do not replace ShroudForge's startup file there."
+msgstr "ShroudForge 自身的启动文件是游戏文件夹中的 <code>dinput8.dll</code>。模组文件单独位于 <code>mods/&lt;mod-folder&gt;/dinput8.dll</code>。ShroudForge 会从该完整路径加载它。匹配的配置文件或 DLL Manager 选择可以让 ShroudForge 将 DirectInput 调用转发给它。两个文件可以同名。不要重命名模组文件，也不要将它放进游戏文件夹。不要替换其中的 ShroudForge 启动文件。"
+
+#
+msgctxt "DLL_Manager/14"
+msgid "== Understanding profiles =="
+msgstr "== 了解配置文件 =="
+
+#
+msgctxt "DLL_Manager/15"
+msgid "A profile is a prepared setting for a known mod. It tells ShroudForge which files to load and how. ShroudForge matches it by the mod ID in <code>mod.json</code>, or by the folder name if there is no ID. You can also choose a profile in the DLL Manager. Profiles do not change mod files. A saved custom DLL selection replaces the profile's file selection."
+msgstr "配置文件是为已知模组准备的设置。它会告知 ShroudForge 要加载哪些文件以及如何加载。ShroudForge 会根据 <code>mod.json</code> 中的模组 ID 进行匹配；如果没有 ID，则使用文件夹名称。你也可以在 DLL Manager 中选择配置文件。配置文件不会修改模组文件。保存的自定义 DLL 选择会替代配置文件中的文件选择。"
+
+#
+msgctxt "DLL_Manager/16"
+msgid "== Existing DirectInput chain =="
+msgstr "== 现有 DirectInput 链 =="
+
+#
+msgctxt "DLL_Manager/17"
+msgid "An existing game-folder <code>dinput8-chain.ini</code> uses the established format:"
+msgstr "游戏文件夹中已有的 <code>dinput8-chain.ini</code> 使用既定格式："
+
+#
+msgctxt "DLL_Manager/18"
+msgid "<pre>\n[Chain]\nmods\\my-mod\\dinput8.dll\nmods\\another-mod\\native.dll\n</pre>"
+msgstr "<pre>\n[Chain]\nmods\\my-mod\\dinput8.dll\nmods\\another-mod\\native.dll\n</pre>"
+
+#
+msgctxt "DLL_Manager/19"
+msgid "Entries must resolve to files inside direct mod packages such as <code>mods/&lt;mod-folder&gt;/</code>. Game-root DLLs and paths outside those packages are rejected. Their order takes priority over automatically derived declarations. This file sets order for the DirectInput provider chain, not for ordinary DLLs across mod folders. The same resolved file path is loaded only once. The first valid DLL exporting its own <code>DirectInput8Create</code> receives forwarded calls. Later DirectInput proxy DLLs may still load, but their DirectInput exports are not active in the chain. Do not assume that multiple proxies will work together. Own startup files are skipped, and recursive forwarding falls back to the original Windows library."
+msgstr "条目必须解析到直接模组包内部的文件，例如 <code>mods/&lt;mod-folder&gt;/</code>。游戏根目录中的 DLL 和软件包以外的路径会被拒绝。其顺序优先于自动推导的声明。此文件设置的是 DirectInput 提供程序链的顺序，而非不同模组文件夹中普通 DLL 的顺序。同一个解析后的文件路径只会加载一次。第一个导出自身 <code>DirectInput8Create</code> 的有效 DLL 会接收转发调用。后续 DirectInput 代理 DLL 仍可能加载，但它们的 DirectInput 导出不会在链中启用。不要假设多个代理可以协同工作。ShroudForge 自身的启动文件会被跳过，递归转发时会回退到原始 Windows 库。"
+
+#
+msgctxt "DLL_Manager/20"
+msgid "== Switches, process target and restarting =="
+msgstr "== 开关、目标进程和重启 =="
+
+#
+msgctxt "DLL_Manager/21"
+msgid "The main switch controls all native loading performed by ShroudForge, including INI, profile, chain and Lua registration. A disabled selection suppresses automatic loading for that folder. Client, server or both determines the target process. Filename exclusions apply immediately before loading. They do not identify a mod's functionality from its name."
+msgstr "主开关控制 ShroudForge 执行的所有原生加载，包括 INI、配置文件、链和 Lua 注册。禁用某个选择会阻止该文件夹自动加载。Client、server 或 both 决定目标进程。文件名排除项会在加载前立即生效。它们不会根据文件名判断模组功能。"
+
+#
+msgctxt "DLL_Manager/22"
+msgid "Loaded DLLs remain in memory until the process exits. Disabling them, changing the order or choosing another profile therefore requires restarting the game. Duplicate declarations of one file do not create another instance."
+msgstr "已加载的 DLL 会一直留在内存中，直到进程退出。因此，禁用 DLL、更改顺序或选择其他配置文件都需要重启游戏。对同一个文件重复声明不会创建另一个实例。"
+
+#
+msgctxt "DLL_Manager/23"
+msgid "== A loading error appears =="
+msgstr "== 出现加载错误 =="
+
+#
+msgctxt "DLL_Manager/24"
+msgid "Check the mod name, file path and cause. Windows error 126 can mean a missing main file or one of its required libraries. If the DirectInput export is missing, check the selected file and its loading mode. “Loaded” confirms loading, rather than every feature of the mod."
+msgstr "检查模组名称、文件路径和报告的原因。Windows 错误 126 可能表示主文件或其所需的某个库缺失。如果缺少 DirectInput 导出，请检查所选文件及其加载模式。“Loaded”只确认加载步骤完成，并不代表模组的所有功能都正常。"
+
+#
+msgctxt "DLL_Manager/25"
+msgid "An unknown native plugin format, Vulkan layer, additional complete loader or external program needs its intended integration. Loading a library alone does not replace that interface."
+msgstr "未知的原生插件格式、Vulkan 层、其他完整加载器或外部程序需要使用其预期的集成方式。仅加载一个库并不能替代相应接口。"
+
+#
+msgctxt "DLL_Manager/26"
+msgid "== Installing packages =="
+msgstr "== 安装软件包 =="
+
+#
+msgctxt "DLL_Manager/27"
+msgid "The installer also finds a single mod package in nested archive folders. Known profiles import explicitly named companion files. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. Normal runtime operation does not open archives or start external programs."
+msgstr "安装程序也会在嵌套压缩文件夹中查找单个模组包。已知配置文件会导入明确命名的配套文件。包含多个模组包的新压缩包不会自动作为一组安装。请先解压，然后一次安装一个模组文件夹。正常运行时不会打开压缩包，也不会启动外部程序。"

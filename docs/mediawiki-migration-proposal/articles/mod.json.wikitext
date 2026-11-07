@@ -1,0 +1,33 @@
+Every ShroudForge mod package needs a <code>mod.json</code> file in its root folder. ShroudForge reads it before preparing or starting the mod. It describes the package and the capabilities it requests.
+
+== Required fields ==
+
+The required fields are <code>id</code>, <code>name</code>, and <code>version</code>. Other fields are optional.
+
+== Example ==
+
+<pre>
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+  "id": "example.hello-ember",
+  "name": "Hello Ember",
+  "version": "1.0.0",
+  "authors": ["Your Name"],
+  "capabilities": ["runtime"],
+  "dependencies": []
+}
+</pre>
+
+The <code>id</code> is the unique package identifier. The <code>name</code> is shown to players. The <code>version</code> follows the package's release version. <code>authors</code> identifies the creators. <code>capabilities</code> lists the supported actions the mod requests. <code>dependencies</code> lists other mods required by this package.
+
+The [https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json canonical manifest schema] defines the accepted fields and data types.
+
+== Related pages ==
+
+* [[Build your first mod]]
+* [[extended.mod.json]]
+* [[Category:Mod manifests|All manifest topics]]
+* [https://bonsaibauer.github.io/shroudforge/ ShroudForge documentation]
+
+[[Category:Mod manifests]]
+[[Category:Modding]]
