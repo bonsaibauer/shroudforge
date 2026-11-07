@@ -1,0 +1,69 @@
+# Translation of Dependencies to Dutch
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: nl\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "Afhankelijkheden"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "Bekijk vereiste onderdelen en bekende conflicten tussen mods. Dit overzicht legt uit waardoor een actieve mod wordt geblokkeerd en welke afhankelijkheid aandacht nodig heeft."
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== Vereiste mods =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "Een mod kan andere mods en de vereiste versies daarvan opgeven in <code>mod.json</code>. ShroudForge controleert of ze zijn geïnstalleerd, ingeschakeld en geschikt zijn voor de huidige client of server. Als een vereiste afhankelijkheid ontbreekt of is uitgeschakeld, start de betreffende mod niet. Een incompatibele versie blokkeert de mod ook."
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "Open de genoemde mod, installeer of schakel de vereiste in en controleer dit overzicht opnieuw. Niet elke geïnstalleerde mod hoeft in het huidige proces te draaien. Een mod die alleen voor de client is bedoeld, hoeft niet op een server te starten."
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== Optionele afhankelijkheden =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "Een expliciet optionele afhankelijkheid mag ontbreken of uitgeschakeld zijn. Een extra functie is dan mogelijk niet beschikbaar. Als de afhankelijkheid aanwezig en ingeschakeld is, moeten de versie en eventuele verdere vereisten nog steeds overeenkomen."
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "Mods zonder opgegeven afhankelijkheden hebben hier geen afzonderlijke probleemvermelding nodig. Hun algemene status blijft zichtbaar op hun eigen modpagina's."
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== Conflicten en cycli =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "Bekende conflictregels wijzen twee actieve mods aan die in de opgegeven combinatie niet samen moeten draaien. Gebruik het bericht om te bepalen welke mod je uitschakelt. Een afhankelijkheidscyclus betekent dat mods van elkaar vereisen dat ze als eerste starten. Hiervoor moet het pakket worden aangepast of moet de auteur een wijziging aanbrengen."
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "Een vereiste voor <code>shroudforge-api</code> verwijst naar de mod-API van de loader. Deze staat los van het automatisch koppelen van DLL-compatibiliteitsprofielen."

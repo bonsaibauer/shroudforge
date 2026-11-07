@@ -1,0 +1,75 @@
+# Translation of Engine to Italian
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: it\n"
+"X-Message-Group: page-Engine\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Engine/Page_display_title"
+msgid "Engine"
+msgstr "Motore"
+
+#
+msgctxt "Engine/1"
+msgid "Check shared requirements for the game, runtime, mod API and parser. These checks explain why a feature is ready, still waiting or unavailable."
+msgstr "Controlla i requisiti condivisi per il gioco, il runtime, l'API delle mod e il parser. Questi controlli spiegano perché una funzione è pronta, è ancora in attesa o non è disponibile."
+
+#
+msgctxt "Engine/2"
+msgid "== Game and runtime =="
+msgstr "== Gioco e runtime =="
+
+#
+msgctxt "Engine/3"
+msgid "ShroudForge distinguishes the client from the dedicated server. Some features are intended for only one process. The runtime gives supported mods access to the running game. A missing or failed runtime startup can affect several mods at once."
+msgstr "ShroudForge distingue il client dal server dedicato. Alcune funzioni sono destinate a un solo tipo di processo. Il runtime consente alle mod supportate di accedere al gioco in esecuzione. Un avvio del runtime mancante o non riuscito può influire su più mod contemporaneamente."
+
+#
+msgctxt "Engine/4"
+msgid "“Waiting for game” or a world that is still loading describes an operating state. It does not by itself mean a mod is broken. World-dependent features become ready only after the required game data exists."
+msgstr "“In attesa del gioco” o un mondo ancora in caricamento descrivono uno stato operativo. Da soli non indicano che una mod sia guasta. Le funzioni che dipendono dal mondo diventano pronte solo quando sono disponibili i dati di gioco necessari."
+
+#
+msgctxt "Engine/5"
+msgid "== Game profiles and mod profiles =="
+msgstr "== Profili di gioco e profili delle mod =="
+
+#
+msgctxt "Engine/6"
+msgid "Game profiles describe supported native access for a game build. A missing matching profile can limit particular features. Read the specific message instead of assuming that every mod is unavailable."
+msgstr "I profili di gioco descrivono l'accesso nativo supportato per una versione del gioco. L'assenza di un profilo corrispondente può limitare alcune funzioni specifiche. Leggi il messaggio interessato invece di presumere che tutte le mod siano indisponibili."
+
+#
+msgctxt "Engine/7"
+msgid "DLL compatibility profiles serve a different purpose. They associate a mod with its files and known adaptations. Matching uses the mod ID or folder name without requiring a DLL hash or an exact mod-version match."
+msgstr "I profili di compatibilità DLL hanno uno scopo diverso. Associano una mod ai suoi file e agli adattamenti noti. L'abbinamento usa l'ID della mod o il nome della cartella e non richiede un hash DLL né una corrispondenza esatta della versione della mod."
+
+#
+msgctxt "Engine/8"
+msgid "== Mod API and parser =="
+msgstr "== API delle mod e parser =="
+
+#
+msgctxt "Engine/9"
+msgid "The mod API supplies functions for Lua mods. A mod needs to support the API it uses and declare the necessary permissions. The parser reads and processes game data for asset changes. A Lua mod and a native DLL can therefore have different requirements."
+msgstr "L'API delle mod fornisce funzioni per le mod Lua. Una mod deve supportare l'API che utilizza e dichiarare le autorizzazioni necessarie. Il parser legge ed elabora i dati di gioco per le modifiche agli asset. Una mod Lua e una DLL nativa possono quindi avere requisiti diversi."
+
+#
+msgctxt "Engine/10"
+msgid "== If startup fails =="
+msgstr "== Se l'avvio non riesce =="
+
+#
+msgctxt "Engine/11"
+msgid "Read the affected component and its reported cause. When asset preparation fails, ShroudForge can stop game startup to protect file consistency. The message states the required recovery. A loaded DLL confirms its own loading step, rather than every feature of the mod."
+msgstr "Leggi il componente interessato e la causa segnalata. Se la preparazione degli asset non riesce, ShroudForge può interrompere l'avvio del gioco per proteggere la coerenza dei file. Il messaggio indica come ripristinarla. Il caricamento di una DLL conferma la sua fase di caricamento, non tutte le funzioni della mod."

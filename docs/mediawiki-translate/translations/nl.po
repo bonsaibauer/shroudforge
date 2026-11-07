@@ -1,0 +1,85 @@
+# Translation of Translate the Modloader to Dutch
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: nl\n"
+"X-Message-Group: page-Translate the Modloader\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Translate_the_Modloader/Page_display_title"
+msgid "Translate the Modloader"
+msgstr "De Modloader vertalen"
+
+#
+msgctxt "Translate_the_Modloader/1"
+msgid "Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub."
+msgstr "Help ShroudForge beschikbaar te maken voor spelers over de hele wereld. Bewerk vertalingen in Fink of dien je wijzigingen in als pullrequest op GitHub."
+
+#
+msgctxt "Translate_the_Modloader/2"
+msgid "== Translate with Fink =="
+msgstr "== Vertalen met Fink =="
+
+#
+msgctxt "Translate_the_Modloader/3"
+msgid "Open the [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang Fink editor for ShroudForge]. Fink shows the English source text beside its translations. The language files stay in the repository. Fink does not keep a second synced copy in a translation service."
+msgstr "Open de [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang Fink-editor voor ShroudForge]. Fink toont de Engelse brontekst naast de vertalingen. De taalbestanden blijven in de repository. Fink bewaart geen tweede gesynchroniseerde kopie in een vertaaldienst."
+
+#
+msgctxt "Translate_the_Modloader/4"
+msgid "Choose the project and branch in the editor. Review a message, edit its translation and check the result. Fink first saves your work as a draft in your browser. You need a GitHub account to save changes to GitHub."
+msgstr "Kies het project en de branch in de editor. Bekijk een bericht, bewerk de vertaling en controleer het resultaat. Fink slaat je werk eerst als concept in je browser op. Je hebt een GitHub-account nodig om wijzigingen op GitHub op te slaan."
+
+#
+msgctxt "Translate_the_Modloader/5"
+msgid "== Send changes as a pull request =="
+msgstr "== Wijzigingen als pullrequest indienen =="
+
+#
+msgctxt "Translate_the_Modloader/6"
+msgid "If the default branch is protected, create a translation branch on GitHub first. Open that branch in Fink and push your changes there. Then create a pull request so the changes can be reviewed before they are merged. Fink does not create branches for you."
+msgstr "Als de standaardbranch is beschermd, maak je eerst een vertaalbranch op GitHub. Open die branch in Fink en stuur je wijzigingen daarheen. Maak daarna een pullrequest, zodat de wijzigingen kunnen worden beoordeeld voordat ze worden samengevoegd. Fink maakt geen branches voor je aan."
+
+#
+msgctxt "Translate_the_Modloader/7"
+msgid "If you cannot write to the ShroudForge repository, use Fink's fork flow. Install the Inlang GitHub App on your account, push the changes to your fork, then open a pull request. Fink opens GitHub's pull request page. Review and submit the pull request there."
+msgstr "Als je niet naar de ShroudForge-repository kunt schrijven, gebruik je de fork-functie van Fink. Installeer de Inlang GitHub-app op je account, stuur de wijzigingen naar je fork en maak daarna een pullrequest. Fink opent de pullrequestpagina van GitHub. Beoordeel en verstuur de pullrequest daar."
+
+#
+msgctxt "Translate_the_Modloader/8"
+msgid "The [https://github.com/bonsaibauer/shroudforge/pulls ShroudForge pull request list] shows open translation contributions and their review status. See the [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink guide to branches and pull requests] for more details."
+msgstr "De [https://github.com/bonsaibauer/shroudforge/pulls lijst met pullrequests van ShroudForge] toont openstaande vertaalbijdragen en hun beoordelingsstatus. Raadpleeg de [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink-handleiding voor branches, forks en pullrequests] voor meer informatie."
+
+#
+msgctxt "Translate_the_Modloader/9"
+msgid "== Edit the translation files directly =="
+msgstr "== De vertaalbestanden rechtstreeks bewerken =="
+
+#
+msgctxt "Translate_the_Modloader/10"
+msgid "You can also change the JSON files under <code>modules/ui-resources/locales/</code> and create a pull request in the repository. Keep the same keys as the English source file <code>en-GB.json</code>. Do not rename placeholders such as <code>&#123;count&#125;</code>. Their names must stay exactly the same in each translation."
+msgstr "Je kunt ook de JSON-bestanden onder <code>modules/ui-resources/locales/</code> aanpassen en een pullrequest in de repository maken. Gebruik dezelfde sleutels als in het Engelse bronbestand <code>en-GB.json</code>. Hernoem placeholders zoals <code>&#123;count&#125;</code> niet. De namen moeten in elke vertaling exact hetzelfde blijven."
+
+#
+msgctxt "Translate_the_Modloader/11"
+msgid "Before opening a pull request, you can check the locale files:"
+msgstr "Je kunt de taalbestanden controleren voordat je een pullrequest maakt:"
+
+#
+msgctxt "Translate_the_Modloader/12"
+msgid "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+msgstr "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+
+#
+msgctxt "Translate_the_Modloader/13"
+msgid "The Fink project file <code>modules/ui-resources/project.inlang/settings.json</code> connects the editor to these catalogs. The example link above opens that project. If you use a different editor URL later, update it in this article link and in the SVG illustration."
+msgstr "Het Fink-projectbestand <code>modules/ui-resources/project.inlang/settings.json</code> koppelt de editor aan deze catalogi. De voorbeeldlink hierboven opent dat project. Gebruik je later een andere editor-URL, werk die dan bij in de link van dit artikel en in de SVG-afbeelding."

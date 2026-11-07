@@ -1,0 +1,75 @@
+# Translation of Engine to Swedish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: sv\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: sv\n"
+"X-Message-Group: page-Engine\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Engine/Page_display_title"
+msgid "Engine"
+msgstr "Spelmotor"
+
+#
+msgctxt "Engine/1"
+msgid "Check shared requirements for the game, runtime, mod API and parser. These checks explain why a feature is ready, still waiting or unavailable."
+msgstr "Kontrollera gemensamma krav för spelet, runtime, mod-API och parser. Kontrollerna förklarar varför en funktion är redo, fortfarande väntar eller inte är tillgänglig."
+
+#
+msgctxt "Engine/2"
+msgid "== Game and runtime =="
+msgstr "== Spel och runtime =="
+
+#
+msgctxt "Engine/3"
+msgid "ShroudForge distinguishes the client from the dedicated server. Some features are intended for only one process. The runtime gives supported mods access to the running game. A missing or failed runtime startup can affect several mods at once."
+msgstr "ShroudForge skiljer mellan klienten och den dedikerade servern. Vissa funktioner är avsedda för bara en av processerna. Runtime ger kompatibla moddar åtkomst till det körande spelet. Om runtime inte startar eller om starten misslyckas kan flera moddar påverkas samtidigt."
+
+#
+msgctxt "Engine/4"
+msgid "“Waiting for game” or a world that is still loading describes an operating state. It does not by itself mean a mod is broken. World-dependent features become ready only after the required game data exists."
+msgstr "”Väntar på spelet” eller en värld som fortfarande laddas beskriver ett driftläge. Det betyder inte i sig att en mod är trasig. Världsberoende funktioner blir tillgängliga först när de nödvändiga speldata finns."
+
+#
+msgctxt "Engine/5"
+msgid "== Game profiles and mod profiles =="
+msgstr "== Spelprofiler och modprofiler =="
+
+#
+msgctxt "Engine/6"
+msgid "Game profiles describe supported native access for a game build. A missing matching profile can limit particular features. Read the specific message instead of assuming that every mod is unavailable."
+msgstr "Spelprofiler beskriver vilket inbyggt spelåtkomststöd som finns för en spelversion. En profil som saknas eller inte matchar kan begränsa vissa funktioner. Läs det specifika meddelandet i stället för att anta att alla moddar är otillgängliga."
+
+#
+msgctxt "Engine/7"
+msgid "DLL compatibility profiles serve a different purpose. They associate a mod with its files and known adaptations. Matching uses the mod ID or folder name without requiring a DLL hash or an exact mod-version match."
+msgstr "DLL-kompatibilitetsprofiler har ett annat syfte. De kopplar en mod till dess filer och kända anpassningar. Matchningen använder moddens ID eller mappnamn och kräver varken en DLL-hash eller en exakt matchning av modversionen."
+
+#
+msgctxt "Engine/8"
+msgid "== Mod API and parser =="
+msgstr "== Mod-API och parser =="
+
+#
+msgctxt "Engine/9"
+msgid "The mod API supplies functions for Lua mods. A mod needs to support the API it uses and declare the necessary permissions. The parser reads and processes game data for asset changes. A Lua mod and a native DLL can therefore have different requirements."
+msgstr "Mod-API:t tillhandahåller funktioner för Lua-moddar. En mod måste stödja det API den använder och ange nödvändiga behörigheter. Parsern läser och bearbetar speldata för ändringar av tillgångar. Därför kan en Lua-mod och en inbyggd DLL ha olika krav."
+
+#
+msgctxt "Engine/10"
+msgid "== If startup fails =="
+msgstr "== Om starten misslyckas =="
+
+#
+msgctxt "Engine/11"
+msgid "Read the affected component and its reported cause. When asset preparation fails, ShroudForge can stop game startup to protect file consistency. The message states the required recovery. A loaded DLL confirms its own loading step, rather than every feature of the mod."
+msgstr "Läs vilken komponent som berörs och den angivna orsaken. Om förberedelsen av tillgångar misslyckas kan ShroudForge stoppa spelstarten för att skydda filernas integritet. Meddelandet anger hur du återställer läget. En inläst DLL bekräftar att just DLL-inläsningen lyckades, inte att alla moddens funktioner fungerar."

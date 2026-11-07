@@ -1,0 +1,70 @@
+# Translation of Mod Detection to Hindi
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: hi\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: hi\n"
+"X-Message-Group: page-Mod Detection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Mod_Detection/Page_display_title"
+msgid "Mod Detection"
+msgstr "मॉड पहचान"
+
+#
+msgctxt "Mod_Detection/1"
+msgid "See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files."
+msgstr "देखें कि ShroudForge किन मॉड फ़ोल्डरों और फ़ाइलों को पहचानता है। पहचान प्रक्रिया DLL लोड नहीं करती और मॉड फ़ाइलों में बदलाव नहीं करती।"
+
+#
+msgctxt "Mod_Detection/2"
+msgid "== What is detected? =="
+msgstr "== क्या पहचाना जाता है? =="
+
+#
+msgctxt "Mod_Detection/3"
+msgid "Installed mods are unpacked folders under <code>mods/&lt;mod-folder&gt;/</code> or your configured mods directory. ShroudForge reads <code>mod.json</code>, optional <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> and existing DLL files. A Lua-only mod needs no DLL of its own. A native mod can appear in the DLL Manager without a manifest or Lua file."
+msgstr "इंस्टॉल किए गए मॉड <code>mods/&lt;mod-folder&gt;/</code> या आपके कॉन्फ़िगर किए गए मॉड डायरेक्टरी के अंदर अनपैक किए गए फ़ोल्डर होते हैं। ShroudForge <code>mod.json</code>, वैकल्पिक <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> और मौजूदा DLL फ़ाइलें पढ़ता है। केवल Lua वाले मॉड को अपनी DLL की आवश्यकता नहीं होती। कोई नेटिव मॉड बिना मैनिफ़ेस्ट या Lua फ़ाइल के भी DLL Manager में दिख सकता है।"
+
+#
+msgctxt "Mod_Detection/4"
+msgid "This view tells you whether a folder and its information were recognized. Actual native loading appears in the DLL Manager. The mod's own page shows its overall status."
+msgstr "यह दृश्य बताता है कि फ़ोल्डर और उसकी जानकारी पहचानी गई या नहीं। वास्तविक नेटिव लोडिंग DLL Manager में दिखाई देती है। मॉड का अपना पृष्ठ उसकी समग्र स्थिति दिखाता है।"
+
+#
+msgctxt "Mod_Detection/5"
+msgid "== Unknown manifest fields =="
+msgstr "== अज्ञात मैनिफ़ेस्ट फ़ील्ड =="
+
+#
+msgctxt "Mod_Detection/6"
+msgid "With the Mod Detection module and tolerant reading enabled, <code>mod.json</code> and <code>extended.mod.json</code> may contain extra fields unknown to ShroudForge. Those fields alone do not reject a package. Known fields must still contain valid values. Invalid JSON, missing required information and incorrect data types remain errors."
+msgstr "Mod Detection मॉड्यूल और सहनशील पठन सक्षम होने पर <code>mod.json</code> और <code>extended.mod.json</code> में ShroudForge के लिए अज्ञात अतिरिक्त फ़ील्ड हो सकते हैं। केवल इन फ़ील्ड के कारण पैकेज अस्वीकार नहीं होता। ज्ञात फ़ील्ड में फिर भी मान्य मान होने चाहिए। अमान्य JSON, आवश्यक जानकारी का अभाव और गलत डेटा प्रकार अब भी त्रुटियाँ हैं।"
+
+#
+msgctxt "Mod_Detection/7"
+msgid "Disabling this compatibility option restores strict validation. It does not automatically delete or disable all installed mods."
+msgstr "इस संगतता विकल्प को अक्षम करने पर सख्त सत्यापन फिर लागू हो जाता है। इससे सभी इंस्टॉल किए गए मॉड अपने आप हटते या अक्षम नहीं होते।"
+
+#
+msgctxt "Mod_Detection/8"
+msgid "== A mod is not recognized =="
+msgstr "== मॉड पहचाना नहीं गया =="
+
+#
+msgctxt "Mod_Detection/9"
+msgid "Check the actual mod folder first. A download folder may contain another wrapper folder or a <code>mods</code> directory. The installer locates a single enclosed mod package. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. During normal operation, ShroudForge reads unpacked mod folders rather than archives."
+msgstr "पहले वास्तविक मॉड फ़ोल्डर जाँचें। डाउनलोड फ़ोल्डर में एक और रैपर फ़ोल्डर या <code>mods</code> डायरेक्टरी हो सकती है। इंस्टॉलर एक ही अंदर समाहित मॉड पैकेज ढूँढ़ता है। कई मॉड पैकेज वाले नए आर्काइव को समूह के रूप में अपने आप इंस्टॉल नहीं किया जाता। उसे निकालें और एक बार में एक मॉड फ़ोल्डर इंस्टॉल करें। सामान्य संचालन के दौरान ShroudForge आर्काइव के बजाय अनपैक किए गए मॉड फ़ोल्डर पढ़ता है।"
+
+#
+msgctxt "Mod_Detection/10"
+msgid "Correct the reported JSON location or install the complete package again. A compatibility profile can supply an adapter for known differences. Recognition alone does not confirm that native hooks or mod APIs work."
+msgstr "रिपोर्ट की गई JSON जगह ठीक करें या पूरा पैकेज फिर से इंस्टॉल करें। संगतता प्रोफ़ाइल ज्ञात अंतरों के लिए अडैप्टर दे सकती है। केवल पहचान हो जाना यह पुष्टि नहीं करता कि नेटिव हुक या मॉड API काम करते हैं।"
