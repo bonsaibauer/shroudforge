@@ -1,0 +1,150 @@
+# Translation of Quickstart: Shroudforge to German (Deutsch)
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 23:04:21+0000\n"
+"POT-Creation-Date: 2026-11-06 23:04:21+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: de\n"
+"X-Message-Group: page-Quickstart: Shroudforge\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Quickstart:_Shroudforge/Page_display_title"
+msgid "Quickstart: Shroudforge"
+msgstr "Schnellstart: ShroudForge"
+
+#
+msgctxt "Quickstart:_Shroudforge/1"
+msgid "Follow these steps to put ShroudForge in your game folder, open the Mods window, and add a mod you downloaded."
+msgstr "Mit diesen Schritten installierst du ShroudForge in deinem Spielordner, öffnest das Mods-Fenster und fügst einen heruntergeladenen Mod hinzu."
+
+#
+msgctxt "Quickstart:_Shroudforge/2"
+msgid "== Before you start =="
+msgstr "== Bevor du startest =="
+
+#
+msgctxt "Quickstart:_Shroudforge/3"
+msgid "Close Enshrouded. A \"mod\" is an extra made by a player that changes or adds something in the game. ShroudForge has a window that shows your mods. Your game folder is the one containing <code>enshrouded.exe</code>."
+msgstr "Schließe Enshrouded zuerst. „Mods“ sind von Spielern gebaute Extras, die etwas im Spiel ändern oder hinzufügen. Das ShroudForge-Fenster im Spiel heißt Modloader. Dort kannst du deine Mods ansehen und einschalten. Dein Spielordner ist der Ordner mit <code>enshrouded.exe</code>."
+
+#
+msgctxt "Quickstart:_Shroudforge/4"
+msgid "== 1. Download ShroudForge =="
+msgstr "== 1. ShroudForge herunterladen =="
+
+#
+msgctxt "Quickstart:_Shroudforge/5"
+msgid "Open the [https://github.com/bonsaibauer/shroudforge/releases/latest latest release] and save the Windows ZIP file. A ZIP is a packed folder. You need to extract it before use."
+msgstr "Rufe die [https://github.com/bonsaibauer/shroudforge/releases/latest neueste Veröffentlichung] auf und speichere die Windows-ZIP-Datei. Eine ZIP-Datei ist ein gepackter Ordner. Vor der Verwendung musst du sie entpacken."
+
+#
+msgctxt "Quickstart:_Shroudforge/6"
+msgid "== 2. Copy the files into the game folder =="
+msgstr "== 2. Dateien in den Spielordner kopieren =="
+
+#
+msgctxt "Quickstart:_Shroudforge/7"
+msgid "Right-click the ZIP file and choose \"Extract All\". Open the extracted folder and copy <b>all files and folders</b> from the ZIP into the folder that contains <code>enshrouded.exe</code>."
+msgstr "Klicke die ZIP-Datei mit der rechten Maustaste an und wähle „Alle extrahieren“. Öffne den entpackten Ordner und kopiere <b>alle Dateien und Ordner</b> aus der ZIP-Datei in den Ordner mit <code>enshrouded.exe</code>."
+
+#
+msgctxt "Quickstart:_Shroudforge/8"
+msgid "A common Steam folder is:"
+msgstr "Ein üblicher Steam-Ordner ist:"
+
+#
+msgctxt "Quickstart:_Shroudforge/9"
+msgid "<code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Enshrouded</code>"
+msgstr "<code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Enshrouded</code>"
+
+#
+msgctxt "Quickstart:_Shroudforge/10"
+msgid "The game folder should look similar to this:"
+msgstr "Dein Spielordner sollte etwa so aussehen:"
+
+#
+msgctxt "Quickstart:_Shroudforge/11"
+msgid "<pre>\nEnshrouded/\n├─ enshrouded.exe\n├─ dbghelp.dll\n├─ dinput8.dll\n├─ winmm.dll\n├─ shroudforge/\n│  └─ shroudforge.exe\n└─ mods/\n</pre>"
+msgstr "<pre>\nEnshrouded/\n├─ enshrouded.exe\n├─ dbghelp.dll\n├─ dinput8.dll\n├─ winmm.dll\n├─ shroudforge/\n│  └─ shroudforge.exe\n└─ mods/\n</pre>"
+
+#
+msgctxt "Quickstart:_Shroudforge/12"
+msgid "The loader files and <code>mods/</code> folder come from the ShroudForge release ZIP."
+msgstr "Die Loader-Dateien und der Ordner <code>mods/</code> stammen aus der ShroudForge-Release-ZIP."
+
+#
+msgctxt "Quickstart:_Shroudforge/13"
+msgid "== 3. Start Enshrouded and open the Mods window =="
+msgstr "== 3. Enshrouded starten und das Mods-Fenster öffnen =="
+
+#
+msgctxt "Quickstart:_Shroudforge/14"
+msgid "Start Enshrouded. Press <kbd>F9</kbd> to open the ShroudForge window and see your mods. Press <kbd>F10</kbd> to read ShroudForge messages if something is not working."
+msgstr "Starte Enshrouded. Drücke <kbd>F9</kbd>, um das ShroudForge-Fenster zu öffnen und deine Mods anzusehen. Drücke <kbd>F10</kbd>, um die ShroudForge-Meldungen zu lesen, falls etwas nicht funktioniert."
+
+#
+msgctxt "Quickstart:_Shroudforge/15"
+msgid "* '''F9''' opens the Mods window.\n* '''F10''' opens ShroudForge messages."
+msgstr "* '''F9''' öffnet das Mods-Fenster.\n* '''F10''' öffnet die ShroudForge-Meldungen."
+
+#
+msgctxt "Quickstart:_Shroudforge/16"
+msgid "== 4. Find and add a mod =="
+msgstr "== 4. Mod finden und hinzufügen =="
+
+#
+msgctxt "Quickstart:_Shroudforge/17"
+msgid "Find an Enshrouded mod on a community site, for example [https://www.nexusmods.com/enshrouded/mods/ Nexus Mods]. Read the creator’s instructions, then download and extract the mod. Copy its folder into <code>Enshrouded/mods/</code>. Your mods folder might look like this:"
+msgstr "Suche auf Community-Seiten nach Enshrouded-Mods, zum Beispiel [https://www.nexusmods.com/enshrouded/mods/ Nexus Mods]. Lies die Anleitung des Erstellers, lade den Mod herunter und entpacke ihn. Kopiere den Modordner nach <code>Enshrouded/mods/</code>. Dein Mods-Ordner könnte so aussehen:"
+
+#
+msgctxt "Quickstart:_Shroudforge/18"
+msgid "<pre>\nmods/\n└─ my-mod/\n   ├─ mod.json\n   ├─ extended.mod.json (optional)\n   └─ src/mod.lua\n</pre>"
+msgstr "<pre>\nmods/\n└─ my-mod/\n   ├─ mod.json\n   ├─ extended.mod.json (optional)\n   └─ src/mod.lua\n</pre>"
+
+#
+msgctxt "Quickstart:_Shroudforge/19"
+msgid "Follow the mod creator’s installation instructions."
+msgstr "Folge der Installationsanleitung des Mod-Erstellers."
+
+#
+msgctxt "Quickstart:_Shroudforge/20"
+msgid "== 5. Check that the mod is ready =="
+msgstr "== 5. Prüfen, ob der Mod bereit ist =="
+
+#
+msgctxt "Quickstart:_Shroudforge/21"
+msgid "Press <kbd>F9</kbd> and open <b>Installed</b>. If your mod is listed, you can switch it on. Some mods need you to restart the game."
+msgstr "Drücke <kbd>F9</kbd> und öffne <b>Installiert</b>. Wenn dein Mod aufgelistet ist, kannst du ihn einschalten. Manche Mods brauchen einen Neustart des Spiels."
+
+#
+msgctxt "Quickstart:_Shroudforge/22"
+msgid "=== Mods that change game files ==="
+msgstr "=== Mods, die Spieldateien ändern ==="
+
+#
+msgctxt "Quickstart:_Shroudforge/23"
+msgid "Mods that change game files need to be prepared before the game starts. Close the game and start it from the game folder with this command:"
+msgstr "Mods, die Spieldateien ändern, müssen vorbereitet werden, bevor das Spiel startet. Schließe das Spiel und starte es über den folgenden Befehl im Spielordner:"
+
+#
+msgctxt "Quickstart:_Shroudforge/24"
+msgid "<pre>\n./shroudforge/shroudforge.exe launch \".\"\n</pre>"
+msgstr "<pre>\n./shroudforge/shroudforge.exe launch \".\"\n</pre>"
+
+#
+msgctxt "Quickstart:_Shroudforge/25"
+msgid "== Playing on a server? =="
+msgstr "== Spielst du auf einem Server? =="
+
+#
+msgctxt "Quickstart:_Shroudforge/26"
+msgid "Your PC and the game server are separate. Copy the mod to both places if you want to use it in a shared world. See the [https://bonsaibauer.github.io/shroudforge/en/#server server instructions]."
+msgstr "Dein PC und der Spielserver sind getrennt. Installiere den Mod an beiden Orten, wenn du ihn in einer gemeinsamen Welt nutzen möchtest. Siehe die [https://bonsaibauer.github.io/shroudforge/en/#server Serveranleitung]."

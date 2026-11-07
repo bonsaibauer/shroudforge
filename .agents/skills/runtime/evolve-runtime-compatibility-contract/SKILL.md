@@ -1,6 +1,6 @@
 ---
 name: evolve-runtime-compatibility-contract
-description: Change runtime profile schemas, readers, embedding, or capability contracts while preserving historical profile files and distinguishing static compatibility from live readiness and semantic approval.
+description: Change runtime profile schemas, external catalog readers, or capability contracts while preserving historical profile files and distinguishing static compatibility from live readiness and semantic approval.
 ---
 
 # Evolve a Runtime Compatibility Contract
@@ -16,7 +16,7 @@ Read `dev/profiles/schemas/profile.schema.json`, relevant component/function cat
 
 Trace any version-specific metadata through the affected reader and its build inputs. Keep one canonical definition without assuming a new directory or rewriting old profiles. Trace `modules/game-runtime/compatibility/lib.rs` and its actual callers for operation availability. Its `GameContract` is internal and does not grant live readiness. A missing unrelated parser type must not disable unrelated provider operations.
 
-The CLI execution-profile validator and production resource-profile reader do not accept identical shapes. Test the applicable contract instead of treating one validator's rejection as universal proof. CMake classifies and embeds profiles by their actual provenance. Draft files do not belong in its production profile glob.
+The CLI execution-profile validator and production resource-profile reader do not accept identical shapes. Test the applicable contract instead of treating one validator's rejection as universal proof. Both production paths consume the one installed external JSON catalog and classify profiles by their actual provenance. There is no embedded catalog or fallback. Drafts and review candidates must stay outside the production catalog.
 
 ## Preserve Historical Interpretation
 
@@ -40,4 +40,4 @@ Build the native provider with `pwsh -NoProfile -File dev/build/build_kfc_runtim
 
 Extend the existing private reader fixtures with historical and new format cases, malformed fields, bounds, ambiguity, authority, and required provenance as relevant. Preserve existing historical fixtures. Run affected explicit native targets such as `kfc-runtime-test-ecs-read`, `kfc-runtime-test-resource`, `kfc-runtime-test-service`, and `kfc-runtime-test-entity-command-queue`.
 
-Verify historical file hashes are unchanged, inspect the generated embedding output, and report static validation separately from actual client/server startup and live calls.
+Verify historical file hashes are unchanged. Inspect the configured installed catalog path, profile file hash, exact image identity, selected profile ID, and duplicate handling. Data-only profile changes do not require a provider rebuild. Report static validation separately from actual client/server startup and live calls.

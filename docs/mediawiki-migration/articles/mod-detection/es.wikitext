@@ -1,0 +1,31 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Detección de mods
+description: Consulta qué carpetas y archivos reconoce ShroudForge. La detección no carga DLL ni modifica los archivos de los mods.
+language: es
+creator: Bonsaibauer
+source: modules/wiki/articles/mod-detection/es.md
+-->
+
+Consulta qué carpetas y archivos reconoce ShroudForge. La detección no carga DLL ni modifica los archivos de los mods.
+
+[[File:ShroudForge-Wiki-mod-detection.svg|thumb|right|alt=Detección de mods|Detección de mods]]
+
+== ¿Qué se detecta? ==
+
+Los mods instalados son carpetas descomprimidas en <code>mods/&lt;carpeta-del-mod&gt;/</code> o en el directorio configurado. ShroudForge lee <code>mod.json</code>, el archivo opcional <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> y las DLL existentes. Un mod que solo usa Lua no necesita su propia DLL. Un mod nativo puede aparecer en el Gestor de DLL sin manifiesto ni archivo Lua.
+
+Esta vista indica si se han reconocido la carpeta y sus datos. La carga nativa real se muestra en el Gestor de DLL. El estado general del mod aparece en su propia página.
+
+== Campos desconocidos del manifiesto ==
+
+Con el módulo de detección y la lectura tolerante activados, <code>mod.json</code> y <code>extended.mod.json</code> pueden incluir campos que ShroudForge desconoce. Esos campos por sí solos no provocan el rechazo del paquete. Los campos conocidos deben seguir teniendo valores válidos. El JSON incorrecto, los datos obligatorios ausentes y los tipos erróneos siguen siendo errores.
+
+Desactivar esta compatibilidad restaura la validación estricta. No elimina ni desactiva automáticamente todos los mods instalados.
+
+== No se reconoce un mod ==
+
+Comprueba primero la carpeta real del mod. Una descarga puede contener otra carpeta envolvente o un directorio <code>mods</code>. El instalador localiza un único paquete de mod. Una nueva instalación no instala automáticamente en conjunto un archivo con varios paquetes de mods. Descomprímelo e instala una carpeta de mod cada vez. Durante el funcionamiento normal se leen carpetas descomprimidas, no archivos comprimidos.
+
+Corrige la ubicación JSON indicada o vuelve a instalar el paquete completo. Un perfil de compatibilidad puede adaptar diferencias conocidas. Reconocer el mod no confirma que sus hooks nativos o sus funciones de API funcionen.
+
+[[Category:guide:shroudforge]]

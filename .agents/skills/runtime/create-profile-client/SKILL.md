@@ -16,6 +16,6 @@ First read the shared [profile workflow](../profile-workflow.md). Apply it to th
 - Capture with dev/profiles/capture/capture_runtime.ps1 -Target client. Exactly one process from the selected client directory must be running for live capture. Use -Offline only for static executable analysis.
 - Start the normal client through its existing client entry point or Steam, using the exact captured game directory. Check shroudforge-client.log, the process path, loaded runtime DLLs, the exact profile ID, and live status.
 - Verify client-specific hooks and cursor/world contexts against the client image only. Server values are not substitutes.
-- Review the changes, build the KFC runtime, and verify the provider ABI and embedded profile as described in the shared workflow.
+- Review the changes, validate the installed external catalog path and selected exact profile ID, and verify the provider ABI when replacing the provider as described in the shared workflow. A data-only profile update does not require rebuilding the provider.
 
 Report which calls are supported by static evidence, which are ready according to client status, and which were actually called live. Starting the client alone does not confirm that a write took effect.

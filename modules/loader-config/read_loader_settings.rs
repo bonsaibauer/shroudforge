@@ -259,6 +259,7 @@ mod tests {
             "debugConsole",
             "worldEditor",
             "modloaderUi",
+            "wiki",
             "network",
             "runtimeDiagnostics",
             "updates",
@@ -289,10 +290,62 @@ mod tests {
             "debugConsole",
             "worldEditor",
             "modloaderUi",
+            "wiki",
             "runtimeDiagnostics",
             "updates",
         ] {
             assert_eq!(config["modules"][module]["enabled"], true, "{module}");
         }
+    }
+
+    #[test]
+    fn game_profile_discovery_defaults_to_on_for_missing_and_existing_documents() {
+        let root = tempfile::tempdir().unwrap();
+        assert_eq!(
+            read_loader(root.path()).unwrap()["modules"]["gameProfileDiscovery"]["enabled"],
+            true
+        );
+        let config_path = crate::paths::loader_config(root.path());
+        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        fs::write(
+            &config_path,
+            br#"{"schemaVersion":1,"modules":{"network":{"enabled":false}}}"#,
+        )
+        .unwrap();
+        let config = read_loader(root.path()).unwrap();
+        assert_eq!(config["modules"]["gameProfileDiscovery"]["enabled"], true);
+        assert_eq!(config["modules"]["network"]["enabled"], false);
+        fs::write(
+            &config_path,
+            br#"{"modules":{"gameProfileDiscovery":{}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            read_loader(root.path()).unwrap()["modules"]["gameProfileDiscovery"]["enabled"],
+            true
+        );
+    }
+
+    #[test]
+    fn game_profile_discovery_preserves_explicit_boolean_and_rejects_invalid_type() {
+        let root = tempfile::tempdir().unwrap();
+        let config_path = crate::paths::loader_config(root.path());
+        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        for enabled in [serde_json::json!(true), serde_json::json!(false)] {
+            fs::write(
+                &config_path,
+                serde_json::json!({"modules":{"gameProfileDiscovery":{"enabled":enabled}}})
+                    .to_string(),
+            )
+            .unwrap();
+            let config = read_loader(root.path()).unwrap();
+            assert_eq!(config["modules"]["gameProfileDiscovery"]["enabled"], enabled);
+        }
+        fs::write(
+            config_path,
+            br#"{"modules":{"gameProfileDiscovery":{"enabled":"true"}}}"#,
+        )
+        .unwrap();
+        assert!(read_loader(root.path()).is_err());
     }
 }

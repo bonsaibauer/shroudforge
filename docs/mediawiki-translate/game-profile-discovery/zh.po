@@ -1,0 +1,150 @@
+# Translation of Automatic beta game profiles to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Automatic beta game profiles\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Automatic_beta_game_profiles/Page_display_title"
+msgid "Automatic beta game profiles"
+msgstr "自动测试版游戏配置文件"
+
+#
+msgctxt "Automatic_beta_game_profiles/1"
+msgid "Optional beta discovery compares a new game build with a saved, supported version. It creates a complete beta profile only when the required evidence is available. Matching regular game profiles take priority."
+msgstr "可选的测试版发现功能会将新的游戏构建与已保存且受支持的版本进行比较。只有在所需证据齐备时，才会创建完整的测试版配置文件。匹配的正式游戏配置文件优先使用。"
+
+#
+msgctxt "Automatic_beta_game_profiles/2"
+msgid "== Prepare before a game update =="
+msgstr "== 游戏更新前的准备 =="
+
+#
+msgctxt "Automatic_beta_game_profiles/3"
+msgid "The module is enabled by default and can be switched off. An explicitly saved disabled setting stays disabled. Its switch is under '''Settings → General → Game profile''', beside the profile selector."
+msgstr "此模块默认启用，也可以关闭。明确保存为禁用的设置会继续保持禁用。开关位于配置文件选择器旁的 '''Settings → General → Game profile''' 中。"
+
+#
+msgctxt "Automatic_beta_game_profiles/4"
+msgid "# Check that '''Dynamic game profile creation (Beta)''' is enabled. Switch it on if needed.\n# Fully restart the game or dedicated server while a matching regular profile is still available.\n# ShroudForge verifies the exact current executable and saves it as a comparison baseline in the cache. You do not need to download a historical executable.\n# After a later game update, the new game process starts the comparison automatically and uses the saved baseline."
+msgstr "# 检查是否已启用 '''Dynamic game profile creation (Beta)'''。如有需要，请将其打开。\n# 在匹配的正式配置文件仍可用时，完全重启游戏或专用服务器。\n# ShroudForge 会精确验证当前可执行文件，并将其保存到缓存中作为比较基线。你无需下载历史版本的可执行文件。\n# 之后游戏更新时，新游戏进程会自动开始比较并使用已保存的基线。"
+
+#
+msgctxt "Automatic_beta_game_profiles/5"
+msgid "The client and dedicated server keep separate baselines. A client cannot replace a server baseline. If the module is first enabled after an update and no matching baseline was saved, it cannot reconstruct the previous version."
+msgstr "客户端和专用服务器分别保存各自的基线。客户端无法替换服务器基线。如果模块在更新后才首次启用，且没有保存匹配的基线，就无法重建先前版本。"
+
+#
+msgctxt "Automatic_beta_game_profiles/6"
+msgid "== What happens at game startup =="
+msgstr "== 游戏启动时会发生什么 =="
+
+#
+msgctxt "Automatic_beta_game_profiles/7"
+msgid "Analysis runs during game startup. The game waits for the result before continuing startup. No loaded world is needed for this step."
+msgstr "分析会在游戏启动期间运行。游戏会等待分析结果，然后继续启动。此步骤不需要加载世界。"
+
+#
+msgctxt "Automatic_beta_game_profiles/8"
+msgid "ShroudForge first looks for a regular profile matching the exact running executable. Automatic selection uses that profile when one exists. With discovery enabled, it also caches the supported executable for future updates."
+msgstr "ShroudForge 会先查找与当前运行的精确可执行文件匹配的正式配置文件。如果存在，自动选择会使用该配置文件。启用发现功能后，它也会将受支持的可执行文件缓存起来，以供后续更新比较。"
+
+#
+msgctxt "Automatic_beta_game_profiles/9"
+msgid "If no matching regular profile exists, the module checks the latest suitable regular baseline for the same process target and KFC format. The previously cached executable must match that baseline exactly. It compares code, references, registered types and the required structure contracts from the comparison images. Target addresses must be established from the new image."
+msgstr "如果没有匹配的正式配置文件，模块会针对相同的目标进程和 KFC 格式检查最新且合适的正式基线。先前缓存的可执行文件必须与该基线完全匹配。它会根据比较映像检查代码、引用、已注册类型和必需的结构契约。目标地址必须从新映像中确定。"
+
+#
+msgctxt "Automatic_beta_game_profiles/10"
+msgid "The result preserves the complete previous profile contract, including its feature flags. Unresolved or conflicting evidence prevents publication of the entire beta profile. Diagnostics state the reason. Waiting longer or entering a world does not resolve missing static evidence."
+msgstr "结果会保留先前配置文件的完整契约，包括其功能标志。未解决或互相冲突的证据会阻止整个测试版配置文件发布。诊断信息会说明原因。继续等待或进入世界都无法补足缺失的静态证据。"
+
+#
+msgctxt "Automatic_beta_game_profiles/11"
+msgid "== Storage and selection =="
+msgstr "== 存储和选择 =="
+
+#
+msgctxt "Automatic_beta_game_profiles/12"
+msgid "Regular and generated profiles share the configured profile directory. The default paths are:"
+msgstr "正式配置文件和生成的配置文件共用已配置的配置文件目录。默认路径为："
+
+#
+msgctxt "Automatic_beta_game_profiles/13"
+msgid "{| class=\"wikitable\"\n! Content !! Location\n|-\n| Client profiles || <code>shroudforge/runtime/profiles/enshrouded/client/</code>\n|-\n| Server profiles || <code>shroudforge/runtime/profiles/enshrouded/server/</code>\n|-\n| Saved comparison images and evidence || <code>shroudforge/cache/game-profile-discovery/</code>\n|}"
+msgstr "{| class=\"wikitable\"\n! 内容 !! 位置\n|-\n| 客户端配置文件 || <code>shroudforge/runtime/profiles/enshrouded/client/</code>\n|-\n| 服务器配置文件 || <code>shroudforge/runtime/profiles/enshrouded/server/</code>\n|-\n| 已保存的比较映像和证据 || <code>shroudforge/cache/game-profile-discovery/</code>\n|}"
+
+#
+msgctxt "Automatic_beta_game_profiles/14"
+msgid "Generated profiles start with <code>beta_</code>. '''Automatic''' selection can use a completely verified matching beta profile when no matching regular profile is available. The profile selector lists available profiles. A matching regular profile added later takes priority."
+msgstr "生成的配置文件以 <code>beta_</code> 开头。如果没有可用的匹配正式配置文件，'''Automatic''' 选择可以使用经过完整验证的匹配测试版配置文件。配置文件选择器会列出可用配置文件。以后添加的匹配正式配置文件优先使用。"
+
+#
+msgctxt "Automatic_beta_game_profiles/15"
+msgid "Changing the switch or profile selection requires a full restart of the affected game or server. Reopening the Modloader window does not restart the runtime."
+msgstr "更改开关或配置文件选择后，必须完全重启受影响的游戏或服务器。重新打开 Modloader 窗口不会重启运行时。"
+
+#
+msgctxt "Automatic_beta_game_profiles/16"
+msgid "== Distinguish discovery, profiles and a running world =="
+msgstr "== 区分发现、配置文件和运行中的世界 =="
+
+#
+msgctxt "Automatic_beta_game_profiles/17"
+msgid "The blue '''Dynamic profile search in progress''' notice describes an active profile search. '''Workflow and help''' opens this guide. If the search ends without a matching profile, the problem is shown in red. The orange '''Experimental game profile active''' notice identifies the beta profile actually selected. Actual runtime errors continue to be displayed as errors."
+msgstr "蓝色的 '''Dynamic profile search in progress''' 通知表示正在搜索配置文件。'''Workflow and help''' 会打开本指南。如果搜索结束时没有找到匹配配置文件，问题会以红色显示。橙色的 '''Experimental game profile active''' 通知表示当前实际选中的测试版配置文件。实际运行时错误仍会作为错误显示。"
+
+#
+msgctxt "Automatic_beta_game_profiles/18"
+msgid "Structural executable checks do not require a loaded world. World operations additionally need their live contexts, registrations and runtime safety checks. A generated profile does not establish that game commands were executed or produced visible effects. Functional checks must also test the client and server separately."
+msgstr "可执行文件的结构检查不需要加载世界。依赖世界的操作还需要相应的实时上下文、注册信息和运行时安全检查。生成配置文件并不能证明游戏命令已执行或产生了可见效果。功能检查也必须分别测试客户端和服务器。"
+
+#
+msgctxt "Automatic_beta_game_profiles/19"
+msgid "If no profile is generated, read the reported reason and technical details. A missing saved baseline, unsuitable source profile or unresolved code and layout evidence each requires the relevant input or further analysis. A matching regular profile or a suitable ShroudForge update may provide support."
+msgstr "如果未生成配置文件，请阅读报告的原因和技术细节。缺少已保存的基线、不合适的源配置文件，或代码和布局证据尚未解决，都需要补充相关输入或进一步分析。匹配的正式配置文件或合适的 ShroudForge 更新可能提供支持。"
+
+#
+msgctxt "Automatic_beta_game_profiles/20"
+msgid "== Detailed logging =="
+msgstr "== 详细日志记录 =="
+
+#
+msgctxt "Automatic_beta_game_profiles/21"
+msgid "The Debug Console shows discovery messages from the main log under the <code>game-profile-discovery</code> source. To see every comparison and rebase field, set '''Settings → General → Logging → Minimum level''' to '''Diagnostic'''. '''Advanced''' shows additional summaries."
+msgstr "Debug Console 会在主日志的 <code>game-profile-discovery</code> 来源下显示发现消息。若要查看每项比较和重定位字段，请将 '''Settings → General → Logging → Minimum level''' 设为 '''Diagnostic'''。'''Advanced''' 会显示其他摘要。"
+
+#
+msgctxt "Automatic_beta_game_profiles/22"
+msgid "The red runtime banner and the log entry <code>&#91;compatibility-check&#93; check=runtime</code> come from the same runtime check. The existing UI refresh logs the state change before sending the same status to the Modloader. The Debug Console applies its existing popup setting to warning and error lines from that main log."
+msgstr "红色运行时横幅和日志条目 <code>&#91;compatibility-check&#93; check=runtime</code> 来自同一项运行时检查。现有 UI 刷新会先记录状态变化，再将相同状态发送给 Modloader。Debug Console 会对主日志中的警告和错误行应用现有弹出设置。"
+
+#
+msgctxt "Automatic_beta_game_profiles/23"
+msgid "On failure, the main log gives the path to the current <code>''.v2.unresolved.json</code> or <code>''.v2.error.json</code> report. On success, it gives the path to the <code>''.v2.proof.json</code> evidence and the full save path of the generated <code>beta_''.json</code> profile. Reports are stored in the discovery cache."
+msgstr "失败时，主日志会给出当前 <code>''.v2.unresolved.json</code> 或 <code>''.v2.error.json</code> 报告的路径。成功时，它会给出 <code>''.v2.proof.json</code> 证据路径，以及生成的 <code>beta_''.json</code> 配置文件的完整保存路径。报告保存在发现缓存中。"
+
+#
+msgctxt "Automatic_beta_game_profiles/24"
+msgid "== Linux and Proton =="
+msgstr "== Linux 和 Proton =="
+
+#
+msgctxt "Automatic_beta_game_profiles/25"
+msgid "Discovery runs inside the native runtime module and requires no external PowerShell or Python programs. This workflow has not yet been live-tested under Proton."
+msgstr "发现功能在原生运行时模块中执行，不需要外部 PowerShell 或 Python 程序。此工作流尚未在 Proton 下进行实际测试。"
+
+#
+msgctxt "Automatic_beta_game_profiles/26"
+msgid "For runtime, mod API and parser guidance, see [[Special:MyLanguage/Engine|Engine]]."
+msgstr "有关运行时、模组 API 和解析器的说明，请参阅 [[Special:MyLanguage/Engine|游戏引擎]]。"

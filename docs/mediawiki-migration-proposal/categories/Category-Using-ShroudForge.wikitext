@@ -1,0 +1,3 @@
+Player and server guides for installing, configuring, and using the ShroudForge Modloader.
+
+[[Category:ShroudForge documentation]]

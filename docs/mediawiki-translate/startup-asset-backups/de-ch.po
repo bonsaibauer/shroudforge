@@ -1,0 +1,65 @@
+# Translation of Startup stops because asset backups are incompatible to German
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de_ch\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: de-ch\n"
+"X-Message-Group: page-Startup stops because asset backups are incompatible\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/Page_display_title"
+msgid "Startup stops because asset backups are incompatible"
+msgstr "Start wegen inkompatibler Asset-Sicherungen abgebrochen"
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/1"
+msgid "Troubleshooting for older ShroudForge releases. Versions 1.6.8, 1.7.0 and 1.7.3 can stop before Enshrouded starts when their asset backup files do not match the installed game files."
+msgstr "Fehlerbehebung für ältere ShroudForge-Versionen. Die Versionen 1.6.8, 1.7.0 und 1.7.3 können den Spielstart abbrechen, wenn ihre Asset-Sicherungen nicht zu den installierten Spieldateien passen."
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/2"
+msgid "== Why startup stops =="
+msgstr "== Warum der Start abgebrochen wird =="
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/3"
+msgid "ShroudForge keeps working backups of <code>enshrouded.kfc</code> and <code>enshrouded.kfc_resources</code> so it can restore the game files before preparing asset mods. These <code>.bak</code> files may come from an older Enshrouded version or another mod. If the KFC backup does not match the current game file, older ShroudForge releases cannot safely restore it and stop startup."
+msgstr "ShroudForge erstellt Arbeitskopien von <code>enshrouded.kfc</code> und <code>enshrouded.kfc_resources</code>, damit es die Spieldateien vor der Vorbereitung von Asset-Mods wiederherstellen kann. Diese <code>.bak</code>-Dateien können von einer älteren Enshrouded-Version oder einem anderen Mod stammen. Wenn die KFC-Sicherung nicht zur aktuellen Spieldatei passt, können ältere ShroudForge-Versionen sie nicht sicher wiederherstellen und brechen den Start ab."
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/4"
+msgid "== If you use ShroudForge 1.7.5 or later =="
+msgstr "== Bei ShroudForge 1.7.5 oder neuer =="
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/5"
+msgid "When the KFC backup is incompatible, these versions can move both working backups to the ShroudForge recycle bin and capture new backups from the current game files. This recovery requires <code>shroudforge/shroudforge-updater.exe</code> in the Enshrouded installation. If the log says the updater is unavailable, repair or reinstall ShroudForge with the complete release package, then start the game again. Keep the <code>.bak</code> files in place while repairing the installation."
+msgstr "Wenn die KFC-Sicherung inkompatibel ist, können diese Versionen beide Arbeitskopien in den ShroudForge-Papierkorb verschieben und neue Sicherungen aus den aktuellen Spieldateien erstellen. Dafür muss <code>shroudforge/shroudforge-updater.exe</code> im Enshrouded-Installationsordner vorhanden sein. Meldet das Protokoll, dass der Updater nicht verfügbar ist, repariere oder installiere ShroudForge mit dem vollständigen Release-Paket neu und starte das Spiel danach erneut. Lass die <code>.bak</code>-Dateien während der Reparatur liegen."
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/6"
+msgid "== Manual fix for versions 1.6.8, 1.7.0 and 1.7.3 =="
+msgstr "== Manuelle Lösung für die Versionen 1.6.8, 1.7.0 und 1.7.3 =="
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/7"
+msgid "Use these steps only with the listed older ShroudForge versions."
+msgstr "Nutze diese Schritte nur mit den genannten älteren ShroudForge-Versionen."
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/8"
+msgid "# Close ShroudForge and Enshrouded completely, including any dedicated server process.\n# Open the Enshrouded installation folder. A common Steam path is <code>SteamLibrary\\steamapps\\common\\Enshrouded</code>, but use the library folder where your game is installed.\n# If another mod may have changed the current <code>.kfc</code> files, verify Enshrouded's files through Steam first. If you want to keep a copy of the old backups, copy them outside the game folder before continuing.\n# Delete only these files if they are present:\n#* <code>enshrouded.kfc.bak</code>\n#* <code>enshrouded.kfc_resources.bak</code>\n# Restart ShroudForge. It should create fresh working backups from the current game files."
+msgstr "# Beende ShroudForge und Enshrouded vollständig. Beende auch einen eventuell laufenden Dedicated Server.\n# Öffne den Enshrouded-Installationsordner. Ein typischer Steam-Pfad ist <code>SteamLibrary\\steamapps\\common\\Enshrouded</code>. Verwende den Bibliotheksordner, in dem dein Spiel installiert ist.\n# Falls ein anderer Mod die aktuellen <code>.kfc</code>-Dateien geändert haben könnte, überprüfe zuerst die Enshrouded-Dateien über Steam. Wenn du die alten Sicherungen behalten möchtest, kopiere sie vor dem nächsten Schritt aus dem Spielordner heraus.\n# Lösche ausschliesslich diese Dateien, falls vorhanden:\n#* <code>enshrouded.kfc.bak</code>\n#* <code>enshrouded.kfc_resources.bak</code>\n# Starte ShroudForge erneut. Es sollte neue Arbeitskopien aus den aktuellen Spieldateien erstellen."
+
+#
+msgctxt "Startup_stops_because_asset_backups_are_incompatible/9"
+msgid "Do not delete the <code>.kfc</code> or <code>.kfc_resources</code> game files, or any other backup files. If startup still fails, keep the remaining files and share the ShroudForge log with support."
+msgstr "Lösche nicht die <code>.kfc</code>- oder <code>.kfc_resources</code>-Spieldateien und keine anderen Sicherungen. Bricht der Start weiterhin ab, lass die übrigen Dateien unverändert und sende dem Support das ShroudForge-Protokoll."

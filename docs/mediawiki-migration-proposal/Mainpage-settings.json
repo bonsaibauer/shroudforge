@@ -1,0 +1,168 @@
+{
+  "_readme": [
+    "ShroudForge homepage configuration based on the Star Citizen main page layout.",
+    "Upload the PNG files from the assets folder first. Create or import every linked wiki page before publishing this configuration.",
+    "The settings control the cards, hero, quick links, and directory. They do not change hard-coded labels in the imported Lua modules or the skin colours."
+  ],
+  "featured": {
+    "page": "Build your first mod",
+    "text": "A 10–15 minute beginner guide to your first ShroudForge mod.",
+    "image": "Modding-First-Mod.png"
+  },
+  "event": {
+    "name": "The included mod packages",
+    "page": "Mods currently included",
+    "image": "ShroudForge-Hero.png",
+    "text": "Explore SF Survival and SF Unlimited Flight."
+  },
+  "patches": [
+    {
+      "channel": "STABLE",
+      "name": "1.7.8",
+      "page": "ShroudForge 1.7.8",
+      "highlights": [
+        "Enshrouded Hotfix #4 game profiles",
+        "Improved loading of large mod manifests",
+        "New shroudforge.clock() API",
+        "Automatic discovery of beta game profiles",
+        "Runtime compatibility banner"
+      ]
+    }
+  ],
+  "hero": {
+    "image": "ShroudForge-Hero.png",
+    "lede": "Your game. Your mods.",
+    "ledeDetail": "Enshrouded modding, made clear.",
+    "searchTails": [
+      "how to build your first mod",
+      "mod.json and extended.mod.json",
+      "the ShroudForge Lua API",
+      "mod compatibility and runtime support"
+    ]
+  },
+  "chips": [
+    {
+      "page": "Build your first mod",
+      "label": "Start modding"
+    },
+    {
+      "page": "mod.json",
+      "label": "mod.json"
+    },
+    {
+      "page": "extended.mod.json",
+      "label": "Settings"
+    },
+    {
+      "page": "Modding API guides",
+      "label": "Lua API"
+    },
+    {
+      "page": "Mods currently included",
+      "label": "Built-in mods"
+    },
+    {
+      "page": "World Editor"
+    }
+  ],
+  "directory": [
+    {
+      "label": "Create a mod",
+      "links": [
+        {
+          "page": "Build your first mod"
+        },
+        {
+          "page": "Modding with Lua"
+        },
+        {
+          "page": "Category:Modding guides",
+          "label": "All modding guides"
+        }
+      ]
+    },
+    {
+      "label": "Manifests",
+      "links": [
+        {
+          "page": "mod.json"
+        },
+        {
+          "page": "extended.mod.json"
+        },
+        {
+          "page": "Category:Mod manifests",
+          "label": "All manifest topics"
+        }
+      ]
+    },
+    {
+      "label": "Lua API",
+      "links": [
+        {
+          "page": "Modding API guides"
+        },
+        {
+          "page": "Modding with Lua"
+        },
+        {
+          "page": "Category:Lua API",
+          "label": "Browse the API topics"
+        }
+      ]
+    },
+    {
+      "label": "Mod catalogue",
+      "links": [
+        {
+          "page": "Mods currently included"
+        },
+        {
+          "page": "World Editor"
+        },
+        {
+          "page": "Category:Built-in mods",
+          "label": "All built-in mod pages"
+        }
+      ]
+    },
+    {
+      "label": "Runtime and help",
+      "links": [
+        {
+          "page": "Category:Runtime and compatibility"
+        },
+        {
+          "page": "Category:Using ShroudForge"
+        },
+        {
+          "page": "Category:Troubleshooting"
+        },
+        {
+          "page": "Category:Localization and translation"
+        }
+      ]
+    },
+    {
+      "label": "ShroudForge",
+      "links": [
+        {
+          "url": "https://shroudforge.net",
+          "label": "Download ShroudForge"
+        },
+        {
+          "url": "https://bonsaibauer.github.io/shroudforge/",
+          "label": "Documentation and builders"
+        },
+        {
+          "url": "https://github.com/bonsaibauer/shroudforge/releases",
+          "label": "Releases"
+        },
+        {
+          "url": "https://discord.com/invite/jH2gNJYnt2",
+          "label": "Discord"
+        }
+      ]
+    }
+  ]
+}

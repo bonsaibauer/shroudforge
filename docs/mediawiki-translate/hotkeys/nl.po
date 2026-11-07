@@ -1,0 +1,90 @@
+# Translation of Keyboard shortcuts to Dutch
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: nl\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: nl\n"
+"X-Message-Group: page-Keyboard shortcuts\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Keyboard_shortcuts/Page_display_title"
+msgid "Keyboard shortcuts"
+msgstr "Sneltoetsen"
+
+#
+msgctxt "Keyboard_shortcuts/1"
+msgid "This page shows and edits ShroudForge window shortcuts and mod shortcuts that a mod explicitly declares as <code>control: \"keybind\"</code> in its <code>extended.mod.json</code>."
+msgstr "Op deze pagina kun je sneltoetsen voor ShroudForge-vensters en mod-sneltoetsen bekijken en bewerken die een mod expliciet als <code>control: \"keybind\"</code> in het eigen <code>extended.mod.json</code> opgeeft."
+
+#
+msgctxt "Keyboard_shortcuts/2"
+msgid "== Assign a shortcut =="
+msgstr "== Een sneltoets toewijzen =="
+
+#
+msgctxt "Keyboard_shortcuts/3"
+msgid "Click the field and press the key or combination you want. Input uses physical SDL3 scancodes such as <code>SDL:64</code> for F7, <code>Ctrl+SDL:29</code>, or <code>Shift+SDL:100</code>. This keeps the physical key position consistent across keyboard layouts. SDL supplies readable labels for the current operating-system layout. Modifiers such as Ctrl, Alt, Shift, and Meta must match exactly."
+msgstr "Klik op het veld en druk op de gewenste toets of toetsencombinatie. De invoer gebruikt fysieke SDL3-scancodes, zoals <code>SDL:64</code> voor F7, <code>Ctrl+SDL:29</code> of <code>Shift+SDL:100</code>. Zo blijft de fysieke positie van de toets consistent bij verschillende toetsenbordindelingen. SDL geeft leesbare labels voor de huidige indeling van het besturingssysteem. Modificatietoetsen zoals Ctrl, Alt, Shift en Meta moeten exact overeenkomen."
+
+#
+msgctxt "Keyboard_shortcuts/4"
+msgid "While recording, ShroudForge blocks its window shortcuts and declared mod shortcuts across processes. Protection remains active after cancellation or a window focus change until no key or mouse button is held. A fixed three-second delay then runs, and new input does not reset it. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous shortcut. New F1 or F12 bindings require confirmation because Enshrouded or Steam may use them. Saving a binding that conflicts with another active ShroudForge shortcut is blocked."
+msgstr "Tijdens het opnemen blokkeert ShroudForge de sneltoetsen van zijn vensters en de opgegeven mod-sneltoetsen in alle processen. De bescherming blijft actief na annuleren of een wijziging van de vensterfocus zolang een toets of muisknop ingedrukt is. Daarna volgt een vaste vertraging van drie seconden. Nieuwe invoer start die vertraging niet opnieuw. Escape kan niet worden opgenomen, met of zonder modificatietoetsen. De game gebruikt Escape voor het pauzemenu en om vensters te sluiten. Daarom annuleert deze toets de opname en blijft de vorige sneltoets behouden. Voor nieuwe F1- of F12-bindingen is bevestiging nodig omdat Enshrouded of Steam deze toetsen kan gebruiken. Een binding opslaan die botst met een andere actieve ShroudForge-sneltoets wordt geblokkeerd."
+
+#
+msgctxt "Keyboard_shortcuts/5"
+msgid "Use '''Clear''' to disable a shortcut. For ShroudForge windows, you can restore the built-in default. Mod shortcuts remain part of each mod's own settings. The fields in the mod settings and under '''Compatibility → Hotkeys''' edit the same saved value."
+msgstr "Gebruik '''Clear''' om een sneltoets uit te schakelen. Voor ShroudForge-vensters kun je de ingebouwde standaardwaarde herstellen. Mod-sneltoetsen blijven onderdeel van de instellingen van de betreffende mod. De velden in de modinstellingen en onder '''Compatibility → Hotkeys''' bewerken dezelfde opgeslagen waarde."
+
+#
+msgctxt "Keyboard_shortcuts/6"
+msgid "== Shortcuts in a ShroudForge mod =="
+msgstr "== Sneltoetsen in een ShroudForge-mod =="
+
+#
+msgctxt "Keyboard_shortcuts/7"
+msgid "A mod author declares a shortcut as a setting in <code>extended.mod.json</code>:"
+msgstr "Een modmaker geeft een sneltoets op als instelling in <code>extended.mod.json</code>:"
+
+#
+msgctxt "Keyboard_shortcuts/8"
+msgid "<pre>\n{\n  \"settings\": {\n    \"pasteKey\": {\n      \"value\": \"SDL:64\",\n      \"label\": \"Paste blueprint\",\n      \"control\": \"keybind\",\n      \"applyAt\": \"live\"\n    }\n  }\n}\n</pre>"
+msgstr "<pre>\n{\n  \"settings\": {\n    \"pasteKey\": {\n      \"value\": \"SDL:64\",\n      \"label\": \"Paste blueprint\",\n      \"control\": \"keybind\",\n      \"applyAt\": \"live\"\n    }\n  }\n}\n</pre>"
+
+#
+msgctxt "Keyboard_shortcuts/9"
+msgid "The mod reads this setting through the ShroudForge Lua API. It responds to the current value instead of hard-coding a key in the script:"
+msgstr "De mod leest deze instelling via de ShroudForge Lua-API. Het script reageert op de huidige waarde in plaats van een toets vast in de code op te nemen:"
+
+#
+msgctxt "Keyboard_shortcuts/10"
+msgid "<pre>\nreturn {\n    on_update = function()\n        if shroudforge.input.was_keybind_pressed(\"pasteKey\") then\n            -- Run the action.\n        end\n    end,\n}\n</pre>"
+msgstr "<pre>\nreturn {\n    on_update = function()\n        if shroudforge.input.was_keybind_pressed(\"pasteKey\") then\n            -- Run the action.\n        end\n    end,\n}\n</pre>"
+
+#
+msgctxt "Keyboard_shortcuts/11"
+msgid "<code>shroudforge.input.was_keybind_pressed(\"pasteKey\")</code> retains short taps between runtime updates and returns <code>true</code> once per mod and setting. Live saved changes reach the runtime within one second. Use <code>is_keybind_down</code> for actions that should repeat while held. The former <code>is_key_down(\"F1\")</code> through <code>is_key_down(\"F8\")</code> API has been unsupported since ShroudForge 1.7.6. Calling it logs a migration message and raises a Lua error. Declare a <code>keybind</code> setting instead and assign it in the Hotkey Manager under '''Compatibility → Hotkeys'''. <code>shroudforge.input.keybind_label(\"pasteKey\")</code> returns the current readable SDL label for the operating-system layout. The key query works while a game window is focused. A declaration alone does not change a key hard-coded in a script. The mod must read this value through the API and use it for its action."
+msgstr "<code>shroudforge.input.was_keybind_pressed(\"pasteKey\")</code> bewaart korte toetsaanslagen tussen runtime-updates en retourneert eenmaal per mod en instelling <code>true</code>. Opgeslagen wijzigingen zijn binnen één seconde beschikbaar in de runtime. Gebruik <code>is_keybind_down</code> voor acties die moeten worden herhaald zolang de toets ingedrukt blijft. De oude API <code>is_key_down(\"F1\")</code> tot en met <code>is_key_down(\"F8\")</code> wordt sinds ShroudForge 1.7.6 niet meer ondersteund. Een aanroep logt een migratiebericht en veroorzaakt een Lua-fout. Geef in plaats daarvan een instelling van het type <code>keybind</code> op en wijs die toe via Hotkey Manager onder '''Compatibility → Hotkeys'''. <code>shroudforge.input.keybind_label(\"pasteKey\")</code> retourneert het huidige leesbare SDL-label voor de indeling van het besturingssysteem. De toetsquery werkt wanneer een gamevenster de focus heeft. Alleen een declaratie verandert geen toets die in een script is vastgelegd. De mod moet de waarde via de API lezen en voor de actie gebruiken."
+
+#
+msgctxt "Keyboard_shortcuts/12"
+msgid "== Conflicts and other mods =="
+msgstr "== Conflicten en andere mods =="
+
+#
+msgctxt "Keyboard_shortcuts/13"
+msgid "ShroudForge reports conflicts among active ShroudForge window shortcuts and declared mod keybinds. Saving cannot introduce a new conflict between active shortcuts whose key and modifier combinations overlap."
+msgstr "ShroudForge meldt conflicten tussen actieve sneltoetsen voor ShroudForge-vensters en opgegeven mod-keybinds. Het opslaan van een nieuwe combinatie die overlapt met een andere actieve toets- en modificatorcombinatie wordt geblokkeerd."
+
+#
+msgctxt "Keyboard_shortcuts/14"
+msgid "Standalone EML mods and DLL mods that manage their own shortcuts cannot be reliably remapped or intercepted here. Set those shortcuts in the respective mod's settings or configuration if the mod provides that option. An EML mod can also appear here if it explicitly declares a matching <code>keybind</code> setting in <code>extended.mod.json</code> and uses the ShroudForge Lua API for it. This does not take over its independently managed EML or DLL shortcuts."
+msgstr "Zelfstandige EML-mods en DLL-mods die hun eigen sneltoetsen beheren, kunnen hier niet betrouwbaar opnieuw worden toegewezen of onderschept. Stel deze sneltoetsen in via de instellingen of configuratie van de betreffende mod, als die optie beschikbaar is. Een EML-mod kan hier ook verschijnen als deze expliciet een overeenkomende <code>keybind</code>-instelling opgeeft in <code>extended.mod.json</code> en daarvoor de ShroudForge Lua-API gebruikt. Dit neemt de controle over zelfstandig beheerde EML- of DLL-sneltoetsen niet over."

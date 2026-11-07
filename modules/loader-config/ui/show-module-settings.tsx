@@ -145,13 +145,16 @@ export function ModulePreferencesEditor({
     ...worldEditorSettingsFields,
     ['modloaderUi', 'toggleKey', 'settings.modules.field.hotkey'],
     ['modloaderUi', 'refreshMilliseconds', 'settings.modules.field.refresh'],
+    ['wiki', 'pageSize', 'settings.modules.field.wikiPageSize'],
+    ['wiki', 'maxResultsPerQuery', 'settings.modules.field.wikiMaximumResults'],
+    ['wiki', 'refreshIntervalMinutes', 'settings.modules.field.wikiRefreshMinutes'],
   ]
   const controlVisibility = (
     module: 'debugConsole' | 'modloaderUi' | 'worldEditor' | 'updates',
     visible: boolean,
   ) => postRequest('set-window-visibility', { module, visible })
   const moduleEnabled = (module: string) =>
-    prefs[module]?.enabled ?? (module === 'debugConsole')
+    prefs[module]?.enabled ?? (module === 'debugConsole' || module === 'wiki')
   const updaterAvailable = data.release.updaterAvailable === true
   const updatesEnabled = moduleEnabled('updates') && updaterAvailable
   const ranges: Record<string, [number, number]> = {
@@ -160,6 +163,9 @@ export function ModulePreferencesEditor({
     slowCallbackMilliseconds: [0.1, 60000],
     popupCooldownSeconds: [0, 3600],
     refreshMilliseconds: [100, 10000],
+    pageSize: [1, 100],
+    maxResultsPerQuery: [1, 500],
+    refreshIntervalMinutes: [1, 1440],
     tailBytes: [1024, 1048576],
   }
   return (
@@ -194,6 +200,7 @@ export function ModulePreferencesEditor({
             'debugConsole',
             'worldEditor',
             'modloaderUi',
+            'wiki',
             'runtimeDiagnostics',
           ] as const
         ).map((module) => (

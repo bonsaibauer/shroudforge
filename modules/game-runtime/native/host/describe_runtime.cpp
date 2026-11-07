@@ -22,6 +22,9 @@ KFC_RUNTIME_API void __cdecl KfcRuntimeDiagnostics(char* buffer, std::size_t cap
     try {
         auto diagnostics = nlohmann::json::parse(EcsRuntime::Diagnostics());
         diagnostics["resourceService"] = nlohmann::json::parse(ResourceRuntime::Status());
+        diagnostics["executionProfile"] = diagnostics["profile"];
+        const auto active_profile = diagnostics["resourceService"].value("profileId", std::string{});
+        if (!active_profile.empty()) diagnostics["profile"] = active_profile;
         diagnostics["nativeMainMenu"] = nlohmann::json::parse(NativeMainMenu::Status());
         const auto text = diagnostics.dump();
         if (text.size() >= capacity) { write_error("report-too-large", text.size() + 1); return; }
@@ -32,7 +35,10 @@ KFC_RUNTIME_API void __cdecl KfcRuntimeDiagnostics(char* buffer, std::size_t cap
 KFC_RUNTIME_API void __cdecl KfcRuntimeStatus(char* buffer, std::size_t capacity) {
     if (!buffer || !capacity) return;
     try {
-        const auto text = EcsRuntime::Status() + " resource_service=" + ResourceRuntime::Status() +
+        const auto resources = ResourceRuntime::Status();
+        const auto active_profile = nlohmann::json::parse(resources).value("profileId", std::string{});
+        const auto profile = active_profile.empty() ? std::string{} : "profile=" + active_profile + ' ';
+        const auto text = profile + EcsRuntime::Status() + " resource_service=" + resources +
             " native_main_menu=" + NativeMainMenu::Status();
         const auto size = (std::min)(text.size(), capacity - 1);
         std::memcpy(buffer, text.data(), size); buffer[size] = 0;

@@ -1,0 +1,27 @@
+ShroudForge runs each mod's Lua code in its own Lua environment. The Modding API exposes documented functions for logging, settings, user interface actions, files, localization, and supported runtime features.
+
+A mod that uses live runtime functions needs the <code>runtime</code> capability in its <code>mod.json</code> and an active runtime callback. Runtime callbacks can run while the game is at the main menu. <code>runtime.phase == "ingame"</code> means that the mod runtime has started. It does not confirm that a character has entered a world.
+
+== Common tasks ==
+
+{| class="wikitable"
+! Task !! Function or guide
+|-
+| Detect the main menu || <code>runtime.is_main_menu()</code>
+|-
+| Read the selected local character name || <code>runtime.player.name()</code>
+|-
+| Read a mod setting || <code>shroudforge.settings.get</code>
+|-
+| Register a Modloader action || <code>shroudforge.ui.on_action</code>
+|-
+| Publish a Modloader notice || <code>shroudforge.notifications.publish</code>
+|-
+| Translate mod text || <code>shroudforge.locale()</code> and <code>shroudforge.i18n.get()</code>
+|}
+
+The API guides explain prerequisites, arguments, results, and complete examples. Some API functions are EML-specific and others are ShroudForge-specific. Check the [https://bonsaibauer.github.io/shroudforge/ published API reference] for the function contract and current support.
+
+[[Category:Lua API]]
+[[Category:Modding guides]]
+[[Category:Modding]]

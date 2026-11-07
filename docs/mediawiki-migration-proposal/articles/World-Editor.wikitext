@@ -1,0 +1,13 @@
+[[File:World-Editor-Manage.png|thumb|right|The historical World Editor management panel.]]
+
+<div class="boilerplate metadata" style="border:1px solid #a66;padding:0.5em"><strong>Historical reference:</strong> The World Editor package is not among the two mods currently included in the ShroudForge repository's <code>mods/</code> folder. This page documents the former package and its settings.</div>
+
+The World Editor was designed to copy, rotate, save, and paste parts of an Enshrouded world. Its historical package ID was <code>world-editor</code>. It targeted the client and Dedicated Server and declared 37 player settings.
+
+The former package could capture voxel-and-prop or props-only blueprints, preview and paste them, and undo supported operations. Its settings covered the in-game panel, blueprint limits, entity placement, target position, rotation, and blueprint names.
+
+Those details describe the archived package. They do not mean that the World Editor is currently shipped or supported as a bundled ShroudForge mod. Check the [https://github.com/bonsaibauer/shroudforge/tree/HEAD/mods current repository packages] and release notes for current contents.
+
+[[Category:World Editor]]
+[[Category:Built-in mods]]
+[[Category:Modding]]
