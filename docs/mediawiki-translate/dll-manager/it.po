@@ -1,0 +1,155 @@
+# Translation of DLL Manager to Italian
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: it\n"
+"X-Message-Group: page-DLL Manager\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "DLL_Manager/Page_display_title"
+msgid "DLL Manager"
+msgstr "DLL Manager"
+
+#
+msgctxt "DLL_Manager/1"
+msgid "In the Modloader, open '''Compatibility → DLL Manager'''. The guide is shown at the top of that panel. It lists the mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, select and confirm them there."
+msgstr "Nel Modloader apri '''Compatibility → DLL Manager'''. La guida appare nella parte superiore del pannello. Elenca le DLL delle mod trovate da ShroudForge e indica se sono state caricate. Per le mod note esistono profili già preparati. Per le altre DLL, selezionale e confermale lì."
+
+#
+msgctxt "DLL_Manager/2"
+msgid "== Can I use more than one native DLL mod? =="
+msgstr "== Posso usare più di una mod DLL nativa? =="
+
+#
+msgctxt "DLL_Manager/3"
+msgid "Yes. Install each mod in its own folder directly under <code>mods/</code>, and keep the files and subfolders supplied by the author. A matching profile may already provide the right DLL selection. For a mod without a matching profile, open '''Adjust DLL selection''' in the DLL Manager. Select only the entry DLLs named by the author. Choose the load target and confirm that you trust the DLL. Keep '''Normal DLL''' for ordinary native libraries. Choose '''DirectInput proxy''' only for a DLL intended to provide DirectInput that exports <code>DirectInput8Create</code>. Click '''Apply selection''', then restart the game. Detection alone does not load an unprofiled DLL. It needs a confirmed DLL Manager selection, a declaration in <code>native-plugin.ini</code> or <code>dinput8-chain.ini</code>, or registration by its Lua mod."
+msgstr "Sì. Installa ogni mod in una cartella separata direttamente sotto <code>mods/</code> e conserva i file e le sottocartelle forniti dall'autore. Un profilo corrispondente potrebbe già selezionare la DLL corretta. Per una mod senza profilo corrispondente, apri '''Adjust DLL selection''' nel DLL Manager. Seleziona solo le DLL di ingresso indicate dall'autore. Scegli il target di caricamento e conferma di fidarti della DLL. Per le normali librerie native mantieni '''Normal DLL'''. Scegli '''DirectInput proxy''' solo per una DLL destinata a fornire DirectInput ed esportare <code>DirectInput8Create</code>. Fai clic su '''Apply selection''' e riavvia il gioco. Il solo rilevamento non carica una DLL senza profilo. Serve una selezione confermata nel DLL Manager, una dichiarazione in <code>native-plugin.ini</code> o <code>dinput8-chain.ini</code>, oppure la registrazione da parte della sua mod Lua."
+
+#
+msgctxt "DLL_Manager/4"
+msgid "== What should I do with a downloaded mod? =="
+msgstr "== Cosa fare con una mod scaricata =="
+
+#
+msgctxt "DLL_Manager/5"
+msgid "* '''No DLL included:''' Install the mod as usual. Mods made for ShroudForge or EML do not need an extra native DLL.\n* '''DLL included:''' Put the mod DLL in its mod folder as shown below. It then appears in the DLL Manager. A known profile already has its selection prepared. Otherwise, select the DLL there and confirm it.\n* '''Other mod files included:''' Keep the complete mod folder. Do not remove files such as <code>mod.json</code>, <code>native-plugin.ini</code> or configuration files."
+msgstr "* '''No DLL included:''' Installa la mod nel modo consueto. Le mod create per ShroudForge o EML non necessitano di una DLL nativa aggiuntiva.\n* '''DLL included:''' Inserisci la DLL della mod nella sua cartella come mostrato sotto. Comparirà quindi nel DLL Manager. Un profilo noto ha già preparato la selezione. Altrimenti seleziona la DLL e confermala lì.\n* '''Other mod files included:''' Conserva l'intera cartella della mod. Non rimuovere file come <code>mod.json</code>, <code>native-plugin.ini</code> o i file di configurazione."
+
+#
+msgctxt "DLL_Manager/6"
+msgid "== If one mod contains several DLL files =="
+msgstr "== Se una mod contiene più file DLL =="
+
+#
+msgctxt "DLL_Manager/7"
+msgid "Many mod folders contain DLLs that are only helper files. Select only the DLLs named for loading by the mod profile or the mod author's instructions. The up and down controls set the order of selected DLLs within that mod folder. They do not set a global manual order for ordinary DLLs across separate mod folders."
+msgstr "Molte cartelle di mod contengono DLL usate solo come file di supporto. Seleziona solo le DLL che il profilo della mod o le istruzioni dell'autore indicano per il caricamento. I controlli su e giù impostano l'ordine delle DLL selezionate all'interno di quella cartella. Non definiscono un ordine manuale globale per le normali DLL che si trovano in cartelle di mod separate."
+
+#
+msgctxt "DLL_Manager/8"
+msgid "== Installing a mod DLL =="
+msgstr "== Installare una DLL di una mod =="
+
+#
+msgctxt "DLL_Manager/9"
+msgid "If the ShroudForge installer recognizes the downloaded mod package, install it there. For a manual install, give each mod its own folder directly under <code>mods/</code> and put the mod's DLL in that folder. If the DLL sits beside the mod folder in the archive, put it with the mod. Keep the original filename and the package's subfolders."
+msgstr "Se l'installer ShroudForge riconosce il pacchetto scaricato, installalo da lì. Per un'installazione manuale, assegna a ogni mod una cartella separata direttamente sotto <code>mods/</code> e inserisci lì la DLL. Se nell'archivio la DLL si trova accanto alla cartella della mod, spostala insieme alla mod. Mantieni il nome file originale e le sottocartelle del pacchetto."
+
+#
+msgctxt "DLL_Manager/10"
+msgid "<pre>\nmods/\n  my-mod/\n    mod.json        (if included)\n    dinput8.dll     (or the mod's DLL)\n    config.ini      (if included)\n</pre>"
+msgstr "<pre>\nmods/\n  my-mod/\n    mod.json        (if included)\n    dinput8.dll     (or the mod's DLL)\n    config.ini      (if included)\n</pre>"
+
+#
+msgctxt "DLL_Manager/11"
+msgid "A DLL does not load just because it is in the folder. Select it in the DLL Manager as described above."
+msgstr "Una DLL non viene caricata solo perché si trova nella cartella. Selezionala nel DLL Manager come descritto sopra."
+
+#
+msgctxt "DLL_Manager/12"
+msgid "== Why can the mod file also be named dinput8.dll? =="
+msgstr "== Perché il file della mod può chiamarsi anch'esso dinput8.dll? =="
+
+#
+msgctxt "DLL_Manager/13"
+msgid "ShroudForge's own startup file is <code>dinput8.dll</code> in the game folder. The mod file is separate at <code>mods/&lt;mod-folder&gt;/dinput8.dll</code>. ShroudForge loads it from that full path. With a matching profile or DLL Manager selection, ShroudForge forwards DirectInput calls to it. Both files can keep the same name. Do not rename the mod file or put it in the game folder. Do not replace ShroudForge's startup file there."
+msgstr "Il file di avvio di ShroudForge è <code>dinput8.dll</code> nella cartella del gioco. Il file della mod è separato e si trova in <code>mods/&lt;mod-folder&gt;/dinput8.dll</code>. ShroudForge lo carica da quel percorso completo. Con un profilo corrispondente o una selezione nel DLL Manager, ShroudForge inoltra le chiamate DirectInput. Entrambi i file possono mantenere lo stesso nome. Non rinominare il file della mod e non inserirlo nella cartella del gioco. Non sostituire lì il file di avvio di ShroudForge."
+
+#
+msgctxt "DLL_Manager/14"
+msgid "== Understanding profiles =="
+msgstr "== Capire i profili =="
+
+#
+msgctxt "DLL_Manager/15"
+msgid "A profile is a prepared setting for a known mod. It tells ShroudForge which files to load and how. ShroudForge matches it by the mod ID in <code>mod.json</code>, or by the folder name if there is no ID. You can also choose a profile in the DLL Manager. Profiles do not change mod files. A saved custom DLL selection replaces the profile's file selection."
+msgstr "Un profilo è un'impostazione preparata per una mod nota. Indica a ShroudForge quali file caricare e come. ShroudForge lo abbina all'ID della mod in <code>mod.json</code> o, se manca, al nome della cartella. Puoi anche scegliere un profilo nel DLL Manager. I profili non modificano i file della mod. Una selezione DLL personalizzata salvata sostituisce la selezione dei file del profilo."
+
+#
+msgctxt "DLL_Manager/16"
+msgid "== Existing DirectInput chain =="
+msgstr "== Catena DirectInput esistente =="
+
+#
+msgctxt "DLL_Manager/17"
+msgid "An existing game-folder <code>dinput8-chain.ini</code> uses the established format:"
+msgstr "Un file <code>dinput8-chain.ini</code> già presente nella cartella del gioco usa il formato stabilito:"
+
+#
+msgctxt "DLL_Manager/18"
+msgid "<pre>\n[Chain]\nmods\\my-mod\\dinput8.dll\nmods\\another-mod\\native.dll\n</pre>"
+msgstr "<pre>\n[Chain]\nmods\\my-mod\\dinput8.dll\nmods\\another-mod\\native.dll\n</pre>"
+
+#
+msgctxt "DLL_Manager/19"
+msgid "Entries must resolve to files inside direct mod packages such as <code>mods/&lt;mod-folder&gt;/</code>. Game-root DLLs and paths outside those packages are rejected. Their order takes priority over automatically derived declarations. This file sets order for the DirectInput provider chain, not for ordinary DLLs across mod folders. The same resolved file path is loaded only once. The first valid DLL exporting its own <code>DirectInput8Create</code> receives forwarded calls. Later DirectInput proxy DLLs may still load, but their DirectInput exports are not active in the chain. Do not assume that multiple proxies will work together. Own startup files are skipped, and recursive forwarding falls back to the original Windows library."
+msgstr "Le voci devono indicare file all'interno di pacchetti mod diretti, come <code>mods/&lt;mod-folder&gt;/</code>. Le DLL nella cartella principale del gioco e i percorsi esterni a questi pacchetti vengono rifiutati. Il loro ordine ha la precedenza sulle dichiarazioni dedotte automaticamente. Questo file imposta l'ordine della catena dei provider DirectInput, non quello delle DLL normali tra cartelle di mod. Lo stesso percorso file risolto viene caricato una sola volta. La prima DLL valida che esporta il proprio <code>DirectInput8Create</code> riceve le chiamate inoltrate. Le successive DLL proxy DirectInput possono comunque essere caricate, ma le loro esportazioni DirectInput non sono attive nella catena. Non presumere che più proxy funzionino insieme. I file di avvio di ShroudForge vengono esclusi e l'inoltro ricorsivo usa la libreria Windows originale."
+
+#
+msgctxt "DLL_Manager/20"
+msgid "== Switches, process target and restarting =="
+msgstr "== Interruttori, processo di destinazione e riavvio =="
+
+#
+msgctxt "DLL_Manager/21"
+msgid "The main switch controls all native loading performed by ShroudForge, including INI, profile, chain and Lua registration. A disabled selection suppresses automatic loading for that folder. Client, server or both determines the target process. Filename exclusions apply immediately before loading. They do not identify a mod's functionality from its name."
+msgstr "L'interruttore principale controlla tutto il caricamento nativo eseguito da ShroudForge, incluse le registrazioni INI, dei profili, della catena e di Lua. Una selezione disattivata impedisce il caricamento automatico per quella cartella. Client, server o entrambi determinano il processo di destinazione. Le esclusioni per nome file si applicano subito prima del caricamento. Non identificano la funzione di una mod dal nome."
+
+#
+msgctxt "DLL_Manager/22"
+msgid "Loaded DLLs remain in memory until the process exits. Disabling them, changing the order or choosing another profile therefore requires restarting the game. Duplicate declarations of one file do not create another instance."
+msgstr "Le DLL caricate restano in memoria finché il processo non termina. Per disabilitarle, cambiarne l'ordine o scegliere un altro profilo è quindi necessario riavviare il gioco. Dichiarare due volte lo stesso file non crea una seconda istanza."
+
+#
+msgctxt "DLL_Manager/23"
+msgid "== A loading error appears =="
+msgstr "== Viene visualizzato un errore di caricamento =="
+
+#
+msgctxt "DLL_Manager/24"
+msgid "Check the mod name, file path and cause. Windows error 126 can mean a missing main file or one of its required libraries. If the DirectInput export is missing, check the selected file and its loading mode. “Loaded” confirms loading, rather than every feature of the mod."
+msgstr "Controlla il nome della mod, il percorso del file e la causa indicata. L'errore Windows 126 può indicare che manca il file principale o una delle librerie richieste. Se manca l'esportazione DirectInput, controlla il file selezionato e la modalità di caricamento. “Loaded” conferma il caricamento, non tutte le funzioni della mod."
+
+#
+msgctxt "DLL_Manager/25"
+msgid "An unknown native plugin format, Vulkan layer, additional complete loader or external program needs its intended integration. Loading a library alone does not replace that interface."
+msgstr "Un formato di plugin nativo sconosciuto, un livello Vulkan, un altro loader completo o un programma esterno richiedono l'integrazione prevista per essi. Caricare una libreria da solo non sostituisce quell'interfaccia."
+
+#
+msgctxt "DLL_Manager/26"
+msgid "== Installing packages =="
+msgstr "== Installare pacchetti =="
+
+#
+msgctxt "DLL_Manager/27"
+msgid "The installer also finds a single mod package in nested archive folders. Known profiles import explicitly named companion files. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. Normal runtime operation does not open archives or start external programs."
+msgstr "L'installer individua anche un singolo pacchetto mod dentro cartelle di archivi annidate. I profili noti importano i file supplementari indicati esplicitamente. Un nuovo archivio con più pacchetti mod non viene installato automaticamente come gruppo. Estrailo e installa una cartella mod per volta. Il normale runtime non apre archivi né avvia programmi esterni."

@@ -1,0 +1,69 @@
+# Translation of Dependencies to Hindi
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: hi\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: hi\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "निर्भरताएँ"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "मॉड के लिए आवश्यक घटक और ज्ञात टकराव देखें। यह दृश्य बताता है कि सक्रिय मॉड को क्या रोक रहा है और किस निर्भरता पर ध्यान देना है।"
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== आवश्यक मॉड =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "कोई मॉड <code>mod.json</code> में अन्य मॉड और उनके आवश्यक संस्करण घोषित कर सकता है। ShroudForge जाँचता है कि वे इंस्टॉल हैं, सक्षम हैं और मौजूदा क्लाइंट या सर्वर के लिए उपयुक्त हैं। आवश्यक निर्भरता गायब या अक्षम होने पर प्रभावित मॉड शुरू नहीं होता। असंगत संस्करण भी उसे रोकता है।"
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "नामित मॉड खोलें, उसकी आवश्यकता इंस्टॉल या सक्षम करें, फिर यह दृश्य दोबारा जाँचें। मौजूदा प्रक्रिया में हर इंस्टॉल किए गए मॉड को चलना आवश्यक नहीं है। केवल क्लाइंट के लिए बना मॉड सर्वर पर स्वयं शुरू नहीं होना चाहिए।"
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== वैकल्पिक निर्भरताएँ =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "स्पष्ट रूप से वैकल्पिक निर्भरता अनुपस्थित या अक्षम हो सकती है। ऐसी स्थिति में कोई अतिरिक्त सुविधा उपलब्ध नहीं होगी। यदि निर्भरता मौजूद और सक्षम है, तो उसका संस्करण और आगे की आवश्यकताएँ भी मेल खानी चाहिए।"
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "जिन मॉड ने निर्भरताएँ घोषित नहीं की हैं, उनके लिए यहाँ अलग समस्या प्रविष्टि की आवश्यकता नहीं है। उनकी समग्र स्थिति उनके अपने मॉड पृष्ठों पर उपलब्ध रहती है।"
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== टकराव और चक्र =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "ज्ञात टकराव नियम उन दो सक्रिय मॉड की पहचान करते हैं जिन्हें बताए गए संयोजन में साथ नहीं चलना चाहिए। किस मॉड को अक्षम करना है, यह तय करने के लिए संदेश देखें। निर्भरता चक्र का अर्थ है कि मॉड एक-दूसरे को पहले शुरू करने की आवश्यकता बताते हैं। इसके लिए पैकेज में सुधार या लेखक से बदलाव आवश्यक है।"
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "<code>shroudforge-api</code> की आवश्यकता लोडर के मॉड API को संदर्भित करती है। यह DLL संगतता प्रोफ़ाइल के स्वचालित मिलान से अलग है।"

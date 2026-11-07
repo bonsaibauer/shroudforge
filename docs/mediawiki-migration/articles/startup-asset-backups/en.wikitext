@@ -1,0 +1,35 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Startup stops because asset backups are incompatible
+description: Troubleshooting for older ShroudForge releases. Versions 1.6.8, 1.7.0 and 1.7.3 can stop before Enshrouded starts when their asset backup files do not match the installed game files.
+language: en
+creator: Bonsaibauer
+source: modules/wiki/articles/startup-asset-backups/en.md
+-->
+
+Troubleshooting for older ShroudForge releases. Versions 1.6.8, 1.7.0 and 1.7.3 can stop before Enshrouded starts when their asset backup files do not match the installed game files.
+
+[[File:ShroudForge-Wiki-startup-asset-backups.svg|thumb|right|alt=Startup stops because asset backups are incompatible|Startup stops because asset backups are incompatible]]
+
+== Why startup stops ==
+
+ShroudForge keeps working backups of <code>enshrouded.kfc</code> and <code>enshrouded.kfc_resources</code> so it can restore the game files before preparing asset mods. These <code>.bak</code> files may come from an older Enshrouded version or another mod. If the KFC backup does not match the current game file, older ShroudForge releases cannot safely restore it and stop startup.
+
+== If you use ShroudForge 1.7.5 or later ==
+
+When the KFC backup is incompatible, these versions can move both working backups to the ShroudForge recycle bin and capture new backups from the current game files. This recovery requires <code>shroudforge/shroudforge-updater.exe</code> in the Enshrouded installation. If the log says the updater is unavailable, repair or reinstall ShroudForge with the complete release package, then start the game again. Keep the <code>.bak</code> files in place while repairing the installation.
+
+== Manual fix for versions 1.6.8, 1.7.0 and 1.7.3 ==
+
+Use these steps only with the listed older ShroudForge versions.
+
+# Close ShroudForge and Enshrouded completely, including any dedicated server process.
+# Open the Enshrouded installation folder. A common Steam path is <code>SteamLibrary\steamapps\common\Enshrouded</code>, but use the library folder where your game is installed.
+# If another mod may have changed the current <code>.kfc</code> files, verify Enshrouded's files through Steam first. If you want to keep a copy of the old backups, copy them outside the game folder before continuing.
+# Delete only these files if they are present:
+#* <code>enshrouded.kfc.bak</code>
+#* <code>enshrouded.kfc_resources.bak</code>
+# Restart ShroudForge. It should create fresh working backups from the current game files.
+
+Do not delete the <code>.kfc</code> or <code>.kfc_resources</code> game files, or any other backup files. If startup still fails, keep the remaining files and share the ShroudForge log with support.
+
+[[Category:guide:shroudforge]]

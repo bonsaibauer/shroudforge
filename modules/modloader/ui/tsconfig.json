@@ -29,8 +29,9 @@
       "react-dom/*": [
         "./node_modules/@types/react-dom/*"
       ],
-      "react-markdown": ["./node_modules/react-markdown/index.d.ts"],
-      "remark-gfm": ["./node_modules/remark-gfm/index.d.ts"],
+      "dompurify": [
+        "./node_modules/dompurify/dist/purify.es.d.mts"
+      ],
       "@generated-flags": [
         "../../../build/ui/modloader-inputs/generated-flags.ts"
       ]

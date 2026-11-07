@@ -1,0 +1,95 @@
+<!-- ShroudForge MediaWiki migration metadata
+title: Modding
+description: Consultez l’état du menu principal et le nom du personnage local sélectionné avec le runtime Lua. Ces deux requêtes utilisent les mêmes données natives que le Modloader et ne nécessitent aucun accès au monde.
+language: fr
+creator: Bonsaibauer
+source: modules/wiki/articles/modding/fr.md
+-->
+
+Consultez l’état du menu principal et le nom du personnage local sélectionné avec le runtime Lua. Ces deux requêtes utilisent les mêmes données natives que le Modloader et ne nécessitent aucun accès au monde.
+
+[[File:ShroudForge-Wiki-modding.svg|thumb|right|alt=Modding|Modding]]
+
+== Prérequis ==
+
+Activez le mod et déclarez la capacité <code>runtime</code> dans <code>mod.json</code> :
+
+<pre>
+{
+  "capabilities": ["runtime"]
+}
+</pre>
+
+Pour ces requêtes du client, définissez <code>targets</code> sur <code>&#91;"client"&#93;</code> dans <code>extended.mod.json</code>. Appelez les fonctions depuis des callbacks actifs du runtime, comme <code>on_load</code> et <code>on_update</code>. <code>runtime.phase == "ingame"</code> indique que le runtime du mod a démarré et ne confirme pas l’entrée dans un monde. Ces deux requêtes ne nécessitent aucun profil d’exécution. Les autres opérations du monde conservent leurs propres prérequis.
+
+== Détecter le menu principal ==
+
+<pre>
+local in_menu, reason = runtime.is_main_menu()
+</pre>
+
+{| class="wikitable"
+! Résultat !! Signification
+|-
+| <code>true, nil</code> || Le menu principal, y compris la sélection du personnage, du monde et du serveur, a été confirmé.
+|-
+| <code>false, nil</code> || Un autre état d’origine du jeu a été validé.
+|-
+| <code>nil, reason</code> || L’état est inconnu, change actuellement ou la requête est indisponible.
+|}
+
+Vérifiez explicitement <code>in_menu == true</code> ou <code>in_menu == false</code>. <code>nil</code> ne représente pas un état confirmé. <code>false</code> seul ne confirme pas non plus que le monde peut être lu. Vérifiez séparément l’opération nécessaire, par exemple <code>runtime.has("runtime.ecs.read")</code>.
+
+== Lire le nom du personnage ==
+
+<pre>
+local name, reason = runtime.player.name()
+local display_name = name or "Flameborn"
+</pre>
+
+<code>name, nil</code> renvoie sous forme de chaîne UTF-8 le nom du personnage sélectionné dans le menu principal du client local. Les caractères Unicode, comme dans <code>Ikiju 育樹</code>, sont préservés. <code>nil, reason</code> signifie qu’aucun nom n’est encore disponible, que la requête est indisponible ou que l’accès n’est pas autorisé.
+
+Le mod choisit son propre nom de remplacement. L’API n’insère aucune valeur par défaut et n’utilise pas le nom manuel du Modloader. Cette valeur n’identifie aucun joueur distant et n’est ni un SteamID ni un nom affiché sur Steam. Un serveur dédié n’a pas de nom de personnage du client local.
+
+== Cache partagé ==
+
+Lua et le Modloader lisent le même cache natif. Le tick existant du runtime actualise l’état du menu. L’intégration existante du menu capture le nom à la première sélection disponible, puis lorsque la sélection ou les métadonnées du nom changent. Les requêtes Lua ne lancent aucune recherche supplémentaire et ne lisent aucun journal.
+
+Le dernier nom capturé avec succès reste en cache après l’entrée dans un monde. Un nom en cache ne confirme donc pas que le menu est ouvert. <code>runtime.has("runtime.is_main_menu")</code> et <code>runtime.has("runtime.player.name")</code> indiquent la disponibilité de chaque requête. <code>runtime.status(...)</code> fournit aussi une explication.
+
+== Exemple pour <code>src/mod.lua</code> ==
+
+Cet exemple lit le cache au chargement, puis toutes les 500 ms. Il choisit un nom de remplacement et ne journalise que les changements :
+
+<pre>
+runtime.require("runtime.lifecycle")
+
+local previous_message = nil
+
+local function refresh()
+    local in_menu = runtime.is_main_menu()
+    local name = runtime.player.name()
+    local state = "unknown"
+    if in_menu == true then
+        state = "menu"
+    elseif in_menu == false then
+        state = "other"
+    end
+
+    local message = state .. ": " .. (name or "Flameborn")
+    if message ~= previous_message then
+        previous_message = message
+        shroudforge.log.info(message)
+    end
+end
+
+return {
+    on_load = refresh,
+    on_update = function()
+        refresh()
+    end,
+    update_interval_ms = 500,
+}
+</pre>
+
+[[Category:guide:shroudforge]]

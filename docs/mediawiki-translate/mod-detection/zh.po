@@ -1,0 +1,70 @@
+# Translation of Mod Detection to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Mod Detection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Mod_Detection/Page_display_title"
+msgid "Mod Detection"
+msgstr "模组检测"
+
+#
+msgctxt "Mod_Detection/1"
+msgid "See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files."
+msgstr "查看 ShroudForge 能识别哪些模组文件夹和文件。检测过程不会加载 DLL，也不会更改模组文件。"
+
+#
+msgctxt "Mod_Detection/2"
+msgid "== What is detected? =="
+msgstr "== 检测哪些内容？ =="
+
+#
+msgctxt "Mod_Detection/3"
+msgid "Installed mods are unpacked folders under <code>mods/&lt;mod-folder&gt;/</code> or your configured mods directory. ShroudForge reads <code>mod.json</code>, optional <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> and existing DLL files. A Lua-only mod needs no DLL of its own. A native mod can appear in the DLL Manager without a manifest or Lua file."
+msgstr "已安装的模组是解压后的文件夹，位于 <code>mods/&lt;mod-folder&gt;/</code> 下或你配置的模组目录中。ShroudForge 会读取 <code>mod.json</code>、可选的 <code>extended.mod.json</code>、<code>src/mod.lua</code>、<code>native-plugin.ini</code> 以及现有 DLL 文件。纯 Lua 模组不需要自带 DLL。原生模组即使没有清单或 Lua 文件，也可能显示在 DLL Manager 中。"
+
+#
+msgctxt "Mod_Detection/4"
+msgid "This view tells you whether a folder and its information were recognized. Actual native loading appears in the DLL Manager. The mod's own page shows its overall status."
+msgstr "此视图会说明文件夹及其中的信息是否已被识别。实际的原生加载情况会显示在 DLL Manager 中。模组自身的页面会显示其整体状态。"
+
+#
+msgctxt "Mod_Detection/5"
+msgid "== Unknown manifest fields =="
+msgstr "== 未知的清单字段 =="
+
+#
+msgctxt "Mod_Detection/6"
+msgid "With the Mod Detection module and tolerant reading enabled, <code>mod.json</code> and <code>extended.mod.json</code> may contain extra fields unknown to ShroudForge. Those fields alone do not reject a package. Known fields must still contain valid values. Invalid JSON, missing required information and incorrect data types remain errors."
+msgstr "启用 Mod Detection 模块和宽容读取后，<code>mod.json</code> 与 <code>extended.mod.json</code> 可以包含 ShroudForge 不认识的额外字段。仅有这些字段不会导致软件包被拒绝。已知字段仍必须包含有效值。无效 JSON、缺少必需信息和数据类型错误仍会报错。"
+
+#
+msgctxt "Mod_Detection/7"
+msgid "Disabling this compatibility option restores strict validation. It does not automatically delete or disable all installed mods."
+msgstr "关闭此兼容选项会恢复严格验证，但不会自动删除或禁用所有已安装的模组。"
+
+#
+msgctxt "Mod_Detection/8"
+msgid "== A mod is not recognized =="
+msgstr "== 无法识别模组 =="
+
+#
+msgctxt "Mod_Detection/9"
+msgid "Check the actual mod folder first. A download folder may contain another wrapper folder or a <code>mods</code> directory. The installer locates a single enclosed mod package. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. During normal operation, ShroudForge reads unpacked mod folders rather than archives."
+msgstr "先检查实际的模组文件夹。下载文件夹中可能还套有一层包装文件夹或 <code>mods</code> 目录。安装程序会查找其中一个单独的模组软件包。包含多个模组软件包的新压缩包不会自动作为一组安装。请先解压，然后一次安装一个模组文件夹。正常运行时，ShroudForge 读取的是解压后的模组文件夹，而不是压缩包。"
+
+#
+msgctxt "Mod_Detection/10"
+msgid "Correct the reported JSON location or install the complete package again. A compatibility profile can supply an adapter for known differences. Recognition alone does not confirm that native hooks or mod APIs work."
+msgstr "修正报告中指出的 JSON 位置，或重新安装完整软件包。兼容性配置文件可以为已知差异提供适配器。识别成功本身并不能确认原生钩子或模组 API 可以正常工作。"

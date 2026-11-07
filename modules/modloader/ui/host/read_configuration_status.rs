@@ -1,5 +1,252 @@
 use serde_json::{Value, json};
-use std::{fs, path::Path};
+use std::{fs, io::Read, path::Path};
+
+fn reported_execution_profile(provider: &Value) -> &str {
+    provider["detail"]
+        .as_str()
+        .unwrap_or_default()
+        .split_whitespace()
+        .find_map(|part| {
+            part.strip_prefix("execution_profile=")
+                .or_else(|| part.strip_prefix("profile="))
+        })
+        .unwrap_or_default()
+}
+
+fn discovery_waits_for_world(provider: &Value) -> bool {
+    if provider["available"] != true {
+        return false;
+    }
+    let resource_profile = provider
+        .pointer("/resourceService/profile")
+        .and_then(Value::as_str);
+    let execution_profile = reported_execution_profile(provider);
+    let manual_selection_invalid = execution_profile.starts_with("manual-profile-not-found:")
+        || execution_profile.starts_with("manual-profile-id-ambiguous:");
+    let discovery = provider.pointer("/resourceService/profileSelection/discovery");
+    let live_error = discovery
+        .and_then(|value| value.pointer("/liveLayoutProof/error"))
+        .and_then(Value::as_str);
+    let waiting_for_world = provider["mainMenu"] == true || provider["awaitingWorld"] == true;
+
+    !manual_selection_invalid
+        && resource_profile == Some("no-exact-resource-read-profile")
+        && waiting_for_world
+        && discovery.is_some_and(|value| {
+            value["enabled"] == true
+                && value["state"] == "unresolved"
+                && value["reason"] == "image-equivalence-not-established"
+                && value["liveLayoutProof"]["complete"] == false
+        })
+        && matches!(
+            live_error,
+            Some(
+                "live-profile-pointer-out-of-user-range"
+                    | "live-profile-ready-scene-not-unique"
+            )
+        )
+}
+
+fn profile_discovery_notice(
+    root: &Path,
+    pid: Option<u32>,
+    provider: Option<&Value>,
+    now: u64,
+) -> Option<Value> {
+    let pid = pid?;
+    let provider = provider.filter(|value| value["available"] == true);
+    if let Some(provider) = provider {
+        if let Some(profile) = provider
+            .pointer("/resourceService/profileId")
+            .and_then(Value::as_str)
+            .filter(|profile| profile.starts_with("beta_"))
+        {
+            return Some(json!({"state":"beta-active", "profileId":profile}));
+        }
+
+        if discovery_waits_for_world(provider) {
+            return Some(json!({"state":"waiting-for-world"}));
+        }
+
+        let resource_profile = provider
+            .pointer("/resourceService/profile")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if resource_profile
+            .strip_suffix(":exact-image-resource-service")
+            .is_some_and(|profile| !profile.starts_with("beta_"))
+        {
+            return None;
+        }
+    }
+
+    let path = shroudforge_loader_config::paths::cache_dir(root)
+        .join("game-profile-discovery")
+        .join(format!("status-{pid}.json"));
+    let progress = (|| {
+        let mut bytes = Vec::new();
+        fs::File::open(path)
+            .ok()?
+            .take(16 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .ok()?;
+        if bytes.len() > 16 * 1024 {
+            return None;
+        }
+        serde_json::from_slice::<Value>(&bytes).ok()
+    })();
+    if let Some(progress) = progress.filter(|value| {
+        value["schemaVersion"] == 1
+            && value["enabled"] == true
+            && value["state"] == "searching"
+            && value["pid"].as_u64() == Some(u64::from(pid))
+            && value["updatedAt"]
+                .as_u64()
+                .is_some_and(|time| time <= now && now - time <= 120)
+            && provider
+                .and_then(|runtime| runtime.pointer("/resourceService/profileSelection/image"))
+                .is_none_or(|image| value["image"] == *image)
+    }) {
+        return Some(json!({"state":"searching", "image":progress["image"]}));
+    }
+    None
+}
+
+fn runtime_problem_code(provider: &Value) -> Option<&'static str> {
+    if provider["available"] != true {
+        return Some("provider-unavailable");
+    }
+
+    let resource_profile = provider
+        .pointer("/resourceService/profile")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let execution_profile = reported_execution_profile(provider);
+    if execution_profile.starts_with("manual-profile-not-found:")
+        || execution_profile.starts_with("manual-profile-id-ambiguous:")
+    {
+        return Some("profile-selection-invalid");
+    }
+    let read_profile_format = provider
+        .pointer("/resourceService/profileSelection/kfcFormat")
+        .and_then(Value::as_u64);
+    let read_profile_expected = read_profile_format == Some(4);
+    if read_profile_expected
+        && matches!(
+            resource_profile,
+            "no-exact-resource-read-profile" | "ambiguous-exact-resource-read-profile"
+        )
+    {
+        return Some("profile-unavailable");
+    }
+    if read_profile_format != Some(3)
+        && (resource_profile.starts_with("resource-profile-error:")
+            || resource_profile.starts_with("engine-owner-profile-error:"))
+    {
+        return Some("profile-error");
+    }
+
+    // This status is published after exact profile selection, including before
+    // a world exists. Released providers do not yet expose profileId or
+    // profileSelection. Resource availability is a separate live-world check.
+    let resource_profile_selected = resource_profile
+        .strip_suffix(":exact-image-resource-service")
+        .is_some_and(|id| !id.is_empty());
+    if !resource_profile_selected {
+        if matches!(
+            execution_profile,
+            "missing-or-ambiguous-profile" | "ambiguous-exact-profile"
+        ) {
+            return Some("profile-unavailable");
+        }
+        if execution_profile.starts_with("profile-error:") {
+            return Some("profile-error");
+        }
+    }
+    None
+}
+
+fn runtime_compatibility_check(
+    provider: Option<&Value>,
+    desktop: bool,
+    server: bool,
+    profile_discovery_pending: bool,
+) -> Value {
+    let waiting_for_discovery_world =
+        profile_discovery_pending && provider.is_some_and(discovery_waits_for_world);
+    let phase = if waiting_for_discovery_world {
+        "waiting-world"
+    } else if profile_discovery_pending {
+        "searching-profile"
+    } else if desktop {
+        "desktop"
+    } else if !server && provider.is_some_and(|value| value["mainMenu"] == true) {
+        "main-menu"
+    } else if provider.is_some_and(|value| value["awaitingWorld"] == true) {
+        "waiting-world"
+    } else {
+        "normal"
+    };
+    let problem = if desktop {
+        None
+    } else {
+        provider
+            .and_then(runtime_problem_code)
+            .filter(|code| !(profile_discovery_pending && *code == "profile-unavailable"))
+            .or_else(|| {
+                (phase == "normal" && provider.is_some_and(|value| value["ready"] != true))
+                    .then_some("runtime-not-ready")
+            })
+    };
+    let provider_detail = match provider {
+        Some(value) if value["available"] == true => format!(
+            "KFC Runtime ABI {}. Initialized={}. Ready={}. Writable={}. {}",
+            value["abi"],
+            value["initialized"],
+            value["ready"],
+            value["writable"],
+            value["detail"]
+                .as_str()
+                .unwrap_or("provider status unavailable")
+        ),
+        Some(value) => format!(
+            "KFC Runtime provider unavailable (reported ABI {}): {}",
+            value["abi"],
+            value["reason"]
+                .as_str()
+                .unwrap_or("provider or ABI unavailable")
+        ),
+        None => "Waiting for a fresh status from the game process.".into(),
+    };
+    let (state, detail) = if problem.is_some() {
+        ("warning", provider_detail)
+    } else {
+        match phase {
+            "searching-profile" => (
+                "neutral",
+                "ShroudForge is checking whether it can prepare a profile for this game build.".into(),
+            ),
+            "desktop" => (
+                "ok",
+                "Desktop mode. World access is not expected until a game world is entered.".into(),
+            ),
+            "main-menu" => (
+                "ok",
+                "The original game state confirms the main menu. World access is not expected here.".into(),
+            ),
+            "waiting-world" => (
+                "neutral",
+                if waiting_for_discovery_world {
+                    "Live profile verification is waiting for a loaded game world. Enter a world on the client or wait for the server world to load.".into()
+                } else {
+                    "KFC Runtime is waiting for a loaded game world.".into()
+                },
+            ),
+            _ => (if provider.is_some() { "ok" } else { "neutral" }, provider_detail),
+        }
+    };
+    json!({"id":"runtime","group":"game","state":state,"code":problem,"detail":detail,"phase":phase})
+}
 
 pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>) -> Value {
     let desktop = game_pid.is_none();
@@ -39,17 +286,19 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 .as_u64()
                 .is_some_and(|timestamp| timestamp <= now && now - timestamp <= 5)
     });
-    let main_menu = runtime_fresh
-        && !server
-        && runtime.as_ref().is_some_and(|value| {
-            value["runtimeProvider"]["available"] == true
-                && value["runtimeProvider"]["mainMenu"] == true
-        });
-    let awaiting_world = runtime_fresh
-        && runtime.as_ref().is_some_and(|value| {
-            value["runtimeProvider"]["available"] == true
-                && value["runtimeProvider"]["awaitingWorld"] == true
-        });
+    let runtime_check = runtime
+        .as_ref()
+        .filter(|_| runtime_fresh)
+        .map(|value| &value["runtimeProvider"]);
+    let discovery_notice = profile_discovery_notice(root, game_pid, runtime_check, now);
+    let profile_discovery_pending = discovery_notice.as_ref().is_some_and(|value| {
+        matches!(value["state"].as_str(), Some("searching" | "waiting-for-world"))
+    });
+    let runtime_status =
+        runtime_compatibility_check(runtime_check, desktop, server, profile_discovery_pending);
+    let main_menu = runtime_status["phase"] == "main-menu" && runtime_status["code"].is_null();
+    let awaiting_world =
+        runtime_status["phase"] == "waiting-world" && runtime_status["code"].is_null();
     match shroudforge_loader_config::config::read_document(
         root,
         shroudforge_news::documents::EVENTS_STATE,
@@ -527,57 +776,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
     };
     checks
         .push(json!({"id":"parser","group":"parser","state":parser_state,"detail":parser_detail}));
-    let runtime_check = runtime
-        .as_ref()
-        .filter(|_| runtime_fresh)
-        .map(|value| &value["runtimeProvider"]);
-    let (runtime_state, runtime_detail) = match runtime_check {
-        _ if desktop => (
-            "ok",
-            "Desktop mode. World access is not expected until a game world is entered.".into(),
-        ),
-        _ if main_menu => (
-            "ok",
-            "The original game state confirms the main menu. World access is not expected here."
-                .into(),
-        ),
-        Some(value) if value["available"] == true && value["awaitingWorld"] == true => (
-            "neutral",
-            "KFC Runtime is waiting for the player to enter a game world.".into(),
-        ),
-        Some(value) if value["available"] == true => (
-            if value["ready"] == true {
-                "ok"
-            } else {
-                "warning"
-            },
-            format!(
-                "KFC Runtime ABI {}. Initialized={}. Ready={}. Writable={}. {}",
-                value["abi"],
-                value["initialized"],
-                value["ready"],
-                value["writable"],
-                value["detail"]
-                    .as_str()
-                    .unwrap_or("provider status unavailable")
-            ),
-        ),
-        Some(value) => (
-            "warning",
-            format!(
-                "KFC Runtime provider unavailable (reported ABI {}): {}",
-                value["abi"],
-                value["reason"]
-                    .as_str()
-                    .unwrap_or("provider or ABI unavailable")
-            ),
-        ),
-        None => (
-            "neutral",
-            "Waiting for a fresh status from the game process.".into(),
-        ),
-    };
-    checks.push(json!({"id":"runtime","group":"game","state":runtime_state,"detail":runtime_detail,"phase":if desktop {"desktop"} else if main_menu {"main-menu"} else if awaiting_world {"waiting-world"} else {"normal"}}));
+    checks.push(runtime_status);
     let state_path = shroudforge_loader_config::paths::state_file(root);
     let updates = match fs::read(&state_path) {
         Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {
@@ -601,12 +800,270 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
             errors.push(error);
         }
     }
-    json!({"errors":errors,"checks":checks,"assets":assets,"lastUpdate":updates,"modStates":mod_states})
+    json!({"errors":errors,"checks":checks,"assets":assets,"lastUpdate":updates,"modStates":mod_states,"gameProfileDiscovery":discovery_notice})
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn game_profile_discovery_banner_requires_live_beta_or_current_process_progress() {
+        let root = tempfile::tempdir().unwrap();
+        let path = shroudforge_loader_config::paths::cache_dir(root.path())
+            .join("game-profile-discovery/status-42.json");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let progress =
+            json!({"schemaVersion":1,"enabled":true,"state":"searching","pid":42,"updatedAt":100});
+        fs::write(&path, progress.to_string()).unwrap();
+        assert_eq!(
+            profile_discovery_notice(root.path(), Some(42), None, 101).unwrap()["state"],
+            "searching"
+        );
+        assert!(profile_discovery_notice(root.path(), Some(43), None, 101).is_none());
+        assert!(profile_discovery_notice(root.path(), Some(42), None, 221).is_none());
+        assert!(profile_discovery_notice(root.path(), Some(42), None, 99).is_none());
+        assert!(profile_discovery_notice(root.path(), None, None, 101).is_none());
+        let mut finished = progress;
+        finished["state"] = "finished".into();
+        fs::write(&path, finished.to_string()).unwrap();
+        assert!(profile_discovery_notice(root.path(), Some(42), None, 101).is_none());
+        let beta =
+            json!({"available":true,"resourceService":{"profileId":"beta_enshrouded-client-42"}});
+        let notice = profile_discovery_notice(root.path(), Some(42), Some(&beta), 101).unwrap();
+        assert_eq!(notice["state"], "beta-active");
+        assert_eq!(notice["profileId"], "beta_enshrouded-client-42");
+        let normal =
+            json!({"available":true,"resourceService":{"profileId":"enshrouded-client-42"}});
+        assert!(profile_discovery_notice(root.path(), Some(42), Some(&normal), 101).is_none());
+        let unavailable =
+            json!({"available":false,"resourceService":{"profileId":"beta_enshrouded-client-42"}});
+        assert!(profile_discovery_notice(root.path(), Some(42), Some(&unavailable), 101).is_none());
+    }
+
+    #[test]
+    fn game_profile_discovery_does_not_hide_missing_profiles_in_the_main_menu() {
+        let unavailable = json!({"available":true,"ready":false,"mainMenu":true,
+            "resourceService":{"profile":"no-exact-resource-read-profile","profileSelection":{"kfcFormat":4}}});
+        assert_eq!(
+            runtime_problem_code(&unavailable),
+            Some("profile-unavailable")
+        );
+        let beta_waiting = json!({"available":true,"ready":false,"mainMenu":true,
+            "resourceService":{"profile":"beta_enshrouded-client-42:exact-image-resource-service"}});
+        assert_eq!(runtime_problem_code(&beta_waiting), None);
+        let broken = json!({"available":true,"ready":true,
+            "resourceService":{"profile":"engine-owner-profile-error:contract-mismatch","profileSelection":{"kfcFormat":4}}});
+        assert_eq!(runtime_problem_code(&broken), Some("profile-error"));
+        let legacy = json!({"available":true,"ready":true,
+            "resourceService":{"profile":"no-exact-resource-read-profile","profileSelection":{"kfcFormat":3}},
+            "detail":"profile=enshrouded-client-1076226 game_thread=ready"});
+        assert_eq!(runtime_problem_code(&legacy), None);
+    }
+
+    #[test]
+    fn runtime_banner_accepts_selected_resource_profiles_before_world_readiness() {
+        for id in [
+            "enshrouded-client-26404966",
+            "beta_enshrouded-client-26404966",
+        ] {
+            // The released provider has neither profileId nor profileSelection.
+            let mut provider = json!({
+                "available":true,"initialized":true,"ready":false,
+                "mainMenu":true,"awaitingWorld":false,
+                "detail":"profile=missing-or-ambiguous-profile game_thread=unavailable",
+                "resourceService":{"available":false,"profile":format!("{id}:exact-image-resource-service")}
+            });
+            let menu = runtime_compatibility_check(Some(&provider), false, false, false);
+            assert_eq!(menu["state"], "ok", "{menu}");
+            assert!(menu["code"].is_null(), "{menu}");
+            assert_eq!(menu["phase"], "main-menu");
+
+            provider["mainMenu"] = json!(false);
+            provider["awaitingWorld"] = json!(true);
+            let waiting = runtime_compatibility_check(Some(&provider), false, false, false);
+            assert_eq!(waiting["state"], "neutral", "{waiting}");
+            assert!(waiting["code"].is_null(), "{waiting}");
+            assert_eq!(waiting["phase"], "waiting-world");
+
+            provider["awaitingWorld"] = json!(false);
+            provider["ready"] = json!(true);
+            provider["resourceService"]["available"] = json!(true);
+            let world = runtime_compatibility_check(Some(&provider), false, false, false);
+            assert_eq!(world["state"], "ok", "{world}");
+            assert!(world["code"].is_null(), "{world}");
+
+            provider["ready"] = json!(false);
+            let lost_readiness = runtime_compatibility_check(Some(&provider), false, false, false);
+            assert_eq!(lost_readiness["state"], "warning");
+            assert_eq!(lost_readiness["code"], "runtime-not-ready");
+        }
+    }
+
+    #[test]
+    fn runtime_banner_keeps_real_profile_errors_during_menu_wait_and_ready_world() {
+        for (profile, code) in [
+            ("no-exact-resource-read-profile", "profile-unavailable"),
+            (
+                "ambiguous-exact-resource-read-profile",
+                "profile-unavailable",
+            ),
+            ("resource-profile-error:invalid-layout", "profile-error"),
+            (
+                "engine-owner-profile-error:contract-mismatch",
+                "profile-error",
+            ),
+        ] {
+            for (main_menu, awaiting_world, ready) in [
+                (true, false, false),
+                (false, true, false),
+                (false, false, true),
+            ] {
+                let provider = json!({
+                    "available":true,"ready":ready,"mainMenu":main_menu,"awaitingWorld":awaiting_world,
+                    "detail":"profile=enshrouded-client-1076226:exact-image",
+                    "resourceService":{"profile":profile,"profileSelection":{"kfcFormat":4}}
+                });
+                let check = runtime_compatibility_check(Some(&provider), false, false, false);
+                assert_eq!(check["state"], "warning", "{check}");
+                assert_eq!(check["code"], code, "{check}");
+            }
+        }
+        let unavailable = json!({"available":false,"ready":true,"mainMenu":true,
+            "reason":"ABI mismatch","resourceService":{"profile":"enshrouded-client-26404966:exact-image-resource-service"}});
+        let check = runtime_compatibility_check(Some(&unavailable), false, false, false);
+        assert_eq!(check["state"], "warning");
+        assert_eq!(check["code"], "provider-unavailable");
+
+        let released_error = json!({"available":true,"ready":true,
+            "resourceService":{"profile":"resource-profile-error:invalid-layout"}});
+        assert_eq!(runtime_problem_code(&released_error), Some("profile-error"));
+    }
+
+    #[test]
+    fn runtime_banner_preserves_legacy_profile_checks_and_requires_selected_resource_profile() {
+        let mut legacy = json!({"available":true,"ready":false,"mainMenu":true,
+            "resourceService":{"profile":"no-exact-resource-read-profile","profileSelection":{"kfcFormat":3}},
+            "detail":"profile=enshrouded-client-1076226:exact-image game_thread=installed-awaiting-world"});
+        let check = runtime_compatibility_check(Some(&legacy), false, false, false);
+        assert_eq!(check["state"], "ok", "{check}");
+        assert!(check["code"].is_null());
+        for (detail, code) in [
+            (
+                "profile=missing-or-ambiguous-profile",
+                "profile-unavailable",
+            ),
+            (
+                "execution_profile=ambiguous-exact-profile",
+                "profile-unavailable",
+            ),
+            (
+                "profile=manual-profile-not-found:missing",
+                "profile-selection-invalid",
+            ),
+            (
+                "profile=manual-profile-id-ambiguous:duplicate",
+                "profile-selection-invalid",
+            ),
+            ("profile=profile-error:invalid-layout", "profile-error"),
+        ] {
+            legacy["detail"] = json!(detail);
+            let check = runtime_compatibility_check(Some(&legacy), false, false, false);
+            assert_eq!(check["state"], "warning", "{check}");
+            assert_eq!(check["code"], code, "{check}");
+        }
+        for profile in [
+            "",
+            ":exact-image-resource-service",
+            "enshrouded-client-26404966",
+        ] {
+            let provider = json!({"available":true,"ready":true,
+                "detail":"profile=missing-or-ambiguous-profile",
+                "resourceService":{"profile":profile,"profileId":"enshrouded-client-26404966"}});
+            assert_eq!(runtime_problem_code(&provider), Some("profile-unavailable"));
+        }
+    }
+
+    #[test]
+    fn runtime_banner_uses_the_same_decision_in_fresh_process_configuration() {
+        let root = tempfile::tempdir().unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let runtime_directory = shroudforge_loader_config::paths::runtime_dir(root.path());
+        fs::create_dir_all(&runtime_directory).unwrap();
+        fs::write(
+            runtime_directory.join("heartbeat.json"),
+            json!({"pid":42,"updatedAt":now}).to_string(),
+        )
+        .unwrap();
+        let mut runtime = json!({"schemaVersion":1,"pid":42,"updatedAt":now,"running":true,
+        "active":[],"loaded":{},"errors":{},"runtimeProvider":{
+            "available":true,"initialized":true,"ready":false,"mainMenu":true,"awaitingWorld":false,
+            "detail":"profile=missing-or-ambiguous-profile game_thread=unavailable",
+            "resourceService":{"available":false,"profile":"enshrouded-client-26404966:exact-image-resource-service"}
+        }});
+        for (main_menu, ready) in [(true, false), (false, true)] {
+            runtime["runtimeProvider"]["mainMenu"] = json!(main_menu);
+            runtime["runtimeProvider"]["ready"] = json!(ready);
+            shroudforge_loader_config::config::write_document(
+                root.path(),
+                shroudforge_runtime_diagnostics::documents::MOD_STATUS,
+                &runtime,
+            )
+            .unwrap();
+            let configuration = configuration(root.path(), false, "1.0.0", Some(42));
+            let check = configuration["checks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|check| check["id"] == "runtime")
+                .unwrap();
+            assert_eq!(check["state"], "ok", "{check}");
+            assert!(check["code"].is_null(), "{check}");
+            assert_eq!(
+                check["phase"],
+                if main_menu { "main-menu" } else { "normal" }
+            );
+        }
+        runtime["updatedAt"] = json!(now - 20);
+        shroudforge_loader_config::config::write_document(
+            root.path(),
+            shroudforge_runtime_diagnostics::documents::MOD_STATUS,
+            &runtime,
+        )
+        .unwrap();
+        let configuration = configuration(root.path(), false, "1.0.0", Some(42));
+        let check = configuration["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|check| check["id"] == "runtime")
+            .unwrap();
+        assert_eq!(check["state"], "neutral", "{check}");
+        assert!(check["code"].is_null());
+    }
+
+    #[test]
+    fn runtime_banner_waits_for_status_and_profile_search_but_keeps_provider_failures() {
+        let no_status = runtime_compatibility_check(None, false, false, false);
+        assert_eq!(no_status["state"], "neutral");
+        assert!(no_status["code"].is_null());
+        let unresolved = json!({"available":true,"ready":false,
+            "detail":"profile=missing-or-ambiguous-profile"});
+        let searching = runtime_compatibility_check(Some(&unresolved), false, false, true);
+        assert_eq!(searching["state"], "neutral");
+        assert!(searching["code"].is_null());
+        assert_eq!(searching["phase"], "searching-profile");
+        let unavailable = json!({"available":false,"reason":"ABI mismatch"});
+        let failed = runtime_compatibility_check(Some(&unavailable), false, false, true);
+        assert_eq!(failed["state"], "warning");
+        assert_eq!(failed["code"], "provider-unavailable");
+        let desktop = runtime_compatibility_check(Some(&unavailable), true, false, false);
+        assert_eq!(desktop["state"], "ok");
+        assert!(desktop["code"].is_null());
+    }
 
     #[test]
     fn legacy_success_event_does_not_make_configuration_invalid() {

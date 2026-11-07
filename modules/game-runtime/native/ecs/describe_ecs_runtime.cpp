@@ -18,7 +18,7 @@ std::string Status() {
          << ",layouts=" << discovered_layout_components.size()
          << ",templates=" << template_layout_samples.size()
          << ",restarts=" << discovery_restarts << ')'
-         << " profile=" << KfcRuntimeCompatibility::EnshroudedClient::status
+         << " execution_profile=" << KfcRuntimeCompatibility::EnshroudedClient::status
          << " game_thread=" << GameThreadDispatcher::Status()
          << " entity_hooks{" << WorldRuntime::EntityHookStatus() << '}';
     for (const auto& operation : KfcRuntimeCompatibility::EnshroudedClient::runtime_operations)
