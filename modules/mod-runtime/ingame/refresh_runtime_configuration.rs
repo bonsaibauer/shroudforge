@@ -35,6 +35,15 @@ pub(super) fn settings_only_manifest_change(
         if let Some(default) = applied_setting.get("default") {
             desired_setting["default"] = default.clone();
         }
+        // The player's padlocks apply live (refresh_configuration).
+        match applied_setting.get("reserved") {
+            Some(reserved) => desired_setting["reserved"] = reserved.clone(),
+            None => {
+                if let Some(setting) = desired_setting.as_object_mut() {
+                    setting.remove("reserved");
+                }
+            }
+        }
     }
 
     metadata == *applied
@@ -303,6 +312,16 @@ impl IngameRuntime {
                         }
                     }
                 }
+            }
+            if metadata_unchanged && desired["settings"] != applied["settings"] {
+                // A padlock changed in the Modloader: the mod's next report sends it.
+                crate::env::shroudforge::register_input_reservations(
+                    id,
+                    &manifest.settings,
+                    &manifest.input_contexts,
+                );
+                applied["settings"] = desired["settings"].clone();
+                tracing::info!(target:"shroudforge::runtime", mod_id=%id, "Input reservations applied live");
             }
             let now_applied = desired.clone();
             let changed_but_deferred = now_applied != *applied;

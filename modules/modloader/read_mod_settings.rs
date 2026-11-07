@@ -159,5 +159,8 @@ pub(crate) fn parse_setting_definition(
         restart_required,
         apply_at: apply_at.into(),
         apply_at_explicit,
+        reserve: None,
+        reserved: None,
+        wheel: None,
     })
 }

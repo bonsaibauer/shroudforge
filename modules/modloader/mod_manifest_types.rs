@@ -40,6 +40,14 @@ pub struct ModManifest {
     pub settings: Vec<SettingDefinition>,
     #[serde(default)]
     pub locales: BTreeMap<String, ModLocaleCatalog>,
+    /// Situations a mod reports while it runs ("hammer": "Hammer in hand"),
+    /// named by `reserve.when` and `wheel.when` of its settings.
+    #[serde(
+        default,
+        rename = "inputContexts",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    pub input_contexts: BTreeMap<String, String>,
 }
 
 impl ModManifest {
@@ -183,6 +191,63 @@ pub struct SettingDefinition {
     pub apply_at: String,
     #[serde(skip)]
     pub apply_at_explicit: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reserve: Option<KeyReservation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reserved: Option<ReservedDevices>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wheel: Option<WheelReservation>,
+}
+
+impl SettingDefinition {
+    /// Whether the game is denied this keybind on `device` while the mod's
+    /// context is active: the player's padlock, else the mod's default.
+    pub fn reserves(&self, device: shroudforge_hotkeys::InputDevice) -> bool {
+        let Some(reserve) = &self.reserve else {
+            return false;
+        };
+        let chosen = self.reserved.as_ref().and_then(|reserved| match device {
+            shroudforge_hotkeys::InputDevice::Keyboard => reserved.keyboard,
+            shroudforge_hotkeys::InputDevice::Mouse => reserved.mouse,
+        });
+        chosen.unwrap_or(match device {
+            shroudforge_hotkeys::InputDevice::Keyboard => reserve.keyboard,
+            shroudforge_hotkeys::InputDevice::Mouse => reserve.mouse,
+        })
+    }
+}
+
+/// A keybind the player may keep from the game while the context `when` is
+/// active: the mod still reads it, the game does not. `keyboard` and `mouse`
+/// are the mod's defaults for each device.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct KeyReservation {
+    pub when: String,
+    #[serde(default)]
+    pub keyboard: bool,
+    #[serde(default)]
+    pub mouse: bool,
+}
+
+/// The player's padlocks of one keybind, saved by the Modloader: a device set
+/// here overrides the mod's default.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReservedDevices {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keyboard: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mouse: Option<bool>,
+}
+
+/// A boolean setting through which the mod reads the mouse wheel while the
+/// context `when` is active. Its value is the padlock: true keeps the wheel
+/// from the game, false shares it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WheelReservation {
+    pub when: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

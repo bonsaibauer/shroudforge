@@ -1,9 +1,12 @@
 import type { SettingDefinition } from './mod-types'
 import type React from 'react'
+import { useEffect, useState } from 'react'
 
 import { SettingSwitch, SettingsRow } from '../../ui-resources/edit-setting'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
-import type { KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
+import type { InputDevice, KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
+import { KeyReservationLock } from '../../hotkeys/ui/toggle-key-reservation'
+import { useI18n } from '../../ui-resources/i18n'
 
 export function ModSetting({
   definition,
@@ -11,13 +14,30 @@ export function ModSetting({
   assessmentTarget,
   onChange,
   disabled = false,
+  contexts = {},
+  onReserve,
 }: {
   definition: SettingDefinition
   value: unknown
   assessmentTarget: KeybindAssessmentTarget
   onChange(value: unknown): void
   disabled?: boolean
+  /** The mod's input context labels, for the condition of a reserved key. */
+  contexts?: Record<string, string>
+  /** Saves a padlock of this keybind. */
+  onReserve?(device: InputDevice, reserved: boolean): void
 }) {
+  const { t } = useI18n()
+  // A padlock turns at the click; the saved state replaces it when the page
+  // refreshes, or after a few seconds if the save failed.
+  const [turned, setTurned] = useState<Partial<Record<InputDevice, boolean>>>({})
+  const savedPadlocks = JSON.stringify(definition.reserved ?? {})
+  useEffect(() => setTurned({}), [savedPadlocks])
+  useEffect(() => {
+    if (Object.keys(turned).length === 0) return
+    const timer = window.setTimeout(() => setTurned({}), 4000)
+    return () => window.clearTimeout(timer)
+  }, [turned])
   const control =
     definition.control ||
     (definition.type === 'boolean'
@@ -27,7 +47,31 @@ export function ModSetting({
         : 'text')
   const numeric = definition.type === 'number' || definition.type === 'integer'
   let input: React.ReactNode
-  if (control === 'toggle' || control === 'checkbox')
+  const wheel = definition.wheel
+  const reserve = definition.reserve
+  if (wheel && definition.type === 'boolean') {
+    // The mouse wheel the mod reads: its padlock is the setting's value.
+    const condition = contexts[wheel.when] ?? wheel.when
+    const reserved = Boolean(value)
+    input = (
+      <div className="keybind-editor">
+        <div className="keybind-device">
+          <span className="keybind-device-label">{t('hotkeys.mouse')}</span>
+          <div className="keybind-binding">
+            <KeyReservationLock
+              reservation={{ condition, reserved, onToggle: (next) => onChange(next) }}
+              keyLabel={t('hotkeys.reservation.wheel')}
+              disabled={disabled}
+            />
+            <span className={'button secondary keybind-input fixed' + (reserved ? ' reserved' : '')}>
+              {t('hotkeys.reservation.wheel')}
+            </span>
+          </div>
+          {reserved && <span className="keybind-reserved-when">{condition}</span>}
+        </div>
+      </div>
+    )
+  } else if (control === 'toggle' || control === 'checkbox')
     input = (
       <SettingSwitch
         label={definition.label}
@@ -154,6 +198,24 @@ export function ModSetting({
         assessmentTarget={assessmentTarget}
         disabled={disabled}
         onChange={onChange}
+        reservations={
+          reserve && onReserve
+            ? Object.fromEntries(
+                (['keyboard', 'mouse'] as const).map((device) => [
+                  device,
+                  {
+                    condition: contexts[reserve.when] ?? reserve.when,
+                    reserved:
+                      turned[device] ?? definition.reserved?.[device] ?? reserve[device] ?? false,
+                    onToggle: (reserved: boolean) => {
+                      setTurned((current) => ({ ...current, [device]: reserved }))
+                      onReserve(device, reserved)
+                    },
+                  },
+                ]),
+              )
+            : undefined
+        }
       />
     )
   else
@@ -183,7 +245,7 @@ export function ModSetting({
         </div>
       }
       rowClass={[
-        control === 'keybind' ? 'keybind-setting-row' : '',
+        control === 'keybind' || wheel ? 'keybind-setting-row' : '',
         control === 'slider' ? 'slider-setting' : '',
         control === 'radio' || control === 'segmented' ? 'expanded' : '',
         disabled ? 'disabled' : '',
