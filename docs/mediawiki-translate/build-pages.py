@@ -26,7 +26,11 @@ PRIORITY_LANGUAGES = [
     "zh",
 ]
 PRIMARY_CATEGORY = "guide:Shroudforge"
+ARTICLE_CATEGORIES = {
+    "mod-settings-search": "Modding:Shroudforge",
+}
 EXTRA_CATEGORIES = {
+    "mod-settings-search": ["Mod-extended-json"],
     "startup-asset-backups": ["Problems:Shroudforge"],
 }
 
@@ -44,6 +48,7 @@ def load_migration_builder():
 
 
 def article_wikitext(article, builder, titles) -> str:
+    primary_category = ARTICLE_CATEGORIES.get(article.article_id, PRIMARY_CATEGORY)
     metadata = "\n".join(
         (
             "<!-- ShroudForge Modloader Wiki Post",
@@ -67,7 +72,7 @@ def article_wikitext(article, builder, titles) -> str:
         image,
         '<br style="clear:both;" />',
         "<translate>\n\n" + "\n\n".join(translatable) + "\n</translate>",
-        f"[[Category:{PRIMARY_CATEGORY}]]",
+        f"[[Category:{primary_category}]]",
     ]
     parts.extend(f"[[Category:{category}]]" for category in EXTRA_CATEGORIES.get(article.article_id, []))
     return "\n\n".join(parts) + "\n"
@@ -102,7 +107,10 @@ def main() -> None:
                 "assetTitle": article.asset_name,
                 "po": po_path.relative_to(ROOT).as_posix() if po_path.is_file() else None,
                 "poFiles": [path.relative_to(ROOT).as_posix() for path in po_files],
-                "categories": [PRIMARY_CATEGORY, *EXTRA_CATEGORIES.get(article.article_id, [])],
+                "categories": [
+                    ARTICLE_CATEGORIES.get(article.article_id, PRIMARY_CATEGORY),
+                    *EXTRA_CATEGORIES.get(article.article_id, []),
+                ],
             }
         )
 

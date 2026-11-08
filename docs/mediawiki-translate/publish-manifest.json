@@ -247,6 +247,48 @@
       ]
     },
     {
+      "id": "mod-settings-search",
+      "title": "Search and organize large mod settings",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Search and organize large mod settings",
+      "wikitext": "docs/mediawiki-translate/mod-settings-search/en.wikitext",
+      "asset": "modules/wiki/articles/mod-settings-search/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-mod-settings-search.svg",
+      "po": "docs/mediawiki-translate/mod-settings-search/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/mod-settings-search/de-at.po",
+        "docs/mediawiki-translate/mod-settings-search/de-ch.po",
+        "docs/mediawiki-translate/mod-settings-search/de.po",
+        "docs/mediawiki-translate/mod-settings-search/es.po",
+        "docs/mediawiki-translate/mod-settings-search/fr.po",
+        "docs/mediawiki-translate/mod-settings-search/hi.po",
+        "docs/mediawiki-translate/mod-settings-search/it.po",
+        "docs/mediawiki-translate/mod-settings-search/ja.po",
+        "docs/mediawiki-translate/mod-settings-search/nl.po",
+        "docs/mediawiki-translate/mod-settings-search/pl.po",
+        "docs/mediawiki-translate/mod-settings-search/sv.po",
+        "docs/mediawiki-translate/mod-settings-search/zh.po"
+      ],
+      "categories": [
+        "Modding:Shroudforge",
+        "Mod-extended-json"
+      ]
+    },
+    {
       "id": "modding",
       "title": "Modding",
       "sourceLanguage": "en-GB",

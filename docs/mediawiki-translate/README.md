@@ -1,6 +1,6 @@
 # MediaWiki-Translate-Ablauf
 
-Dieses Verzeichnis enthält die PO-Dateien der verfügbaren Artikelübersetzungen und die wiederholbare Veröffentlichung der Modloader-Wikiartikel auf MediaWiki. Das Artikelschema folgt `Dependencies`: Metadaten und Bild stehen außerhalb von `<translate>`, die englische Zusammenfassung und der Inhalt stehen innerhalb davon. Die Guide-Kategorie steht immer zuerst. `Startup stops because asset backups are incompatible` erhält zusätzlich `Problems:Shroudforge`.
+Dieses Verzeichnis enthält die PO-Dateien der verfügbaren Artikelübersetzungen und die wiederholbare Veröffentlichung der Modloader-Wikiartikel auf MediaWiki. Das Artikelschema folgt `Dependencies`: Metadaten und Bild stehen außerhalb von `<translate>`, die englische Zusammenfassung und der Inhalt stehen innerhalb davon. Die Guide-Kategorie steht immer zuerst, außer ein Artikel ist einer eigenen Themenkategorie zugeordnet. `Startup stops because asset backups are incompatible` erhält zusätzlich `Problems:Shroudforge`. `Search and organize large mod settings` verwendet `Modding:Shroudforge` als erste Kategorie und erhält zusätzlich `Mod-extended-json`.
 
 ## Ein-Befehl-Ablauf
 
@@ -75,7 +75,7 @@ pwsh -NoProfile -File docs/mediawiki-translate/run.ps1 -ArticleId dll-manager
 
 MediaWiki akzeptiert `de-at`, `de-ch`, `de`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` und `zh` als Prioritätssprachen. `en-GB` bleibt die Quellsprache. `en-US` weist die Wiki-API als ungültige Prioritätssprache zurück und wird nicht als zusätzliche Zielseite angelegt.
 
-Für alle zehn Artikel liegen vollständige PO-Dateien in den zwölf von MediaWiki akzeptierten Zielsprachen vor. Das sind insgesamt 120 Dateien. Die Texte für Sprachen ohne Modloader-Wikiartikel werden lokal in `offline-translations.json` gepflegt. Der Ablauf erzeugt daraus PO-Dateien mit den echten Nachrichten-IDs der jeweiligen MediaWiki-Gruppe. Das Importskript prüft alle Einträge und stoppt bei leeren oder unvollständigen PO-Dateien.
+Für alle elf Artikel liegen vollständige PO-Dateien in den zwölf von MediaWiki akzeptierten Zielsprachen vor. Das sind insgesamt 132 Dateien. Die Texte für Sprachen ohne Modloader-Wikiartikel werden lokal in `offline-translations.json` gepflegt. Der Ablauf erzeugt daraus PO-Dateien mit den echten Nachrichten-IDs der jeweiligen MediaWiki-Gruppe. Das Importskript prüft alle Einträge und stoppt bei leeren oder unvollständigen PO-Dateien.
 
 ## Zugang und Importweg
 

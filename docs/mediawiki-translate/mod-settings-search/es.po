@@ -1,0 +1,92 @@
+# Translation of Search and organize large mod settings to Spanish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: es\n"
+"X-Message-Group: page-Search and organize large mod settings\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/Page_display_title"
+msgid "Search and organize large mod settings"
+msgstr "Buscar y organizar ajustes grandes de mods"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/47"
+msgid "Use the Modloader's existing setting groups to organize a mod page into tabs, and make long multi-select lists searchable with optional categories. The controls are opt-in, keep saved values unchanged unless the player changes a choice, and use the mod's existing locale files."
+msgstr "Usa los grupos de ajustes existentes del Modloader para organizar la página de un mod en pestañas y hacer que las listas largas de selección múltiple se puedan buscar y categorizar de forma opcional. Estas funciones son optativas. Los valores guardados no cambian a menos que el jugador modifique una selección. Los textos del mod usan sus archivos de idioma existentes."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/48"
+msgid "== What changes in a large mod page =="
+msgstr "== Qué cambia en una página de mod grande =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/49"
+msgid "This feature is for settings declared by a mod in <code>extended.mod.json</code>. It uses the existing mod setting page, saved setting values, and mod locale files. It does not add another settings store."
+msgstr "Esta función es para los ajustes que un mod declara en <code>extended.mod.json</code>. Usa la página de ajustes, los valores guardados y los archivos de idioma del mod existentes. No añade otro almacén de ajustes."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/50"
+msgid "== Organize a large multi-select =="
+msgstr "== Organizar una selección múltiple grande =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/51"
+msgid "For a <code>multiselect</code>, keep <code>value</code> as an array and declare the available choices in <code>options</code>. Search controls appear automatically when there are more than 12 choices. The example also groups choices and puts the setting group in its own page tab."
+msgstr "En <code>multiselect</code>, <code>value</code> sigue siendo un array y las opciones disponibles se declaran en <code>options</code>. Los controles de búsqueda aparecen automáticamente cuando hay más de 12 opciones. El ejemplo también agrupa las opciones y coloca el grupo de ajustes en su propia pestaña de la página."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/52"
+msgid "<pre>\n{\n  \"schemaVersion\": 1,\n  \"enabled\": true,\n  \"settings\": {\n    \"showEffects\": {\n      \"value\": true,\n      \"label\": \"Show effects\",\n      \"control\": \"toggle\"\n    },\n    \"excludeItems\": {\n      \"value\": [],\n      \"label\": \"Excluded items\",\n      \"description\": \"Choose items this mod should ignore.\",\n      \"control\": \"multiselect\",\n      \"options\": {\n        \"Twigs\": { \"label\": \"Twigs\", \"group\": \"Materials\" },\n        \"Stone\": { \"label\": \"Stone\", \"group\": \"Materials\" },\n        \"Resin\": { \"label\": \"Resin\", \"group\": \"Materials\" },\n        \"Plant Fiber\": { \"label\": \"Plant Fiber\", \"group\": \"Materials\" },\n        \"Shroud Wood\": { \"label\": \"Shroud Wood\", \"group\": \"Materials\" },\n        \"Fossilized Bone\": { \"label\": \"Fossilized Bone\", \"group\": \"Materials\" },\n        \"Metal Scraps\": { \"label\": \"Metal Scraps\", \"group\": \"Materials\" },\n        \"Fire Fly\": { \"label\": \"Fire Fly\", \"group\": \"Creatures\" },\n        \"Fell Wispwyvern\": { \"label\": \"Fell Wispwyvern\", \"group\": \"Creatures\" },\n        \"Hollow Halls\": { \"label\": \"Hollow Halls\", \"group\": \"Creatures\" },\n        \"Bronze Arrows\": { \"label\": \"Bronze Arrows\", \"group\": \"Ammunition\" },\n        \"Explosive Arrows\": { \"label\": \"Explosive Arrows\", \"group\": \"Ammunition\" },\n        \"Poison Arrows\": { \"label\": \"Poison Arrows\", \"group\": \"Ammunition\" }\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\", \"settings\": [\"showEffects\"] },\n    { \"label\": \"Excluded items\", \"settings\": [\"excludeItems\"], \"tab\": true }\n  ]\n}\n</pre>"
+msgstr "<pre>\n{\n  \"schemaVersion\": 1,\n  \"enabled\": true,\n  \"settings\": {\n    \"showEffects\": {\n      \"value\": true,\n      \"label\": \"Show effects\",\n      \"control\": \"toggle\"\n    },\n    \"excludeItems\": {\n      \"value\": [],\n      \"label\": \"Excluded items\",\n      \"description\": \"Choose items this mod should ignore.\",\n      \"control\": \"multiselect\",\n      \"options\": {\n        \"Twigs\": { \"label\": \"Twigs\", \"group\": \"Materials\" },\n        \"Stone\": { \"label\": \"Stone\", \"group\": \"Materials\" },\n        \"Resin\": { \"label\": \"Resin\", \"group\": \"Materials\" },\n        \"Plant Fiber\": { \"label\": \"Plant Fiber\", \"group\": \"Materials\" },\n        \"Shroud Wood\": { \"label\": \"Shroud Wood\", \"group\": \"Materials\" },\n        \"Fossilized Bone\": { \"label\": \"Fossilized Bone\", \"group\": \"Materials\" },\n        \"Metal Scraps\": { \"label\": \"Metal Scraps\", \"group\": \"Materials\" },\n        \"Fire Fly\": { \"label\": \"Fire Fly\", \"group\": \"Creatures\" },\n        \"Fell Wispwyvern\": { \"label\": \"Fell Wispwyvern\", \"group\": \"Creatures\" },\n        \"Hollow Halls\": { \"label\": \"Hollow Halls\", \"group\": \"Creatures\" },\n        \"Bronze Arrows\": { \"label\": \"Bronze Arrows\", \"group\": \"Ammunition\" },\n        \"Explosive Arrows\": { \"label\": \"Explosive Arrows\", \"group\": \"Ammunition\" },\n        \"Poison Arrows\": { \"label\": \"Poison Arrows\", \"group\": \"Ammunition\" }\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\", \"settings\": [\"showEffects\"] },\n    { \"label\": \"Excluded items\", \"settings\": [\"excludeItems\"], \"tab\": true }\n  ]\n}\n</pre>"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/53"
+msgid "Option keys such as <code>Twigs</code> are the values saved for the mod. A string label such as <code>\"Twigs\": \"Twigs\"</code> remains supported. The object form adds a visible <code>label</code> and an optional <code>group</code>. Category tabs divide the choices inside the multi-select. Search checks both the visible label and stored value across every category. The count shows visible, total, and selected choices. “Only selected” hides unchecked choices without unselecting them. Changing a checkbox updates the same saved array as before, and a long list scrolls inside its setting."
+msgstr "Las claves de opción, como <code>Twigs</code>, son los valores que se guardan para el mod. Los textos de opción simples, como <code>\"Twigs\": \"Twigs\"</code>, siguen siendo compatibles. El formato de objeto añade una etiqueta visible <code>label</code> y un <code>group</code> opcional. Las categorías dividen las opciones en pestañas dentro de la selección múltiple. La búsqueda examina tanto la etiqueta visible como el valor guardado en todas las categorías. El contador muestra las opciones visibles, totales y seleccionadas. «Solo seleccionadas» oculta las opciones no marcadas sin desmarcarlas. Al cambiar una casilla se actualiza el mismo array guardado de siempre, y las listas largas se desplazan dentro de su ajuste."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/54"
+msgid "== Translate mod labels and tabs =="
+msgstr "== Traducir etiquetas y pestañas del mod =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/55"
+msgid "Labels authored by the mod belong in its existing <code>locales/&lt;code&gt;.json</code> files. Shared controls such as Search, Only selected, and All use the player's general Modloader language."
+msgstr "Los textos creados por el mod van en sus archivos existentes <code>locales/&lt;code&gt;.json</code>. Los controles compartidos, como Buscar, Solo seleccionadas y Todas, usan el idioma general del Modloader elegido por el jugador."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/56"
+msgid "<pre>\n{\n  \"settings\": {\n    \"excludeItems\": {\n      \"options\": {\n        \"Twigs\": \"Twigs\",\n        \"Stone\": \"Stone\",\n        \"Fire Fly\": \"Fire Fly\",\n        \"Bronze Arrows\": \"Bronze Arrows\"\n      },\n      \"optionGroups\": {\n        \"Materials\": \"Materials\",\n        \"Creatures\": \"Creatures\",\n        \"Ammunition\": \"Ammunition\"\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\" },\n    { \"label\": \"Excluded items\" }\n  ]\n}\n</pre>"
+msgstr "<pre>\n{\n  \"settings\": {\n    \"excludeItems\": {\n      \"options\": {\n        \"Twigs\": \"Twigs\",\n        \"Stone\": \"Stone\",\n        \"Fire Fly\": \"Fire Fly\",\n        \"Bronze Arrows\": \"Bronze Arrows\"\n      },\n      \"optionGroups\": {\n        \"Materials\": \"Materials\",\n        \"Creatures\": \"Creatures\",\n        \"Ammunition\": \"Ammunition\"\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\" },\n    { \"label\": \"Excluded items\" }\n  ]\n}\n</pre>"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/57"
+msgid "The <code>options</code> map translates visible choice labels. <code>optionGroups</code> translates category tabs, and each key must match a <code>group</code> name in <code>extended.mod.json</code>. The <code>groups</code> array follows the order of the manifest groups, so its labels translate the page tabs. See the [[Translate mod text (en)|mod locale guide]] for the existing locale format."
+msgstr "El mapa <code>options</code> traduce las etiquetas visibles de las opciones. <code>optionGroups</code> traduce las pestañas de categorías y cada clave debe coincidir con un nombre <code>group</code> de <code>extended.mod.json</code>. El array <code>groups</code> sigue el orden de los grupos del manifiesto y traduce las pestañas de la página. Consulta la [[Traducir los textos de un mod (es)|guía de idiomas para mods]] para ver el formato existente."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/58"
+msgid "== Put a setting group in its own tab =="
+msgstr "== Poner un grupo de ajustes en su propia pestaña =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/59"
+msgid "Set <code>\"tab\": true</code> on a group in <code>extended.mod.json</code>. That group's label becomes its page tab, and its settings and actions stay together. Groups without <code>tab: true</code> remain under the existing Settings tab. If there are no unmarked groups or ungrouped settings, the Settings tab is omitted. For a working example, the [https://github.com/bonsaibauer/shroudforge/blob/1.8.0/mods/world-editor/extended.mod.json ShroudForge World Editor's <code>extended.mod.json</code>] uses <code>tab: true</code> for Keyboard shortcuts, Blueprint placement, and Native entity operations."
+msgstr "Establece <code>\"tab\": true</code> en un grupo de <code>extended.mod.json</code>. La etiqueta del grupo se convierte en su pestaña de página, y sus ajustes y acciones permanecen juntos. Los grupos sin <code>tab: true</code> siguen en la pestaña Ajustes existente. Si no queda ningún grupo sin marcar ni ningún ajuste sin agrupar, se omite la pestaña Ajustes. Como ejemplo funcional, el [https://github.com/bonsaibauer/shroudforge/blob/1.8.0/mods/world-editor/extended.mod.json <code>extended.mod.json</code> del World Editor de ShroudForge] usa <code>tab: true</code> en Keyboard shortcuts, Blueprint placement y Native entity operations."
+
+#
+msgctxt "Search_and_organize_large_mod_settings/60"
+msgid "== Saved values and compatibility =="
+msgstr "== Valores guardados y compatibilidad =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/61"
+msgid "Existing string option labels, saved arrays, groups without <code>tab</code>, and locale files without <code>optionGroups</code> continue to work without migration. The search controls appear only for multi-selects with more than 12 choices. Grouped option objects, <code>tab: true</code>, and locale <code>optionGroups</code> require ShroudForge 1.8.0 or newer. Older versions reject fields they do not recognize."
+msgstr "Las etiquetas simples existentes, los arrays guardados, los grupos sin <code>tab</code> y los archivos de idioma sin <code>optionGroups</code> siguen funcionando sin migración. Los controles de búsqueda solo aparecen en selecciones múltiples con más de 12 opciones. Los objetos de opción agrupados, <code>tab: true</code> y <code>optionGroups</code> en los archivos de idioma requieren ShroudForge 1.8.0 o posterior. Las versiones anteriores rechazan los campos que no reconocen."

@@ -87,10 +87,14 @@ $report = foreach ($article in $articles) {
         format = 'json'
     }
     $page = $pageQuery.query.pages.PSObject.Properties.Value | Select-Object -First 1
+    # MediaWiki represents the `missing` marker as an empty XML-style
+    # attribute. Check whether the property exists instead of coercing its
+    # empty value to Boolean false in PowerShell.
+    $pageMissing = $page.PSObject.Properties.Name -contains 'missing'
     $created = $false
     $markApplied = $false
 
-    if ($page.missing) {
+    if ($pageMissing) {
         $assetPath = Join-Path $root ([string]$article.asset)
         if (-not (Test-Path -LiteralPath $assetPath)) {
             throw "Illustration is missing for '$title': $assetPath"
@@ -105,7 +109,8 @@ $report = foreach ($article in $articles) {
             format = 'json'
         }
         $filePage = $fileQuery.query.pages.PSObject.Properties.Value | Select-Object -First 1
-        if ($filePage.missing) {
+        $fileMissing = $filePage.PSObject.Properties.Name -contains 'missing'
+        if ($fileMissing) {
             if ($PSCmdlet.ShouldProcess($assetTitle, 'Upload illustration')) {
                 $upload = Invoke-RestMethod -Uri $apiUrl -Method Post -WebSession $session -Form @{
                     action = 'upload'
