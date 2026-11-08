@@ -6,7 +6,7 @@ export const WIKI_API_SETTINGS = {
   cacheKey: 'sf-wiki-cache-v1',
   defaultPageSize: 30,
   defaultMaxResultsPerQuery: 120,
-  defaultRefreshIntervalMinutes: 5,
+  defaultRefreshIntervalMinutes: 1440,
   maxApiPageSize: 500,
   summaryTitleBatchSize: 50,
   searchDebounceMs: 300,
@@ -47,7 +47,7 @@ export function resolveWikiApiSettings(settings?: WikiModuleSettings) {
   const refreshIntervalMinutes = boundedInteger(
     settings?.refreshIntervalMinutes,
     WIKI_API_SETTINGS.defaultRefreshIntervalMinutes,
-    1,
+    60,
     1440,
   )
   return {

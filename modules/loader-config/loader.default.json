@@ -279,7 +279,7 @@
       "enabled": true,
       "pageSize": 30,
       "maxResultsPerQuery": 120,
-      "refreshIntervalMinutes": 5
+      "refreshIntervalMinutes": 1440
     },
     "network": {
       "enabled": true,

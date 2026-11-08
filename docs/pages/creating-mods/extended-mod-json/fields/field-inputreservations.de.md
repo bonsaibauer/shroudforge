@@ -65,6 +65,8 @@ Der Spieler entscheidet. In den Mod-Einstellungen steht vor jeder reservierbaren
 
 Ein Kontext gilt eine Sekunde nach der letzten Meldung der Mod. Melde ihn in jedem `on_update`, solange er besteht, und melde `false`, sobald er endet. Eine Mod, die anhält, scheitert oder hängt, gibt dem Spiel so seine Eingaben zurück. Das Loslassen eines Drucks, den das Spiel erhalten hat, wird nie zurückgehalten. Escape, F9 und F10 erreichen das Spiel immer.
 
+`set_context` gibt bei angenommener Meldung `true, nil` zurück. Kann ShroudForge den Eingabefilter des Spiels nicht installieren, gibt die Funktion `false, grund` zurück und lässt den Kontext inaktiv. Das Spiel erhält die Eingabe dann weiterhin.
+
 Die Mod liest ihre reservierten Tasten weiter mit `is_keybind_down` und `was_keybind_pressed`, denn ShroudForge liest sie in seinem eigenen Tastaturprozess vor dem Spiel. Das Mausrad liest sie mit `shroudforge.input.wheel_steps`.
 
 Ein ShroudForge ohne Eingabereservierungen ignoriert dieses Feld der obersten Ebene. Dieselbe Mod lädt dort also weiterhin. Prüfe vor der Nutzung, ob `shroudforge.input.set_context` vorhanden ist.

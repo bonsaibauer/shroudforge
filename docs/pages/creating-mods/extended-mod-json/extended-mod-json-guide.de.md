@@ -25,6 +25,7 @@
 - `targets` legt fest, in welchem Prozess der Mod geladen wird. Das ist keine Netzwerk-Replikation.
 - `settings` enthält Mod-eigene Werte.
 - `groups` ordnet Werte in der Modloader-Oberfläche. Nicht gruppierte Einstellungen erscheinen ebenfalls, sie stehen unter einer Standardgruppe.
+- `presets` lässt eine Auswahl wie Qualität mehrere Einstellungen auf einmal setzen. Siehe [Voreinstellungen](#doc-setting-presets).
 - `launcher` kennzeichnet die Herkunft eines übernommenen EML-Mods.
 
 ## Beispiel

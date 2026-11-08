@@ -53,6 +53,13 @@ export type SettingGroup = {
   actions: ModAction[]
 }
 
+/** Keyed by the controller setting. Each entry of `values` is one preset. */
+export type SettingPreset = {
+  custom: string
+  settings: string[]
+  values: Record<string, Record<string, unknown>>
+}
+
 export type ModDependencyInfo = {
   id: string
   version: string
@@ -80,6 +87,7 @@ export type ModInfo = {
   enabled: boolean
   settings: SettingDefinition[]
   groups: SettingGroup[]
+  presets?: Record<string, SettingPreset>
   changelog: string[]
   assets: Record<string, string>
   settingValues: Record<string, unknown>

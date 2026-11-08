@@ -20,6 +20,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let table = lua.create_table()?;
     table.raw_set("version", env!("CARGO_PKG_VERSION"))?;
     table.raw_set("clock", lua.create_function(|_, ()| Ok(read_monotonic_clock()))?)?;
+    table.raw_set("contents", super::read_game_content::create(lua)?)?;
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
 
     let log = lua.create_table()?;
@@ -131,11 +132,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         })?,
     )?;
     let keybind_settings = r#mod.info().settings.clone();
-    // Modifiers a keybind also matches with, held in addition to its own
-    // (set_keybind_extra_modifiers), per setting of this mod.
-    let extra_modifiers = Arc::new(Mutex::new(HashMap::<String, u8>::new()));
     let extra_settings = keybind_settings.clone();
-    let extra_set = extra_modifiers.clone();
     let extra_mod = mod_id.clone();
     input.raw_set(
         "set_keybind_extra_modifiers",
@@ -147,26 +144,18 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             }
             let bits = shroudforge_hotkeys::parse_modifiers(modifiers.as_deref().unwrap_or(""))
                 .map_err(mlua::Error::runtime)?;
-            // A reserved keybind is kept from the game with them too.
+            // The reservation and keybind queries share one modifier rule.
             super::reserve_mod_input::set_reserved_extra_modifiers(&extra_mod, &key, bits);
-            if let Ok(mut extra) = extra_set.lock() {
-                if bits == 0 {
-                    extra.remove(&key);
-                } else {
-                    extra.insert(key, bits);
-                }
-            }
             Ok(())
         })?,
     )?;
     let keybind_id = mod_id.clone();
     let declared_keybinds = keybind_settings.clone();
-    let down_extra = extra_modifiers.clone();
     input.raw_set(
         "is_keybind_down",
         lua.create_function(move |lua, key: String| {
             let binding = read_keybind(lua, &keybind_id, &declared_keybinds, &key)?;
-            let extra = down_extra.lock().ok().and_then(|extra| extra.get(&key).copied()).unwrap_or(0);
+            let extra = super::reserve_mod_input::extra_modifiers(&keybind_id, &key);
             Ok(binding.is_some_and(|binding| {
                 is_game_focused()
                     && !shroudforge_hotkeys::is_capture_active()
@@ -176,8 +165,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     )?;
     let keybind_id = mod_id.clone();
     let press_keybind_settings = keybind_settings.clone();
-    let press_revisions = Arc::new(Mutex::new(HashMap::<String, (String, u64)>::new()));
-    let press_extra = extra_modifiers.clone();
+    let press_revisions = Arc::new(Mutex::new(HashMap::<String, (String, u8, u64)>::new()));
     input.raw_set(
         "was_keybind_pressed",
         lua.create_function(move |lua, key: String| {
@@ -189,22 +177,24 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                 return Ok(false);
             };
             let signature = binding.normalized();
-            let extra = press_extra.lock().ok().and_then(|extra| extra.get(&key).copied()).unwrap_or(0);
+            let extra = super::reserve_mod_input::extra_modifiers(&keybind_id, &key);
             let revision = shroudforge_hotkeys::hotkey_press_revision_with(&binding, extra);
             let focused = is_game_focused() && !shroudforge_hotkeys::is_capture_active();
             let Ok(mut revisions) = press_revisions.lock() else {
                 return Ok(false);
             };
             match revisions.get_mut(&key) {
-                Some((previous_signature, previous_revision))
-                    if *previous_signature == signature =>
+                Some((previous_signature, previous_extra, previous_revision))
+                    if *previous_signature == signature && *previous_extra == extra =>
                 {
                     let pressed = focused && revision > *previous_revision;
                     *previous_revision = revision;
                     Ok(pressed)
                 }
                 _ => {
-                    revisions.insert(key, (signature, revision));
+                    // A changed extra-modifier rule starts a new observation
+                    // baseline so an older matching press cannot fire again.
+                    revisions.insert(key, (signature, extra, revision));
                     Ok(false)
                 }
             }
@@ -304,6 +294,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         })?,
     )?;
     table.raw_set("notifications", notifications)?;
+    table.raw_set("native", super::call_mod_native_functions::create(lua, &r#mod.info().id)?)?;
 
     Ok(table)
 }

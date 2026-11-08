@@ -65,6 +65,8 @@ The player decides. In the mod settings, a padlock stands in front of each reser
 
 A context lasts one second after the mod last reported it. Report it from every `on_update` while it holds and report `false` as soon as it ends. A mod that stops, fails or stalls thus gives the game its input back. The release of a press the game received is never kept. Escape, F9 and F10 always reach the game.
 
+`set_context` returns `true, nil` when the report is accepted. It returns `false, reason` when ShroudForge cannot install the game input filter, and leaves that context inactive so the game keeps receiving input.
+
 The mod still reads its reserved keys with `is_keybind_down` and `was_keybind_pressed`: ShroudForge reads them in its own keyboard process, before the game. It reads the wheel with `shroudforge.input.wheel_steps`.
 
 A ShroudForge without input reservations ignores this top-level field, so the same mod still loads there: check for `shroudforge.input.set_context` before using it.

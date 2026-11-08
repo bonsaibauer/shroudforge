@@ -22,8 +22,8 @@ mod windows {
         ffi::c_void,
         mem::size_of,
         sync::{
-            Mutex,
-            atomic::{AtomicBool, AtomicI32, AtomicIsize, AtomicUsize, Ordering},
+            Mutex, OnceLock,
+            atomic::{AtomicI32, AtomicIsize, AtomicUsize, Ordering},
         },
         time::{Duration, Instant},
     };
@@ -133,8 +133,7 @@ mod windows {
     static ORIGINAL_RAW_INPUT: AtomicUsize = AtomicUsize::new(0);
     static ORIGINAL_WINDOW_PROC: AtomicIsize = AtomicIsize::new(0);
     static WINDOW: AtomicIsize = AtomicIsize::new(0);
-    static RAW_FILTERED: AtomicBool = AtomicBool::new(false);
-    static RAW_TRIED: AtomicBool = AtomicBool::new(false);
+    static RAW_FILTER_RESULT: OnceLock<Result<(), String>> = OnceLock::new();
     static NEXT_WINDOW_CHECK: Mutex<Option<Instant>> = Mutex::new(None);
     static RAW_KEPT: Mutex<KeptPresses> = Mutex::new(KeptPresses::new());
     static MESSAGE_KEPT: Mutex<KeptPresses> = Mutex::new(KeptPresses::new());
@@ -142,16 +141,20 @@ mod windows {
     static MESSAGE_WHEEL_REST: AtomicI32 = AtomicI32::new(0);
 
     pub(super) fn install() -> Result<(), String> {
-        if !RAW_TRIED.swap(true, Ordering::AcqRel) {
+        let raw_result = RAW_FILTER_RESULT.get_or_init(|| {
             match unsafe { replace_raw_input_import() } {
                 Ok(()) => {
-                    RAW_FILTERED.store(true, Ordering::Release);
                     tracing::info!(target: "shroudforge::hotkeys", "Input reservations: the game's Raw Input is filtered");
+                    Ok(())
                 }
                 Err(error) => {
                     tracing::warn!(target: "shroudforge::hotkeys", "Input reservations: Raw Input not filtered: {error}");
+                    Err(error)
                 }
             }
+        });
+        if let Err(error) = raw_result {
+            return Err(error.clone());
         }
         let Ok(mut next) = NEXT_WINDOW_CHECK.lock() else {
             return Err("input filter state is unavailable".into());
@@ -416,7 +419,8 @@ mod windows {
             WM_XBUTTONUP => button(x_button(), false, 1),
             WM_MOUSEWHEEL | WM_MOUSEHWHEEL => {
                 // Counted from Raw Input when it is filtered; from here otherwise.
-                let count = message == WM_MOUSEWHEEL && !RAW_FILTERED.load(Ordering::Acquire);
+                let count = message == WM_MOUSEWHEEL
+                    && !RAW_FILTER_RESULT.get().is_some_and(|result| result.is_ok());
                 let delta = i32::from(((w >> 16) & 0xffff) as u16 as i16);
                 let steps = if count {
                     wheel_steps(&MESSAGE_WHEEL_REST, delta)

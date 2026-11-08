@@ -22,6 +22,7 @@ mod mod_registry;
 pub use mod_registry::{Mod, ModRegistry};
 mod find_installed_mods;
 mod validate_mod_manifest;
+mod validate_setting_presets;
 pub use validate_mod_manifest::validate_manifest;
 mod read_input_reservations;
 mod validate_input_reservations;

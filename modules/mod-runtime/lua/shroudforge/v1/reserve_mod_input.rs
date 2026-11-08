@@ -82,6 +82,15 @@ pub(crate) fn set_reserved_extra_modifiers(mod_id: &str, key: &str, modifiers: u
     }
 }
 
+/// Reads the one per-modifier rule shared by keybind queries and reservations.
+pub(crate) fn extra_modifiers(mod_id: &str, key: &str) -> u8 {
+    MOD_RESERVATIONS
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref()?.get(mod_id)?.extra.get(key).copied())
+        .unwrap_or(0)
+}
+
 /// Gives the game back what `mod_id` reserved (the mod stopped), and forgets
 /// that it was sent: a mod started again (turned off and on in the Modloader,
 /// its Lua state kept) sends it again at its next report.
@@ -198,11 +207,15 @@ pub(super) fn add_input_reservation_api(
             send_reservations(lua, &context_mod)?;
             if active {
                 // Once per game, and again when the game replaced its window;
-                // nothing to filter outside the game client.
-                let _ = shroudforge_hotkeys::install_input_filter();
+                // nothing to filter outside the game client. Do not report a
+                // context active unless both game input paths can be filtered.
+                if let Err(error) = shroudforge_hotkeys::install_input_filter() {
+                    shroudforge_hotkeys::set_input_context(&context_mod, &context, false);
+                    return Ok((false, Some(error)));
+                }
             }
             shroudforge_hotkeys::set_input_context(&context_mod, &context, active);
-            Ok(())
+            Ok((true, None::<String>))
         })?,
     )?;
     let wheel_mod = mod_id.to_owned();
