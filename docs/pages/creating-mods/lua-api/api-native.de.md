@@ -3,7 +3,7 @@
   "id": "api-native",
   "locale": "de",
   "title": "Die eigene DLL des Mods aus Lua aufrufen",
-  "summary": "Eine Mod-DLL kann Funktionen registrieren, die der Lua-Code desselben Mods über shroudforge.native aufruft.",
+  "summary": "Eine Mod-DLL kann Funktionen für ihren Lua-Code registrieren und die lokale Kamera für bildgenaue Darstellung lesen.",
   "navigation": {
     "path": [
       "Lua-API-Anleitungen",
@@ -22,7 +22,7 @@ Ein Mod kann eine DLL in seinem Ordner mitliefern, angegeben in `native-plugin.i
 
 Diese API ist ab ShroudForge 1.8.0 verfügbar.
 
-Die Brücke verbindet zwei Teile desselben Mods. Ein Mod erreicht nur die Funktionen, die seine eigenen DLLs registriert haben. Weder die DLL noch der Lua-Code erhalten dadurch Zugriff auf das Spiel oder auf andere Mods. Eine DLL ohne diesen Export wird genau wie bisher geladen.
+Die Brücke verbindet zwei Teile desselben Mods. Ein Mod erreicht nur die Funktionen, die seine eigenen DLLs registriert haben. Sie bietet keinen allgemeinen Zugriff auf interne Spieldaten oder andere Mods. ABI 2 bietet der eigenen DLL zusätzlich lesenden Zugriff auf eine Momentaufnahme der lokalen Kamera und des Bau-Cursors, unter denselben Laufzeitbedingungen wie die Lua-API. Eine DLL ohne diesen Export wird genau wie bisher geladen.
 
 ## Die Seite der DLL
 
@@ -74,3 +74,18 @@ Ein Aufruf ist synchron. Er läuft im Thread der Mod-Laufzeit, nie im Spielthrea
 Funktionen gehören wie die DLL selbst zum Prozess. Sie überstehen ein Neuladen des Lua-Codes der Mods, sodass ein neu geladener Mod sie wiederfindet.
 
 Eine native Funktion darf keine Ausnahme werfen und nicht in ShroudForge hinein abwickeln. Ein Absturz in der DLL beendet den Spielprozess wie jeder andere native Absturz.
+
+## Die lokale Kamera
+
+Eine DLL, die jedes Bild zeichnet, zum Beispiel als Vulkan-Layer, kann nicht auf das Lua-Update des Mods warten, um zu erfahren, wohin der Spieler blickt. Seit ABI 2 liest `host->read_local_camera` die Kamera des lokalen Spielers aus derselben Eingabeprobe wie `runtime.world.cursor.get`, in jedem Thread:
+
+```c
+double view[SHROUDFORGE_MOD_NATIVE_VIEW_VALUES];
+if (host->abi_version >= 2
+    && host->read_local_camera(host, view, SHROUDFORGE_MOD_NATIVE_VIEW_VALUES) == 1) {
+    /* view[0..2] Position in Metern, view[3..6] Ausrichtung,
+       view[7] fovY, view[8] Seitenverhältnis, danach der Bau-Cursor. */
+}
+```
+
+Sie antwortet nur, solange der Mod ein aktiver Ingame-Laufzeitmod mit der Fähigkeit `runtime` in einem Spielclient ist. Die reflektierte Feldanordnung wird beim Erstellen der Laufzeit-API übergeben. Ein Aufruf von `runtime.world.cursor.get` ist zum Initialisieren des DLL-Lesers nicht nötig. Ergebnis 3 bedeutet, dass die Anordnung für diese Laufzeit oder Spielversion nicht verfügbar ist. Die DLL-Ansicht enthält die Transformationen und Primärflags des Bau-Cursors. `value.playerStateMask` bleibt Teil der Lua-Cursor-Snapshots und gehört nicht zu dieser ABI-2-Ansicht. Der Header listet alle Ergebniscodes.

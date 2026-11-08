@@ -12,6 +12,10 @@ use read_world_context::*;
 use read_write_voxels::*;
 use register_prop_recipes::*;
 pub(super) fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::Table> {
+    // Share the reflected layout as the runtime API is created, so native
+    // callers do not need a prior Lua cursor snapshot to initialize it.
+    let state = lua.app_data_ref::<AppState>().unwrap();
+    super::player_input::read_building_cursor::publish_local_camera_layout(&state);
     let world = lua.create_table()?;
     add_function_with_mod(
         lua,

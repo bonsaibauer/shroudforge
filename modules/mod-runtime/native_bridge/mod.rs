@@ -6,16 +6,24 @@ use std::ffi::{c_char, c_void};
 
 #[path = "call_mod_function.rs"]
 mod call;
+mod read_local_camera;
 #[path = "register_mod_functions.rs"]
 mod registration;
+#[path = "track_game_access.rs"]
+mod access;
 
+pub(crate) use access::{has_game_access, set_game_access};
 pub(crate) use call::{NativeArgument, NativeResult, call};
 pub(crate) use registration::{function_names, initialize};
 #[cfg(test)]
 pub(crate) use registration::{close_registration, open_host};
 
-pub(crate) const ABI_VERSION: u32 = 1;
+pub(crate) const ABI_VERSION: u32 = 2;
 pub(crate) const MAX_RESULTS: usize = 32;
+/// Camera: position x, y, z in meters, orientation x, y, z, w, fovY, aspect.
+pub(crate) const CAMERA_VALUES: usize = 9;
+/// Camera, then cursor: position x, y, z in meters, orientation, flags.
+pub(crate) const VIEW_VALUES: usize = 17;
 pub(crate) const INIT_EXPORT: &std::ffi::CStr = c"ShroudforgeModNativeInit";
 
 pub(crate) const KIND_NIL: u32 = 0;
@@ -67,6 +75,8 @@ pub(crate) struct ModHost {
     pub log: unsafe extern "C" fn(*const ModHost, u32, *const c_char),
     pub register_function:
         unsafe extern "C" fn(*const ModHost, *const c_char, Option<NativeFunction>, *mut c_void) -> u32,
+    // ABI 2.
+    pub read_local_camera: unsafe extern "C" fn(*const ModHost, *mut f64, usize) -> u32,
 }
 
 pub(crate) type InitFunction = unsafe extern "C" fn(*const ModHost) -> i32;

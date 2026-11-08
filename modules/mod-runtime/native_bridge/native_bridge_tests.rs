@@ -258,3 +258,26 @@ fn function_names_are_readable_identifiers() {
     assert!(valid_function_name(&"a".repeat(64)));
     assert!(!valid_function_name(&"a".repeat(65)));
 }
+
+#[test]
+fn the_local_camera_follows_the_mods_runtime_access() {
+    let record = open_host("bridge.camera", Path::new("mods/camera")).unwrap();
+    close_registration(record, true);
+    let host = record.host();
+    let mut view = [0.0_f64; VIEW_VALUES];
+    let read = |output: *mut f64, count: usize| unsafe {
+        ((*host).read_local_camera)(host, output, count)
+    };
+    assert_eq!(read(std::ptr::null_mut(), VIEW_VALUES), 2);
+    assert_eq!(read(view.as_mut_ptr(), CAMERA_VALUES - 1), 2);
+    assert_eq!(unsafe { ((*host).read_local_camera)(std::ptr::null(), view.as_mut_ptr(), 9) }, 2);
+    // Not an active runtime mod: no game read, whatever the runtime offers.
+    assert_eq!(read(view.as_mut_ptr(), VIEW_VALUES), 7);
+    set_game_access("bridge.camera", true);
+    assert!(has_game_access("bridge.camera"));
+    assert!(!has_game_access("bridge.other"));
+    // No game runtime in unit tests: the reader is reported missing.
+    assert_eq!(read(view.as_mut_ptr(), VIEW_VALUES), 8);
+    set_game_access("bridge.camera", false);
+    assert_eq!(read(view.as_mut_ptr(), VIEW_VALUES), 7);
+}

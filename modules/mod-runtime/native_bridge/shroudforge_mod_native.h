@@ -24,8 +24,9 @@ extern "C" {
  *
  * The bridge is scoped to the owning mod: its Lua code reaches only the
  * functions its own DLLs registered, through shroudforge.native. It does not
- * give the DLL or the Lua code access to the game or to other mods. */
-#define SHROUDFORGE_MOD_NATIVE_ABI_VERSION 1u
+ * give the Lua code access to other mods. ABI 2 adds one read-only game read
+ * for the DLL, the local camera, under the same conditions as the Lua API. */
+#define SHROUDFORGE_MOD_NATIVE_ABI_VERSION 2u
 
 typedef enum ShroudforgeNativeValueKind {
     SHROUDFORGE_NATIVE_NIL = 0,
@@ -107,7 +108,27 @@ struct ShroudforgeModHost {
     uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* register_function)(
         const ShroudforgeModHost* host, const char* name,
         ShroudforgeNativeFunction function, void* context);
+
+    /* ABI 2. Reads the local player's camera, for a DLL that draws every
+     * frame (an overlay), from the same ClientPlayerInput sample as
+     * runtime.world.cursor.get. Any thread, read only, no game call.
+     * output receives 9 doubles: camera position x, y, z in meters,
+     * orientation x, y, z, w, fovY, aspect ratio. With count >= 17, 8 more:
+     * building cursor position x, y, z in meters, orientation x, y, z, w, and
+     * its flags (-1 without a cursor).
+     * Only while the owning mod is an active ingame runtime mod with the
+     * runtime capability, in a game client: the conditions of the Lua API.
+     * The field layout comes from the game's reflection; it is known once a
+     * runtime.world.cursor.get call decoded the camera.
+     * Result: 1 read, 2 invalid argument, 3 layout not known yet, 4 no world
+     * session, 5 retry next frame, 6 ambiguous local input, 7 the mod has no
+     * runtime access now, 8 this ShroudForge runtime has no camera reader. */
+    uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* read_local_camera)(
+        const ShroudforgeModHost* host, double* output, size_t count);
 };
+
+#define SHROUDFORGE_MOD_NATIVE_CAMERA_VALUES 9u
+#define SHROUDFORGE_MOD_NATIVE_VIEW_VALUES 17u
 
 /* Optional export. Return nonzero on success. Zero marks the DLL as failed
  * in the DLL Manager and withdraws the functions it registered. */

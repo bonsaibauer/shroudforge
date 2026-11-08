@@ -3,7 +3,7 @@
   "id": "api-native",
   "locale": "en",
   "title": "Call your mod's own DLL from Lua",
-  "summary": "A mod DLL can register functions that the same mod's Lua code calls through shroudforge.native.",
+  "summary": "A mod DLL can register functions for its Lua code and read the local camera for frame-synchronous drawing.",
   "navigation": {
     "path": [
       "Lua API guides",
@@ -22,7 +22,7 @@ A mod can ship a DLL in its folder, declared in `native-plugin.ini` or registere
 
 This API is available starting with ShroudForge 1.8.0.
 
-The bridge connects two parts of the same mod. A mod reaches only the functions its own DLLs registered. The bridge gives neither the DLL nor the Lua code any access to the game or to other mods. A DLL without the export is loaded exactly as before.
+The bridge connects two parts of the same mod. A mod reaches only the functions its own DLLs registered. It gives no general access to game internals or to other mods. ABI 2 also offers the owning DLL a read-only local camera and building-cursor sample under the same runtime conditions as the Lua API. A DLL without the export is loaded exactly as before.
 
 ## The DLL side
 
@@ -74,3 +74,18 @@ A call is synchronous. It runs on the mod runtime thread, never on the game thre
 Functions belong to the process like the DLL itself. They survive a reload of the mods' Lua code, so a reloaded mod finds them again.
 
 A native function must not throw an exception or unwind into ShroudForge. A crash in the DLL ends the game process like any other native crash.
+
+## The local camera
+
+A DLL that draws every frame, for example as a Vulkan layer, cannot wait for the mod's Lua update to learn where the player looks. Since ABI 2, `host->read_local_camera` reads the local player's camera from the same input sample as `runtime.world.cursor.get`, on any thread:
+
+```c
+double view[SHROUDFORGE_MOD_NATIVE_VIEW_VALUES];
+if (host->abi_version >= 2
+    && host->read_local_camera(host, view, SHROUDFORGE_MOD_NATIVE_VIEW_VALUES) == 1) {
+    /* view[0..2] position in meters, view[3..6] orientation,
+       view[7] fovY, view[8] aspect ratio, then the building cursor. */
+}
+```
+
+It answers only while the mod is an active ingame runtime mod with the `runtime` capability, in a game client. The reflected layout is sent when the runtime API is created, so a Lua call to `runtime.world.cursor.get` is not needed to initialize the DLL reader. Result 3 means the layout is unavailable for this runtime or game build. The DLL view includes the building cursor's transforms and primary flags. The Lua-only `value.playerStateMask` remains in cursor snapshots and is not part of this ABI 2 view. The header lists all result codes.
