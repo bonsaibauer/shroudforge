@@ -12,10 +12,13 @@ void read_on_game_thread(void* opaque){
     ResolvedLayout layout{};
     EntityView entity{};
     std::uintptr_t address{};
+    // read_bytes copies under SEH, so an unreadable page fails the copy: the
+    // page is not queried first. In game, each VirtualQuery here took about
+    // 20 ms and made every read cost 40 ms.
     if (!(operation.value && resolve_component(operation.name, component) &&
         component.size == operation.size && layout_snapshot(layout) &&
         entity_for_handle(operation.handle, layout, entity) &&
-        component_address(entity, layout, component, address) &&
+        component_address(entity, layout, component, address, false) &&
         read_bytes(address, operation.value, operation.size))) return;
     // A non-dispatched read may race an archetype move or an engine update.
     // Publish only equal payload copies belonging to the same current entity.
@@ -25,7 +28,7 @@ void read_on_game_thread(void* opaque){
     operation.result = read_bytes(address, again.data(), again.size()) &&
         std::memcmp(operation.value, again.data(), operation.size) == 0 &&
         entity_for_handle(operation.handle, layout, current) && current == entity &&
-        component_address(current, layout, component, current_address) && current_address == address;
+        component_address(current, layout, component, current_address, false) && current_address == address;
 }
 
 void read_many_on_game_thread(void* opaque){

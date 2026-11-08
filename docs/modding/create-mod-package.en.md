@@ -166,6 +166,7 @@ This valid example creates a text field and places it under the **Greeting** hea
 - `enabledWhen` disables and dims a setting until another setting has the selected value. For example, `{ "setting": "timeMode", "equals": "fixed" }` keeps a duration slider visible but unavailable while the player chooses original recipe times.
 - `applyAt` labels when the setting takes effect: `live` or `restart`. `restartRequired` must agree with that value. `assetPreparation: true` adds an asset preparation label, so a live setting can show that it also affects the next startup asset pass.
 - A group must list a setting key in `settings` for that setting to appear under the group in the Modloader. Each setting can appear in one group.
+- The optional top-level `presets` object turns a string setting into a preset controller, like a game's Quality choice. Choosing a preset sets each listed setting to that preset's value. Editing one of those settings by hand selects the controller's `custom` value. For example, `"presets": { "quality": { "settings": ["viewRange"], "values": { "low": { "viewRange": 64 }, "high": { "viewRange": 256 } } } }` needs a `quality` setting with the options `low`, `high`, and `custom`.
 
 Read the value in Lua with the ShroudForge API:
 
