@@ -40,6 +40,8 @@ pub struct ModManifest {
     pub settings: Vec<SettingDefinition>,
     #[serde(default)]
     pub locales: BTreeMap<String, ModLocaleCatalog>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub presets: BTreeMap<String, SettingPreset>,
 }
 
 impl ModManifest {
@@ -190,6 +192,22 @@ pub struct SettingDefinition {
 pub struct SettingCondition {
     pub setting: String,
     pub equals: serde_json::Value,
+}
+
+/// A preset is keyed by its controller setting. Choosing one of `values` in
+/// the controller sets every member in `settings`. Editing a member by hand
+/// selects `custom` in the controller.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SettingPreset {
+    #[serde(default = "default_preset_custom")]
+    pub custom: String,
+    pub settings: Vec<String>,
+    pub values: BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
+}
+
+fn default_preset_custom() -> String {
+    "custom".into()
 }
 
 fn default_apply_at() -> String {
