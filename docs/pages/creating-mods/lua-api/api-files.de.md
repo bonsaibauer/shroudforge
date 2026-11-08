@@ -39,7 +39,7 @@ Der Loader begrenzt Pfade auf den jeweiligen Modbereich. Die Exportfunktion ist 
 
 ## Große Spielinhalte ohne Warten lesen
 
-`game.assets` liest die Bytes eines Inhalts in der Schleife der Mods, auf die jeder Mod wartet. Für große Inhalte wie die Stufen einer Textur gibt es `shroudforge.contents.read`. Es liest die Bytes in einem eigenen Thread und gibt einen Auftrag zurück, den der Mod bei seinen nächsten Updates abfragt.
+`game.assets` liest die Bytes eines Inhalts in der Schleife der Mods, auf die jeder Mod wartet. Für große Inhalte wie die Stufen einer Textur gibt es `shroudforge.contents.read`. Es liest den angeforderten Bytebereich in einem Hintergrundthread und gibt einen Auftrag zurück, den der Mod bei seinen nächsten Updates abfragt.
 
 ```lua
 local job = shroudforge.contents.read({hash = texture.content.hash, start = 0, count = 65536})
@@ -54,3 +54,5 @@ end
 ```
 
 `hash` ist ein Inhalts-Hash, wie ihn eine Ressource enthält. `start` und `count` wählen einen Bytebereich, ohne Angabe den ganzen Inhalt. Lesbar sind nur Inhalte der Spieldateien, nicht die eines Mods.
+
+Jede Anfrage ist auf 32 MiB begrenzt. Größere Inhalte werden in mehrere Bytebereiche aufgeteilt. Pro Runtime dürfen höchstens vier Leseaufträge offen sein. Ein fertiger Auftrag belegt weiter einen Platz, bis sein Ergebnis abgefragt oder der Auftrag freigegeben wird. Ungültige Bereiche ergeben einen Fehler und werden nicht verkürzt. Das sind erste Schutzlimits für diese API. Sie verhindern unbegrenzt viele Threads und große Speicheranforderungen und unterstützen Architect Lines' aktuelle Textur-Lesevorgänge. Wir können die Werte erhöhen, sobald die tatsächlichen Bereichsgrößen und der Speicherbedarf des Mods gemessen sind.

@@ -102,7 +102,7 @@ function shroudforge_input.keybind_label(setting_key) end
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 --- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
---- @field contents ShroudForgeContents Read bytes of game contents without waiting for the game files.
+--- @field contents ShroudForgeContents Read game content ranges asynchronously. Each request is limited to 32 MiB, with at most four outstanding reads per runtime.
 shroudforge = {}
 
 --- @class ShroudForgeContentReadJob
@@ -114,11 +114,13 @@ function ShroudForgeContentReadJob:result() end
 --- @class ShroudForgeContents
 shroudforge.contents = {}
 
---- Read bytes of a game content (the levels of a texture, for instance) on a thread of its own:
---- ask the returned job at the next updates, the mod never waits for the game files. `hash`: a
---- content hash as a resource holds it (`texture.content.hash`), or `{size, hash0, hash1, hash2}`;
---- `start`: first byte (0); `count`: bytes (to the end). Contents of the game files only, not
---- those a mod created.
+--- Read a game content range (for example, texture levels) on a background thread and poll the
+--- returned job during later updates. Each request is limited to 32 MiB. At most four jobs may be
+--- outstanding per runtime. A completed result counts until `result()` is read or the job is
+--- released. Split larger reads into ranges. `hash` is a content hash as a resource holds it
+--- (`texture.content.hash`), or `{size, hash0, hash1, hash2}`. `start` is the first byte (0) and
+--- `count` is the number of bytes (to the end). Invalid ranges return an error. This reads game
+--- file contents only, not contents created by mods.
 --- @param params {hash: any, start: integer?, count: integer?}
 --- @return ShroudForgeContentReadJob
 function shroudforge.contents.read(params) end

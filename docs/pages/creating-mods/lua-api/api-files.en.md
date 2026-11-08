@@ -39,7 +39,7 @@ The loader keeps paths inside the mod's permitted area. Export is not unrestrict
 
 ## Read large game contents without waiting
 
-`game.assets` reads a content's bytes on the mods' loop, which every mod waits for. For large contents, such as the levels of a texture, use `shroudforge.contents.read`: it reads the bytes on a thread of its own and returns a job that the mod asks at its next updates.
+`game.assets` reads a content's bytes on the mods' loop, which every mod waits for. For large contents, such as the levels of a texture, use `shroudforge.contents.read`: it reads the requested byte range on a background thread and returns a job that the mod asks at its next updates.
 
 ```lua
 local job = shroudforge.contents.read({hash = texture.content.hash, start = 0, count = 65536})
@@ -54,3 +54,5 @@ end
 ```
 
 `hash` is a content hash as a resource holds it. `start` and `count` select a byte range, the whole content by default. Only contents of the game files can be read, not those a mod created.
+
+Each request is limited to 32 MiB. Split a larger content into multiple ranges. At most four reads may be outstanding per runtime. A completed job still uses one slot until its result is read or the job is released. Invalid ranges return an error instead of being shortened. These are initial safety limits for this API. They prevent unbounded threads and allocations while supporting Architect Lines' current texture reads. The values can be raised after measuring the mod's actual range sizes and memory use.
