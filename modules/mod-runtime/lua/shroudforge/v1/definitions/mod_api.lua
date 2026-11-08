@@ -85,6 +85,15 @@ function shroudforge_input.is_keybind_down(setting_key) end
 --- @return boolean
 function shroudforge_input.was_keybind_pressed(setting_key) end
 
+--- Lets a keybind also match while extra modifiers are held in addition to its own, for
+--- is_keybind_down and was_keybind_pressed. For example `"Alt"` on a `1` shortcut matches 1 and
+--- Alt+1, so that a mod's action keys still work while another of its shortcuts holds Alt.
+--- Modifier names are Ctrl, Alt, Shift and Meta, joined by `+`; nil or `""` clears them.
+--- The setting stays as the player set it; the extra modifiers last until the mod changes them.
+--- @param setting_key string Key of this mod's declared keybind setting.
+--- @param modifiers string|nil Extra modifiers, for example `"Alt"` or `"Ctrl+Alt"`.
+function shroudforge_input.set_keybind_extra_modifiers(setting_key, modifiers) end
+
 --- Returns the current display label supplied by SDL, including modifiers and both alternatives.
 --- One setting string stores a keyboard chord, a mouse chord, or keyboard|mouse,
 --- for example `Ctrl+SDL:29|Mouse:4`. The editor shows separate columns for each device.

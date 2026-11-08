@@ -40,6 +40,15 @@ return {
 
 `was_keybind_pressed` retains a short tap even when it begins and ends between runtime updates. It returns `true` once per new press for each mod and setting. For actions that should repeat while held, use `is_keybind_down`.
 
+Modifiers match exactly: with Alt held, a `1` shortcut is not down, because the key pressed is Alt+1. When one of the mod's shortcuts is a modifier held while the player uses its other keys, for example a mode held on Alt, let those keys accept it too. The setting keeps the player's value.
+
+```lua
+-- 1, and Alt+1 while the mode is held on Alt.
+shroudforge.input.set_keybind_extra_modifiers("placeKey", "Alt")
+-- Back to an exact match.
+shroudforge.input.set_keybind_extra_modifiers("placeKey", nil)
+```
+
 The shortcut field has two columns. Record the full keyboard combination on the left and an optional mouse combination on the right. Both alternatives belong to the same setting. Either one triggers the action. Live saved changes reach the runtime on its next configuration refresh, within one second.
 
 While recording, ShroudForge blocks its window shortcuts and mod shortcuts queried through this API across processes. Protection remains active after cancellation or a window focus change until no key or mouse button is held. A fixed three-second delay then runs, and new input does not reset it. Escape cannot be recorded, with or without modifiers: the game uses it for its pause menu and to close its windows, so pressing it cancels the recording and keeps the previous value. New F1 or F12 bindings require confirmation because Enshrouded or Steam may use them. Saving a binding that conflicts with another active ShroudForge shortcut is blocked.

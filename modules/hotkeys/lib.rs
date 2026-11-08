@@ -18,11 +18,11 @@ mod window_toggle_debounce;
 
 pub use filter_game_input::install_input_filter;
 pub use observe_keyboard::{
-    hotkey_press_revision, initialize, initialize_runtime, is_capture_active, is_hotkey_down,
-    layout_revision, legacy_virtual_key_binding, run_input_process, set_capture_active,
-    take_captured_hotkey,
+    hotkey_press_revision, hotkey_press_revision_with, initialize, initialize_runtime, is_capture_active,
+    is_hotkey_down, is_hotkey_down_with, layout_revision, legacy_virtual_key_binding, run_input_process,
+    set_capture_active, take_captured_hotkey,
 };
-pub use parse_hotkey::{Hotkey, InputDevice, parse_hotkey, parse_value};
+pub use parse_hotkey::{Hotkey, InputDevice, parse_hotkey, parse_modifiers, parse_value};
 pub use reserve_game_input::{
     CONTEXT_LEASE, ReadWheel, ReservedKey, release_reserved_input, set_input_context,
     set_reserved_input, take_wheel_steps,

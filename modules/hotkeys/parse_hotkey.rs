@@ -181,6 +181,30 @@ pub fn parse_hotkey(value: &str) -> Result<Option<Hotkey>, String> {
     Ok(Some(binding))
 }
 
+/// Parses modifier names joined by `+` ("Alt", "Ctrl+Alt"), in any order,
+/// each once, into modifier bits (Ctrl 1, Alt 2, Shift 4, Meta 8). An empty
+/// string is no modifier.
+pub fn parse_modifiers(value: &str) -> Result<u8, String> {
+    let mut modifiers = 0;
+    if value.is_empty() {
+        return Ok(0);
+    }
+    for name in value.split('+') {
+        let bit = match name {
+            "Ctrl" => 1,
+            "Alt" => 2,
+            "Shift" => 4,
+            "Meta" => 8,
+            _ => return Err(format!("Unknown modifier '{name}'")),
+        };
+        if modifiers & bit != 0 {
+            return Err(format!("Duplicate modifier '{name}'"));
+        }
+        modifiers |= bit;
+    }
+    Ok(modifiers)
+}
+
 pub fn parse_value(value: &Value) -> Result<Option<Hotkey>, String> {
     parse_hotkey(
         value
