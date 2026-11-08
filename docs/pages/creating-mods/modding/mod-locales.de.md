@@ -34,7 +34,7 @@ Das Schema steht unter [`mod-locale.schema.json`](https://bonsaibauer.github.io/
 
 ## Sichtbare Modloader-Texte
 
-Übersetze den Namen und die Beschreibung unter `mod`, Einstellungsnamen und Beschreibungen unter `settings`, Gruppen in `groups`, Aktionsknöpfe über ihre vorhandene Aktions-ID und Changelog-Zeilen. Bei Auswahlfeldern ordnet `options` den gespeicherten Wert dem übersetzten Anzeigetext zu. Der Wert selbst bleibt stabil.
+Übersetze den Namen und die Beschreibung unter `mod`, Einstellungsnamen und Beschreibungen unter `settings`, Gruppen in `groups`, Aktionsknöpfe über ihre vorhandene Aktions-ID und Changelog-Zeilen. Bei Auswahlfeldern ordnet `options` den gespeicherten Wert dem übersetzten Anzeigetext zu. Der Wert selbst bleibt stabil. Für gruppierte Mehrfachauswahlen ordnet `optionGroups` innerhalb desselben Einstellungskatalogs den Kategorienamen aus dem Quellmanifest der übersetzten Tab-Beschriftung zu. Tabs für Einstellungsgruppen verwenden die vorhandene Übersetzung über `groups[].label`.
 
 ```json
 {
@@ -44,6 +44,10 @@ Das Schema steht unter [`mod-locale.schema.json`](https://bonsaibauer.github.io/
     "severity": {
       "label": "Protokollstufe",
       "options": { "info": "Information", "warn": "Warnung" }
+    },
+    "excludeItems": {
+      "options": { "Twigs": "Zweige", "Fire Fly": "Glühwürmchen" },
+      "optionGroups": { "Materials": "Materialien", "Ammunition": "Munition" }
     }
   },
   "groups": [
@@ -56,7 +60,7 @@ Das Schema steht unter [`mod-locale.schema.json`](https://bonsaibauer.github.io/
 }
 ```
 
-`settings` verwendet die Schlüssel aus `extended.mod.json`. Optionsschlüssel sind die gespeicherten Optionswerte. `groups` folgt der Reihenfolge der Gruppen in `extended.mod.json`, da diese dort keine eigene Kennung haben. Aktionsübersetzungen verwenden die vorhandene Action-ID. Nicht angegebene Texte behalten den Quelltext aus `mod.json` und `extended.mod.json`.
+`settings` verwendet die Schlüssel aus `extended.mod.json`. Optionsschlüssel sind die gespeicherten Optionswerte. Schlüssel in `optionGroups` müssen den Kategorienamen aus den Optionen dieser Einstellung entsprechen. `groups` folgt der Reihenfolge der Gruppen in `extended.mod.json`, da diese dort keine eigene Kennung haben. Aktionsübersetzungen verwenden die vorhandene Action-ID. Nicht angegebene Texte behalten den Quelltext aus `mod.json` und `extended.mod.json`.
 
 ## Lua-Texte aus demselben Katalog
 

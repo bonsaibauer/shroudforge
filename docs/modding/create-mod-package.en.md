@@ -195,6 +195,8 @@ When someone changes a setting, the Modloader writes that choice into the mod's 
 
 Packages without **extended.mod.json** are treated as EML; ShroudForge mods always include the extension. For packages with an extension, only an explicit `"launcher": "EML"` preserves the EML badge. The loader writes that marker when it first adds an extension to an EML package; the original **mod.json** stays untouched. `launcher: "SF"` can be written explicitly, but is optional because missing or other values in an existing extension are treated as SF.
 
+The search controls do not change saved setting values. Existing string option labels and groups without `tab` remain valid, so existing mod packages need no migration. A package that uses grouped option objects, `tab: true`, or `optionGroups` in its locale files needs a ShroudForge build that supports those fields because older builds reject them.
+
 ## Groups, buttons, and links
 
 Groups put related settings under one heading. A group may also contain buttons that ask the mod's Lua code to perform an action. Links open the creator's project pages. Short update notes can explain what changed in a new version.

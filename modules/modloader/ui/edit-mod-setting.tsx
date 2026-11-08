@@ -256,13 +256,19 @@ function MultiSelectSetting({
     ],
     [options],
   )
-  const activeCategory = categories.includes(category) ? category : ''
   const selectedValues = useMemo(
     () => new Set(Array.isArray(value) ? value.map((item) => String(item)) : []),
     [value],
   )
   const searchable = options.length > MULTISELECT_SEARCH_FROM
   const needle = query.trim().toLocaleLowerCase()
+  // Searching is global. While a query is active, show the All tab so the
+  // selected category never appears to limit the results.
+  const activeCategory =
+    !needle && categories.includes(category) ? category : ''
+  const activeCategoryTab = activeCategory
+    ? `category-${categories.indexOf(activeCategory)}`
+    : 'all'
   const shown = options.filter((option) => {
     if (activeCategory && option.group !== activeCategory) return false
     if (selectedOnly && !selectedValues.has(String(option.value))) return false
@@ -280,11 +286,17 @@ function MultiSelectSetting({
       </div>
       {categories.length > 0 && (
         <Segmented
-          value={activeCategory || 'all'}
-          onChange={(next) => setCategory(next === 'all' ? '' : next)}
+          value={activeCategoryTab}
+          onChange={(next) => {
+            const index = Number(next.slice('category-'.length))
+            setCategory(next === 'all' ? '' : (categories[index] ?? ''))
+            if (query) setQuery('')
+          }}
           items={[
             ['all', t('common.all')],
-            ...categories.map((group) => [group, group] as [string, string]),
+            ...categories.map(
+              (group, index) => [`category-${index}`, group] as [string, string],
+            ),
           ]}
         />
       )}

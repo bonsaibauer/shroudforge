@@ -104,6 +104,12 @@ pub struct ModSettingLocale {
     pub description: Option<String>,
     #[serde(default)]
     pub options: BTreeMap<String, String>,
+    #[serde(
+        default,
+        rename = "optionGroups",
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
+    pub option_groups: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

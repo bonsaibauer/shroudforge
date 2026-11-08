@@ -17,7 +17,7 @@
 
 # Gruppen und Aktionsknöpfe
 
-Eine Gruppe hat eine sichtbare Beschriftung und kann Einstellungsschlüssel sowie Aktionen enthalten. Gruppen ändern nicht den Zugriff des Mods.
+Eine Gruppe hat eine sichtbare Beschriftung und kann Einstellungsschlüssel sowie Aktionen enthalten. Mit `tab: true` erscheint die Gruppe in einem eigenen Tab der Mod-Seite. Gruppen ohne dieses Feld bleiben im vorhandenen Tab „Einstellungen“. Dieser Tab entfällt, wenn jede Gruppe einen eigenen Tab hat. Die Tab-Beschriftungen verwenden die vorhandene Übersetzung über `groups[].label`. Gruppen ändern nicht den Zugriff des Mods.
 
 ## Einstellungen zuordnen
 

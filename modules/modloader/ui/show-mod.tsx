@@ -44,17 +44,22 @@ export function ModPage({
       : []),
   ]
   const settings = mod.settings
-  // Groups marked "tab" get their own tab next to "Settings"; without such
-  // groups the page shows no tab bar, as before.
+  // Groups marked "tab" get their own tab. Unmarked groups share the existing
+  // Settings tab, which is omitted when there are no such groups.
   const tabGroups = groups.filter((group) => 'tab' in group && group.tab)
-  const [settingsTab, setSettingsTab] = useState('settings')
-  useEffect(() => setSettingsTab('settings'), [mod.id])
-  const activeTab = tabGroups.some((_, index) => `group-${index}` === settingsTab)
-    ? settingsTab
-    : 'settings'
+  const settingsGroups = groups.filter((group) => !('tab' in group && group.tab))
+  const defaultTab =
+    settingsGroups.length > 0 || tabGroups.length === 0 ? 'settings' : 'group-0'
+  const [settingsTab, setSettingsTab] = useState(defaultTab)
+  useEffect(() => setSettingsTab(defaultTab), [mod.id, defaultTab])
+  const validTabs = new Set([
+    ...(settingsGroups.length > 0 ? ['settings'] : []),
+    ...tabGroups.map((_, index) => `group-${index}`),
+  ])
+  const activeTab = validTabs.has(settingsTab) ? settingsTab : defaultTab
   const shownGroups =
     activeTab === 'settings'
-      ? groups.filter((group) => !('tab' in group && group.tab))
+      ? settingsGroups
       : [tabGroups[Number(activeTab.slice('group-'.length))]]
   const remove = () => {
     if (window.confirm(t('mod.remove.confirm', { name: mod.name })))
@@ -193,7 +198,9 @@ export function ModPage({
             value={activeTab}
             onChange={setSettingsTab}
             items={[
-              ['settings', t('mod.tab.settings')],
+              ...(settingsGroups.length > 0
+                ? [['settings', t('mod.tab.settings')] as [string, string]]
+                : []),
               ...tabGroups.map(
                 (group, index) => [`group-${index}`, group.label] as [string, string],
               ),
