@@ -40,6 +40,15 @@ return {
 
 `was_keybind_pressed` merkt einen kurzen Tastendruck auch dann, wenn er zwischen zwei Runtime-Updates beginnt und endet. Die Funktion liefert pro Mod und Einstellung einmal `true` für einen neuen Tastendruck. Für Aktionen, die während des Haltens wiederholt werden sollen, verwende `is_keybind_down`.
 
+Modifikatoren müssen genau passen: Bei gehaltenem Alt ist eine Tastenkombination `1` nicht gedrückt, denn die gedrückte Taste ist Alt+1. Hält der Spieler einen Modifikator als Tastenkombination der Mod, zum Beispiel einen Modus auf Alt, während er ihre anderen Tasten benutzt, lass diese Tasten den Modifikator ebenfalls annehmen. Die Einstellung behält den Wert des Spielers.
+
+```lua
+-- 1, und Alt+1, solange der Modus auf Alt gehalten wird.
+shroudforge.input.set_keybind_extra_modifiers("placeKey", "Alt")
+-- Wieder genau passend.
+shroudforge.input.set_keybind_extra_modifiers("placeKey", nil)
+```
+
 Das Kürzelfeld hat zwei Spalten. Links nimmst du die vollständige Tastaturkombination auf, rechts eine optionale Mauskombination. Beide Alternativen gehören zu derselben Einstellung. Jede davon löst die Aktion aus. Live gespeicherte Änderungen erreichen die Runtime beim nächsten Konfigurationsabruf innerhalb einer Sekunde.
 
 Während der Aufnahme sperrt ShroudForge seine Fensterkürzel und die über diese API abgefragten Mod-Kürzel prozessübergreifend. Die Sperre bleibt auch nach Abbruch oder Fokuswechsel bestehen, bis keine Taste und keine Maustaste mehr gedrückt ist. Danach läuft eine feste Frist von drei Sekunden, die neue Eingaben nicht zurücksetzen. Escape lässt sich nicht aufnehmen, auch nicht mit Zusatztasten: Das Spiel nutzt die Taste für sein Pausenmenü und zum Schließen seiner Fenster. Ein Druck darauf bricht die Aufnahme ab und behält den bisherigen Wert. Neue Belegungen mit F1 oder F12 erfordern wegen möglicher Funktionen von Enshrouded und Steam eine Bestätigung. Ein Konflikt mit einem anderen aktiven ShroudForge-Kürzel blockiert das Speichern.
