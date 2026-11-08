@@ -172,6 +172,7 @@ export function App() {
 
   const runNoticeAction = (action: NoticeAction) => {
     if (action.kind === 'open-installed-mods') navigate('installed')
+    else if (action.kind === 'open-wiki') navigate('wiki')
     else if (action.kind === 'open-mod' && action.target) {
       if (data.mods.some((mod) => mod.id === action.target)) {
         setPage('installed')
