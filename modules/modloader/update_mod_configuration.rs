@@ -134,6 +134,36 @@ mod tests {
     }
 
     #[test]
+    fn saving_preset_settings_keeps_the_presets() {
+        let (root, package) = test_package(Some(
+            br#"{"schemaVersion":1,"enabled":true,"settings":{
+                "quality":{"value":"low","options":{"low":"Low","high":"High","custom":"Custom"}},
+                "range":{"value":64}
+            },"presets":{"quality":{"settings":["range"],"values":{"low":{"range":64},"high":{"range":256}}}}}"#,
+        ));
+        let revision = config_revision(&serde_json::json!({
+            "enabled": true,
+            "settings": {"quality": "low", "range": 64}
+        }));
+
+        crate::save_mod_settings(
+            &root,
+            "example",
+            &serde_json::json!({"quality": "high", "range": 256}),
+            &revision,
+        )
+        .unwrap();
+
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(package.join("extended.mod.json")).unwrap())
+                .unwrap();
+        assert_eq!(saved["settings"]["quality"]["value"], "high");
+        assert_eq!(saved["settings"]["range"]["value"], 256);
+        assert_eq!(saved["presets"]["quality"]["values"]["high"]["range"], 256);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn stale_configuration_revision_does_not_write() {
         let (root, package) = test_package(Some(
             br#"{"schemaVersion":1,"enabled":false,"launcher":"SF"}"#,
