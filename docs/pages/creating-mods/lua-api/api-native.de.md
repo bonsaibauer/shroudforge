@@ -20,6 +20,8 @@
 
 Ein Mod kann eine DLL in seinem Ordner mitliefern, angegeben in `native-plugin.ini` oder registriert mit `loader.runtime.register_dll`. ShroudForge lädt sie einmal pro Spielprozess. Exportiert die DLL `ShroudforgeModNativeInit`, ruft ShroudForge diese Funktion direkt nach dem Laden auf. Dort registriert die DLL benannte Funktionen, und der Lua-Code desselben Mods ruft sie über `shroudforge.native` auf.
 
+Diese API ist ab ShroudForge 1.8.0 verfügbar.
+
 Die Brücke verbindet zwei Teile desselben Mods. Ein Mod erreicht nur die Funktionen, die seine eigenen DLLs registriert haben. Weder die DLL noch der Lua-Code erhalten dadurch Zugriff auf das Spiel oder auf andere Mods. Eine DLL ohne diesen Export wird genau wie bisher geladen.
 
 ## Die Seite der DLL

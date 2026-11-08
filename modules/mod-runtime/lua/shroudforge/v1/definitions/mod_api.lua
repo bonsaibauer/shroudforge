@@ -124,7 +124,7 @@ function shroudforge_native.functions() end
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 --- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
---- @field native ShroudForgeNative Call functions registered by this mod's own native DLLs.
+--- @field native ShroudForgeNative Call functions registered by this mod's own native DLLs. Available since ShroudForge 1.8.0.
 shroudforge = {}
 
 --- Language the player chose for ShroudForge in the Modloader, such as `"en"`,
