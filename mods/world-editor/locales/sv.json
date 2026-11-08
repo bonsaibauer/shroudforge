@@ -154,64 +154,14 @@
       "description": "Positionen är relativt spelfönstret i logiska pixlar. X = −1 centrerar panelen. Y mäts ner från toppen. Ändringar gäller medan spelet körs."
     },
     {
-      "label": "Gränser för världsredigeraren"
-    },
-    {
-      "label": "Kortkommandon",
-      "description": "Redigera genvägarna här eller i Kompatibilitet → Snabbtangenter. Ändringar gäller under spelning. En tom bindning inaktiverar en genväg.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Rotera ritningen 90°"
-        },
-        "undoVoxels": {
-          "label": "Ångra senaste inklistring"
-        },
-        "markCursorNext": {
-          "label": "Markera nästa valhörn"
-        },
-        "resetEditor": {
-          "label": "Återställ/släpp serverdrift som har fastnat",
-          "confirm": "Om en serverklistring eller ångra har stannat eller ofullständig, ber Återställ/släpp den dedikerade servern att överge den och släppa dess lås. Delvis terräng eller rekvisita kan finnas kvar. Klistra in låser upp först efter serverbekräftelse."
-        },
-        "pasteAtCursor": {
-          "label": "Klistra in vid markören",
-          "confirm": "Skriva den aktiva ritningen vid den aktuella markörpositionen?"
-        },
-        "captureAndSave": {
-          "label": "Fånga och spara ritning"
-        }
-      }
-    },
-    {
-      "label": "Inbyggd enhetsverksamhet",
-      "description": "Spawn och placering använder inbyggda speloperationer.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Kö props spawn",
-          "confirm": "Kö en infödd prop-spawn med dessa UUID och spårningsvärden?"
-        },
-        "placeEntity": {
-          "label": "Plats vid koordinater",
-          "confirm": "Skicka infödd placering vid dessa koordinater?"
-        },
-        "destroyEntity": {
-          "label": "Förstör vid koordinaterna",
-          "confirm": "Skicka inbyggt borttagning vid dessa koordinater?"
-        }
-      }
-    },
-    {
       "label": "Världsredigerare",
-      "description": "Fånga voxel-and-prop eller rekvisita-ritningar, förhandsgranska, klistra in och ångra genom infödda API:er.",
+      "description": "Fånga voxelblock och föremål, eller endast föremål, och hantera sparade ritningar.",
       "actions": {
         "markCursorA": {
           "label": "Markera valhörnet A"
         },
         "markCursorB": {
           "label": "Markera valhörnet B"
-        },
-        "markCursorTarget": {
-          "label": "Markera klistra mål"
         },
         "clearCursorSelection": {
           "label": "Rensa markörmärken"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "Ta bort ritning och bild",
           "confirm": "Ta bort den namngivna ritningen och dess bild från exportmappen?"
+        }
+      }
+    },
+    {
+      "label": "Kortkommandon",
+      "description": "Redigera genvägarna här eller i Kompatibilitet → Snabbtangenter. Ändringar gäller under spelning. En tom bindning inaktiverar en genväg.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Rotera ritningen 90°"
+        },
+        "undoVoxels": {
+          "label": "Ångra senaste inklistring"
+        },
+        "markCursorNext": {
+          "label": "Markera nästa valhörn"
+        },
+        "resetEditor": {
+          "label": "Återställ/släpp serverdrift som har fastnat",
+          "confirm": "Om en serverklistring eller ångra har stannat eller ofullständig, ber Återställ/släpp den dedikerade servern att överge den och släppa dess lås. Delvis terräng eller rekvisita kan finnas kvar. Klistra in låser upp först efter serverbekräftelse."
+        },
+        "pasteAtCursor": {
+          "label": "Klistra in vid markören",
+          "confirm": "Skriva den aktiva ritningen vid den aktuella markörpositionen?"
+        },
+        "captureAndSave": {
+          "label": "Fånga och spara ritning"
+        }
+      }
+    },
+    {
+      "label": "Placering",
+      "description": "Välj mål, inklistringsläge och rotation, förhandsgranska och placera den aktiva ritningen.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Markera klistra mål"
         },
         "pasteVoxels": {
           "label": "Klistra in aktiv ritning",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Förhandsgranska placeringsplan (endast logg)"
+        }
+      }
+    },
+    {
+      "label": "Inbyggd enhetsverksamhet",
+      "description": "Spawn och placering använder inbyggda speloperationer.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Kö props spawn",
+          "confirm": "Kö en infödd prop-spawn med dessa UUID och spårningsvärden?"
         },
-        "undoVoxels": {
-          "label": "Ångra den senaste världsklistran"
+        "placeEntity": {
+          "label": "Plats vid koordinater",
+          "confirm": "Skicka infödd placering vid dessa koordinater?"
+        },
+        "destroyEntity": {
+          "label": "Förstör vid koordinaterna",
+          "confirm": "Skicka inbyggt borttagning vid dessa koordinater?"
         },
         "destroySelectedProp": {
           "label": "Förstör vald listad prop"

@@ -154,64 +154,14 @@
       "description": "La position est relative à la fenêtre de jeu en pixels logiques. X = −1 centre le panneau. Y est mesuré à partir du haut. Les modifications s'appliquent pendant que le jeu est en cours d'exécution.\nLimites de l'éditeur mondial"
     },
     {
-      "label": "Limites de l’éditeur de monde"
-    },
-    {
-      "label": "Raccourcis clavier",
-      "description": "Modifiez les raccourcis ici ou dans Compatibilité → Raccourcis clavier. Les modifications s'appliquent pendant la lecture. Une liaison vide désactive un raccourci.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Rotation du plan à 90°"
-        },
-        "undoVoxels": {
-          "label": "Annuler le dernier collage"
-        },
-        "markCursorNext": {
-          "label": "Marquer le prochain coin de sélection"
-        },
-        "resetEditor": {
-          "label": "Réinitialiser/libérer le fonctionnement bloqué du serveur",
-          "confirm": "Si un collage ou une annulation d'un serveur est bloqué ou incomplet, Réinitialiser/libérer demande au serveur dédié de l'abandonner et de libérer son verrou. Un terrain partiel ou des accessoires peuvent rester. Le collage ne se déverrouille qu'après confirmation du serveur."
-        },
-        "pasteAtCursor": {
-          "label": "Coller au curseur",
-          "confirm": "Écrire le plan actif à la position actuelle du curseur ?"
-        },
-        "captureAndSave": {
-          "label": "Capturer et enregistrer le plan"
-        }
-      }
-    },
-    {
-      "label": "Opérations sur les entités natives",
-      "description": "L'apparition et le placement utilisent des opérations de jeu natives.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Apparition d'accessoires de file d'attente",
-          "confirm": "Mettre en file d'attente un accessoire natif en utilisant ces UUID et ces valeurs de suivi ?"
-        },
-        "placeEntity": {
-          "label": "Lieu aux coordonnées",
-          "confirm": "Envoyer le placement natif à ces coordonnées ?"
-        },
-        "destroyEntity": {
-          "label": "Détruire aux coordonnées",
-          "confirm": "Envoyer la suppression native à ces coordonnées ?"
-        }
-      }
-    },
-    {
       "label": "Éditeur du monde",
-      "description": "Capturez des plans voxels et accessoires ou uniquement accessoires, prévisualisez, collez et annulez via les API du monde natif.",
+      "description": "Capturez le terrain et les objets, ou les objets seuls, puis gérez les plans enregistrés.",
       "actions": {
         "markCursorA": {
           "label": "Marquer le coin de sélection A"
         },
         "markCursorB": {
           "label": "Marquer le coin de sélection B"
-        },
-        "markCursorTarget": {
-          "label": "Marquer la cible de collage"
         },
         "clearCursorSelection": {
           "label": "Effacer les marques du curseur"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "Supprimer le plan et l'image",
           "confirm": "Supprimer le plan nommé et son image du dossier d'exportation ?"
+        }
+      }
+    },
+    {
+      "label": "Raccourcis clavier",
+      "description": "Modifiez les raccourcis ici ou dans Compatibilité → Raccourcis clavier. Les modifications s'appliquent pendant la lecture. Une liaison vide désactive un raccourci.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Rotation du plan à 90°"
+        },
+        "undoVoxels": {
+          "label": "Annuler le dernier collage"
+        },
+        "markCursorNext": {
+          "label": "Marquer le prochain coin de sélection"
+        },
+        "resetEditor": {
+          "label": "Réinitialiser/libérer le fonctionnement bloqué du serveur",
+          "confirm": "Si un collage ou une annulation d'un serveur est bloqué ou incomplet, Réinitialiser/libérer demande au serveur dédié de l'abandonner et de libérer son verrou. Un terrain partiel ou des accessoires peuvent rester. Le collage ne se déverrouille qu'après confirmation du serveur."
+        },
+        "pasteAtCursor": {
+          "label": "Coller au curseur",
+          "confirm": "Écrire le plan actif à la position actuelle du curseur ?"
+        },
+        "captureAndSave": {
+          "label": "Capturer et enregistrer le plan"
+        }
+      }
+    },
+    {
+      "label": "Placement",
+      "description": "Choisissez la cible, le mode et la rotation, prévisualisez puis placez le plan actif.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Marquer la cible de collage"
         },
         "pasteVoxels": {
           "label": "Coller le plan actif",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Aperçu du plan de placement (journal uniquement)"
+        }
+      }
+    },
+    {
+      "label": "Opérations sur les entités natives",
+      "description": "L'apparition et le placement utilisent des opérations de jeu natives.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Apparition d'accessoires de file d'attente",
+          "confirm": "Mettre en file d'attente un accessoire natif en utilisant ces UUID et ces valeurs de suivi ?"
         },
-        "undoVoxels": {
-          "label": "Annuler le collage du dernier monde"
+        "placeEntity": {
+          "label": "Lieu aux coordonnées",
+          "confirm": "Envoyer le placement natif à ces coordonnées ?"
+        },
+        "destroyEntity": {
+          "label": "Détruire aux coordonnées",
+          "confirm": "Envoyer la suppression native à ces coordonnées ?"
         },
         "destroySelectedProp": {
           "label": "Détruire l'accessoire répertorié sélectionné"

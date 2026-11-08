@@ -154,64 +154,14 @@
       "description": "位置是相对于游戏窗口的逻辑像素。 X = −1 使面板居中。 Y 是从顶部向下测量的。更改在游戏运行时生效。"
     },
     {
-      "label": "世界编辑器限制"
-    },
-    {
-      "label": "键盘快捷键",
-      "description": "在此处或兼容性 → 热键中编辑快捷方式。玩游戏时会发生变化。空绑定会禁用快捷方式。",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "蓝图旋转90°"
-        },
-        "undoVoxels": {
-          "label": "撤消上次粘贴"
-        },
-        "markCursorNext": {
-          "label": "标记下一个选择角"
-        },
-        "resetEditor": {
-          "label": "重置/释放卡住的服务器操作",
-          "confirm": "如果服务器粘贴或撤消停止或不完整，重置/释放会要求专用服务器放弃它并释放其锁定。部分地形或道具可能会保留。粘贴仅在服务器确认后解锁。"
-        },
-        "pasteAtCursor": {
-          "label": "粘贴到光标处",
-          "confirm": "在当前光标位置写入活动蓝图？"
-        },
-        "captureAndSave": {
-          "label": "捕获并保存蓝图"
-        }
-      }
-    },
-    {
-      "label": "Native实体操作",
-      "description": "生成和放置使用本机游戏操作。",
-      "actions": {
-        "spawnEntity": {
-          "label": "队列道具生成",
-          "confirm": "使用这些 UUID 和跟踪值对原生道具生成进行排队？"
-        },
-        "placeEntity": {
-          "label": "放置在坐标处",
-          "confirm": "在这些坐标处调度本机放置？"
-        },
-        "destroyEntity": {
-          "label": "摧毁坐标",
-          "confirm": "在这些坐标处调度本地移除？"
-        }
-      }
-    },
-    {
       "label": "世界编辑器",
-      "description": "通过本机世界 API 捕获体素和道具或仅道具蓝图、预览、粘贴和撤消。",
+      "description": "捕获体素和道具，或仅捕获道具，并管理已保存的蓝图。",
       "actions": {
         "markCursorA": {
           "label": "标记选择角A"
         },
         "markCursorB": {
           "label": "标记选择角B"
-        },
-        "markCursorTarget": {
-          "label": "标记粘贴靶"
         },
         "clearCursorSelection": {
           "label": "清除光标标记"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "删除蓝图和图像",
           "confirm": "从导出文件夹中删除指定的蓝图及其图像吗？"
+        }
+      }
+    },
+    {
+      "label": "键盘快捷键",
+      "description": "在此处或兼容性 → 热键中编辑快捷方式。玩游戏时会发生变化。空绑定会禁用快捷方式。",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "蓝图旋转90°"
+        },
+        "undoVoxels": {
+          "label": "撤消上次粘贴"
+        },
+        "markCursorNext": {
+          "label": "标记下一个选择角"
+        },
+        "resetEditor": {
+          "label": "重置/释放卡住的服务器操作",
+          "confirm": "如果服务器粘贴或撤消停止或不完整，重置/释放会要求专用服务器放弃它并释放其锁定。部分地形或道具可能会保留。粘贴仅在服务器确认后解锁。"
+        },
+        "pasteAtCursor": {
+          "label": "粘贴到光标处",
+          "confirm": "在当前光标位置写入活动蓝图？"
+        },
+        "captureAndSave": {
+          "label": "捕获并保存蓝图"
+        }
+      }
+    },
+    {
+      "label": "放置蓝图",
+      "description": "选择目标、粘贴模式和旋转，预览并放置当前蓝图。",
+      "actions": {
+        "markCursorTarget": {
+          "label": "标记粘贴靶"
         },
         "pasteVoxels": {
           "label": "粘贴活动蓝图",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "预览安置计划（仅日志）"
+        }
+      }
+    },
+    {
+      "label": "Native实体操作",
+      "description": "生成和放置使用本机游戏操作。",
+      "actions": {
+        "spawnEntity": {
+          "label": "队列道具生成",
+          "confirm": "使用这些 UUID 和跟踪值对原生道具生成进行排队？"
         },
-        "undoVoxels": {
-          "label": "撤消最后的世界粘贴"
+        "placeEntity": {
+          "label": "放置在坐标处",
+          "confirm": "在这些坐标处调度本机放置？"
+        },
+        "destroyEntity": {
+          "label": "摧毁坐标",
+          "confirm": "在这些坐标处调度本地移除？"
         },
         "destroySelectedProp": {
           "label": "销毁选定的列出道具"

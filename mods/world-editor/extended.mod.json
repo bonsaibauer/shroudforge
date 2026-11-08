@@ -270,99 +270,8 @@
       ]
     },
     {
-      "label": "World Editor limits",
-      "settings": [
-        "maximumCopyableProps"
-      ]
-    },
-    {
-      "label": "Keyboard shortcuts",
-      "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
-      "settings": [
-        "rotateBlueprint",
-        "undoVoxels",
-        "markCursorNext",
-        "resetEditor",
-        "pasteAtCursor",
-        "captureAndSave"
-      ],
-      "actions": [
-        {
-          "id": "rotateBlueprint",
-          "label": "Rotate blueprint 90°",
-          "style": "secondary"
-        },
-        {
-          "id": "undoVoxels",
-          "label": "Undo last paste",
-          "style": "secondary"
-        },
-        {
-          "id": "markCursorNext",
-          "label": "Mark next selection corner",
-          "style": "secondary"
-        },
-        {
-          "id": "resetEditor",
-          "label": "Reset / release stuck server operation",
-          "style": "secondary",
-          "confirm": "If a server paste or undo is stalled or incomplete, Reset / release asks the dedicated server to abandon it and release its lock. Partial terrain or props may remain. Paste unlocks only after server confirmation."
-        },
-        {
-          "id": "pasteAtCursor",
-          "label": "Paste at cursor",
-          "style": "danger",
-          "confirm": "Write the active blueprint at the current cursor position?"
-        },
-        {
-          "id": "captureAndSave",
-          "label": "Capture and save blueprint",
-          "style": "secondary"
-        }
-      ]
-    },
-    {
-      "label": "Native entity operations",
-      "description": "Spawn and placement use native game operations.",
-      "settings": [
-        "templateUuidHigh",
-        "templateUuidLow",
-        "trackingId",
-        "entityX",
-        "entityY",
-        "entityZ",
-        "feedbackId",
-        "boundsMinX",
-        "boundsMinY",
-        "boundsMinZ",
-        "boundsMaxX",
-        "boundsMaxY",
-        "boundsMaxZ"
-      ],
-      "actions": [
-        {
-          "id": "spawnEntity",
-          "label": "Queue prop spawn",
-          "style": "danger",
-          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
-        },
-        {
-          "id": "placeEntity",
-          "label": "Place at coordinates",
-          "style": "danger",
-          "confirm": "Dispatch native placement at these coordinates?"
-        },
-        {
-          "id": "destroyEntity",
-          "label": "Destroy at coordinates",
-          "style": "danger",
-          "confirm": "Dispatch native removal at these coordinates?"
-        }
-      ]
-    },
-    {
       "label": "World Editor",
-      "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
+      "description": "Capture voxel-and-prop or props-only blueprints and manage saved blueprints.",
       "settings": [
         "sourceX",
         "sourceY",
@@ -372,17 +281,7 @@
         "sizeZ",
         "blueprintName",
         "blueprintNewName",
-        "rotationQuarterTurns",
-        "rotationAxis",
-        "pasteVoxelMode",
-        "targetPropMode",
-        "targetX",
-        "targetY",
-        "targetZ",
-        "targetWorldX",
-        "targetWorldY",
-        "targetWorldZ",
-        "entityHandle"
+        "maximumCopyableProps"
       ],
       "actions": [
         {
@@ -393,11 +292,6 @@
         {
           "id": "markCursorB",
           "label": "Mark selection corner B",
-          "style": "secondary"
-        },
-        {
-          "id": "markCursorTarget",
-          "label": "Mark paste target",
           "style": "secondary"
         },
         {
@@ -455,6 +349,77 @@
           "label": "Delete blueprint and image",
           "style": "danger",
           "confirm": "Delete the named blueprint and its image from the export folder?"
+        }
+      ]
+    },
+    {
+      "label": "Keyboard shortcuts",
+      "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
+      "tab": true,
+      "settings": [
+        "rotateBlueprint",
+        "undoVoxels",
+        "markCursorNext",
+        "resetEditor",
+        "pasteAtCursor",
+        "captureAndSave"
+      ],
+      "actions": [
+        {
+          "id": "rotateBlueprint",
+          "label": "Rotate blueprint 90°",
+          "style": "secondary"
+        },
+        {
+          "id": "undoVoxels",
+          "label": "Undo last paste",
+          "style": "secondary"
+        },
+        {
+          "id": "markCursorNext",
+          "label": "Mark next selection corner",
+          "style": "secondary"
+        },
+        {
+          "id": "resetEditor",
+          "label": "Reset / release stuck server operation",
+          "style": "secondary",
+          "confirm": "If a server paste or undo is stalled or incomplete, Reset / release asks the dedicated server to abandon it and release its lock. Partial terrain or props may remain. Paste unlocks only after server confirmation."
+        },
+        {
+          "id": "pasteAtCursor",
+          "label": "Paste at cursor",
+          "style": "danger",
+          "confirm": "Write the active blueprint at the current cursor position?"
+        },
+        {
+          "id": "captureAndSave",
+          "label": "Capture and save blueprint",
+          "style": "secondary"
+        }
+      ]
+    },
+    {
+      "label": "Blueprint placement",
+      "description": "Choose the target, paste mode, and rotation, preview placement, and paste the active blueprint.",
+      "tab": true,
+      "settings": [
+        "rotationQuarterTurns",
+        "rotationAxis",
+        "pasteVoxelMode",
+        "targetPropMode",
+        "targetX",
+        "targetY",
+        "targetZ",
+        "targetWorldX",
+        "targetWorldY",
+        "targetWorldZ"
+      ],
+      "actions": [
+        {
+          "id": "markCursorTarget",
+          "label": "Mark paste target",
+          "style": "secondary"
         },
         {
           "id": "pasteVoxels",
@@ -466,11 +431,47 @@
           "id": "previewPaste",
           "label": "Preview placement plan (log only)",
           "style": "secondary"
+        }
+      ]
+    },
+    {
+      "label": "Native entity operations",
+      "description": "Spawn and placement use native game operations.",
+      "tab": true,
+      "settings": [
+        "templateUuidHigh",
+        "templateUuidLow",
+        "trackingId",
+        "entityHandle",
+        "entityX",
+        "entityY",
+        "entityZ",
+        "feedbackId",
+        "boundsMinX",
+        "boundsMinY",
+        "boundsMinZ",
+        "boundsMaxX",
+        "boundsMaxY",
+        "boundsMaxZ"
+      ],
+      "actions": [
+        {
+          "id": "spawnEntity",
+          "label": "Queue prop spawn",
+          "style": "danger",
+          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
         },
         {
-          "id": "undoVoxels",
-          "label": "Undo last world paste",
-          "style": "secondary"
+          "id": "placeEntity",
+          "label": "Place at coordinates",
+          "style": "danger",
+          "confirm": "Dispatch native placement at these coordinates?"
+        },
+        {
+          "id": "destroyEntity",
+          "label": "Destroy at coordinates",
+          "style": "danger",
+          "confirm": "Dispatch native removal at these coordinates?"
         },
         {
           "id": "destroySelectedProp",

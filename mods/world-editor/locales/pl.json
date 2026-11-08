@@ -154,64 +154,14 @@
       "description": "Pozycja jest określana względem okna gry w pikselach logicznych. X = −1 centruje panel. Y mierzone jest od góry. Zmiany obowiązują podczas działania gry."
     },
     {
-      "label": "Ograniczenia edytora świata"
-    },
-    {
-      "label": "Skróty klawiaturowe",
-      "description": "Edytuj skróty tutaj lub w Zgodność → Skróty klawiszowe. Zmiany obowiązują podczas gry. Puste powiązanie wyłącza skrót.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Obróć projekt o 90°"
-        },
-        "undoVoxels": {
-          "label": "Cofa ostatnią pastę"
-        },
-        "markCursorNext": {
-          "label": "Zaznacz następny narożnik wyboru"
-        },
-        "resetEditor": {
-          "label": "Zresetuj / zwolnij zablokowane działanie serwera",
-          "confirm": "Jeśli wklejanie lub cofanie serwera zostanie zatrzymane lub niekompletne, polecenie Reset/release prosi serwer dedykowany o porzucenie go i zwolnienie blokady. Może pozostać częściowy teren lub rekwizyty. Wklejenie odblokowuje się dopiero po potwierdzeniu przez serwer."
-        },
-        "pasteAtCursor": {
-          "label": "Wklej w miejscu kursora",
-          "confirm": "Zapisać aktywny plan w bieżącej pozycji kursora?"
-        },
-        "captureAndSave": {
-          "label": "Przechwyć i zapisz plan"
-        }
-      }
-    },
-    {
-      "label": "Operacje na encji natywnej",
-      "description": "Spawn i rozmieszczenie korzystają z natywnych operacji gry.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Pojawienie się rekwizytów w kolejce",
-          "confirm": "Umieścić w kolejce natywny spawn rekwizytów, używając tych identyfikatorów UUID i wartości śledzenia?"
-        },
-        "placeEntity": {
-          "label": "Miejsce na współrzędnych",
-          "confirm": "Wysłać natywne położenie pod tymi współrzędnymi?"
-        },
-        "destroyEntity": {
-          "label": "Zniszcz we współrzędnych",
-          "confirm": "Wysłać natywne usunięcie pod tymi współrzędnymi?"
-        }
-      }
-    },
-    {
       "label": "Edytor świata",
-      "description": "Przechwytuj plany zawierające woksel i rekwizyty lub tylko rekwizyty, wyświetlaj podgląd, wklejaj i cofaj za pomocą natywnych interfejsów API.",
+      "description": "Przechwytuj woksele i obiekty lub same obiekty oraz zarządzaj zapisanymi projektami.",
       "actions": {
         "markCursorA": {
           "label": "Zaznacz narożnik wyboru A"
         },
         "markCursorB": {
           "label": "Zaznacz narożnik wyboru B"
-        },
-        "markCursorTarget": {
-          "label": "Zaznacz cel wklejenia"
         },
         "clearCursorSelection": {
           "label": "Usuń znaczniki kursora"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "Usuń projekt i obraz",
           "confirm": "Usunąć nazwany projekt i jego obraz z folderu eksportu?"
+        }
+      }
+    },
+    {
+      "label": "Skróty klawiaturowe",
+      "description": "Edytuj skróty tutaj lub w Zgodność → Skróty klawiszowe. Zmiany obowiązują podczas gry. Puste powiązanie wyłącza skrót.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Obróć projekt o 90°"
+        },
+        "undoVoxels": {
+          "label": "Cofa ostatnią pastę"
+        },
+        "markCursorNext": {
+          "label": "Zaznacz następny narożnik wyboru"
+        },
+        "resetEditor": {
+          "label": "Zresetuj / zwolnij zablokowane działanie serwera",
+          "confirm": "Jeśli wklejanie lub cofanie serwera zostanie zatrzymane lub niekompletne, polecenie Reset/release prosi serwer dedykowany o porzucenie go i zwolnienie blokady. Może pozostać częściowy teren lub rekwizyty. Wklejenie odblokowuje się dopiero po potwierdzeniu przez serwer."
+        },
+        "pasteAtCursor": {
+          "label": "Wklej w miejscu kursora",
+          "confirm": "Zapisać aktywny plan w bieżącej pozycji kursora?"
+        },
+        "captureAndSave": {
+          "label": "Przechwyć i zapisz plan"
+        }
+      }
+    },
+    {
+      "label": "Wstawianie",
+      "description": "Wybierz cel, tryb i obrót, wyświetl podgląd, a następnie wstaw aktywny projekt.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Zaznacz cel wklejenia"
         },
         "pasteVoxels": {
           "label": "Wklej aktywny plan",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Podgląd planu rozmieszczenia (tylko log)"
+        }
+      }
+    },
+    {
+      "label": "Operacje na encji natywnej",
+      "description": "Spawn i rozmieszczenie korzystają z natywnych operacji gry.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Pojawienie się rekwizytów w kolejce",
+          "confirm": "Umieścić w kolejce natywny spawn rekwizytów, używając tych identyfikatorów UUID i wartości śledzenia?"
         },
-        "undoVoxels": {
-          "label": "Cofa ostatnie wklejenie świata"
+        "placeEntity": {
+          "label": "Miejsce na współrzędnych",
+          "confirm": "Wysłać natywne położenie pod tymi współrzędnymi?"
+        },
+        "destroyEntity": {
+          "label": "Zniszcz we współrzędnych",
+          "confirm": "Wysłać natywne usunięcie pod tymi współrzędnymi?"
         },
         "destroySelectedProp": {
           "label": "Zniszcz wybrany przedmiot z listy"

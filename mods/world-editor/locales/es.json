@@ -154,64 +154,14 @@
       "description": "La posición es relativa a la ventana del juego en píxeles lógicos. X = −1 centra el panel. Y se mide hacia abajo desde arriba. Los cambios se aplican mientras el juego se está ejecutando."
     },
     {
-      "label": "Límites del editor mundial"
-    },
-    {
-      "label": "Atajos de teclado",
-      "description": "Edite los accesos directos aquí o en Compatibilidad → Teclas de acceso rápido. Los cambios se aplican mientras se juega. Un enlace vacío desactiva un acceso directo.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Girar plano 90°"
-        },
-        "undoVoxels": {
-          "label": "Deshacer el último pegado"
-        },
-        "markCursorNext": {
-          "label": "Marcar siguiente esquina de selección"
-        },
-        "resetEditor": {
-          "label": "Restablecer/liberar operación de servidor atascado",
-          "confirm": "Si un servidor para pegar o deshacer está bloqueado o incompleto, Restablecer/liberar le pide al servidor dedicado que lo abandone y libere su bloqueo. Es posible que queden terrenos o accesorios parciales. Pegar se desbloquea solo después de la confirmación del servidor."
-        },
-        "pasteAtCursor": {
-          "label": "Pegar en el cursor",
-          "confirm": "¿Escribir el plano activo en la posición actual del cursor?"
-        },
-        "captureAndSave": {
-          "label": "Capturar y guardar plano"
-        }
-      }
-    },
-    {
-      "label": "Operaciones de entidades nativas",
-      "description": "La generación y colocación utilizan operaciones nativas del juego.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Generación de accesorios de cola",
-          "confirm": "¿Pone en cola una generación de accesorios nativos utilizando estos UUID y valores de seguimiento?"
-        },
-        "placeEntity": {
-          "label": "Colocar en coordenadas",
-          "confirm": "¿Enviar ubicación nativa en estas coordenadas?"
-        },
-        "destroyEntity": {
-          "label": "Destruir en coordenadas",
-          "confirm": "¿Despachar eliminación nativa en estas coordenadas?"
-        }
-      }
-    },
-    {
       "label": "Editor mundial",
-      "description": "Capture planos de vóxel y accesorios o solo de accesorios, obtenga una vista previa, pegue y deshaga a través de API del mundo nativo.",
+      "description": "Captura terreno y objetos, o solo objetos, y administra los planos guardados.",
       "actions": {
         "markCursorA": {
           "label": "Esquina de selección de marca A"
         },
         "markCursorB": {
           "label": "Esquina de selección de marca B"
-        },
-        "markCursorTarget": {
-          "label": "Marcar objetivo de pegar"
         },
         "clearCursorSelection": {
           "label": "Borrar marcas del cursor"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "Eliminar plano e imagen",
           "confirm": "¿Eliminar el plano nombrado y su imagen de la carpeta de exportación?"
+        }
+      }
+    },
+    {
+      "label": "Atajos de teclado",
+      "description": "Edite los accesos directos aquí o en Compatibilidad → Teclas de acceso rápido. Los cambios se aplican mientras se juega. Un enlace vacío desactiva un acceso directo.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Girar plano 90°"
+        },
+        "undoVoxels": {
+          "label": "Deshacer el último pegado"
+        },
+        "markCursorNext": {
+          "label": "Marcar siguiente esquina de selección"
+        },
+        "resetEditor": {
+          "label": "Restablecer/liberar operación de servidor atascado",
+          "confirm": "Si un servidor para pegar o deshacer está bloqueado o incompleto, Restablecer/liberar le pide al servidor dedicado que lo abandone y libere su bloqueo. Es posible que queden terrenos o accesorios parciales. Pegar se desbloquea solo después de la confirmación del servidor."
+        },
+        "pasteAtCursor": {
+          "label": "Pegar en el cursor",
+          "confirm": "¿Escribir el plano activo en la posición actual del cursor?"
+        },
+        "captureAndSave": {
+          "label": "Capturar y guardar plano"
+        }
+      }
+    },
+    {
+      "label": "Colocación",
+      "description": "Elige el objetivo, el modo y la rotación, previsualiza y coloca el plano activo.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Marcar objetivo de pegar"
         },
         "pasteVoxels": {
           "label": "Pegar plano activo",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Vista previa del plan de ubicación (solo registro)"
+        }
+      }
+    },
+    {
+      "label": "Operaciones de entidades nativas",
+      "description": "La generación y colocación utilizan operaciones nativas del juego.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Generación de accesorios de cola",
+          "confirm": "¿Pone en cola una generación de accesorios nativos utilizando estos UUID y valores de seguimiento?"
         },
-        "undoVoxels": {
-          "label": "Deshacer pegado del último mundo"
+        "placeEntity": {
+          "label": "Colocar en coordenadas",
+          "confirm": "¿Enviar ubicación nativa en estas coordenadas?"
+        },
+        "destroyEntity": {
+          "label": "Destruir en coordenadas",
+          "confirm": "¿Despachar eliminación nativa en estas coordenadas?"
         },
         "destroySelectedProp": {
           "label": "Destruir el accesorio listado seleccionado"

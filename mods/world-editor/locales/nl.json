@@ -154,64 +154,14 @@
       "description": "Positie is relatief ten opzichte van het spelvenster in logische pixels. X = −1 centreert het paneel. Y wordt vanaf de bovenkant gemeten. Wijzigingen zijn van toepassing terwijl het spel actief is."
     },
     {
-      "label": "Limieten voor Wereldeditor"
-    },
-    {
-      "label": "Sneltoetsen",
-      "description": "Bewerk de snelkoppelingen hier of in Compatibiliteit → Sneltoetsen. Wijzigingen zijn van toepassing tijdens het spelen. Een lege binding schakelt een snelkoppeling uit.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Roteer blauwdruk 90°"
-        },
-        "undoVoxels": {
-          "label": "Laatste plakken ongedaan maken"
-        },
-        "markCursorNext": {
-          "label": "Markeer het volgende selectiehoekje"
-        },
-        "resetEditor": {
-          "label": "Vastgelopen serverwerking resetten/vrijgeven",
-          "confirm": "Als het plakken of ongedaan maken van een server vastloopt of onvolledig is, vraagt ​​Reset/release de dedicated server om deze te verlaten en de vergrendeling op te heffen. Gedeeltelijk terrein of rekwisieten mogen achterblijven. Plakken wordt pas ontgrendeld na serverbevestiging."
-        },
-        "pasteAtCursor": {
-          "label": "Plakken bij cursor",
-          "confirm": "De actieve blauwdruk op de huidige cursorpositie schrijven?"
-        },
-        "captureAndSave": {
-          "label": "Blauwdruk vastleggen en opslaan"
-        }
-      }
-    },
-    {
-      "label": "Eigen entiteitsbewerkingen",
-      "description": "Spawn en plaatsing maken gebruik van native spelbewerkingen.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Wachtrij prop spawn",
-          "confirm": "Een native prop-spawn in de wachtrij plaatsen met behulp van deze UUID en trackingwaarden?"
-        },
-        "placeEntity": {
-          "label": "Plaats op coördinaten",
-          "confirm": "Native plaatsing op deze coördinaten verzenden?"
-        },
-        "destroyEntity": {
-          "label": "Vernietig op coördinaten",
-          "confirm": "Native verwijdering op deze coördinaten verzenden?"
-        }
-      }
-    },
-    {
       "label": "Wereldeditor",
-      "description": "Leg voxel-en-prop of alleen-props blauwdrukken vast, bekijk een voorbeeld, plak en maak ongedaan via native wereld-API's.",
+      "description": "Leg voxels en objecten vast, of alleen objecten, en beheer opgeslagen blauwdrukken.",
       "actions": {
         "markCursorA": {
           "label": "Markeer selectiehoek A"
         },
         "markCursorB": {
           "label": "Markeer selectiehoek B"
-        },
-        "markCursorTarget": {
-          "label": "Markeer het plakdoel"
         },
         "clearCursorSelection": {
           "label": "Cursormarkeringen wissen"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "Blauwdruk en afbeelding verwijderen",
           "confirm": "De genoemde blueprint en de bijbehorende afbeelding uit de exportmap verwijderen?"
+        }
+      }
+    },
+    {
+      "label": "Sneltoetsen",
+      "description": "Bewerk de snelkoppelingen hier of in Compatibiliteit → Sneltoetsen. Wijzigingen zijn van toepassing tijdens het spelen. Een lege binding schakelt een snelkoppeling uit.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Roteer blauwdruk 90°"
+        },
+        "undoVoxels": {
+          "label": "Laatste plakken ongedaan maken"
+        },
+        "markCursorNext": {
+          "label": "Markeer het volgende selectiehoekje"
+        },
+        "resetEditor": {
+          "label": "Vastgelopen serverwerking resetten/vrijgeven",
+          "confirm": "Als het plakken of ongedaan maken van een server vastloopt of onvolledig is, vraagt ​​Reset/release de dedicated server om deze te verlaten en de vergrendeling op te heffen. Gedeeltelijk terrein of rekwisieten mogen achterblijven. Plakken wordt pas ontgrendeld na serverbevestiging."
+        },
+        "pasteAtCursor": {
+          "label": "Plakken bij cursor",
+          "confirm": "De actieve blauwdruk op de huidige cursorpositie schrijven?"
+        },
+        "captureAndSave": {
+          "label": "Blauwdruk vastleggen en opslaan"
+        }
+      }
+    },
+    {
+      "label": "Plaatsing",
+      "description": "Kies het doel, de plakmodus en rotatie, bekijk het voorbeeld en plaats de actieve blauwdruk.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Markeer het plakdoel"
         },
         "pasteVoxels": {
           "label": "Actieve blauwdruk plakken",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Voorbeeld plaatsingsplan (alleen log)"
+        }
+      }
+    },
+    {
+      "label": "Eigen entiteitsbewerkingen",
+      "description": "Spawn en plaatsing maken gebruik van native spelbewerkingen.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Wachtrij prop spawn",
+          "confirm": "Een native prop-spawn in de wachtrij plaatsen met behulp van deze UUID en trackingwaarden?"
         },
-        "undoVoxels": {
-          "label": "Laatste wereld plakken ongedaan maken"
+        "placeEntity": {
+          "label": "Plaats op coördinaten",
+          "confirm": "Native plaatsing op deze coördinaten verzenden?"
+        },
+        "destroyEntity": {
+          "label": "Vernietig op coördinaten",
+          "confirm": "Native verwijdering op deze coördinaten verzenden?"
         },
         "destroySelectedProp": {
           "label": "Vernietig geselecteerde vermelde prop"

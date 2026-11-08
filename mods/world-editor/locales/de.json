@@ -154,64 +154,14 @@
       "description": "Die Position bezieht sich auf das Spielfenster in logischen Pixeln. X = −1 zentriert das Fenster. Y wird vom oberen Rand aus gemessen. Änderungen gelten sofort im laufenden Spiel."
     },
     {
-      "label": "Grenzwerte des Welteditors"
-    },
-    {
-      "label": "Tastenkürzel",
-      "description": "Bearbeite die Tastenkürzel hier oder unter Kompatibilität → Hotkeys. Änderungen gelten während des Spielens. Eine leere Belegung deaktiviert das Kürzel.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Bauplan um 90° drehen"
-        },
-        "undoVoxels": {
-          "label": "Letztes Einfügen rückgängig machen"
-        },
-        "markCursorNext": {
-          "label": "Nächste Auswahl-Ecke markieren"
-        },
-        "resetEditor": {
-          "label": "Editor zurücksetzen / blockierten Servervorgang lösen",
-          "confirm": "Wenn ein Server-Einfügen oder Rückgängigmachen hängt oder unvollständig ist, fordert Zurücksetzen den dedizierten Server auf, den Vorgang abzubrechen und seine Sperre freizugeben. Teilweise platzierte Landschaft oder Objekte können bestehen bleiben. Einfügen wird erst nach der Bestätigung des Servers wieder freigegeben."
-        },
-        "pasteAtCursor": {
-          "label": "Am Cursor einfügen",
-          "confirm": "Den aktiven Bauplan an der aktuellen Cursorposition platzieren?"
-        },
-        "captureAndSave": {
-          "label": "Bauplan erfassen und speichern"
-        }
-      }
-    },
-    {
-      "label": "Native Objektaktionen",
-      "description": "Erzeugen und Platzieren verwenden native Spielaktionen.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Objekterzeugung einreihen",
-          "confirm": "Eine native Objekterzeugung mit diesen UUID- und Tracking-Werten einreihen?"
-        },
-        "placeEntity": {
-          "label": "An Koordinaten platzieren",
-          "confirm": "Native Platzierung an diesen Koordinaten ausführen?"
-        },
-        "destroyEntity": {
-          "label": "An Koordinaten zerstören",
-          "confirm": "Natives Entfernen an diesen Koordinaten ausführen?"
-        }
-      }
-    },
-    {
       "label": "Welteditor",
-      "description": "Erfasst Baupläne mit Voxelblöcken und Objekten oder nur mit Objekten, zeigt eine Vorschau an, platziert und macht Änderungen über native Welt-APIs rückgängig.",
+      "description": "Erfasst Voxel und Objekte oder nur Objekte und verwaltet gespeicherte Baupläne.",
       "actions": {
         "markCursorA": {
           "label": "Auswahl-Ecke A markieren"
         },
         "markCursorB": {
           "label": "Auswahl-Ecke B markieren"
-        },
-        "markCursorTarget": {
-          "label": "Einfügeziel markieren"
         },
         "clearCursorSelection": {
           "label": "Cursor-Markierungen löschen"
@@ -246,6 +196,41 @@
         "deleteLibraryBlueprint": {
           "label": "Bauplan und Bild löschen",
           "confirm": "Den benannten Bauplan und sein Bild aus dem Exportordner löschen?"
+        }
+      }
+    },
+    {
+      "label": "Tastenkürzel",
+      "description": "Bearbeite die Tastenkürzel hier oder unter Kompatibilität → Hotkeys. Änderungen gelten während des Spielens. Eine leere Belegung deaktiviert das Kürzel.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Bauplan um 90° drehen"
+        },
+        "undoVoxels": {
+          "label": "Letztes Einfügen rückgängig machen"
+        },
+        "markCursorNext": {
+          "label": "Nächste Auswahl-Ecke markieren"
+        },
+        "resetEditor": {
+          "label": "Editor zurücksetzen / blockierten Servervorgang lösen",
+          "confirm": "Wenn ein Server-Einfügen oder Rückgängigmachen hängt oder unvollständig ist, fordert Zurücksetzen den dedizierten Server auf, den Vorgang abzubrechen und seine Sperre freizugeben. Teilweise platzierte Landschaft oder Objekte können bestehen bleiben. Einfügen wird erst nach der Bestätigung des Servers wieder freigegeben."
+        },
+        "pasteAtCursor": {
+          "label": "Am Cursor einfügen",
+          "confirm": "Den aktiven Bauplan an der aktuellen Cursorposition platzieren?"
+        },
+        "captureAndSave": {
+          "label": "Bauplan erfassen und speichern"
+        }
+      }
+    },
+    {
+      "label": "Platzieren",
+      "description": "Legt Ziel, Einfügemodus und Drehung fest, zeigt eine Vorschau und platziert den aktiven Bauplan.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Einfügeziel markieren"
         },
         "pasteVoxels": {
           "label": "Aktiven Bauplan einfügen",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Platzierungsvorschau (nur Protokoll)"
+        }
+      }
+    },
+    {
+      "label": "Native Objektaktionen",
+      "description": "Erzeugen und Platzieren verwenden native Spielaktionen.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Objekterzeugung einreihen",
+          "confirm": "Eine native Objekterzeugung mit diesen UUID- und Tracking-Werten einreihen?"
         },
-        "undoVoxels": {
-          "label": "Letztes Einfügen in der Welt rückgängig machen"
+        "placeEntity": {
+          "label": "An Koordinaten platzieren",
+          "confirm": "Native Platzierung an diesen Koordinaten ausführen?"
+        },
+        "destroyEntity": {
+          "label": "An Koordinaten zerstören",
+          "confirm": "Natives Entfernen an diesen Koordinaten ausführen?"
         },
         "destroySelectedProp": {
           "label": "Ausgewähltes aufgelistetes Objekt zerstören"
