@@ -10,6 +10,8 @@ import { SettingSwitch } from '../../ui-resources/edit-setting'
 import { ModIcon } from './show-mod-icon'
 import { DependencyList } from './show-mod-dependencies'
 import { ModActionButton } from './run-mod-action'
+import { Segmented } from '../../ui-resources/choose-segment'
+import { useEffect, useState } from 'react'
 import { ModSetting, settingIsEnabled } from './edit-mod-setting'
 import { useModSettings } from './save-mod-settings'
 import linkOrder from '../mod_link_order.json'
@@ -42,6 +44,23 @@ export function ModPage({
       : []),
   ]
   const settings = mod.settings
+  // Groups marked "tab" get their own tab. Unmarked groups share the existing
+  // Settings tab, which is omitted when there are no such groups.
+  const tabGroups = groups.filter((group) => 'tab' in group && group.tab)
+  const settingsGroups = groups.filter((group) => !('tab' in group && group.tab))
+  const defaultTab =
+    settingsGroups.length > 0 || tabGroups.length === 0 ? 'settings' : 'group-0'
+  const [settingsTab, setSettingsTab] = useState(defaultTab)
+  useEffect(() => setSettingsTab(defaultTab), [mod.id, defaultTab])
+  const validTabs = new Set([
+    ...(settingsGroups.length > 0 ? ['settings'] : []),
+    ...tabGroups.map((_, index) => `group-${index}`),
+  ])
+  const activeTab = validTabs.has(settingsTab) ? settingsTab : defaultTab
+  const shownGroups =
+    activeTab === 'settings'
+      ? settingsGroups
+      : [tabGroups[Number(activeTab.slice('group-'.length))]]
   const remove = () => {
     if (window.confirm(t('mod.remove.confirm', { name: mod.name })))
       postRequest('remove-mod', { modId: mod.id })
@@ -174,8 +193,22 @@ export function ModPage({
         </div>
       </section>
       <Card title={t('mod.settings')}>
+        {tabGroups.length > 0 && (
+          <Segmented
+            value={activeTab}
+            onChange={setSettingsTab}
+            items={[
+              ...(settingsGroups.length > 0
+                ? [['settings', t('mod.tab.settings')] as [string, string]]
+                : []),
+              ...tabGroups.map(
+                (group, index) => [`group-${index}`, group.label] as [string, string],
+              ),
+            ]}
+          />
+        )}
         <div className="settings-module-list">
-          {groups.map((group, index) => (
+          {shownGroups.map((group, index) => (
             <section
               className="settings-module mod-settings-section"
               key={`${group.label}-${index}`}
@@ -233,7 +266,7 @@ export function ModPage({
               )}
             </section>
           ))}
-          {groups.length === 0 && (
+          {shownGroups.length === 0 && (
             <p className="hint">{t('mod.settings.empty')}</p>
           )}
         </div>

@@ -44,6 +44,13 @@ export function createManifestValidation({ locale }) {
     const settings = extended.settings || {};
     if (extended.settings !== undefined && (!settings || typeof settings !== "object" || Array.isArray(settings))) fail("extended.mod.json: settings must be an object.");
     const controls = ["toggle", "checkbox", "text", "textarea", "number", "slider", "select", "radio", "segmented", "multiselect", "keybind", "color"];
+    const validOptionLabel = label => {
+      if (typeof label === "string") return label.length >= 1 && label.length <= 120;
+      if (!label || typeof label !== "object" || Array.isArray(label)) return false;
+      return Object.keys(label).every(key => ["label", "group"].includes(key))
+        && typeof label.label === "string" && label.label.length >= 1 && label.label.length <= 120
+        && (label.group === undefined || typeof label.group === "string" && label.group.length >= 1 && label.group.length <= 60);
+    };
     for (const [key, setting] of Object.entries(settings)) {
       if (!/^[A-Za-z0-9._-]{1,80}$/.test(key)) fail(`Setting “${key}”: use 1–80 letters, numbers, dots, hyphens, or underscores.`);
       if (setting && typeof setting === "object" && !Array.isArray(setting)) {
@@ -56,16 +63,18 @@ export function createManifestValidation({ locale }) {
         for (const field of ["min", "max"]) if (setting[field] !== undefined && typeof setting[field] !== "number") fail(`Setting “${key}”: ${field} must be a number.`);
         if (setting.step !== undefined && (typeof setting.step !== "number" || setting.step <= 0)) fail(`Setting “${key}”: step must be greater than zero.`);
         for (const field of ["minLength", "maxLength"]) if (setting[field] !== undefined && (!Number.isInteger(setting[field]) || setting[field] < 0)) fail(`Setting “${key}”: ${field} must be zero or a positive whole number.`);
-        if (setting.options !== undefined && (!setting.options || typeof setting.options !== "object" || Array.isArray(setting.options) || !Object.keys(setting.options).length || Object.values(setting.options).some(value => typeof value !== "string" || !value || value.length > 120))) fail(`Setting “${key}”: options need at least one named choice.`);
+        if (setting.options !== undefined && (!setting.options || typeof setting.options !== "object" || Array.isArray(setting.options) || !Object.keys(setting.options).length)) fail(`Setting “${key}”: options need at least one named choice.`);
+        else if (setting.options !== undefined && Object.values(setting.options).some(value => !validOptionLabel(value))) fail(`Setting “${key}”: each option needs a 1–120 character label and may include a 1–60 character group.`);
       } else if (!["boolean", "string", "number"].includes(typeof setting) && !Array.isArray(setting)) fail(`Setting “${key}” needs a text, number, switch, list, or setting object.`);
     }
     if (extended.groups !== undefined && !Array.isArray(extended.groups)) fail("extended.mod.json: groups must be a list.");
     const groups = Array.isArray(extended.groups) ? extended.groups : [];
     for (const group of groups) {
       if (!group || typeof group !== "object" || Array.isArray(group)) { fail("Each group must be an object."); continue; }
-      checkKeys(group, ["label", "description", "settings", "actions"], "Group");
+      checkKeys(group, ["label", "description", "settings", "actions", "tab"], "Group");
       if (typeof group.label !== "string" || !group.label || group.label.length > 120) fail("Group: label allows 1–120 characters.");
       if (group.description !== undefined && (typeof group.description !== "string" || group.description.length > 500)) fail("Group: description allows up to 500 characters.");
+      if (group.tab !== undefined && typeof group.tab !== "boolean") fail("Group: tab must be true or false.");
       if (group.settings !== undefined && (!Array.isArray(group.settings) || group.settings.some(key => typeof key !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(key) || !(key in settings)) || new Set(group.settings).size !== group.settings.length)) fail("Group: settings must be unique names that exist in the settings list.");
       if (group.actions !== undefined && (!Array.isArray(group.actions) || group.actions.some(action => !action || typeof action !== "object" || Array.isArray(action) || Object.keys(action).some(key => !["id", "label", "style", "confirm"].includes(key)) || typeof action.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(action.id) || typeof action.label !== "string" || !action.label || action.label.length > 120 || (action.style !== undefined && !["primary", "secondary", "danger"].includes(action.style)) || (action.confirm !== undefined && (typeof action.confirm !== "string" || action.confirm.length > 500))))) fail("Group: each action needs an id and label; style and confirmation are optional.");
     }

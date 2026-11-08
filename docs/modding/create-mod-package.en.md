@@ -169,10 +169,12 @@ This valid example creates a text field and places it under the **Greeting** hea
 - `control` chooses the visible input. The supported controls are `toggle`, `checkbox`, `text`, `textarea`, `number`, `slider`, `select`, `radio`, `segmented`, `multiselect`, `keybind`, and `color`.
 - `min`, `max`, and `step` set number limits. `minLength` and `maxLength` set text limits.
 - `options` gives choices to `select`, `radio`, `segmented`, and `multiselect`. List values need `options`. A scalar value with `options` defaults to a select; a list defaults to a multi-select.
+- An option's label can also be an object `{ "label": "Twigs", "group": "Materials" }`. A multi-select whose options carry a `group` shows one tab per group plus **All** above its list. A multi-select with more than 12 options also gets a search field and an "only switched on" filter; the search covers every group.
 - `enabledWhen` disables and dims a setting until another setting has the selected value. For example, `{ "setting": "timeMode", "equals": "fixed" }` keeps a duration slider visible but unavailable while the player chooses original recipe times.
 - `applyAt` labels when the setting takes effect: `live` or `restart`. `restartRequired` must agree with that value. `assetPreparation: true` adds an asset preparation label, so a live setting can show that it also affects the next startup asset pass.
 - A group must list a setting key in `settings` for that setting to appear under the group in the Modloader. Each setting can appear in one group.
 - The optional top-level `presets` object turns a string setting into a preset controller, like a game's Quality choice. Choosing a preset sets each listed setting to that preset's value. Editing one of those settings by hand selects the controller's `custom` value. For example, `"presets": { "quality": { "settings": ["viewRange"], "values": { "low": { "viewRange": 64 }, "high": { "viewRange": 256 } } } }` needs a `quality` setting with the options `low`, `high`, and `custom`.
+- `tab: true` shows a group as its own tab on the mod page, next to a **Settings** tab that holds the other groups. Use it for long or specialised settings, such as a big choice list. Without tab groups the mod page has no tab bar.
 
 Read the value in Lua with the ShroudForge API:
 
@@ -192,6 +194,8 @@ The [extension schema](../../modules/modloader/manifest/extended.mod.schema.json
 When someone changes a setting, the Modloader writes that choice into the mod's own **extended.mod.json**. Updating a mod replaces its package and may reset those choices. Settings migration is not supported.
 
 Packages without **extended.mod.json** are treated as EML; ShroudForge mods always include the extension. For packages with an extension, only an explicit `"launcher": "EML"` preserves the EML badge. The loader writes that marker when it first adds an extension to an EML package; the original **mod.json** stays untouched. `launcher: "SF"` can be written explicitly, but is optional because missing or other values in an existing extension are treated as SF.
+
+The search controls do not change saved setting values. Existing string option labels and groups without `tab` remain valid, so existing mod packages need no migration. A package that uses grouped option objects, `tab: true`, or `optionGroups` in its locale files needs a ShroudForge build that supports those fields because older builds reject them.
 
 ## Groups, buttons, and links
 
