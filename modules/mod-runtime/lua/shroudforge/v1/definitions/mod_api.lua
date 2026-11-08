@@ -90,6 +90,7 @@ function shroudforge_input.was_keybind_pressed(setting_key) end
 --- Alt+1, so that a mod's action keys still work while another of its shortcuts holds Alt.
 --- Modifier names are Ctrl, Alt, Shift and Meta, joined by `+`; nil or `""` clears them.
 --- The setting stays as the player set it; the extra modifiers last until the mod changes them.
+--- A keybind reserved in `inputReservations` is kept from the game with them too.
 --- @param setting_key string Key of this mod's declared keybind setting.
 --- @param modifiers string|nil Extra modifiers, for example `"Alt"` or `"Ctrl+Alt"`.
 function shroudforge_input.set_keybind_extra_modifiers(setting_key, modifiers) end

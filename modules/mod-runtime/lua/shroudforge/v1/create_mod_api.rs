@@ -136,6 +136,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let extra_modifiers = Arc::new(Mutex::new(HashMap::<String, u8>::new()));
     let extra_settings = keybind_settings.clone();
     let extra_set = extra_modifiers.clone();
+    let extra_mod = mod_id.clone();
     input.raw_set(
         "set_keybind_extra_modifiers",
         lua.create_function(move |_, (key, modifiers): (String, Option<String>)| {
@@ -146,6 +147,8 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             }
             let bits = shroudforge_hotkeys::parse_modifiers(modifiers.as_deref().unwrap_or(""))
                 .map_err(mlua::Error::runtime)?;
+            // A reserved keybind is kept from the game with them too.
+            super::reserve_mod_input::set_reserved_extra_modifiers(&extra_mod, &key, bits);
             if let Ok(mut extra) = extra_set.lock() {
                 if bits == 0 {
                     extra.remove(&key);

@@ -21,6 +21,8 @@ struct ModReservations {
     watched: Vec<String>,
     /// What the filter has, to send it again only after a change.
     applied: Option<String>,
+    /// Modifiers each keybind also accepts (set_keybind_extra_modifiers).
+    extra: HashMap<String, u8>,
 }
 
 static MOD_RESERVATIONS: Mutex<Option<HashMap<String, ModReservations>>> = Mutex::new(None);
@@ -35,7 +37,10 @@ pub(crate) fn register_input_reservations(
     let Ok(mut guard) = MOD_RESERVATIONS.lock() else {
         return;
     };
-    guard.get_or_insert_with(HashMap::new).insert(
+    let all = guard.get_or_insert_with(HashMap::new);
+    // A padlock changed: the extra modifiers set by the mod stay.
+    let extra = all.get(mod_id).map(|kept| kept.extra.clone()).unwrap_or_default();
+    all.insert(
         mod_id.to_owned(),
         ModReservations {
             settings: settings.to_vec(),
@@ -53,8 +58,28 @@ pub(crate) fn register_input_reservations(
                 })
                 .collect(),
             applied: None,
+            extra,
         },
     );
+}
+
+/// The modifiers the keybind `key` of `mod_id` also accepts (0: none): its
+/// reservation follows them at the mod's next report.
+pub(crate) fn set_reserved_extra_modifiers(mod_id: &str, key: &str, modifiers: u8) {
+    if let Ok(mut guard) = MOD_RESERVATIONS.lock()
+        && let Some(reservations) = guard.as_mut().and_then(|all| all.get_mut(mod_id))
+    {
+        let previous = reservations.extra.get(key).copied().unwrap_or(0);
+        if previous == modifiers {
+            return;
+        }
+        if modifiers == 0 {
+            reservations.extra.remove(key);
+        } else {
+            reservations.extra.insert(key.to_owned(), modifiers);
+        }
+        reservations.applied = None;
+    }
 }
 
 /// Gives the game back what `mod_id` reserved (the mod stopped), and forgets
@@ -123,6 +148,7 @@ fn send_reservations(lua: &mlua::Lua, mod_id: &str) -> mlua::Result<()> {
                     keys.push(ReservedKey {
                         context: reserve.when.clone(),
                         hotkey,
+                        extra_modifiers: reservations.extra.get(&setting.key).copied().unwrap_or(0),
                     });
                 }
             }

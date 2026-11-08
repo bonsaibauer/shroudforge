@@ -25,11 +25,14 @@ pub const CONTEXT_LEASE: Duration = Duration::from_millis(1000);
 const NEVER_RESERVED: [u16; 3] = [41, 66, 67];
 
 /// A keybind kept from the game while `context` is active: only the chords of
-/// the devices the player left padlocked.
+/// the devices the player left padlocked, also with its `extra_modifiers`
+/// (bits) held in addition to its own, as the mod reads it
+/// (set_keybind_extra_modifiers).
 #[derive(Clone, Debug)]
 pub struct ReservedKey {
     pub context: String,
     pub hotkey: Hotkey,
+    pub extra_modifiers: u8,
 }
 
 /// A mouse wheel read by a mod through the boolean setting `setting` while
@@ -176,7 +179,12 @@ fn reserved_now(trigger: Trigger, modifiers: u8, now: Instant) -> bool {
             owner.keys.iter().any(|key| {
                 owner.active(&key.context, now)
                     && key.hotkey.chords.iter().any(|chord| {
-                        chord.trigger == trigger && chord.required_modifiers() == modifiers
+                        chord.trigger == trigger
+                            && crate::observe_keyboard::modifiers_match(
+                                modifiers,
+                                chord.required_modifiers(),
+                                key.extra_modifiers,
+                            )
                     })
             })
         })
@@ -276,6 +284,7 @@ mod tests {
             vec![ReservedKey {
                 context: context.into(),
                 hotkey: parse_hotkey(binding).unwrap().unwrap(),
+                extra_modifiers: 0,
             }],
             vec![ReadWheel {
                 setting: "wheelDistance".into(),
@@ -286,6 +295,27 @@ mod tests {
     }
 
     // One test: the reservations are process-wide.
+
+    #[test]
+    fn a_reserved_key_follows_its_extra_modifiers() {
+        set_reserved_input(
+            "extra",
+            vec![ReservedKey {
+                context: "free".into(),
+                hotkey: parse_hotkey("SDL:30").unwrap().unwrap(),
+                extra_modifiers: 2,
+            }],
+            Vec::new(),
+        );
+        let now = Instant::now();
+        set_input_context_at("extra", "free", true, now);
+        let mut kept = KeptPresses::new();
+        assert!(kept.key_at(30, true, 2, now), "Alt+1 kept: 1 accepts Alt");
+        assert!(kept.key_at(30, false, 2, now), "its release kept too");
+        assert!(kept.key_at(30, true, 0, now), "1 kept");
+        assert!(!KeptPresses::new().key_at(30, true, 1, now), "Ctrl+1 is not 1 with Alt");
+        release_reserved_input("extra");
+    }
     #[test]
     fn keeps_reserved_input_while_its_context_is_leased() {
         key("a", "SDL:30|Mouse:4", "hammer");
