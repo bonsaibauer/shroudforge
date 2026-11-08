@@ -2,6 +2,7 @@
 #include "ecs/entity_session.h"
 #include "loaded-resources/loaded_resource_access.h"
 #include "main-menu/native_main_menu.h"
+#include "voxels/write_registered_voxel_grid.h"
 #include <windows.h>
 #include <algorithm>
 #include <cstring>
@@ -37,6 +38,7 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimeInitialize() {
 KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
     NativeMainMenu::Tick();
     try { EcsRuntime::Tick(); } catch (...) { EcsRuntime::Shutdown(); }
+    WorldRuntime::RegisteredVoxelGrid::PrepareWriter();
     static ULONGLONG next_resource_profile_retry{};
     const auto now = GetTickCount64();
     if (!ResourceRuntime::ProfileLoaded() && now >= next_resource_profile_retry) {
@@ -47,6 +49,7 @@ KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
 
 KFC_RUNTIME_API void __cdecl KfcRuntimeShutdown() {
     provider_initialized.store(false, std::memory_order_release);
+    WorldRuntime::RegisteredVoxelGrid::StopPreparingWriter();
     KfcRuntimeNetworkServiceShutdown();
     NativeMainMenu::Shutdown();
     ResourceRuntime::Shutdown();

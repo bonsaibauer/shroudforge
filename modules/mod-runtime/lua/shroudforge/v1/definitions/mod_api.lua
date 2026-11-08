@@ -124,8 +124,29 @@ function shroudforge_native.functions() end
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 --- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
---- @field native ShroudForgeNative Call functions registered by this mod's own native DLLs.
+--- @field contents ShroudForgeContents Read game content ranges asynchronously. Each request is limited to 32 MiB, with at most four outstanding reads per runtime.
+--- @field native ShroudForgeNative Call functions registered by this mod's own native DLLs. Available since ShroudForge 1.8.0.
 shroudforge = {}
+
+--- @class ShroudForgeContentReadJob
+local ShroudForgeContentReadJob = {}
+--- Nil until the read is done, then `{data = bytes, seconds = read time}`, or `{error = text}`.
+--- @return table?
+function ShroudForgeContentReadJob:result() end
+
+--- @class ShroudForgeContents
+shroudforge.contents = {}
+
+--- Read a game content range (for example, texture levels) on a background thread and poll the
+--- returned job during later updates. Each request is limited to 32 MiB. At most four jobs may be
+--- outstanding per runtime. A completed result counts until `result()` is read or the job is
+--- released. Split larger reads into ranges. `hash` is a content hash as a resource holds it
+--- (`texture.content.hash`), or `{size, hash0, hash1, hash2}`. `start` is the first byte (0) and
+--- `count` is the number of bytes (to the end). Invalid ranges return an error. This reads game
+--- file contents only, not contents created by mods.
+--- @param params {hash: any, start: integer?, count: integer?}
+--- @return ShroudForgeContentReadJob
+function shroudforge.contents.read(params) end
 
 --- Language the player chose for ShroudForge in the Modloader, such as `"en"`,
 --- `"de"`, `"fr"` or a regional variant such as `"de-AT"`; `"en"` when the

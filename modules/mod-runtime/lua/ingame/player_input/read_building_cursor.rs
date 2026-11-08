@@ -1,5 +1,19 @@
 use super::*;
 
+/// Publishes reflection-derived offsets before a native DLL asks for its first
+/// camera sample; it does not depend on the Lua cursor getter being called.
+pub(crate) fn publish_local_camera_layout(state: &AppState) {
+    let Some(metadata) = state
+        .type_registry()
+        .get_by_name(kfc::reflection::LookupKey::Qualified(
+            "keen::ecs::ClientPlayerInput",
+        ))
+    else {
+        return;
+    };
+    share_local_camera_layout(state, metadata.index, metadata.size as usize);
+}
+
 pub(crate) fn lua_world_cursor_get(
     lua: &mlua::Lua,
     args: FunctionArgs,
@@ -199,9 +213,18 @@ fn reflected_local_cursor(lua: &mlua::Lua, state: &AppState) -> Result<mlua::Tab
         .map_err(|error| error.to_string())?;
     // The local player's camera, from the same input snapshot. Left out when
     // this game's layout has no such fields: the cursor stays readable.
-    if let Ok(camera) = reflected_local_camera(lua, state, metadata.index, metadata.size as usize, &bytes) {
+    if let Ok(camera) =
+        reflected_local_camera(lua, state, metadata.index, metadata.size as usize, &bytes)
+    {
         value
             .raw_set("camera", camera)
+            .map_err(|error| error.to_string())?;
+    }
+    // The local player's state flags from the same input snapshot. Left out
+    // when this game's layout has no such field: the cursor stays readable.
+    if let Ok(flags) = reflected_player_state_mask(lua, state, metadata.index, &bytes) {
+        value
+            .raw_set("playerStateMask", flags)
             .map_err(|error| error.to_string())?;
     }
     let result = lua.create_table().map_err(|error| error.to_string())?;
@@ -225,6 +248,7 @@ fn reflected_local_camera(
     component_size: usize,
     bytes: &[u8],
 ) -> Result<mlua::Table, String> {
+    // Retry if the native provider was not ready when the runtime API was created.
     share_local_camera_layout(state, root, component_size);
     let field = |path: &str| -> Result<LuaValue, String> {
         state
@@ -268,23 +292,36 @@ fn reflected_local_camera(
     Ok(camera)
 }
 
-// The native runtime reads the camera for the game overlay at every frame,
-// at the byte offsets the reflection gives: sent once per component size.
-fn share_local_camera_layout(state: &AppState, root: kfc::reflection::TypeIndex, component_size: usize) {
+// The native DLL reader uses this layout against the same owned input sample
+// as the Lua cursor snapshot. Keep every offset sourced from reflection here.
+fn share_local_camera_layout(
+    state: &AppState,
+    root: kfc::reflection::TypeIndex,
+    component_size: usize,
+) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static SENT: AtomicUsize = AtomicUsize::new(0);
     if SENT.load(Ordering::Relaxed) == component_size {
         return;
     }
-    // The camera, then the building cursor's transform and flags: the overlay
-    // also draws the aimed face at every frame.
     let paths = [
-        "camera.position.x", "camera.position.y", "camera.position.z", "camera.orientation.x",
-        "camera.orientation.y", "camera.orientation.z", "camera.orientation.w", "camera.fovY",
-        "camera.aspectRatio", "cursorInput.primaryTransform.position.x", "cursorInput.primaryTransform.position.y",
-        "cursorInput.primaryTransform.position.z", "cursorInput.primaryTransform.orientation.x",
-        "cursorInput.primaryTransform.orientation.y", "cursorInput.primaryTransform.orientation.z",
-        "cursorInput.primaryTransform.orientation.w", "cursorInput.primaryFlags",
+        "camera.position.x",
+        "camera.position.y",
+        "camera.position.z",
+        "camera.orientation.x",
+        "camera.orientation.y",
+        "camera.orientation.z",
+        "camera.orientation.w",
+        "camera.fovY",
+        "camera.aspectRatio",
+        "cursorInput.primaryTransform.position.x",
+        "cursorInput.primaryTransform.position.y",
+        "cursorInput.primaryTransform.position.z",
+        "cursorInput.primaryTransform.orientation.x",
+        "cursorInput.primaryTransform.orientation.y",
+        "cursorInput.primaryTransform.orientation.z",
+        "cursorInput.primaryTransform.orientation.w",
+        "cursorInput.primaryFlags",
     ];
     let mut offsets = Vec::with_capacity(paths.len() + 1);
     for path in paths {
@@ -293,7 +330,6 @@ fn share_local_camera_layout(state: &AppState, root: kfc::reflection::TypeIndex,
             Err(_) => return,
         }
     }
-    // The flags' width (8, 16 or 32 bits as reflected).
     match state.inline_field(root, "data.cursorInput.primaryFlags") {
         Ok(field) => offsets.push(field.byte_range().len() as u32),
         Err(_) => return,
@@ -301,6 +337,80 @@ fn share_local_camera_layout(state: &AppState, root: kfc::reflection::TypeIndex,
     if runtime_provider::set_local_camera_layout(component_size, &offsets) {
         SENT.store(component_size, Ordering::Relaxed);
     }
+}
+
+// The state flags the local client sends with its input (data.mask, a
+// keen::ecs::ClientPlayerStateMask), by name as the value codec gives a
+// bitmask: bit n is the enum value n; a set bit without a name keeps its
+// number as a string. PlayerInput.fromClient.mask holds the same flags in the
+// authority world, which a player who joined cannot read.
+fn reflected_player_state_mask(
+    lua: &mlua::Lua,
+    state: &AppState,
+    root: kfc::reflection::TypeIndex,
+    bytes: &[u8],
+) -> Result<mlua::Table, String> {
+    let registry = state.type_registry();
+    let field = state.inline_field(root, "data.mask")?;
+    let mut ty = registry
+        .get(field.type_index())
+        .ok_or("local player state type is unresolved")?;
+    for _ in 0..64 {
+        if ty.primitive_type != PrimitiveType::Typedef {
+            break;
+        }
+        ty = ty
+            .inner_type
+            .and_then(|index| registry.get(index))
+            .ok_or("local player state storage is unresolved")?;
+    }
+    let width = match ty.primitive_type {
+        PrimitiveType::Bitmask8 => 1,
+        PrimitiveType::Bitmask16 => 2,
+        PrimitiveType::Bitmask32 => 4,
+        PrimitiveType::Bitmask64 => 8,
+        _ => return Err("local player state is not a bitmask".into()),
+    };
+    let mut bits = ty
+        .inner_type
+        .and_then(|index| registry.get(index))
+        .ok_or("local player state flags are unresolved")?;
+    for _ in 0..64 {
+        if bits.primitive_type != PrimitiveType::Typedef {
+            break;
+        }
+        bits = bits
+            .inner_type
+            .and_then(|index| registry.get(index))
+            .ok_or("local player state flags are unresolved")?;
+    }
+    let source = bytes
+        .get(field.byte_range())
+        .filter(|source| source.len() == width)
+        .ok_or("local player state exceeds its reflected snapshot")?;
+    let mut raw = [0u8; 8];
+    raw[..width].copy_from_slice(source);
+    let mut value = u64::from_le_bytes(raw);
+    let flags = lua.create_table().map_err(|error| error.to_string())?;
+    let mut count = 0;
+    for flag in bits.enum_fields.values() {
+        if flag.value < 64 && value & (1 << flag.value) != 0 {
+            value &= !(1 << flag.value);
+            count += 1;
+            flags
+                .raw_set(count, flag.name.as_str())
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    for bit in 0..64u64 {
+        if value & (1 << bit) != 0 {
+            count += 1;
+            flags
+                .raw_set(count, bit.to_string())
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(flags)
 }
 
 // Cursor snapshots expose numeric flags/enums for compatibility. The general

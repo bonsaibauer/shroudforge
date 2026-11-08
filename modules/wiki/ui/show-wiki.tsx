@@ -3,8 +3,10 @@ import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
 import { PageHeader } from '../../ui-resources/show-page-header'
+import type { CommandResult } from '../../notifications/ui/notification-types'
 import {
   loadWikiArticle,
+  getCachedWikiArticleRefreshDelay,
   mergeWikiPages,
   readCachedWikiArticle,
   readCachedWikiSearch,
@@ -19,6 +21,7 @@ import {
   type WikiPageSummary,
 } from '../mediawiki-api'
 import { WikiArticle, WikiArtwork } from './show-wiki-article'
+import { WikiActions } from './show-wiki-actions'
 
 function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
@@ -28,10 +31,12 @@ export function WikiPage({
   selectedArticleId,
   onSelectArticle,
   moduleSettings,
+  notifyCommandResult,
 }: {
   selectedArticleId: string | null
   onSelectArticle(articleId: string | null): void
   moduleSettings?: WikiModuleSettings
+  notifyCommandResult(result: CommandResult): void
 }) {
   const { t, locale } = useI18n()
   const apiSettings = resolveWikiApiSettings(moduleSettings)
@@ -55,6 +60,9 @@ export function WikiPage({
   const pagesRef = useRef<WikiPageSummary[]>([])
   const continuationRef = useRef<Record<string, string> | undefined>(undefined)
   const listController = useRef<AbortController | undefined>(undefined)
+  const manualRefresh = useRef<(() => Promise<void>) | undefined>(undefined)
+  const handledListRetryAttempt = useRef(0)
+  const handledArticleRetryAttempt = useRef(0)
   const opened = useRef(false)
   const loadingMore = useRef(false)
   const refreshingList = useRef(false)
@@ -75,12 +83,16 @@ export function WikiPage({
       setRefreshingPages(false)
       return
     }
+    const forceRefresh = listRetryAttempt !== handledListRetryAttempt.current
+    handledListRetryAttempt.current = listRetryAttempt
     refreshingList.current = false
     setRefreshingPages(false)
     let active = true
     const controller = new AbortController()
     listController.current = controller
     const cached = readCachedWikiSearch(filter, locale, apiSettings.maxResultsPerQuery)
+    const cacheIsFresh = Boolean(cached && !forceRefresh &&
+      Date.now() - cached.savedAt < apiSettings.refreshIntervalMs)
     if (cached) {
       pagesRef.current = cached.pages
       setPages(cached.pages)
@@ -96,13 +108,13 @@ export function WikiPage({
     }
     setListFailed(false)
     setLoadMoreFailed(false)
-    setLoadingPages(true)
+    setLoadingPages(!cacheIsFresh)
     const firstPageLimit = Math.min(
       apiSettings.pageSize,
       apiSettings.maxResultsPerQuery,
     )
 
-    const timer = window.setTimeout(() => {
+    const timer = cacheIsFresh ? undefined : window.setTimeout(() => {
       void searchWikiPages(filter, undefined, controller.signal, firstPageLimit)
         .then((result) => {
           if (!active) return
@@ -128,51 +140,64 @@ export function WikiPage({
         })
     }, filter ? WIKI_API_SETTINGS.searchDebounceMs : 0)
 
-    const refreshList = () => {
-      if (loadingMore.current || refreshingList.current || controller.signal.aborted) return
+    const refreshList = async (manual = false) => {
+      if (loadingMore.current || refreshingList.current || controller.signal.aborted) {
+        if (manual) throw new Error(t('wiki.loadFailed'))
+        return
+      }
       refreshingList.current = true
       setRefreshingPages(true)
-      void searchWikiPages(filter, undefined, controller.signal, firstPageLimit)
-        .then(async (result) => {
-          if (!active) return
-          const refreshedTitles = new Set(result.pages.map((page) => page.pageTitle.toLowerCase()))
-          const loadedTail = pagesRef.current.filter((page) =>
-            page.id.startsWith('mediawiki:') && !refreshedTitles.has(page.pageTitle.toLowerCase()),
-          )
-          const hasLoadedTail = loadedTail.length > 0
-          const refreshedTail = await refreshWikiPageSummaries(loadedTail, controller.signal)
-          if (!active) return
-          const next = mergeWikiPages(result.pages, refreshedTail).slice(0, apiSettings.maxResultsPerQuery)
-          pagesRef.current = next
-          setPages(next)
-          const nextContinuation = next.length >= apiSettings.maxResultsPerQuery
-            ? undefined
-            : hasLoadedTail ? continuationRef.current : result.continuation
-          setContinuation(nextContinuation)
-          continuationRef.current = nextContinuation
-          setListFailed(false)
-          writeCachedWikiSearch(filter, locale, next, nextContinuation, apiSettings.maxResultsPerQuery)
-        })
-        .catch((error: unknown) => {
-          if (!active || isAbort(error)) return
-          setListFailed(true)
-          logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Refresh MediaWiki pages',
-            subject: filter || 'all-pages', message: String(error) })
-        })
-        .finally(() => {
-          refreshingList.current = false
-          if (active) setRefreshingPages(false)
-        })
+      try {
+        const result = await searchWikiPages(filter, undefined, controller.signal, firstPageLimit)
+        if (!active) return
+        const refreshedTitles = new Set(result.pages.map((page) => page.pageTitle.toLowerCase()))
+        const loadedTail = pagesRef.current.filter((page) =>
+          page.id.startsWith('mediawiki:') && !refreshedTitles.has(page.pageTitle.toLowerCase()),
+        )
+        const hasLoadedTail = loadedTail.length > 0
+        const refreshedTail = await refreshWikiPageSummaries(loadedTail, controller.signal)
+        if (!active) return
+        const next = mergeWikiPages(result.pages, refreshedTail).slice(0, apiSettings.maxResultsPerQuery)
+        pagesRef.current = next
+        setPages(next)
+        const nextContinuation = next.length >= apiSettings.maxResultsPerQuery
+          ? undefined
+          : hasLoadedTail ? continuationRef.current : result.continuation
+        setContinuation(nextContinuation)
+        continuationRef.current = nextContinuation
+        setListFailed(false)
+        writeCachedWikiSearch(filter, locale, next, nextContinuation, apiSettings.maxResultsPerQuery)
+      } catch (error) {
+        if (!active || isAbort(error)) return
+        setListFailed(true)
+        if (manual) throw error
+        logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Refresh MediaWiki pages',
+          subject: filter || 'all-pages', message: String(error) })
+      } finally {
+        refreshingList.current = false
+        if (active) setRefreshingPages(false)
+      }
     }
-    const interval = window.setInterval(refreshList, apiSettings.refreshIntervalMs)
+    const refreshManually = () => refreshList(true)
+    manualRefresh.current = refreshManually
+    let interval: number | undefined
+    const refreshDelayMs = cacheIsFresh && cached
+      ? Math.max(0, cached.savedAt + apiSettings.refreshIntervalMs - Date.now())
+      : apiSettings.refreshIntervalMs
+    const refreshTimer = window.setTimeout(() => {
+      refreshList()
+      interval = window.setInterval(refreshList, apiSettings.refreshIntervalMs)
+    }, refreshDelayMs)
 
     return () => {
       active = false
-      window.clearTimeout(timer)
+      if (timer !== undefined) window.clearTimeout(timer)
+      window.clearTimeout(refreshTimer)
       controller.abort()
       refreshingList.current = false
+      if (manualRefresh.current === refreshManually) manualRefresh.current = undefined
       if (listController.current === controller) listController.current = undefined
-      window.clearInterval(interval)
+      if (interval !== undefined) window.clearInterval(interval)
     }
   }, [apiSettings.enabled, apiSettings.maxResultsPerQuery, apiSettings.pageSize, apiSettings.refreshIntervalMs, filter, listRetryAttempt, locale, selected, t])
 
@@ -227,6 +252,8 @@ export function WikiPage({
       setArticleRefreshFailedReference(undefined)
       return
     }
+    const forceRefresh = articleRetryAttempt !== handledArticleRetryAttempt.current
+    handledArticleRetryAttempt.current = articleRetryAttempt
 
     let active = true
     const controller = new AbortController()
@@ -245,7 +272,7 @@ export function WikiPage({
     setArticleFailedReference(undefined)
     setArticleRefreshFailedReference(undefined)
 
-    const refresh = async (revalidate = false) => {
+    const refresh = async (revalidate = false, manual = false) => {
       try {
         const remote = await loadWikiArticle(selected, locale, known, controller.signal, revalidate)
         if (!active) return
@@ -258,6 +285,7 @@ export function WikiPage({
           lastArticleFailure.current = ''
         } else if (!hasCachedArticle) {
           setArticleFailedReference(selected)
+          if (manual) throw new Error(t('wiki.loadFailed'))
           if (lastArticleFailure.current !== articleKey) {
             lastArticleFailure.current = articleKey
             logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Load MediaWiki article',
@@ -266,6 +294,7 @@ export function WikiPage({
           }
         } else {
           setArticleRefreshFailedReference(selected)
+          if (manual) throw new Error(t('wiki.loadFailed'))
           if (lastArticleFailure.current !== articleKey) {
             lastArticleFailure.current = articleKey
             logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Refresh MediaWiki article',
@@ -276,6 +305,7 @@ export function WikiPage({
         if (!active || isAbort(error)) return
         if (!hasCachedArticle) setArticleFailedReference(selected)
         else setArticleRefreshFailedReference(selected)
+        if (manual) throw error
         if (lastArticleFailure.current !== articleKey) {
           lastArticleFailure.current = articleKey
           logUiEvent({ level: hasCachedArticle ? 'WARN' : 'ERROR', source: 'wiki', operation: 'Load MediaWiki article',
@@ -284,13 +314,29 @@ export function WikiPage({
         }
       }
     }
+    const refreshManually = () => refresh(true, true)
+    manualRefresh.current = refreshManually
 
-    void refresh()
-    const interval = window.setInterval(() => void refresh(true), apiSettings.refreshIntervalMs)
+    const cachedRefreshDelay = cached
+      ? getCachedWikiArticleRefreshDelay(cached.pageTitle, apiSettings.refreshIntervalMs)
+      : undefined
+    const cachedFresh = Boolean(cached && !forceRefresh && cachedRefreshDelay &&
+      (!known || cached.revisionId === known.revisionId))
+    if (!cachedFresh || forceRefresh) void refresh(forceRefresh)
+    let interval: number | undefined
+    const refreshDelayMs = cachedFresh && cachedRefreshDelay !== undefined
+      ? cachedRefreshDelay
+      : apiSettings.refreshIntervalMs
+    const refreshTimer = window.setTimeout(() => {
+      void refresh(true)
+      interval = window.setInterval(() => void refresh(true), apiSettings.refreshIntervalMs)
+    }, refreshDelayMs)
     return () => {
       active = false
       controller.abort()
-      window.clearInterval(interval)
+      window.clearTimeout(refreshTimer)
+      if (interval !== undefined) window.clearInterval(interval)
+      if (manualRefresh.current === refreshManually) manualRefresh.current = undefined
     }
   }, [apiSettings.enabled, apiSettings.refreshIntervalMs, selected, locale, articleRetryAttempt, t])
 
@@ -325,7 +371,12 @@ export function WikiPage({
   }
 
   return <>
-    <PageHeader eyebrow={t('nav.modloader')} title={t('nav.wiki')} subtitle={t('wiki.subtitle')} />
+    <PageHeader eyebrow={t('nav.modloader')} title={t('nav.wiki')} subtitle={t('wiki.subtitle')}
+      actions={<WikiActions
+        notifyCommandResult={notifyCommandResult}
+        refreshDisabled={!apiSettings.enabled || (!selected && (loadingPages || refreshingPages))}
+        onRefresh={() => manualRefresh.current?.() || Promise.reject(new Error(t('wiki.loadFailed')))}
+      />} />
     {!apiSettings.enabled ? <p className="builder-notice warning" role="status">{t('settings.moduleUnavailable')}</p>
       : selected ? currentArticle ? <>
       <WikiArticle article={currentArticle} onOpenWikiArticle={(pageTitle) => selectArticle(pageTitle)}>

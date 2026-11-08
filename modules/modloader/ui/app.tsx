@@ -379,6 +379,7 @@ export function App() {
                 data={data}
                 settings={settings}
                 setSettings={setSettings}
+                notifyCommandResult={notifyCommandResult}
                 news={news}
                 wikiArticleId={selectedWikiArticle}
                 selectWikiArticle={setSelectedWikiArticle}
