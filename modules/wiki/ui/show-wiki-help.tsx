@@ -4,6 +4,7 @@ import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
 import {
   loadWikiArticle,
+  getCachedWikiArticleRefreshDelay,
   readCachedWikiArticleForReference,
   resolveWikiApiSettings,
   type MediaWikiArticle,
@@ -30,6 +31,7 @@ export function WikiHelp({ articleId, compact = false, moduleSettings }: {
   const [refreshFailed, setRefreshFailed] = useState(false)
   const [retryAttempt, setRetryAttempt] = useState(0)
   const lastFailure = useRef('')
+  const handledRetryAttempt = useRef(0)
   const disabledLogged = useRef(false)
   useEffect(() => {
     if (!apiSettings.enabled) {
@@ -44,10 +46,16 @@ export function WikiHelp({ articleId, compact = false, moduleSettings }: {
       setRefreshFailed(false)
       return
     }
+    const forceRefresh = retryAttempt !== handledRetryAttempt.current
+    handledRetryAttempt.current = retryAttempt
     disabledLogged.current = false
     let active = true
     const controller = new AbortController()
     const cached = readCachedWikiArticleForReference(articleId, locale)
+    const cachedRefreshDelay = cached
+      ? getCachedWikiArticleRefreshDelay(cached.pageTitle, apiSettings.refreshIntervalMs)
+      : undefined
+    const cacheIsFresh = Boolean(cached && !forceRefresh && cachedRefreshDelay)
     let hasCachedArticle = Boolean(cached)
     lastFailure.current = ''
     setArticle(cached)
@@ -95,12 +103,20 @@ export function WikiHelp({ articleId, compact = false, moduleSettings }: {
       }
     }
 
-    void refresh()
-    const interval = window.setInterval(() => void refresh(true), apiSettings.refreshIntervalMs)
+    if (!cacheIsFresh || forceRefresh) void refresh(forceRefresh)
+    let interval: number | undefined
+    const refreshDelayMs = cacheIsFresh && cachedRefreshDelay !== undefined
+      ? cachedRefreshDelay
+      : apiSettings.refreshIntervalMs
+    const refreshTimer = window.setTimeout(() => {
+      void refresh(true)
+      interval = window.setInterval(() => void refresh(true), apiSettings.refreshIntervalMs)
+    }, refreshDelayMs)
     return () => {
       active = false
       controller.abort()
-      window.clearInterval(interval)
+      window.clearTimeout(refreshTimer)
+      if (interval !== undefined) window.clearInterval(interval)
     }
   }, [apiSettings.enabled, apiSettings.refreshIntervalMs, articleId, locale, retryAttempt, t])
   function showHelp(nextVisible: boolean, nextExpanded: boolean) {

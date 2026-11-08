@@ -6,6 +6,7 @@ pub mod documents;
 mod initialize_loader_settings;
 mod lock_installation;
 mod migrate_legacy_toggle_key_settings;
+mod migrate_wiki_refresh_interval;
 #[path = "resolve_installation_paths.rs"]
 pub mod paths;
 mod publish_modloader_client_pid;
@@ -46,6 +47,7 @@ pub mod config {
     pub use crate::initialize_loader_settings::*;
     pub use crate::lock_installation::*;
     pub use crate::migrate_legacy_toggle_key_settings::*;
+    pub use crate::migrate_wiki_refresh_interval::*;
     pub use crate::publish_modloader_client_pid::*;
     pub use crate::publish_window_visibility::*;
     pub use crate::read_document::*;
