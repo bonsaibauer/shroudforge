@@ -52,15 +52,15 @@ Viele Spiele bieten eine Qualitätsauswahl wie Niedrig, Mittel oder Hoch, die me
 
 | Feld | Typ | Bedeutung |
 | --- | --- | --- |
-| Schlüssel in `presets` | String | Schlüssel der steuernden Einstellung. Sie muss in `settings` stehen und einen String enthalten. |
-| `custom` | String · optional | Wert des steuernden Felds für von Hand angepasste Einstellungen. Standard: `custom`. Hat das steuernde Feld `options`, muss dieser Wert eine davon sein. |
+| Schlüssel in `presets` | String | Schlüssel der steuernden Einstellung. Sie muss in `settings` stehen, einen String enthalten und `options` mit einer vorhandenen Auswahlsteuerung (`select`, `radio` oder `segmented`) verwenden. Fehlt `control`, verwendet `options` standardmäßig die vorhandene `select`-Steuerung. |
+| `custom` | String · optional | Wert des steuernden Felds für von Hand angepasste Einstellungen. Standard: `custom`. Dieser Wert muss eine der Optionen des steuernden Felds sein. |
 | `settings` | Liste von Strings | Schlüssel der Einstellungen, die die Voreinstellung setzt. Mindestens einer. |
 | `values` | Objekt | Ein Eintrag pro Voreinstellung, mit dem Wert des steuernden Felds als Schlüssel. Jeder Eintrag gibt jedem Schlüssel aus `settings` einen Wert und keinem anderen. |
 
 ## Vom Paketleser geprüfte Regeln
 
 - Die Einstellungen einer Voreinstellung müssen existieren. Sie dürfen weder das steuernde Feld selbst noch das steuernde Feld einer anderen Voreinstellung noch eine `keybind`-Einstellung enthalten. Eine Einstellung gehört höchstens zu einer Voreinstellung.
-- Hat das steuernde Feld `options`, braucht jede Option außer `custom` einen Eintrag in `values`, und jeder Eintrag in `values` muss eine Option sein. Für `custom` gibt es nie einen Eintrag in `values`.
+- Jede Option des steuernden Felds außer `custom` braucht einen Eintrag in `values`, und jeder Eintrag in `values` muss eine Option sein. Für `custom` gibt es nie einen Eintrag in `values`.
 - Jeder Wert muss zu seiner Einstellung passen. Typ, `min` und `max`, `minLength` und `maxLength` sowie `options` werden wie bei einem gespeicherten Wert geprüft.
 
 Die Einstellungsseite ist im Desktopfenster und im Fenster aus dem Eintrag **Mods** im Spielmenü dieselbe. Der Reiter **Tastenkürzel** bearbeitet Tastenbelegungen direkt. Deshalb dürfen `keybind`-Einstellungen zu keiner Voreinstellung gehören.

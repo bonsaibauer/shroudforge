@@ -22,7 +22,21 @@ pub(crate) fn validate_setting_presets(manifest: &ModManifest) -> Result<(), Str
             .iter()
             .filter_map(|option| option.value.as_str())
             .collect();
-        if !controller_options.is_empty() && !controller_options.contains(&preset.custom.as_str()) {
+        if controller_options.is_empty()
+            || !matches!(
+                controller.control,
+                Some(
+                    SettingControl::Select
+                        | SettingControl::Radio
+                        | SettingControl::Segmented
+                )
+            )
+        {
+            return Err(format!(
+                "preset '{controller_key}' needs a string choice setting with options"
+            ));
+        }
+        if !controller_options.contains(&preset.custom.as_str()) {
             return Err(format!(
                 "preset '{controller_key}' custom value '{}' is not an option of its setting",
                 preset.custom
@@ -78,7 +92,7 @@ pub(crate) fn validate_setting_presets(manifest: &ModManifest) -> Result<(), Str
                     "preset '{controller_key}' cannot give values to its custom value '{name}'"
                 ));
             }
-            if !controller_options.is_empty() && !controller_options.contains(&name.as_str()) {
+            if !controller_options.contains(&name.as_str()) {
                 return Err(format!(
                     "preset '{controller_key}' value '{name}' is not an option of its setting"
                 ));

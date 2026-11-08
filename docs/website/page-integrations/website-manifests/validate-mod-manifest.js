@@ -69,17 +69,108 @@ export function createManifestValidation({ locale }) {
       if (group.settings !== undefined && (!Array.isArray(group.settings) || group.settings.some(key => typeof key !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(key) || !(key in settings)) || new Set(group.settings).size !== group.settings.length)) fail("Group: settings must be unique names that exist in the settings list.");
       if (group.actions !== undefined && (!Array.isArray(group.actions) || group.actions.some(action => !action || typeof action !== "object" || Array.isArray(action) || Object.keys(action).some(key => !["id", "label", "style", "confirm"].includes(key)) || typeof action.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(action.id) || typeof action.label !== "string" || !action.label || action.label.length > 120 || (action.style !== undefined && !["primary", "secondary", "danger"].includes(action.style)) || (action.confirm !== undefined && (typeof action.confirm !== "string" || action.confirm.length > 500))))) fail("Group: each action needs an id and label; style and confirmation are optional.");
     }
+    const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+    const settingDetails = setting => {
+      const metadata = setting && typeof setting === "object" && !Array.isArray(setting) ? setting : {};
+      return { value: hasOwn(metadata, "value") ? metadata.value : setting, metadata };
+    };
+    const settingType = value => Array.isArray(value) ? "array" : typeof value;
+    const optionValues = (details, settingKey) => {
+      const options = details.metadata.options;
+      if (!options || typeof options !== "object" || Array.isArray(options)) return [];
+      const value = details.value;
+      const type = settingType(value);
+      const arrayType = type === "array" ? settingType(value[0]) : "";
+      let optionType = type === "array" ? arrayType : type;
+      if (optionType === "number" && Number.isInteger(type === "array" ? value[0] : value)) optionType = "integer";
+      return Object.keys(options).map(option => {
+        if (optionType === "string") return option;
+        if (optionType === "boolean") return option === "true";
+        if (optionType === "integer" || optionType === "number") {
+          const numericPattern = optionType === "integer" ? /^[+-]?\d+$/ : /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+          const parsed = Number(option);
+          if (!numericPattern.test(option) || !Number.isFinite(parsed) || optionType === "integer" && !Number.isInteger(parsed)) {
+            fail(`Setting “${settingKey}”: option “${option}” is not a valid ${optionType} value.`);
+            return undefined;
+          }
+          return parsed;
+        }
+        return option;
+      });
+    };
+    const presetValueIsValid = (settingKey, setting, candidate) => {
+      const details = settingDetails(setting);
+      const value = details.value;
+      const type = settingType(value);
+      const candidateType = settingType(candidate);
+      const integer = type === "number" && Number.isInteger(value);
+      if (type !== candidateType || integer && !Number.isInteger(candidate) || type === "number" && !Number.isFinite(candidate)) return false;
+      if (typeof candidate === "number") {
+        if (typeof details.metadata.min === "number" && candidate < details.metadata.min) return false;
+        if (typeof details.metadata.max === "number" && candidate > details.metadata.max) return false;
+      }
+      if (typeof candidate === "string") {
+        if (typeof details.metadata.minLength === "number" && candidate.length < details.metadata.minLength) return false;
+        if (typeof details.metadata.maxLength === "number" && candidate.length > details.metadata.maxLength) return false;
+      }
+      const options = details.metadata.options;
+      if (options && typeof options === "object" && !Array.isArray(options) && Object.keys(options).length) {
+        const allowed = optionValues(details, settingKey);
+        if (Array.isArray(candidate)) return candidate.every(item => allowed.includes(item));
+        return allowed.includes(candidate);
+      }
+      return true;
+    };
     if (extended.presets !== undefined && (!extended.presets || typeof extended.presets !== "object" || Array.isArray(extended.presets))) fail("extended.mod.json: presets must be an object.");
-    for (const [key, preset] of Object.entries(extended.presets && typeof extended.presets === "object" ? extended.presets : {})) {
-      if (!(key in settings)) fail(`Preset “${key}”: the key must name a setting.`);
+    const presets = extended.presets && typeof extended.presets === "object" && !Array.isArray(extended.presets) ? extended.presets : {};
+    const presetEntries = Object.entries(presets);
+    const presetControllers = new Set(presetEntries.map(([key]) => key));
+    const presetOwners = new Map();
+    for (const [key, preset] of presetEntries) {
+      if (!hasOwn(settings, key)) fail(`Preset “${key}”: the key must name a setting.`);
       if (!preset || typeof preset !== "object" || Array.isArray(preset)) { fail(`Preset “${key}” must be an object.`); continue; }
       checkKeys(preset, ["custom", "settings", "values"], `Preset “${key}”`);
       if (preset.custom !== undefined && (typeof preset.custom !== "string" || !preset.custom)) fail(`Preset “${key}”: custom must be a non-empty text.`);
+      const custom = preset.custom === undefined ? "custom" : preset.custom;
+      const controller = hasOwn(settings, key) ? settingDetails(settings[key]) : null;
+      if (controller && typeof controller.value !== "string") fail(`preset '${key}' needs a string setting as its controller`);
+      const controllerOptions = controller && typeof controller.value === "string" ? optionValues(controller, key) : [];
+      const choiceControls = ["select", "radio", "segmented"];
+      const controllerControl = controller?.metadata.control;
+      const controllerHasChoiceControl = controller && typeof controller.value === "string" && controllerOptions.length > 0 && (controllerControl === undefined || choiceControls.includes(controllerControl));
+      if (controller && typeof controller.value === "string" && !controllerHasChoiceControl) fail(`preset '${key}' needs a string choice setting with options`);
+      if (controllerHasChoiceControl && !controllerOptions.includes(custom)) fail(`preset '${key}' custom value '${custom}' is not an option of its setting`);
       const members = Array.isArray(preset.settings) ? preset.settings : [];
-      if (!members.length || members.some(member => typeof member !== "string" || !(member in settings) || member === key) || new Set(members).size !== members.length) fail(`Preset “${key}”: settings must be unique names of other settings.`);
+      if (!members.length) fail(`preset '${key}' has no settings`);
+      for (const member of members) {
+        if (typeof member !== "string") { fail(`Preset “${key}”: settings must contain setting names.`); continue; }
+        if (member === key) { fail(`preset '${key}' cannot list its own setting`); continue; }
+        if (!hasOwn(settings, member)) { fail(`preset '${key}' references unknown setting '${member}'`); continue; }
+        const memberDetails = settingDetails(settings[member]);
+        if (memberDetails.metadata.control === "keybind") fail(`preset '${key}' cannot set keybind setting '${member}'`);
+        if (presetControllers.has(member)) fail(`preset '${key}' cannot set '${member}', which controls another preset`);
+        const owner = presetOwners.get(member);
+        if (owner !== undefined) fail(owner === key ? `preset '${key}' lists setting '${member}' twice` : `setting '${member}' belongs to presets '${owner}' and '${key}'`);
+        else presetOwners.set(member, key);
+      }
+      if (new Set(members).size !== members.length) fail(`Preset “${key}”: settings must be unique names.`);
       const values = preset.values && typeof preset.values === "object" && !Array.isArray(preset.values) ? preset.values : null;
-      if (!values || !Object.keys(values).length) { fail(`Preset “${key}”: values need at least one preset.`); continue; }
-      for (const [name, entry] of Object.entries(values)) if (!entry || typeof entry !== "object" || Array.isArray(entry) || members.some(member => !(member in entry)) || Object.keys(entry).some(member => !members.includes(member))) fail(`Preset “${key}”: “${name}” must give a value to each of its settings and to no other.`);
+      if (!values || !Object.keys(values).length) { fail(`preset '${key}' has no values`); continue; }
+      for (const option of controllerOptions) {
+        if (option !== custom && !hasOwn(values, option)) fail(`preset '${key}' has no values for option '${option}'`);
+      }
+      for (const [name, entry] of Object.entries(values)) {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) { fail(`Preset “${key}”: “${name}” must give each setting a value.`); continue; }
+        if (name === custom) fail(`preset '${key}' cannot give values to its custom value '${name}'`);
+        if (controllerHasChoiceControl && !controllerOptions.includes(name)) fail(`preset '${key}' value '${name}' is not an option of its setting`);
+        for (const member of members) {
+          if (typeof member !== "string") continue;
+          if (!hasOwn(entry, member)) { fail(`preset '${key}' value '${name}' does not set '${member}'`); continue; }
+          if (hasOwn(settings, member) && !presetValueIsValid(member, settings[member], entry[member])) fail(`preset '${key}' value '${name}': ${member} has an invalid value`);
+        }
+        const extra = Object.keys(entry).find(member => !members.includes(member));
+        if (extra !== undefined) fail(`preset '${key}' value '${name}' sets '${extra}', which is not in its settings`);
+      }
     }
     return errors;
   }

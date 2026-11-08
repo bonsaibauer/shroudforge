@@ -52,15 +52,15 @@ Many games offer a Quality choice such as Low, Medium or High that sets several 
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| key of `presets` | string | Key of the controller setting. It must exist in `settings` and hold a string. |
-| `custom` | string · optional | Controller value that means hand-tuned settings. Default: `custom`. If the controller has `options`, this value must be one of them. |
+| key of `presets` | string | Key of the controller setting. It must exist in `settings`, hold a string, and use `options` with an existing choice control (`select`, `radio`, or `segmented`). If `control` is omitted, `options` select the existing `select` control by default. |
+| `custom` | string · optional | Controller value that means hand-tuned settings. Default: `custom`. This value must be one of the controller's options. |
 | `settings` | array of strings | Keys of the settings the preset sets. At least one. |
 | `values` | object | One entry per preset, keyed by the controller value. Each entry gives a value to every key in `settings` and to no other key. |
 
 ## Rules checked by the package reader
 
 - A preset's settings must exist. They cannot include the controller itself, the controller of another preset, or a `keybind` setting. A setting belongs to one preset at most.
-- When the controller has `options`, every option other than `custom` needs an entry in `values`, and every entry in `values` must be an option. `values` never has an entry for `custom`.
+- Every controller option other than `custom` needs an entry in `values`, and every entry in `values` must be an option. `values` never has an entry for `custom`.
 - Each preset value must be valid for its setting: type, `min` and `max`, `minLength` and `maxLength`, and `options` are checked the same way as a saved value.
 
 The settings page is the same in the desktop window and in the window opened from the game's **Mods** menu entry. The **Hotkeys** tab edits keybinds directly, which is why keybind settings cannot belong to a preset.
