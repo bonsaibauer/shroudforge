@@ -27,6 +27,12 @@ export type SettingDefinition = {
   minimumLength?: number
   maximumLength?: number
   options?: SettingOption[]
+  /** A keybind the game may be denied while the mod's context `when` is active. */
+  reserve?: { when: string; keyboard?: boolean; mouse?: boolean }
+  /** The player's padlocks, over the defaults of `reserve`. */
+  reserved?: { keyboard?: boolean; mouse?: boolean }
+  /** A boolean through which the mod reads the mouse wheel during `when`. */
+  wheel?: { when: string }
   enabledWhen?: SettingCondition
   applyAt?: 'live' | 'restart'
   restartRequired?: boolean
@@ -85,4 +91,6 @@ export type ModInfo = {
   changelog: string[]
   assets: Record<string, string>
   settingValues: Record<string, unknown>
+  /** The mod's input contexts and their labels (inputReservations). */
+  inputContexts?: Record<string, string>
 }

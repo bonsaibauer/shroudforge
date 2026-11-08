@@ -194,6 +194,10 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
                 .get("settings")
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({})),
+            input_contexts: value
+                .get("inputContexts")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
         });
     }
     mods.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));

@@ -30,6 +30,7 @@ const EXTENDED_MOD_FIELDS: &[&str] = &[
     "changelog",
     "settings",
     "groups",
+    "inputReservations",
     "presets",
 ];
 
@@ -204,7 +205,6 @@ pub fn parse_manifest_with_extension(
         serde_json::to_value(target).map_err(|error| error.to_string())?,
     );
     object.insert("settingValues".into(), Value::Object(effective));
-    object.insert("settings".into(), json!(definitions));
     object.insert("groups".into(), json!(groups));
     object.insert("presets".into(), json!(presets));
     object.insert(
@@ -218,6 +218,14 @@ pub fn parse_manifest_with_extension(
         "links".into(),
         extension.get("links").cloned().unwrap_or_else(|| json!({})),
     );
+    let input_contexts = crate::read_input_reservations::read_input_reservations(
+        extension.get("inputReservations"),
+        &mut definitions,
+    )?;
+    if !input_contexts.is_empty() {
+        object.insert("inputContexts".into(), json!(input_contexts));
+    }
+    object.insert("settings".into(), json!(definitions));
     let mut manifest: ModManifest =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
     for setting in &mut manifest.settings {

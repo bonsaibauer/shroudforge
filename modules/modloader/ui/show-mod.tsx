@@ -208,6 +208,15 @@ export function ModPage({
                       }}
                       disabled={!settingIsEnabled(definition, settings, values)}
                       onChange={(value) => updateSetting(definition.key, value)}
+                      contexts={mod.inputContexts}
+                      onReserve={(device, reserved) =>
+                        postRequest('save-key-reservation', {
+                          modId: mod.id,
+                          key: definition.key,
+                          device,
+                          enabled: reserved,
+                        })
+                      }
                     />
                   ))}
               </div>

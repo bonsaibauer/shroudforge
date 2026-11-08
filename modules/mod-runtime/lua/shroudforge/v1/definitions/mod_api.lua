@@ -90,6 +90,7 @@ function shroudforge_input.was_keybind_pressed(setting_key) end
 --- Alt+1, so that a mod's action keys still work while another of its shortcuts holds Alt.
 --- Modifier names are Ctrl, Alt, Shift and Meta, joined by `+`; nil or `""` clears them.
 --- The setting stays as the player set it; the extra modifiers last until the mod changes them.
+--- A keybind reserved in `inputReservations` is kept from the game with them too.
 --- A modifier already required by the saved keybind remains required. Changing this rule does not
 --- report an older key press as new.
 --- @param setting_key string Key of this mod's declared keybind setting.
@@ -103,6 +104,29 @@ function shroudforge_input.set_keybind_extra_modifiers(setting_key, modifiers) e
 --- @param setting_key string Key of this mod's declared keybind setting.
 --- @return string|nil
 function shroudforge_input.keybind_label(setting_key) end
+
+--- Reports whether one of this mod's input contexts is active, such as "the hammer is in hand".
+--- The contexts are declared in `extended.mod.json` under `inputReservations.contexts`. While a
+--- context is active, the game does not receive the keybinds reserved for it
+--- (`inputReservations.keys`, per device, padlocked by the player in the Modloader), nor the
+--- mouse wheel of a reserved `inputReservations.wheels` setting. This mod still reads them:
+--- keys with is_keybind_down and was_keybind_pressed, the wheel with wheel_steps.
+--- An active context lasts one second: report it from every `on_update` while it holds, and
+--- report `false` as soon as it ends. Escape, F9 and F10 always reach the game.
+--- Returns `true, nil` when accepted, or `false, reason` if the input filter could not be installed.
+--- On failure, the context stays inactive and the game keeps receiving input.
+--- @param context string ID declared in `inputReservations.contexts`.
+--- @param active boolean
+--- @return boolean accepted
+--- @return string|nil reason
+function shroudforge_input.set_context(context, active) end
+
+--- Returns the mouse wheel steps turned since this mod last asked, while the context of this
+--- `inputReservations.wheels` setting was active (positive: away from the player), then zero.
+--- The setting is a boolean: true keeps the wheel from the game meanwhile, false shares it.
+--- @param setting_key string Key of this mod's boolean setting declared in `inputReservations.wheels`.
+--- @return integer
+function shroudforge_input.wheel_steps(setting_key) end
 
 --- @class ShroudForgeNative
 --- Calls the functions that this mod's own native DLLs registered from their

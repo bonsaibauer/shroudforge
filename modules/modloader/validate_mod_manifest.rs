@@ -125,6 +125,7 @@ pub fn validate_manifest(manifest: &ModManifest) -> Result<(), String> {
                 .map(|condition| condition.setting.as_str());
         }
     }
+    crate::validate_input_reservations::validate_input_reservations(manifest)?;
     let mut placed_settings = std::collections::HashSet::new();
     for group in &manifest.groups {
         if group.label.trim().is_empty() {
