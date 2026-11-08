@@ -740,6 +740,10 @@ runtime.world.cursor = {}
 --- sequence counts successful samples, not simulation ticks. Position keeps Q32.32
 --- integers and flags retain their reflected width. Legacy execution profiles keep
 --- their verified hook snapshot. A cursor read never grants voxel write authority.
+--- The reflected snapshot also holds `value.camera`, the camera the local client
+--- sends with its input (data.camera): `position` (Q32.32 integers), `orientation`
+--- ({x, y, z, w}), `fovY`, `aspectRatio`, `nearPlane`, `farPlane`, `distance`;
+--- absent from legacy snapshots and when the layout lacks these fields.
 --- @return table? snapshot with `sequence` and reflected-layout `value.primaryTransform` fields.
 --- @return string? reason
 function runtime.world.cursor.get() end
