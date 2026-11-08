@@ -2,6 +2,7 @@ import type { Settings } from './loader-settings'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { TranslationKey, useI18n } from '../../ui-resources/i18n'
 import type { Snapshot } from '../../modloader/ui/ui-snapshot'
+import type { CommandResult } from '../../notifications/ui/notification-types'
 import { Card } from '../../ui-resources/show-card'
 import {
   ModuleEnabledRow,
@@ -19,6 +20,8 @@ import { worldEditorSettingsFields } from '../../world-editor/ui/settings'
 import { NetworkSettings } from '../../transport/ui/settings'
 import { UpdatePreferences } from '../../updater/ui/edit-update-preferences'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
+import { refreshWikiSearchCache, resolveWikiApiSettings } from '../../wiki/mediawiki-api'
+import { WikiActions } from '../../wiki/ui/show-wiki-actions'
 
 function WindowGeometryControls({
   module,
@@ -72,12 +75,14 @@ export function ModulePreferencesEditor({
   data,
   settings,
   setSettings,
+  notifyCommandResult,
 }: {
   data: Snapshot
   settings: Settings
   setSettings(v: Settings): void
+  notifyCommandResult(result: CommandResult): void
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const prefs = settings.modulePreferences || {}
   const system = prefs.updates?.system || {
     includePrereleases: false,
@@ -165,7 +170,7 @@ export function ModulePreferencesEditor({
     refreshMilliseconds: [100, 10000],
     pageSize: [1, 100],
     maxResultsPerQuery: [1, 500],
-    refreshIntervalMinutes: [1, 1440],
+    refreshIntervalMinutes: [60, 1440],
     tailBytes: [1024, 1048576],
   }
   return (
@@ -309,6 +314,22 @@ export function ModulePreferencesEditor({
                     }
                   />
                 ))}
+              {module === 'wiki' && (
+                <div className="wiki-module-actions">
+                  <strong>{t('settings.modules.wiki.actions')}</strong>
+                  <p className="hint">{t('settings.modules.wiki.actionsHint')}</p>
+                  <WikiActions
+                    notifyCommandResult={notifyCommandResult}
+                    refreshDisabled={!moduleEnabled('wiki')}
+                    onRefresh={async () => {
+                      const wikiSettings = resolveWikiApiSettings(prefs.wiki)
+                      await refreshWikiSearchCache(
+                        '', locale, wikiSettings.pageSize, wikiSettings.maxResultsPerQuery,
+                      )
+                    }}
+                  />
+                </div>
+              )}
               {(module === 'debugConsole' ||
                 module === 'modloaderUi' ||
                 module === 'worldEditor') && (

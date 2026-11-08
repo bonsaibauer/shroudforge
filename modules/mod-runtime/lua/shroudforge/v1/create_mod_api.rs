@@ -20,6 +20,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let table = lua.create_table()?;
     table.raw_set("version", env!("CARGO_PKG_VERSION"))?;
     table.raw_set("clock", lua.create_function(|_, ()| Ok(read_monotonic_clock()))?)?;
+    table.raw_set("contents", super::read_game_content::create(lua)?)?;
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
 
     let log = lua.create_table()?;
@@ -173,7 +174,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     )?;
     let keybind_id = mod_id.clone();
     let press_keybind_settings = keybind_settings.clone();
-    let press_revisions = Arc::new(Mutex::new(HashMap::<String, (String, u64)>::new()));
+    let press_revisions = Arc::new(Mutex::new(HashMap::<String, (String, u8, u64)>::new()));
     let press_extra = extra_modifiers.clone();
     input.raw_set(
         "was_keybind_pressed",
@@ -193,15 +194,17 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                 return Ok(false);
             };
             match revisions.get_mut(&key) {
-                Some((previous_signature, previous_revision))
-                    if *previous_signature == signature =>
+                Some((previous_signature, previous_extra, previous_revision))
+                    if *previous_signature == signature && *previous_extra == extra =>
                 {
                     let pressed = focused && revision > *previous_revision;
                     *previous_revision = revision;
                     Ok(pressed)
                 }
                 _ => {
-                    revisions.insert(key, (signature, revision));
+                    // A changed extra-modifier rule starts a new observation
+                    // baseline so an older matching press cannot fire again.
+                    revisions.insert(key, (signature, extra, revision));
                     Ok(false)
                 }
             }
@@ -295,6 +298,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         })?,
     )?;
     table.raw_set("notifications", notifications)?;
+    table.raw_set("native", super::call_mod_native_functions::create(lua, &r#mod.info().id)?)?;
 
     Ok(table)
 }

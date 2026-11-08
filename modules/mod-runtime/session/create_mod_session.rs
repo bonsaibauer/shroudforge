@@ -186,6 +186,7 @@ impl AppState {
             asset_stem: file_name.clone(),
 
             new_contents: RefCell::new(HashMap::new()),
+            content_reads_in_flight: Arc::new(AtomicUsize::new(0)),
             resources: RefCell::new(HashMap::new()),
             loaded_resource_indexes: RefCell::new(
                 super::loaded_resource_indexes::Indexes::default(),

@@ -1,9 +1,12 @@
 export {
+  clearWikiCache,
+  getCachedWikiArticleRefreshDelay,
   loadWikiArticle,
   mergeWikiPages,
   readCachedWikiArticle,
   readCachedWikiArticleForReference,
   readCachedWikiSearch,
+  refreshWikiSearchCache,
   refreshWikiPageSummaries,
   searchWikiPages,
   selectWikiLocalePages,

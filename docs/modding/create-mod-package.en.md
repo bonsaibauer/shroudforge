@@ -40,10 +40,16 @@ Dll=bin/example.dll
 ~~~
 
 When enabled, ShroudForge loads the DLL with the Windows loader. Its `DllMain`
-initialization runs as part of that load. No plugin-specific exports or host ABI
-are required. The DLL path must stay inside the package. This is the same
+initialization runs as part of that load. No plugin-specific exports are
+required. The DLL path must stay inside the package. This is the same
 package-local DLL registration behavior exposed by EML's
 `loader.runtime.register_dll(path)` API.
+
+A DLL that should talk to the same mod's Lua code may also export
+`ShroudforgeModNativeInit` from `modules/mod-runtime/native_bridge/shroudforge_mod_native.h`.
+ShroudForge calls it once after the load. The DLL registers named functions,
+and the mod's Lua code calls them with `shroudforge.native.call`. See the
+`api-native` guide.
 
 The mod's **mod.json** contains its basic information:
 
@@ -166,6 +172,7 @@ This valid example creates a text field and places it under the **Greeting** hea
 - `enabledWhen` disables and dims a setting until another setting has the selected value. For example, `{ "setting": "timeMode", "equals": "fixed" }` keeps a duration slider visible but unavailable while the player chooses original recipe times.
 - `applyAt` labels when the setting takes effect: `live` or `restart`. `restartRequired` must agree with that value. `assetPreparation: true` adds an asset preparation label, so a live setting can show that it also affects the next startup asset pass.
 - A group must list a setting key in `settings` for that setting to appear under the group in the Modloader. Each setting can appear in one group.
+- The optional top-level `presets` object turns a string setting into a preset controller, like a game's Quality choice. Choosing a preset sets each listed setting to that preset's value. Editing one of those settings by hand selects the controller's `custom` value. For example, `"presets": { "quality": { "settings": ["viewRange"], "values": { "low": { "viewRange": 64 }, "high": { "viewRange": 256 } } } }` needs a `quality` setting with the options `low`, `high`, and `custom`.
 
 Read the value in Lua with the ShroudForge API:
 

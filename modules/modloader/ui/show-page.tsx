@@ -4,6 +4,7 @@ import type {
   NewsItem,
   NoticeAction,
 } from '../../notifications/ui/notification-types'
+import type { CommandResult } from '../../notifications/ui/notification-types'
 import { NewsPage } from '../../notifications/ui/show-news'
 import { Updates } from '../../updater/ui/show-updates'
 import { Discover } from '../../updater/ui/show-mod-catalog'
@@ -21,6 +22,7 @@ export function Page({
   data,
   settings,
   setSettings,
+  notifyCommandResult,
   news,
   wikiArticleId,
   selectWikiArticle,
@@ -39,6 +41,7 @@ export function Page({
   data: Snapshot
   settings: Settings
   setSettings(v: Settings): void
+  notifyCommandResult(result: CommandResult): void
   news: NewsItem[]
   wikiArticleId: string | null
   selectWikiArticle(articleId: string | null): void
@@ -131,9 +134,11 @@ export function Page({
         selectedArticleId={wikiArticleId}
         onSelectArticle={selectWikiArticle}
         moduleSettings={wikiModuleSettings}
+        notifyCommandResult={notifyCommandResult}
       />
     )
   return (
-    <SettingsPage data={data} settings={settings} setSettings={setSettings} />
+    <SettingsPage data={data} settings={settings} setSettings={setSettings}
+      notifyCommandResult={notifyCommandResult} />
   )
 }

@@ -90,6 +90,8 @@ function shroudforge_input.was_keybind_pressed(setting_key) end
 --- Alt+1, so that a mod's action keys still work while another of its shortcuts holds Alt.
 --- Modifier names are Ctrl, Alt, Shift and Meta, joined by `+`; nil or `""` clears them.
 --- The setting stays as the player set it; the extra modifiers last until the mod changes them.
+--- A modifier already required by the saved keybind remains required. Changing this rule does not
+--- report an older key press as new.
 --- @param setting_key string Key of this mod's declared keybind setting.
 --- @param modifiers string|nil Extra modifiers, for example `"Alt"` or `"Ctrl+Alt"`.
 function shroudforge_input.set_keybind_extra_modifiers(setting_key, modifiers) end
@@ -102,6 +104,28 @@ function shroudforge_input.set_keybind_extra_modifiers(setting_key, modifiers) e
 --- @return string|nil
 function shroudforge_input.keybind_label(setting_key) end
 
+--- @class ShroudForgeNative
+--- Calls the functions that this mod's own native DLLs registered from their
+--- `ShroudforgeModNativeInit` export (`shroudforge_mod_native.h`). A mod reaches
+--- only its own functions. The bridge gives no access to the game or to other mods.
+shroudforge_native = {}
+
+--- Calls a function registered by this mod's DLLs. The call is synchronous and
+--- runs on the mod runtime thread, so the native function must return quickly.
+--- Strings and buffers are passed to it without a copy. Bytes it returns arrive as strings.
+--- Returns the function's values, or `true` when it returns none.
+--- Returns nil and a reason when the function failed or is not registered.
+--- Other argument types raise a Lua error.
+--- @param name string Name under which the DLL registered the function.
+--- @param ... nil|boolean|number|string|Buffer Arguments for the native function.
+--- @return any ...
+function shroudforge_native.call(name, ...) end
+
+--- Lists the function names registered by this mod's DLLs, sorted. The list is
+--- empty until the DLL has loaded, and when it failed or does not take part in the bridge.
+--- @return string[]
+function shroudforge_native.functions() end
+
 --- @class ShroudForge
 --- @field version string Version of the ShroudForge Lua API.
 --- @field mod_id string Stable ID of the currently running mod.
@@ -111,7 +135,29 @@ function shroudforge_input.keybind_label(setting_key) end
 --- @field input ShroudForgeInput Read declared keyboard and mouse shortcuts using SDL.
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 --- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
+--- @field contents ShroudForgeContents Read game content ranges asynchronously. Each request is limited to 32 MiB, with at most four outstanding reads per runtime.
+--- @field native ShroudForgeNative Call functions registered by this mod's own native DLLs. Available since ShroudForge 1.8.0.
 shroudforge = {}
+
+--- @class ShroudForgeContentReadJob
+local ShroudForgeContentReadJob = {}
+--- Nil until the read is done, then `{data = bytes, seconds = read time}`, or `{error = text}`.
+--- @return table?
+function ShroudForgeContentReadJob:result() end
+
+--- @class ShroudForgeContents
+shroudforge.contents = {}
+
+--- Read a game content range (for example, texture levels) on a background thread and poll the
+--- returned job during later updates. Each request is limited to 32 MiB. At most four jobs may be
+--- outstanding per runtime. A completed result counts until `result()` is read or the job is
+--- released. Split larger reads into ranges. `hash` is a content hash as a resource holds it
+--- (`texture.content.hash`), or `{size, hash0, hash1, hash2}`. `start` is the first byte (0) and
+--- `count` is the number of bytes (to the end). Invalid ranges return an error. This reads game
+--- file contents only, not contents created by mods.
+--- @param params {hash: any, start: integer?, count: integer?}
+--- @return ShroudForgeContentReadJob
+function shroudforge.contents.read(params) end
 
 --- Language the player chose for ShroudForge in the Modloader, such as `"en"`,
 --- `"de"`, `"fr"` or a regional variant such as `"de-AT"`; `"en"` when the

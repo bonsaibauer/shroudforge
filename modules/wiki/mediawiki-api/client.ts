@@ -132,6 +132,15 @@ export function writeCachedWikiSearch(
   writeCache(cache)
 }
 
+export function clearWikiCache(): boolean {
+  try {
+    window.localStorage.removeItem(CACHE_KEY)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function normalizeWikiLocale(locale: string): string {
   const normalized = locale.toLowerCase()
   if (normalized.startsWith('en')) return 'en-gb'
@@ -414,6 +423,18 @@ export async function searchWikiPages(
   return { pages, continuation: data.continue }
 }
 
+export async function refreshWikiSearchCache(
+  query: string,
+  locale: string,
+  requestedLimit: number,
+  maximumResults: number,
+  signal?: AbortSignal,
+): Promise<WikiSearchPage> {
+  const result = await searchWikiPages(query, undefined, signal, requestedLimit)
+  writeCachedWikiSearch(query, locale, result.pages, result.continuation, maximumResults)
+  return result
+}
+
 export function readCachedWikiArticle(pageTitle: string): MediaWikiArticle | undefined {
   const entry = readCache().articles[pageTitle.toLowerCase()]
   if (!entry?.article || typeof entry.article.bodyHtml !== 'string') return undefined
@@ -421,6 +442,11 @@ export function readCachedWikiArticle(pageTitle: string): MediaWikiArticle | und
     ...entry.article,
     bodyHtml: sanitizeMediaWikiHtml(entry.article.bodyHtml),
   }
+}
+
+export function getCachedWikiArticleRefreshDelay(pageTitle: string, maxAgeMs: number): number | undefined {
+  const savedAt = readCache().articles[pageTitle.toLowerCase()]?.savedAt
+  return typeof savedAt === 'number' ? Math.max(0, savedAt + maxAgeMs - Date.now()) : undefined
 }
 
 function pageTitleCandidates(reference: string, locale: string): string[] {

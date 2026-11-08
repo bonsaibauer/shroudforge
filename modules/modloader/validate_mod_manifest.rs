@@ -157,7 +157,7 @@ pub fn validate_manifest(manifest: &ModManifest) -> Result<(), String> {
             }
         }
     }
-    Ok(())
+    crate::validate_setting_presets::validate_setting_presets(manifest)
 }
 
 fn condition_matches_type(value: &serde_json::Value, value_type: SettingValueType) -> bool {

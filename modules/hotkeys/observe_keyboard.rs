@@ -78,10 +78,11 @@ pub fn is_hotkey_down_with(hotkey: &Hotkey, extra: u8) -> bool {
     }
 }
 
-/// Whether `held` modifiers match a chord's `required` ones once the
-/// `extra` modifiers are left out of both.
+/// Whether `held` modifiers match `required` with only additional modifiers
+/// optional. A modifier already required by the chord stays required.
 pub(crate) fn modifiers_match(held: u8, required: u8, extra: u8) -> bool {
-    held & !extra == required & !extra
+    let optional = extra & !required;
+    held & !optional == required
 }
 
 /// Returns the most recent observed press revision for a configured shortcut.
