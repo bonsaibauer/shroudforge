@@ -62,23 +62,42 @@ pub fn layout_revision() -> u64 {
 }
 
 pub fn is_hotkey_down(hotkey: &Hotkey) -> bool {
+    is_hotkey_down_with(hotkey, 0)
+}
+
+/// Like `is_hotkey_down`, also while the `extra` modifiers (bits) are held
+/// in addition to the shortcut's own: `1` with Alt extra is down for 1 and
+/// for Alt+1.
+pub fn is_hotkey_down_with(hotkey: &Hotkey, extra: u8) -> bool {
     #[cfg(windows)]
-    return windows::is_down(hotkey);
+    return windows::is_down(hotkey, extra);
     #[cfg(not(windows))]
     {
-        let _ = hotkey;
+        let _ = (hotkey, extra);
         false
     }
+}
+
+/// Whether `held` modifiers match a chord's `required` ones once the
+/// `extra` modifiers are left out of both.
+pub(crate) fn modifiers_match(held: u8, required: u8, extra: u8) -> bool {
+    held & !extra == required & !extra
 }
 
 /// Returns the most recent observed press revision for a configured shortcut.
 /// Callers keep their own previous revision so a short tap survives between polls.
 pub fn hotkey_press_revision(hotkey: &Hotkey) -> u64 {
+    hotkey_press_revision_with(hotkey, 0)
+}
+
+/// Like `hotkey_press_revision`, also counting presses made with the
+/// `extra` modifiers (bits) held in addition to the shortcut's own.
+pub fn hotkey_press_revision_with(hotkey: &Hotkey, extra: u8) -> u64 {
     #[cfg(windows)]
-    return windows::press_revision(hotkey);
+    return windows::press_revision(hotkey, extra);
     #[cfg(not(windows))]
     {
-        let _ = hotkey;
+        let _ = (hotkey, extra);
         0
     }
 }
@@ -584,22 +603,23 @@ mod windows {
         }
     }
 
-    pub(super) fn is_down(hotkey: &Hotkey) -> bool {
+    pub(super) fn is_down(hotkey: &Hotkey, extra: u8) -> bool {
         if !ACTIVE.load(Ordering::Acquire) {
             return false;
         }
         let modifiers = MODIFIERS.load(Ordering::Acquire);
         KEYS.read().is_ok_and(|keys| {
             hotkey.chords.iter().any(|chord| {
-                modifiers == chord.required_modifiers()
-                    && keys
-                        .get(&chord.trigger)
-                        .is_some_and(|key| key.down && key.modifiers == chord.required_modifiers())
+                let required = chord.required_modifiers();
+                super::modifiers_match(modifiers, required, extra)
+                    && keys.get(&chord.trigger).is_some_and(|key| {
+                        key.down && super::modifiers_match(key.modifiers, required, extra)
+                    })
             })
         })
     }
 
-    pub(super) fn press_revision(hotkey: &Hotkey) -> u64 {
+    pub(super) fn press_revision(hotkey: &Hotkey, extra: u8) -> u64 {
         if !ACTIVE.load(Ordering::Acquire) {
             return 0;
         }
@@ -607,10 +627,12 @@ mod windows {
             hotkey
                 .chords
                 .iter()
-                .filter_map(|chord| {
-                    presses
-                        .get(&(chord.trigger, chord.required_modifiers()))
-                        .copied()
+                .flat_map(|chord| {
+                    let required = chord.required_modifiers();
+                    presses.iter().filter_map(move |((trigger, modifiers), revision)| {
+                        (*trigger == chord.trigger && super::modifiers_match(*modifiers, required, extra))
+                            .then_some(*revision)
+                    })
                 })
                 .max()
                 .unwrap_or(0)
@@ -717,5 +739,32 @@ mod windows {
             capture.release_if_idle(false);
             assert!(!capture.ending, "the protection ends even while a new key is held");
         }
+    }
+}
+
+#[cfg(test)]
+mod modifier_tests {
+    use super::modifiers_match;
+    use crate::parse_modifiers;
+
+    #[test]
+    fn extra_modifiers_are_left_out_of_the_match() {
+        // 1 (no modifier) with Alt (2) extra: down for 1 and for Alt+1.
+        assert!(modifiers_match(0, 0, 2));
+        assert!(modifiers_match(2, 0, 2));
+        assert!(!modifiers_match(1, 0, 2), "Ctrl+1 is not 1 with Alt extra");
+        assert!(!modifiers_match(2, 0, 0), "without extra, Alt+1 is not 1");
+        // Shift+Q (4) with Alt extra: Shift+Q and Alt+Shift+Q, not Q.
+        assert!(modifiers_match(6, 4, 2) && modifiers_match(4, 4, 2) && !modifiers_match(0, 4, 2));
+    }
+
+    #[test]
+    fn modifier_names_parse_to_bits() {
+        assert_eq!(parse_modifiers(""), Ok(0));
+        assert_eq!(parse_modifiers("Alt"), Ok(2));
+        assert_eq!(parse_modifiers("Ctrl+Alt"), Ok(3));
+        assert_eq!(parse_modifiers("Shift+Meta"), Ok(12));
+        assert!(parse_modifiers("Alt+Alt").is_err());
+        assert!(parse_modifiers("Hyper").is_err());
     }
 }

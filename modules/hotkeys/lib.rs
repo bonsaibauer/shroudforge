@@ -12,9 +12,9 @@ mod parse_hotkey;
 mod window_toggle_debounce;
 
 pub use observe_keyboard::{
-    hotkey_press_revision, initialize, initialize_runtime, is_capture_active, is_hotkey_down,
-    layout_revision, legacy_virtual_key_binding, run_input_process, set_capture_active,
-    take_captured_hotkey,
+    hotkey_press_revision, hotkey_press_revision_with, initialize, initialize_runtime, is_capture_active,
+    is_hotkey_down, is_hotkey_down_with, layout_revision, legacy_virtual_key_binding, run_input_process,
+    set_capture_active, take_captured_hotkey,
 };
-pub use parse_hotkey::{Hotkey, InputDevice, parse_hotkey, parse_value};
+pub use parse_hotkey::{Hotkey, InputDevice, parse_hotkey, parse_modifiers, parse_value};
 pub use window_toggle_debounce::WindowToggleDebouncer;

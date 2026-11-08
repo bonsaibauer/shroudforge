@@ -131,22 +131,50 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         })?,
     )?;
     let keybind_settings = r#mod.info().settings.clone();
+    // Modifiers a keybind also matches with, held in addition to its own
+    // (set_keybind_extra_modifiers), per setting of this mod.
+    let extra_modifiers = Arc::new(Mutex::new(HashMap::<String, u8>::new()));
+    let extra_settings = keybind_settings.clone();
+    let extra_set = extra_modifiers.clone();
+    input.raw_set(
+        "set_keybind_extra_modifiers",
+        lua.create_function(move |_, (key, modifiers): (String, Option<String>)| {
+            if !extra_settings.iter().any(|setting| {
+                setting.key == key && matches!(setting.control, Some(mod_loader::SettingControl::Keybind))
+            }) {
+                return Err(mlua::Error::runtime("setting is not a declared keybind"));
+            }
+            let bits = shroudforge_hotkeys::parse_modifiers(modifiers.as_deref().unwrap_or(""))
+                .map_err(mlua::Error::runtime)?;
+            if let Ok(mut extra) = extra_set.lock() {
+                if bits == 0 {
+                    extra.remove(&key);
+                } else {
+                    extra.insert(key, bits);
+                }
+            }
+            Ok(())
+        })?,
+    )?;
     let keybind_id = mod_id.clone();
     let declared_keybinds = keybind_settings.clone();
+    let down_extra = extra_modifiers.clone();
     input.raw_set(
         "is_keybind_down",
         lua.create_function(move |lua, key: String| {
             let binding = read_keybind(lua, &keybind_id, &declared_keybinds, &key)?;
+            let extra = down_extra.lock().ok().and_then(|extra| extra.get(&key).copied()).unwrap_or(0);
             Ok(binding.is_some_and(|binding| {
                 is_game_focused()
                     && !shroudforge_hotkeys::is_capture_active()
-                    && shroudforge_hotkeys::is_hotkey_down(&binding)
+                    && shroudforge_hotkeys::is_hotkey_down_with(&binding, extra)
             }))
         })?,
     )?;
     let keybind_id = mod_id.clone();
     let press_keybind_settings = keybind_settings.clone();
     let press_revisions = Arc::new(Mutex::new(HashMap::<String, (String, u64)>::new()));
+    let press_extra = extra_modifiers.clone();
     input.raw_set(
         "was_keybind_pressed",
         lua.create_function(move |lua, key: String| {
@@ -158,7 +186,8 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
                 return Ok(false);
             };
             let signature = binding.normalized();
-            let revision = shroudforge_hotkeys::hotkey_press_revision(&binding);
+            let extra = press_extra.lock().ok().and_then(|extra| extra.get(&key).copied()).unwrap_or(0);
+            let revision = shroudforge_hotkeys::hotkey_press_revision_with(&binding, extra);
             let focused = is_game_focused() && !shroudforge_hotkeys::is_capture_active();
             let Ok(mut revisions) = press_revisions.lock() else {
                 return Ok(false);
