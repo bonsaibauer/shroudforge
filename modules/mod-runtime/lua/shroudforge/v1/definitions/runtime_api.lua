@@ -744,6 +744,11 @@ runtime.world.cursor = {}
 --- sends with its input (data.camera): `position` (Q32.32 integers), `orientation`
 --- ({x, y, z, w}), `fovY`, `aspectRatio`, `nearPlane`, `farPlane`, `distance`;
 --- absent from legacy snapshots and when the layout lacks these fields.
+--- The reflected snapshot also holds `value.playerStateMask`, the state flags the
+--- local client sends with its input (data.mask, keen::ecs::ClientPlayerStateMask)
+--- as an array of flag names, for example `IsInMultiToolBuildingMenu`; a set bit
+--- without a name keeps its number as a string. It is the same for the host and for
+--- a player who joined, absent from legacy snapshots and when the layout lacks it.
 --- @return table? snapshot with `sequence` and reflected-layout `value.primaryTransform` fields.
 --- @return string? reason
 function runtime.world.cursor.get() end
