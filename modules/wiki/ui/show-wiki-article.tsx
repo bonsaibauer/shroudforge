@@ -82,11 +82,12 @@ function openMediaWikiLink(
   }
 }
 
-export function WikiArticle({ article, expanded = true, children, onOpenWikiArticle }: {
+export function WikiArticle({ article, expanded = true, children, onOpenWikiArticle, onSelectCategory }: {
   article: MediaWikiArticle
   expanded?: boolean
   children?: ReactNode
   onOpenWikiArticle?(articleId: string): void
+  onSelectCategory?(category: string): void
 }) {
   const { t } = useI18n()
   const id = useId()
@@ -110,18 +111,20 @@ export function WikiArticle({ article, expanded = true, children, onOpenWikiArti
   return (
     <>
       <FeatureBanner variant="info" brand="SHROUDFORGE WIKI" title={article.title}
-        titleId={`${id}-title`} description={article.summary} badge={t('wiki.guide')}
+        titleId={`${id}-title`} description={article.summary}
+        badge={article.categories && article.categories.length > 0
+          ? <div className="wiki-category-badges" aria-label={t('wiki.categories')}>
+            {article.categories.map((category) => onSelectCategory
+              ? <button type="button" className="wiki-article-category" key={category}
+                onClick={() => onSelectCategory(category)}>{category}</button>
+              : <span className="wiki-article-category" key={category}>{category}</span>)}
+          </div>
+          : null}
         media={<WikiArtwork article={article} />}>
         {children}
       </FeatureBanner>
       {expanded && <article className="wiki-article" aria-labelledby={`${id}-title`}>
         {article.fallback && <p className="hint">{t('wiki.fallback', { language: article.locale.toUpperCase() })}</p>}
-        {article.categories && article.categories.length > 0 && <div className="wiki-article-categories"
-          aria-label={t('wiki.categories')}>
-          {article.categories.map((category) => <span className="wiki-article-category" key={category}>
-            {category}
-          </span>)}
-        </div>}
         <ArticleBoundary key={`${article.id}:${article.locale}`} articleId={article.id} fallback={t('wiki.unavailable')}>
         <div className="wiki-mediawiki-content"
           onClick={(event) => openMediaWikiLink(event, article.id, onOpenWikiArticle)}

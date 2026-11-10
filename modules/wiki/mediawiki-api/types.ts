@@ -15,6 +15,18 @@ export type WikiSearchPage = {
   continuation?: Record<string, string>
 }
 
+export type WikiSearchFilters = {
+  query: string
+  category: string
+  language: string
+  locale: string
+}
+
+export type CachedWikiCategories = {
+  savedAt: number
+  categories: string[]
+}
+
 export type MediaWikiArticle = {
   id: string
   pageTitle: string

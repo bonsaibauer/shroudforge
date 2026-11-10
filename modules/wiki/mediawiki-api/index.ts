@@ -1,5 +1,6 @@
 export {
   clearWikiCache,
+  readCachedWikiCategories,
   getCachedWikiArticleRefreshDelay,
   loadWikiArticle,
   mergeWikiPages,
@@ -7,6 +8,7 @@ export {
   readCachedWikiArticleForReference,
   readCachedWikiSearch,
   refreshWikiSearchCache,
+  refreshWikiCategories,
   refreshWikiPageSummaries,
   searchWikiPages,
   selectWikiLocalePages,
@@ -18,5 +20,7 @@ export type {
   MediaWikiArticle,
   WikiPageSummary,
   WikiSearchPage,
+  WikiSearchFilters,
+  CachedWikiCategories,
 } from './types'
 export type { WikiModuleSettings } from './settings'

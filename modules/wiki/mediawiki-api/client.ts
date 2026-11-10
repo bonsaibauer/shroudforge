@@ -1,6 +1,13 @@
 import DOMPurify from 'dompurify'
 import { WIKI_API_SETTINGS } from './settings'
-import type { CachedWikiSearch, MediaWikiArticle, WikiPageSummary, WikiSearchPage } from './types'
+import type {
+  CachedWikiCategories,
+  CachedWikiSearch,
+  MediaWikiArticle,
+  WikiPageSummary,
+  WikiSearchFilters,
+  WikiSearchPage,
+} from './types'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 
 const WIKI_ORIGIN = WIKI_API_SETTINGS.siteOrigin
@@ -23,9 +30,21 @@ type MediaWikiPage = {
   thumbnail?: { source?: string }
 }
 
+type MediaWikiListPage = {
+  ns?: number
+  pageid?: number
+  title?: string
+}
+
 type MediaWikiResponse = {
   error?: { code?: string; info?: string }
-  query?: { pages?: MediaWikiPage[] }
+  query?: {
+    pages?: MediaWikiPage[]
+    allpages?: MediaWikiListPage[]
+    categorymembers?: MediaWikiListPage[]
+    search?: MediaWikiListPage[]
+    allcategories?: Array<{ category?: string; pages?: number }>
+  }
   continue?: Record<string, string>
   parse?: {
     title?: string
@@ -43,6 +62,7 @@ type CachedArticle = {
 type WikiCache = {
   searches: Record<string, CachedWikiSearch>
   articles: Record<string, CachedArticle>
+  categories?: CachedWikiCategories
 }
 
 function emptyCache(): WikiCache {
@@ -56,6 +76,7 @@ function readCache(): WikiCache {
     return {
       searches: value.searches && typeof value.searches === 'object' ? value.searches : {},
       articles: value.articles && typeof value.articles === 'object' ? value.articles : {},
+      categories: value.categories && typeof value.categories === 'object' ? value.categories : undefined,
     }
   } catch {
     return emptyCache()
@@ -72,6 +93,7 @@ function writeCache(cache: WikiCache) {
   const bounded = {
     searches: recent(cache.searches, WIKI_API_SETTINGS.cacheSearchLimit),
     articles: recent(cache.articles, WIKI_API_SETTINGS.cacheArticleLimit),
+    categories: cache.categories,
   }
   try {
     let serialized = JSON.stringify(bounded)
@@ -95,16 +117,19 @@ function writeCache(cache: WikiCache) {
   }
 }
 
-function searchKey(query: string, locale: string) {
-  return `${locale.toLowerCase()}:${query.trim().toLocaleLowerCase()}`
+function searchKey(query: string, locale: string, category = '', language = 'auto') {
+  return JSON.stringify([locale, language, category.trim(), query.trim()]
+    .map((part) => part.toLocaleLowerCase()))
 }
 
 export function readCachedWikiSearch(
   query: string,
   locale: string,
   maximumResults: number = WIKI_API_SETTINGS.defaultMaxResultsPerQuery,
+  category = '',
+  language = 'auto',
 ): CachedWikiSearch | undefined {
-  const cached = readCache().searches[searchKey(query, locale)]
+  const cached = readCache().searches[searchKey(query, locale, category, language)]
   if (!cached) return undefined
   const resultLimit = Math.max(1, Math.min(WIKI_API_SETTINGS.maxApiPageSize, Math.floor(maximumResults)))
   const pages = cached.pages.slice(0, resultLimit)
@@ -121,15 +146,55 @@ export function writeCachedWikiSearch(
   pages: WikiPageSummary[],
   continuation?: Record<string, string>,
   maximumResults: number = WIKI_API_SETTINGS.defaultMaxResultsPerQuery,
+  category = '',
+  language = 'auto',
 ) {
   const resultLimit = Math.max(1, Math.min(WIKI_API_SETTINGS.maxApiPageSize, Math.floor(maximumResults)))
   const cache = readCache()
-  cache.searches[searchKey(query, locale)] = {
+  cache.searches[searchKey(query, locale, category, language)] = {
     savedAt: Date.now(),
     pages: pages.slice(0, resultLimit),
     continuation: pages.length >= resultLimit ? undefined : continuation,
   }
   writeCache(cache)
+}
+
+export function readCachedWikiCategories(): CachedWikiCategories | undefined {
+  const cached = readCache().categories
+  if (!cached || !Array.isArray(cached.categories) || typeof cached.savedAt !== 'number') return undefined
+  return cached
+}
+
+export async function refreshWikiCategories(signal?: AbortSignal): Promise<CachedWikiCategories> {
+  const categories = new Set<string>()
+  let continuation: Record<string, string> | undefined
+  let batches = 0
+  do {
+    const params = new URLSearchParams({
+      action: 'query',
+      list: 'allcategories',
+      acmin: '1',
+      acprop: 'size',
+      aclimit: 'max',
+    })
+    for (const [key, value] of Object.entries(continuation || {})) params.set(key, value)
+    const data = await apiRequest(params, signal)
+    for (const item of data.query?.allcategories || []) {
+      const category = item.category?.trim()
+      if (category) categories.add(category)
+    }
+    continuation = data.continue
+    batches += 1
+  } while (continuation && batches < 20 && categories.size < 5000)
+
+  const result = {
+    savedAt: Date.now(),
+    categories: [...categories].sort((left, right) => left.localeCompare(right)),
+  }
+  const cache = readCache()
+  cache.categories = result
+  writeCache(cache)
+  return result
 }
 
 export function clearWikiCache(): boolean {
@@ -207,7 +272,7 @@ function mediaWikiPage(page: MediaWikiPage): WikiPageSummary | undefined {
     pageTitle: page.title,
     locale,
     title: displayTitle(page.pageprops?.displaytitle, fallbackPageTitle(page.title)),
-    summary: summaryFromExtract(page.extract),
+    summary: summaryFromExtract(page.pageprops?.description) || summaryFromExtract(page.extract),
     categories: page.categories?.map((category) => category.title || '')
       .map((category) => category.replace(/^Category:/i, '').trim())
       .filter(Boolean),
@@ -217,9 +282,15 @@ function mediaWikiPage(page: MediaWikiPage): WikiPageSummary | undefined {
   }
 }
 
-export function selectWikiLocalePages(pages: WikiPageSummary[], requestedLocale: string): WikiPageSummary[] {
-  const preferred = normalizeWikiLocale(requestedLocale)
-  const allowedLocales = preferred === 'en-gb' ? ['en-gb'] : [preferred, 'en-gb']
+export function selectWikiLocalePages(
+  pages: WikiPageSummary[],
+  requestedLocale: string,
+  languageFilter = 'auto',
+): WikiPageSummary[] {
+  if (languageFilter === 'all') return pages
+  const automatic = languageFilter === 'auto'
+  const preferred = normalizeWikiLocale(automatic ? requestedLocale : languageFilter)
+  const allowedLocales = automatic && preferred !== 'en-gb' ? [preferred, 'en-gb'] : [preferred]
   const groups = new Map<string, WikiPageSummary[]>()
   for (const page of pages) {
     const key = titleFamily(page.pageTitle)
@@ -267,7 +338,7 @@ export async function refreshWikiPageSummaries(
       action: 'query',
       titles: batch.map((page) => page.pageTitle).join('|'),
       prop: 'pageimages|extracts|info|pageprops|categories',
-      ppprop: 'displaytitle',
+      ppprop: 'displaytitle|description',
       piprop: 'thumbnail',
       pilicense: 'any',
       pithumbsize: String(WIKI_API_SETTINGS.thumbnailSize),
@@ -391,36 +462,105 @@ async function apiRequest(params: URLSearchParams, signal?: AbortSignal): Promis
   }
 }
 
+async function loadPageLeadSummary(pageTitle: string, signal?: AbortSignal): Promise<string> {
+  const params = new URLSearchParams({ action: 'parse', page: pageTitle, prop: 'text' })
+  const data = await apiRequest(params, signal)
+  const parsedText = typeof data.parse?.text === 'string'
+    ? data.parse.text
+    : data.parse?.text?.['*'] || ''
+  return summaryFromExtract(parsedText)
+}
+
+async function fillMissingPageSummaries(pages: WikiPageSummary[], signal?: AbortSignal) {
+  const missing = pages.filter((page) => !page.summary)
+  let next = 0
+  const workers = Array.from({ length: Math.min(3, missing.length) }, async () => {
+    while (next < missing.length) {
+      const page = missing[next++]
+      try {
+        page.summary = await loadPageLeadSummary(page.pageTitle, signal)
+      } catch (error) {
+        if (signal?.aborted) throw error
+      }
+    }
+  })
+  await Promise.all(workers)
+}
+
 export async function searchWikiPages(
-  query: string,
+  filters: WikiSearchFilters,
   continuation?: Record<string, string>,
   signal?: AbortSignal,
   requestedLimit: number = WIKI_API_SETTINGS.defaultPageSize,
 ): Promise<WikiSearchPage> {
-  const hasSearch = query.trim().length > 0
+  const query = filters.query.trim()
+  const category = filters.category.trim()
   const limit = Math.max(1, Math.min(WIKI_API_SETTINGS.maxApiPageSize, Math.floor(requestedLimit)))
-  const params = new URLSearchParams({
-    action: 'query',
-    generator: hasSearch ? 'search' : 'allpages',
-    prop: 'pageimages|extracts|info|pageprops|categories',
-    ppprop: 'displaytitle',
-    piprop: 'thumbnail',
-    pilicense: 'any',
-    pithumbsize: String(WIKI_API_SETTINGS.thumbnailSize),
-    exchars: String(WIKI_API_SETTINGS.extractCharacters),
-    clshow: '!hidden',
-    cllimit: 'max',
-    ...(hasSearch
-      ? { gsrsearch: query.trim(), gsrnamespace: '0', gsrlimit: String(limit), redirects: '1' }
-      : { gapnamespace: '0', gapfilterredir: 'nonredirects', gaplimit: String(limit) }),
-  })
-  for (const [key, value] of Object.entries(continuation || {})) params.set(key, value)
-  const data = await apiRequest(params, signal)
-  const pages = (data.query?.pages || [])
-    .map(mediaWikiPage)
-    .filter((page): page is WikiPageSummary => Boolean(page))
-    .sort((left, right) => (left.sortIndex ?? Number.MAX_SAFE_INTEGER) - (right.sortIndex ?? Number.MAX_SAFE_INTEGER))
-  return { pages, continuation: data.continue }
+  const mode = query ? 'search' : category ? 'categorymembers' : 'allpages'
+  const matches = new Map<string, WikiPageSummary>()
+  let next = continuation
+  let batches = 0
+
+  while (batches < 5) {
+    const visibleCount = selectWikiLocalePages(
+      [...matches.values()], filters.locale, filters.language,
+    ).length
+    if (visibleCount >= limit) break
+    const batchLimit = Math.max(1, Math.min(limit - visibleCount, WIKI_API_SETTINGS.maxApiPageSize))
+    const params = new URLSearchParams({ action: 'query', list: mode })
+    if (mode === 'search') {
+      params.set('srsearch', query)
+      params.set('srnamespace', '0')
+      params.set('srlimit', String(batchLimit))
+    } else if (mode === 'categorymembers') {
+      params.set('cmtitle', `Category:${category}`)
+      params.set('cmnamespace', '0')
+      params.set('cmtype', 'page')
+      params.set('cmlimit', String(batchLimit))
+    } else {
+      params.set('apnamespace', '0')
+      params.set('apfilterredir', 'nonredirects')
+      params.set('aplimit', String(batchLimit))
+    }
+    for (const [key, value] of Object.entries(next || {})) params.set(key, value)
+    const data = await apiRequest(params, signal)
+    const listPages = mode === 'search'
+      ? data.query?.search || []
+      : mode === 'categorymembers'
+        ? data.query?.categorymembers || []
+        : data.query?.allpages || []
+    const candidates = listPages
+      .filter((page) => page.ns === 0 && Boolean(page.title))
+      .map((page) => ({
+        id: `mediawiki:${page.pageid ?? page.title}`,
+        pageTitle: page.title!,
+        locale: languageSuffix(page.title!) || 'en-gb',
+        title: fallbackPageTitle(page.title!),
+        summary: '',
+      }))
+    const summaries = await refreshWikiPageSummaries(candidates, signal)
+    const summariesByTitle = new Map(summaries.map((page) => [page.pageTitle.toLocaleLowerCase(), page]))
+    for (const candidate of candidates) {
+      const summary = summariesByTitle.get(candidate.pageTitle.toLocaleLowerCase())
+      if (!summary) continue
+      if (category && !summary.categories?.some((item) => item.toLocaleLowerCase() === category.toLocaleLowerCase())) continue
+      summary.sortIndex = undefined
+      matches.set(summary.pageTitle.toLocaleLowerCase(), summary)
+    }
+    const selected = selectWikiLocalePages(
+      [...matches.values()], filters.locale, filters.language,
+    )
+    await fillMissingPageSummaries(selected, signal)
+    const previous = JSON.stringify(next)
+    next = data.continue
+    batches += 1
+    if (!next || JSON.stringify(next) === previous || listPages.length === 0) break
+  }
+
+  const pages = selectWikiLocalePages(
+    [...matches.values()], filters.locale, filters.language,
+  ).slice(0, limit)
+  return { pages, continuation: next }
 }
 
 export async function refreshWikiSearchCache(
@@ -430,7 +570,7 @@ export async function refreshWikiSearchCache(
   maximumResults: number,
   signal?: AbortSignal,
 ): Promise<WikiSearchPage> {
-  const result = await searchWikiPages(query, undefined, signal, requestedLimit)
+  const result = await searchWikiPages({ query, category: '', language: 'auto', locale }, undefined, signal, requestedLimit)
   writeCachedWikiSearch(query, locale, result.pages, result.continuation, maximumResults)
   return result
 }
@@ -525,7 +665,7 @@ async function requestPageSummary(
     action: 'query',
     titles: titles.join('|'),
     prop: 'pageimages|extracts|info|pageprops|categories',
-    ppprop: 'displaytitle',
+    ppprop: 'displaytitle|description',
     piprop: 'thumbnail',
     pilicense: 'any',
     pithumbsize: String(WIKI_API_SETTINGS.thumbnailSize),
@@ -561,7 +701,7 @@ export async function loadWikiArticle(
       pageTitle: summary.pageTitle,
       locale: summary.locale,
       title: summary.title,
-      summary: summary.summary,
+      summary: summary.summary || summaryFromExtract(cached.bodyHtml),
       categories: summary.categories,
       illustration: summary.illustration,
       fallback: summary.locale !== normalizeWikiLocale(locale),
@@ -588,7 +728,7 @@ export async function loadWikiArticle(
     pageTitle: data.parse.title || summary.pageTitle,
     locale: summary.locale,
     title: displayTitle(data.parse.displaytitle, summary.title),
-    summary: summary.summary,
+    summary: summary.summary || summaryFromExtract(parsedText),
     categories: summary.categories,
     bodyHtml: sanitizeMediaWikiHtml(parsedText),
     revisionId: data.parse.revid ?? summary.revisionId,
