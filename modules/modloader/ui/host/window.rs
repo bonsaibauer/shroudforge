@@ -199,10 +199,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
     // undecorated windows for the DWM drop shadow. Wine has no DWM shadow and
     // paints those insets as a light border, so the page fills the window
     // there; tao's own edge hit-testing still allows resizing.
-    if super::read_wine_runtime::running_under_wine() {
-        use tao::platform::windows::WindowExtWindows;
-        window.set_undecorated_shadow(false);
-    }
+    shroudforge_window_management::disable_undecorated_shadow_under_wine(&window);
 
     let window_config_module = "modloaderUi";
     let mut saved_position = read_central_config(&arguments.root)["modules"][window_config_module]
@@ -277,11 +274,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
             return;
         }
         if value.command == "cursor" {
-            if super::mirror_page_cursor::mirrors_page_cursor() {
+            if shroudforge_window_management::running_under_wine() {
                 if let Some(icon) = value
                     .id
                     .as_deref()
-                    .and_then(super::mirror_page_cursor::page_cursor_icon)
+                    .and_then(shroudforge_window_management::page_cursor_icon)
                 {
                     let _ = keybind_proxy.send_event(UiEvent::PageCursor(icon));
                 }

@@ -120,8 +120,12 @@ export function useUiUpdates({
     // are per process there), so the page reports its CSS cursor and the host
     // sets the same shape. The host ignores this message outside Wine.
     let lastCursor = ''
-    const mirrorCursor = (event: PointerEvent) => {
-      const target = event.target
+    let lastPointer: { x: number; y: number } | undefined
+    let cursorRefreshFrame = 0
+    const refreshCursor = () => {
+      cursorRefreshFrame = 0
+      if (!lastPointer) return
+      const target = document.elementFromPoint(lastPointer.x, lastPointer.y)
       if (!(target instanceof Element)) return
       let cursor = getComputedStyle(target).cursor
       if (cursor === 'auto')
@@ -135,6 +139,22 @@ export function useUiUpdates({
         post('cursor', { id: cursor })
       }
     }
+    const scheduleCursorRefresh = () => {
+      if (!cursorRefreshFrame)
+        cursorRefreshFrame = window.requestAnimationFrame(refreshCursor)
+    }
+    const mirrorCursor = (event: PointerEvent) => {
+      lastPointer = { x: event.clientX, y: event.clientY }
+      scheduleCursorRefresh()
+    }
+    const cursorObserver = new MutationObserver(() => scheduleCursorRefresh())
+    cursorObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style', 'disabled', 'aria-disabled'],
+      childList: true,
+      subtree: true,
+    })
+    document.addEventListener('pointermove', mirrorCursor)
     document.addEventListener('pointerover', mirrorCursor)
     document.addEventListener('pointerdown', mirrorCursor)
     const escape = (event: KeyboardEvent) => {
@@ -143,8 +163,11 @@ export function useUiUpdates({
     document.addEventListener('keydown', escape)
     return () => {
       document.removeEventListener('mousedown', drag)
+      document.removeEventListener('pointermove', mirrorCursor)
       document.removeEventListener('pointerover', mirrorCursor)
       document.removeEventListener('pointerdown', mirrorCursor)
+      cursorObserver.disconnect()
+      if (cursorRefreshFrame) window.cancelAnimationFrame(cursorRefreshFrame)
       document.removeEventListener('keydown', escape)
     }
   }, [])

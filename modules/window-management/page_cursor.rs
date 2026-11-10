@@ -1,18 +1,7 @@
 use tao::window::CursorIcon;
 
-/// Wine keeps cursor handles per process: when the WebView2 browser process
-/// calls `SetCursor` for the page, Wine forwards the handle to the window
-/// owner (this process), rejects it ("icon handle … from other process") and
-/// keeps the last cursor this process set, usually a resize or move arrow
-/// from the undecorated window edges. Under Wine the page therefore reports
-/// its CSS cursor and the host sets the same shape itself. On Windows the
-/// browser process sets the cursor directly, so nothing is mirrored there.
-pub(crate) fn mirrors_page_cursor() -> bool {
-    super::read_wine_runtime::running_under_wine()
-}
-
-/// Maps a CSS cursor keyword reported by the page to the host cursor.
-pub(crate) fn page_cursor_icon(name: &str) -> Option<CursorIcon> {
+/// Map CSS cursor keywords to the matching native Tao cursor.
+pub fn page_cursor_icon(name: &str) -> Option<CursorIcon> {
     Some(match name {
         "default" | "auto" => CursorIcon::Default,
         "pointer" => CursorIcon::Hand,
