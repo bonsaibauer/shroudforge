@@ -129,7 +129,7 @@ pub(crate) fn create(lua: &mlua::Lua) -> mlua::Result<Table> {
                 let (start, count) =
                     validate_range(size, params.raw_get("start")?, params.raw_get("count")?)?;
                 let content = app_state
-                    .reader()
+                    .reader()?
                     .open_content(&hash)
                     .map_err(|error| mlua::Error::runtime(format!("content read: {error}")))?
                     .ok_or_else(|| mlua::Error::runtime(format!("content read: no content {hash}")))?;
