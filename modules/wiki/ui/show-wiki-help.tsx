@@ -16,10 +16,11 @@ function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-export function WikiHelp({ articleId, compact = false, moduleSettings }: {
+export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCategory }: {
   articleId: string
   compact?: boolean
   moduleSettings?: WikiModuleSettings
+  onOpenCategory(category: string): void
 }) {
   const { t, locale } = useI18n()
   const apiSettings = resolveWikiApiSettings(moduleSettings)
@@ -142,7 +143,7 @@ export function WikiHelp({ articleId, compact = false, moduleSettings }: {
     <Icon name="wiki" />{!compact && t('wiki.showGuide')}
   </button>
   return <section className="wiki-help">
-    <WikiArticle article={currentArticle} expanded={expanded}>
+    <WikiArticle article={currentArticle} expanded={expanded} onSelectCategory={onOpenCategory}>
       <div className="feature-banner-actions">
         <button type="button" className="button ghost" aria-expanded={expanded}
           onClick={() => showHelp(true, !expanded)}><Icon name="wiki" />

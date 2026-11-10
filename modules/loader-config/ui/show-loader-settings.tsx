@@ -19,11 +19,13 @@ export function SettingsPage({
   data,
   settings,
   setSettings,
+  openWikiCategory,
   notifyCommandResult,
 }: {
   data: Snapshot
   settings: Settings
   setSettings(v: Settings): void
+  openWikiCategory(category: string): void
   notifyCommandResult(result: CommandResult): void
 }) {
   const { t, locale, locales, setLocale } = useI18n()
@@ -318,6 +320,7 @@ export function SettingsPage({
               enabled={modulePreferences.gameProfileDiscovery?.enabled !== false}
               onChange={changeProfileDiscovery}
               wikiModuleSettings={modulePreferences.wiki}
+              openWikiCategory={openWikiCategory}
             />
           </Card>
           <Card title={t('settings.logging.title')}>

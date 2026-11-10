@@ -92,9 +92,10 @@ export function hasHotkeyConflicts(data: Snapshot): boolean {
   return data.hotkeyConflicts.length > 0
 }
 
-export function Hotkeys({ data, wikiModuleSettings }: {
+export function Hotkeys({ data, wikiModuleSettings, openWikiCategory }: {
   data: Snapshot
   wikiModuleSettings?: WikiModuleSettings
+  openWikiCategory(category: string): void
 }) {
   const { t } = useI18n()
   const rows = hotkeyRows(data)
@@ -104,7 +105,7 @@ export function Hotkeys({ data, wikiModuleSettings }: {
   const label = (row: HotkeyRow) => `${ownerLabel(row)}: ${actionLabel(row)}`
   return (
     <div className="settings-module-list compatibility-sections">
-      <WikiHelp articleId="hotkeys" moduleSettings={wikiModuleSettings} />
+      <WikiHelp articleId="hotkeys" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
       <Card title={t('compatibility.tab.hotkeys')}>
         <p className="hint settings-module-description">{t('hotkeys.description')}</p>
         <p className="hint settings-module-description">{t('hotkeys.captureHint')}</p>

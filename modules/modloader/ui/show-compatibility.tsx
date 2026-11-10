@@ -106,6 +106,7 @@ export type CompatibilityRowData = {
 export function Compatibility({
   data,
   wikiModuleSettings,
+  openWikiCategory,
   news,
   openNews,
   selectMod,
@@ -115,6 +116,7 @@ export function Compatibility({
 }: {
   data: Snapshot
   wikiModuleSettings?: WikiModuleSettings
+  openWikiCategory(category: string): void
   news: NewsItem[]
   openNews(): void
   selectMod(id: string): void
@@ -442,7 +444,7 @@ export function Compatibility({
       />
       {tab === 'mod-detection' && (
         <div className="settings-module-list compatibility-sections">
-          <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} />
+          <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
           <Card title={t('compatibility.modDetection.title')}>
             <p className="hint settings-module-description">
               {t('compatibility.modDetection.description')}
@@ -495,11 +497,11 @@ export function Compatibility({
           </Card>
         </div>
       )}
-      {tab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} />}
-      {tab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} />}
+      {tab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} />}
+      {tab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} />}
       {tab === 'dependencies' && (
         <div className="settings-module-list compatibility-sections">
-          <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} />
+          <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
           <section className="settings-module compatibility-section">
             <header>
               <div>
@@ -553,7 +555,7 @@ export function Compatibility({
       )}
       {tab === 'engine' && (
         <>
-          <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} />
+          <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
           <section className={`compatibility-summary ${overall}`}>
             <span className={`compatibility-summary-icon ${overall}`}>
               <Icon
@@ -667,9 +669,10 @@ function normalizedDllNames(names: unknown): string[] {
     : []
 }
 
-function DllManagerPanel({ data, wikiModuleSettings }: {
+function DllManagerPanel({ data, wikiModuleSettings, openWikiCategory }: {
   data: Snapshot
   wikiModuleSettings?: WikiModuleSettings
+  openWikiCategory(category: string): void
 }) {
   const { t } = useI18n()
   const manager = data.settings.modulePreferences?.dllManager || {}
@@ -730,7 +733,7 @@ function DllManagerPanel({ data, wikiModuleSettings }: {
 
   return (
     <div className="settings-module-list compatibility-sections dll-manager">
-      <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} />
+      <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
       <Card title={t('compatibility.dllManager.title')}>
         <p className="hint settings-module-description">{t('compatibility.dllManager.description')}</p>
         <ModuleEnabledRow label={t('settings.modules.field.active')} enabled={enabled} onChange={(value) => {

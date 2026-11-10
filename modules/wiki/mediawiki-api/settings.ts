@@ -1,5 +1,7 @@
 const WIKI_SITE_ORIGIN = 'https://wiki.shroudforge.net'
 
+export const DEFAULT_WIKI_CATEGORY = 'Guide:shroudforge'
+
 export const WIKI_API_SETTINGS = {
   siteOrigin: WIKI_SITE_ORIGIN,
   endpoint: `${WIKI_SITE_ORIGIN}/api.php`,

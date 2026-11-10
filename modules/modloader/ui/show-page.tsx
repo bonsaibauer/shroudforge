@@ -25,8 +25,10 @@ export function Page({
   notifyCommandResult,
   news,
   wikiArticleId,
+  wikiCategory,
   selectWikiArticle,
   openWikiArticle,
+  openWikiCategory,
   unread,
   read,
   markRead,
@@ -44,8 +46,10 @@ export function Page({
   notifyCommandResult(result: CommandResult): void
   news: NewsItem[]
   wikiArticleId: string | null
+  wikiCategory: string
   selectWikiArticle(articleId: string | null): void
   openWikiArticle(articleId: string): void
+  openWikiCategory(category: string): void
   unread: NewsItem[]
   read: string[]
   markRead(ids: string[], isRead?: boolean): void
@@ -115,6 +119,7 @@ export function Page({
       <Compatibility
         data={data}
         wikiModuleSettings={wikiModuleSettings}
+        openWikiCategory={openWikiCategory}
         news={news}
         openNews={openNews}
         selectMod={selectMod}
@@ -132,13 +137,15 @@ export function Page({
     return (
       <WikiPage
         selectedArticleId={wikiArticleId}
+        category={wikiCategory}
         onSelectArticle={selectWikiArticle}
+        onOpenCategory={openWikiCategory}
         moduleSettings={wikiModuleSettings}
         notifyCommandResult={notifyCommandResult}
       />
     )
   return (
     <SettingsPage data={data} settings={settings} setSettings={setSettings}
-      notifyCommandResult={notifyCommandResult} />
+      openWikiCategory={openWikiCategory} notifyCommandResult={notifyCommandResult} />
   )
 }

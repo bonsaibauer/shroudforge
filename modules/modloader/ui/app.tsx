@@ -22,6 +22,7 @@ import { PageZoomProvider } from '../../ui-resources/show-page-header'
 import { FeatureBanner } from '../../ui-resources/show-feature-banner'
 import { Icon } from '../../ui-resources/show-icon'
 import type { TranslationKey } from '../../ui-resources/i18n'
+import { DEFAULT_WIKI_CATEGORY } from '../../wiki/mediawiki-api'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 
@@ -48,6 +49,7 @@ export function App() {
   const [page, setPage] = useState<PageId>('news')
   const [selectedMod, setSelectedMod] = useState<string | null>(null)
   const [selectedWikiArticle, setSelectedWikiArticle] = useState<string | null>(null)
+  const [wikiCategory, setWikiCategory] = useState(DEFAULT_WIKI_CATEGORY)
   const [compatibilityTab, setCompatibilityTab] = useState<CompatibilityTab>('mod-detection')
   const [dismissedBannerKey, setDismissedBannerKey] = useState<string | null>(null)
   const [chirper, setChirper] = useState(false)
@@ -148,13 +150,29 @@ export function App() {
   const navigate = (next: PageId) => {
     setSelectedMod(null)
     setSelectedWikiArticle(null)
+    if (next === 'wiki' && page !== 'wiki' && !wikiCategory) {
+      setWikiCategory(DEFAULT_WIKI_CATEGORY)
+    }
     setPage(next)
   }
-  const openWikiArticle = (articleId: string) => {
+  const navigateToWiki = (
+    destination:
+      | { type: 'article'; articleId: string }
+      | { type: 'category'; category: string },
+  ) => {
     setSelectedMod(null)
-    setSelectedWikiArticle(articleId)
+    if (destination.type === 'category') {
+      setWikiCategory(destination.category)
+      setSelectedWikiArticle(null)
+    } else {
+      setSelectedWikiArticle(destination.articleId)
+    }
     setPage('wiki')
   }
+  const openWikiArticle = (articleId: string) =>
+    navigateToWiki({ type: 'article', articleId })
+  const openWikiCategory = (category: string) =>
+    navigateToWiki({ type: 'category', category })
   const openCompatibility = (tab: CompatibilityTab) => {
     setSelectedMod(null)
     setSelectedWikiArticle(null)
@@ -387,8 +405,10 @@ export function App() {
                 notifyCommandResult={notifyCommandResult}
                 news={news}
                 wikiArticleId={selectedWikiArticle}
+                wikiCategory={wikiCategory}
                 selectWikiArticle={setSelectedWikiArticle}
                 openWikiArticle={openWikiArticle}
+                openWikiCategory={openWikiCategory}
                 unread={unread}
                 read={read}
                 markRead={markRead}

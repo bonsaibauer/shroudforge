@@ -5,6 +5,7 @@ import { Icon } from '../../ui-resources/show-icon'
 import { PageHeader } from '../../ui-resources/show-page-header'
 import type { CommandResult } from '../../notifications/ui/notification-types'
 import {
+  DEFAULT_WIKI_CATEGORY,
   loadWikiArticle,
   getCachedWikiArticleRefreshDelay,
   mergeWikiPages,
@@ -31,19 +32,22 @@ function isAbort(error: unknown): boolean {
 
 export function WikiPage({
   selectedArticleId,
+  category,
   onSelectArticle,
+  onOpenCategory,
   moduleSettings,
   notifyCommandResult,
 }: {
   selectedArticleId: string | null
+  category: string
   onSelectArticle(articleId: string | null): void
+  onOpenCategory(category: string): void
   moduleSettings?: WikiModuleSettings
   notifyCommandResult(result: CommandResult): void
 }) {
   const { t, locale, locales } = useI18n()
   const apiSettings = resolveWikiApiSettings(moduleSettings)
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('')
   const [languageFilter, setLanguageFilter] = useState('auto')
   const [categories, setCategories] = useState(() => readCachedWikiCategories()?.categories || [])
   const [listRetryAttempt, setListRetryAttempt] = useState(0)
@@ -61,6 +65,9 @@ export function WikiPage({
   const [articleRefreshFailedReference, setArticleRefreshFailedReference] = useState<string>()
   const selected = selectedArticleId
   const filter = query.trim()
+  const selectedCategoryOption = categories.find(
+    (item) => item.toLocaleLowerCase() === category.toLocaleLowerCase(),
+  ) ?? category
   const visiblePages = useMemo(
     () => selectWikiLocalePages(pages, locale, languageFilter),
     [pages, locale, languageFilter],
@@ -425,9 +432,23 @@ export function WikiPage({
   }
 
   function selectCategoryFilter(nextCategory: string) {
-    setCategory(nextCategory)
+    onOpenCategory(nextCategory)
+  }
+
+  function selectArticleCategory(nextCategory: string) {
+    onOpenCategory(nextCategory)
     setQuery('')
-    if (selected) selectArticle(null)
+  }
+
+  function changeQuery(nextQuery: string) {
+    const hadSearch = Boolean(filter)
+    const hasSearch = Boolean(nextQuery.trim())
+    if (!hadSearch && hasSearch && category) {
+      onOpenCategory('')
+    } else if (hadSearch && !hasSearch && !category) {
+      onOpenCategory(DEFAULT_WIKI_CATEGORY)
+    }
+    setQuery(nextQuery)
   }
 
   const languageOptions = [...new Map(locales.map((option) => {
@@ -460,7 +481,7 @@ export function WikiPage({
     {!apiSettings.enabled ? <p className="builder-notice warning" role="status">{t('settings.moduleUnavailable')}</p>
       : selected ? currentArticle ? <>
       <WikiArticle article={currentArticle} onOpenWikiArticle={(pageTitle) => selectArticle(pageTitle)}
-        onSelectCategory={selectCategoryFilter}>
+        onSelectCategory={selectArticleCategory}>
         <div className="feature-banner-actions"><button type="button" className="button ghost"
           onClick={() => selectArticle(null)}>{t('wiki.back')}</button></div>
       </WikiArticle>
@@ -474,12 +495,14 @@ export function WikiPage({
       : null : <>
       <label className="searchbar wiki-search"><Icon name="search" />
         <input type="search" aria-label={t('wiki.search')} placeholder={t('wiki.search')}
-          value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
+          value={query} onChange={(event) => changeQuery(event.currentTarget.value)} />
       </label>
       <div className="wiki-search-filters">
         <label>{t('wiki.filterCategory')}
-          <select value={category} onChange={(event) => selectCategoryFilter(event.currentTarget.value)}>
+          <select value={selectedCategoryOption} onChange={(event) => selectCategoryFilter(event.currentTarget.value)}>
             <option value="">{t('wiki.allCategories')}</option>
+            {category && selectedCategoryOption === category && !categories.includes(category) &&
+              <option value={category}>{category}</option>}
             {categories.map((item) => <option value={item} key={item}>{item}</option>)}
           </select>
         </label>
