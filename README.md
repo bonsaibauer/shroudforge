@@ -15,7 +15,7 @@
 ![GitHub Stars](https://img.shields.io/github/stars/bonsaibauer/shroudforge?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/bonsaibauer/shroudforge?style=social)
 
-# Shroudforge Network
+# Shroudedit x Shroudforge Network
 
 <p align="center">
   <strong>🔨 <a href="https://shroudforge.net/">Check out the official download page →</a></strong>
