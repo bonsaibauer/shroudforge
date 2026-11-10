@@ -4,6 +4,7 @@ import type {
   NewsItem,
   NoticeAction,
 } from '../../notifications/ui/notification-types'
+import type { CommandResult } from '../../notifications/ui/notification-types'
 import { NewsPage } from '../../notifications/ui/show-news'
 import { Updates } from '../../updater/ui/show-updates'
 import { Discover } from '../../updater/ui/show-mod-catalog'
@@ -21,10 +22,13 @@ export function Page({
   data,
   settings,
   setSettings,
+  notifyCommandResult,
   news,
   wikiArticleId,
+  wikiCategory,
   selectWikiArticle,
   openWikiArticle,
+  openWikiCategory,
   unread,
   read,
   markRead,
@@ -39,10 +43,13 @@ export function Page({
   data: Snapshot
   settings: Settings
   setSettings(v: Settings): void
+  notifyCommandResult(result: CommandResult): void
   news: NewsItem[]
   wikiArticleId: string | null
+  wikiCategory: string
   selectWikiArticle(articleId: string | null): void
   openWikiArticle(articleId: string): void
+  openWikiCategory(category: string): void
   unread: NewsItem[]
   read: string[]
   markRead(ids: string[], isRead?: boolean): void
@@ -53,6 +60,7 @@ export function Page({
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
 }) {
+  const wikiModuleSettings = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
   if (id === 'activity')
     return <ActivityPage activity={data.activity} mods={data.mods} />
   if (id === 'news')
@@ -110,6 +118,8 @@ export function Page({
     return (
       <Compatibility
         data={data}
+        wikiModuleSettings={wikiModuleSettings}
+        openWikiCategory={openWikiCategory}
         news={news}
         openNews={openNews}
         selectMod={selectMod}
@@ -127,10 +137,15 @@ export function Page({
     return (
       <WikiPage
         selectedArticleId={wikiArticleId}
+        category={wikiCategory}
         onSelectArticle={selectWikiArticle}
+        onOpenCategory={openWikiCategory}
+        moduleSettings={wikiModuleSettings}
+        notifyCommandResult={notifyCommandResult}
       />
     )
   return (
-    <SettingsPage data={data} settings={settings} setSettings={setSettings} />
+    <SettingsPage data={data} settings={settings} setSettings={setSettings}
+      openWikiCategory={openWikiCategory} notifyCommandResult={notifyCommandResult} />
   )
 }

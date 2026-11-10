@@ -46,6 +46,12 @@
           "type": "object",
           "propertyNames": { "type": "string" },
           "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+        },
+        "optionGroups": {
+          "description": "Translations for option category labels declared by the setting's options.",
+          "type": "object",
+          "propertyNames": { "type": "string" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
         }
       }
     },

@@ -7,11 +7,17 @@ impl Session {
             "jobId":self.job.as_ref().map(|job| job.id.as_str()),
             "reason":self.reason,"remainingSeconds":if self.active {self.limit().saturating_sub(self.started.elapsed().as_secs())}else{0},
             "lastSampleAt":self.last_sample,"report":self.last_report.clone()});
-        if let Err(error) = shroudforge_loader_config::config::write_document(
-            &self.root,
-            crate::documents::STATUS,
-            &value,
-        ) {
+        // Off the mods' loop in game: a write could stall every mod at times.
+        if self.background_io {
+            shroudforge_loader_config::config::write_document_in_background(
+                &self.root,
+                crate::documents::STATUS,
+                value,
+                |error| tracing::error!(target:"shroudforge::diagnostics","Status publication failed: {error}"),
+            );
+        } else if let Err(error) =
+            shroudforge_loader_config::config::write_document(&self.root, crate::documents::STATUS, &value)
+        {
             tracing::error!(target:"shroudforge::diagnostics","Status publication failed: {error}");
         }
     }

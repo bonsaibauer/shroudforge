@@ -1,0 +1,102 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Modding
+description: Read the main-menu state and selected local character name through the Lua runtime. Both queries use the same native data as the Modloader and require no world access.
+language: en-GB
+picture:ShroudForge-Wiki-modding.svg
+creator: Bonsaibauer
+-->
+
+[[File:ShroudForge-Wiki-modding.svg|thumb|left|600px|Modding]]
+
+<br style="clear:both;" />
+
+<translate>
+
+Read the main-menu state and selected local character name through the Lua runtime. Both queries use the same native data as the Modloader and require no world access.
+
+== Prerequisites ==
+
+Enable the mod and declare the <code>runtime</code> capability in <code>mod.json</code>:
+
+<pre>
+{
+  "capabilities": ["runtime"]
+}
+</pre>
+
+For these client queries, set <code>targets</code> to <code>&#91;"client"&#93;</code> in <code>extended.mod.json</code>. Call the functions from active runtime callbacks such as <code>on_load</code> and <code>on_update</code>. <code>runtime.phase == "ingame"</code> describes the started mod runtime and does not confirm entry into a world. Neither query needs an execution profile. Other world operations retain their own requirements.
+
+== Detect the main menu ==
+
+<pre>
+local in_menu, reason = runtime.is_main_menu()
+</pre>
+
+{| class="wikitable"
+! Return value !! Meaning
+|-
+| <code>true, nil</code> || The main menu, including character, world and server selection, has been confirmed.
+|-
+| <code>false, nil</code> || A different original game state has been validated.
+|-
+| <code>nil, reason</code> || The state is unknown, changing, or the query is unavailable.
+|}
+
+Check <code>in_menu == true</code> or <code>in_menu == false</code> explicitly. <code>nil</code> is not a confirmed state. <code>false</code> alone does not confirm a readable world either. Check the operation you need separately, such as <code>runtime.has("runtime.ecs.read")</code>.
+
+== Read the character name ==
+
+<pre>
+local name, reason = runtime.player.name()
+local display_name = name or "Flameborn"
+</pre>
+
+<code>name, nil</code> returns the character name selected in the local main menu as a UTF-8 string. Unicode characters, as in <code>Ikiju 育樹</code>, are preserved. <code>nil, reason</code> means that no name is available yet, or access is unavailable or not allowed.
+
+The mod chooses its own fallback name. The API inserts no default and does not use the Modloader's manual name selection. The value identifies no remote player and is neither a SteamID nor a Steam display name. A Dedicated Server has no local client character name.
+
+== Shared cache ==
+
+Lua and the Modloader read the same native cache. The existing runtime tick refreshes the menu state. The existing menu integration captures the name on the first available selection and again when selection or name metadata changes. Lua queries start no separate discovery and read no logs.
+
+The last successfully captured name remains cached after joining a world. A cached name therefore does not confirm that the menu is open. <code>runtime.has("runtime.is_main_menu")</code> and <code>runtime.has("runtime.player.name")</code> report each query's availability. <code>runtime.status(...)</code> also supplies a reason.
+
+== Example for <code>src/mod.lua</code> ==
+
+This example reads the cache on load and every 500 ms afterwards. It chooses a fallback name and logs only changes:
+
+<pre>
+runtime.require("runtime.lifecycle")
+
+local previous_message = nil
+
+local function refresh()
+    local in_menu = runtime.is_main_menu()
+    local name = runtime.player.name()
+    local state = "unknown"
+    if in_menu == true then
+        state = "menu"
+    elseif in_menu == false then
+        state = "other"
+    end
+
+    local message = state .. ": " .. (name or "Flameborn")
+    if message ~= previous_message then
+        previous_message = message
+        shroudforge.log.info(message)
+    end
+end
+
+return {
+    on_load = refresh,
+    on_update = function()
+        refresh()
+    end,
+    update_interval_ms = 500,
+}
+</pre>
+</translate>
+
+[[Category:guide:Shroudforge]]

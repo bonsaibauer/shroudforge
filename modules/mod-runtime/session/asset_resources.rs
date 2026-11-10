@@ -1,4 +1,26 @@
 use super::*;
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
+
+pub(crate) const MAX_CONTENT_READ_JOBS: usize = 4;
+pub(crate) const MAX_CONTENT_READ_BYTES: u64 = 32 * 1024 * 1024;
+
+#[derive(Clone)]
+pub(crate) struct ContentReadPermit {
+    _inner: Arc<ContentReadPermitInner>,
+}
+
+struct ContentReadPermitInner {
+    in_flight: Arc<AtomicUsize>,
+}
+
+impl Drop for ContentReadPermitInner {
+    fn drop(&mut self) {
+        self.in_flight.fetch_sub(1, Ordering::Release);
+    }
+}
 
 pub struct ResourceInfo {
     pub resource_id: ResourceId,
@@ -139,6 +161,20 @@ impl ResourceInfo {
 }
 
 impl AppState {
+    pub(crate) fn reserve_content_read(&self) -> Option<ContentReadPermit> {
+        self.content_reads_in_flight
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |in_flight| {
+                (in_flight < MAX_CONTENT_READ_JOBS).then_some(in_flight + 1)
+            })
+            .ok()?;
+
+        Some(ContentReadPermit {
+            _inner: Arc::new(ContentReadPermitInner {
+                in_flight: Arc::clone(&self.content_reads_in_flight),
+            }),
+        })
+    }
+
     #[inline]
     pub fn kfc_file(&self) -> &KFCFile {
         &self.ref_file

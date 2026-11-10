@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "Panel i spelet",
+      "label": "Overlay",
       "description": "Positionen är relativt spelfönstret i logiska pixlar. X = −1 centrerar panelen. Y mäts ner från toppen. Ändringar gäller medan spelet körs."
     },
     {
-      "label": "Gränser för världsredigeraren"
-    },
-    {
-      "label": "Kortkommandon",
+      "label": "Genvägar",
       "description": "Redigera genvägarna här eller i Kompatibilitet → Snabbtangenter. Ändringar gäller under spelning. En tom bindning inaktiverar en genväg.",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Inbyggd enhetsverksamhet",
-      "description": "Spawn och placering använder inbyggda speloperationer.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Kö props spawn",
-          "confirm": "Kö en infödd prop-spawn med dessa UUID och spårningsvärden?"
-        },
-        "placeEntity": {
-          "label": "Plats vid koordinater",
-          "confirm": "Skicka infödd placering vid dessa koordinater?"
-        },
-        "destroyEntity": {
-          "label": "Förstör vid koordinaterna",
-          "confirm": "Skicka inbyggt borttagning vid dessa koordinater?"
-        }
-      }
-    },
-    {
-      "label": "Världsredigerare",
-      "description": "Fånga voxel-and-prop eller rekvisita-ritningar, förhandsgranska, klistra in och ångra genom infödda API:er.",
+      "label": "Skapa ritning",
+      "description": "Fånga voxelblock och föremål, eller endast föremål, och hantera sparade ritningar.",
       "actions": {
         "markCursorA": {
           "label": "Markera valhörnet A"
         },
         "markCursorB": {
           "label": "Markera valhörnet B"
-        },
-        "markCursorTarget": {
-          "label": "Markera klistra mål"
         },
         "clearCursorSelection": {
           "label": "Rensa markörmärken"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "Ta bort ritning och bild",
           "confirm": "Ta bort den namngivna ritningen och dess bild från exportmappen?"
+        }
+      }
+    },
+    {
+      "label": "Placera ritning",
+      "description": "Välj mål, inklistringsläge och rotation, förhandsgranska och placera den aktiva ritningen.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Markera klistra mål"
         },
         "pasteVoxels": {
           "label": "Klistra in aktiv ritning",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Förhandsgranska placeringsplan (endast logg)"
+        }
+      }
+    },
+    {
+      "label": "Enhetsåtgärder",
+      "description": "Spawn och placering använder inbyggda speloperationer.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Kö props spawn",
+          "confirm": "Kö en infödd prop-spawn med dessa UUID och spårningsvärden?"
         },
-        "undoVoxels": {
-          "label": "Ångra den senaste världsklistran"
+        "placeEntity": {
+          "label": "Plats vid koordinater",
+          "confirm": "Skicka infödd placering vid dessa koordinater?"
+        },
+        "destroyEntity": {
+          "label": "Förstör vid koordinaterna",
+          "confirm": "Skicka inbyggt borttagning vid dessa koordinater?"
         },
         "destroySelectedProp": {
           "label": "Förstör vald listad prop"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Samlar modinställningarna på flikarna Overlay, Genvägar, Skapa ritning, Placera ritning och Enhetsåtgärder.",
     "Lägger till online F8-infångning: den dedikerade servern läser den markerade terrängen och rekvisita, returnerar hela V7-ritningen över Steam P2P och klienten validerar och sparar den lokalt. Verifierad live med 648 celler och två rekvisita, följt av placering och ångra.",
     "Köar P2P-förfrågningar efter autentiserat klient- och begäran-ID, separerar samtidiga uppladdningar och varje klients senaste ångrajournal och tillåter upprepad F7-placering efter bekräftelse. F4 ångrar den senaste placeringen. Ofullständig återställning blockerar fortfarande klientens nästa inklistring.",
     "Fixar inbyggd F7-placering och F4-ångra för terräng, voxelceller och rekvisita i originalstorlek, inklusive roterade ritningar. Redaktörens egen journal återställer terräng och tar bort placerade rekvisita oberoende av spelets begränsade ångrahistorik.",

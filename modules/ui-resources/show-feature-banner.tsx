@@ -18,7 +18,7 @@ export function FeatureBanner({
   titleId: string
   description: string
   media: ReactNode
-  badge: string
+  badge: ReactNode
   role?: 'alert' | 'status'
   children?: ReactNode
   dismiss?: { label: string; onClick: () => void }
@@ -36,20 +36,11 @@ export function FeatureBanner({
         <p>{description}</p>
         {children}
       </div>
-      <div className="feature-banner-meta">
-        <span className="feature-banner-badge">{badge}</span>
-        {dismiss && (
-          <button
-            type="button"
-            className="button ghost feature-banner-dismiss"
-            aria-label={dismiss.label}
-            title={dismiss.label}
-            onClick={dismiss.onClick}
-          >
-            ×
-          </button>
-        )}
-      </div>
+      {(badge || dismiss) && <div className="feature-banner-meta">
+        {typeof badge === 'string' ? <span className="feature-banner-badge">{badge}</span> : badge}
+        {dismiss && <button type="button" className="button ghost feature-banner-dismiss"
+          aria-label={dismiss.label} title={dismiss.label} onClick={dismiss.onClick}>×</button>}
+      </div>}
     </aside>
   )
 }

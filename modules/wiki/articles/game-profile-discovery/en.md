@@ -45,6 +45,14 @@ Structural executable checks do not require a loaded world. World operations add
 
 If no profile is generated, read the reported reason and technical details. A missing saved baseline, unsuitable source profile or unresolved code and layout evidence each requires the relevant input or further analysis. A matching regular profile or a suitable ShroudForge update may provide support.
 
+## Detailed logging
+
+The Debug Console shows discovery messages from the main log under the `game-profile-discovery` source. To see every comparison and rebase field, set **Settings → General → Logging → Minimum level** to **Diagnostic**. **Advanced** shows additional summaries.
+
+The red runtime banner and the log entry `[compatibility-check] check=runtime` come from the same runtime check. The existing UI refresh logs the state change before sending the same status to the Modloader. The Debug Console applies its existing popup setting to warning and error lines from that main log.
+
+On failure, the main log gives the path to the current `*.v2.unresolved.json` or `*.v2.error.json` report. On success, it gives the path to the `*.v2.proof.json` evidence and the full save path of the generated `beta_*.json` profile. Reports are stored in the discovery cache.
+
 ## Linux and Proton
 
 Discovery runs inside the native runtime module and requires no external PowerShell or Python programs. This workflow has not yet been live-tested under Proton.

@@ -1,0 +1,155 @@
+# Translation of DLL Manager to Japanese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:13+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:13+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: ja\n"
+"X-Message-Group: page-DLL Manager\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "DLL_Manager/Page_display_title"
+msgid "DLL Manager"
+msgstr "DLL Manager"
+
+#
+msgctxt "DLL_Manager/1"
+msgid "In the Modloader, open '''Compatibility → DLL Manager'''. The guide is shown at the top of that panel. It lists the mod DLLs ShroudForge found and whether they loaded. Known mods have prepared profiles. For other DLLs, select and confirm them there."
+msgstr "Modloader で '''Compatibility → DLL Manager''' を開きます。このパネルの上部にガイドが表示されます。ShroudForge が見つけた Mod DLL と、その読み込み状況を一覧で確認できます。既知の Mod には準備済みプロファイルがあります。それ以外の DLL はここで選択して確認します。"
+
+#
+msgctxt "DLL_Manager/2"
+msgid "== Can I use more than one native DLL mod? =="
+msgstr "== ネイティブ DLL Mod を複数使えますか？ =="
+
+#
+msgctxt "DLL_Manager/3"
+msgid "Yes. Install each mod in its own folder directly under <code>mods/</code>, and keep the files and subfolders supplied by the author. A matching profile may already provide the right DLL selection. For a mod without a matching profile, open '''Adjust DLL selection''' in the DLL Manager. Select only the entry DLLs named by the author. Choose the load target and confirm that you trust the DLL. Keep '''Normal DLL''' for ordinary native libraries. Choose '''DirectInput proxy''' only for a DLL intended to provide DirectInput that exports <code>DirectInput8Create</code>. Click '''Apply selection''', then restart the game. Detection alone does not load an unprofiled DLL. It needs a confirmed DLL Manager selection, a declaration in <code>native-plugin.ini</code> or <code>dinput8-chain.ini</code>, or registration by its Lua mod."
+msgstr "はい。各 Mod を <code>mods/</code> 直下の個別フォルダーにインストールし、作者が提供したファイルとサブフォルダーをそのまま保持してください。一致するプロファイルが正しい DLL をすでに選択している場合があります。対応するプロファイルがない Mod では DLL Manager の '''Adjust DLL selection''' を開きます。作者が指定したエントリー DLL のみを選択してください。読み込み先を選び、その DLL を信頼することを確認します。通常のネイティブライブラリには '''Normal DLL''' を使用します。'''DirectInput proxy''' は、DirectInput を提供する目的の DLL が <code>DirectInput8Create</code> をエクスポートしている場合に限り選択します。'''Apply selection''' をクリックし、ゲームを再起動します。検出されただけでは、プロファイルのない DLL は読み込まれません。DLL Manager で選択を確定するか、<code>native-plugin.ini</code> または <code>dinput8-chain.ini</code> に宣言するか、その Lua Mod から登録する必要があります。"
+
+#
+msgctxt "DLL_Manager/4"
+msgid "== What should I do with a downloaded mod? =="
+msgstr "== ダウンロードした Mod はどうすればよいですか？ =="
+
+#
+msgctxt "DLL_Manager/5"
+msgid "* '''No DLL included:''' Install the mod as usual. Mods made for ShroudForge or EML do not need an extra native DLL.\n* '''DLL included:''' Put the mod DLL in its mod folder as shown below. It then appears in the DLL Manager. A known profile already has its selection prepared. Otherwise, select the DLL there and confirm it.\n* '''Other mod files included:''' Keep the complete mod folder. Do not remove files such as <code>mod.json</code>, <code>native-plugin.ini</code> or configuration files."
+msgstr "* '''No DLL included:''' 通常どおり Mod をインストールします。ShroudForge または EML 向けの Mod に追加のネイティブ DLL は不要です。\n* '''DLL included:''' 下記のように Mod の DLL をその Mod フォルダーに置きます。DLL Manager に表示されます。既知のプロファイルでは選択が準備済みです。それ以外の場合は DLL を選択して確認します。\n* '''Other mod files included:''' Mod フォルダー全体を保持してください。<code>mod.json</code>、<code>native-plugin.ini</code>、設定ファイルなどを削除しないでください。"
+
+#
+msgctxt "DLL_Manager/6"
+msgid "== If one mod contains several DLL files =="
+msgstr "== 1 つの Mod に複数の DLL ファイルがある場合 =="
+
+#
+msgctxt "DLL_Manager/7"
+msgid "Many mod folders contain DLLs that are only helper files. Select only the DLLs named for loading by the mod profile or the mod author's instructions. The up and down controls set the order of selected DLLs within that mod folder. They do not set a global manual order for ordinary DLLs across separate mod folders."
+msgstr "多くの Mod フォルダーには補助ファイルとしてのみ使われる DLL があります。Mod プロファイルまたは作者の説明で読み込み対象として指定された DLL だけを選択してください。上下のボタンは、その Mod フォルダー内で選択した DLL の順序を設定します。別々の Mod フォルダーにある通常 DLL のグローバルな手動順序は設定しません。"
+
+#
+msgctxt "DLL_Manager/8"
+msgid "== Installing a mod DLL =="
+msgstr "== Mod DLL のインストール =="
+
+#
+msgctxt "DLL_Manager/9"
+msgid "If the ShroudForge installer recognizes the downloaded mod package, install it there. For a manual install, give each mod its own folder directly under <code>mods/</code> and put the mod's DLL in that folder. If the DLL sits beside the mod folder in the archive, put it with the mod. Keep the original filename and the package's subfolders."
+msgstr "ShroudForge インストーラーがダウンロードした Mod パッケージを認識する場合は、そこでインストールしてください。手動でインストールする場合は、各 Mod 用のフォルダーを <code>mods/</code> 直下に作成し、DLL をそのフォルダーに入れます。アーカイブ内で DLL が Mod フォルダーの隣にある場合は、Mod と一緒に配置してください。元のファイル名とパッケージのサブフォルダーを維持します。"
+
+#
+msgctxt "DLL_Manager/10"
+msgid "<pre>\nmods/\n  my-mod/\n    mod.json        (if included)\n    dinput8.dll     (or the mod's DLL)\n    config.ini      (if included)\n</pre>"
+msgstr "<pre>\nmods/\n  my-mod/\n    mod.json        (if included)\n    dinput8.dll     (or the mod's DLL)\n    config.ini      (if included)\n</pre>"
+
+#
+msgctxt "DLL_Manager/11"
+msgid "A DLL does not load just because it is in the folder. Select it in the DLL Manager as described above."
+msgstr "フォルダーに入れただけでは DLL は読み込まれません。上記のとおり DLL Manager で選択してください。"
+
+#
+msgctxt "DLL_Manager/12"
+msgid "== Why can the mod file also be named dinput8.dll? =="
+msgstr "== Mod のファイル名が dinput8.dll でもよいのはなぜですか？ =="
+
+#
+msgctxt "DLL_Manager/13"
+msgid "ShroudForge's own startup file is <code>dinput8.dll</code> in the game folder. The mod file is separate at <code>mods/&lt;mod-folder&gt;/dinput8.dll</code>. ShroudForge loads it from that full path. With a matching profile or DLL Manager selection, ShroudForge forwards DirectInput calls to it. Both files can keep the same name. Do not rename the mod file or put it in the game folder. Do not replace ShroudForge's startup file there."
+msgstr "ShroudForge 自身の起動ファイルはゲームフォルダー内の <code>dinput8.dll</code> です。Mod のファイルは <code>mods/&lt;mod-folder&gt;/dinput8.dll</code> に別途置きます。ShroudForge はそのフルパスから読み込みます。一致するプロファイルまたは DLL Manager の選択があると、ShroudForge は DirectInput 呼び出しを転送します。両方のファイル名が同じでも問題ありません。Mod のファイル名を変更したり、ゲームフォルダーへ置いたりしないでください。そこにある ShroudForge の起動ファイルを置き換えないでください。"
+
+#
+msgctxt "DLL_Manager/14"
+msgid "== Understanding profiles =="
+msgstr "== プロファイルについて =="
+
+#
+msgctxt "DLL_Manager/15"
+msgid "A profile is a prepared setting for a known mod. It tells ShroudForge which files to load and how. ShroudForge matches it by the mod ID in <code>mod.json</code>, or by the folder name if there is no ID. You can also choose a profile in the DLL Manager. Profiles do not change mod files. A saved custom DLL selection replaces the profile's file selection."
+msgstr "プロファイルは既知の Mod 向けに準備された設定です。読み込むファイルと方法を ShroudForge に指示します。<code>mod.json</code> の Mod ID、ID がない場合はフォルダー名で照合します。DLL Manager でプロファイルを選ぶこともできます。プロファイルは Mod ファイルを変更しません。保存済みのカスタム DLL 選択は、プロファイルのファイル選択を置き換えます。"
+
+#
+msgctxt "DLL_Manager/16"
+msgid "== Existing DirectInput chain =="
+msgstr "== 既存の DirectInput チェーン =="
+
+#
+msgctxt "DLL_Manager/17"
+msgid "An existing game-folder <code>dinput8-chain.ini</code> uses the established format:"
+msgstr "ゲームフォルダーに既存の <code>dinput8-chain.ini</code> がある場合は、確立された形式を使用します。"
+
+#
+msgctxt "DLL_Manager/18"
+msgid "<pre>\n[Chain]\nmods\\my-mod\\dinput8.dll\nmods\\another-mod\\native.dll\n</pre>"
+msgstr "<pre>\n[Chain]\nmods\\my-mod\\dinput8.dll\nmods\\another-mod\\native.dll\n</pre>"
+
+#
+msgctxt "DLL_Manager/19"
+msgid "Entries must resolve to files inside direct mod packages such as <code>mods/&lt;mod-folder&gt;/</code>. Game-root DLLs and paths outside those packages are rejected. Their order takes priority over automatically derived declarations. This file sets order for the DirectInput provider chain, not for ordinary DLLs across mod folders. The same resolved file path is loaded only once. The first valid DLL exporting its own <code>DirectInput8Create</code> receives forwarded calls. Later DirectInput proxy DLLs may still load, but their DirectInput exports are not active in the chain. Do not assume that multiple proxies will work together. Own startup files are skipped, and recursive forwarding falls back to the original Windows library."
+msgstr "各項目は <code>mods/&lt;mod-folder&gt;/</code> のような直下の Mod パッケージ内のファイルを指す必要があります。ゲームルートにある DLL やパッケージ外のパスは拒否されます。記載順は自動的に導出された宣言より優先されます。このファイルは DirectInput プロバイダーのチェーン順を設定するもので、Mod フォルダー間の通常 DLL の順序は設定しません。同じ解決済みファイルパスは 1 回だけ読み込まれます。独自の <code>DirectInput8Create</code> をエクスポートする最初の有効な DLL が転送呼び出しを受け取ります。後続の DirectInput プロキシ DLL も読み込まれる場合がありますが、チェーン内で DirectInput エクスポートは有効になりません。複数のプロキシが連携して動くとは限りません。ShroudForge 自身の起動ファイルは除外され、転送が再帰する場合は元の Windows ライブラリに戻ります。"
+
+#
+msgctxt "DLL_Manager/20"
+msgid "== Switches, process target and restarting =="
+msgstr "== スイッチ、対象プロセス、再起動 =="
+
+#
+msgctxt "DLL_Manager/21"
+msgid "The main switch controls all native loading performed by ShroudForge, including INI, profile, chain and Lua registration. A disabled selection suppresses automatic loading for that folder. Client, server or both determines the target process. Filename exclusions apply immediately before loading. They do not identify a mod's functionality from its name."
+msgstr "メインスイッチは INI、プロファイル、チェーン、Lua 登録を含む ShroudForge のすべてのネイティブ読み込みを制御します。選択を無効にすると、そのフォルダーの自動読み込みを抑止します。Client、server、both の指定で対象プロセスを決めます。ファイル名の除外は読み込み直前に適用されます。名前から Mod の機能を判別するものではありません。"
+
+#
+msgctxt "DLL_Manager/22"
+msgid "Loaded DLLs remain in memory until the process exits. Disabling them, changing the order or choosing another profile therefore requires restarting the game. Duplicate declarations of one file do not create another instance."
+msgstr "読み込まれた DLL はプロセスが終了するまでメモリに残ります。無効化、順序変更、別プロファイルの選択にはゲームの再起動が必要です。同じファイルを複数回宣言しても、インスタンスは増えません。"
+
+#
+msgctxt "DLL_Manager/23"
+msgid "== A loading error appears =="
+msgstr "== 読み込みエラーが表示される =="
+
+#
+msgctxt "DLL_Manager/24"
+msgid "Check the mod name, file path and cause. Windows error 126 can mean a missing main file or one of its required libraries. If the DirectInput export is missing, check the selected file and its loading mode. “Loaded” confirms loading, rather than every feature of the mod."
+msgstr "Mod 名、ファイルパス、表示された原因を確認してください。Windows エラー 126 は、メインファイルまたは必要なライブラリのいずれかが欠けていることを示す場合があります。DirectInput エクスポートが見つからない場合は、選択したファイルと読み込みモードを確認してください。「Loaded」は読み込みを確認するもので、Mod のすべての機能を保証するものではありません。"
+
+#
+msgctxt "DLL_Manager/25"
+msgid "An unknown native plugin format, Vulkan layer, additional complete loader or external program needs its intended integration. Loading a library alone does not replace that interface."
+msgstr "未知のネイティブプラグイン形式、Vulkan レイヤー、追加の完全なローダー、外部プログラムには、それぞれ意図された統合方法が必要です。ライブラリを読み込むだけでは、そのインターフェースの代わりになりません。"
+
+#
+msgctxt "DLL_Manager/26"
+msgid "== Installing packages =="
+msgstr "== パッケージのインストール =="
+
+#
+msgctxt "DLL_Manager/27"
+msgid "The installer also finds a single mod package in nested archive folders. Known profiles import explicitly named companion files. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. Normal runtime operation does not open archives or start external programs."
+msgstr "インストーラーは入れ子になったアーカイブフォルダーからも単一の Mod パッケージを見つけます。既知のプロファイルは、明示的に指定された関連ファイルを読み込みます。複数の Mod パッケージを含むアーカイブは、グループとして自動インストールされません。展開して、Mod フォルダーを 1 つずつインストールしてください。通常のランタイム動作では、アーカイブを開いたり外部プログラムを起動したりしません。"

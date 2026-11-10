@@ -5,16 +5,21 @@ export type NavigationStatus = 'error' | 'warning' | 'ok' | 'neutral' | 'restart
 
 export function NavGroup({
   title,
+  version,
   children,
   className,
 }: {
   title: string
+  version?: string
   children: React.ReactNode
   className?: string
 }) {
   return (
     <section className={`nav-group ${className || ''}`}>
-      <h2>{title}</h2>
+      <h2>
+        <span>{title}</span>
+        {version && <small className="nav-group-version">{version}</small>}
+      </h2>
       {children}
     </section>
   )

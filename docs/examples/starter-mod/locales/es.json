@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Hola Ember",
+    "description": "Una demostración visual en español de los ajustes, pestañas, dependencias, perfiles y acciones del Modloader."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Mostrar saludo al iniciar",
+      "description": "Escribe el saludo en el registro del mod cuando se inicia el entorno de ejecución."
+    },
+    "greeting": {
+      "label": "Saludo",
+      "description": "Texto que usan la función de inicio y el botón."
+    },
+    "severity": {
+      "label": "Nivel del registro",
+      "description": "Indica cómo aparece el mensaje de ejemplo en el registro del mod.",
+      "options": {
+        "info": "Información",
+        "warn": "Advertencia"
+      }
+    },
+    "checkboxExample": {
+      "label": "Casilla",
+      "description": "La variante de casilla de un ajuste booleano."
+    },
+    "textareaExample": {
+      "label": "Área de texto",
+      "description": "Un campo de varias líneas para textos largos."
+    },
+    "numberExample": {
+      "label": "Entrada numérica",
+      "description": "Un campo numérico limitado con un incremento."
+    },
+    "sliderExample": {
+      "label": "Control deslizante",
+      "description": "Un control deslizante con el valor visible."
+    },
+    "radioExample": {
+      "label": "Opciones de radio",
+      "description": "Una fila de opciones con botones de radio.",
+      "options": {
+        "compact": "Compacto",
+        "comfortable": "Cómodo",
+        "wide": "Ancho"
+      }
+    },
+    "segmentedExample": {
+      "label": "Opciones segmentadas",
+      "description": "Un control compacto dividido en segmentos.",
+      "options": {
+        "left": "Izquierda",
+        "center": "Centro",
+        "right": "Derecha"
+      }
+    },
+    "colorExample": {
+      "label": "Control de color",
+      "description": "Un selector de color nativo."
+    },
+    "groupedChoices": {
+      "label": "Lista larga por categorías",
+      "description": "Busca en todas las categorías o elige una pestaña de categoría.",
+      "options": {
+        "stone": "Piedra",
+        "timber": "Madera",
+        "clay": "Arcilla",
+        "iron": "Hierro",
+        "copper": "Cobre",
+        "hammer": "Martillo",
+        "axe": "Hacha",
+        "shovel": "Pala",
+        "pickaxe": "Pico",
+        "saw": "Sierra",
+        "rope": "Cuerda",
+        "resin": "Resina",
+        "nails": "Clavos",
+        "cloth": "Tela",
+        "charcoal": "Carbón"
+      },
+      "optionGroups": {
+        "Materials": "Materiales",
+        "Tools": "Herramientas",
+        "Supplies": "Suministros"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Lista larga sin categorías",
+      "description": "Búsqueda y filtro de elementos activados sin pestañas de categoría.",
+      "options": {
+        "alpha": "Opción 01",
+        "bravo": "Opción 02",
+        "charlie": "Opción 03",
+        "delta": "Opción 04",
+        "echo": "Opción 05",
+        "foxtrot": "Opción 06",
+        "golf": "Opción 07",
+        "hotel": "Opción 08",
+        "india": "Opción 09",
+        "juliet": "Opción 10",
+        "kilo": "Opción 11",
+        "lima": "Opción 12",
+        "mike": "Opción 13",
+        "november": "Opción 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Lista corta por categorías",
+      "description": "Tiene exactamente doce opciones. Las categorías siguen visibles y se ocultan los controles de búsqueda.",
+      "options": {
+        "north": "Norte",
+        "east": "Este",
+        "south": "Sur",
+        "west": "Oeste",
+        "spring": "Primavera",
+        "summer": "Verano",
+        "autumn": "Otoño",
+        "winter": "Invierno",
+        "morning": "Mañana",
+        "noon": "Mediodía",
+        "evening": "Tarde",
+        "night": "Noche"
+      },
+      "optionGroups": {
+        "Directions": "Direcciones",
+        "Seasons": "Estaciones",
+        "Day parts": "Momentos del día"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Activar control avanzado",
+      "description": "Activa esto para desbloquear el control deslizante dependiente."
+    },
+    "advancedAmount": {
+      "label": "Control deslizante dependiente",
+      "description": "Permanece desactivado hasta activar la opción anterior."
+    },
+    "reservedShortcut": {
+      "label": "Atajo de ejemplo reservado",
+      "description": "Muestra los candados de reserva del teclado y el ratón."
+    },
+    "plainShortcut": {
+      "label": "Atajo de ejemplo sin reserva",
+      "description": "Un atajo sin candados de reserva."
+    },
+    "wheelScroll": {
+      "label": "Reserva de la rueda del ratón",
+      "description": "Muestra el control de reserva de la rueda del ratón."
+    },
+    "presetQuality": {
+      "label": "Perfil de calidad",
+      "description": "Al cambiar el perfil se actualizan los campos siguientes.",
+      "options": {
+        "low": "Baja",
+        "balanced": "Equilibrada",
+        "high": "Alta",
+        "custom": "Personalizada"
+      }
+    },
+    "presetRange": {
+      "label": "Alcance del perfil",
+      "description": "Si lo editas manualmente, el perfil cambia a Personalizado."
+    },
+    "presetDetail": {
+      "label": "Detalle del perfil",
+      "description": "Este valor lo controla el perfil de calidad.",
+      "options": {
+        "low": "Poco detalle",
+        "medium": "Detalle medio",
+        "high": "Mucho detalle"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Búsqueda y categorías",
+      "description": "Ambas listas superan el límite de búsqueda. La primera también tiene pestañas de categoría."
+    },
+    {
+      "label": "Controles condicionales",
+      "description": "Activa el primer ajuste para desbloquear el control deslizante dependiente."
+    },
+    {
+      "label": "Atajos y rueda del ratón",
+      "description": "Compara un atajo normal, teclas reservadas y una rueda del ratón reservada."
+    },
+    {
+      "label": "Perfiles predefinidos",
+      "description": "Elige un perfil y luego edita un ajuste para seleccionar Personalizada."
+    },
+    {
+      "label": "Acciones y confirmación",
+      "description": "Estas acciones solo escriben en el registro del mod. Una pide confirmación.",
+      "actions": {
+        "logGreeting": {
+          "label": "Escribir saludo en el registro del mod"
+        },
+        "logTestSettings": {
+          "label": "Registrar los valores actuales de prueba"
+        },
+        "confirmTestAction": {
+          "label": "Mostrar ejemplo de confirmación",
+          "confirm": "¿Ejecutar el ejemplo inofensivo? Solo escribirá un mensaje en el registro del mod."
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Primera demostración visual. Información muestra las insignias del paquete, los enlaces de ejemplo y este registro de cambios.",
+    "Las dependencias opcionales muestran los estados de dependencias instaladas y ausentes.",
+    "Ajustes y pestañas personalizadas muestran todos los controles, búsqueda, categorías, condiciones, perfiles, atajos y acciones."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Saludo"
+  }
+}

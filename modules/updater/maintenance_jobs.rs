@@ -63,6 +63,7 @@ enum Action {
     MigrateLegacyMods,
     MigrateLegacyEventLevels,
     MigrateLegacyToggleKeys,
+    NormalizeWikiRefreshInterval,
     UpdateLoaderSettings,
     PurgeExpiredRecycleBin,
 }
@@ -76,13 +77,14 @@ impl Action {
                 | Self::MigrateLegacyMods
                 | Self::MigrateLegacyEventLevels
                 | Self::MigrateLegacyToggleKeys
+                | Self::NormalizeWikiRefreshInterval
                 | Self::UpdateLoaderSettings
         )
     }
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 8] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 9] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -123,6 +125,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 8] = [
         Trigger::AfterInstall,
         "migration.legacy-toggle-key-settings",
         Action::MigrateLegacyToggleKeys,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.wiki-refresh-interval",
+        Action::NormalizeWikiRefreshInterval,
         1,
     ),
     (
@@ -187,6 +195,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
     (
         "migrate-legacy-toggle-key-settings.json",
         include_str!("migrate-legacy-toggle-key-settings.json"),
+    ),
+    (
+        "migrate-wiki-refresh-interval.json",
+        include_str!("migrate-wiki-refresh-interval.json"),
     ),
     (
         "restore-updates-module.json",
@@ -306,12 +318,14 @@ pub(crate) fn run_after_install(root: &Path) -> Result<(), String> {
         })
         .filter_map(|item| item["id"].as_str().map(str::to_owned))
         .collect::<Vec<_>>();
-    // A queued settings update can validate loader.json, so migrate integer hotkeys first.
+    // Normalize Wiki intervals before migrations validate the loader settings.
     ids.sort_by_key(|id| {
-        if id.starts_with("maintenance:migration.legacy-toggle-key-settings:") {
+        if id.starts_with("maintenance:migration.wiki-refresh-interval:") {
             0
-        } else {
+        } else if id.starts_with("maintenance:migration.legacy-toggle-key-settings:") {
             1
+        } else {
+            2
         }
     });
 
@@ -441,6 +455,9 @@ pub(crate) fn execute(root: &Path, item: &serde_json::Value) -> Result<(), Strin
         Action::MigrateLegacyMods => migrate_legacy_mods(root)?,
         Action::MigrateLegacyEventLevels => migrate_legacy_event_levels(root)?,
         Action::MigrateLegacyToggleKeys => migrate_legacy_toggle_keys(root)?,
+        Action::NormalizeWikiRefreshInterval => {
+            shroudforge_loader_config::config::migrate_wiki_refresh_interval(root)?;
+        }
         Action::UpdateLoaderSettings => update_loader_settings(root, item)?,
         Action::PurgeExpiredRecycleBin => {
             if crate::recycle_bin::automatic_cleanup_enabled(root) {
@@ -465,6 +482,7 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
         Some("MigrateLegacyMods") => Ok(Action::MigrateLegacyMods),
         Some("MigrateLegacyEventLevels") => Ok(Action::MigrateLegacyEventLevels),
         Some("MigrateLegacyToggleKeys") => Ok(Action::MigrateLegacyToggleKeys),
+        Some("NormalizeWikiRefreshInterval") => Ok(Action::NormalizeWikiRefreshInterval),
         Some("UpdateLoaderSettings") => Ok(Action::UpdateLoaderSettings),
         Some("PurgeExpiredRecycleBin") => Ok(Action::PurgeExpiredRecycleBin),
         _ => Err(format!("unsupported maintenance job in queue item {id}")),

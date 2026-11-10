@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Bonjour Ember",
+    "description": "Une démonstration visuelle en français des réglages, onglets, dépendances, profils et actions du Modloader."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Afficher le message au démarrage",
+      "description": "Écrit le message dans le journal du mod au démarrage de l’exécution."
+    },
+    "greeting": {
+      "label": "Message d’accueil",
+      "description": "Texte utilisé par le rappel de démarrage et le bouton."
+    },
+    "severity": {
+      "label": "Niveau du journal",
+      "description": "Détermine l’apparence du message d’exemple dans le journal du mod.",
+      "options": {
+        "info": "Information",
+        "warn": "Avertissement"
+      }
+    },
+    "checkboxExample": {
+      "label": "Case à cocher",
+      "description": "La variante avec case à cocher d’un réglage booléen."
+    },
+    "textareaExample": {
+      "label": "Zone de texte",
+      "description": "Un champ multiligne pour les textes plus longs."
+    },
+    "numberExample": {
+      "label": "Saisie numérique",
+      "description": "Un champ numérique limité avec un pas défini."
+    },
+    "sliderExample": {
+      "label": "Curseur",
+      "description": "Un curseur dont la valeur reste visible."
+    },
+    "radioExample": {
+      "label": "Choix par boutons radio",
+      "description": "Une rangée de choix de type bouton radio.",
+      "options": {
+        "compact": "Compact",
+        "comfortable": "Confortable",
+        "wide": "Large"
+      }
+    },
+    "segmentedExample": {
+      "label": "Choix segmentés",
+      "description": "Un contrôle compact composé de segments.",
+      "options": {
+        "left": "Gauche",
+        "center": "Centre",
+        "right": "Droite"
+      }
+    },
+    "colorExample": {
+      "label": "Sélecteur de couleur",
+      "description": "Un sélecteur de couleur natif."
+    },
+    "groupedChoices": {
+      "label": "Liste longue par catégories",
+      "description": "Recherchez dans toutes les catégories ou choisissez un onglet de catégorie.",
+      "options": {
+        "stone": "Pierre",
+        "timber": "Bois",
+        "clay": "Argile",
+        "iron": "Fer",
+        "copper": "Cuivre",
+        "hammer": "Marteau",
+        "axe": "Hache",
+        "shovel": "Pelle",
+        "pickaxe": "Pioche",
+        "saw": "Scie",
+        "rope": "Corde",
+        "resin": "Résine",
+        "nails": "Clous",
+        "cloth": "Tissu",
+        "charcoal": "Charbon"
+      },
+      "optionGroups": {
+        "Materials": "Matériaux",
+        "Tools": "Outils",
+        "Supplies": "Fournitures"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Liste longue sans catégories",
+      "description": "Recherche et filtre des éléments activés sans onglets de catégorie.",
+      "options": {
+        "alpha": "Choix 01",
+        "bravo": "Choix 02",
+        "charlie": "Choix 03",
+        "delta": "Choix 04",
+        "echo": "Choix 05",
+        "foxtrot": "Choix 06",
+        "golf": "Choix 07",
+        "hotel": "Choix 08",
+        "india": "Choix 09",
+        "juliet": "Choix 10",
+        "kilo": "Choix 11",
+        "lima": "Choix 12",
+        "mike": "Choix 13",
+        "november": "Choix 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Liste courte par catégories",
+      "description": "Douze choix exactement. Les catégories restent visibles et les contrôles de recherche sont masqués.",
+      "options": {
+        "north": "Nord",
+        "east": "Est",
+        "south": "Sud",
+        "west": "Ouest",
+        "spring": "Printemps",
+        "summer": "Été",
+        "autumn": "Automne",
+        "winter": "Hiver",
+        "morning": "Matin",
+        "noon": "Midi",
+        "evening": "Soir",
+        "night": "Nuit"
+      },
+      "optionGroups": {
+        "Directions": "Directions",
+        "Seasons": "Saisons",
+        "Day parts": "Moments de la journée"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Activer le réglage avancé",
+      "description": "Activez cette option pour déverrouiller le curseur dépendant."
+    },
+    "advancedAmount": {
+      "label": "Curseur dépendant",
+      "description": "Il reste désactivé tant que l’option précédente n’est pas activée."
+    },
+    "reservedShortcut": {
+      "label": "Raccourci d’exemple réservé",
+      "description": "Affiche les cadenas de réservation du clavier et de la souris."
+    },
+    "plainShortcut": {
+      "label": "Raccourci d’exemple libre",
+      "description": "Un raccourci sans cadenas de réservation."
+    },
+    "wheelScroll": {
+      "label": "Réservation de la molette",
+      "description": "Affiche le contrôle de réservation de la molette."
+    },
+    "presetQuality": {
+      "label": "Profil de qualité",
+      "description": "Le choix d’un profil met à jour les champs suivants.",
+      "options": {
+        "low": "Faible",
+        "balanced": "Équilibrée",
+        "high": "Élevée",
+        "custom": "Personnalisée"
+      }
+    },
+    "presetRange": {
+      "label": "Portée du profil",
+      "description": "Une modification manuelle sélectionne le profil Personnalisé."
+    },
+    "presetDetail": {
+      "label": "Détail du profil",
+      "description": "Cette valeur est définie par le profil de qualité.",
+      "options": {
+        "low": "Peu de détails",
+        "medium": "Détails moyens",
+        "high": "Beaucoup de détails"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Recherche et catégories",
+      "description": "Les deux listes dépassent le seuil de recherche. La première comporte aussi des onglets de catégorie."
+    },
+    {
+      "label": "Contrôles conditionnels",
+      "description": "Activez le premier réglage pour déverrouiller le curseur dépendant."
+    },
+    {
+      "label": "Raccourcis et molette",
+      "description": "Comparez un raccourci normal, des touches réservées et une molette réservée."
+    },
+    {
+      "label": "Profils prédéfinis",
+      "description": "Choisissez un profil, puis modifiez un réglage pour sélectionner Personnalisé."
+    },
+    {
+      "label": "Actions et confirmation",
+      "description": "Ces actions écrivent uniquement dans le journal du mod. L’une demande une confirmation.",
+      "actions": {
+        "logGreeting": {
+          "label": "Écrire le message dans le journal du mod"
+        },
+        "logTestSettings": {
+          "label": "Consigner les valeurs de test actuelles"
+        },
+        "confirmTestAction": {
+          "label": "Afficher l’exemple de confirmation",
+          "confirm": "Exécuter cet exemple sans risque ? Il écrit uniquement un message dans le journal du mod."
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Première démonstration visuelle. Informations affiche les badges du paquet, les liens d’exemple et ce journal des modifications.",
+    "Les dépendances facultatives illustrent les états des dépendances installées et manquantes.",
+    "Les réglages et onglets personnalisés présentent les contrôles, la recherche, les catégories, les conditions, les profils, les raccourcis et les actions."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Message d’accueil"
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Hallo Ember",
+    "description": "Een visueel Nederlandstalig voorbeeld van Modloader-instellingen, tabbladen, afhankelijkheden, presets en acties."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Begroeting bij opstarten tonen",
+      "description": "Schrijft de begroeting naar het modlog wanneer de runtime start."
+    },
+    "greeting": {
+      "label": "Begroeting",
+      "description": "Tekst voor de opstartfunctie en de knop."
+    },
+    "severity": {
+      "label": "Logniveau",
+      "description": "Bepaalt hoe het voorbeeldbericht in het modlog verschijnt.",
+      "options": {
+        "info": "Informatie",
+        "warn": "Waarschuwing"
+      }
+    },
+    "checkboxExample": {
+      "label": "Selectievakje",
+      "description": "De selectievakjevariant van een booleaanse instelling."
+    },
+    "textareaExample": {
+      "label": "Tekstvak",
+      "description": "Een veld met meerdere regels voor langere tekst."
+    },
+    "numberExample": {
+      "label": "Getalinvoer",
+      "description": "Een begrensd getalveld met een stapgrootte."
+    },
+    "sliderExample": {
+      "label": "Schuifregelaar",
+      "description": "Een schuifregelaar met zichtbare waarde."
+    },
+    "radioExample": {
+      "label": "Keuzerondjes",
+      "description": "Een rij keuzes in de stijl van keuzerondjes.",
+      "options": {
+        "compact": "Compact",
+        "comfortable": "Comfortabel",
+        "wide": "Breed"
+      }
+    },
+    "segmentedExample": {
+      "label": "Gesegmenteerde keuzes",
+      "description": "Een compacte keuze met afzonderlijke segmenten.",
+      "options": {
+        "left": "Links",
+        "center": "Midden",
+        "right": "Rechts"
+      }
+    },
+    "colorExample": {
+      "label": "Kleurkiezer",
+      "description": "Een ingebouwde kleurkiezer."
+    },
+    "groupedChoices": {
+      "label": "Lange lijst met categorieën",
+      "description": "Zoek in alle categorieën of kies een categorietabblad.",
+      "options": {
+        "stone": "Steen",
+        "timber": "Hout",
+        "clay": "Klei",
+        "iron": "IJzer",
+        "copper": "Koper",
+        "hammer": "Hamer",
+        "axe": "Bijl",
+        "shovel": "Schep",
+        "pickaxe": "Houweel",
+        "saw": "Zaag",
+        "rope": "Touw",
+        "resin": "Hars",
+        "nails": "Spijkers",
+        "cloth": "Stof",
+        "charcoal": "Houtskool"
+      },
+      "optionGroups": {
+        "Materials": "Materialen",
+        "Tools": "Gereedschap",
+        "Supplies": "Benodigdheden"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Lange lijst zonder categorieën",
+      "description": "Zoeken en filter voor ingeschakelde items zonder categorietabbladen.",
+      "options": {
+        "alpha": "Keuze 01",
+        "bravo": "Keuze 02",
+        "charlie": "Keuze 03",
+        "delta": "Keuze 04",
+        "echo": "Keuze 05",
+        "foxtrot": "Keuze 06",
+        "golf": "Keuze 07",
+        "hotel": "Keuze 08",
+        "india": "Keuze 09",
+        "juliet": "Keuze 10",
+        "kilo": "Keuze 11",
+        "lima": "Keuze 12",
+        "mike": "Keuze 13",
+        "november": "Keuze 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Korte lijst met categorieën",
+      "description": "Precies twaalf keuzes. Categorieën blijven zichtbaar en zoekbediening is verborgen.",
+      "options": {
+        "north": "Noord",
+        "east": "Oost",
+        "south": "Zuid",
+        "west": "West",
+        "spring": "Lente",
+        "summer": "Zomer",
+        "autumn": "Herfst",
+        "winter": "Winter",
+        "morning": "Ochtend",
+        "noon": "Middag",
+        "evening": "Avond",
+        "night": "Nacht"
+      },
+      "optionGroups": {
+        "Directions": "Richtingen",
+        "Seasons": "Seizoenen",
+        "Day parts": "Dagdelen"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Geavanceerde instelling inschakelen",
+      "description": "Schakel dit in om de afhankelijke schuifregelaar te ontgrendelen."
+    },
+    "advancedAmount": {
+      "label": "Afhankelijke schuifregelaar",
+      "description": "Blijft uitgeschakeld totdat de instelling erboven aanstaat."
+    },
+    "reservedShortcut": {
+      "label": "Gereserveerde sneltoets als voorbeeld",
+      "description": "Toont de reserveringsslotjes voor toetsenbord en muis."
+    },
+    "plainShortcut": {
+      "label": "Vrije sneltoets als voorbeeld",
+      "description": "Een sneltoets zonder reserveringsslotjes."
+    },
+    "wheelScroll": {
+      "label": "Muiswielreservering",
+      "description": "Toont de bediening voor reservering van het muiswiel."
+    },
+    "presetQuality": {
+      "label": "Kwaliteitsprofiel",
+      "description": "Met deze keuze worden de onderstaande velden bijgewerkt.",
+      "options": {
+        "low": "Laag",
+        "balanced": "Gebalanceerd",
+        "high": "Hoog",
+        "custom": "Aangepast"
+      }
+    },
+    "presetRange": {
+      "label": "Profielbereik",
+      "description": "Bij handmatig aanpassen wordt het profiel Aangepast."
+    },
+    "presetDetail": {
+      "label": "Profieldetail",
+      "description": "Deze waarde wordt bepaald door het kwaliteitsprofiel.",
+      "options": {
+        "low": "Weinig detail",
+        "medium": "Gemiddeld detail",
+        "high": "Veel detail"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Zoeken en categorieën",
+      "description": "Beide lijsten overschrijden de zoekgrens. De eerste heeft ook categorietabbladen."
+    },
+    {
+      "label": "Voorwaardelijke bediening",
+      "description": "Schakel de eerste instelling in om de afhankelijke schuifregelaar te ontgrendelen."
+    },
+    {
+      "label": "Sneltoetsen en muiswiel",
+      "description": "Vergelijk een gewone sneltoets, gereserveerde toetsen en een gereserveerd muiswiel."
+    },
+    {
+      "label": "Voorinstelprofielen",
+      "description": "Kies een profiel en pas daarna een instelling aan om Aangepast te selecteren."
+    },
+    {
+      "label": "Acties en bevestiging",
+      "description": "Deze acties schrijven alleen naar het modlog. Eén actie vraagt om bevestiging.",
+      "actions": {
+        "logGreeting": {
+          "label": "Begroeting naar het modlog schrijven"
+        },
+        "logTestSettings": {
+          "label": "Huidige testwaarden loggen"
+        },
+        "confirmTestAction": {
+          "label": "Bevestigingsvoorbeeld tonen",
+          "confirm": "Dit onschuldige voorbeeld uitvoeren? Het schrijft alleen een bericht naar het modlog."
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Eerste visuele demo. Informatie toont de pakketbadges, voorbeeldlinks en dit wijzigingslogboek.",
+    "Optionele afhankelijkheden tonen de status van geïnstalleerde en ontbrekende afhankelijkheden.",
+    "Instellingen en aangepaste tabbladen tonen alle bedieningselementen, zoeken, categorieën, voorwaarden, presets, sneltoetsen en acties."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Begroeting"
+  }
+}

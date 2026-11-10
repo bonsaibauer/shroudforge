@@ -1,9 +1,13 @@
 import type { SettingDefinition } from './mod-types'
 import type React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { SettingSwitch, SettingsRow } from '../../ui-resources/edit-setting'
+import { useI18n } from '../../ui-resources/i18n'
+import { Segmented } from '../../ui-resources/choose-segment'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
-import type { KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
+import type { InputDevice, KeybindAssessmentTarget } from '../../hotkeys/ui/edit-keybind'
+import { KeyReservationLock } from '../../hotkeys/ui/toggle-key-reservation'
 
 export function ModSetting({
   definition,
@@ -11,13 +15,30 @@ export function ModSetting({
   assessmentTarget,
   onChange,
   disabled = false,
+  contexts = {},
+  onReserve,
 }: {
   definition: SettingDefinition
   value: unknown
   assessmentTarget: KeybindAssessmentTarget
   onChange(value: unknown): void
   disabled?: boolean
+  /** The mod's input context labels, for the condition of a reserved key. */
+  contexts?: Record<string, string>
+  /** Saves a padlock of this keybind. */
+  onReserve?(device: InputDevice, reserved: boolean): void
 }) {
+  const { t } = useI18n()
+  // A padlock turns at the click; the saved state replaces it when the page
+  // refreshes, or after a few seconds if the save failed.
+  const [turned, setTurned] = useState<Partial<Record<InputDevice, boolean>>>({})
+  const savedPadlocks = JSON.stringify(definition.reserved ?? {})
+  useEffect(() => setTurned({}), [savedPadlocks])
+  useEffect(() => {
+    if (Object.keys(turned).length === 0) return
+    const timer = window.setTimeout(() => setTurned({}), 4000)
+    return () => window.clearTimeout(timer)
+  }, [turned])
   const control =
     definition.control ||
     (definition.type === 'boolean'
@@ -27,7 +48,31 @@ export function ModSetting({
         : 'text')
   const numeric = definition.type === 'number' || definition.type === 'integer'
   let input: React.ReactNode
-  if (control === 'toggle' || control === 'checkbox')
+  const wheel = definition.wheel
+  const reserve = definition.reserve
+  if (wheel && definition.type === 'boolean') {
+    // The mouse wheel the mod reads: its padlock is the setting's value.
+    const condition = contexts[wheel.when] ?? wheel.when
+    const reserved = Boolean(value)
+    input = (
+      <div className="keybind-editor">
+        <div className="keybind-device">
+          <span className="keybind-device-label">{t('hotkeys.mouse')}</span>
+          <div className="keybind-binding">
+            <KeyReservationLock
+              reservation={{ condition, reserved, onToggle: (next) => onChange(next) }}
+              keyLabel={t('hotkeys.reservation.wheel')}
+              disabled={disabled}
+            />
+            <span className={'button secondary keybind-input fixed' + (reserved ? ' reserved' : '')}>
+              {t('hotkeys.reservation.wheel')}
+            </span>
+          </div>
+          {reserved && <span className="keybind-reserved-when">{condition}</span>}
+        </div>
+      </div>
+    )
+  } else if (control === 'toggle' || control === 'checkbox')
     input = (
       <SettingSwitch
         label={definition.label}
@@ -85,45 +130,12 @@ export function ModSetting({
     )
   else if (control === 'multiselect')
     return (
-      <div className={`mod-multiselect ${disabled ? 'disabled' : ''}`}>
-        <div className="mod-multiselect-title">
-          <strong>{definition.label}</strong>
-          {definition.description && <small>{definition.description}</small>}
-        </div>
-        <div className="settings-options">
-          {(definition.options || []).map((option) => {
-            const selected =
-              Array.isArray(value) &&
-              value.some((item) => String(item) === String(option.value))
-            return (
-              <SettingsRow
-                key={String(option.value)}
-                label={option.label}
-                rowClass={disabled ? 'disabled' : ''}
-                control={
-                  <SettingSwitch
-                    label={option.label}
-                    checked={selected}
-                    disabled={disabled}
-                    onChange={() =>
-                      onChange(
-                        selected
-                          ? (value as unknown[]).filter(
-                              (item) => String(item) !== String(option.value),
-                            )
-                          : [
-                              ...(Array.isArray(value) ? value : []),
-                              option.value,
-                            ],
-                      )
-                    }
-                  />
-                }
-              />
-            )
-          })}
-        </div>
-      </div>
+      <MultiSelectSetting
+        definition={definition}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
     )
   else if (control === 'textarea')
     input = (
@@ -154,6 +166,24 @@ export function ModSetting({
         assessmentTarget={assessmentTarget}
         disabled={disabled}
         onChange={onChange}
+        reservations={
+          reserve && onReserve
+            ? Object.fromEntries(
+                (['keyboard', 'mouse'] as const).map((device) => [
+                  device,
+                  {
+                    condition: contexts[reserve.when] ?? reserve.when,
+                    reserved:
+                      turned[device] ?? definition.reserved?.[device] ?? reserve[device] ?? false,
+                    onToggle: (reserved: boolean) => {
+                      setTurned((current) => ({ ...current, [device]: reserved }))
+                      onReserve(device, reserved)
+                    },
+                  },
+                ]),
+              )
+            : undefined
+        }
       />
     )
   else
@@ -183,7 +213,7 @@ export function ModSetting({
         </div>
       }
       rowClass={[
-        control === 'keybind' ? 'keybind-setting-row' : '',
+        control === 'keybind' || wheel ? 'keybind-setting-row' : '',
         control === 'slider' ? 'slider-setting' : '',
         control === 'radio' || control === 'segmented' ? 'expanded' : '',
         disabled ? 'disabled' : '',
@@ -191,6 +221,150 @@ export function ModSetting({
         .filter(Boolean)
         .join(' ')}
     />
+  )
+}
+
+// Long choice lists (more than MULTISELECT_SEARCH_FROM options) get a search
+// field and an "only switched on" filter; short lists render as before.
+const MULTISELECT_SEARCH_FROM = 12
+
+function MultiSelectSetting({
+  definition,
+  value,
+  onChange,
+  disabled,
+}: {
+  definition: SettingDefinition
+  value: unknown
+  onChange(value: unknown): void
+  disabled: boolean
+}) {
+  const { t } = useI18n()
+  const [query, setQuery] = useState('')
+  const [selectedOnly, setSelectedOnly] = useState(false)
+  const [category, setCategory] = useState('')
+  const options = definition.options || []
+  // Options with a "group" get inner tabs (All + one per group, in the order
+  // the groups first appear); the search still covers every group.
+  const categories = useMemo(
+    () => [
+      ...new Set(
+        options
+          .map((option) => option.group)
+          .filter((group): group is string => Boolean(group)),
+      ),
+    ],
+    [options],
+  )
+  const selectedValues = useMemo(
+    () => new Set(Array.isArray(value) ? value.map((item) => String(item)) : []),
+    [value],
+  )
+  const searchable = options.length > MULTISELECT_SEARCH_FROM
+  const needle = query.trim().toLocaleLowerCase()
+  // Searching is global. While a query is active, show the All tab so the
+  // selected category never appears to limit the results.
+  const activeCategory =
+    !needle && categories.includes(category) ? category : ''
+  const activeCategoryTab = activeCategory
+    ? `category-${categories.indexOf(activeCategory)}`
+    : 'all'
+  const shown = options.filter((option) => {
+    if (activeCategory && option.group !== activeCategory) return false
+    if (selectedOnly && !selectedValues.has(String(option.value))) return false
+    if (!needle) return true
+    return (
+      String(option.label ?? '').toLocaleLowerCase().includes(needle) ||
+      String(option.value).toLocaleLowerCase().includes(needle)
+    )
+  })
+  return (
+    <div className={`mod-multiselect ${disabled ? 'disabled' : ''}`}>
+      <div className="mod-multiselect-title">
+        <strong>{definition.label}</strong>
+        {definition.description && <small>{definition.description}</small>}
+      </div>
+      {categories.length > 0 && (
+        <Segmented
+          value={activeCategoryTab}
+          onChange={(next) => {
+            const index = Number(next.slice('category-'.length))
+            setCategory(next === 'all' ? '' : (categories[index] ?? ''))
+            if (query) setQuery('')
+          }}
+          items={[
+            ['all', t('common.all')],
+            ...categories.map(
+              (group, index) => [`category-${index}`, group] as [string, string],
+            ),
+          ]}
+        />
+      )}
+      {searchable && (
+        <div className="mod-multiselect-filter">
+          <input
+            className="mod-input"
+            type="search"
+            value={query}
+            aria-label={t('mod.settings.multiselect.search')}
+            placeholder={t('mod.settings.multiselect.search')}
+            disabled={disabled}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+          <label className="mod-multiselect-selected-only">
+            <input
+              type="checkbox"
+              className="settings-checkbox"
+              checked={selectedOnly}
+              disabled={disabled}
+              onChange={(event) => setSelectedOnly(event.currentTarget.checked)}
+            />
+            {t('mod.settings.multiselect.selectedOnly')}
+          </label>
+          <small>
+            {t('mod.settings.multiselect.count', {
+              shown: shown.length,
+              total: options.length,
+              selected: selectedValues.size,
+            })}
+          </small>
+        </div>
+      )}
+      <div className="settings-options">
+        {shown.length === 0 && searchable && (
+          <p className="hint">{t('mod.settings.multiselect.noMatch')}</p>
+        )}
+        {shown.map((option) => {
+          const selected = selectedValues.has(String(option.value))
+          return (
+            <SettingsRow
+              key={String(option.value)}
+              label={option.label}
+              rowClass={disabled ? 'disabled' : ''}
+              control={
+                <SettingSwitch
+                  label={option.label}
+                  checked={selected}
+                  disabled={disabled}
+                  onChange={() =>
+                    onChange(
+                      selected
+                        ? (value as unknown[]).filter(
+                            (item) => String(item) !== String(option.value),
+                          )
+                        : [
+                            ...(Array.isArray(value) ? value : []),
+                            option.value,
+                          ],
+                    )
+                  }
+                />
+              }
+            />
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

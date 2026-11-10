@@ -1,25 +1,11 @@
-import { Children, Component, isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import Markdown, { defaultUrlTransform } from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Component, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { useI18n } from '../../ui-resources/i18n'
 import { FeatureBanner } from '../../ui-resources/show-feature-banner'
-import { wikiImage, type WikiArticle as Article } from './read-wiki-articles'
+import { WIKI_API_SETTINGS, type MediaWikiArticle } from '../mediawiki-api'
 import fallbackArtwork from './wiki-article-fallback.svg'
 import './wiki.css'
-
-function textContent(children: ReactNode): string {
-  return Children.toArray(children).map((child): string => {
-    if (typeof child === 'string' || typeof child === 'number') return String(child)
-    return isValidElement<{ children?: ReactNode }>(child) ? textContent(child.props.children) : ''
-  }).join('')
-}
-
-function headingId(value: string): string {
-  return value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-}
 
 class ArticleBoundary extends Component<{
   articleId: string
@@ -30,14 +16,15 @@ class ArticleBoundary extends Component<{
   static getDerivedStateFromError() { return { failed: true } }
   componentDidCatch(error: Error) {
     logUiEvent({ level: 'ERROR', source: 'wiki', operation: 'Display article',
-      subject: this.props.articleId, message: `${this.props.fallback} ${error.message}`, notify: true })
+      subject: this.props.articleId, message: error.message, notify: true,
+      notifyMessage: this.props.fallback })
   }
   render() {
     return this.state.failed ? <p role="alert">{this.props.fallback}</p> : this.props.children
   }
 }
 
-export function WikiArtwork({ article }: { article: Article }) {
+export function WikiArtwork({ article }: { article: Pick<MediaWikiArticle, 'id' | 'illustration'> }) {
   const [failedSource, setFailedSource] = useState<string>()
   if (!article.illustration || failedSource === article.illustration) return <img src={fallbackArtwork} alt="" />
   return <img src={article.illustration} alt="" onError={() => {
@@ -47,11 +34,60 @@ export function WikiArtwork({ article }: { article: Article }) {
   }} />
 }
 
-export function WikiArticle({ article, expanded = true, children, onOpenWikiArticle }: {
-  article: Article
+function mediaWikiPageTitle(url: URL): string | undefined {
+  if (url.origin !== WIKI_API_SETTINGS.siteOrigin) return undefined
+  let title = url.searchParams.get('title')
+  if (!title && url.pathname.startsWith('/index.php/')) {
+    try {
+      title = decodeURIComponent(url.pathname.slice('/index.php/'.length))
+    } catch {
+      return undefined
+    }
+  }
+  if (!title) return undefined
+  title = title.replaceAll('_', ' ').trim()
+  if (/^(special|category|file|image|template|help|mediawiki|talk|user|module):/i.test(title)) return undefined
+  return title
+}
+
+function openMediaWikiLink(
+  event: ReactMouseEvent<HTMLDivElement>,
+  articleId: string,
+  onOpenWikiArticle?: (pageTitle: string) => void,
+) {
+  const target = event.target
+  if (!(target instanceof Element)) return
+  const anchor = target.closest('a[href]')
+  if (!(anchor instanceof HTMLAnchorElement)) return
+  const href = anchor.getAttribute('href')
+  if (!href || href.startsWith('#')) return
+
+  event.preventDefault()
+  let url: URL
+  try {
+    url = new URL(href, WIKI_API_SETTINGS.siteOrigin)
+  } catch {
+    return
+  }
+  const pageTitle = mediaWikiPageTitle(url)
+  if (pageTitle) {
+    if (onOpenWikiArticle) onOpenWikiArticle(pageTitle)
+    else postRequest('open-url', { url: url.href })
+    return
+  }
+  if (/^(https?:|mailto:)/i.test(url.href)) {
+    logUiEvent({ level: 'DEBUG', source: 'wiki', operation: 'Open article link',
+      subject: articleId, message: `Opening ${url.href}` })
+    postRequest('open-url', { url: url.href })
+  }
+}
+
+export function WikiArticle({ article, expanded = true, children, onOpenWikiArticle, onSelectCategory }: {
+  article: MediaWikiArticle
   expanded?: boolean
   children?: ReactNode
   onOpenWikiArticle?(articleId: string): void
+  onSelectCategory?(category: string): void
 }) {
   const { t } = useI18n()
   const id = useId()
@@ -69,41 +105,30 @@ export function WikiArticle({ article, expanded = true, children, onOpenWikiArti
     const fallback = `${article.id}:${article.locale}`
     if (lastFallback.current === fallback) return
     lastFallback.current = fallback
-    logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Select translation', subject: article.id,
+    logUiEvent({ level: 'INFO', source: 'wiki', operation: 'Select translation', subject: article.id,
       message: `The requested translation is unavailable. Showing ${article.locale}.` })
   }, [article.id, article.locale, article.fallback])
   return (
     <>
       <FeatureBanner variant="info" brand="SHROUDFORGE WIKI" title={article.title}
-        titleId={`${id}-title`} description={article.summary} badge={t('wiki.guide')}
+        titleId={`${id}-title`} description={article.summary}
+        badge={article.categories && article.categories.length > 0
+          ? <div className="wiki-category-badges" aria-label={t('wiki.categories')}>
+            {article.categories.map((category) => onSelectCategory
+              ? <button type="button" className="wiki-article-category" key={category}
+                onClick={() => onSelectCategory(category)}>{category}</button>
+              : <span className="wiki-article-category" key={category}>{category}</span>)}
+          </div>
+          : null}
         media={<WikiArtwork article={article} />}>
         {children}
       </FeatureBanner>
       {expanded && <article className="wiki-article" aria-labelledby={`${id}-title`}>
         {article.fallback && <p className="hint">{t('wiki.fallback', { language: article.locale.toUpperCase() })}</p>}
         <ArticleBoundary key={`${article.id}:${article.locale}`} articleId={article.id} fallback={t('wiki.unavailable')}>
-        <Markdown remarkPlugins={[remarkGfm]} skipHtml
-          urlTransform={(url, key) => key === 'src' ? wikiImage(article.id, url) : defaultUrlTransform(url)}
-          components={{
-            h2: ({ children }) => <h2 id={`${id}-${headingId(textContent(children))}`}>{children}</h2>,
-            h3: ({ children }) => <h3 id={`${id}-${headingId(textContent(children))}`}>{children}</h3>,
-            a: ({ href, children }) => {
-              const wikiArticle = href?.match(/^#wiki\/([a-z0-9]+(?:-[a-z0-9]+)*)$/)
-              if (wikiArticle) return <a href={href} onClick={(event) => {
-                event.preventDefault()
-                onOpenWikiArticle?.(wikiArticle[1])
-              }}>{children}</a>
-              if (href?.startsWith('#')) return <a href={`#${id}-${href.slice(1)}`}>{children}</a>
-              return <a href={href} onClick={(event) => {
-                event.preventDefault()
-                if (href && /^(https?:|mailto:)/i.test(href)) {
-                  logUiEvent({ level: 'DEBUG', source: 'wiki', operation: 'Open article link',
-                    subject: article.id, message: `Opening ${href}` })
-                  postRequest('open-url', { url: href })
-                }
-              }}>{children}</a>
-            },
-          }}>{article.body}</Markdown>
+        <div className="wiki-mediawiki-content"
+          onClick={(event) => openMediaWikiLink(event, article.id, onOpenWikiArticle)}
+          dangerouslySetInnerHTML={{ __html: article.bodyHtml }} />
         </ArticleBoundary>
       </article>}
     </>

@@ -1,0 +1,69 @@
+# Translation of Dependencies to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-06 22:30:00+0000\n"
+"POT-Creation-Date: 2026-11-06 22:30:00+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Dependencies\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Dependencies/Page_display_title"
+msgid "Dependencies"
+msgstr "依赖项"
+
+#
+msgctxt "Dependencies/1"
+msgid "Find required components and known conflicts between mods. This view explains what blocks an active mod and which dependency needs attention."
+msgstr "查看必需组件和已知的模组冲突。此视图会说明是什么阻止了已启用模组启动，以及需要处理哪项依赖关系。"
+
+#
+msgctxt "Dependencies/12"
+msgid "== Required mods =="
+msgstr "== 必需模组 =="
+
+#
+msgctxt "Dependencies/13"
+msgid "A mod can declare other mods and their required versions in <code>mod.json</code>. ShroudForge checks whether they are installed, enabled and suitable for the current client or server. A missing or disabled required dependency prevents the affected mod from starting. An incompatible version also blocks it."
+msgstr "模组可以在 <code>mod.json</code> 中声明其他模组及其所需版本。ShroudForge 会检查这些模组是否已安装、已启用，并且适用于当前客户端或服务器。缺少或禁用了必需依赖项时，受影响的模组无法启动。版本不兼容也会阻止启动。"
+
+#
+msgctxt "Dependencies/14"
+msgid "Open the named mod, install or enable its requirement, then check this view again. Not every installed mod needs to run in the current process. A client-only mod does not need its own startup on a server."
+msgstr "打开列出的模组，安装或启用其依赖项，然后重新查看此页面。当前进程不需要运行每个已安装的模组。仅供客户端使用的模组不需要在服务器上启动。"
+
+#
+msgctxt "Dependencies/15"
+msgid "== Optional dependencies =="
+msgstr "== 可选依赖项 =="
+
+#
+msgctxt "Dependencies/16"
+msgid "An explicitly optional dependency may be absent or disabled. An extra feature may then be unavailable. If the dependency is present and enabled, its version and further requirements still need to match."
+msgstr "明确标记为可选的依赖项可以缺失或处于禁用状态。此时某项附加功能可能不可用。如果该依赖项已安装并启用，其版本和后续要求仍须匹配。"
+
+#
+msgctxt "Dependencies/17"
+msgid "Mods without declared dependencies need no separate problem entry here. Their overall status remains available on their own mod pages."
+msgstr "未声明依赖项的模组无需在此单独列出问题。其整体状态可在各自的模组页面查看。"
+
+#
+msgctxt "Dependencies/8"
+msgid "== Conflicts and cycles =="
+msgstr "== 冲突和循环依赖 =="
+
+#
+msgctxt "Dependencies/18"
+msgid "Known conflict rules identify two active mods that should not run together in the specified combination. Use the message to decide which one to disable. A dependency cycle means mods require each other to start first. This needs a package correction or a change by the author."
+msgstr "已知冲突规则会指出在指定组合下不应同时运行的两个已启用模组。请根据消息判断应禁用哪一个。循环依赖表示模组彼此要求对方先启动。需要修正软件包，或由作者进行更改。"
+
+#
+msgctxt "Dependencies/19"
+msgid "A requirement for <code>shroudforge-api</code> refers to the loader's mod API. It is separate from automatic DLL compatibility-profile matching."
+msgstr "对 <code>shroudforge-api</code> 的要求指的是加载器的模组 API。它与 DLL 兼容性配置文件的自动匹配相互独立。"

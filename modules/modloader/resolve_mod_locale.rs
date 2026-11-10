@@ -9,7 +9,7 @@ pub fn localized_manifest(manifest: &ModManifest, locale: &str) -> ModManifest {
     let mut localized = manifest.clone();
     for code in locale_candidates(locale).into_iter().rev() {
         if let Some(catalog) = manifest.locales.get(&code) {
-            apply_catalog(&mut localized, catalog);
+            apply_catalog(&mut localized, manifest, catalog);
         }
     }
     localized
@@ -52,6 +52,17 @@ pub fn validate_mod_locale_catalogs(manifest: &ModManifest) -> Result<(), String
                 {
                     return Err(format!(
                         "locales/{locale}.json: unknown option '{option}' for setting '{key}'"
+                    ));
+                }
+            }
+            for group in translated.option_groups.keys() {
+                if !setting
+                    .options
+                    .iter()
+                    .any(|candidate| candidate.group.as_deref() == Some(group))
+                {
+                    return Err(format!(
+                        "locales/{locale}.json: unknown option group '{group}' for setting '{key}'"
                     ));
                 }
             }
@@ -101,7 +112,7 @@ fn locale_candidates(locale: &str) -> Vec<String> {
     }
 }
 
-fn apply_catalog(manifest: &mut ModManifest, catalog: &ModLocaleCatalog) {
+fn apply_catalog(manifest: &mut ModManifest, source: &ModManifest, catalog: &ModLocaleCatalog) {
     if let Some(name) = &catalog.mod_info.name {
         manifest.name.clone_from(name);
     }
@@ -114,6 +125,19 @@ fn apply_catalog(manifest: &mut ModManifest, catalog: &ModLocaleCatalog) {
             .iter_mut()
             .find(|setting| setting.key == *key)
         {
+            let source_groups: BTreeMap<_, _> = source
+                .settings
+                .iter()
+                .find(|source_setting| source_setting.key == *key)
+                .into_iter()
+                .flat_map(|source_setting| &source_setting.options)
+                .filter_map(|option| {
+                    option
+                        .group
+                        .as_ref()
+                        .map(|group| (option_key(&option.value), group.clone()))
+                })
+                .collect();
             if let Some(label) = &translated.label {
                 setting.label.clone_from(label);
             }
@@ -123,6 +147,11 @@ fn apply_catalog(manifest: &mut ModManifest, catalog: &ModLocaleCatalog) {
             for option in &mut setting.options {
                 if let Some(label) = translated.options.get(&option_key(&option.value)) {
                     option.label.clone_from(label);
+                }
+                if let Some(source_group) = source_groups.get(&option_key(&option.value)) {
+                    if let Some(label) = translated.option_groups.get(source_group) {
+                        option.group = Some(label.clone());
+                    }
                 }
             }
         }

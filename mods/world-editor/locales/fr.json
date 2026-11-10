@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "Panneau en jeu",
+      "label": "Superposition",
       "description": "La position est relative à la fenêtre de jeu en pixels logiques. X = −1 centre le panneau. Y est mesuré à partir du haut. Les modifications s'appliquent pendant que le jeu est en cours d'exécution.\nLimites de l'éditeur mondial"
     },
     {
-      "label": "Limites de l’éditeur de monde"
-    },
-    {
-      "label": "Raccourcis clavier",
+      "label": "Raccourcis",
       "description": "Modifiez les raccourcis ici ou dans Compatibilité → Raccourcis clavier. Les modifications s'appliquent pendant la lecture. Une liaison vide désactive un raccourci.",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Opérations sur les entités natives",
-      "description": "L'apparition et le placement utilisent des opérations de jeu natives.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Apparition d'accessoires de file d'attente",
-          "confirm": "Mettre en file d'attente un accessoire natif en utilisant ces UUID et ces valeurs de suivi ?"
-        },
-        "placeEntity": {
-          "label": "Lieu aux coordonnées",
-          "confirm": "Envoyer le placement natif à ces coordonnées ?"
-        },
-        "destroyEntity": {
-          "label": "Détruire aux coordonnées",
-          "confirm": "Envoyer la suppression native à ces coordonnées ?"
-        }
-      }
-    },
-    {
-      "label": "Éditeur du monde",
-      "description": "Capturez des plans voxels et accessoires ou uniquement accessoires, prévisualisez, collez et annulez via les API du monde natif.",
+      "label": "Créer des plans",
+      "description": "Capturez le terrain et les objets, ou les objets seuls, puis gérez les plans enregistrés.",
       "actions": {
         "markCursorA": {
           "label": "Marquer le coin de sélection A"
         },
         "markCursorB": {
           "label": "Marquer le coin de sélection B"
-        },
-        "markCursorTarget": {
-          "label": "Marquer la cible de collage"
         },
         "clearCursorSelection": {
           "label": "Effacer les marques du curseur"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "Supprimer le plan et l'image",
           "confirm": "Supprimer le plan nommé et son image du dossier d'exportation ?"
+        }
+      }
+    },
+    {
+      "label": "Placer un plan",
+      "description": "Choisissez la cible, le mode et la rotation, prévisualisez puis placez le plan actif.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Marquer la cible de collage"
         },
         "pasteVoxels": {
           "label": "Coller le plan actif",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Aperçu du plan de placement (journal uniquement)"
+        }
+      }
+    },
+    {
+      "label": "Opérations sur les entités",
+      "description": "L'apparition et le placement utilisent des opérations de jeu natives.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Apparition d'accessoires de file d'attente",
+          "confirm": "Mettre en file d'attente un accessoire natif en utilisant ces UUID et ces valeurs de suivi ?"
         },
-        "undoVoxels": {
-          "label": "Annuler le collage du dernier monde"
+        "placeEntity": {
+          "label": "Lieu aux coordonnées",
+          "confirm": "Envoyer le placement natif à ces coordonnées ?"
+        },
+        "destroyEntity": {
+          "label": "Détruire aux coordonnées",
+          "confirm": "Envoyer la suppression native à ces coordonnées ?"
         },
         "destroySelectedProp": {
           "label": "Détruire l'accessoire répertorié sélectionné"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Organise les paramètres du mod dans les onglets Superposition, Raccourcis, Créer des plans, Placer un plan et Opérations sur les entités.",
     "Ajoute la capture F8 en ligne : le serveur dédié lit le terrain et les accessoires marqués, renvoie le plan V7 complet via Steam P2P, et le client le valide et l'enregistre localement. Vérifié en direct avec 648 cellules et deux accessoires, suivi du placement et de l'annulation.",
     "Met en file d'attente les requêtes P2P par client authentifié et ID de requête, sépare les téléchargements simultanés et le dernier journal d'annulation de chaque client, et permet le placement répété de F7 après confirmation. F4 annule le dernier placement. Une récupération incomplète bloque toujours le prochain collage de ce client.",
     "Corrige le placement F7 natif et l'annulation F4 pour le terrain, les cellules voxels et les accessoires de taille originale, y compris les plans pivotés. Le propre journal de l'éditeur restaure le terrain et supprime les accessoires placés indépendamment de l'historique d'annulation limité du jeu.",

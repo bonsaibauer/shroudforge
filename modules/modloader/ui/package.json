@@ -11,11 +11,10 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "dompurify": "^3.4.17",
     "flag-icons": "^7.5.0",
     "react": "latest",
     "react-dom": "latest",
-    "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1",
     "typescript": "latest",
     "vite": "^8.3.3"
   },

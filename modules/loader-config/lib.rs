@@ -6,11 +6,13 @@ pub mod documents;
 mod initialize_loader_settings;
 mod lock_installation;
 mod migrate_legacy_toggle_key_settings;
+mod migrate_wiki_refresh_interval;
 #[path = "resolve_installation_paths.rs"]
 pub mod paths;
 mod publish_modloader_client_pid;
 mod publish_window_visibility;
 mod read_document;
+mod read_loader_in_background;
 mod read_loader_settings;
 pub(crate) mod read_loader_state;
 mod request_window_visibility;
@@ -21,6 +23,7 @@ mod update_loader_state;
 mod validate_document;
 mod window_state;
 mod write_document;
+mod write_document_in_background;
 mod write_json_atomically;
 
 pub const UPDATER_CONTROL_ACTIONS: &[&str] = &[
@@ -44,10 +47,12 @@ pub mod config {
     pub use crate::initialize_loader_settings::*;
     pub use crate::lock_installation::*;
     pub use crate::migrate_legacy_toggle_key_settings::*;
+    pub use crate::migrate_wiki_refresh_interval::*;
     pub use crate::publish_modloader_client_pid::*;
     pub use crate::publish_window_visibility::*;
     pub use crate::read_document::*;
     pub(crate) use crate::read_loader_settings::read_loader_unvalidated;
+    pub use crate::read_loader_in_background::*;
     pub use crate::read_loader_settings::*;
     pub use crate::read_loader_state::*;
     pub use crate::request_window_visibility::*;
@@ -58,6 +63,7 @@ pub mod config {
     pub use crate::validate_document::*;
     pub use crate::window_state::*;
     pub use crate::write_document::*;
+    pub use crate::write_document_in_background::*;
     pub use crate::write_json_atomically::*;
 }
 mod read_runtime_pid;

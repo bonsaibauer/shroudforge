@@ -5,18 +5,34 @@
   "targets": ["client"],
   "launcher": "SF",
   "links": {
-    "source-github": "https://github.com/your-name/hello-ember",
-    "issues": "https://github.com/your-name/hello-ember/issues"
+    "source": "https://shroudforge.net",
+    "source-github": "https://github.com/bonsaibauer/shroudforge",
+    "source-gitlab": "https://gitlab.com",
+    "source-codeberg": "https://codeberg.org",
+    "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
+    "wiki": "https://wiki.shroudforge.net",
+    "website": "https://shroudforge.net",
+    "store": "https://www.nexusmods.com/enshrouded/mods/",
+    "support-bmac": "https://buymeacoffee.com/bonsaibauer",
+    "support-patreon": "https://www.patreon.com/cw/bonsaibauer",
+    "support-paypal": "https://www.paypal.com/",
+    "support-github": "https://github.com/sponsors",
+    "support-ko-fi": "https://ko-fi.com/",
+    "support-open-collective": "https://opencollective.com/",
+    "support-other": "https://shroudforge.net"
   },
   "changelog": [
-    "Initial example: saved settings, a grouped Modloader action, and runtime logging."
+    "Initial visual demo. Information shows the package badges, example links, and this changelog.",
+    "Optional dependencies demonstrate installed and missing dependency states.",
+    "Settings and custom tabs demonstrate all supported controls, long-list search, option categories, conditions, presets, keybinds, and actions."
   ],
   "settings": {
     "showOnLoad": {
       "value": true,
       "label": "Show greeting on load",
       "description": "Write the greeting to the mod log when the runtime starts.",
-      "control": "toggle"
+      "control": "toggle",
+      "applyAt": "live"
     },
     "greeting": {
       "value": "Hello from the ShroudForge runtime!",
@@ -24,34 +40,318 @@
       "description": "Message written by the startup callback and the button below.",
       "control": "text",
       "minLength": 1,
-      "maxLength": 120
+      "maxLength": 120,
+      "applyAt": "live"
     },
     "severity": {
       "value": "info",
       "label": "Log level",
       "description": "Choose how the example message appears in the mod log.",
+      "control": "select",
       "options": {
         "info": "Information",
         "warn": "Warning"
-      }
+      },
+      "applyAt": "live"
+    },
+    "checkboxExample": {
+      "value": false,
+      "label": "Checkbox control",
+      "description": "The checkbox variant of a boolean setting.",
+      "control": "checkbox",
+      "applyAt": "live"
+    },
+    "textareaExample": {
+      "value": "Write a longer example here.",
+      "label": "Text area",
+      "description": "A multi-line text field.",
+      "control": "textarea",
+      "minLength": 3,
+      "maxLength": 240,
+      "applyAt": "live"
+    },
+    "numberExample": {
+      "value": 42,
+      "label": "Number input",
+      "description": "A bounded numeric field with a step size.",
+      "control": "number",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "applyAt": "live"
+    },
+    "sliderExample": {
+      "value": 65,
+      "label": "Slider control",
+      "description": "A range slider with a visible value.",
+      "control": "slider",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "applyAt": "live"
+    },
+    "radioExample": {
+      "value": "comfortable",
+      "label": "Radio choices",
+      "description": "A row of radio-style choices.",
+      "control": "radio",
+      "options": {
+        "compact": "Compact",
+        "comfortable": "Comfortable",
+        "wide": "Wide"
+      },
+      "applyAt": "live"
+    },
+    "segmentedExample": {
+      "value": "center",
+      "label": "Segmented choices",
+      "description": "A compact segmented choice control.",
+      "control": "segmented",
+      "options": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      },
+      "applyAt": "live"
+    },
+    "colorExample": {
+      "value": "#c99a42",
+      "label": "Color control",
+      "description": "A native color picker.",
+      "control": "color",
+      "applyAt": "live"
+    },
+    "groupedChoices": {
+      "value": ["stone", "hammer", "rope"],
+      "label": "Grouped long list",
+      "description": "Search across all categories or choose a category tab.",
+      "control": "multiselect",
+      "options": {
+        "stone": { "label": "Stone", "group": "Materials" },
+        "timber": { "label": "Timber", "group": "Materials" },
+        "clay": { "label": "Clay", "group": "Materials" },
+        "iron": { "label": "Iron", "group": "Materials" },
+        "copper": { "label": "Copper", "group": "Materials" },
+        "hammer": { "label": "Hammer", "group": "Tools" },
+        "axe": { "label": "Axe", "group": "Tools" },
+        "shovel": { "label": "Shovel", "group": "Tools" },
+        "pickaxe": { "label": "Pickaxe", "group": "Tools" },
+        "saw": { "label": "Saw", "group": "Tools" },
+        "rope": { "label": "Rope", "group": "Supplies" },
+        "resin": { "label": "Resin", "group": "Supplies" },
+        "nails": { "label": "Nails", "group": "Supplies" },
+        "cloth": { "label": "Cloth", "group": "Supplies" },
+        "charcoal": { "label": "Charcoal", "group": "Supplies" }
+      },
+      "applyAt": "live"
+    },
+    "plainLongChoices": {
+      "value": ["alpha", "echo"],
+      "label": "Ungrouped long list",
+      "description": "Search and the switched-on filter without category tabs.",
+      "control": "multiselect",
+      "options": {
+        "alpha": "Choice 01",
+        "bravo": "Choice 02",
+        "charlie": "Choice 03",
+        "delta": "Choice 04",
+        "echo": "Choice 05",
+        "foxtrot": "Choice 06",
+        "golf": "Choice 07",
+        "hotel": "Choice 08",
+        "india": "Choice 09",
+        "juliet": "Choice 10",
+        "kilo": "Choice 11",
+        "lima": "Choice 12",
+        "mike": "Choice 13",
+        "november": "Choice 14"
+      },
+      "applyAt": "live"
+    },
+    "shortGroupedChoices": {
+      "value": ["north", "summer"],
+      "label": "Short grouped list",
+      "description": "Exactly twelve options. Category tabs remain while search controls are hidden.",
+      "control": "multiselect",
+      "options": {
+        "north": { "label": "North", "group": "Directions" },
+        "east": { "label": "East", "group": "Directions" },
+        "south": { "label": "South", "group": "Directions" },
+        "west": { "label": "West", "group": "Directions" },
+        "spring": { "label": "Spring", "group": "Seasons" },
+        "summer": { "label": "Summer", "group": "Seasons" },
+        "autumn": { "label": "Autumn", "group": "Seasons" },
+        "winter": { "label": "Winter", "group": "Seasons" },
+        "morning": { "label": "Morning", "group": "Day parts" },
+        "noon": { "label": "Noon", "group": "Day parts" },
+        "evening": { "label": "Evening", "group": "Day parts" },
+        "night": { "label": "Night", "group": "Day parts" }
+      },
+      "applyAt": "live"
+    },
+    "advancedEnabled": {
+      "value": false,
+      "label": "Enable advanced control",
+      "description": "Turn this on to enable the dependent slider below.",
+      "control": "toggle",
+      "applyAt": "live"
+    },
+    "advancedAmount": {
+      "value": 35,
+      "label": "Dependent slider",
+      "description": "This stays disabled until the toggle above is on.",
+      "control": "slider",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "enabledWhen": {
+        "setting": "advancedEnabled",
+        "equals": true
+      },
+      "applyAt": "live"
+    },
+    "reservedShortcut": {
+      "value": "SDL:60",
+      "label": "Reserved example shortcut",
+      "description": "Shows keyboard and mouse reservation padlocks.",
+      "control": "keybind",
+      "applyAt": "live"
+    },
+    "plainShortcut": {
+      "value": "Ctrl+SDL:61",
+      "label": "Unreserved example shortcut",
+      "description": "A keybind without reservation padlocks.",
+      "control": "keybind",
+      "applyAt": "live"
+    },
+    "wheelScroll": {
+      "value": true,
+      "label": "Mouse wheel reservation",
+      "description": "Shows the mouse wheel reservation control.",
+      "control": "toggle",
+      "applyAt": "live"
+    },
+    "presetQuality": {
+      "value": "balanced",
+      "label": "Quality preset",
+      "description": "Changing this preset updates the fields below.",
+      "control": "segmented",
+      "options": {
+        "low": "Low",
+        "balanced": "Balanced",
+        "high": "High",
+        "custom": "Custom"
+      },
+      "applyAt": "live"
+    },
+    "presetRange": {
+      "value": 120,
+      "label": "Preset range",
+      "description": "Editing this manually switches the preset to Custom.",
+      "control": "number",
+      "min": 20,
+      "max": 300,
+      "step": 10,
+      "applyAt": "live"
+    },
+    "presetDetail": {
+      "value": "medium",
+      "label": "Preset detail",
+      "description": "This value is controlled by the quality preset.",
+      "control": "select",
+      "options": {
+        "low": "Low detail",
+        "medium": "Medium detail",
+        "high": "High detail"
+      },
+      "applyAt": "live"
     }
   },
   "groups": [
     {
-      "label": "Greeting",
-      "description": "A working example of settings connected to runtime Lua code.",
-      "settings": [
-        "showOnLoad",
-        "greeting",
-        "severity"
-      ],
+      "label": "Search and Categories",
+      "description": "Both lists exceed the search threshold. The first also has category tabs.",
+      "tab": true,
+      "settings": ["groupedChoices", "plainLongChoices", "shortGroupedChoices"]
+    },
+    {
+      "label": "Conditional Controls",
+      "description": "Enable the first setting to unlock the dependent slider.",
+      "tab": true,
+      "settings": ["advancedEnabled", "advancedAmount"]
+    },
+    {
+      "label": "Keybinds and Mouse Wheel",
+      "description": "Compare a normal keybind, reserved keys, and a reserved mouse wheel.",
+      "tab": true,
+      "settings": ["reservedShortcut", "plainShortcut", "wheelScroll"]
+    },
+    {
+      "label": "Preset Profiles",
+      "description": "Choose a preset, then edit a member setting to select Custom.",
+      "tab": true,
+      "settings": ["presetQuality", "presetRange", "presetDetail"]
+    },
+    {
+      "label": "Actions and Confirmation",
+      "description": "These actions only write to the mod log. One asks for confirmation.",
+      "tab": true,
+      "settings": [],
       "actions": [
         {
           "id": "logGreeting",
           "label": "Write greeting to mod log",
           "style": "secondary"
+        },
+        {
+          "id": "logTestSettings",
+          "label": "Log current test values",
+          "style": "secondary"
+        },
+        {
+          "id": "confirmTestAction",
+          "label": "Show confirmation example",
+          "style": "danger",
+          "confirm": "Run the harmless confirmation example? It only writes a message to the mod log."
         }
       ]
     }
-  ]
+  ],
+  "presets": {
+    "presetQuality": {
+      "custom": "custom",
+      "settings": ["presetRange", "presetDetail"],
+      "values": {
+        "low": {
+          "presetRange": 60,
+          "presetDetail": "low"
+        },
+        "balanced": {
+          "presetRange": 120,
+          "presetDetail": "medium"
+        },
+        "high": {
+          "presetRange": 240,
+          "presetDetail": "high"
+        }
+      }
+    }
+  },
+  "inputReservations": {
+    "contexts": {
+      "visualDemo": "Visual demo context"
+    },
+    "keys": {
+      "reservedShortcut": {
+        "when": "visualDemo",
+        "keyboard": true,
+        "mouse": true
+      }
+    },
+    "wheels": {
+      "wheelScroll": {
+        "when": "visualDemo"
+      }
+    }
+  }
 }

@@ -5,6 +5,7 @@ use std::{
         hash_map::{self, Entry},
     },
     rc::Rc,
+    sync::{Arc, atomic::AtomicUsize},
 };
 
 use bitflags::bitflags;
@@ -62,6 +63,7 @@ pub struct AppState {
 
     // NOTE: the `Vec<u8>` must always be treated as immutable
     new_contents: RefCell<HashMap<ContentHash, Vec<u8>>>,
+    content_reads_in_flight: Arc<AtomicUsize>,
     resources: RefCell<HashMap<ResourceId, Rc<ResourceInfo>>>,
     loaded_resource_indexes: RefCell<loaded_resource_indexes::Indexes>,
     types: RefCell<HashMap<TypeIndex, LuaValue>>,
@@ -227,5 +229,7 @@ pub(crate) mod loaded_resource_indexes;
 mod loaded_resources;
 mod native_plugins;
 mod record_runtime_state;
+pub(crate) use asset_resources::ContentReadPermit;
 pub use asset_resources::ResourceInfo;
 use asset_resources::ResourceSource;
+pub(crate) use asset_resources::{MAX_CONTENT_READ_BYTES, MAX_CONTENT_READ_JOBS};

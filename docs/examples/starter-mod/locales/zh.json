@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "你好，Ember",
+    "description": "展示 Modloader 设置、标签页、依赖项、预设和操作的中文演示。"
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "启动时显示问候语",
+      "description": "运行时启动时将问候语写入模组日志。"
+    },
+    "greeting": {
+      "label": "问候语",
+      "description": "启动回调和按钮使用的文本。"
+    },
+    "severity": {
+      "label": "日志级别",
+      "description": "决定示例消息在模组日志中的显示方式。",
+      "options": {
+        "info": "信息",
+        "warn": "警告"
+      }
+    },
+    "checkboxExample": {
+      "label": "复选框",
+      "description": "布尔设置的复选框形式。"
+    },
+    "textareaExample": {
+      "label": "多行文本框",
+      "description": "用于输入较长文本的多行字段。"
+    },
+    "numberExample": {
+      "label": "数字输入",
+      "description": "带范围和步长的数字字段。"
+    },
+    "sliderExample": {
+      "label": "滑块",
+      "description": "带可见数值的滑块。"
+    },
+    "radioExample": {
+      "label": "单选项",
+      "description": "一行单选按钮样式的选项。",
+      "options": {
+        "compact": "紧凑",
+        "comfortable": "舒适",
+        "wide": "宽"
+      }
+    },
+    "segmentedExample": {
+      "label": "分段选项",
+      "description": "由多个分段组成的紧凑选择控件。",
+      "options": {
+        "left": "左",
+        "center": "中",
+        "right": "右"
+      }
+    },
+    "colorExample": {
+      "label": "颜色选择器",
+      "description": "系统原生颜色选择器。"
+    },
+    "groupedChoices": {
+      "label": "带分类的长列表",
+      "description": "搜索所有分类，或选择一个分类标签页。",
+      "options": {
+        "stone": "石头",
+        "timber": "木材",
+        "clay": "黏土",
+        "iron": "铁",
+        "copper": "铜",
+        "hammer": "锤子",
+        "axe": "斧头",
+        "shovel": "铲子",
+        "pickaxe": "镐",
+        "saw": "锯子",
+        "rope": "绳子",
+        "resin": "树脂",
+        "nails": "钉子",
+        "cloth": "布料",
+        "charcoal": "木炭"
+      },
+      "optionGroups": {
+        "Materials": "材料",
+        "Tools": "工具",
+        "Supplies": "补给品"
+      }
+    },
+    "plainLongChoices": {
+      "label": "无分类的长列表",
+      "description": "不带分类标签页的搜索和已启用项筛选。",
+      "options": {
+        "alpha": "选项 01",
+        "bravo": "选项 02",
+        "charlie": "选项 03",
+        "delta": "选项 04",
+        "echo": "选项 05",
+        "foxtrot": "选项 06",
+        "golf": "选项 07",
+        "hotel": "选项 08",
+        "india": "选项 09",
+        "juliet": "选项 10",
+        "kilo": "选项 11",
+        "lima": "选项 12",
+        "mike": "选项 13",
+        "november": "选项 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "带分类的短列表",
+      "description": "正好十二个选项。分类标签页保持显示，搜索控件隐藏。",
+      "options": {
+        "north": "北",
+        "east": "东",
+        "south": "南",
+        "west": "西",
+        "spring": "春",
+        "summer": "夏",
+        "autumn": "秋",
+        "winter": "冬",
+        "morning": "早晨",
+        "noon": "中午",
+        "evening": "傍晚",
+        "night": "夜晚"
+      },
+      "optionGroups": {
+        "Directions": "方向",
+        "Seasons": "季节",
+        "Day parts": "一天中的时段"
+      }
+    },
+    "advancedEnabled": {
+      "label": "启用高级控件",
+      "description": "启用后即可使用下方的依赖滑块。"
+    },
+    "advancedAmount": {
+      "label": "依赖滑块",
+      "description": "只有启用上方选项后才能使用。"
+    },
+    "reservedShortcut": {
+      "label": "保留按键的快捷键示例",
+      "description": "显示键盘和鼠标的保留锁标记。"
+    },
+    "plainShortcut": {
+      "label": "未保留按键的快捷键示例",
+      "description": "不带保留锁标记的快捷键。"
+    },
+    "wheelScroll": {
+      "label": "鼠标滚轮保留",
+      "description": "显示鼠标滚轮保留控件。"
+    },
+    "presetQuality": {
+      "label": "画质预设",
+      "description": "选择后会更新下方字段。",
+      "options": {
+        "low": "低",
+        "balanced": "均衡",
+        "high": "高",
+        "custom": "自定义"
+      }
+    },
+    "presetRange": {
+      "label": "预设范围",
+      "description": "手动修改后，预设会切换为自定义。"
+    },
+    "presetDetail": {
+      "label": "预设细节",
+      "description": "此数值由画质预设控制。",
+      "options": {
+        "low": "低细节",
+        "medium": "中等细节",
+        "high": "高细节"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "搜索与分类",
+      "description": "两个列表都超过了搜索阈值。第一个列表还包含分类标签页。"
+    },
+    {
+      "label": "条件控件",
+      "description": "启用第一个设置即可解锁依赖滑块。"
+    },
+    {
+      "label": "快捷键与鼠标滚轮",
+      "description": "比较普通快捷键、保留按键和保留鼠标滚轮。"
+    },
+    {
+      "label": "预设配置",
+      "description": "选择一个预设，然后手动修改某项设置以切换到自定义。"
+    },
+    {
+      "label": "操作与确认",
+      "description": "这些操作只会写入模组日志。其中一项会先请求确认。",
+      "actions": {
+        "logGreeting": {
+          "label": "将问候语写入模组日志"
+        },
+        "logTestSettings": {
+          "label": "记录当前测试值"
+        },
+        "confirmTestAction": {
+          "label": "显示确认示例",
+          "confirm": "要运行这个无害示例吗？它只会向模组日志写入一条消息。"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "首个视觉演示。信息页显示模组徽章、示例链接和此更新日志。",
+    "可选依赖项展示已安装和缺失依赖项的状态。",
+    "设置和自定义标签页展示所有控件、搜索、分类、条件、预设、快捷键和操作。"
+  ],
+  "strings": {
+    "log.greeting_prefix": "问候语"
+  }
+}

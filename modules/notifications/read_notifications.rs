@@ -145,7 +145,7 @@ pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Noti
                     .flatten()
                     .filter_map(|action| {
                         let kind = action.get("kind")?.as_str()?;
-                        if !["open-mod", "open-debug-console", "open-installed-mods"]
+                        if !["open-mod", "open-debug-console", "open-installed-mods", "open-wiki"]
                             .contains(&kind)
                         {
                             return None;

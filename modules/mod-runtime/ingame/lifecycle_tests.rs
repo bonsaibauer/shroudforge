@@ -151,3 +151,25 @@ fn live_settings_preserve_runtime_only_behavior_and_require_runtime_capability()
         .push(mod_loader::Capability::RuntimeRegisterDll);
     assert_eq!(apply_live(&manifest, &applied), Some(json!({"value": 2})));
 }
+
+#[test]
+fn padlock_change_does_not_look_like_package_metadata_change() {
+    let applied = json!({
+        "enabled": true,
+        "settingValues": {"keyMark": "SDL:30"},
+        "settings": [{
+            "key": "keyMark",
+            "type": "string",
+            "control": "keybind",
+            "default": "SDL:30",
+            "label": "Start point",
+            "reserve": {"when": "hammer", "keyboard": true, "mouse": false}
+        }]
+    });
+    let mut desired = applied.clone();
+    desired["settings"][0]["reserved"] = json!({"keyboard": false});
+    assert!(settings_only_manifest_change(&desired, &applied));
+
+    desired["settings"][0]["reserve"]["when"] = json!("other");
+    assert!(!settings_only_manifest_change(&desired, &applied));
+}

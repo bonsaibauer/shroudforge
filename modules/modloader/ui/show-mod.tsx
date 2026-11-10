@@ -10,6 +10,8 @@ import { SettingSwitch } from '../../ui-resources/edit-setting'
 import { ModIcon } from './show-mod-icon'
 import { DependencyList } from './show-mod-dependencies'
 import { ModActionButton } from './run-mod-action'
+import { Segmented } from '../../ui-resources/choose-segment'
+import { useEffect, useState } from 'react'
 import { ModSetting, settingIsEnabled } from './edit-mod-setting'
 import { useModSettings } from './save-mod-settings'
 import linkOrder from '../mod_link_order.json'
@@ -42,6 +44,29 @@ export function ModPage({
       : []),
   ]
   const settings = mod.settings
+  // Groups marked "tab" get their own page tab. Unmarked groups share Settings.
+  const tabGroups = groups.filter((group) => 'tab' in group && group.tab)
+  const settingsGroups = groups.filter((group) => !('tab' in group && group.tab))
+  const hasSettingsTab = settingsGroups.length > 0 || tabGroups.length === 0
+  const defaultTab = hasSettingsTab ? 'settings' : 'group-0'
+  const [pageTab, setPageTab] = useState(defaultTab)
+  useEffect(() => setPageTab(defaultTab), [mod.id, defaultTab])
+  const validTabs = new Set([
+    'information',
+    'dependencies',
+    ...(hasSettingsTab ? ['settings'] : []),
+    ...tabGroups.map((_, index) => `group-${index}`),
+  ])
+  const activeTab = validTabs.has(pageTab) ? pageTab : defaultTab
+  const activeGroup = activeTab.startsWith('group-')
+    ? tabGroups[Number(activeTab.slice('group-'.length))]
+    : undefined
+  const shownGroups =
+    activeTab === 'settings'
+      ? settingsGroups
+      : activeGroup
+        ? [activeGroup]
+        : []
   const remove = () => {
     if (window.confirm(t('mod.remove.confirm', { name: mod.name })))
       postRequest('remove-mod', { modId: mod.id })
@@ -173,126 +198,155 @@ export function ModPage({
           />
         </div>
       </section>
-      <Card title={t('mod.settings')}>
-        <div className="settings-module-list">
-          {groups.map((group, index) => (
-            <section
-              className="settings-module mod-settings-section"
-              key={`${group.label}-${index}`}
+      <Segmented
+        value={activeTab}
+        onChange={setPageTab}
+        items={[
+          ['information', t('mod.details')],
+          ['dependencies', t('mod.tab.dependencies')],
+          ...(hasSettingsTab
+            ? [['settings', t('mod.tab.settings')] as [string, string]]
+            : []),
+          ...tabGroups.map(
+            (group, index) => [`group-${index}`, group.label] as [string, string],
+          ),
+        ]}
+      />
+      {activeTab === 'information' && (
+        <Card title={t('mod.details')}>
+          <div className="mod-meta">
+            <span
+              className={`mod-info-badge ecosystem ${mod.ecosystem.toLowerCase()}`}
             >
-              <header>
-                <div>
-                  <h3>{group.label}</h3>
-                  {group.description && (
-                    <p className="hint">{group.description}</p>
-                  )}
-                </div>
-              </header>
-              <div className="settings-options">
-                {group.settings
-                  .map((key) => settings.find((item) => item.key === key))
-                  .filter((definition): definition is SettingDefinition =>
-                    Boolean(definition),
-                  )
-                  .map((definition) => (
-                    <ModSetting
-                      key={definition.key}
-                      definition={definition}
-                      value={values[definition.key]}
-                      assessmentTarget={{
-                        scope: 'mod',
-                        modId: mod.id,
-                        key: definition.key,
-                        revision: mod.revision,
-                        values,
-                      }}
-                      disabled={!settingIsEnabled(definition, settings, values)}
-                      onChange={(value) => updateSetting(definition.key, value)}
-                    />
-                  ))}
-              </div>
-              {group.actions.length > 0 && (
-                <div className="mod-actions">
-                  {group.actions.map((action, index) => (
-                    <ModActionButton
-                      key={`${action.id}-${index}`}
-                      mod={mod}
-                      action={action}
-                    />
-                  ))}
-                </div>
+              {t(
+                mod.ecosystem === 'SF' ? 'mod.ecosystem.sf' : 'mod.ecosystem.eml',
               )}
-            </section>
-          ))}
-          {groups.length === 0 && (
-            <p className="hint">{t('mod.settings.empty')}</p>
-          )}
-        </div>
-      </Card>
-      <Card title={t('mod.details')}>
-        <div className="mod-meta">
-          <span
-            className={`mod-info-badge ecosystem ${mod.ecosystem.toLowerCase()}`}
-          >
-            {t(
-              mod.ecosystem === 'SF' ? 'mod.ecosystem.sf' : 'mod.ecosystem.eml',
+            </span>
+            <span className="mod-info-badge version">
+              <Icon name="version" />
+              {mod.version}
+            </span>
+            <span className="mod-info-badge target">
+              <Icon name={mod.target === 'server' ? 'server' : 'client'} />
+              {target}
+            </span>
+            {mod.asset && (
+              <span className="mod-info-badge asset">
+                <Icon name="blueprint" />
+                {t('mod.type.asset')}
+              </span>
             )}
-          </span>
-          <span className="mod-info-badge version">
-            <Icon name="version" />
-            {mod.version}
-          </span>
-          <span className="mod-info-badge target">
-            <Icon name={mod.target === 'server' ? 'server' : 'client'} />
-            {target}
-          </span>
-          {mod.asset && (
-            <span className="mod-info-badge asset">
-              <Icon name="blueprint" />
-              {t('mod.type.asset')}
-            </span>
-          )}
-          {mod.runtime && (
-            <span className="mod-info-badge runtime">
-              <Icon name="bolt" />
-              {t('mod.type.runtime')}
-            </span>
-          )}
-          {mod.license && (
-            <span className="mod-info-badge license">{mod.license}</span>
-          )}
-        </div>
-        {visibleLinks.length > 0 && (
-          <nav className="mod-links" aria-label={t('mod.links')}>
-            {visibleLinks.map((link) => (
-              <HeaderLink
-                key={link.key}
-                label={link.label}
-                icon={link.icon}
-                tone={link.tone}
-                title={link.description}
-                onClick={() => postRequest('open-url', { url: link.url })}
-              />
-            ))}
-          </nav>
-        )}
-        {mod.changelog.length > 0 && (
-          <div className="mod-changelog">
-            <h4>{t('mod.versions')}</h4>
-            <ul>
-              {mod.changelog.map((item, index) => (
-                <li key={index}>{item}</li>
-              ))}
-            </ul>
+            {mod.runtime && (
+              <span className="mod-info-badge runtime">
+                <Icon name="bolt" />
+                {t('mod.type.runtime')}
+              </span>
+            )}
+            {mod.license && (
+              <span className="mod-info-badge license">{mod.license}</span>
+            )}
           </div>
-        )}
-      </Card>
-      <Card title={t('mod.dependencies.title')}>
-        <DependencyList
-          dependencies={mod.dependencies}
-          dependencyStates={dependencyStates}
-        />
-      </Card>
+          {visibleLinks.length > 0 && (
+            <nav className="mod-links" aria-label={t('mod.links')}>
+              {visibleLinks.map((link) => (
+                <HeaderLink
+                  key={link.key}
+                  label={link.label}
+                  icon={link.icon}
+                  tone={link.tone}
+                  title={link.description}
+                  onClick={() => postRequest('open-url', { url: link.url })}
+                />
+              ))}
+            </nav>
+          )}
+          {mod.changelog.length > 0 && (
+            <div className="mod-changelog">
+              <h4>{t('mod.versions')}</h4>
+              <ul>
+                {mod.changelog.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      )}
+      {activeTab === 'dependencies' && (
+        <Card title={t('mod.dependencies.title')}>
+          <DependencyList
+            dependencies={mod.dependencies}
+            dependencyStates={dependencyStates}
+          />
+        </Card>
+      )}
+      {(activeTab === 'settings' || activeGroup !== undefined) && (
+        <Card title={t('mod.settings')}>
+          <div className="settings-module-list">
+            {shownGroups.map((group, index) => (
+              <section
+                className="settings-module mod-settings-section"
+                key={`${group.label}-${index}`}
+              >
+                <header>
+                  <div>
+                    <h3>{group.label}</h3>
+                    {group.description && (
+                      <p className="hint">{group.description}</p>
+                    )}
+                  </div>
+                </header>
+                <div className="settings-options">
+                  {group.settings
+                    .map((key) => settings.find((item) => item.key === key))
+                    .filter((definition): definition is SettingDefinition =>
+                      Boolean(definition),
+                    )
+                    .map((definition) => (
+                      <ModSetting
+                        key={definition.key}
+                        definition={definition}
+                        value={values[definition.key]}
+                        assessmentTarget={{
+                          scope: 'mod',
+                          modId: mod.id,
+                          key: definition.key,
+                          revision: mod.revision,
+                          values,
+                        }}
+                        disabled={!settingIsEnabled(definition, settings, values)}
+                        onChange={(value) => updateSetting(definition.key, value)}
+                        contexts={mod.inputContexts}
+                        onReserve={(device, reserved) =>
+                          postRequest('save-key-reservation', {
+                            modId: mod.id,
+                            key: definition.key,
+                            device,
+                            enabled: reserved,
+                          })
+                        }
+                      />
+                    ))}
+                </div>
+                {group.actions.length > 0 && (
+                  <div className="mod-actions">
+                    {group.actions.map((action, index) => (
+                      <ModActionButton
+                        key={`${action.id}-${index}`}
+                        mod={mod}
+                        action={action}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
+            {shownGroups.length === 0 && (
+              <p className="hint">{t('mod.settings.empty')}</p>
+            )}
+          </div>
+        </Card>
+      )}
     </>
   )
 }

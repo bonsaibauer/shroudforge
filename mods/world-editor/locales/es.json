@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "Panel dentro del juego",
+      "label": "Superposición",
       "description": "La posición es relativa a la ventana del juego en píxeles lógicos. X = −1 centra el panel. Y se mide hacia abajo desde arriba. Los cambios se aplican mientras el juego se está ejecutando."
     },
     {
-      "label": "Límites del editor mundial"
-    },
-    {
-      "label": "Atajos de teclado",
+      "label": "Atajos",
       "description": "Edite los accesos directos aquí o en Compatibilidad → Teclas de acceso rápido. Los cambios se aplican mientras se juega. Un enlace vacío desactiva un acceso directo.",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Operaciones de entidades nativas",
-      "description": "La generación y colocación utilizan operaciones nativas del juego.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Generación de accesorios de cola",
-          "confirm": "¿Pone en cola una generación de accesorios nativos utilizando estos UUID y valores de seguimiento?"
-        },
-        "placeEntity": {
-          "label": "Colocar en coordenadas",
-          "confirm": "¿Enviar ubicación nativa en estas coordenadas?"
-        },
-        "destroyEntity": {
-          "label": "Destruir en coordenadas",
-          "confirm": "¿Despachar eliminación nativa en estas coordenadas?"
-        }
-      }
-    },
-    {
-      "label": "Editor mundial",
-      "description": "Capture planos de vóxel y accesorios o solo de accesorios, obtenga una vista previa, pegue y deshaga a través de API del mundo nativo.",
+      "label": "Crear planos",
+      "description": "Captura terreno y objetos, o solo objetos, y administra los planos guardados.",
       "actions": {
         "markCursorA": {
           "label": "Esquina de selección de marca A"
         },
         "markCursorB": {
           "label": "Esquina de selección de marca B"
-        },
-        "markCursorTarget": {
-          "label": "Marcar objetivo de pegar"
         },
         "clearCursorSelection": {
           "label": "Borrar marcas del cursor"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "Eliminar plano e imagen",
           "confirm": "¿Eliminar el plano nombrado y su imagen de la carpeta de exportación?"
+        }
+      }
+    },
+    {
+      "label": "Colocar plano",
+      "description": "Elige el objetivo, el modo y la rotación, previsualiza y coloca el plano activo.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Marcar objetivo de pegar"
         },
         "pasteVoxels": {
           "label": "Pegar plano activo",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Vista previa del plan de ubicación (solo registro)"
+        }
+      }
+    },
+    {
+      "label": "Operaciones de entidades",
+      "description": "La generación y colocación utilizan operaciones nativas del juego.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Generación de accesorios de cola",
+          "confirm": "¿Pone en cola una generación de accesorios nativos utilizando estos UUID y valores de seguimiento?"
         },
-        "undoVoxels": {
-          "label": "Deshacer pegado del último mundo"
+        "placeEntity": {
+          "label": "Colocar en coordenadas",
+          "confirm": "¿Enviar ubicación nativa en estas coordenadas?"
+        },
+        "destroyEntity": {
+          "label": "Destruir en coordenadas",
+          "confirm": "¿Despachar eliminación nativa en estas coordenadas?"
         },
         "destroySelectedProp": {
           "label": "Destruir el accesorio listado seleccionado"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Organiza los ajustes del mod en las pestañas Superposición, Atajos, Crear planos, Colocar plano y Operaciones de entidades.",
     "Agrega captura F8 en línea: el servidor dedicado lee el terreno y los accesorios marcados, devuelve el plano V7 completo a través de Steam P2P y el cliente lo valida y guarda localmente. Verificado en vivo con 648 celdas y dos accesorios, seguido de colocación y deshacer.",
     "Pone en cola las solicitudes P2P por cliente autenticado e ID de solicitud, separa las cargas simultáneas y el último diario de deshacer de cada cliente y permite la colocación repetida de F7 después de la confirmación. F4 deshace la última colocación. La recuperación incompleta aún bloquea el próximo pegado de ese cliente.",
     "Corrige la ubicación nativa de F7 y la función de deshacer F4 para terreno, celdas de vóxel y accesorios de tamaño original, incluidos planos rotados. El propio diario del editor restaura el terreno y elimina los accesorios colocados independientemente del limitado historial de deshacer del juego.",

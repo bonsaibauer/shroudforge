@@ -8,6 +8,7 @@ import { settingIsEnabled } from '../../modloader/ui/edit-mod-setting'
 import { KeybindInput, keybindText } from './edit-keybind'
 import type { KeybindAssessmentTarget } from './edit-keybind'
 import { WikiHelp } from '../../wiki/ui/show-wiki-help'
+import type { WikiModuleSettings } from '../../wiki/mediawiki-api'
 
 type HotkeyRow = {
   id: string
@@ -91,7 +92,11 @@ export function hasHotkeyConflicts(data: Snapshot): boolean {
   return data.hotkeyConflicts.length > 0
 }
 
-export function Hotkeys({ data }: { data: Snapshot }) {
+export function Hotkeys({ data, wikiModuleSettings, openWikiCategory }: {
+  data: Snapshot
+  wikiModuleSettings?: WikiModuleSettings
+  openWikiCategory(category: string): void
+}) {
   const { t } = useI18n()
   const rows = hotkeyRows(data)
   const ownerLabel = (row: HotkeyRow) => row.id.startsWith('module:')
@@ -100,7 +105,7 @@ export function Hotkeys({ data }: { data: Snapshot }) {
   const label = (row: HotkeyRow) => `${ownerLabel(row)}: ${actionLabel(row)}`
   return (
     <div className="settings-module-list compatibility-sections">
-      <WikiHelp articleId="hotkeys" />
+      <WikiHelp articleId="hotkeys" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
       <Card title={t('compatibility.tab.hotkeys')}>
         <p className="hint settings-module-description">{t('hotkeys.description')}</p>
         <p className="hint settings-module-description">{t('hotkeys.captureHint')}</p>
