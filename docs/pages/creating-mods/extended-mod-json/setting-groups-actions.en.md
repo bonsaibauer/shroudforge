@@ -17,7 +17,7 @@
 
 # Groups and action buttons
 
-A group has a visible label and can contain setting keys and actions. Groups do not change the mod's access permissions.
+A group has a visible label and can contain setting keys and actions. Set `tab: true` to show that group in its own tab on the mod page. Unmarked groups remain under the existing Settings tab, which is omitted if every group has its own tab. Group tab labels use the existing per-mod `groups[].label` translations. Groups do not change the mod's access permissions.
 
 ## Assign settings
 

@@ -10,14 +10,28 @@ pub(crate) fn open_requested_link(
     webview: &wry::WebView,
 ) {
     match open_url(&url) {
-        Ok(()) => write_activity(
-            &arguments.root,
-            "modloader-ui",
-            "Open external link",
-            "Succeeded",
-            None,
-            "info",
-        ),
+        Ok(()) => {
+            write_activity(
+                &arguments.root,
+                "modloader-ui",
+                "Open external link",
+                "Succeeded",
+                None,
+                "info",
+            );
+            if url.trim_end_matches('/') == "https://wiki.shroudforge.net" {
+                notify_command_result(
+                    webview,
+                    &request_id,
+                    Ok(()),
+                    "wiki.openSucceeded",
+                    shroudforge_logging::LogLevel::Info,
+                    None,
+                    false,
+                    None,
+                );
+            }
+        }
         Err(error) => {
             let level = activity_log_level("Open external link", "error");
             write_activity_at_level(

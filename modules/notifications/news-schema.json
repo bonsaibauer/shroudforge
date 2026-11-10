@@ -76,7 +76,7 @@
               "required": ["id", "kind"],
               "properties": {
                 "id": { "type": "string", "minLength": 1, "maxLength": 120 },
-                "kind": { "const": "open-installed-mods" }
+                "kind": { "enum": ["open-installed-mods", "open-wiki"] }
               },
               "additionalProperties": false
             }

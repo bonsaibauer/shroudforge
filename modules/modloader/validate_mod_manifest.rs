@@ -125,6 +125,7 @@ pub fn validate_manifest(manifest: &ModManifest) -> Result<(), String> {
                 .map(|condition| condition.setting.as_str());
         }
     }
+    crate::validate_input_reservations::validate_input_reservations(manifest)?;
     let mut placed_settings = std::collections::HashSet::new();
     for group in &manifest.groups {
         if group.label.trim().is_empty() {
@@ -157,7 +158,7 @@ pub fn validate_manifest(manifest: &ModManifest) -> Result<(), String> {
             }
         }
     }
-    Ok(())
+    crate::validate_setting_presets::validate_setting_presets(manifest)
 }
 
 fn condition_matches_type(value: &serde_json::Value, value_type: SettingValueType) -> bool {

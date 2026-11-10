@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "游戏内面板",
+      "label": "叠加层",
       "description": "位置是相对于游戏窗口的逻辑像素。 X = −1 使面板居中。 Y 是从顶部向下测量的。更改在游戏运行时生效。"
     },
     {
-      "label": "世界编辑器限制"
-    },
-    {
-      "label": "键盘快捷键",
+      "label": "快捷键",
       "description": "在此处或兼容性 → 热键中编辑快捷方式。玩游戏时会发生变化。空绑定会禁用快捷方式。",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Native实体操作",
-      "description": "生成和放置使用本机游戏操作。",
-      "actions": {
-        "spawnEntity": {
-          "label": "队列道具生成",
-          "confirm": "使用这些 UUID 和跟踪值对原生道具生成进行排队？"
-        },
-        "placeEntity": {
-          "label": "放置在坐标处",
-          "confirm": "在这些坐标处调度本机放置？"
-        },
-        "destroyEntity": {
-          "label": "摧毁坐标",
-          "confirm": "在这些坐标处调度本地移除？"
-        }
-      }
-    },
-    {
-      "label": "世界编辑器",
-      "description": "通过本机世界 API 捕获体素和道具或仅道具蓝图、预览、粘贴和撤消。",
+      "label": "蓝图创建",
+      "description": "捕获体素和道具，或仅捕获道具，并管理已保存的蓝图。",
       "actions": {
         "markCursorA": {
           "label": "标记选择角A"
         },
         "markCursorB": {
           "label": "标记选择角B"
-        },
-        "markCursorTarget": {
-          "label": "标记粘贴靶"
         },
         "clearCursorSelection": {
           "label": "清除光标标记"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "删除蓝图和图像",
           "confirm": "从导出文件夹中删除指定的蓝图及其图像吗？"
+        }
+      }
+    },
+    {
+      "label": "蓝图放置",
+      "description": "选择目标、粘贴模式和旋转，预览并放置当前蓝图。",
+      "actions": {
+        "markCursorTarget": {
+          "label": "标记粘贴靶"
         },
         "pasteVoxels": {
           "label": "粘贴活动蓝图",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "预览安置计划（仅日志）"
+        }
+      }
+    },
+    {
+      "label": "实体操作",
+      "description": "生成和放置使用本机游戏操作。",
+      "actions": {
+        "spawnEntity": {
+          "label": "队列道具生成",
+          "confirm": "使用这些 UUID 和跟踪值对原生道具生成进行排队？"
         },
-        "undoVoxels": {
-          "label": "撤消最后的世界粘贴"
+        "placeEntity": {
+          "label": "放置在坐标处",
+          "confirm": "在这些坐标处调度本机放置？"
+        },
+        "destroyEntity": {
+          "label": "摧毁坐标",
+          "confirm": "在这些坐标处调度本地移除？"
         },
         "destroySelectedProp": {
           "label": "销毁选定的列出道具"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "将模组设置整理到叠加层、快捷键、蓝图创建、蓝图放置和实体操作选项卡中。",
     "增加在线F8采集：专用服务器读取标记的地形和道具，通过Steam P2P返回完整的V7蓝图，客户端验证并保存在本地。使用 648 个单元和两个道具进行实时验证，然后进行放置和撤消。",
     "通过经过身份验证的客户端和请求 ID 对 P2P 请求进行排队，分离并发上传和每个客户端的最新撤消日志，并允许在确认后重复 F7 放置。 F4 撤消最新的放置。不完整的恢复仍然会阻止该客户端的下一次粘贴。",
     "修复了地形、体素单元和原始尺寸道具（包括旋转蓝图）的原生 F7 放置和 F4 撤消。编辑器自己的日志可以恢复地形并删除放置的道具，而与游戏有限的撤消历史无关。",

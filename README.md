@@ -15,6 +15,16 @@
 ![GitHub Stars](https://img.shields.io/github/stars/bonsaibauer/shroudforge?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/bonsaibauer/shroudforge?style=social)
 
+# Shroudedit x Shroudforge Network
+
+<p align="center">
+  <strong>🔨 <a href="https://shroudforge.net/">Check out the official download page →</a></strong>
+  &nbsp;<a href="https://status.shroudforge.net/"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/32xnl.svg" alt="ShroudForge website status"></a>
+  &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+  <strong>📖 <a href="https://wiki.shroudforge.net/">Visit the official Modloader Wiki →</a></strong>
+  &nbsp;<a href="https://status.shroudforge.net/"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/33ehg.svg" alt="ShroudForge Wiki status"></a>
+</p>
+
 ## Welcome!
 
 ShroudForge is the loader that finds, checks, and starts mods for **Enshrouded**. A mod is a separate add-on that changes or adds something in the game. You can use mods made by other players, or create your own. Read [how ShroudForge works](https://bonsaibauer.github.io/shroudforge/en/#workings) for a clear explanation of how the loader and mods fit together.

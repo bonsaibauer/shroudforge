@@ -1,4 +1,8 @@
-export type SettingOption = { value: string | number | boolean; label: string }
+export type SettingOption = {
+  value: string | number | boolean
+  label: string
+  group?: string
+}
 export type SettingCondition = { setting: string; equals: string | number | boolean }
 
 export type SettingDefinition = {
@@ -27,6 +31,12 @@ export type SettingDefinition = {
   minimumLength?: number
   maximumLength?: number
   options?: SettingOption[]
+  /** A keybind the game may be denied while the mod's context `when` is active. */
+  reserve?: { when: string; keyboard?: boolean; mouse?: boolean }
+  /** The player's padlocks, over the defaults of `reserve`. */
+  reserved?: { keyboard?: boolean; mouse?: boolean }
+  /** A boolean through which the mod reads the mouse wheel during `when`. */
+  wheel?: { when: string }
   enabledWhen?: SettingCondition
   applyAt?: 'live' | 'restart'
   restartRequired?: boolean
@@ -45,6 +55,14 @@ export type SettingGroup = {
   description?: string
   settings: string[]
   actions: ModAction[]
+  tab?: boolean
+}
+
+/** Keyed by the controller setting. Each entry of `values` is one preset. */
+export type SettingPreset = {
+  custom: string
+  settings: string[]
+  values: Record<string, Record<string, unknown>>
 }
 
 export type ModDependencyInfo = {
@@ -74,7 +92,10 @@ export type ModInfo = {
   enabled: boolean
   settings: SettingDefinition[]
   groups: SettingGroup[]
+  presets?: Record<string, SettingPreset>
   changelog: string[]
   assets: Record<string, string>
   settingValues: Record<string, unknown>
+  /** The mod's input contexts and their labels (inputReservations). */
+  inputContexts?: Record<string, string>
 }

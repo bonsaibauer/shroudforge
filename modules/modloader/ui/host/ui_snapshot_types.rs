@@ -41,9 +41,11 @@ pub(crate) struct ModInfo {
     pub(crate) enabled: bool,
     pub(crate) settings: Vec<serde_json::Value>,
     pub(crate) groups: Vec<serde_json::Value>,
+    pub(crate) presets: serde_json::Value,
     pub(crate) changelog: Vec<String>,
     pub(crate) assets: std::collections::HashMap<String, String>,
     pub(crate) setting_values: serde_json::Value,
+    pub(crate) input_contexts: serde_json::Value,
 }
 
 #[derive(Clone, Serialize)]

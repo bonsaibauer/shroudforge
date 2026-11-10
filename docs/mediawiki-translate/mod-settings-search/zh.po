@@ -1,0 +1,92 @@
+# Translation of Search and organize large mod settings to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Search and organize large mod settings\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/Page_display_title"
+msgid "Search and organize large mod settings"
+msgstr "搜索和整理大型模组设置"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/47"
+msgid "Use the Modloader's existing setting groups to organize a mod page into tabs, and make long multi-select lists searchable with optional categories. The controls are opt-in, keep saved values unchanged unless the player changes a choice, and use the mod's existing locale files."
+msgstr "使用 Modloader 现有的设置分组，将模组页面整理为多个标签页，并为较长的多选列表添加搜索和可选分类。这些功能均为可选。只有玩家更改选项时，已保存的值才会改变。模组继续使用现有的本地化文件。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/48"
+msgid "== What changes in a large mod page =="
+msgstr "== 大型模组页面有哪些变化 =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/49"
+msgid "This feature is for settings declared by a mod in <code>extended.mod.json</code>. It uses the existing mod setting page, saved setting values, and mod locale files. It does not add another settings store."
+msgstr "此功能适用于模组在 <code>extended.mod.json</code> 中声明的设置。它使用现有的模组设置页面、已保存的设置值和模组本地化文件，不会新增另一套设置存储。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/50"
+msgid "== Organize a large multi-select =="
+msgstr "== 整理较长的多选列表 =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/51"
+msgid "For a <code>multiselect</code>, keep <code>value</code> as an array and declare the available choices in <code>options</code>. Search controls appear automatically when there are more than 12 choices. The example also groups choices and puts the setting group in its own page tab."
+msgstr "对于 <code>multiselect</code>，<code>value</code> 仍然是数组，可选项仍在 <code>options</code> 中声明。选项超过 12 个时会自动显示搜索控件。示例还对选项进行分组，并将设置组放到独立的页面标签页中。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/52"
+msgid "<pre>\n{\n  \"schemaVersion\": 1,\n  \"enabled\": true,\n  \"settings\": {\n    \"showEffects\": {\n      \"value\": true,\n      \"label\": \"Show effects\",\n      \"control\": \"toggle\"\n    },\n    \"excludeItems\": {\n      \"value\": [],\n      \"label\": \"Excluded items\",\n      \"description\": \"Choose items this mod should ignore.\",\n      \"control\": \"multiselect\",\n      \"options\": {\n        \"Twigs\": { \"label\": \"Twigs\", \"group\": \"Materials\" },\n        \"Stone\": { \"label\": \"Stone\", \"group\": \"Materials\" },\n        \"Resin\": { \"label\": \"Resin\", \"group\": \"Materials\" },\n        \"Plant Fiber\": { \"label\": \"Plant Fiber\", \"group\": \"Materials\" },\n        \"Shroud Wood\": { \"label\": \"Shroud Wood\", \"group\": \"Materials\" },\n        \"Fossilized Bone\": { \"label\": \"Fossilized Bone\", \"group\": \"Materials\" },\n        \"Metal Scraps\": { \"label\": \"Metal Scraps\", \"group\": \"Materials\" },\n        \"Fire Fly\": { \"label\": \"Fire Fly\", \"group\": \"Creatures\" },\n        \"Fell Wispwyvern\": { \"label\": \"Fell Wispwyvern\", \"group\": \"Creatures\" },\n        \"Hollow Halls\": { \"label\": \"Hollow Halls\", \"group\": \"Creatures\" },\n        \"Bronze Arrows\": { \"label\": \"Bronze Arrows\", \"group\": \"Ammunition\" },\n        \"Explosive Arrows\": { \"label\": \"Explosive Arrows\", \"group\": \"Ammunition\" },\n        \"Poison Arrows\": { \"label\": \"Poison Arrows\", \"group\": \"Ammunition\" }\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\", \"settings\": [\"showEffects\"] },\n    { \"label\": \"Excluded items\", \"settings\": [\"excludeItems\"], \"tab\": true }\n  ]\n}\n</pre>"
+msgstr "<pre>\n{\n  \"schemaVersion\": 1,\n  \"enabled\": true,\n  \"settings\": {\n    \"showEffects\": {\n      \"value\": true,\n      \"label\": \"Show effects\",\n      \"control\": \"toggle\"\n    },\n    \"excludeItems\": {\n      \"value\": [],\n      \"label\": \"Excluded items\",\n      \"description\": \"Choose items this mod should ignore.\",\n      \"control\": \"multiselect\",\n      \"options\": {\n        \"Twigs\": { \"label\": \"Twigs\", \"group\": \"Materials\" },\n        \"Stone\": { \"label\": \"Stone\", \"group\": \"Materials\" },\n        \"Resin\": { \"label\": \"Resin\", \"group\": \"Materials\" },\n        \"Plant Fiber\": { \"label\": \"Plant Fiber\", \"group\": \"Materials\" },\n        \"Shroud Wood\": { \"label\": \"Shroud Wood\", \"group\": \"Materials\" },\n        \"Fossilized Bone\": { \"label\": \"Fossilized Bone\", \"group\": \"Materials\" },\n        \"Metal Scraps\": { \"label\": \"Metal Scraps\", \"group\": \"Materials\" },\n        \"Fire Fly\": { \"label\": \"Fire Fly\", \"group\": \"Creatures\" },\n        \"Fell Wispwyvern\": { \"label\": \"Fell Wispwyvern\", \"group\": \"Creatures\" },\n        \"Hollow Halls\": { \"label\": \"Hollow Halls\", \"group\": \"Creatures\" },\n        \"Bronze Arrows\": { \"label\": \"Bronze Arrows\", \"group\": \"Ammunition\" },\n        \"Explosive Arrows\": { \"label\": \"Explosive Arrows\", \"group\": \"Ammunition\" },\n        \"Poison Arrows\": { \"label\": \"Poison Arrows\", \"group\": \"Ammunition\" }\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\", \"settings\": [\"showEffects\"] },\n    { \"label\": \"Excluded items\", \"settings\": [\"excludeItems\"], \"tab\": true }\n  ]\n}\n</pre>"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/53"
+msgid "Option keys such as <code>Twigs</code> are the values saved for the mod. A string label such as <code>\"Twigs\": \"Twigs\"</code> remains supported. The object form adds a visible <code>label</code> and an optional <code>group</code>. Category tabs divide the choices inside the multi-select. Search checks both the visible label and stored value across every category. The count shows visible, total, and selected choices. “Only selected” hides unchecked choices without unselecting them. Changing a checkbox updates the same saved array as before, and a long list scrolls inside its setting."
+msgstr "例如 <code>Twigs</code> 这样的选项键就是为模组保存的值。<code>\"Twigs\": \"Twigs\"</code> 这样的字符串标签仍然可用。对象形式可以增加显示用的 <code>label</code> 和可选的 <code>group</code>。分类标签页用于划分多选列表中的选项。搜索会在所有分类中同时匹配显示标签和已保存的值。计数会显示当前可见、总数和已选项数。“仅显示已选项”只隐藏未选项，不会取消选择。勾选状态变化时仍更新原来的已保存数组，较长列表则在设置区域内滚动。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/54"
+msgid "== Translate mod labels and tabs =="
+msgstr "== 翻译模组标签和页面标签 =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/55"
+msgid "Labels authored by the mod belong in its existing <code>locales/&lt;code&gt;.json</code> files. Shared controls such as Search, Only selected, and All use the player's general Modloader language."
+msgstr "模组编写的标签放在现有的 <code>locales/&lt;code&gt;.json</code> 文件中。Search、Only selected 和 All 等共享控件使用玩家选择的 Modloader 通用语言。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/56"
+msgid "<pre>\n{\n  \"settings\": {\n    \"excludeItems\": {\n      \"options\": {\n        \"Twigs\": \"Twigs\",\n        \"Stone\": \"Stone\",\n        \"Fire Fly\": \"Fire Fly\",\n        \"Bronze Arrows\": \"Bronze Arrows\"\n      },\n      \"optionGroups\": {\n        \"Materials\": \"Materials\",\n        \"Creatures\": \"Creatures\",\n        \"Ammunition\": \"Ammunition\"\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\" },\n    { \"label\": \"Excluded items\" }\n  ]\n}\n</pre>"
+msgstr "<pre>\n{\n  \"settings\": {\n    \"excludeItems\": {\n      \"options\": {\n        \"Twigs\": \"Twigs\",\n        \"Stone\": \"Stone\",\n        \"Fire Fly\": \"Fire Fly\",\n        \"Bronze Arrows\": \"Bronze Arrows\"\n      },\n      \"optionGroups\": {\n        \"Materials\": \"Materials\",\n        \"Creatures\": \"Creatures\",\n        \"Ammunition\": \"Ammunition\"\n      }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"General\" },\n    { \"label\": \"Excluded items\" }\n  ]\n}\n</pre>"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/57"
+msgid "The <code>options</code> map translates visible choice labels. <code>optionGroups</code> translates category tabs, and each key must match a <code>group</code> name in <code>extended.mod.json</code>. The <code>groups</code> array follows the order of the manifest groups, so its labels translate the page tabs. See the [[Translate mod text (en)|mod locale guide]] for the existing locale format."
+msgstr "现有格式请参阅[[Translate mod text (en)|模组本地化指南]]。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/58"
+msgid "== Put a setting group in its own tab =="
+msgstr "== 将设置组放到独立标签页 =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/59"
+msgid "Set <code>\"tab\": true</code> on a group in <code>extended.mod.json</code>. That group's label becomes its page tab, and its settings and actions stay together. Groups without <code>tab: true</code> remain under the existing Settings tab. If there are no unmarked groups or ungrouped settings, the Settings tab is omitted. For a working example, the [https://github.com/bonsaibauer/shroudforge/blob/1.8.0/mods/world-editor/extended.mod.json ShroudForge World Editor's <code>extended.mod.json</code>] uses <code>tab: true</code> for Keyboard shortcuts, Blueprint placement, and Native entity operations."
+msgstr "实际示例可见 [ShroudForge World Editor 的 extended.mod.json](https://github.com/bonsaibauer/shroudforge/blob/1.8.0/mods/world-editor/extended.mod.json)，其中 Keyboard shortcuts、Blueprint placement 和 Native entity operations 分组均使用 tab: true。"
+
+#
+msgctxt "Search_and_organize_large_mod_settings/60"
+msgid "== Saved values and compatibility =="
+msgstr "== 已保存值和兼容性 =="
+
+#
+msgctxt "Search_and_organize_large_mod_settings/61"
+msgid "Existing string option labels, saved arrays, groups without <code>tab</code>, and locale files without <code>optionGroups</code> continue to work without migration. The search controls appear only for multi-selects with more than 12 choices. Grouped option objects, <code>tab: true</code>, and locale <code>optionGroups</code> require ShroudForge 1.8.0 or newer. Older versions reject fields they do not recognize."
+msgstr "现有字符串选项标签、已保存数组、未设置 <code>tab</code> 的分组以及未使用 <code>optionGroups</code> 的本地化文件无需迁移即可继续使用。只有选项超过 12 个的多选列表才显示搜索控件。分组选项对象、<code>tab: true</code> 和本地化文件中的 <code>optionGroups</code> 需要 ShroudForge 1.8.0 或更新版本。旧版本会拒绝无法识别的字段。"

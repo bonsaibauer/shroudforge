@@ -35,6 +35,15 @@ pub(super) fn settings_only_manifest_change(
         if let Some(default) = applied_setting.get("default") {
             desired_setting["default"] = default.clone();
         }
+        // The player's padlocks apply live (refresh_configuration).
+        match applied_setting.get("reserved") {
+            Some(reserved) => desired_setting["reserved"] = reserved.clone(),
+            None => {
+                if let Some(setting) = desired_setting.as_object_mut() {
+                    setting.remove("reserved");
+                }
+            }
+        }
     }
 
     metadata == *applied
@@ -76,7 +85,7 @@ pub(super) fn settings_to_apply_live(
 
 impl IngameRuntime {
     pub(super) fn refresh_configuration(&mut self) {
-        let world_editor_enabled = shroudforge_loader_config::config::read_loader(&self.root)
+        let world_editor_enabled = shroudforge_loader_config::config::read_loader_in_background(&self.root)
             .ok()
             .and_then(|config| {
                 config
@@ -118,9 +127,11 @@ impl IngameRuntime {
             }
         }
         for (id, package, applied) in &mut self.configurations {
-            let package_signature = match mod_loader::config::manifest_revision(package) {
-                Ok(signature) => signature,
-                Err(error) => {
+            // Read off the mods' loop; unknown until first read.
+            let package_signature = match self.package_revisions.revision(package) {
+                None => continue,
+                Some(Ok(signature)) => signature,
+                Some(Err(error)) => {
                     let signature = format!("read-error:{error}");
                     if self.observed.get(package) != Some(&signature) {
                         tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Configuration read failed. Keeping applied values: {error}");
@@ -129,6 +140,7 @@ impl IngameRuntime {
                     continue;
                 }
             };
+            let revision = package_signature.clone();
             let signature = if id == "world-editor" {
                 format!("{package_signature}:worldEditor.enabled={world_editor_enabled}")
             } else {
@@ -138,7 +150,12 @@ impl IngameRuntime {
                 continue;
             }
             self.observed.insert(package.clone(), signature);
-            let manifest = match mod_loader::config::read_manifest_path(&self.root, package) {
+            // Read off the mods' loop with its revision, or now if not yet.
+            let manifest = self
+                .package_revisions
+                .manifest(package, &revision)
+                .unwrap_or_else(|| mod_loader::config::read_manifest_path(&self.root, package));
+            let manifest = match manifest {
                 Ok(manifest) if manifest.id == *id => manifest,
                 Ok(_) => {
                     tracing::error!(target:"shroudforge::runtime", mod_id=%id,"Mod identity changed. Restart required, retaining applied configuration");
@@ -303,6 +320,16 @@ impl IngameRuntime {
                         }
                     }
                 }
+            }
+            if metadata_unchanged && desired["settings"] != applied["settings"] {
+                // A padlock changed in the Modloader: the mod's next report sends it.
+                crate::env::shroudforge::register_input_reservations(
+                    id,
+                    &manifest.settings,
+                    &manifest.input_contexts,
+                );
+                applied["settings"] = desired["settings"].clone();
+                tracing::info!(target:"shroudforge::runtime", mod_id=%id, "Input reservations applied live");
             }
             let now_applied = desired.clone();
             let changed_but_deferred = now_applied != *applied;

@@ -66,6 +66,15 @@ int sf_keyboard_legacy_virtual_key_scancode(int virtual_key)
         : SDL_SCANCODE_UNKNOWN;
 }
 
+/* A Windows scan code (low 7 bits, 0x80 for the E0 prefix, as Raw Input and
+ * key messages report it) as the SDL scancode bindings use. */
+int sf_keyboard_windows_scancode(int index)
+{
+    return index >= 0 && index < (int)SDL_arraysize(windows_scancode_table)
+        ? windows_scancode_table[index]
+        : SDL_SCANCODE_UNKNOWN;
+}
+
 int sf_keyboard_scancode_count(void) { return SDL_SCANCODE_COUNT; }
 const char *sf_keyboard_error(void) { return initialization_error; }
 

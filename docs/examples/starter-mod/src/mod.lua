@@ -24,6 +24,16 @@ end
 
 shroudforge.ui.on_action("logGreeting", log_greeting)
 
+shroudforge.ui.on_action("logTestSettings", function()
+    for _, key in ipairs({ "greeting", "severity", "presetQuality", "presetRange" }) do
+        shroudforge.log.info("Hello Ember test setting: " .. key .. " = " .. tostring(setting(key, "")))
+    end
+end)
+
+shroudforge.ui.on_action("confirmTestAction", function()
+    shroudforge.log.info("Hello Ember: confirmation example accepted")
+end)
+
 return {
     on_load = function()
         if setting("showOnLoad", true) then

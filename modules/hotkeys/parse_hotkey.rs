@@ -95,6 +95,16 @@ impl Hotkey {
             Trigger::Mouse(_) => None,
         })
     }
+    /// The chords of this setting on `device` only, or None without one.
+    pub fn on_device(&self, device: InputDevice) -> Option<Self> {
+        let chords: Vec<_> = self
+            .chords
+            .iter()
+            .filter(|chord| chord.trigger.device() == device)
+            .cloned()
+            .collect();
+        (!chords.is_empty()).then_some(Self { chords })
+    }
     pub fn overlaps(&self, other: &Self) -> bool {
         self.chords.iter().any(|left| {
             other.chords.iter().any(|right| {
@@ -169,6 +179,30 @@ pub fn parse_hotkey(value: &str) -> Result<Option<Hotkey>, String> {
         ));
     }
     Ok(Some(binding))
+}
+
+/// Parses modifier names joined by `+` ("Alt", "Ctrl+Alt"), in any order,
+/// each once, into modifier bits (Ctrl 1, Alt 2, Shift 4, Meta 8). An empty
+/// string is no modifier.
+pub fn parse_modifiers(value: &str) -> Result<u8, String> {
+    let mut modifiers = 0;
+    if value.is_empty() {
+        return Ok(0);
+    }
+    for name in value.split('+') {
+        let bit = match name {
+            "Ctrl" => 1,
+            "Alt" => 2,
+            "Shift" => 4,
+            "Meta" => 8,
+            _ => return Err(format!("Unknown modifier '{name}'")),
+        };
+        if modifiers & bit != 0 {
+            return Err(format!("Duplicate modifier '{name}'"));
+        }
+        modifiers |= bit;
+    }
+    Ok(modifiers)
 }
 
 pub fn parse_value(value: &Value) -> Result<Option<Hotkey>, String> {

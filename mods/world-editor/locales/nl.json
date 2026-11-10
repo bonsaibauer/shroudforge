@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "In-game paneel",
+      "label": "Overlay",
       "description": "Positie is relatief ten opzichte van het spelvenster in logische pixels. X = −1 centreert het paneel. Y wordt vanaf de bovenkant gemeten. Wijzigingen zijn van toepassing terwijl het spel actief is."
     },
     {
-      "label": "Limieten voor Wereldeditor"
-    },
-    {
-      "label": "Sneltoetsen",
+      "label": "Snelkoppelingen",
       "description": "Bewerk de snelkoppelingen hier of in Compatibiliteit → Sneltoetsen. Wijzigingen zijn van toepassing tijdens het spelen. Een lege binding schakelt een snelkoppeling uit.",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Eigen entiteitsbewerkingen",
-      "description": "Spawn en plaatsing maken gebruik van native spelbewerkingen.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Wachtrij prop spawn",
-          "confirm": "Een native prop-spawn in de wachtrij plaatsen met behulp van deze UUID en trackingwaarden?"
-        },
-        "placeEntity": {
-          "label": "Plaats op coördinaten",
-          "confirm": "Native plaatsing op deze coördinaten verzenden?"
-        },
-        "destroyEntity": {
-          "label": "Vernietig op coördinaten",
-          "confirm": "Native verwijdering op deze coördinaten verzenden?"
-        }
-      }
-    },
-    {
-      "label": "Wereldeditor",
-      "description": "Leg voxel-en-prop of alleen-props blauwdrukken vast, bekijk een voorbeeld, plak en maak ongedaan via native wereld-API's.",
+      "label": "Blauwdrukken maken",
+      "description": "Leg voxels en objecten vast, of alleen objecten, en beheer opgeslagen blauwdrukken.",
       "actions": {
         "markCursorA": {
           "label": "Markeer selectiehoek A"
         },
         "markCursorB": {
           "label": "Markeer selectiehoek B"
-        },
-        "markCursorTarget": {
-          "label": "Markeer het plakdoel"
         },
         "clearCursorSelection": {
           "label": "Cursormarkeringen wissen"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "Blauwdruk en afbeelding verwijderen",
           "confirm": "De genoemde blueprint en de bijbehorende afbeelding uit de exportmap verwijderen?"
+        }
+      }
+    },
+    {
+      "label": "Blauwdruk plaatsen",
+      "description": "Kies het doel, de plakmodus en rotatie, bekijk het voorbeeld en plaats de actieve blauwdruk.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Markeer het plakdoel"
         },
         "pasteVoxels": {
           "label": "Actieve blauwdruk plakken",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Voorbeeld plaatsingsplan (alleen log)"
+        }
+      }
+    },
+    {
+      "label": "Entiteitsbewerkingen",
+      "description": "Spawn en plaatsing maken gebruik van native spelbewerkingen.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Wachtrij prop spawn",
+          "confirm": "Een native prop-spawn in de wachtrij plaatsen met behulp van deze UUID en trackingwaarden?"
         },
-        "undoVoxels": {
-          "label": "Laatste wereld plakken ongedaan maken"
+        "placeEntity": {
+          "label": "Plaats op coördinaten",
+          "confirm": "Native plaatsing op deze coördinaten verzenden?"
+        },
+        "destroyEntity": {
+          "label": "Vernietig op coördinaten",
+          "confirm": "Native verwijdering op deze coördinaten verzenden?"
         },
         "destroySelectedProp": {
           "label": "Vernietig geselecteerde vermelde prop"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Ordent de modinstellingen in de tabbladen Overlay, Snelkoppelingen, Blauwdrukken maken, Blauwdruk plaatsen en Entiteitsbewerkingen.",
     "Voegt online F8-opname toe: de speciale server leest het gemarkeerde terrein en de rekwisieten, retourneert de volledige V7-blauwdruk via Steam P2P en de client valideert deze en slaat deze lokaal op. Live geverifieerd met 648 cellen en twee rekwisieten, gevolgd door plaatsing en ongedaan maken.",
     "Zet P2P-verzoeken in de wachtrij op basis van een geverifieerde klant en verzoek-ID, scheidt gelijktijdige uploads en het laatste ongedaan gemaakte dagboek van elke klant, en maakt herhaalde F7-plaatsing mogelijk na bevestiging. F4 maakt de laatste plaatsing ongedaan. Onvolledig herstel blokkeert nog steeds de volgende plak van die client.",
     "Herstelt de oorspronkelijke F7-plaatsing en F4 ongedaan maken voor terrein, voxelcellen en rekwisieten op origineel formaat, inclusief geroteerde blauwdrukken. Het eigen dagboek van de redacteur herstelt het terrein en verwijdert geplaatste rekwisieten, onafhankelijk van de beperkte geschiedenis van het ongedaan maken van het spel.",

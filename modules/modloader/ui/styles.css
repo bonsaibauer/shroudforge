@@ -37,6 +37,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .nav-group{flex-shrink:0}.nav-group-mods{min-height:0;display:flex;flex:1;flex-direction:column}.nav-group-mods .sidebar-mods{min-height:0;max-height:none;flex:1;overflow-y:auto}
 .sidebar-mods .mod-nav-avatar{width:18px;height:18px;display:grid;place-items:center;flex:0 0 18px;margin-right:0;border-radius:5px;background:transparent}
 .sidebar-mods .mod-nav-avatar .icon{width:15px;height:15px}
+.nav-group-modloader h2{display:flex;align-items:baseline;gap:8px}.nav-group-modloader .nav-group-version{color:var(--sf-faint);font-size:7px;font-weight:500;letter-spacing:normal;white-space:nowrap}
 .mod-state-chip.active{color:var(--sf-green);background:rgba(91,203,146,.1);border-color:rgba(91,203,146,.18)}
 .mod-state-chip.restart{color:var(--sf-orange);background:rgba(231,169,86,.1);border-color:rgba(231,169,86,.18)}.mod-state-chip.waiting{color:var(--sf-blue);background:rgba(83,173,215,.1);border-color:rgba(83,173,215,.18)}
 .mod-state-chip.disabled{color:var(--sf-muted);background:rgba(255,255,255,.04);border-color:var(--sf-line)}
@@ -244,6 +245,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .button.ghost:not(.danger){color:var(--sf-gold-bright);border-color:rgba(202,170,103,.42);background:transparent;box-shadow:none}
 .button:not(.danger):disabled{opacity:.45;cursor:default;transform:none;box-shadow:none}
 .page-actions{align-items:center}
+.wiki-toolbar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.wiki-toolbar-actions .button{padding:0 10px;white-space:nowrap}.wiki-toolbar-actions .icon{width:15px;height:15px}.wiki-module-actions{padding:12px 0 4px;border-top:1px solid var(--sf-line)}.wiki-module-actions>strong{display:block;color:var(--sf-text);font-size:12px}.wiki-module-actions>.hint{margin:5px 0 10px}.wiki-module-actions .button{min-height:32px}
 .page-zoom-controls{display:inline-flex;align-items:center;gap:4px}
 .page-zoom-step{width:36px;min-height:36px;padding:0;font-size:17px;line-height:1}
 .page-zoom-value{min-width:39px;color:var(--sf-gold-bright);font-size:10px;font-variant-numeric:tabular-nums;text-align:center}
@@ -266,6 +268,25 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .keybind-device .button{box-sizing:border-box;width:100%;min-height:30px;padding:4px 8px;font-size:10px}
 .keybind-device .keybind-input{width:100%;overflow-wrap:anywhere}
 .keybind-reset{box-sizing:border-box;grid-column:1/-1;justify-self:center;width:calc((100% - 12px)/2);min-height:30px;font-size:10px}
+/* Input reservations: the padlock in front of a key the mod may keep from the game, its tooltip, and the condition under a reserved key. */
+.keybind-device{position:relative}
+.keybind-binding{display:flex;gap:6px;align-items:stretch;min-width:0}
+.keybind-binding>.keybind-input{flex:1 1 auto;min-width:0}
+.keybind-input.reserved{color:#16171b;border-color:var(--sf-gold-bright);background:var(--sf-gold);font-weight:700}
+.keybind-input.fixed{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:30px;padding:4px 8px;font-size:10px;text-transform:none;border-style:dashed;cursor:default}
+.keybind-input.fixed.reserved{border-style:solid}
+.keybind-reserved-when{color:var(--sf-gold-bright);font-size:10px;text-align:center}
+.key-lock{display:inline-flex;flex:0 0 30px}
+.key-lock-button{box-sizing:border-box;width:30px;min-height:30px;padding:0;display:grid;place-items:center;color:#b4c3c4;border:1px solid rgba(151,181,181,.4);border-radius:8px;background:transparent;cursor:pointer;transition:var(--sf-transition)}
+.key-lock-button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.key-lock.reserved .key-lock-button{color:#16171b;border-color:var(--sf-gold-bright);background:var(--sf-gold)}
+.key-lock-button:focus-visible{outline:2px solid var(--sf-gold);outline-offset:2px}
+.key-lock-button:disabled{cursor:not-allowed;opacity:.5}
+.key-lock-tip{position:absolute;top:calc(100% + 6px);left:0;z-index:20;box-sizing:border-box;width:max(100%,260px);display:none;flex-direction:column;gap:4px;padding:10px 12px;color:var(--sf-text);border:1px solid rgba(151,181,181,.4);border-radius:9px;background:var(--sf-glass-strong);box-shadow:var(--sf-shadow-soft);font-size:11px;line-height:1.5}
+.keybind-device:last-child .key-lock-tip{left:auto;right:0}
+.key-lock.reserved .key-lock-tip{border-color:rgba(201,173,110,.55)}
+.key-lock-tip strong{color:var(--sf-gold-bright)}
+.key-lock:hover .key-lock-tip,.key-lock:has(.key-lock-button:focus-visible) .key-lock-tip{display:flex}
 .keybind-setting-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,min(460px,46%));align-items:center}
 .keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:2;width:100%;max-width:460px;min-width:0;flex:none}
 @media(max-width:760px){.keybind-setting-row{grid-template-columns:minmax(0,1fr)}.keybind-setting-row>.keybind-editor,.keybind-setting-row>.mod-setting-control:has(>.keybind-editor){grid-column:1;width:min(460px,100%)}}
@@ -275,8 +296,9 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .compatibility-tab-label.restart-required,.nav-status.restart-required{color:var(--sf-blue)}
 .mod-state-chip.restart,.mod-state-panel .mod-state-chip.restart,.mod-status-row .mod-state-chip.restart{color:var(--sf-blue);background:rgba(83,173,215,.1);border-color:rgba(83,173,215,.24)}
 .mod-status-row .mod-state-chip.restart .icon{width:12px;height:12px}
-/* Tab hit area: each segment button also takes the bar padding and half of
-   the gap next to it, so quick clicks near a tab edge still land on the tab. */
+.mod-multiselect-filter{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 8px;padding-left:14px}.mod-multiselect-filter>.mod-input{flex:1 1 220px;height:32px;padding:0 9px;color:var(--sf-text);border:1px solid var(--sf-line-strong);border-radius:8px;background:#0b1519}.mod-multiselect-selected-only{display:flex;align-items:center;gap:7px;color:var(--sf-muted);font-size:11px;cursor:pointer}.mod-multiselect-filter>small{color:var(--sf-muted);font-size:10px}.mod-multiselect-filter+.settings-options{max-height:420px;overflow:auto}
+
+/* Tab hit area: extend segments into the bar padding and adjacent gaps. */
 .segments button{position:relative}
 .segments button::after{content:"";position:absolute;inset:-4px -1px}
 .segments button:first-child::after{left:-4px}

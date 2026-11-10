@@ -2,6 +2,20 @@
   "schemaVersion": 1,
   "messages": [
     {
+      "id": "shroudforge-wiki-community-1",
+      "kind": "notice.wikiCommunity",
+      "beta": false,
+      "englishOnly": false,
+      "title": "Help build the ShroudForge Wiki",
+      "message": "The Modloader's Wiki tab connects to wiki.shroudforge.net through the MediaWiki API, where you can search guides and help articles. Related Wiki articles also appear alongside relevant Modloader compatibility settings. Register on the Wiki to contribute guides, fixes, troubleshooting tips, mods, or clear mod descriptions.",
+      "level": "info",
+      "actionUrl": "https://wiki.shroudforge.net",
+      "actionLabelKey": "news.notice.wikiCommunity.openWebsite",
+      "actions": [
+        { "id": "open-wiki", "kind": "open-wiki" }
+      ]
+    },
+    {
       "id": "shroudforge-localization-beta-1",
       "kind": "notice.localization",
       "beta": false,

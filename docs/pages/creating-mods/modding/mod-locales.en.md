@@ -34,7 +34,7 @@ The schema is published as [`mod-locale.schema.json`](https://bonsaibauer.github
 
 ## Visible Modloader text
 
-Translate the name and description under `mod`, setting labels and descriptions under `settings`, groups under `groups`, action buttons by their existing action IDs, and changelog lines. For choice settings, `options` maps each stored value to its translated display label. The value itself stays stable.
+Translate the name and description under `mod`, setting labels and descriptions under `settings`, groups under `groups`, action buttons by their existing action IDs, and changelog lines. For choice settings, `options` maps each stored value to its translated display label. The value itself stays stable. For grouped multi-select choices, `optionGroups` maps each source category name to its translated tab label inside the same setting catalog. Setting-group tabs use the existing `groups[].label` translation.
 
 ```json
 {
@@ -44,6 +44,10 @@ Translate the name and description under `mod`, setting labels and descriptions 
     "severity": {
       "label": "Log level",
       "options": { "info": "Information", "warn": "Warning" }
+    },
+    "excludeItems": {
+      "options": { "Twigs": "Twigs", "Fire Fly": "Fire Fly" },
+      "optionGroups": { "Materials": "Materials", "Ammunition": "Ammunition" }
     }
   },
   "groups": [
@@ -56,7 +60,7 @@ Translate the name and description under `mod`, setting labels and descriptions 
 }
 ```
 
-`settings` uses keys from `extended.mod.json`. Option keys are the stored option values. `groups` follows the group order in `extended.mod.json`, because groups do not have their own identifiers there. Action translations use the existing action ID. Text omitted from a catalog keeps its source text from `mod.json` and `extended.mod.json`.
+`settings` uses keys from `extended.mod.json`. Option keys are the stored option values. `optionGroups` keys must match category names declared by that setting's options. `groups` follows the group order in `extended.mod.json`, because groups do not have their own identifiers there. Action translations use the existing action ID. Text omitted from a catalog keeps its source text from `mod.json` and `extended.mod.json`.
 
 ## Lua text from the same catalog
 

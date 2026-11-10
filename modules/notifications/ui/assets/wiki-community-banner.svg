@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="1170" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101426"/>
+      <stop offset=".55" stop-color="#211b36"/>
+      <stop offset="1" stop-color="#361d2d"/>
+    </linearGradient>
+    <linearGradient id="page" x1="111" y1="108" x2="245" y2="222" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff4de"/>
+      <stop offset="1" stop-color="#d8c9b8"/>
+    </linearGradient>
+    <linearGradient id="ember" x1="145" y1="82" x2="207" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffdb80"/>
+      <stop offset=".48" stop-color="#ff955f"/>
+      <stop offset="1" stop-color="#e35b67"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0" cy="0" r="1" gradientTransform="matrix(170 0 0 146 177 160)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff9b66" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#ff9b66" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="stars" width="72" height="72" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="12" r="1" fill="#f8ead4" fill-opacity=".24"/>
+      <circle cx="49" cy="46" r="1.2" fill="#9cc7d3" fill-opacity=".2"/>
+      <path d="M30 4v5m-2.5-2.5h5" stroke="#ffb778" stroke-opacity=".2"/>
+    </pattern>
+    <filter id="glow" x="116" y="57" width="123" height="155" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="320" rx="26" fill="url(#bg)"/>
+  <rect width="1200" height="320" rx="26" fill="url(#stars)"/>
+  <circle cx="177" cy="160" r="170" fill="url(#halo)"/>
+  <path d="M845 0h355v320H764c107-73 166-180 81-320Z" fill="#ffffff" fill-opacity=".025"/>
+  <path d="M845 0h355M1040 0v320" stroke="#e9d6c3" stroke-opacity=".08"/>
+  <g filter="url(#glow)" opacity=".7">
+    <path d="M177 69c-9 24-27 34-27 58 0 17 12 29 27 29s27-12 27-29c0-15-11-26-11-43-7 8-10 14-10 23-6-11-8-23-6-38Z" fill="#ff965f"/>
+  </g>
+  <path d="M177 67c-7 20-24 31-24 54 0 16 10 27 24 27s24-11 24-27c0-12-7-22-10-33-5 6-7 13-7 19-6-10-8-23-7-40Z" fill="url(#ember)"/>
+  <path d="M177 112c-5 9-10 14-10 22a10 10 0 0 0 20 0c0-7-4-12-6-18-2 3-3 6-4 9-1-4-1-8 0-13Z" fill="#fff0c5"/>
+  <path d="M177 154c-32 0-56 6-72 19v72c22-11 45-15 72-11 27-4 50 0 72 11v-72c-16-13-40-19-72-19Z" fill="#15192b" stroke="#f1d9c0" stroke-opacity=".58" stroke-width="2"/>
+  <path d="M177 163c-24-3-44 0-62 10v53c18-8 38-10 62-7v-56Z" fill="url(#page)"/>
+  <path d="M177 163c24-3 44 0 62 10v53c-18-8-38-10-62-7v-56Z" fill="url(#page)"/>
+  <path d="M177 163v56m-49-36c12-5 25-7 40-6m-40 20c12-4 25-6 40-5m18-9c14-1 28 1 40 6m-40 8c14-1 28 1 40 6" stroke="#413b4a" stroke-opacity=".42" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="177" cy="152" r="4" fill="#ffb577"/>
+  <path d="M72 88l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2 5-10Zm211 83 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6Z" fill="#f9c787" fill-opacity=".78"/>
+  <text x="330" y="105" fill="#f5c17f" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="4">SHROUDFORGE COMMUNITY</text>
+  <text x="326" y="178" fill="#fff8ef" font-family="Segoe UI, Arial, sans-serif" font-size="60" font-weight="800" letter-spacing="1">THE WIKI</text>
+  <text x="331" y="220" fill="#d9d4df" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="1.5">GUIDES  ·  MODS  ·  KNOW-HOW</text>
+  <rect x="330" y="252" width="260" height="2" rx="1" fill="#ed8868" fill-opacity=".85"/>
+  <text x="330" y="282" fill="#c5bfce" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="500">wiki.shroudforge.net</text>
+  <g transform="translate(886 98)">
+    <rect width="246" height="124" rx="18" fill="#111628" fill-opacity=".72" stroke="#d9c8dd" stroke-opacity=".2"/>
+    <path d="M34 45h25m-25 17h43m-43 17h35" stroke="#e9d9e8" stroke-opacity=".82" stroke-width="5" stroke-linecap="round"/>
+    <path d="m157 47 12 12 23-25" stroke="#f4ac72" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="34" y="107" fill="#fff4e8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="1.7">BUILT TOGETHER</text>
+  </g>
+</svg>

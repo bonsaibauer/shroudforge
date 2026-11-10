@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "Pannello di gioco",
+      "label": "Overlay",
       "description": "La posizione è relativa alla finestra di gioco in pixel logici. X = −1 centra il pannello. Y è misurato dall'alto. Le modifiche si applicano mentre il gioco è in esecuzione."
     },
     {
-      "label": "Limiti dell'editor mondiale"
-    },
-    {
-      "label": "Scorciatoie da tastiera",
+      "label": "Scorciatoie",
       "description": "Modifica le scorciatoie qui o in Compatibilità → Tasti di scelta rapida. Le modifiche si applicano durante il gioco. Un'associazione vuota disabilita un collegamento.",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Operazioni di entità native",
-      "description": "Lo spawn e il posizionamento utilizzano operazioni di gioco native.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Spawn dell'elica della coda",
-          "confirm": "Mettere in coda la generazione di un oggetto nativo utilizzando questi UUID e valori di tracciamento?"
-        },
-        "placeEntity": {
-          "label": "Luogo alle coordinate",
-          "confirm": "Inviare il posizionamento nativo a queste coordinate?"
-        },
-        "destroyEntity": {
-          "label": "Distruggi alle coordinate",
-          "confirm": "Inviare la rimozione nativa a queste coordinate?"
-        }
-      }
-    },
-    {
-      "label": "Redattore mondiale",
-      "description": "Cattura progetti voxel-and-prop o solo oggetti di scena, visualizza in anteprima, incolla e annulla tramite le API del mondo nativo.",
+      "label": "Creare blueprint",
+      "description": "Acquisisci voxel e oggetti, o solo gli oggetti, e gestisci i progetti salvati.",
       "actions": {
         "markCursorA": {
           "label": "Contrassegnare l'angolo di selezione A"
         },
         "markCursorB": {
           "label": "Contrassegnare l'angolo di selezione B"
-        },
-        "markCursorTarget": {
-          "label": "Contrassegna destinazione incolla"
         },
         "clearCursorSelection": {
           "label": "Cancella i segni del cursore"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "Elimina progetto e immagine",
           "confirm": "Eliminare il progetto denominato e la relativa immagine dalla cartella di esportazione?"
+        }
+      }
+    },
+    {
+      "label": "Posizionare blueprint",
+      "description": "Imposta obiettivo, modalità e rotazione, visualizza l’anteprima e posiziona il progetto attivo.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Contrassegna destinazione incolla"
         },
         "pasteVoxels": {
           "label": "Incolla il progetto attivo",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Anteprima del piano di posizionamento (solo registro)"
+        }
+      }
+    },
+    {
+      "label": "Operazioni entità",
+      "description": "Lo spawn e il posizionamento utilizzano operazioni di gioco native.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Spawn dell'elica della coda",
+          "confirm": "Mettere in coda la generazione di un oggetto nativo utilizzando questi UUID e valori di tracciamento?"
         },
-        "undoVoxels": {
-          "label": "Annulla l'ultimo incollaggio del mondo"
+        "placeEntity": {
+          "label": "Luogo alle coordinate",
+          "confirm": "Inviare il posizionamento nativo a queste coordinate?"
+        },
+        "destroyEntity": {
+          "label": "Distruggi alle coordinate",
+          "confirm": "Inviare la rimozione nativa a queste coordinate?"
         },
         "destroySelectedProp": {
           "label": "Distruggi l'oggetto selezionato nell'elenco"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Organizza le impostazioni della mod nelle schede Overlay, Scorciatoie, Creare blueprint, Posizionare blueprint e Operazioni entità.",
     "Aggiunge l'acquisizione F8 online: il server dedicato legge il terreno e gli oggetti contrassegnati, restituisce il progetto V7 completo su Steam P2P e il client lo convalida e lo salva localmente. Verificato dal vivo con 648 celle e due oggetti di scena, seguito da posizionamento e annullamento.",
     "Accoda le richieste P2P in base al client autenticato e all'ID richiesta, separa i caricamenti simultanei e l'ultimo giornale di annullamento di ciascun client e consente il posizionamento ripetuto di F7 dopo la conferma. F4 annulla l'ultimo posizionamento. Il ripristino incompleto blocca comunque il successivo incollaggio del client.",
     "Corregge il posizionamento nativo di F7 e l'annullamento di F4 per terreno, celle voxel e oggetti di scena di dimensioni originali, inclusi progetti ruotati. Il diario dell'editor ripristina il terreno e rimuove gli oggetti di scena posizionati indipendentemente dalla cronologia di annullamento limitata del gioco.",

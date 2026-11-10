@@ -150,14 +150,11 @@
   },
   "groups": [
     {
-      "label": "In-game panel",
+      "label": "Overlay",
       "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel. Y is measured down from the top. Changes apply while the game is running."
     },
     {
-      "label": "World Editor limits"
-    },
-    {
-      "label": "Keyboard shortcuts",
+      "label": "Shortcuts",
       "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
       "actions": {
         "rotateBlueprint": {
@@ -183,35 +180,14 @@
       }
     },
     {
-      "label": "Native entity operations",
-      "description": "Spawn and placement use native game operations.",
-      "actions": {
-        "spawnEntity": {
-          "label": "Queue prop spawn",
-          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
-        },
-        "placeEntity": {
-          "label": "Place at coordinates",
-          "confirm": "Dispatch native placement at these coordinates?"
-        },
-        "destroyEntity": {
-          "label": "Destroy at coordinates",
-          "confirm": "Dispatch native removal at these coordinates?"
-        }
-      }
-    },
-    {
-      "label": "World Editor",
-      "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
+      "label": "Blueprint creation",
+      "description": "Capture voxels and props, or props only, and manage saved blueprints.",
       "actions": {
         "markCursorA": {
           "label": "Mark selection corner A"
         },
         "markCursorB": {
           "label": "Mark selection corner B"
-        },
-        "markCursorTarget": {
-          "label": "Mark paste target"
         },
         "clearCursorSelection": {
           "label": "Clear cursor marks"
@@ -246,6 +222,15 @@
         "deleteLibraryBlueprint": {
           "label": "Delete blueprint and image",
           "confirm": "Delete the named blueprint and its image from the export folder?"
+        }
+      }
+    },
+    {
+      "label": "Blueprint placement",
+      "description": "Choose the target, paste mode, and rotation, preview, and place the active blueprint.",
+      "actions": {
+        "markCursorTarget": {
+          "label": "Mark paste target"
         },
         "pasteVoxels": {
           "label": "Paste active blueprint",
@@ -253,9 +238,24 @@
         },
         "previewPaste": {
           "label": "Preview placement plan (log only)"
+        }
+      }
+    },
+    {
+      "label": "Entity operations",
+      "description": "Spawn and placement use native game operations.",
+      "actions": {
+        "spawnEntity": {
+          "label": "Queue prop spawn",
+          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
         },
-        "undoVoxels": {
-          "label": "Undo last world paste"
+        "placeEntity": {
+          "label": "Place at coordinates",
+          "confirm": "Dispatch native placement at these coordinates?"
+        },
+        "destroyEntity": {
+          "label": "Destroy at coordinates",
+          "confirm": "Dispatch native removal at these coordinates?"
         },
         "destroySelectedProp": {
           "label": "Destroy selected listed prop"
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Organizes mod settings into Overlay, Shortcuts, Blueprint creation, Blueprint placement, and Entity operations tabs.",
     "Adds online F8 capture: the dedicated server reads the marked terrain and props, returns the complete V7 blueprint over Steam P2P, and the client validates and saves it locally. Verified live with 648 cells and two props, followed by placement and undo.",
     "Queues P2P requests by authenticated client and request ID, separates concurrent uploads and each client's latest undo journal, and allows repeated F7 placement after confirmation. F4 undoes the latest placement. Incomplete recovery still blocks that client's next paste.",
     "Fixes native F7 placement and F4 undo for terrain, voxel cells, and original-size props, including rotated blueprints. The editor's own journal restores terrain and removes placed props independently of the game's limited undo history.",

@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Cześć Ember",
+    "description": "Polskojęzyczny przykład wizualny ustawień, kart, zależności, profili i akcji Modloadera."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Pokaż powitanie przy uruchomieniu",
+      "description": "Zapisuje powitanie w dzienniku moda podczas uruchamiania środowiska."
+    },
+    "greeting": {
+      "label": "Powitanie",
+      "description": "Tekst używany przez funkcję startową i przycisk."
+    },
+    "severity": {
+      "label": "Poziom dziennika",
+      "description": "Określa sposób wyświetlania przykładowej wiadomości w dzienniku moda.",
+      "options": {
+        "info": "Informacja",
+        "warn": "Ostrzeżenie"
+      }
+    },
+    "checkboxExample": {
+      "label": "Pole wyboru",
+      "description": "Wariant ustawienia logicznego z polem wyboru."
+    },
+    "textareaExample": {
+      "label": "Pole tekstowe",
+      "description": "Wielowierszowe pole na dłuższy tekst."
+    },
+    "numberExample": {
+      "label": "Pole liczbowe",
+      "description": "Ograniczone pole liczbowe z określonym krokiem."
+    },
+    "sliderExample": {
+      "label": "Suwak",
+      "description": "Suwak z widoczną wartością."
+    },
+    "radioExample": {
+      "label": "Przyciski opcji",
+      "description": "Wiersz opcji w stylu przycisków radiowych.",
+      "options": {
+        "compact": "Kompaktowy",
+        "comfortable": "Wygodny",
+        "wide": "Szeroki"
+      }
+    },
+    "segmentedExample": {
+      "label": "Opcje segmentowe",
+      "description": "Kompaktowy wybór podzielony na segmenty.",
+      "options": {
+        "left": "Lewo",
+        "center": "Środek",
+        "right": "Prawo"
+      }
+    },
+    "colorExample": {
+      "label": "Wybór koloru",
+      "description": "Natywny selektor kolorów."
+    },
+    "groupedChoices": {
+      "label": "Długa lista z kategoriami",
+      "description": "Przeszukuj wszystkie kategorie albo wybierz kartę kategorii.",
+      "options": {
+        "stone": "Kamień",
+        "timber": "Drewno",
+        "clay": "Glina",
+        "iron": "Żelazo",
+        "copper": "Miedź",
+        "hammer": "Młotek",
+        "axe": "Topór",
+        "shovel": "Łopata",
+        "pickaxe": "Kilof",
+        "saw": "Piła",
+        "rope": "Lina",
+        "resin": "Żywica",
+        "nails": "Gwoździe",
+        "cloth": "Tkanina",
+        "charcoal": "Węgiel drzewny"
+      },
+      "optionGroups": {
+        "Materials": "Materiały",
+        "Tools": "Narzędzia",
+        "Supplies": "Zaopatrzenie"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Długa lista bez kategorii",
+      "description": "Wyszukiwanie i filtr włączonych elementów bez kart kategorii.",
+      "options": {
+        "alpha": "Wybór 01",
+        "bravo": "Wybór 02",
+        "charlie": "Wybór 03",
+        "delta": "Wybór 04",
+        "echo": "Wybór 05",
+        "foxtrot": "Wybór 06",
+        "golf": "Wybór 07",
+        "hotel": "Wybór 08",
+        "india": "Wybór 09",
+        "juliet": "Wybór 10",
+        "kilo": "Wybór 11",
+        "lima": "Wybór 12",
+        "mike": "Wybór 13",
+        "november": "Wybór 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Krótka lista z kategoriami",
+      "description": "Dokładnie dwanaście opcji. Kategorie pozostają widoczne, a wyszukiwanie jest ukryte.",
+      "options": {
+        "north": "Północ",
+        "east": "Wschód",
+        "south": "Południe",
+        "west": "Zachód",
+        "spring": "Wiosna",
+        "summer": "Lato",
+        "autumn": "Jesień",
+        "winter": "Zima",
+        "morning": "Rano",
+        "noon": "Środek dnia",
+        "evening": "Wieczór",
+        "night": "Noc"
+      },
+      "optionGroups": {
+        "Directions": "Kierunki",
+        "Seasons": "Pory roku",
+        "Day parts": "Pory dnia"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Włącz ustawienie zaawansowane",
+      "description": "Włącz tę opcję, aby odblokować zależny suwak."
+    },
+    "advancedAmount": {
+      "label": "Zależny suwak",
+      "description": "Pozostaje wyłączony, dopóki nie włączysz opcji powyżej."
+    },
+    "reservedShortcut": {
+      "label": "Przykładowy zarezerwowany skrót",
+      "description": "Pokazuje kłódki rezerwacji klawiatury i myszy."
+    },
+    "plainShortcut": {
+      "label": "Przykładowy niezarezerwowany skrót",
+      "description": "Skrót bez kłódek rezerwacji."
+    },
+    "wheelScroll": {
+      "label": "Rezerwacja kółka myszy",
+      "description": "Pokazuje kontrolkę rezerwacji kółka myszy."
+    },
+    "presetQuality": {
+      "label": "Profil jakości",
+      "description": "Wybór profilu aktualizuje poniższe pola.",
+      "options": {
+        "low": "Niska",
+        "balanced": "Zrównoważona",
+        "high": "Wysoka",
+        "custom": "Niestandardowa"
+      }
+    },
+    "presetRange": {
+      "label": "Zakres profilu",
+      "description": "Ręczna zmiana wybiera profil Niestandardowy."
+    },
+    "presetDetail": {
+      "label": "Szczegółowość profilu",
+      "description": "Ta wartość jest ustawiana przez profil jakości.",
+      "options": {
+        "low": "Mało szczegółów",
+        "medium": "Średnie szczegóły",
+        "high": "Dużo szczegółów"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Wyszukiwanie i kategorie",
+      "description": "Obie listy przekraczają limit wyszukiwania. Pierwsza ma również karty kategorii."
+    },
+    {
+      "label": "Ustawienia warunkowe",
+      "description": "Włącz pierwsze ustawienie, aby odblokować zależny suwak."
+    },
+    {
+      "label": "Skróty i kółko myszy",
+      "description": "Porównaj zwykły skrót, zarezerwowane klawisze i zarezerwowane kółko myszy."
+    },
+    {
+      "label": "Profile ustawień",
+      "description": "Wybierz profil, a potem zmień ustawienie, aby wybrać Niestandardowa."
+    },
+    {
+      "label": "Akcje i potwierdzenie",
+      "description": "Te akcje zapisują wyłącznie wpis w dzienniku moda. Jedna prosi o potwierdzenie.",
+      "actions": {
+        "logGreeting": {
+          "label": "Zapisz powitanie w dzienniku moda"
+        },
+        "logTestSettings": {
+          "label": "Zapisz bieżące wartości testowe"
+        },
+        "confirmTestAction": {
+          "label": "Pokaż przykład potwierdzenia",
+          "confirm": "Uruchomić bezpieczny przykład? Zapisze tylko wiadomość w dzienniku moda."
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Pierwszy przykład wizualny. Informacje pokazują oznaczenia pakietu, przykładowe odnośniki i ten dziennik zmian.",
+    "Opcjonalne zależności pokazują stany zainstalowanych i brakujących zależności.",
+    "Ustawienia i karty niestandardowe pokazują wszystkie kontrolki, wyszukiwanie, kategorie, warunki, profile, skróty i akcje."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Powitanie"
+  }
+}

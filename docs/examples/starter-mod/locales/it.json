@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Ciao Ember",
+    "description": "Una dimostrazione visiva in italiano delle impostazioni, schede, dipendenze, profili e azioni del Modloader."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Mostra il saluto all’avvio",
+      "description": "Scrive il saluto nel registro della mod quando si avvia il runtime."
+    },
+    "greeting": {
+      "label": "Saluto",
+      "description": "Testo usato dalla funzione di avvio e dal pulsante."
+    },
+    "severity": {
+      "label": "Livello di registro",
+      "description": "Determina come appare il messaggio di esempio nel registro della mod.",
+      "options": {
+        "info": "Informazioni",
+        "warn": "Avviso"
+      }
+    },
+    "checkboxExample": {
+      "label": "Casella di controllo",
+      "description": "La variante con casella di un’impostazione booleana."
+    },
+    "textareaExample": {
+      "label": "Area di testo",
+      "description": "Un campo su più righe per testi lunghi."
+    },
+    "numberExample": {
+      "label": "Campo numerico",
+      "description": "Un campo numerico limitato con un incremento."
+    },
+    "sliderExample": {
+      "label": "Cursore",
+      "description": "Un cursore con valore visibile."
+    },
+    "radioExample": {
+      "label": "Scelte radio",
+      "description": "Una riga di opzioni in stile pulsante radio.",
+      "options": {
+        "compact": "Compatto",
+        "comfortable": "Comodo",
+        "wide": "Ampio"
+      }
+    },
+    "segmentedExample": {
+      "label": "Scelte segmentate",
+      "description": "Un controllo compatto diviso in segmenti.",
+      "options": {
+        "left": "Sinistra",
+        "center": "Centro",
+        "right": "Destra"
+      }
+    },
+    "colorExample": {
+      "label": "Controllo colore",
+      "description": "Un selettore colore nativo."
+    },
+    "groupedChoices": {
+      "label": "Elenco lungo per categorie",
+      "description": "Cerca in tutte le categorie oppure scegli una scheda di categoria.",
+      "options": {
+        "stone": "Pietra",
+        "timber": "Legname",
+        "clay": "Argilla",
+        "iron": "Ferro",
+        "copper": "Rame",
+        "hammer": "Martello",
+        "axe": "Ascia",
+        "shovel": "Pala",
+        "pickaxe": "Piccone",
+        "saw": "Sega",
+        "rope": "Corda",
+        "resin": "Resina",
+        "nails": "Chiodi",
+        "cloth": "Tessuto",
+        "charcoal": "Carbone"
+      },
+      "optionGroups": {
+        "Materials": "Materiali",
+        "Tools": "Attrezzi",
+        "Supplies": "Forniture"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Elenco lungo senza categorie",
+      "description": "Ricerca e filtro degli elementi attivati senza schede di categoria.",
+      "options": {
+        "alpha": "Scelta 01",
+        "bravo": "Scelta 02",
+        "charlie": "Scelta 03",
+        "delta": "Scelta 04",
+        "echo": "Scelta 05",
+        "foxtrot": "Scelta 06",
+        "golf": "Scelta 07",
+        "hotel": "Scelta 08",
+        "india": "Scelta 09",
+        "juliet": "Scelta 10",
+        "kilo": "Scelta 11",
+        "lima": "Scelta 12",
+        "mike": "Scelta 13",
+        "november": "Scelta 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Elenco breve per categorie",
+      "description": "Esattamente dodici opzioni. Le categorie restano visibili e i controlli di ricerca sono nascosti.",
+      "options": {
+        "north": "Nord",
+        "east": "Est",
+        "south": "Sud",
+        "west": "Ovest",
+        "spring": "Primavera",
+        "summer": "Estate",
+        "autumn": "Autunno",
+        "winter": "Inverno",
+        "morning": "Mattina",
+        "noon": "Mezzogiorno",
+        "evening": "Sera",
+        "night": "Notte"
+      },
+      "optionGroups": {
+        "Directions": "Direzioni",
+        "Seasons": "Stagioni",
+        "Day parts": "Momenti della giornata"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Attiva il controllo avanzato",
+      "description": "Attivalo per sbloccare il cursore dipendente."
+    },
+    "advancedAmount": {
+      "label": "Cursore dipendente",
+      "description": "Resta disattivato finché non attivi l’opzione precedente."
+    },
+    "reservedShortcut": {
+      "label": "Scorciatoia di esempio riservata",
+      "description": "Mostra i lucchetti di prenotazione per tastiera e mouse."
+    },
+    "plainShortcut": {
+      "label": "Scorciatoia di esempio libera",
+      "description": "Una scorciatoia senza lucchetti di prenotazione."
+    },
+    "wheelScroll": {
+      "label": "Prenotazione della rotellina",
+      "description": "Mostra il controllo di prenotazione della rotellina del mouse."
+    },
+    "presetQuality": {
+      "label": "Profilo qualità",
+      "description": "La scelta del profilo aggiorna i campi sottostanti.",
+      "options": {
+        "low": "Bassa",
+        "balanced": "Bilanciata",
+        "high": "Alta",
+        "custom": "Personalizzata"
+      }
+    },
+    "presetRange": {
+      "label": "Intervallo del profilo",
+      "description": "Una modifica manuale seleziona Personalizzato."
+    },
+    "presetDetail": {
+      "label": "Dettaglio del profilo",
+      "description": "Questo valore è controllato dal profilo qualità.",
+      "options": {
+        "low": "Pochi dettagli",
+        "medium": "Dettagli medi",
+        "high": "Molti dettagli"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Ricerca e categorie",
+      "description": "Entrambi gli elenchi superano la soglia di ricerca. Il primo include anche schede di categoria."
+    },
+    {
+      "label": "Controlli condizionali",
+      "description": "Attiva la prima impostazione per sbloccare il cursore dipendente."
+    },
+    {
+      "label": "Scorciatoie e rotellina",
+      "description": "Confronta una scorciatoia normale, i tasti riservati e la rotellina riservata."
+    },
+    {
+      "label": "Profili predefiniti",
+      "description": "Scegli un profilo, poi modifica un’impostazione per selezionare Personalizzata."
+    },
+    {
+      "label": "Azioni e conferma",
+      "description": "Queste azioni scrivono solo nel registro della mod. Una richiede conferma.",
+      "actions": {
+        "logGreeting": {
+          "label": "Scrivi il saluto nel registro della mod"
+        },
+        "logTestSettings": {
+          "label": "Registra i valori di prova correnti"
+        },
+        "confirmTestAction": {
+          "label": "Mostra l’esempio di conferma",
+          "confirm": "Eseguire l’esempio innocuo? Scriverà solo un messaggio nel registro della mod."
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Prima dimostrazione visiva. Informazioni mostra i badge del pacchetto, i collegamenti di esempio e questo registro delle modifiche.",
+    "Le dipendenze facoltative mostrano gli stati delle dipendenze installate e mancanti.",
+    "Impostazioni e schede personalizzate mostrano tutti i controlli, ricerca, categorie, condizioni, profili, scorciatoie e azioni."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Saluto"
+  }
+}

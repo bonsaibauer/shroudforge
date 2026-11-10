@@ -15,7 +15,7 @@ impl IngameRuntime {
             .poll_native_dll_loads();
         self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
-            let config = shroudforge_loader_config::config::read_loader(&self.root).ok();
+            let config = shroudforge_loader_config::config::read_loader_in_background(&self.root).ok();
             if config
                 .as_ref()
                 .and_then(|value| value.pointer("/modules/network/enabled"))

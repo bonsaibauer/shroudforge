@@ -13,6 +13,7 @@
     "support-patreon": "https://www.patreon.com/cw/bonsaibauer"
   },
   "changelog": [
+    "Organizes mod settings into Overlay, Shortcuts, Blueprint creation, Blueprint placement, and Entity operations tabs.",
     "Adds online F8 capture: the dedicated server reads the marked terrain and props, returns the complete V7 blueprint over Steam P2P, and the client validates and saves it locally. Verified live with 648 cells and two props, followed by placement and undo.",
     "Queues P2P requests by authenticated client and request ID, separates concurrent uploads and each client's latest undo journal, and allows repeated F7 placement after confirmation. F4 undoes the latest placement. Incomplete recovery still blocks that client's next paste.",
     "Fixes native F7 placement and F4 undo for terrain, voxel cells, and original-size props, including rotated blueprints. The editor's own journal restores terrain and removes placed props independently of the game's limited undo history.",
@@ -260,8 +261,9 @@
   },
   "groups": [
     {
-      "label": "In-game panel",
+      "label": "Overlay",
       "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel. Y is measured down from the top. Changes apply while the game is running.",
+      "tab": true,
       "settings": [
         "panelWidth",
         "panelHeight",
@@ -270,14 +272,9 @@
       ]
     },
     {
-      "label": "World Editor limits",
-      "settings": [
-        "maximumCopyableProps"
-      ]
-    },
-    {
-      "label": "Keyboard shortcuts",
+      "label": "Shortcuts",
       "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
+      "tab": true,
       "settings": [
         "rotateBlueprint",
         "undoVoxels",
@@ -322,47 +319,9 @@
       ]
     },
     {
-      "label": "Native entity operations",
-      "description": "Spawn and placement use native game operations.",
-      "settings": [
-        "templateUuidHigh",
-        "templateUuidLow",
-        "trackingId",
-        "entityX",
-        "entityY",
-        "entityZ",
-        "feedbackId",
-        "boundsMinX",
-        "boundsMinY",
-        "boundsMinZ",
-        "boundsMaxX",
-        "boundsMaxY",
-        "boundsMaxZ"
-      ],
-      "actions": [
-        {
-          "id": "spawnEntity",
-          "label": "Queue prop spawn",
-          "style": "danger",
-          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
-        },
-        {
-          "id": "placeEntity",
-          "label": "Place at coordinates",
-          "style": "danger",
-          "confirm": "Dispatch native placement at these coordinates?"
-        },
-        {
-          "id": "destroyEntity",
-          "label": "Destroy at coordinates",
-          "style": "danger",
-          "confirm": "Dispatch native removal at these coordinates?"
-        }
-      ]
-    },
-    {
-      "label": "World Editor",
-      "description": "Capture voxel-and-prop or props-only blueprints, preview, paste, and undo through native world APIs.",
+      "label": "Blueprint creation",
+      "description": "Capture voxel-and-prop or props-only blueprints and manage saved blueprints.",
+      "tab": true,
       "settings": [
         "sourceX",
         "sourceY",
@@ -372,17 +331,7 @@
         "sizeZ",
         "blueprintName",
         "blueprintNewName",
-        "rotationQuarterTurns",
-        "rotationAxis",
-        "pasteVoxelMode",
-        "targetPropMode",
-        "targetX",
-        "targetY",
-        "targetZ",
-        "targetWorldX",
-        "targetWorldY",
-        "targetWorldZ",
-        "entityHandle"
+        "maximumCopyableProps"
       ],
       "actions": [
         {
@@ -393,11 +342,6 @@
         {
           "id": "markCursorB",
           "label": "Mark selection corner B",
-          "style": "secondary"
-        },
-        {
-          "id": "markCursorTarget",
-          "label": "Mark paste target",
           "style": "secondary"
         },
         {
@@ -455,6 +399,30 @@
           "label": "Delete blueprint and image",
           "style": "danger",
           "confirm": "Delete the named blueprint and its image from the export folder?"
+        }
+      ]
+    },
+    {
+      "label": "Blueprint placement",
+      "description": "Choose the target, paste mode, and rotation, preview placement, and paste the active blueprint.",
+      "tab": true,
+      "settings": [
+        "rotationQuarterTurns",
+        "rotationAxis",
+        "pasteVoxelMode",
+        "targetPropMode",
+        "targetX",
+        "targetY",
+        "targetZ",
+        "targetWorldX",
+        "targetWorldY",
+        "targetWorldZ"
+      ],
+      "actions": [
+        {
+          "id": "markCursorTarget",
+          "label": "Mark paste target",
+          "style": "secondary"
         },
         {
           "id": "pasteVoxels",
@@ -466,11 +434,47 @@
           "id": "previewPaste",
           "label": "Preview placement plan (log only)",
           "style": "secondary"
+        }
+      ]
+    },
+    {
+      "label": "Entity operations",
+      "description": "Spawn and placement use native game operations.",
+      "tab": true,
+      "settings": [
+        "templateUuidHigh",
+        "templateUuidLow",
+        "trackingId",
+        "entityHandle",
+        "entityX",
+        "entityY",
+        "entityZ",
+        "feedbackId",
+        "boundsMinX",
+        "boundsMinY",
+        "boundsMinZ",
+        "boundsMaxX",
+        "boundsMaxY",
+        "boundsMaxZ"
+      ],
+      "actions": [
+        {
+          "id": "spawnEntity",
+          "label": "Queue prop spawn",
+          "style": "danger",
+          "confirm": "Queue a native prop spawn using these UUID and tracking values?"
         },
         {
-          "id": "undoVoxels",
-          "label": "Undo last world paste",
-          "style": "secondary"
+          "id": "placeEntity",
+          "label": "Place at coordinates",
+          "style": "danger",
+          "confirm": "Dispatch native placement at these coordinates?"
+        },
+        {
+          "id": "destroyEntity",
+          "label": "Destroy at coordinates",
+          "style": "danger",
+          "confirm": "Dispatch native removal at these coordinates?"
         },
         {
           "id": "destroySelectedProp",

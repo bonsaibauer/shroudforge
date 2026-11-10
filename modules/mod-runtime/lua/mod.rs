@@ -24,14 +24,18 @@ pub(crate) mod resource_values;
 pub(crate) mod values;
 pub(crate) mod shroudforge {
     pub(crate) mod v1 {
+        mod call_mod_native_functions;
         mod create_mod_api;
         mod dispatch_mod_ui_actions;
+        mod read_game_content;
         mod read_monotonic_clock;
         pub(crate) mod read_runtime_operations;
         mod read_ui_locale;
+        mod reserve_mod_input;
         mod set_mod_settings;
         pub(crate) use create_mod_api::create;
         pub(crate) use dispatch_mod_ui_actions::{dispatch_ui_actions, invoke_mod_action};
+        pub(crate) use reserve_mod_input::{register_input_reservations, release_input_reservations};
         pub(crate) use set_mod_settings::set_settings;
     }
 }

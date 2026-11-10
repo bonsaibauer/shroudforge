@@ -2,7 +2,7 @@
   "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
   "mod": {
     "name": "Hallo Ember",
-    "description": "Ein kleines ShroudForge-Beispiel mit gespeicherten Einstellungen, einer Modloader-Aktion und Laufzeitprotokollen."
+    "description": "Ein visuelles Beispiel für Modloader-Einstellungen, Tabs, Abhängigkeiten, Presets und Aktionen."
   },
   "settings": {
     "showOnLoad": {
@@ -20,21 +20,196 @@
         "info": "Information",
         "warn": "Warnung"
       }
+    },
+    "checkboxExample": {
+      "label": "Kontrollkästchen",
+      "description": "Die Kontrollkästchen-Variante einer booleschen Einstellung."
+    },
+    "textareaExample": {
+      "label": "Mehrzeiliges Textfeld",
+      "description": "Ein Eingabefeld für längere Texte."
+    },
+    "numberExample": {
+      "label": "Zahleneingabe",
+      "description": "Ein begrenztes Zahlenfeld mit Schrittweite."
+    },
+    "sliderExample": {
+      "label": "Schieberegler",
+      "description": "Ein Schieberegler mit sichtbarem Wert."
+    },
+    "radioExample": {
+      "label": "Optionsfelder",
+      "description": "Eine Reihe von Auswahlmöglichkeiten.",
+      "options": {
+        "compact": "Kompakt",
+        "comfortable": "Bequem",
+        "wide": "Breit"
+      }
+    },
+    "segmentedExample": {
+      "label": "Segmentierte Auswahl",
+      "description": "Eine kompakte Auswahl in Segmenten.",
+      "options": {
+        "left": "Links",
+        "center": "Mitte",
+        "right": "Rechts"
+      }
+    },
+    "colorExample": {
+      "label": "Farbauswahl",
+      "description": "Ein natives Farbauswahlfeld."
+    },
+    "groupedChoices": {
+      "label": "Lange Liste mit Kategorien",
+      "description": "Durchsuche alle Kategorien oder wähle einen Kategorietab.",
+      "options": {
+        "stone": "Stein",
+        "timber": "Bauholz",
+        "clay": "Ton",
+        "iron": "Eisen",
+        "copper": "Kupfer",
+        "hammer": "Hammer",
+        "axe": "Axt",
+        "shovel": "Schaufel",
+        "pickaxe": "Spitzhacke",
+        "saw": "Säge",
+        "rope": "Seil",
+        "resin": "Harz",
+        "nails": "Nägel",
+        "cloth": "Stoff",
+        "charcoal": "Holzkohle"
+      },
+      "optionGroups": {
+        "Materials": "Materialien",
+        "Tools": "Werkzeuge",
+        "Supplies": "Vorräte"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Lange Liste ohne Kategorien",
+      "description": "Suche und Nur-aktiviert-Filter ohne Kategorietabs.",
+      "options": {
+        "alpha": "Auswahl 01",
+        "bravo": "Auswahl 02",
+        "charlie": "Auswahl 03",
+        "delta": "Auswahl 04",
+        "echo": "Auswahl 05",
+        "foxtrot": "Auswahl 06",
+        "golf": "Auswahl 07",
+        "hotel": "Auswahl 08",
+        "india": "Auswahl 09",
+        "juliet": "Auswahl 10",
+        "kilo": "Auswahl 11",
+        "lima": "Auswahl 12",
+        "mike": "Auswahl 13",
+        "november": "Auswahl 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Kurze Liste mit Kategorien",
+      "description": "Genau zwölf Optionen. Kategorien bleiben sichtbar, die Suche wird ausgeblendet.",
+      "options": {
+        "north": "Norden",
+        "east": "Osten",
+        "south": "Süden",
+        "west": "Westen",
+        "spring": "Frühling",
+        "summer": "Sommer",
+        "autumn": "Herbst",
+        "winter": "Winter",
+        "morning": "Morgen",
+        "noon": "Mittag",
+        "evening": "Abend",
+        "night": "Nacht"
+      },
+      "optionGroups": {
+        "Directions": "Richtungen",
+        "Seasons": "Jahreszeiten",
+        "Day parts": "Tageszeiten"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Erweiterte Einstellung aktivieren",
+      "description": "Aktiviere diese Option, um den Schieberegler freizuschalten."
+    },
+    "advancedAmount": {
+      "label": "Abhängiger Schieberegler",
+      "description": "Dieser Regler bleibt deaktiviert, bis die Option darüber aktiv ist."
+    },
+    "reservedShortcut": {
+      "label": "Tastenkürzel mit Reservierung",
+      "description": "Zeigt Sperren für Tastatur und Maus."
+    },
+    "plainShortcut": {
+      "label": "Tastenkürzel ohne Reservierung",
+      "description": "Ein Tastenkürzel ohne Sperren."
+    },
+    "wheelScroll": {
+      "label": "Mausrad-Reservierung",
+      "description": "Zeigt die Reservierung des Mausrads."
+    },
+    "presetQuality": {
+      "label": "Qualitätsvorgabe",
+      "description": "Die Auswahl setzt die darunterliegenden Werte.",
+      "options": {
+        "low": "Niedrig",
+        "balanced": "Ausgewogen",
+        "high": "Hoch",
+        "custom": "Benutzerdefiniert"
+      }
+    },
+    "presetRange": {
+      "label": "Vorgabebereich",
+      "description": "Eine manuelle Änderung wählt Benutzerdefiniert."
+    },
+    "presetDetail": {
+      "label": "Vorgabedetail",
+      "description": "Dieser Wert wird von der Qualitätsvorgabe gesetzt.",
+      "options": {
+        "low": "Wenig Details",
+        "medium": "Mittlere Details",
+        "high": "Viele Details"
+      }
     }
   },
   "groups": [
     {
-      "label": "Begrüßung",
-      "description": "Ein Beispiel für Einstellungen mit einer Lua-Aktion.",
+      "label": "Suche und Kategorien",
+      "description": "Beide Listen überschreiten die Suchgrenze. Die erste hat zusätzlich Kategorietabs."
+    },
+    {
+      "label": "Bedingte Einstellungen",
+      "description": "Aktiviere die erste Einstellung, um den abhängigen Regler freizuschalten."
+    },
+    {
+      "label": "Tastenkürzel und Mausrad",
+      "description": "Vergleiche normale Tastenkürzel, Tastensperren und Mausradreservierung."
+    },
+    {
+      "label": "Voreinstellungsprofile",
+      "description": "Wähle eine Vorgabe und ändere danach einen Wert manuell, um Benutzerdefiniert zu sehen."
+    },
+    {
+      "label": "Aktionen und Bestätigung",
+      "description": "Diese Aktionen schreiben nur ins Mod-Protokoll. Eine fragt vorher nach Bestätigung.",
       "actions": {
         "logGreeting": {
           "label": "Begrüßung protokollieren"
+        },
+        "logTestSettings": {
+          "label": "Aktuelle Testwerte protokollieren"
+        },
+        "confirmTestAction": {
+          "label": "Bestätigungsbeispiel anzeigen",
+          "confirm": "Harmloses Bestätigungsbeispiel ausführen? Es schreibt nur eine Meldung ins Mod-Protokoll."
         }
       }
     }
   ],
   "changelog": [
-    "Erstes Beispiel mit gespeicherten Einstellungen, einer Modloader-Aktion und Laufzeitprotokollen."
+    "Erstes visuelles Beispiel. Informationen zeigt Mod-Badges, Beispiel-Links und dieses Änderungsprotokoll.",
+    "Optionale Abhängigkeiten zeigen installierte und fehlende Abhängigkeitszustände.",
+    "Einstellungen und eigene Tabs zeigen alle Steuerelemente, Suche, Kategorien, Bedingungen, Presets, Tastenkürzel und Aktionen."
   ],
   "strings": {
     "log.greeting_prefix": "Begrüßung"

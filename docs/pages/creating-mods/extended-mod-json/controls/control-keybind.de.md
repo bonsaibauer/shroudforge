@@ -40,13 +40,24 @@ return {
 
 `was_keybind_pressed` merkt einen kurzen Tastendruck auch dann, wenn er zwischen zwei Runtime-Updates beginnt und endet. Die Funktion liefert pro Mod und Einstellung einmal `true` für einen neuen Tastendruck. Für Aktionen, die während des Haltens wiederholt werden sollen, verwende `is_keybind_down`.
 
+Modifikatoren müssen genau passen: Bei gehaltenem Alt ist eine Tastenkombination `1` nicht gedrückt, denn die gedrückte Taste ist Alt+1. Hält der Spieler einen Modifikator als Tastenkombination der Mod, zum Beispiel einen Modus auf Alt, während er ihre anderen Tasten benutzt, lass diese Tasten den Modifikator ebenfalls annehmen. Die Einstellung behält den Wert des Spielers.
+
+```lua
+-- 1, und Alt+1, solange der Modus auf Alt gehalten wird.
+shroudforge.input.set_keybind_extra_modifiers("placeKey", "Alt")
+-- Wieder genau passend.
+shroudforge.input.set_keybind_extra_modifiers("placeKey", nil)
+```
+
 Das Kürzelfeld hat zwei Spalten. Links nimmst du die vollständige Tastaturkombination auf, rechts eine optionale Mauskombination. Beide Alternativen gehören zu derselben Einstellung. Jede davon löst die Aktion aus. Live gespeicherte Änderungen erreichen die Runtime beim nächsten Konfigurationsabruf innerhalb einer Sekunde.
 
 Während der Aufnahme sperrt ShroudForge seine Fensterkürzel und die über diese API abgefragten Mod-Kürzel prozessübergreifend. Die Sperre bleibt auch nach Abbruch oder Fokuswechsel bestehen, bis keine Taste und keine Maustaste mehr gedrückt ist. Danach läuft eine feste Frist von drei Sekunden, die neue Eingaben nicht zurücksetzen. Escape lässt sich nicht aufnehmen, auch nicht mit Zusatztasten: Das Spiel nutzt die Taste für sein Pausenmenü und zum Schließen seiner Fenster. Ein Druck darauf bricht die Aufnahme ab und behält den bisherigen Wert. Neue Belegungen mit F1 oder F12 erfordern wegen möglicher Funktionen von Enshrouded und Steam eine Bestätigung. Ein Konflikt mit einem anderen aktiven ShroudForge-Kürzel blockiert das Speichern.
 
 Der Wert bleibt eine Zeichenfolge. Eine Tastaturkombination speichert einen [SDL-Scancode](https://wiki.libsdl.org/SDL3/SDL_Scancode), etwa `SDL:64` für F7, `Ctrl+SDL:29` für die Z-Position oder `Shift+SDL:100` für die zusätzliche ISO-Taste. Eine Mauskombination speichert eine SDL-Tastennummer, etwa `Mouse:4` für X1 oder `Ctrl+Mouse:4` mit Strg. Verbinde Tastatur und Maus mit `|`, zuerst die Tastatur, zum Beispiel `Ctrl+SDL:29|Mouse:4`. Pro Gerät ist höchstens eine Kombination zulässig. Optionale Zusatztastenpräfixe stehen einmalig in der Reihenfolge `Ctrl`, `Alt`, `Shift`, `Meta` und müssen genau übereinstimmen. Eine leere Zeichenfolge deaktiviert das Kürzel.
 
-SDL liefert die angezeigten Beschriftungen. `shroudforge.input.keybind_label("pasteKey")` liefert die aktuelle Beschriftung einschließlich beider Alternativen oder `nil`, wenn das Kürzel inaktiv ist. Die Mausbeobachtung verwendet SDLs globalen Tastenzustand. Mausradkürzel werden nicht unterstützt.
+SDL liefert die angezeigten Beschriftungen. `shroudforge.input.keybind_label("pasteKey")` liefert die aktuelle Beschriftung einschließlich beider Alternativen oder `nil`, wenn das Kürzel inaktiv ist. Die Mausbeobachtung verwendet SDLs globalen Tastenzustand. Mausradkürzel werden nicht unterstützt. Eine Mod liest das Mausrad stattdessen über [inputReservations](#doc-field-inputreservations).
+
+Ein Kürzel kann außerdem vom Spiel ferngehalten werden, solange die Mod es braucht, zum Beispiel solange der Hammer in der Hand ist. Der Spieler wählt das mit einem Schloss vor der Taste. Siehe [inputReservations](#doc-field-inputreservations).
 
 ShroudForge beobachtet Kürzel im Spiel in einem eigenen unsichtbaren Prozess und übergibt Eingabezustände und Beschriftungen an die Lua-Runtime. Im Spielprozess wird keine SDL-Eingabe registriert. Zulässig sind ausschließlich die oben beschriebenen SDL-Belegungszeichenfolgen. Die frühere API `is_key_down("F1")` bis `is_key_down("F8")` wird seit ShroudForge 1.7.6 nicht mehr unterstützt. Ein Aufruf protokolliert einen Migrationshinweis und löst einen Lua-Fehler aus. Deklariere stattdessen eine `keybind`-Einstellung und weise sie im Hotkey-Manager unter **Kompatibilität → Tastenkürzel** zu.
 

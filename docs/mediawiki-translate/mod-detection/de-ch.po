@@ -1,0 +1,70 @@
+# Translation of Mod Detection to German
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de_ch\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: de-ch\n"
+"X-Message-Group: page-Mod Detection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Mod_Detection/Page_display_title"
+msgid "Mod Detection"
+msgstr "Mod Detection"
+
+#
+msgctxt "Mod_Detection/1"
+msgid "See which mod folders and files ShroudForge recognizes. Detection does not load DLLs or change mod files."
+msgstr "Hier siehst du, welche Modordner und Dateien ShroudForge erkennt. Die Erkennung lädt keine DLL und verändert keine Moddatei."
+
+#
+msgctxt "Mod_Detection/2"
+msgid "== What is detected? =="
+msgstr "== Was wird erkannt? =="
+
+#
+msgctxt "Mod_Detection/3"
+msgid "Installed mods are unpacked folders under <code>mods/&lt;mod-folder&gt;/</code> or your configured mods directory. ShroudForge reads <code>mod.json</code>, optional <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> and existing DLL files. A Lua-only mod needs no DLL of its own. A native mod can appear in the DLL Manager without a manifest or Lua file."
+msgstr "Installierte Mods liegen entpackt unter <code>mods/&lt;Modordner&gt;/</code> oder im eingestellten Modverzeichnis. ShroudForge liest <code>mod.json</code>, die optionale <code>extended.mod.json</code>, <code>src/mod.lua</code>, <code>native-plugin.ini</code> und vorhandene DLL-Dateien. Ein reiner Lua-Mod benötigt keine eigene DLL. Ein nativer Mod kann auch ohne Manifest oder Lua-Datei im DLL Manager erscheinen."
+
+#
+msgctxt "Mod_Detection/4"
+msgid "This view tells you whether a folder and its information were recognized. Actual native loading appears in the DLL Manager. The mod's own page shows its overall status."
+msgstr "Die Anzeige beantwortet, ob ein Ordner und seine Informationen erkannt wurden. Den tatsächlichen DLL-Start findest du im DLL Manager. Den vollständigen Zustand eines Mods findest du auf seiner Modseite."
+
+#
+msgctxt "Mod_Detection/5"
+msgid "== Unknown manifest fields =="
+msgstr "== Unbekannte Manifestfelder =="
+
+#
+msgctxt "Mod_Detection/6"
+msgid "With the Mod Detection module and tolerant reading enabled, <code>mod.json</code> and <code>extended.mod.json</code> may contain extra fields unknown to ShroudForge. Those fields alone do not reject a package. Known fields must still contain valid values. Invalid JSON, missing required information and incorrect data types remain errors."
+msgstr "Mit aktiviertem Mod-Detection-Modul und tolerantem Lesen dürfen <code>mod.json</code> und <code>extended.mod.json</code> zusätzliche, ShroudForge unbekannte Felder enthalten. Sie lösen dann allein keine Ablehnung aus. Bekannte Felder müssen weiterhin gültige Werte enthalten. Ungültiges JSON, fehlende Pflichtangaben und falsche Datentypen bleiben Fehler."
+
+#
+msgctxt "Mod_Detection/7"
+msgid "Disabling this compatibility option restores strict validation. It does not automatically delete or disable all installed mods."
+msgstr "Das Ausschalten dieser Kompatibilität stellt die strenge Prüfung wieder her. Es löscht oder deaktiviert nicht automatisch alle installierten Mods."
+
+#
+msgctxt "Mod_Detection/8"
+msgid "== A mod is not recognized =="
+msgstr "== Ein Mod wird nicht erkannt =="
+
+#
+msgctxt "Mod_Detection/9"
+msgid "Check the actual mod folder first. A download folder may contain another wrapper folder or a <code>mods</code> directory. The installer locates a single enclosed mod package. A fresh archive containing several mod packages is not installed automatically as a group. Extract it and install one mod folder at a time. During normal operation, ShroudForge reads unpacked mod folders rather than archives."
+msgstr "Prüfe zuerst den tatsächlichen Modordner. Ein Downloadordner kann noch einen weiteren Ordner oder ein <code>mods</code>-Verzeichnis enthalten. Der Installer sucht ein einzelnes enthaltenes Modpaket. Ein neues Archiv mit mehreren Modpaketen wird nicht automatisch gesammelt installiert. Entpacke es und installiere die einzelnen Modordner nacheinander. Im laufenden Betrieb werden entpackte Modordner gelesen, keine Archive."
+
+#
+msgctxt "Mod_Detection/10"
+msgid "Correct the reported JSON location or install the complete package again. A compatibility profile can supply an adapter for known differences. Recognition alone does not confirm that native hooks or mod APIs work."
+msgstr "Korrigiere die angegebene JSON-Stelle oder installiere das vollständige Paket erneut. Ein Kompatibilitätsprofil kann bekannte Besonderheiten ergänzen. Die blosse Erkennung bestätigt noch keine funktionsfähigen Hooks oder Mod-APIs."

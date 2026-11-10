@@ -1,0 +1,109 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Search and organize large mod settings
+description: Use the Modloader's existing setting groups to organize a mod page into tabs, and make long multi-select lists searchable with optional categories. The controls are opt-in, keep saved values unchanged unless the player changes a choice, and use the mod's existing locale files.
+language: en-GB
+picture:ShroudForge-Wiki-mod-settings-search.svg
+creator: Bonsaibauer
+-->
+
+[[File:ShroudForge-Wiki-mod-settings-search.svg|thumb|left|600px|Search and organize large mod settings]]
+
+<br style="clear:both;" />
+
+<translate>
+
+Use the Modloader's existing setting groups to organize a mod page into tabs, and make long multi-select lists searchable with optional categories. The controls are opt-in, keep saved values unchanged unless the player changes a choice, and use the mod's existing locale files.
+
+== What changes in a large mod page ==
+
+This feature is for settings declared by a mod in <code>extended.mod.json</code>. It uses the existing mod setting page, saved setting values, and mod locale files. It does not add another settings store.
+
+== Organize a large multi-select ==
+
+For a <code>multiselect</code>, keep <code>value</code> as an array and declare the available choices in <code>options</code>. Search controls appear automatically when there are more than 12 choices. The example also groups choices and puts the setting group in its own page tab.
+
+<pre>
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "settings": {
+    "showEffects": {
+      "value": true,
+      "label": "Show effects",
+      "control": "toggle"
+    },
+    "excludeItems": {
+      "value": [],
+      "label": "Excluded items",
+      "description": "Choose items this mod should ignore.",
+      "control": "multiselect",
+      "options": {
+        "Twigs": { "label": "Twigs", "group": "Materials" },
+        "Stone": { "label": "Stone", "group": "Materials" },
+        "Resin": { "label": "Resin", "group": "Materials" },
+        "Plant Fiber": { "label": "Plant Fiber", "group": "Materials" },
+        "Shroud Wood": { "label": "Shroud Wood", "group": "Materials" },
+        "Fossilized Bone": { "label": "Fossilized Bone", "group": "Materials" },
+        "Metal Scraps": { "label": "Metal Scraps", "group": "Materials" },
+        "Fire Fly": { "label": "Fire Fly", "group": "Creatures" },
+        "Fell Wispwyvern": { "label": "Fell Wispwyvern", "group": "Creatures" },
+        "Hollow Halls": { "label": "Hollow Halls", "group": "Creatures" },
+        "Bronze Arrows": { "label": "Bronze Arrows", "group": "Ammunition" },
+        "Explosive Arrows": { "label": "Explosive Arrows", "group": "Ammunition" },
+        "Poison Arrows": { "label": "Poison Arrows", "group": "Ammunition" }
+      }
+    }
+  },
+  "groups": [
+    { "label": "General", "settings": ["showEffects"] },
+    { "label": "Excluded items", "settings": ["excludeItems"], "tab": true }
+  ]
+}
+</pre>
+
+Option keys such as <code>Twigs</code> are the values saved for the mod. A string label such as <code>"Twigs": "Twigs"</code> remains supported. The object form adds a visible <code>label</code> and an optional <code>group</code>. Category tabs divide the choices inside the multi-select. Search checks both the visible label and stored value across every category. The count shows visible, total, and selected choices. “Only selected” hides unchecked choices without unselecting them. Changing a checkbox updates the same saved array as before, and a long list scrolls inside its setting.
+
+== Translate mod labels and tabs ==
+
+Labels authored by the mod belong in its existing <code>locales/&lt;code&gt;.json</code> files. Shared controls such as Search, Only selected, and All use the player's general Modloader language.
+
+<pre>
+{
+  "settings": {
+    "excludeItems": {
+      "options": {
+        "Twigs": "Twigs",
+        "Stone": "Stone",
+        "Fire Fly": "Fire Fly",
+        "Bronze Arrows": "Bronze Arrows"
+      },
+      "optionGroups": {
+        "Materials": "Materials",
+        "Creatures": "Creatures",
+        "Ammunition": "Ammunition"
+      }
+    }
+  },
+  "groups": [
+    { "label": "General" },
+    { "label": "Excluded items" }
+  ]
+}
+</pre>
+
+The <code>options</code> map translates visible choice labels. <code>optionGroups</code> translates category tabs, and each key must match a <code>group</code> name in <code>extended.mod.json</code>. The <code>groups</code> array follows the order of the manifest groups, so its labels translate the page tabs. See the [[Translate mod text (en)|mod locale guide]] for the existing locale format.
+
+== Put a setting group in its own tab ==
+
+Set <code>"tab": true</code> on a group in <code>extended.mod.json</code>. That group's label becomes its page tab, and its settings and actions stay together. Groups without <code>tab: true</code> remain under the existing Settings tab. If there are no unmarked groups or ungrouped settings, the Settings tab is omitted. For a working example, the [https://github.com/bonsaibauer/shroudforge/blob/1.8.0/mods/world-editor/extended.mod.json ShroudForge World Editor's <code>extended.mod.json</code>] uses <code>tab: true</code> for Keyboard shortcuts, Blueprint placement, and Native entity operations.
+
+== Saved values and compatibility ==
+
+Existing string option labels, saved arrays, groups without <code>tab</code>, and locale files without <code>optionGroups</code> continue to work without migration. The search controls appear only for multi-selects with more than 12 choices. Grouped option objects, <code>tab: true</code>, and locale <code>optionGroups</code> require ShroudForge 1.8.0 or newer. Older versions reject fields they do not recognize.
+</translate>
+
+[[Category:Modding:Shroudforge]]
+
+[[Category:Mod-extended-json]]

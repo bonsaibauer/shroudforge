@@ -1,0 +1,85 @@
+# Translation of Translate the Modloader to Japanese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+""
+"PO-Revision-Date: 2026-11-06 21:55:14+0000\n"
+"POT-Creation-Date: 2026-11-06 21:55:14+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"X-Generator: MediaWiki 1.46.2; Translate 2026-09-08\n"
+"X-Language-Code: ja\n"
+"X-Message-Group: page-Translate the Modloader\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Translate_the_Modloader/Page_display_title"
+msgid "Translate the Modloader"
+msgstr "Modloader の翻訳"
+
+#
+msgctxt "Translate_the_Modloader/1"
+msgid "Help make ShroudForge available to players worldwide. Edit translations in Fink or submit your changes as a pull request on GitHub."
+msgstr "ShroudForge を世界中のプレイヤーが利用できるように、翻訳に協力してください。Fink で翻訳を編集するか、変更を GitHub のプルリクエストとして送信できます。"
+
+#
+msgctxt "Translate_the_Modloader/2"
+msgid "== Translate with Fink =="
+msgstr "== Fink で翻訳する =="
+
+#
+msgctxt "Translate_the_Modloader/3"
+msgid "Open the [https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang Fink editor for ShroudForge]. Fink shows the English source text beside its translations. The language files stay in the repository. Fink does not keep a second synced copy in a translation service."
+msgstr "[https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang ShroudForge 用 Fink エディター]を開きます。Fink では英語の原文と翻訳が並んで表示されます。言語ファイルはリポジトリ内に保存されます。Fink は翻訳サービスに同期用のコピーを別途保存しません。"
+
+#
+msgctxt "Translate_the_Modloader/4"
+msgid "Choose the project and branch in the editor. Review a message, edit its translation and check the result. Fink first saves your work as a draft in your browser. You need a GitHub account to save changes to GitHub."
+msgstr "エディターでプロジェクトとブランチを選びます。メッセージを確認して翻訳を編集し、結果を確認します。Fink は最初に作業内容をブラウザーの下書きとして保存します。GitHub に変更を保存するには GitHub アカウントが必要です。"
+
+#
+msgctxt "Translate_the_Modloader/5"
+msgid "== Send changes as a pull request =="
+msgstr "== 変更をプルリクエストとして送信する =="
+
+#
+msgctxt "Translate_the_Modloader/6"
+msgid "If the default branch is protected, create a translation branch on GitHub first. Open that branch in Fink and push your changes there. Then create a pull request so the changes can be reviewed before they are merged. Fink does not create branches for you."
+msgstr "デフォルトブランチが保護されている場合は、最初に GitHub で翻訳用ブランチを作成してください。そのブランチを Fink で開き、変更を送信します。次にプルリクエストを作成すると、マージ前に変更をレビューできます。Fink がブランチを作成することはありません。"
+
+#
+msgctxt "Translate_the_Modloader/7"
+msgid "If you cannot write to the ShroudForge repository, use Fink's fork flow. Install the Inlang GitHub App on your account, push the changes to your fork, then open a pull request. Fink opens GitHub's pull request page. Review and submit the pull request there."
+msgstr "ShroudForge リポジトリに書き込めない場合は、Fink のフォーク機能を使います。自分のアカウントに Inlang GitHub App をインストールし、フォークに変更を送信してからプルリクエストを作成してください。Fink は GitHub のプルリクエストページを開きます。そこで内容を確認して送信してください。"
+
+#
+msgctxt "Translate_the_Modloader/8"
+msgid "The [https://github.com/bonsaibauer/shroudforge/pulls ShroudForge pull request list] shows open translation contributions and their review status. See the [https://fink.inlang.com/docs/branches-forks-and-pull-requests Fink guide to branches and pull requests] for more details."
+msgstr "[https://github.com/bonsaibauer/shroudforge/pulls ShroudForge のプルリクエスト一覧]では、公開中の翻訳提案とレビュー状況を確認できます。詳しくは[https://fink.inlang.com/docs/branches-forks-and-pull-requests ブランチ、フォーク、プルリクエストに関する Fink ガイド]を参照してください。"
+
+#
+msgctxt "Translate_the_Modloader/9"
+msgid "== Edit the translation files directly =="
+msgstr "== 翻訳ファイルを直接編集する =="
+
+#
+msgctxt "Translate_the_Modloader/10"
+msgid "You can also change the JSON files under <code>modules/ui-resources/locales/</code> and create a pull request in the repository. Keep the same keys as the English source file <code>en-GB.json</code>. Do not rename placeholders such as <code>&#123;count&#125;</code>. Their names must stay exactly the same in each translation."
+msgstr "<code>modules/ui-resources/locales/</code> 内の JSON ファイルを直接変更し、リポジトリにプルリクエストを作成することもできます。英語のソースファイル <code>en-GB.json</code> と同じキーを使用してください。<code>&#123;count&#125;</code> などのプレースホルダー名は変更しないでください。各翻訳で名前を完全に一致させる必要があります。"
+
+#
+msgctxt "Translate_the_Modloader/11"
+msgid "Before opening a pull request, you can check the locale files:"
+msgstr "プルリクエストを作成する前に、言語ファイルを確認できます。"
+
+#
+msgctxt "Translate_the_Modloader/12"
+msgid "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+msgstr "<pre>\ncd modules/modloader/ui\nnpm run locale:check\n</pre>"
+
+#
+msgctxt "Translate_the_Modloader/13"
+msgid "The Fink project file <code>modules/ui-resources/project.inlang/settings.json</code> connects the editor to these catalogs. The example link above opens that project. If you use a different editor URL later, update it in this article link and in the SVG illustration."
+msgstr "Fink のプロジェクトファイル <code>modules/ui-resources/project.inlang/settings.json</code> は、エディターとこれらのカタログを接続します。上の例のリンクはそのプロジェクトを開きます。後で別のエディター URL を使う場合は、この記事のリンクと SVG イラストの両方を更新してください。"

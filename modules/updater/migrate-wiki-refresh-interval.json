@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.wiki-refresh-interval",
+  "revision": 1,
+  "name": "Normalize Wiki refresh interval",
+  "description": "Sets the former 5-minute default to 24 hours and raises other intervals below one hour to one hour.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "normalize-wiki-refresh-interval"
+}
