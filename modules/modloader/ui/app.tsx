@@ -210,7 +210,11 @@ export function App() {
       >
         <div className="workspace">
           <aside className="sidebar">
-            <NavGroup title={t('nav.modloader')}>
+            <NavGroup
+              title={t('nav.modloader')}
+              version={data.version}
+              className="nav-group-modloader"
+            >
               <Nav
                 icon="activity"
                 label={t('nav.activity')}
