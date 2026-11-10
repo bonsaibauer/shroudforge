@@ -7,7 +7,7 @@ You do not need to understand every line before you begin. First, follow the [fi
 ## What is in this folder?
 
 ~~~text
-mod.json                 The mod's name, version, author, and permission
+mod.json                 The mod's name, version, author, license, and permissions
 extended.mod.json        The settings, tabs, and buttons shown in the Modloader
 locales/*.json           Package translations for Modloader languages
 icon.svg          The small picture shown with the mod
@@ -28,7 +28,7 @@ Think of **mod.json** as the information card for the mod. **extended.mod.json**
 
 Because the basic settings are ungrouped, **Settings** is the initial tab and displays them together without categories. The first three page tabs are fixed. The remaining tabs come from groups marked `"tab": true`.
 
-**Information** displays the mod badges, source links, and example changelog. **Dependencies** shows the optional `sf-survival` package and a deliberately missing optional example dependency. This displays both an installed dependency and an optional missing dependency at once.
+**Information** displays all six metadata badge slots used by the page: SF origin, version, target, asset, runtime, and MIT license. It also shows source, issue, and ShroudForge website links, plus the example changelog. **Dependencies** shows the optional `sf-survival` package and a deliberately missing optional example dependency. This displays both an installed dependency and an optional missing dependency at once.
 
 **Search and Categories** contains three multi-select lists. The two long lists have more than twelve choices, so they show search and the switched-on filter. One also shows category tabs for Materials, Tools, and Supplies, and search spans those categories. The short list has exactly twelve choices, so its category tabs remain visible while search controls are hidden.
 

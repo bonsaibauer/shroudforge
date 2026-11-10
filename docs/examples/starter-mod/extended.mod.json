@@ -6,7 +6,8 @@
   "launcher": "SF",
   "links": {
     "source-github": "https://github.com/bonsaibauer/shroudforge/tree/main/docs/examples/starter-mod",
-    "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml"
+    "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
+    "website": "https://shroudforge.net"
   },
   "changelog": [
     "Initial visual demo. Information shows the package badges, example links, and this changelog.",

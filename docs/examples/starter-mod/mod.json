@@ -7,7 +7,7 @@
   "authors": [
     "Your Name"
   ],
-  "license": null,
+  "license": "MIT",
   "icon": "icon.svg",
   "dependencies": [
     {
