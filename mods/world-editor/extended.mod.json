@@ -13,6 +13,7 @@
     "support-patreon": "https://www.patreon.com/cw/bonsaibauer"
   },
   "changelog": [
+    "Organizes mod settings into Overlay, Shortcuts, Blueprint creation, Blueprint placement, and Entity operations tabs.",
     "Adds online F8 capture: the dedicated server reads the marked terrain and props, returns the complete V7 blueprint over Steam P2P, and the client validates and saves it locally. Verified live with 648 cells and two props, followed by placement and undo.",
     "Queues P2P requests by authenticated client and request ID, separates concurrent uploads and each client's latest undo journal, and allows repeated F7 placement after confirmation. F4 undoes the latest placement. Incomplete recovery still blocks that client's next paste.",
     "Fixes native F7 placement and F4 undo for terrain, voxel cells, and original-size props, including rotated blueprints. The editor's own journal restores terrain and removes placed props independently of the game's limited undo history.",
