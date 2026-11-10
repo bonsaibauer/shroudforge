@@ -5,9 +5,21 @@
   "targets": ["client"],
   "launcher": "SF",
   "links": {
-    "source-github": "https://github.com/bonsaibauer/shroudforge/tree/main/docs/examples/starter-mod",
+    "source": "https://shroudforge.net",
+    "source-github": "https://github.com/bonsaibauer/shroudforge",
+    "source-gitlab": "https://gitlab.com",
+    "source-codeberg": "https://codeberg.org",
     "issues": "https://github.com/bonsaibauer/shroudforge/issues/new?template=bug_report.yml",
-    "website": "https://shroudforge.net"
+    "wiki": "https://wiki.shroudforge.net",
+    "website": "https://shroudforge.net",
+    "store": "https://www.nexusmods.com/enshrouded/mods/",
+    "support-bmac": "https://buymeacoffee.com/bonsaibauer",
+    "support-patreon": "https://www.patreon.com/cw/bonsaibauer",
+    "support-paypal": "https://www.paypal.com/",
+    "support-github": "https://github.com/sponsors",
+    "support-ko-fi": "https://ko-fi.com/",
+    "support-open-collective": "https://opencollective.com/",
+    "support-other": "https://shroudforge.net"
   },
   "changelog": [
     "Initial visual demo. Information shows the package badges, example links, and this changelog.",
