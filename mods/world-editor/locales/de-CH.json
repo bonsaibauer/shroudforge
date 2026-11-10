@@ -150,11 +150,37 @@
   },
   "groups": [
     {
-      "label": "Spielinterne Oberfläche",
+      "label": "Overlay",
       "description": "Die Position bezieht sich auf das Spielfenster in logischen Pixeln. X = −1 zentriert das Fenster. Y wird vom oberen Rand aus gemessen. Änderungen gelten sofort im laufenden Spiel."
     },
     {
-      "label": "Welteditor",
+      "label": "Tastenkürzel",
+      "description": "Bearbeite die Tastenkürzel hier oder unter Kompatibilität → Hotkeys. Änderungen gelten während des Spielens. Eine leere Belegung deaktiviert das Kürzel.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Bauplan um 90° drehen"
+        },
+        "undoVoxels": {
+          "label": "Letztes Einfügen rückgängig machen"
+        },
+        "markCursorNext": {
+          "label": "Nächste Auswahl-Ecke markieren"
+        },
+        "resetEditor": {
+          "label": "Editor zurücksetzen / blockierten Servervorgang lösen",
+          "confirm": "Wenn ein Server-Einfügen oder Rückgängigmachen hängt oder unvollständig ist, fordert Zurücksetzen den dedizierten Server auf, den Vorgang abzubrechen und seine Sperre freizugeben. Teilweise platzierte Landschaft oder Objekte können bestehen bleiben. Einfügen wird erst nach der Bestätigung des Servers wieder freigegeben."
+        },
+        "pasteAtCursor": {
+          "label": "Am Cursor einfügen",
+          "confirm": "Den aktiven Bauplan an der aktuellen Cursorposition platzieren?"
+        },
+        "captureAndSave": {
+          "label": "Bauplan erfassen und speichern"
+        }
+      }
+    },
+    {
+      "label": "Baupläne erstellen",
       "description": "Erfasst Voxel und Objekte oder nur Objekte und verwaltet gespeicherte Baupläne.",
       "actions": {
         "markCursorA": {
@@ -200,33 +226,7 @@
       }
     },
     {
-      "label": "Tastenkürzel",
-      "description": "Bearbeite die Tastenkürzel hier oder unter Kompatibilität → Hotkeys. Änderungen gelten während des Spielens. Eine leere Belegung deaktiviert das Kürzel.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Bauplan um 90° drehen"
-        },
-        "undoVoxels": {
-          "label": "Letztes Einfügen rückgängig machen"
-        },
-        "markCursorNext": {
-          "label": "Nächste Auswahl-Ecke markieren"
-        },
-        "resetEditor": {
-          "label": "Editor zurücksetzen / blockierten Servervorgang lösen",
-          "confirm": "Wenn ein Server-Einfügen oder Rückgängigmachen hängt oder unvollständig ist, fordert Zurücksetzen den dedizierten Server auf, den Vorgang abzubrechen und seine Sperre freizugeben. Teilweise platzierte Landschaft oder Objekte können bestehen bleiben. Einfügen wird erst nach der Bestätigung des Servers wieder freigegeben."
-        },
-        "pasteAtCursor": {
-          "label": "Am Cursor einfügen",
-          "confirm": "Den aktiven Bauplan an der aktuellen Cursorposition platzieren?"
-        },
-        "captureAndSave": {
-          "label": "Bauplan erfassen und speichern"
-        }
-      }
-    },
-    {
-      "label": "Platzieren",
+      "label": "Bauplan platzieren",
       "description": "Legt Ziel, Einfügemodus und Drehung fest, zeigt eine Vorschau und platziert den aktiven Bauplan.",
       "actions": {
         "markCursorTarget": {
@@ -242,7 +242,7 @@
       }
     },
     {
-      "label": "Native Objektaktionen",
+      "label": "Objektaktionen",
       "description": "Erzeugen und Platzieren verwenden native Spielaktionen.",
       "actions": {
         "spawnEntity": {
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Ordnet die Mod-Einstellungen in die Tabs Overlay, Tastenkürzel, Baupläne erstellen, Bauplan platzieren und Objektaktionen.",
     "Ergänzt die Online-Erfassung über F8. Der dedizierte Server liest markierte Landschaft und Objekte, sendet den vollständigen V7-Bauplan über Steam-P2P zurück und der Client prüft und speichert ihn lokal. Live mit 648 Zellen und zwei Objekten sowie anschliessendem Platzieren und Rückgängigmachen überprüft.",
     "Reiht P2P-Anfragen nach authentifiziertem Client und Anfrage-ID ein, trennt parallele Uploads und das jeweils letzte Rückgängig-Protokoll jedes Clients und erlaubt wiederholtes Einfügen über F7 nach Bestätigung. F4 macht das letzte Einfügen rückgängig. Eine unvollständige Wiederherstellung blockiert weiterhin das nächste Einfügen dieses Clients.",
     "Behebt natives Platzieren mit F7 und Rückgängigmachen mit F4 für Landschaft, Voxelzellen und Objekte in Originalgrösse, auch bei gedrehten Bauplänen. Das eigene Protokoll des Editors stellt die Landschaft wieder her und entfernt platzierte Objekte unabhängig vom begrenzten Rückgängigmachen des Spiels.",

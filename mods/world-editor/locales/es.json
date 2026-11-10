@@ -150,11 +150,37 @@
   },
   "groups": [
     {
-      "label": "Panel dentro del juego",
+      "label": "Superposición",
       "description": "La posición es relativa a la ventana del juego en píxeles lógicos. X = −1 centra el panel. Y se mide hacia abajo desde arriba. Los cambios se aplican mientras el juego se está ejecutando."
     },
     {
-      "label": "Editor mundial",
+      "label": "Atajos",
+      "description": "Edite los accesos directos aquí o en Compatibilidad → Teclas de acceso rápido. Los cambios se aplican mientras se juega. Un enlace vacío desactiva un acceso directo.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Girar plano 90°"
+        },
+        "undoVoxels": {
+          "label": "Deshacer el último pegado"
+        },
+        "markCursorNext": {
+          "label": "Marcar siguiente esquina de selección"
+        },
+        "resetEditor": {
+          "label": "Restablecer/liberar operación de servidor atascado",
+          "confirm": "Si un servidor para pegar o deshacer está bloqueado o incompleto, Restablecer/liberar le pide al servidor dedicado que lo abandone y libere su bloqueo. Es posible que queden terrenos o accesorios parciales. Pegar se desbloquea solo después de la confirmación del servidor."
+        },
+        "pasteAtCursor": {
+          "label": "Pegar en el cursor",
+          "confirm": "¿Escribir el plano activo en la posición actual del cursor?"
+        },
+        "captureAndSave": {
+          "label": "Capturar y guardar plano"
+        }
+      }
+    },
+    {
+      "label": "Crear planos",
       "description": "Captura terreno y objetos, o solo objetos, y administra los planos guardados.",
       "actions": {
         "markCursorA": {
@@ -200,33 +226,7 @@
       }
     },
     {
-      "label": "Atajos de teclado",
-      "description": "Edite los accesos directos aquí o en Compatibilidad → Teclas de acceso rápido. Los cambios se aplican mientras se juega. Un enlace vacío desactiva un acceso directo.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Girar plano 90°"
-        },
-        "undoVoxels": {
-          "label": "Deshacer el último pegado"
-        },
-        "markCursorNext": {
-          "label": "Marcar siguiente esquina de selección"
-        },
-        "resetEditor": {
-          "label": "Restablecer/liberar operación de servidor atascado",
-          "confirm": "Si un servidor para pegar o deshacer está bloqueado o incompleto, Restablecer/liberar le pide al servidor dedicado que lo abandone y libere su bloqueo. Es posible que queden terrenos o accesorios parciales. Pegar se desbloquea solo después de la confirmación del servidor."
-        },
-        "pasteAtCursor": {
-          "label": "Pegar en el cursor",
-          "confirm": "¿Escribir el plano activo en la posición actual del cursor?"
-        },
-        "captureAndSave": {
-          "label": "Capturar y guardar plano"
-        }
-      }
-    },
-    {
-      "label": "Colocación",
+      "label": "Colocar plano",
       "description": "Elige el objetivo, el modo y la rotación, previsualiza y coloca el plano activo.",
       "actions": {
         "markCursorTarget": {
@@ -242,7 +242,7 @@
       }
     },
     {
-      "label": "Operaciones de entidades nativas",
+      "label": "Operaciones de entidades",
       "description": "La generación y colocación utilizan operaciones nativas del juego.",
       "actions": {
         "spawnEntity": {
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Organiza los ajustes del mod en las pestañas Superposición, Atajos, Crear planos, Colocar plano y Operaciones de entidades.",
     "Agrega captura F8 en línea: el servidor dedicado lee el terreno y los accesorios marcados, devuelve el plano V7 completo a través de Steam P2P y el cliente lo valida y guarda localmente. Verificado en vivo con 648 celdas y dos accesorios, seguido de colocación y deshacer.",
     "Pone en cola las solicitudes P2P por cliente autenticado e ID de solicitud, separa las cargas simultáneas y el último diario de deshacer de cada cliente y permite la colocación repetida de F7 después de la confirmación. F4 deshace la última colocación. La recuperación incompleta aún bloquea el próximo pegado de ese cliente.",
     "Corrige la ubicación nativa de F7 y la función de deshacer F4 para terreno, celdas de vóxel y accesorios de tamaño original, incluidos planos rotados. El propio diario del editor restaura el terreno y elimina los accesorios colocados independientemente del limitado historial de deshacer del juego.",

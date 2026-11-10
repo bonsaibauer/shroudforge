@@ -260,8 +260,9 @@
   },
   "groups": [
     {
-      "label": "In-game panel",
+      "label": "Overlay",
       "description": "Position is relative to the game window in logical pixels. X = −1 centers the panel. Y is measured down from the top. Changes apply while the game is running.",
+      "tab": true,
       "settings": [
         "panelWidth",
         "panelHeight",
@@ -270,8 +271,56 @@
       ]
     },
     {
-      "label": "World Editor",
+      "label": "Shortcuts",
+      "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
+      "tab": true,
+      "settings": [
+        "rotateBlueprint",
+        "undoVoxels",
+        "markCursorNext",
+        "resetEditor",
+        "pasteAtCursor",
+        "captureAndSave"
+      ],
+      "actions": [
+        {
+          "id": "rotateBlueprint",
+          "label": "Rotate blueprint 90°",
+          "style": "secondary"
+        },
+        {
+          "id": "undoVoxels",
+          "label": "Undo last paste",
+          "style": "secondary"
+        },
+        {
+          "id": "markCursorNext",
+          "label": "Mark next selection corner",
+          "style": "secondary"
+        },
+        {
+          "id": "resetEditor",
+          "label": "Reset / release stuck server operation",
+          "style": "secondary",
+          "confirm": "If a server paste or undo is stalled or incomplete, Reset / release asks the dedicated server to abandon it and release its lock. Partial terrain or props may remain. Paste unlocks only after server confirmation."
+        },
+        {
+          "id": "pasteAtCursor",
+          "label": "Paste at cursor",
+          "style": "danger",
+          "confirm": "Write the active blueprint at the current cursor position?"
+        },
+        {
+          "id": "captureAndSave",
+          "label": "Capture and save blueprint",
+          "style": "secondary"
+        }
+      ]
+    },
+    {
+      "label": "Blueprint creation",
       "description": "Capture voxel-and-prop or props-only blueprints and manage saved blueprints.",
+      "tab": true,
       "settings": [
         "sourceX",
         "sourceY",
@@ -353,53 +402,6 @@
       ]
     },
     {
-      "label": "Keyboard shortcuts",
-      "description": "Edit the shortcuts here or in Compatibility → Hotkeys. Changes apply while playing. An empty binding disables a shortcut.",
-      "tab": true,
-      "settings": [
-        "rotateBlueprint",
-        "undoVoxels",
-        "markCursorNext",
-        "resetEditor",
-        "pasteAtCursor",
-        "captureAndSave"
-      ],
-      "actions": [
-        {
-          "id": "rotateBlueprint",
-          "label": "Rotate blueprint 90°",
-          "style": "secondary"
-        },
-        {
-          "id": "undoVoxels",
-          "label": "Undo last paste",
-          "style": "secondary"
-        },
-        {
-          "id": "markCursorNext",
-          "label": "Mark next selection corner",
-          "style": "secondary"
-        },
-        {
-          "id": "resetEditor",
-          "label": "Reset / release stuck server operation",
-          "style": "secondary",
-          "confirm": "If a server paste or undo is stalled or incomplete, Reset / release asks the dedicated server to abandon it and release its lock. Partial terrain or props may remain. Paste unlocks only after server confirmation."
-        },
-        {
-          "id": "pasteAtCursor",
-          "label": "Paste at cursor",
-          "style": "danger",
-          "confirm": "Write the active blueprint at the current cursor position?"
-        },
-        {
-          "id": "captureAndSave",
-          "label": "Capture and save blueprint",
-          "style": "secondary"
-        }
-      ]
-    },
-    {
       "label": "Blueprint placement",
       "description": "Choose the target, paste mode, and rotation, preview placement, and paste the active blueprint.",
       "tab": true,
@@ -435,7 +437,7 @@
       ]
     },
     {
-      "label": "Native entity operations",
+      "label": "Entity operations",
       "description": "Spawn and placement use native game operations.",
       "tab": true,
       "settings": [

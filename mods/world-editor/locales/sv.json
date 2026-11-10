@@ -150,11 +150,37 @@
   },
   "groups": [
     {
-      "label": "Panel i spelet",
+      "label": "Overlay",
       "description": "Positionen är relativt spelfönstret i logiska pixlar. X = −1 centrerar panelen. Y mäts ner från toppen. Ändringar gäller medan spelet körs."
     },
     {
-      "label": "Världsredigerare",
+      "label": "Genvägar",
+      "description": "Redigera genvägarna här eller i Kompatibilitet → Snabbtangenter. Ändringar gäller under spelning. En tom bindning inaktiverar en genväg.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Rotera ritningen 90°"
+        },
+        "undoVoxels": {
+          "label": "Ångra senaste inklistring"
+        },
+        "markCursorNext": {
+          "label": "Markera nästa valhörn"
+        },
+        "resetEditor": {
+          "label": "Återställ/släpp serverdrift som har fastnat",
+          "confirm": "Om en serverklistring eller ångra har stannat eller ofullständig, ber Återställ/släpp den dedikerade servern att överge den och släppa dess lås. Delvis terräng eller rekvisita kan finnas kvar. Klistra in låser upp först efter serverbekräftelse."
+        },
+        "pasteAtCursor": {
+          "label": "Klistra in vid markören",
+          "confirm": "Skriva den aktiva ritningen vid den aktuella markörpositionen?"
+        },
+        "captureAndSave": {
+          "label": "Fånga och spara ritning"
+        }
+      }
+    },
+    {
+      "label": "Skapa ritning",
       "description": "Fånga voxelblock och föremål, eller endast föremål, och hantera sparade ritningar.",
       "actions": {
         "markCursorA": {
@@ -200,33 +226,7 @@
       }
     },
     {
-      "label": "Kortkommandon",
-      "description": "Redigera genvägarna här eller i Kompatibilitet → Snabbtangenter. Ändringar gäller under spelning. En tom bindning inaktiverar en genväg.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Rotera ritningen 90°"
-        },
-        "undoVoxels": {
-          "label": "Ångra senaste inklistring"
-        },
-        "markCursorNext": {
-          "label": "Markera nästa valhörn"
-        },
-        "resetEditor": {
-          "label": "Återställ/släpp serverdrift som har fastnat",
-          "confirm": "Om en serverklistring eller ångra har stannat eller ofullständig, ber Återställ/släpp den dedikerade servern att överge den och släppa dess lås. Delvis terräng eller rekvisita kan finnas kvar. Klistra in låser upp först efter serverbekräftelse."
-        },
-        "pasteAtCursor": {
-          "label": "Klistra in vid markören",
-          "confirm": "Skriva den aktiva ritningen vid den aktuella markörpositionen?"
-        },
-        "captureAndSave": {
-          "label": "Fånga och spara ritning"
-        }
-      }
-    },
-    {
-      "label": "Placering",
+      "label": "Placera ritning",
       "description": "Välj mål, inklistringsläge och rotation, förhandsgranska och placera den aktiva ritningen.",
       "actions": {
         "markCursorTarget": {
@@ -242,7 +242,7 @@
       }
     },
     {
-      "label": "Inbyggd enhetsverksamhet",
+      "label": "Enhetsåtgärder",
       "description": "Spawn och placering använder inbyggda speloperationer.",
       "actions": {
         "spawnEntity": {
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Samlar modinställningarna på flikarna Overlay, Genvägar, Skapa ritning, Placera ritning och Enhetsåtgärder.",
     "Lägger till online F8-infångning: den dedikerade servern läser den markerade terrängen och rekvisita, returnerar hela V7-ritningen över Steam P2P och klienten validerar och sparar den lokalt. Verifierad live med 648 celler och två rekvisita, följt av placering och ångra.",
     "Köar P2P-förfrågningar efter autentiserat klient- och begäran-ID, separerar samtidiga uppladdningar och varje klients senaste ångrajournal och tillåter upprepad F7-placering efter bekräftelse. F4 ångrar den senaste placeringen. Ofullständig återställning blockerar fortfarande klientens nästa inklistring.",
     "Fixar inbyggd F7-placering och F4-ångra för terräng, voxelceller och rekvisita i originalstorlek, inklusive roterade ritningar. Redaktörens egen journal återställer terräng och tar bort placerade rekvisita oberoende av spelets begränsade ångrahistorik.",

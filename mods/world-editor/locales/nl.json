@@ -150,11 +150,37 @@
   },
   "groups": [
     {
-      "label": "In-game paneel",
+      "label": "Overlay",
       "description": "Positie is relatief ten opzichte van het spelvenster in logische pixels. X = −1 centreert het paneel. Y wordt vanaf de bovenkant gemeten. Wijzigingen zijn van toepassing terwijl het spel actief is."
     },
     {
-      "label": "Wereldeditor",
+      "label": "Snelkoppelingen",
+      "description": "Bewerk de snelkoppelingen hier of in Compatibiliteit → Sneltoetsen. Wijzigingen zijn van toepassing tijdens het spelen. Een lege binding schakelt een snelkoppeling uit.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Roteer blauwdruk 90°"
+        },
+        "undoVoxels": {
+          "label": "Laatste plakken ongedaan maken"
+        },
+        "markCursorNext": {
+          "label": "Markeer het volgende selectiehoekje"
+        },
+        "resetEditor": {
+          "label": "Vastgelopen serverwerking resetten/vrijgeven",
+          "confirm": "Als het plakken of ongedaan maken van een server vastloopt of onvolledig is, vraagt ​​Reset/release de dedicated server om deze te verlaten en de vergrendeling op te heffen. Gedeeltelijk terrein of rekwisieten mogen achterblijven. Plakken wordt pas ontgrendeld na serverbevestiging."
+        },
+        "pasteAtCursor": {
+          "label": "Plakken bij cursor",
+          "confirm": "De actieve blauwdruk op de huidige cursorpositie schrijven?"
+        },
+        "captureAndSave": {
+          "label": "Blauwdruk vastleggen en opslaan"
+        }
+      }
+    },
+    {
+      "label": "Blauwdrukken maken",
       "description": "Leg voxels en objecten vast, of alleen objecten, en beheer opgeslagen blauwdrukken.",
       "actions": {
         "markCursorA": {
@@ -200,33 +226,7 @@
       }
     },
     {
-      "label": "Sneltoetsen",
-      "description": "Bewerk de snelkoppelingen hier of in Compatibiliteit → Sneltoetsen. Wijzigingen zijn van toepassing tijdens het spelen. Een lege binding schakelt een snelkoppeling uit.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Roteer blauwdruk 90°"
-        },
-        "undoVoxels": {
-          "label": "Laatste plakken ongedaan maken"
-        },
-        "markCursorNext": {
-          "label": "Markeer het volgende selectiehoekje"
-        },
-        "resetEditor": {
-          "label": "Vastgelopen serverwerking resetten/vrijgeven",
-          "confirm": "Als het plakken of ongedaan maken van een server vastloopt of onvolledig is, vraagt ​​Reset/release de dedicated server om deze te verlaten en de vergrendeling op te heffen. Gedeeltelijk terrein of rekwisieten mogen achterblijven. Plakken wordt pas ontgrendeld na serverbevestiging."
-        },
-        "pasteAtCursor": {
-          "label": "Plakken bij cursor",
-          "confirm": "De actieve blauwdruk op de huidige cursorpositie schrijven?"
-        },
-        "captureAndSave": {
-          "label": "Blauwdruk vastleggen en opslaan"
-        }
-      }
-    },
-    {
-      "label": "Plaatsing",
+      "label": "Blauwdruk plaatsen",
       "description": "Kies het doel, de plakmodus en rotatie, bekijk het voorbeeld en plaats de actieve blauwdruk.",
       "actions": {
         "markCursorTarget": {
@@ -242,7 +242,7 @@
       }
     },
     {
-      "label": "Eigen entiteitsbewerkingen",
+      "label": "Entiteitsbewerkingen",
       "description": "Spawn en plaatsing maken gebruik van native spelbewerkingen.",
       "actions": {
         "spawnEntity": {
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Ordent de modinstellingen in de tabbladen Overlay, Snelkoppelingen, Blauwdrukken maken, Blauwdruk plaatsen en Entiteitsbewerkingen.",
     "Voegt online F8-opname toe: de speciale server leest het gemarkeerde terrein en de rekwisieten, retourneert de volledige V7-blauwdruk via Steam P2P en de client valideert deze en slaat deze lokaal op. Live geverifieerd met 648 cellen en twee rekwisieten, gevolgd door plaatsing en ongedaan maken.",
     "Zet P2P-verzoeken in de wachtrij op basis van een geverifieerde klant en verzoek-ID, scheidt gelijktijdige uploads en het laatste ongedaan gemaakte dagboek van elke klant, en maakt herhaalde F7-plaatsing mogelijk na bevestiging. F4 maakt de laatste plaatsing ongedaan. Onvolledig herstel blokkeert nog steeds de volgende plak van die client.",
     "Herstelt de oorspronkelijke F7-plaatsing en F4 ongedaan maken voor terrein, voxelcellen en rekwisieten op origineel formaat, inclusief geroteerde blauwdrukken. Het eigen dagboek van de redacteur herstelt het terrein en verwijdert geplaatste rekwisieten, onafhankelijk van de beperkte geschiedenis van het ongedaan maken van het spel.",

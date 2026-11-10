@@ -150,11 +150,37 @@
   },
   "groups": [
     {
-      "label": "Panel w grze",
+      "label": "Nakładka",
       "description": "Pozycja jest określana względem okna gry w pikselach logicznych. X = −1 centruje panel. Y mierzone jest od góry. Zmiany obowiązują podczas działania gry."
     },
     {
-      "label": "Edytor świata",
+      "label": "Skróty",
+      "description": "Edytuj skróty tutaj lub w Zgodność → Skróty klawiszowe. Zmiany obowiązują podczas gry. Puste powiązanie wyłącza skrót.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Obróć projekt o 90°"
+        },
+        "undoVoxels": {
+          "label": "Cofa ostatnią pastę"
+        },
+        "markCursorNext": {
+          "label": "Zaznacz następny narożnik wyboru"
+        },
+        "resetEditor": {
+          "label": "Zresetuj / zwolnij zablokowane działanie serwera",
+          "confirm": "Jeśli wklejanie lub cofanie serwera zostanie zatrzymane lub niekompletne, polecenie Reset/release prosi serwer dedykowany o porzucenie go i zwolnienie blokady. Może pozostać częściowy teren lub rekwizyty. Wklejenie odblokowuje się dopiero po potwierdzeniu przez serwer."
+        },
+        "pasteAtCursor": {
+          "label": "Wklej w miejscu kursora",
+          "confirm": "Zapisać aktywny plan w bieżącej pozycji kursora?"
+        },
+        "captureAndSave": {
+          "label": "Przechwyć i zapisz plan"
+        }
+      }
+    },
+    {
+      "label": "Tworzenie blueprintów",
       "description": "Przechwytuj woksele i obiekty lub same obiekty oraz zarządzaj zapisanymi projektami.",
       "actions": {
         "markCursorA": {
@@ -200,33 +226,7 @@
       }
     },
     {
-      "label": "Skróty klawiaturowe",
-      "description": "Edytuj skróty tutaj lub w Zgodność → Skróty klawiszowe. Zmiany obowiązują podczas gry. Puste powiązanie wyłącza skrót.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Obróć projekt o 90°"
-        },
-        "undoVoxels": {
-          "label": "Cofa ostatnią pastę"
-        },
-        "markCursorNext": {
-          "label": "Zaznacz następny narożnik wyboru"
-        },
-        "resetEditor": {
-          "label": "Zresetuj / zwolnij zablokowane działanie serwera",
-          "confirm": "Jeśli wklejanie lub cofanie serwera zostanie zatrzymane lub niekompletne, polecenie Reset/release prosi serwer dedykowany o porzucenie go i zwolnienie blokady. Może pozostać częściowy teren lub rekwizyty. Wklejenie odblokowuje się dopiero po potwierdzeniu przez serwer."
-        },
-        "pasteAtCursor": {
-          "label": "Wklej w miejscu kursora",
-          "confirm": "Zapisać aktywny plan w bieżącej pozycji kursora?"
-        },
-        "captureAndSave": {
-          "label": "Przechwyć i zapisz plan"
-        }
-      }
-    },
-    {
-      "label": "Wstawianie",
+      "label": "Umieszczanie blueprintu",
       "description": "Wybierz cel, tryb i obrót, wyświetl podgląd, a następnie wstaw aktywny projekt.",
       "actions": {
         "markCursorTarget": {
@@ -242,7 +242,7 @@
       }
     },
     {
-      "label": "Operacje na encji natywnej",
+      "label": "Operacje na encjach",
       "description": "Spawn i rozmieszczenie korzystają z natywnych operacji gry.",
       "actions": {
         "spawnEntity": {
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Porządkuje ustawienia moda na kartach Nakładka, Skróty, Tworzenie blueprintów, Umieszczanie blueprintu i Operacje na encjach.",
     "Dodaje przechwytywanie online F8: dedykowany serwer odczytuje oznaczony teren i rekwizyty, zwraca kompletny plan V7 przez Steam P2P, a klient sprawdza go i zapisuje lokalnie. Zweryfikowano na żywo z 648 komórkami i dwoma rekwizytami, a następnie umieszczono i cofnięto.",
     "Kolejkuje żądania P2P według uwierzytelnionego klienta i identyfikatora żądania, oddziela równoczesne przesyłanie i dziennik ostatnich cofnięć każdego klienta oraz umożliwia wielokrotne umieszczanie klawisza F7 po potwierdzeniu. F4 cofa ostatnie umieszczenie. Niekompletne odzyskiwanie nadal blokuje następną pastę tego klienta.",
     "Naprawiono natywne umieszczanie F7 i cofanie F4 dla terenu, komórek wokseli i rekwizytów w oryginalnym rozmiarze, w tym obróconych planów. Własny dziennik redaktora przywraca teren i usuwa umieszczone rekwizyty niezależnie od ograniczonej historii cofania w grze.",

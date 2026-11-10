@@ -150,11 +150,37 @@
   },
   "groups": [
     {
-      "label": "Pannello di gioco",
+      "label": "Overlay",
       "description": "La posizione è relativa alla finestra di gioco in pixel logici. X = −1 centra il pannello. Y è misurato dall'alto. Le modifiche si applicano mentre il gioco è in esecuzione."
     },
     {
-      "label": "Redattore mondiale",
+      "label": "Scorciatoie",
+      "description": "Modifica le scorciatoie qui o in Compatibilità → Tasti di scelta rapida. Le modifiche si applicano durante il gioco. Un'associazione vuota disabilita un collegamento.",
+      "actions": {
+        "rotateBlueprint": {
+          "label": "Ruota il progetto di 90°"
+        },
+        "undoVoxels": {
+          "label": "Annulla l'ultimo incollaggio"
+        },
+        "markCursorNext": {
+          "label": "Contrassegnare l'angolo di selezione successivo"
+        },
+        "resetEditor": {
+          "label": "Ripristina/rilascia il funzionamento bloccato del server",
+          "confirm": "Se un server incolla o annulla è bloccato o incompleto, Reset/release chiede al server dedicato di abbandonarlo e rilasciare il blocco. Potrebbero rimanere terreno parziale o oggetti di scena. Incolla gli sblocchi solo dopo la conferma del server."
+        },
+        "pasteAtCursor": {
+          "label": "Incolla in corrispondenza del cursore",
+          "confirm": "Scrivere il progetto attivo nella posizione corrente del cursore?"
+        },
+        "captureAndSave": {
+          "label": "Cattura e salva il progetto"
+        }
+      }
+    },
+    {
+      "label": "Creare blueprint",
       "description": "Acquisisci voxel e oggetti, o solo gli oggetti, e gestisci i progetti salvati.",
       "actions": {
         "markCursorA": {
@@ -200,33 +226,7 @@
       }
     },
     {
-      "label": "Scorciatoie da tastiera",
-      "description": "Modifica le scorciatoie qui o in Compatibilità → Tasti di scelta rapida. Le modifiche si applicano durante il gioco. Un'associazione vuota disabilita un collegamento.",
-      "actions": {
-        "rotateBlueprint": {
-          "label": "Ruota il progetto di 90°"
-        },
-        "undoVoxels": {
-          "label": "Annulla l'ultimo incollaggio"
-        },
-        "markCursorNext": {
-          "label": "Contrassegnare l'angolo di selezione successivo"
-        },
-        "resetEditor": {
-          "label": "Ripristina/rilascia il funzionamento bloccato del server",
-          "confirm": "Se un server incolla o annulla è bloccato o incompleto, Reset/release chiede al server dedicato di abbandonarlo e rilasciare il blocco. Potrebbero rimanere terreno parziale o oggetti di scena. Incolla gli sblocchi solo dopo la conferma del server."
-        },
-        "pasteAtCursor": {
-          "label": "Incolla in corrispondenza del cursore",
-          "confirm": "Scrivere il progetto attivo nella posizione corrente del cursore?"
-        },
-        "captureAndSave": {
-          "label": "Cattura e salva il progetto"
-        }
-      }
-    },
-    {
-      "label": "Posizionamento",
+      "label": "Posizionare blueprint",
       "description": "Imposta obiettivo, modalità e rotazione, visualizza l’anteprima e posiziona il progetto attivo.",
       "actions": {
         "markCursorTarget": {
@@ -242,7 +242,7 @@
       }
     },
     {
-      "label": "Operazioni di entità native",
+      "label": "Operazioni entità",
       "description": "Lo spawn e il posizionamento utilizzano operazioni di gioco native.",
       "actions": {
         "spawnEntity": {
@@ -264,6 +264,7 @@
     }
   ],
   "changelog": [
+    "Organizza le impostazioni della mod nelle schede Overlay, Scorciatoie, Creare blueprint, Posizionare blueprint e Operazioni entità.",
     "Aggiunge l'acquisizione F8 online: il server dedicato legge il terreno e gli oggetti contrassegnati, restituisce il progetto V7 completo su Steam P2P e il client lo convalida e lo salva localmente. Verificato dal vivo con 648 celle e due oggetti di scena, seguito da posizionamento e annullamento.",
     "Accoda le richieste P2P in base al client autenticato e all'ID richiesta, separa i caricamenti simultanei e l'ultimo giornale di annullamento di ciascun client e consente il posizionamento ripetuto di F7 dopo la conferma. F4 annulla l'ultimo posizionamento. Il ripristino incompleto blocca comunque il successivo incollaggio del client.",
     "Corregge il posizionamento nativo di F7 e l'annullamento di F4 per terreno, celle voxel e oggetti di scena di dimensioni originali, inclusi progetti ruotati. Il diario dell'editor ripristina il terreno e rimuove gli oggetti di scena posizionati indipendentemente dalla cronologia di annullamento limitata del gioco.",
