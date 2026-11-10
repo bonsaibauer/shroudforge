@@ -47,14 +47,14 @@ export function ModPage({
   // Groups marked "tab" get their own page tab. Unmarked groups share Settings.
   const tabGroups = groups.filter((group) => 'tab' in group && group.tab)
   const settingsGroups = groups.filter((group) => !('tab' in group && group.tab))
-  const defaultTab =
-    settingsGroups.length > 0 || tabGroups.length === 0 ? 'settings' : 'group-0'
+  const hasSettingsTab = settingsGroups.length > 0 || tabGroups.length === 0
+  const defaultTab = hasSettingsTab ? 'settings' : 'group-0'
   const [pageTab, setPageTab] = useState(defaultTab)
   useEffect(() => setPageTab(defaultTab), [mod.id, defaultTab])
   const validTabs = new Set([
     'information',
     'dependencies',
-    'settings',
+    ...(hasSettingsTab ? ['settings'] : []),
     ...tabGroups.map((_, index) => `group-${index}`),
   ])
   const activeTab = validTabs.has(pageTab) ? pageTab : defaultTab
@@ -204,7 +204,9 @@ export function ModPage({
         items={[
           ['information', t('mod.details')],
           ['dependencies', t('mod.tab.dependencies')],
-          ['settings', t('mod.tab.settings')],
+          ...(hasSettingsTab
+            ? [['settings', t('mod.tab.settings')] as [string, string]]
+            : []),
           ...tabGroups.map(
             (group, index) => [`group-${index}`, group.label] as [string, string],
           ),
