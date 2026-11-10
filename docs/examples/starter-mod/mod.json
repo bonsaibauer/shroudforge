@@ -3,14 +3,28 @@
   "id": "example.hello-ember",
   "name": "Hello Ember",
   "version": "1.0.0",
-  "description": "A small ShroudForge starter mod that demonstrates saved settings, a Modloader action, and runtime logging.",
+  "description": "An English visual demo for Modloader settings, page tabs, dependencies, presets, and actions.",
   "authors": [
     "Your Name"
   ],
   "license": null,
   "icon": "icon.svg",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "id": "sf-survival",
+      "version": "^1.0.0",
+      "optional": true
+    },
+    {
+      "id": "example.settings-demo-missing-dependency",
+      "version": "^1.0.0",
+      "optional": true
+    }
+  ],
   "capabilities": [
-    "runtime"
+    "patch",
+    "export",
+    "runtime",
+    "runtime-register-dll"
   ]
 }

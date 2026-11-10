@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "こんにちは Ember",
+    "description": "Modloader の設定、タブ、依存関係、プリセット、アクションを確認できる日本語のビジュアルデモです。"
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "起動時にあいさつを表示",
+      "description": "ランタイムの起動時にあいさつを mod ログへ記録します。"
+    },
+    "greeting": {
+      "label": "あいさつ",
+      "description": "起動時のコールバックとボタンで使うテキストです。"
+    },
+    "severity": {
+      "label": "ログレベル",
+      "description": "サンプルメッセージの mod ログでの表示方法を選びます。",
+      "options": {
+        "info": "情報",
+        "warn": "警告"
+      }
+    },
+    "checkboxExample": {
+      "label": "チェックボックス",
+      "description": "真偽値設定のチェックボックス表示です。"
+    },
+    "textareaExample": {
+      "label": "複数行テキスト",
+      "description": "長いテキストを入力できる複数行フィールドです。"
+    },
+    "numberExample": {
+      "label": "数値入力",
+      "description": "範囲と刻み幅を指定した数値フィールドです。"
+    },
+    "sliderExample": {
+      "label": "スライダー",
+      "description": "値を表示するスライダーです。"
+    },
+    "radioExample": {
+      "label": "ラジオ選択",
+      "description": "ラジオボタン形式の選択肢です。",
+      "options": {
+        "compact": "コンパクト",
+        "comfortable": "標準",
+        "wide": "ワイド"
+      }
+    },
+    "segmentedExample": {
+      "label": "セグメント選択",
+      "description": "区切り表示のコンパクトな選択コントロールです。",
+      "options": {
+        "left": "左",
+        "center": "中央",
+        "right": "右"
+      }
+    },
+    "colorExample": {
+      "label": "色の選択",
+      "description": "標準のカラーピッカーです。"
+    },
+    "groupedChoices": {
+      "label": "カテゴリ付きの長い一覧",
+      "description": "すべてのカテゴリを検索するか、カテゴリタブを選びます。",
+      "options": {
+        "stone": "石",
+        "timber": "木材",
+        "clay": "粘土",
+        "iron": "鉄",
+        "copper": "銅",
+        "hammer": "ハンマー",
+        "axe": "斧",
+        "shovel": "シャベル",
+        "pickaxe": "つるはし",
+        "saw": "のこぎり",
+        "rope": "ロープ",
+        "resin": "樹脂",
+        "nails": "釘",
+        "cloth": "布",
+        "charcoal": "木炭"
+      },
+      "optionGroups": {
+        "Materials": "素材",
+        "Tools": "道具",
+        "Supplies": "消耗品"
+      }
+    },
+    "plainLongChoices": {
+      "label": "カテゴリなしの長い一覧",
+      "description": "カテゴリタブなしで検索し、有効な項目を絞り込みます。",
+      "options": {
+        "alpha": "選択肢 01",
+        "bravo": "選択肢 02",
+        "charlie": "選択肢 03",
+        "delta": "選択肢 04",
+        "echo": "選択肢 05",
+        "foxtrot": "選択肢 06",
+        "golf": "選択肢 07",
+        "hotel": "選択肢 08",
+        "india": "選択肢 09",
+        "juliet": "選択肢 10",
+        "kilo": "選択肢 11",
+        "lima": "選択肢 12",
+        "mike": "選択肢 13",
+        "november": "選択肢 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "カテゴリ付きの短い一覧",
+      "description": "選択肢はちょうど12個です。カテゴリタブを表示し、検索コントロールを隠します。",
+      "options": {
+        "north": "北",
+        "east": "東",
+        "south": "南",
+        "west": "西",
+        "spring": "春",
+        "summer": "夏",
+        "autumn": "秋",
+        "winter": "冬",
+        "morning": "朝",
+        "noon": "正午",
+        "evening": "夕方",
+        "night": "夜"
+      },
+      "optionGroups": {
+        "Directions": "方角",
+        "Seasons": "季節",
+        "Day parts": "時間帯"
+      }
+    },
+    "advancedEnabled": {
+      "label": "詳細設定を有効化",
+      "description": "有効にすると連動スライダーを操作できます。"
+    },
+    "advancedAmount": {
+      "label": "連動スライダー",
+      "description": "上の設定を有効にするまで操作できません。"
+    },
+    "reservedShortcut": {
+      "label": "予約ありのショートカット例",
+      "description": "キーボードとマウスの予約ロックを表示します。"
+    },
+    "plainShortcut": {
+      "label": "予約なしのショートカット例",
+      "description": "予約ロックのないショートカットです。"
+    },
+    "wheelScroll": {
+      "label": "マウスホイールの予約",
+      "description": "マウスホイール予約のコントロールを表示します。"
+    },
+    "presetQuality": {
+      "label": "品質プリセット",
+      "description": "選択すると下の項目を更新します。",
+      "options": {
+        "low": "低",
+        "balanced": "バランス",
+        "high": "高",
+        "custom": "カスタム"
+      }
+    },
+    "presetRange": {
+      "label": "プリセット範囲",
+      "description": "手動で変更するとプリセットがカスタムになります。"
+    },
+    "presetDetail": {
+      "label": "プリセットの詳細",
+      "description": "品質プリセットによって設定される値です。",
+      "options": {
+        "low": "低詳細",
+        "medium": "標準詳細",
+        "high": "高詳細"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "検索とカテゴリ",
+      "description": "どちらの一覧も検索のしきい値を超えています。最初の一覧にはカテゴリタブもあります。"
+    },
+    {
+      "label": "条件付きコントロール",
+      "description": "最初の設定を有効にすると連動スライダーを使えます。"
+    },
+    {
+      "label": "ショートカットとホイール",
+      "description": "通常のショートカット、予約キー、予約されたマウスホイールを比較できます。"
+    },
+    {
+      "label": "プリセットプロファイル",
+      "description": "プリセットを選び、設定を手動で変更してカスタムを選択します。"
+    },
+    {
+      "label": "アクションと確認",
+      "description": "アクションは mod ログに記録するだけです。1つは実行前に確認します。",
+      "actions": {
+        "logGreeting": {
+          "label": "あいさつを mod ログに記録"
+        },
+        "logTestSettings": {
+          "label": "現在のテスト値を記録"
+        },
+        "confirmTestAction": {
+          "label": "確認ダイアログの例を表示",
+          "confirm": "安全な確認例を実行しますか？ mod ログにメッセージを記録するだけです。"
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "最初のビジュアルデモです。情報タブにはパッケージバッジ、サンプルリンク、変更履歴が表示されます。",
+    "任意の依存関係で、インストール済みと未導入の状態を確認できます。",
+    "設定とカスタムタブで、各コントロール、検索、カテゴリ、条件、プリセット、ショートカット、アクションを確認できます。"
+  ],
+  "strings": {
+    "log.greeting_prefix": "あいさつ"
+  }
+}

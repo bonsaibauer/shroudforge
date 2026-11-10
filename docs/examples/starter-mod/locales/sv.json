@@ -1,0 +1,217 @@
+{
+  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "mod": {
+    "name": "Hej Ember",
+    "description": "En svensk visuell demonstration av Modloader-inställningar, flikar, beroenden, förinställningar och åtgärder."
+  },
+  "settings": {
+    "showOnLoad": {
+      "label": "Visa hälsning vid start",
+      "description": "Skriver hälsningen i modloggens när körmiljön startar."
+    },
+    "greeting": {
+      "label": "Hälsning",
+      "description": "Text som används av startfunktionen och knappen."
+    },
+    "severity": {
+      "label": "Loggnivå",
+      "description": "Bestämmer hur exempelmeddelandet visas i modloggen.",
+      "options": {
+        "info": "Information",
+        "warn": "Varning"
+      }
+    },
+    "checkboxExample": {
+      "label": "Kryssruta",
+      "description": "Kryssrutevarianten av en boolesk inställning."
+    },
+    "textareaExample": {
+      "label": "Textfält",
+      "description": "Ett flerradigt fält för längre text."
+    },
+    "numberExample": {
+      "label": "Numeriskt fält",
+      "description": "Ett begränsat talfält med ett stegintervall."
+    },
+    "sliderExample": {
+      "label": "Reglage",
+      "description": "Ett reglage med synligt värde."
+    },
+    "radioExample": {
+      "label": "Radioknappar",
+      "description": "En rad med alternativ i radioknappsstil.",
+      "options": {
+        "compact": "Kompakt",
+        "comfortable": "Bekväm",
+        "wide": "Bred"
+      }
+    },
+    "segmentedExample": {
+      "label": "Segmenterade val",
+      "description": "Ett kompakt val uppdelat i segment.",
+      "options": {
+        "left": "Vänster",
+        "center": "Mitten",
+        "right": "Höger"
+      }
+    },
+    "colorExample": {
+      "label": "Färgväljare",
+      "description": "En inbyggd färgväljare."
+    },
+    "groupedChoices": {
+      "label": "Lång lista med kategorier",
+      "description": "Sök i alla kategorier eller välj en kategoriflik.",
+      "options": {
+        "stone": "Sten",
+        "timber": "Trä",
+        "clay": "Lera",
+        "iron": "Järn",
+        "copper": "Koppar",
+        "hammer": "Hammare",
+        "axe": "Yxa",
+        "shovel": "Spade",
+        "pickaxe": "Hacka",
+        "saw": "Såg",
+        "rope": "Rep",
+        "resin": "Harts",
+        "nails": "Spikar",
+        "cloth": "Tyg",
+        "charcoal": "Träkol"
+      },
+      "optionGroups": {
+        "Materials": "Material",
+        "Tools": "Verktyg",
+        "Supplies": "Förnödenheter"
+      }
+    },
+    "plainLongChoices": {
+      "label": "Lång lista utan kategorier",
+      "description": "Sökning och filter för aktiverade objekt utan kategoriflikar.",
+      "options": {
+        "alpha": "Val 01",
+        "bravo": "Val 02",
+        "charlie": "Val 03",
+        "delta": "Val 04",
+        "echo": "Val 05",
+        "foxtrot": "Val 06",
+        "golf": "Val 07",
+        "hotel": "Val 08",
+        "india": "Val 09",
+        "juliet": "Val 10",
+        "kilo": "Val 11",
+        "lima": "Val 12",
+        "mike": "Val 13",
+        "november": "Val 14"
+      }
+    },
+    "shortGroupedChoices": {
+      "label": "Kort lista med kategorier",
+      "description": "Exakt tolv alternativ. Kategorierna visas medan sökreglagen döljs.",
+      "options": {
+        "north": "Norr",
+        "east": "Öst",
+        "south": "Söder",
+        "west": "Väst",
+        "spring": "Vår",
+        "summer": "Sommar",
+        "autumn": "Höst",
+        "winter": "Vinter",
+        "morning": "Morgon",
+        "noon": "Middag",
+        "evening": "Kväll",
+        "night": "Natt"
+      },
+      "optionGroups": {
+        "Directions": "Väderstreck",
+        "Seasons": "Årstider",
+        "Day parts": "Delar av dagen"
+      }
+    },
+    "advancedEnabled": {
+      "label": "Aktivera avancerad inställning",
+      "description": "Aktivera detta för att låsa upp det beroende reglaget."
+    },
+    "advancedAmount": {
+      "label": "Beroende reglage",
+      "description": "Förblir inaktiverat tills inställningen ovan är aktiverad."
+    },
+    "reservedShortcut": {
+      "label": "Reserverad genväg som exempel",
+      "description": "Visar reservationlås för tangentbord och mus."
+    },
+    "plainShortcut": {
+      "label": "Oreserverad genväg som exempel",
+      "description": "En genväg utan reservationslås."
+    },
+    "wheelScroll": {
+      "label": "Reservation av mushjul",
+      "description": "Visar reglaget för reservation av mushjulet."
+    },
+    "presetQuality": {
+      "label": "Kvalitetsprofil",
+      "description": "Valet uppdaterar fälten nedan.",
+      "options": {
+        "low": "Låg",
+        "balanced": "Balanserad",
+        "high": "Hög",
+        "custom": "Anpassad"
+      }
+    },
+    "presetRange": {
+      "label": "Profilintervall",
+      "description": "En manuell ändring väljer Anpassad."
+    },
+    "presetDetail": {
+      "label": "Profildetalj",
+      "description": "Det här värdet styrs av kvalitetsprofilen.",
+      "options": {
+        "low": "Få detaljer",
+        "medium": "Medeldetalj",
+        "high": "Många detaljer"
+      }
+    }
+  },
+  "groups": [
+    {
+      "label": "Sökning och kategorier",
+      "description": "Båda listorna överskrider sökgränsen. Den första har även kategoriflikar."
+    },
+    {
+      "label": "Villkorliga reglage",
+      "description": "Aktivera den första inställningen för att låsa upp det beroende reglaget."
+    },
+    {
+      "label": "Kortkommandon och mushjul",
+      "description": "Jämför ett vanligt kortkommando, reserverade tangenter och ett reserverat mushjul."
+    },
+    {
+      "label": "Förinställda profiler",
+      "description": "Välj en profil och ändra sedan en inställning för att välja Anpassad."
+    },
+    {
+      "label": "Åtgärder och bekräftelse",
+      "description": "Dessa åtgärder skriver bara till modloggen. En ber om bekräftelse.",
+      "actions": {
+        "logGreeting": {
+          "label": "Skriv hälsningen i modloggen"
+        },
+        "logTestSettings": {
+          "label": "Logga aktuella testvärden"
+        },
+        "confirmTestAction": {
+          "label": "Visa bekräftelseexempel",
+          "confirm": "Köra det ofarliga exemplet? Det skriver bara ett meddelande i modloggen."
+        }
+      }
+    }
+  ],
+  "changelog": [
+    "Första visuella demonstrationen. Information visar paketmärken, exempellänkar och den här ändringsloggen.",
+    "Valfria beroenden visar status för installerade och saknade beroenden.",
+    "Inställningar och anpassade flikar visar alla reglage, sökning, kategorier, villkor, profiler, kortkommandon och åtgärder."
+  ],
+  "strings": {
+    "log.greeting_prefix": "Hälsning"
+  }
+}
