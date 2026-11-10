@@ -297,3 +297,9 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .mod-state-chip.restart,.mod-state-panel .mod-state-chip.restart,.mod-status-row .mod-state-chip.restart{color:var(--sf-blue);background:rgba(83,173,215,.1);border-color:rgba(83,173,215,.24)}
 .mod-status-row .mod-state-chip.restart .icon{width:12px;height:12px}
 .mod-multiselect-filter{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 8px;padding-left:14px}.mod-multiselect-filter>.mod-input{flex:1 1 220px;height:32px;padding:0 9px;color:var(--sf-text);border:1px solid var(--sf-line-strong);border-radius:8px;background:#0b1519}.mod-multiselect-selected-only{display:flex;align-items:center;gap:7px;color:var(--sf-muted);font-size:11px;cursor:pointer}.mod-multiselect-filter>small{color:var(--sf-muted);font-size:10px}.mod-multiselect-filter+.settings-options{max-height:420px;overflow:auto}
+
+/* Tab hit area: extend segments into the bar padding and adjacent gaps. */
+.segments button{position:relative}
+.segments button::after{content:"";position:absolute;inset:-4px -1px}
+.segments button:first-child::after{left:-4px}
+.segments button:last-child::after{right:-4px}

@@ -78,6 +78,7 @@ pub(crate) enum UiEvent {
     Toggle,
     KeybindLabels(Vec<String>),
     KeybindCaptureFailed(String, String),
+    PageCursor(tao::window::CursorIcon),
 }
 
 struct KeybindCapture {
@@ -194,6 +195,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
         .with_visible(arguments.desktop)
         .with_inner_size(LogicalSize::new(inner_width, inner_height))
         .build(&event_loop)?;
+    // tao keeps invisible 4 px resize insets (left, right, bottom) on
+    // undecorated windows for the DWM drop shadow. Wine has no DWM shadow and
+    // paints those insets as a light border, so the page fills the window
+    // there; tao's own edge hit-testing still allows resizing.
+    shroudforge_window_management::disable_undecorated_shadow_under_wine(&window);
 
     let window_config_module = "modloaderUi";
     let mut saved_position = read_central_config(&arguments.root)["modules"][window_config_module]
@@ -264,6 +270,18 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     request_id,
                     delivered: false,
                 });
+            }
+            return;
+        }
+        if value.command == "cursor" {
+            if shroudforge_window_management::running_under_wine() {
+                if let Some(icon) = value
+                    .id
+                    .as_deref()
+                    .and_then(shroudforge_window_management::page_cursor_icon)
+                {
+                    let _ = keybind_proxy.send_event(UiEvent::PageCursor(icon));
+                }
             }
             return;
         }
@@ -1193,6 +1211,9 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         );
                     }
                 }
+            }
+            Event::UserEvent(UiEvent::PageCursor(icon)) => {
+                window.set_cursor_icon(icon);
             }
             Event::UserEvent(UiEvent::KeybindLabels(bindings)) => {
                 let labels: std::collections::BTreeMap<_, _> = bindings
