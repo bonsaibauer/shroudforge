@@ -23,12 +23,23 @@ void __fastcall FakeBarrier(void*,std::uint32_t,std::uint32_t,std::uint32_t,std:
 void __fastcall FakeCopy(void*,void*,void*,std::uint32_t,std::uint32_t count,const VkBufferImageCopy* regions){++copies;copied.assign(regions,regions+count);}
 std::int32_t __fastcall FakeCreate(void*,const VkSwapchainCreateInfoKHR*,const void*,void** output){*output=reinterpret_cast<void*>(88);return 0;}
 std::int32_t reset_result{},submit_result{},record_result{},present_result{};std::uintptr_t seen_wait{};unsigned submits{},draws{},present_calls{},cold_waits{};std::vector<std::uintptr_t> waited;
-const void* seen_next{};std::uintptr_t seen_present_fence{};
+const void* seen_present_input{};const void* seen_next{};std::uintptr_t seen_present_fence{};
 std::int32_t __fastcall FakeWait(void*,std::uint32_t n,void*const* fences,std::uint32_t all,std::uint64_t timeout){check(n==1 && all==1 && timeout==UINT64_MAX && !device_destroyed);++cold_waits;waited.push_back(reinterpret_cast<std::uintptr_t>(*fences));lifetime_events.push_back(reinterpret_cast<std::uintptr_t>(*fences));return cold_wait_result;}
-std::int32_t __fastcall FakePresent(void*,const void* input){++present_calls;unknown_present_seen=present_result==-13;if(unknown_present_seen && mutate_queue)devices.at(477)->queue=999;const auto& info=*static_cast<const VkPresentInfoKHR*>(input);seen_next=info.pNext;seen_present_fence=0;if(info.pNext && static_cast<const BaseIn*>(info.pNext)->sType==PresentFenceType){const auto* node=static_cast<const PresentFences*>(info.pNext);seen_present_fence=reinterpret_cast<std::uintptr_t>(node->fences[0]);seen_next=node->pNext;}if(info.pResults)info.pResults[0]=present_result;seen_wait=info.waitSemaphoreCount?reinterpret_cast<std::uintptr_t>(info.pWaitSemaphores[0]):0;return present_result;}
+std::int32_t __fastcall FakePresent(void*,const void* input){++present_calls;seen_present_input=input;unknown_present_seen=present_result==-13;if(unknown_present_seen && mutate_queue)devices.at(477)->queue=999;const auto& info=*static_cast<const VkPresentInfoKHR*>(input);seen_next=info.pNext;seen_present_fence=0;if(info.pNext && static_cast<const BaseIn*>(info.pNext)->sType==PresentFenceType){const auto* node=static_cast<const PresentFences*>(info.pNext);seen_present_fence=reinterpret_cast<std::uintptr_t>(node->fences[0]);seen_next=node->pNext;}if(info.pResults)info.pResults[0]=present_result;seen_wait=info.waitSemaphoreCount?reinterpret_cast<std::uintptr_t>(info.pWaitSemaphores[0]):0;return present_result;}
+unsigned family_query_calls{};std::uint32_t family_count=3;
+void __fastcall FakeQueueFamilies(void* physical,std::uint32_t* count,QueueFamilyProperties* properties) {
+    check(physical==reinterpret_cast<void*>(901));++family_query_calls;
+    if(!properties){*count=family_count;return;}
+    check(*count==3);properties[0]={QueueGraphicsBit,1,0,{}};
+    properties[1]={QueueGraphicsBit,1,0,{}};properties[2]={0,1,0,{}};
+}
+void* __fastcall FakeQueueGipa(void* instance,const char* name) {
+    check(instance==reinterpret_cast<void*>(900) && !std::strcmp(name,"vkGetPhysicalDeviceQueueFamilyProperties"));
+    return reinterpret_cast<void*>(&FakeQueueFamilies);
+}
 Renderer ReadyRenderer(std::uintptr_t handle);
 void PreparePresent(std::uint64_t owner,std::uintptr_t handle=77,std::uintptr_t chain=88) {
-    auto& info=swapchains[chain];g_renderer=ReadyRenderer(handle);g_renderer.swapchain=chain;g_renderer.width=info.width;g_renderer.height=info.height;g_renderer.format=info.format;g_renderer.colorSpace=info.colorSpace;g_renderer.swapchainGeneration=info.generation;g_renderer.commandBuffers={20};g_renderer.resources.resize(1);
+    auto& info=swapchains[chain];g_renderer=ReadyRenderer(handle);g_renderer.queueFamilyIndex=devices.at(handle)->family;g_renderer.swapchain=chain;g_renderer.width=info.width;g_renderer.height=info.height;g_renderer.format=info.format;g_renderer.colorSpace=info.colorSpace;g_renderer.swapchainGeneration=info.generation;g_renderer.commandBuffers={20};g_renderer.resources.resize(1);
     TexturedResources white;white.frameTextureReady=true;white.frameTextureWidth=white.frameTextureHeight=1;
     g_renderer.resources[0].textures.emplace(TextureKey{0,UINT64_MAX,1},white);g_renderer.resources[0].allocated_bytes=4;
     auto& f=g_renderer.fns;f.resetCommandBuffer=[](void*,std::uint32_t)->std::int32_t{return record_result;};f.beginCommandBuffer=[](void*,const VkCommandBufferBeginInfo*)->std::int32_t{return 0;};f.endCommandBuffer=[](void*)->std::int32_t{return 0;};
@@ -44,7 +55,7 @@ Renderer ReadyRenderer(std::uintptr_t handle) {
     r.fns.mapMemory=FakeMap;r.fns.unmapMemory=FakeUnmap;r.fns.flushMappedMemoryRanges=FakeFlush;r.fns.cmdCopyBufferToImage=FakeCopy;r.fns.cmdPipelineBarrier=FakeBarrier;return r;
 }
 void PresentShutdownRegression(std::uint64_t owner,int fence_status,int idle_status,bool via_swap,bool lost,std::int32_t present_status=-13) {
-    auto device=std::make_shared<Device>();device->handle=477;device->queue=407;device->generation=3;device->broker=device->maintenance=true;
+    auto device=std::make_shared<Device>();device->handle=477;device->queue=407;device->family=5;device->queue_families.resize(6);device->queue_families[5].flags=QueueGraphicsBit;device->generation=3;device->broker=device->maintenance=true;
     device->present=FakePresent;device->wait_fences=FakeWait;device->resolver=RecoveryResolver;
     device->destroy_swapchain=[](void*,void*,const void*){lifetime_events.push_back(9000);};
     device->destroy=[](void*,const void*){lifetime_events.push_back(10000);};devices[477]=device;
@@ -131,6 +142,12 @@ int main(int argc,char** argv){
         Services().Query(extended_owner,"shroudforge.overlay",2,sizeof(extended_service),&extended_service)==0 && extended_service.version==2);
     check(Services().Revoke(extended_owner)==0);
     if(argc==2){UnrecoverableWrapperRegression(std::strcmp(argv[1],"--terminal-swap")==0,false);return 0;}
+    boot_gipa=FakeQueueGipa;
+    const auto families=ReadQueueFamilies(reinterpret_cast<void*>(900),reinterpret_cast<void*>(901));
+    check(families.size()==3 && families[0].flags==QueueGraphicsBit && families[2].flags==0 && family_query_calls==2);
+    family_count=257;check(ReadQueueFamilies(reinterpret_cast<void*>(900),reinterpret_cast<void*>(901)).empty());
+    check(ReadQueueFamilies(nullptr,reinterpret_cast<void*>(901)).empty());boot_gipa=nullptr;
+    check(ReadQueueFamilies(reinterpret_cast<void*>(900),reinterpret_cast<void*>(901)).empty());
     // No observed enabled maintenance feature: never allocate/submit overlay work.
 
     check(VK_IMAGE_TYPE_2D==1 && VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL==7 && VK_BORDER_COLOR_INT_OPAQUE_BLACK==3 && VK_FRONT_FACE_COUNTER_CLOCKWISE==0);
@@ -157,7 +174,7 @@ int main(int argc,char** argv){
     const auto prior_queries=queries;ReapRetired();
     check(device_destroyed && !device->alive && retired.empty() && queries==prior_queries && cold_waits==2 && waited==std::vector<std::uintptr_t>({10,13}) && idle_waits==0);
     device_destroyed=false;auto recreated=std::make_shared<Device>();recreated->handle=77;recreated->generation=2;recreated->create=FakeCreate;devices[77]=recreated;
-    VkSwapchainCreateInfoKHR create{};create.imageExtent={1920,1080};create.imageFormat=97;create.imageColorSpace=1000104008;void* output{};
+    VkSwapchainCreateInfoKHR create{};create.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;create.imageExtent={1920,1080};create.imageFormat=97;create.imageColorSpace=1000104008;void* output{};
     check(Create(reinterpret_cast<void*>(77),&create,nullptr,&output)==0);check(swapchains[88].format==97 && swapchains[88].width==1920 && swapchains[88].colorSpace==1000104008);
     const auto generation=swapchains[88].generation;create.imageExtent={1280,720};Create(reinterpret_cast<void*>(77),&create,nullptr,&output);
     check(swapchains[88].generation>generation && swapchains[88].height==720);
@@ -217,6 +234,34 @@ int main(int argc,char** argv){
     const auto foreign_submits=submits,foreign_calls=present_calls;
     check(Present(reinterpret_cast<void*>(777),&present)==0 && submits==foreign_submits && present_calls==foreign_calls+1 && seen_wait==99);
     recreated->broker=true;recreated->maintenance=true;
+    recreated->queue_families={{QueueGraphicsBit,1,0,{}},{QueueGraphicsBit,1,0,{}},{0,1,0,{}}};
+    boot_queues[reinterpret_cast<void*>(7)]={77,0,0};
+    PreparePresent(owner);
+    // Refusal preserves the exact caller packet and emits no overlay work.
+    const auto refused=[&]{
+        const auto calls=present_calls,submitted=submits,drawn=draws;
+        check(Present(reinterpret_cast<void*>(7),&present)==0 && seen_present_input==&present &&
+            seen_wait==99 && present_calls==calls+1 && submits==submitted && draws==drawn);
+    };
+    boot_queues.erase(reinterpret_cast<void*>(7));refused(); // Unknown queue origin.
+    for(const auto family:{2u,99u}){boot_queues[reinterpret_cast<void*>(7)]={77,family,0};refused();}
+    boot_queues[reinterpret_cast<void*>(7)]={77,0,1};refused(); // Protected queue.
+    boot_queues[reinterpret_cast<void*>(7)]={77,0,0};
+    create.imageUsage=VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    check(Create(reinterpret_cast<void*>(77),&create,nullptr,&output)==0 &&
+        swapchains[88].imageUsage==VK_IMAGE_USAGE_TRANSFER_DST_BIT && create.imageUsage==VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    refused();create.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    check(Create(reinterpret_cast<void*>(77),&create,nullptr,&output)==0);
+    recreated->family=0;PreparePresent(owner);
+    // A different graphics family cannot reuse old command buffers. Busy old
+    // work remains retained even when replacement construction is unavailable.
+    recreated->resolver=RecoveryResolver;fence_result=1;
+    boot_queues[reinterpret_cast<void*>(7)]={77,1,0};
+    const auto freed_before=destroys;refused();
+    check(retired.size()==1 && retired.front()->queueFamilyIndex==0 &&
+        retired.front()->submissionPending[0] && destroys==freed_before && !g_renderer.ready);
+    fence_result=0;ReapRetired();check(retired.empty());
+    recreated->family=0;boot_queues[reinterpret_cast<void*>(7)]={77,0,0};
     PreparePresent(owner);fence_result=0;
     const auto first_calls=present_calls;void* game_fence=reinterpret_cast<void*>(91);PresentFences collision;collision.count=1;collision.fences=&game_fence;present.pNext=&collision;
     check(Present(reinterpret_cast<void*>(7),&present)==0 && submits==0 && present_calls==first_calls+1 && seen_wait==99);

@@ -3,7 +3,8 @@
 struct InstanceRecord {void* handle{};std::uint32_t api{},families{};};
 std::unordered_map<void*,InstanceRecord> boot_instances;
 std::unordered_map<void*,void*> boot_physical;
-std::unordered_map<void*,std::pair<std::uintptr_t,std::uint32_t>> boot_queues;
+struct ObservedQueue {std::uintptr_t device;std::uint32_t family,flags;};
+std::unordered_map<void*,ObservedQueue> boot_queues;
 GetInstanceProc boot_gipa{};
 GetDeviceProcAddrFn boot_gdpa{};
 CreateInstanceFn boot_create_instance{};
@@ -130,6 +131,16 @@ void __fastcall BrokerDestroyInstance(void* instance,const void* allocator) {
     std::lock_guard lock(render_mutex);const auto fn=reinterpret_cast<DestroyDevice>(boot_gipa(instance,"vkDestroyInstance"));
     std::erase_if(boot_physical,[&](const auto& p){return p.second==instance;});boot_instances.erase(instance);fn(instance,allocator);
 }
+std::vector<QueueFamilyProperties> ReadQueueFamilies(void* instance,void* physical) {
+    const auto query=reinterpret_cast<QueueFamilyPropertiesFn>(instance && boot_gipa?
+        boot_gipa(instance,"vkGetPhysicalDeviceQueueFamilyProperties"):nullptr);
+    if(!query)return {};
+    std::uint32_t count{};query(physical,&count,nullptr);
+    if(!count || count>256)return {};
+    std::vector<QueueFamilyProperties> properties(count);query(physical,&count,properties.data());
+    if(!count || count>properties.size())return {};
+    properties.resize(count);return properties;
+}
 std::int32_t __fastcall BrokerCreateDevice(void* physical,const DeviceCreateInfo* info,const void* allocator,void** out) {
     std::lock_guard lock(render_mutex);
     const auto parent=boot_physical.find(physical);
@@ -168,6 +179,7 @@ std::int32_t __fastcall BrokerCreateDevice(void* physical,const DeviceCreateInfo
     // A successful observed creation, not a function pointer/support query, is authority.
     if(result==0 && out && *out && devices.size()<64 && boot_gdpa) {
         auto d=std::make_shared<Device>();d->handle=reinterpret_cast<std::uintptr_t>(*out);d->generation=++generation_counter;
+        d->queue_families=ReadQueueFamilies(instance,physical);
         d->broker=true;d->maintenance=enabled;d->capability_reason=enabled?0:reason;d->resolver=boot_gdpa;
         d->create=reinterpret_cast<CreateSwapchainFn>(boot_gdpa(*out,"vkCreateSwapchainKHR"));d->images=reinterpret_cast<GetSwapchainImagesFn>(boot_gdpa(*out,"vkGetSwapchainImagesKHR"));
         d->present=reinterpret_cast<QueuePresentFn>(boot_gdpa(*out,"vkQueuePresentKHR"));d->destroy_swapchain=reinterpret_cast<DestroySwapchain>(boot_gdpa(*out,"vkDestroySwapchainKHR"));d->destroy=reinterpret_cast<DestroyDevice>(boot_gdpa(*out,"vkDestroyDevice"));
@@ -182,11 +194,11 @@ std::int32_t __fastcall BrokerCreateDevice(void* physical,const DeviceCreateInfo
 }
 void __fastcall BrokerGetQueue(void* handle,std::uint32_t family,std::uint32_t index,void** out) {
     std::lock_guard lock(render_mutex);const auto fn=reinterpret_cast<GetDeviceQueue>(boot_gdpa(handle,"vkGetDeviceQueue"));fn(handle,family,index,out);
-    try { if(out && *out && devices.contains(reinterpret_cast<std::uintptr_t>(handle)) && boot_queues.size()<256)boot_queues[*out]={reinterpret_cast<std::uintptr_t>(handle),family}; }catch(...){}
+    try { if(out && *out && devices.contains(reinterpret_cast<std::uintptr_t>(handle)) && boot_queues.size()<256)boot_queues[*out]={reinterpret_cast<std::uintptr_t>(handle),family,0}; }catch(...){}
 }
 void __fastcall BrokerGetQueue2(void* handle,const DeviceQueueInfo2* info,void** out) {
     std::lock_guard lock(render_mutex);const auto fn=reinterpret_cast<void(__fastcall*)(void*,const DeviceQueueInfo2*,void**)>(boot_gdpa(handle,"vkGetDeviceQueue2"));fn(handle,info,out);
-    try { if(out && *out && devices.contains(reinterpret_cast<std::uintptr_t>(handle)) && boot_queues.size()<256)boot_queues[*out]={reinterpret_cast<std::uintptr_t>(handle),info->family}; }catch(...){}
+    try { if(out && *out && devices.contains(reinterpret_cast<std::uintptr_t>(handle)) && boot_queues.size()<256)boot_queues[*out]={reinterpret_cast<std::uintptr_t>(handle),info->family,info->flags}; }catch(...){}
 }
 void* RouteInstance(void* instance,const char* name,void* raw,HMODULE export_module=nullptr) {
     if(!raw || !name)return raw;

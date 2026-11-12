@@ -10,6 +10,10 @@ struct InstanceCreateInfo {std::uint32_t sType;const void* pNext;std::uint32_t f
 struct DeviceCreateInfo {std::uint32_t sType;const void* pNext;std::uint32_t flags,queueCount;const void* queues;std::uint32_t layerCount;const char*const* layers;std::uint32_t extensionCount;const char*const* extensions;const void* features;};
 struct MaintenanceFeatures {std::uint32_t sType=MaintenanceFeatureType;void* pNext{};std::uint32_t enabled{};};
 struct PhysicalFeatures2 {std::uint32_t sType=1000059000;void* pNext{};std::uint32_t features[55]{};};
+constexpr std::uint32_t QueueGraphicsBit=0x1;
+struct QueueFamilyProperties {std::uint32_t flags,count,timestampValidBits;VkExtent3D minImageTransferGranularity;};
+using QueueFamilyPropertiesFn=void(__fastcall*)(void*,std::uint32_t*,QueueFamilyProperties*);
+static_assert(sizeof(QueueFamilyProperties)==24);
 struct ExtensionProperties {char name[256];std::uint32_t version;};
 struct PhysicalDeviceGroup {std::uint32_t sType;void* pNext;std::uint32_t count;void* physical[32];std::uint32_t subset;};
 struct DeviceGroupCreate {std::uint32_t sType;const void* pNext;std::uint32_t count;void*const* physical;};

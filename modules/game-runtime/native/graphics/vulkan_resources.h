@@ -499,24 +499,24 @@
     }
 
     bool RendererMatchesSwapchain(const Renderer& renderer,
-        const SwapchainRuntimeInfo& snapshot, std::uint32_t width, std::uint32_t height, std::uint32_t format)
+        const SwapchainRuntimeInfo& snapshot, std::uint32_t width, std::uint32_t height, std::uint32_t format, std::uint32_t queueFamily)
     {
         // Handles and dimensions can be reused after scene/resolution changes.
         // A known creation or changed image set must invalidate cached resources.
         return renderer.ready && renderer.device == snapshot.device &&
             renderer.swapchain == snapshot.handle && renderer.format == format &&
-            renderer.colorSpace == snapshot.colorSpace &&
+            renderer.colorSpace == snapshot.colorSpace && renderer.queueFamilyIndex == queueFamily &&
             renderer.width == width && renderer.height == height &&
             renderer.swapchainGeneration == snapshot.generation &&
             (snapshot.images.empty() || renderer.images == snapshot.images);
     }
 
-    bool BuildRendererLocked(const SwapchainRuntimeInfo& snapshot)
+    bool BuildRendererLocked(const SwapchainRuntimeInfo& snapshot, std::uint32_t queueFamily)
     {
         if (!snapshot.width || !snapshot.height || !snapshot.format) return false;
         const auto width=snapshot.width, height=snapshot.height, format=snapshot.format;
 
-        if (RendererMatchesSwapchain(g_renderer, snapshot, width, height, format))
+        if (RendererMatchesSwapchain(g_renderer, snapshot, width, height, format, queueFamily))
         {
             return true;
         }
@@ -552,7 +552,7 @@
             return false;
         }
 
-        if (!CreateRendererCommandPoolLocked(g_lastVulkanQueueFamilyIndex.load()))
+        if (!CreateRendererCommandPoolLocked(queueFamily))
         {
             LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: command pool creation failed");
             RetireCurrentRenderer();

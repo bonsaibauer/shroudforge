@@ -75,6 +75,7 @@ struct Device {
     std::uint64_t generation{};
     bool alive{true},lost{},broker{},maintenance{},fatal{},uncertain{};
     std::uint32_t family{},capability_reason{};
+    std::vector<QueueFamilyProperties> queue_families;
     GetDeviceProcAddrFn resolver{};
     CreateSwapchainFn create{};GetSwapchainImagesFn images{};QueuePresentFn present{};
     DestroyDevice destroy{};DestroySwapchain destroy_swapchain{};
@@ -89,7 +90,6 @@ std::atomic<bool> active{},retirement_pending{};
 std::atomic<std::uint64_t> generation_counter{},frames_count{},busy_count{},failed_count{},upload_bytes{},upload_regions{},fallback_count{};
 std::atomic<std::uint32_t> graphics_status{3},graphics_reason{SF_OVERLAY_REASON_NONE}; // 1: awaiting observed creation; 2: device lost.
 std::atomic<std::uint64_t> published_generation{};
-std::atomic<std::uint32_t> g_lastVulkanQueueFamilyIndex{};
 std::uintptr_t original_present_fallback{};
 void RetireCurrentRenderer();
 void DestroyRenderer(Renderer&,bool);
@@ -466,10 +466,14 @@ void __fastcall Destroy(void*,const void*);
 void __fastcall DestroySwap(void*,void*,const void*);
 #include "graphics/vulkan_broker.inl"
 std::int32_t __fastcall Present(void* queue,const void* pointer) {
-    std::lock_guard lock(render_mutex);std::shared_ptr<Device> device;
+    std::lock_guard lock(render_mutex);std::shared_ptr<Device> device;bool graphics_queue=false;
     if(const auto found=boot_queues.find(queue);found!=boot_queues.end()) {
-        device=FindDevice(reinterpret_cast<void*>(found->second.first));
-        if(device){device->queue=reinterpret_cast<std::uintptr_t>(queue);device->family=found->second.second;}
+        device=FindDevice(reinterpret_cast<void*>(found->second.device));
+        if(device){
+            device->queue=reinterpret_cast<std::uintptr_t>(queue);device->family=found->second.family;
+            graphics_queue=found->second.flags==0 && device->family<device->queue_families.size() &&
+                (device->queue_families[device->family].flags&QueueGraphicsBit)!=0;
+        }
     }
     if(!device || !device->alive || device->queue!=reinterpret_cast<std::uintptr_t>(queue))
         for(const auto& [_,candidate]:devices)if(candidate->alive && candidate->queue==reinterpret_cast<std::uintptr_t>(queue)){device=candidate;break;}
@@ -500,9 +504,14 @@ std::int32_t __fastcall Present(void* queue,const void* pointer) {
         graphics_status=3;graphics_reason=1;LogRendererThrottled("[ShroudForge overlay] waiting for an observed swapchain creation; recreate the swapchain/display mode before the overlay can draw");
         return forward(pointer);
     }
-    g_lastVulkanQueueFamilyIndex=device->family;
+    // Overlay draws require an observed ordinary graphics queue and color-attachment images.
+    // Preserve the game's descriptors and present call when either capability is unknown.
+    if(!graphics_queue || observed->second.device!=device->handle ||
+        !(observed->second.imageUsage&VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+        graphics_status=3;graphics_reason=SF_OVERLAY_REASON_PRESENT_CONFLICT;return forward(pointer);
+    }
     if(retired.size()>=4){graphics_status=7;LogRendererThrottled("[ESM overlay] retained presentation resources reached the bounded budget; device recreation required");return forward(pointer);}
-    if(!BuildRendererLocked(observed->second) || index>=g_renderer.commandBuffers.size()){graphics_status=3;graphics_reason=SF_OVERLAY_REASON_NONE;return forward(pointer);}
+    if(!BuildRendererLocked(observed->second,device->family) || index>=g_renderer.commandBuffers.size()){graphics_status=3;graphics_reason=SF_OVERLAY_REASON_NONE;return forward(pointer);}
     if(g_renderer.submissionFailed)return forward(pointer);
     g_renderer.device_generation=device->generation;published_generation=device->generation;
     Submission submission{&g_renderer,queue,&info,index};const PresentSteps steps{&submission,Fence,Record,Reset,Submit};
@@ -561,7 +570,7 @@ std::int32_t __fastcall Create(void* handle,const VkSwapchainCreateInfoKHR* poin
         swapchain && info.imageExtent.width && info.imageExtent.height && info.imageExtent.width<=32768 && info.imageExtent.height<=32768 && info.imageFormat) {
         SwapchainRuntimeInfo observed;observed.handle=reinterpret_cast<std::uintptr_t>(swapchain);observed.device=device->handle;
         observed.generation=++generation_counter;observed.width=info.imageExtent.width;observed.height=info.imageExtent.height;
-        observed.format=info.imageFormat;observed.colorSpace=info.imageColorSpace;observed.minImageCount=info.minImageCount;swapchains[observed.handle]=std::move(observed);
+        observed.imageUsage=info.imageUsage;observed.format=info.imageFormat;observed.colorSpace=info.imageColorSpace;observed.minImageCount=info.minImageCount;swapchains[observed.handle]=std::move(observed);
     }
     return result;
 }
@@ -619,7 +628,7 @@ void __fastcall Destroy(void* handle,const void* allocator) {
     // device destructor. Owned children have already been drained or destroyed
     // under the lost-device rules before forwarding that destructor.
     device->alive=false;device->lost=true;
-    std::erase_if(boot_queues,[&](const auto& p){return p.second.first==device->handle;});
+    std::erase_if(boot_queues,[&](const auto& p){return p.second.device==device->handle;});
     std::erase_if(swapchains,[&](const auto& entry){return entry.second.device==device->handle;});
     published_generation=++generation_counter;graphics_status=device->uncertain?7:3;graphics_reason=device->uncertain?SF_OVERLAY_REASON_PRESENT_UNCERTAIN:SF_OVERLAY_REASON_AWAIT_OBSERVED_CREATE;device->destroy(handle,allocator);devices.erase(device->handle);
 }

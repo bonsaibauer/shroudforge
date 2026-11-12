@@ -14,7 +14,9 @@ A revoked generation cannot acquire a replacement service table.
 The overlay uses observed Vulkan device and swapchain creation. Its startup
 broker must be prepared before those calls occur. Late requests report the
 reason rendering is unavailable. Device/swapchain destruction drains owned GPU
-work before forwarding to the original destructor. An unresolved completion
+work before forwarding to the original destructor. Drawing requires an observed
+unprotected graphics queue and color-attachment swapchain usage. Renderer
+resources are bound to that queue family; unsupported calls forward unchanged. An unresolved completion
 cannot be treated as successful cleanup. Texture and terrain uploads preserve
 their original dimensions; this layer does not reduce generated map assets.
 
