@@ -22,12 +22,66 @@ extern "C" {
 
 /* Stable C ABI for native modloader hosts. Query KfcRuntimeAbi before use. */
 #define KFC_RUNTIME_ABI_VERSION 12u
+#define KFC_RUNTIME_FIRST_PERSON_READY 0u
+#define KFC_RUNTIME_FIRST_PERSON_UNSUPPORTED_BUILD 1u
+#define KFC_RUNTIME_FIRST_PERSON_INVALID_ARGUMENT 2u
+#define KFC_RUNTIME_FIRST_PERSON_OWNER_CONFLICT 3u
+#define KFC_RUNTIME_FIRST_PERSON_FAILED 4u
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeAbi(void);
+/* Optional ABI12 Flight. Trusted Rust allocates token from mod identity and
+ * generation; Lua never supplies it. Flags: scalar ready=1, provider ready=2,
+ * local On intent=4. No server ACK or SP/listen qualification is implied. */
+typedef struct KfcFlightClientStatusV1 {
+    uint32_t struct_bytes, version, flags, mode;
+    uint64_t local_reset_serial;
+    uint32_t reserved0, reserved1;
+} KfcFlightClientStatusV1;
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeFlightClientSetEnabledV1(uint64_t, uint32_t);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeFlightClientResetV1(uint64_t);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeFlightClientRetireV1(uint64_t);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeFlightClientStatusV1(uint64_t, KfcFlightClientStatusV1*);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeInitialize(void);
+/* Optional ABI12 pre-entry cache: required hook publication only. No World,
+ * player, prop/cursor or feature-service readiness is implied. */
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeStartupReady(void);
+/* Optional ABI-12 bootstrap control: 0 disabled, 1 declared enabled overlay demand. */
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimePrepareOverlay(unsigned demand);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeShutdown(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capacity);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
+/* Optional typed Vein notices. Reads the existing consumer's accepted
+ * toggle/persisted-radius events only; never mutates controls/settings/epochs.
+ * flags: bit0 toggle present, bit1 radius present. All other bits/reserved zero.
+ * Caller initializes bytes/version; bad headers are refused before consuming. */
+typedef struct KfcVeinNoticesV1 {
+    uint32_t bytes,version,flags,toggle,radius,reserved;
+} KfcVeinNoticesV1;
+#if defined(__cplusplus)
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeTakeVeinNoticesV1(KfcVeinNoticesV1*,uint32_t) noexcept;
+#else
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeTakeVeinNoticesV1(KfcVeinNoticesV1*,uint32_t);
+#endif
+/* Optional ABI12 best-effort notice mirror: UTF-8 id/title/message,
+ * max 256/120/512 bytes, level 0 info/1 success/2 warning/3 error/4 update.
+ * Returns enqueue status, never proof of display. Existing graphics only. */
+#if defined(__cplusplus)
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimePublishNotificationV1(
+    const uint8_t*,uint32_t,const uint8_t*,uint32_t,const uint8_t*,uint32_t,uint32_t) noexcept;
+#else
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimePublishNotificationV1(
+    const uint8_t*,uint32_t,const uint8_t*,uint32_t,const uint8_t*,uint32_t,uint32_t);
+#endif
+/* Optional owner-scoped map/overlay services. ABI12 is unchanged. The trusted
+ * host establishes package authority; all queried tables are bounded copies. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeQueryMapOverlayService(
+    const uint8_t*, uint32_t, uint64_t, const uint8_t*, uint32_t, uint32_t, uint32_t, void*);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeRevokeMapOverlayServices(
+    const uint8_t*, uint32_t, uint64_t);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeDrainMapOverlayServices(
+    const uint8_t*, uint32_t, uint64_t, uint32_t);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeReadInputKeys(
+    const uint32_t*, uint32_t, uint32_t, void*);
 /* Optional ABI-12 selected-character cache. Returns required UTF-8 bytes
  * including NUL, or zero when unavailable. Copies only a complete name.
  * This getter never reads game memory or refreshes the cached selection. */
@@ -355,6 +409,18 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityFinishBuilding(
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimePatchAvailable(const char* name);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimePatchSetEnabled(
     const char* name, bool enabled, uint32_t* outcome);
+
+/* Optional ABI-12 owner-scoped First Person controls. These five exports do not
+   change the base ABI. Access requires the trusted held-entry startup route and
+   exact-build profile admission; release remains idempotent after admission changes. */
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeFirstPersonAvailable(void);
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeFirstPersonDetail(char* buffer, size_t capacity);
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeFirstPersonConfigure(
+    uint64_t owner_token, double camera_distance);
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeFirstPersonSetMode(
+    uint64_t owner_token, bool enabled);
+KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeFirstPersonReleaseOwner(
+    uint64_t owner_token);
 
 #if defined(__cplusplus)
 }

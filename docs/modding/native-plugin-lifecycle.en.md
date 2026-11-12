@@ -32,6 +32,11 @@ context; the runtime reports that a restart is required. Plugins must stop
 their workers and release host pointers before returning from shutdown. A
 pending load cancelled during disable cannot initialize later.
 
+Before starting a managed DLL worker, the host pins its own runtime module for
+the process lifetime. Pending workers and retained callback contexts therefore
+remain backed by mapped code even after the bootstrap releases its reference.
+This also applies to plans containing only managed plugins.
+
 ## Services
 
 - `shroudforge.keybinds` v1 reads the package's declared keybind settings. It
@@ -42,6 +47,8 @@ pending load cancelled during disable cannot initialize later.
 - `shroudforge.map` v1 and `shroudforge.overlay` v1/v2 are optional native-provider
   services. Query their exact version and handle `UNAVAILABLE`. Host support
   does not establish that a particular game build supplies the service.
+  Query, revoke and drain must all be exported before the bridge exposes this
+  capability. An incomplete provider cannot hand out a service table.
 
 Lua runtime APIs expose map snapshots, First Person and Flight control through
 the corresponding optional provider exports. Flight control retains its

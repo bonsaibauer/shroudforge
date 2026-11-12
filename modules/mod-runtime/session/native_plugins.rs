@@ -11,6 +11,20 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 static NEXT_NATIVE_PACKAGE_GENERATION: AtomicU64 = AtomicU64::new(1);
 
+fn spawn_retained_native_worker(
+    name: String,
+    retain_module: impl FnOnce() -> Result<(), String>,
+    work: impl FnOnce() + Send + 'static,
+) -> Result<std::thread::JoinHandle<()>, String> {
+    // Pending workers and quarantined plugin callbacks can outlive AppState.
+    // Pin their owning runtime before any code or host pointer escapes.
+    retain_module()?;
+    std::thread::Builder::new()
+        .name(name)
+        .spawn(work)
+        .map_err(|error| format!("could not start isolated DLL loader thread: {error}"))
+}
+
 fn next_native_package_generation() -> u64 {
     NEXT_NATIVE_PACKAGE_GENERATION
         .fetch_add(1, Ordering::Relaxed)
@@ -495,12 +509,13 @@ impl AppState {
         let worker_tempdir = temporary_directory.clone();
         tracing::debug!(target: "shroudforge::runtime", mod_id, dll = %canonical.display(), lifecycle = ?mode,
             "Queuing native DLL load on isolated worker");
-        std::thread::Builder::new()
-            .name(format!(
+        spawn_retained_native_worker(
+            format!(
                 "sf-native-{}",
                 mod_id.chars().take(24).collect::<String>()
-            ))
-            .spawn(move || {
+            ),
+            crate::native_dlls::pin_native_runtime_module,
+            move || {
                 tracing::debug!(target: "shroudforge::runtime", mod_id = %worker_mod_id,
                     dll = %worker_path.display(), "Isolated native DLL load started");
                 let result = load_native_library(&worker_mod_id, &worker_path, worker_tempdir.clone());
@@ -520,12 +535,13 @@ impl AppState {
                 // A receiver dropped by disable or session shutdown makes send fail.
                 // The returned NativeLibrary is then dropped here and unloaded.
                 let _ = sender.send(result);
-            })
+            },
+        )
             .map_err(|error| {
                 if let Some(directory) = &temporary_directory {
                     let _ = std::fs::remove_dir_all(directory);
                 }
-                format!("could not start isolated DLL loader thread: {error}")
+                error
             })?;
         self.pending_native_dlls
             .borrow_mut()
@@ -1301,8 +1317,53 @@ fn load_native_library(
 mod tests {
     use super::{
         NativeLibrary, NativePluginMode, PendingNativeDll, cancel_pending_plugin_load,
-        is_duplicate_request,
+        is_duplicate_request, spawn_retained_native_worker,
     };
+
+    #[test]
+    fn native_worker_requires_residency_before_detached_execution() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+        let retained = Arc::new(AtomicBool::new(false));
+        let observed = retained.clone();
+        let (release, wait) = mpsc::channel::<()>();
+        let (finished, completion) = mpsc::channel();
+        let worker = spawn_retained_native_worker(
+            "native-residency-test".into(),
+            || {
+                retained.store(true, Ordering::Release);
+                Ok(())
+            },
+            move || {
+                assert!(observed.load(Ordering::Acquire));
+                let _ = wait.recv();
+                finished.send(()).unwrap();
+            },
+        )
+        .unwrap();
+        // Session cancellation can drop its receiver/handle without releasing
+        // the process-resident code that the pending worker will return into.
+        drop(worker);
+        drop(release);
+        completion
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+
+        let called = Arc::new(AtomicBool::new(false));
+        let observed = called.clone();
+        let error = spawn_retained_native_worker(
+            "native-residency-refused".into(),
+            || Err("residency refused".into()),
+            move || {
+                observed.store(true, Ordering::Release);
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error, "residency refused");
+        assert!(!called.load(Ordering::Acquire));
+    }
     use std::{
         fs,
         path::{Path, PathBuf},

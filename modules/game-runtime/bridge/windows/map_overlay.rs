@@ -1,6 +1,31 @@
 //! Control-plane forwarding only. Frame callbacks never enter Rust or Lua.
+use super::native_abi::{
+    DrainMapOverlayServices, QueryMapOverlayService, RevokeMapOverlayServices,
+};
 use super::provider::provider;
 use std::ffi::c_void;
+
+/// A table can escape to a plugin only if its entire retirement surface exists.
+#[derive(Clone, Copy)]
+pub(super) struct MapOverlayExports {
+    query: QueryMapOverlayService,
+    revoke: RevokeMapOverlayServices,
+    drain: DrainMapOverlayServices,
+}
+
+impl MapOverlayExports {
+    pub(super) fn new(
+        query: Option<QueryMapOverlayService>,
+        revoke: Option<RevokeMapOverlayServices>,
+        drain: Option<DrainMapOverlayServices>,
+    ) -> Option<Self> {
+        Some(Self {
+            query: query?,
+            revoke: revoke?,
+            drain: drain?,
+        })
+    }
+}
 pub fn native_publish_notification(id: &str, title: &str, message: &str, level: u32) -> i32 {
     if id.is_empty()
         || id.len() > 256
@@ -47,11 +72,33 @@ pub unsafe fn query_map_overlay_service(
     {
         return 1;
     }
-    let Some(call) = provider().and_then(|p| p.query_map_overlay_service) else {
+    unsafe {
+        forward_query(
+            provider().and_then(|p| p.map_overlay),
+            package,
+            generation,
+            name,
+            version,
+            capacity,
+            output,
+        )
+    }
+}
+
+unsafe fn forward_query(
+    exports: Option<MapOverlayExports>,
+    package: &str,
+    generation: u64,
+    name: &str,
+    version: u32,
+    capacity: u32,
+    output: *mut c_void,
+) -> i32 {
+    let Some(exports) = exports else {
         return 3;
     };
     unsafe {
-        call(
+        (exports.query)(
             package.as_ptr(),
             package.len() as u32,
             generation,
@@ -67,19 +114,20 @@ pub fn revoke_map_overlay_services(package: &str, generation: u64) -> i32 {
     if package.is_empty() || package.len() > 256 || generation == 0 {
         return 1;
     }
-    let Some(call) = provider().and_then(|p| p.revoke_map_overlay_services) else {
+    let Some(exports) = provider().and_then(|p| p.map_overlay) else {
+        // No table can have been exposed by an absent or incomplete capability.
         return 0;
     };
-    unsafe { call(package.as_ptr(), package.len() as u32, generation) }
+    unsafe { (exports.revoke)(package.as_ptr(), package.len() as u32, generation) }
 }
 pub fn drain_map_overlay_services(package: &str, generation: u64, timeout: u32) -> i32 {
     if package.is_empty() || package.len() > 256 || generation == 0 || timeout > 250 {
         return 1;
     }
-    let Some(call) = provider().and_then(|p| p.drain_map_overlay_services) else {
+    let Some(exports) = provider().and_then(|p| p.map_overlay) else {
         return 0;
     };
-    unsafe { call(package.as_ptr(), package.len() as u32, generation, timeout) }
+    unsafe { (exports.drain)(package.as_ptr(), package.len() as u32, generation, timeout) }
 }
 
 #[repr(C)]
@@ -111,6 +159,57 @@ pub fn read_input_keys(keys: &[u32]) -> Result<Vec<InputKeyState>, i32> {
 #[cfg(test)]
 mod map_overlay_tests {
     use super::*;
+    #[test]
+    fn partial_providers_cannot_publish_service_tables() {
+        unsafe extern "C" fn query(
+            _: *const u8,
+            _: u32,
+            _: u64,
+            _: *const u8,
+            _: u32,
+            _: u32,
+            _: u32,
+            output: *mut c_void,
+        ) -> i32 {
+            unsafe {
+                *output.cast::<u32>() = 77;
+            }
+            0
+        }
+        unsafe extern "C" fn revoke(_: *const u8, _: u32, _: u64) -> i32 {
+            6
+        }
+        unsafe extern "C" fn drain(_: *const u8, _: u32, _: u64, _: u32) -> i32 {
+            7
+        }
+        for mask in 0..8 {
+            let exports = MapOverlayExports::new(
+                (mask & 1 != 0).then_some(query as QueryMapOverlayService),
+                (mask & 2 != 0).then_some(revoke as RevokeMapOverlayServices),
+                (mask & 4 != 0).then_some(drain as DrainMapOverlayServices),
+            );
+            let mut output = 0u32;
+            let result = unsafe {
+                forward_query(
+                    exports,
+                    "test",
+                    1,
+                    "shroudforge.map",
+                    1,
+                    4,
+                    (&mut output as *mut u32).cast(),
+                )
+            };
+            if mask == 7 {
+                assert_eq!((result, output), (0, 77));
+                let exports = exports.unwrap();
+                assert_eq!(unsafe { (exports.revoke)(b"test".as_ptr(), 4, 1) }, 6);
+                assert_eq!(unsafe { (exports.drain)(b"test".as_ptr(), 4, 1, 250) }, 7);
+            } else {
+                assert_eq!((result, output), (3, 0), "partial export mask {mask}");
+            }
+        }
+    }
     #[test]
     fn rejects_unbounded_control_inputs_before_provider_access() {
         assert_eq!(read_input_keys(&[]).unwrap_err(), 1);

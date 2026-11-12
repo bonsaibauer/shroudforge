@@ -173,6 +173,7 @@ bool install_hook(std::uint8_t* base, std::string_view signature,
 }
 
 namespace EngineHooks {
+bool StartupReady() {return accepting.load(std::memory_order_acquire);}
 bool Install() {
     if (!hooks.empty()) return accepting.load(std::memory_order_acquire);
     // Published trampolines and their callbacks remain mapped until process exit.

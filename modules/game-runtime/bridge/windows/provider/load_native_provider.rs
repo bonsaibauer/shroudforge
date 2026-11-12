@@ -74,17 +74,19 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                             "KfcRuntimeTakeVeinNoticesV1",
                             TakeVeinNotices
                         ),
-                        query_map_overlay_service: optional_symbol!(
-                            "KfcRuntimeQueryMapOverlayService",
-                            QueryMapOverlayService
-                        ),
-                        revoke_map_overlay_services: optional_symbol!(
-                            "KfcRuntimeRevokeMapOverlayServices",
-                            RevokeMapOverlayServices
-                        ),
-                        drain_map_overlay_services: optional_symbol!(
-                            "KfcRuntimeDrainMapOverlayServices",
-                            DrainMapOverlayServices
+                        map_overlay: super::super::map_overlay::MapOverlayExports::new(
+                            optional_symbol!(
+                                "KfcRuntimeQueryMapOverlayService",
+                                QueryMapOverlayService
+                            ),
+                            optional_symbol!(
+                                "KfcRuntimeRevokeMapOverlayServices",
+                                RevokeMapOverlayServices
+                            ),
+                            optional_symbol!(
+                                "KfcRuntimeDrainMapOverlayServices",
+                                DrainMapOverlayServices
+                            ),
                         ),
                         first_person_available: optional_symbol!(
                             "KfcRuntimeFirstPersonAvailable",

@@ -36,6 +36,9 @@ private:
 // and no original engine gate is acquired. reason must have static lifetime.
 bool MarkSessionWriteUncertain(std::uint64_t expected_session, const char* reason);
 bool Initialize();
+bool Initialize(bool enable_execution_hooks);
+// An additional selected-startup fence, never sufficient write authority alone.
+bool GenericWritesAllowed();
 void Tick();
 std::string Status();
 std::string Diagnostics();

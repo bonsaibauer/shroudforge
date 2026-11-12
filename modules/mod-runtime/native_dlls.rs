@@ -67,8 +67,7 @@ struct Executor {
 fn executor() -> Result<&'static Executor, String> {
     EXECUTOR
         .get_or_init(|| {
-            #[cfg(windows)]
-            pin_executor_module()?;
+            pin_native_runtime_module()?;
             let (sender, receiver) = mpsc::channel::<(String, PathBuf, DllLoadEntry)>();
             let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
             let worker_state = shared.clone();
@@ -124,7 +123,7 @@ fn executor() -> Result<&'static Executor, String> {
 }
 
 #[cfg(windows)]
-fn pin_executor_module() -> Result<(), String> {
+pub(crate) fn pin_native_runtime_module() -> Result<(), String> {
     use windows_sys::Win32::System::LibraryLoader::{
         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_PIN, GetModuleHandleExW,
     };
@@ -135,16 +134,21 @@ fn pin_executor_module() -> Result<(), String> {
     let pinned = unsafe {
         GetModuleHandleExW(
             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
-            executor as *const () as *const u16,
+            pin_native_runtime_module as *const () as *const u16,
             &mut module,
         )
     };
     if pinned == 0 {
         return Err(format!(
-            "could not retain the native DLL executor's runtime module: {}",
+            "could not retain the native host runtime module: {}",
             std::io::Error::last_os_error()
         ));
     }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+pub(crate) fn pin_native_runtime_module() -> Result<(), String> {
     Ok(())
 }
 

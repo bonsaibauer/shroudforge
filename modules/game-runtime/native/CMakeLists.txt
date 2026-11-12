@@ -50,6 +50,14 @@ string(APPEND runtime_license_content
 file(CONFIGURE OUTPUT "${runtime_license_rc}" CONTENT "@runtime_license_content@" @ONLY)
 
 add_library(kfc-runtime SHARED
+    map/read_map_frame.cpp
+    map/capture_game_map.cpp
+    map/hud_visibility.cpp
+    map/serve_map_overlay.cpp
+    graphics/render_overlay.cpp
+    graphics/vulkan_overlay.cpp
+    graphics/notification_overlay.cpp
+    first-person/first_person_control.cpp
     ecs/bind_world_entities.cpp
     ecs/resolve_entity_handle.cpp
     ecs/resolve_entity_command_queue.cpp
@@ -134,7 +142,7 @@ target_include_directories(kfc-runtime PRIVATE
 target_compile_features(kfc-runtime PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime PRIVATE
     KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(kfc-runtime PRIVATE bcrypt Zydis shroudforge-game-profile-discovery)
+target_link_libraries(kfc-runtime PRIVATE bcrypt Zydis shroudforge-game-profile-discovery gdi32 user32)
 set_property(TARGET kfc-runtime PROPERTY MSVC_RUNTIME_LIBRARY
     "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 foreach(configuration DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
@@ -188,7 +196,7 @@ foreach(test_target kfc-runtime-test-prop-query kfc-runtime-test-ecs-read kfc-ru
     target_include_directories(${test_target} PRIVATE ${prop_test_includes})
     target_compile_features(${test_target} PRIVATE cxx_std_20)
     target_compile_definitions(${test_target} PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
-    target_link_libraries(${test_target} PRIVATE bcrypt Zydis shroudforge-game-profile-discovery)
+    target_link_libraries(${test_target} PRIVATE bcrypt Zydis shroudforge-game-profile-discovery gdi32 user32)
     set_property(TARGET ${test_target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endforeach()
 
@@ -318,5 +326,43 @@ add_executable(kfc-runtime-test-world-context EXCLUDE_FROM_ALL
 target_include_directories(kfc-runtime-test-world-context PRIVATE ${prop_test_includes})
 target_compile_features(kfc-runtime-test-world-context PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-test-world-context PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(kfc-runtime-test-world-context PRIVATE bcrypt Zydis shroudforge-game-profile-discovery)
+target_link_libraries(kfc-runtime-test-world-context PRIVATE bcrypt Zydis shroudforge-game-profile-discovery gdi32 user32)
 set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+# Inert fixtures exercise the same owners and renderer as the native provider.
+add_executable(kfc-runtime-test-map-frame EXCLUDE_FROM_ALL
+    ../tests/map_frame_test.cpp map/read_map_frame.cpp)
+add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
+    ../tests/map_service_lifetime_test.cpp map/read_map_frame.cpp
+    graphics/render_overlay.cpp graphics/notification_overlay.cpp)
+add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
+    ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
+    map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp
+    engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp)
+foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-lifetime kfc-runtime-test-overlay-gpu)
+    target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_features(${test_target} PRIVATE cxx_std_20)
+    target_compile_definitions(${test_target} PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+    target_link_libraries(${test_target} PRIVATE bcrypt gdi32 user32)
+    set_property(TARGET ${test_target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endforeach()
+
+add_executable(kfc-runtime-test-first-person-owner EXCLUDE_FROM_ALL ../tests/first_person_owner_test.cpp)
+target_include_directories(kfc-runtime-test-first-person-owner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_features(kfc-runtime-test-first-person-owner PRIVATE cxx_std_20)
+set_property(TARGET kfc-runtime-test-first-person-owner PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+add_executable(kfc-runtime-test-executable-write EXCLUDE_FROM_ALL ../tests/executable_write_test.cpp)
+target_include_directories(kfc-runtime-test-executable-write PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_features(kfc-runtime-test-executable-write PRIVATE cxx_std_20)
+set_property(TARGET kfc-runtime-test-executable-write PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+add_executable(kfc-runtime-test-service-lifecycle EXCLUDE_FROM_ALL ../tests/runtime_service_lifecycle_test.cpp)
+target_include_directories(kfc-runtime-test-service-lifecycle PRIVATE ${prop_test_includes})
+target_compile_features(kfc-runtime-test-service-lifecycle PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-service-lifecycle PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+set_property(TARGET kfc-runtime-test-service-lifecycle PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+add_executable(kfc-runtime-test-metadata-startup EXCLUDE_FROM_ALL ../tests/metadata_startup_test.cpp)
+target_include_directories(kfc-runtime-test-metadata-startup PRIVATE ${prop_test_includes})
+target_compile_features(kfc-runtime-test-metadata-startup PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-metadata-startup PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(kfc-runtime-test-metadata-startup PRIVATE bcrypt)
+set_property(TARGET kfc-runtime-test-metadata-startup PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

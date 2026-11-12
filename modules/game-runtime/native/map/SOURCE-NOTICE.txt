@@ -1,0 +1,47 @@
+Native map/graphics mechanisms adapted from ESM Minimap 0.5.16-gpu-test.4.
+Immutable reference: scratch/minimap-top-right-default-20261024/source.
+Manifest SHA256: 282b8c3611b17f1b807afa948c9419d60f053db118ca31c7fd22705927ad2c05
+Imported current-client guard functions: Camera, Renderer, Markers, Clock, Weather, Fog, World, Death, Visibility.
+Source SHA256 src/client_1_0_guards.h: 1997e0d38e9d69b8e391133ec43bdd8609768e47906481f3d31becabf2a2a81f
+Source SHA256 src/dllmain.cpp: 6a463d00f691ce386812adc154b371953023dee613b96f2b2994df136a40ecaf
+Capture decoding and callback mechanisms are adapted narrowly, without Minimap configuration, layout, appearance, asset selection, loader or product behavior.
+Renderer resource creation, 128-byte terrain push constants, dirty tile uploads,
+CPU terrain sampling and HUD/public Creative ownership validation are also adapted.
+Product settings, widget composition, text/icon/frame selection and atlas lookup
+remain exclusively in shared Minimap. The public Creative proof retains all
+validation; only Minimap's aggregate timing instrumentation was omitted.
+Generic rectangle/texture shaders are host-owned adaptations for the shared
+straight-alpha/coverage contract. Embedded SPIR-V hashes are recorded alongside
+those build inputs and in the Task3 source-input manifest.
+Candidate/offline source provenance only; no live acceptance.
+
+Current0403981f MapRuntime adaptation (2026-11-03): selected native pin arrays,
+callback-local iterator extent/snapshot, and finite public-provider reader from
+the frozen557 ESM Minimap source manifest335c06f9cf9de3d03a3f20f94ec1b2b6bf2f4121c56d7a687177781e1e9fb7e1.
+The SF adaptation keeps aggregate timing off, adds a private bounded continuous
+provider-module lease handoff, and uses Main's genuine held-entry API and shared
+executable writer. It preserves the existing pre-body camera entry sample.
+This is not post-FP frame publication, typed-ring/allocation proof, current-host
+coexistence acceptance or a selected consumer/product runtime receipt.
+
+MIT License
+
+Copyright (c) 2024 Miguel Oppermann
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
