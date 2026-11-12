@@ -7,6 +7,10 @@ endif()
 enable_language(RC)
 enable_language(C)
 
+add_executable(shroudforge-test-native-plugin-abi EXCLUDE_FROM_ALL
+    ../../mod-runtime/tests/native_plugin_abi.c)
+target_compile_features(shroudforge-test-native-plugin-abi PRIVATE c_std_11)
+
 set(SHROUDFORGE_NATIVE_COMPILE_JOBS 2 CACHE STRING
     "Maximum compiler processes for the native runtime")
 if(NOT SHROUDFORGE_NATIVE_COMPILE_JOBS MATCHES "^[1-9][0-9]*$" OR

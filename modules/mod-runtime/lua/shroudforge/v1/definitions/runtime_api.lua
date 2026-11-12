@@ -9,11 +9,19 @@
 --- @field is_client boolean True when this mod runs in a player client process.
 --- @field is_server boolean True when this mod runs in a Dedicated Server process.
 --- @field player RuntimePlayerApi Cached local character selection from the main menu.
+--- @field first_person RuntimeFirstPersonApi Owner-scoped client first-person camera control.
+--- @field map RuntimeMapApi Bounded client map snapshots from the shared native owner.
+--- @field flight RuntimeFlightApi Owner-bound private control plane for sf-unlimited-flight.
 --- @field network RuntimeNetworkApi Steam Networking Messages P2P channel on the current client or dedicated-server process.
 --- @field services RuntimeServicesApi Reflected views of original named engine DI services with independently validated plain-data storage contracts.
 --- @field impact RuntimeImpactApi Checked semantic calls to original named Impact operations.
 --- @field overrides RuntimeOverridesApi Typed reversible changes with shared storage claims and automatic mod-scope cleanup.
 --- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string? Report an observed ECS action state. A confirmed write means typed memory was written, not that the gameplay effect was independently verified.
+
+--- @class RuntimeFlightApi
+--- @field set_local_enabled fun(enabled:boolean):boolean,string? Set local intent, never server acknowledgement. Token is host-owned.
+--- @field reset_local fun():boolean Clear this mod generation's selection without retiring Vein.
+--- @field status fun():table Fields requested_on, local_ready, provider_ready, server_acknowledged (always false).
 
 --- @class RuntimeLifecycle
 --- @field on_load fun()? Called when the runtime mod starts.
@@ -979,3 +987,52 @@ function log.error(...) end
 --- @field mod_kind "lua" Runtime package kind for the currently running mod.
 --- @field log ShroudForgeLogApi Write messages to this mod's shared ShroudForge log.
 shroudforge = {}
+
+---@class RuntimeMapMeta
+---@field status integer 0 ready; 1 disabled; 2 unsupported; 3 no session; 4 uncaptured; 5 stale; 6 wrong generation.
+---@field session_generation string Lossless decimal u64.
+---@field revision string Lossless decimal u64.
+---@field clock_domain string Windows monotonic tick domain.
+---@field published_at_ms string
+---@field freshness_limit_ms integer
+---@class RuntimeMapApi
+local RuntimeMapApi = {}
+---Read scalar state, pose, freshness and collection metadata. No grid/marker bulk copy.
+---@return table? frame
+---@return string? reason
+function RuntimeMapApi.get_frame() end
+---Read at most 256 markers. Collection: world, players, deaths, waypoints, pings, discovery.
+---@param collection string
+---@param offset integer Zero-based.
+---@param limit integer 1..256.
+---@param generation string? Expected session generation.
+---@return table? page
+---@return string? reason
+function RuntimeMapApi.get_markers(collection, offset, limit, generation) end
+---Read at most 4096 fog bytes as a binary string. Bytes retain native tile-major 32x32 order.
+---Pass the previous generation/revision to reject changes between chunk reads.
+---@param offset integer Zero-based byte offset.
+---@param count integer 1..4096.
+---@param generation string?
+---@param revision string?
+---@return table? chunk Fields: meta RuntimeMapMeta, bytes string.
+---@return string? reason
+function RuntimeMapApi.get_fog(offset, count, generation, revision) end
+
+---Activate/query this owner's native overlay service status without registering any Lua rendering.
+---Status uses SF_NATIVE_STATUS; reason 1 means recreate the swapchain after interception,
+---reason 2 means a valid device/swapchain recreation is required. Includes action and counters.
+---@return table? status
+---@return string? reason
+function RuntimeMapApi.get_status() end
+
+---@class RuntimeFirstPersonApi
+local RuntimeFirstPersonApi = {}
+---Set this mod owner's first-person camera mode on an admitted client build.
+---cameraDistance must be finite and between -0.5 and 0.5. The native provider
+---validates the exact camera and gauge controls for the current client image.
+---@param enabled boolean
+---@param cameraDistance number Camera offset in the admitted native range [-0.5, 0.5].
+---@return boolean ok
+---@return string? reason
+function RuntimeFirstPersonApi.set_mode(enabled, cameraDistance) end

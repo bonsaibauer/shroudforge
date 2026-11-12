@@ -202,15 +202,27 @@ impl AppState {
         if !self.asset_transaction.get() {
             return Err(LuaError::generic("typed asset transaction is unavailable"));
         }
-        // Publishing replaces enshrouded.kfc_resources, which the reader keeps
-        // open. Windows replaces open files with POSIX semantics, Wine/Proton
-        // rejects that with "Access denied (os error 5)".
+        // Release input handles before either publishing here or handing the
+        // validated output to the caller that owns deferred publication.
         self.reader.borrow_mut().take();
-        shroudforge_game_assets::transaction::commit(
-            self.env.game_dir().as_std_path(),
-            &self.asset_stem,
-        )
-        .map_err(LuaError::external)?;
+        if self.prepared_asset_output {
+            // Prepared output stays private in its separate stage and is never
+            // published by the ordinary session commit path.
+            self.asset_transaction.set(false);
+            return Ok(());
+        }
+        if self.defer_current_commit {
+            // The caller now owns this validated output. Drop must not discard
+            // it before the outer pending receipt and transaction are committed.
+            self.asset_transaction.set(false);
+            return Ok(());
+        }
+        let commit = if self.generated_asset_transaction {
+            shroudforge_game_assets::transaction::commit_generated
+        } else {
+            shroudforge_game_assets::transaction::commit
+        };
+        commit(self.env.game_dir().as_std_path(), &self.asset_stem).map_err(LuaError::external)?;
         self.asset_transaction.set(false);
         Ok(())
     }

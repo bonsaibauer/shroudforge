@@ -13,9 +13,17 @@ impl IngameRuntime {
             .app_data_ref::<AppState>()
             .unwrap()
             .poll_native_dll_loads();
+        let client = !self
+            .runner
+            .lua
+            .app_data_ref::<AppState>()
+            .unwrap()
+            .is_server();
+        self.deliver_vein_notices(client);
         self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
-            let config = shroudforge_loader_config::config::read_loader_in_background(&self.root).ok();
+            let config =
+                shroudforge_loader_config::config::read_loader_in_background(&self.root).ok();
             if config
                 .as_ref()
                 .and_then(|value| value.pointer("/modules/network/enabled"))
@@ -47,6 +55,7 @@ impl IngameRuntime {
         crate::env::shroudforge::dispatch_ui_actions(&self.runner.lua, &self.active_mod_ids());
         self.update_mod_callbacks(delta_seconds);
         let state = self.runner.lua.app_data_ref::<AppState>().unwrap();
+        state.update_native_plugins(delta_seconds);
         state.advance_loaded_resource_indexes();
     }
 }

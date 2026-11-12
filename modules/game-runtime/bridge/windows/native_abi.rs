@@ -140,7 +140,39 @@ pub(super) type WorldEntityFinish = unsafe extern "C" fn(bool, *mut u32) -> bool
 pub(super) type RuntimePatchAvailable = unsafe extern "C" fn(*const c_char) -> bool;
 pub(super) type RuntimePatchSetEnabled =
     unsafe extern "C" fn(*const c_char, bool, *mut u32) -> bool;
+pub(super) type QueryMapOverlayService =
+    unsafe extern "C" fn(*const u8, u32, u64, *const u8, u32, u32, u32, *mut c_void) -> i32;
+pub(super) type RevokeMapOverlayServices = unsafe extern "C" fn(*const u8, u32, u64) -> i32;
+pub(super) type DrainMapOverlayServices = unsafe extern "C" fn(*const u8, u32, u64, u32) -> i32;
+pub(super) type ReadInputKeys = unsafe extern "C" fn(*const u32, u32, u32, *mut c_void) -> i32;
+pub(super) type PublishNotification =
+    unsafe extern "C" fn(*const u8, u32, *const u8, u32, *const u8, u32, u32) -> i32;
+pub(super) type TakeVeinNotices = unsafe extern "C" fn(*mut crate::VeinNativeNotices, u32) -> i32;
+pub(super) type FirstPersonAvailable = unsafe extern "C" fn() -> bool;
+pub(super) type FirstPersonDetail = unsafe extern "C" fn(*mut c_char, usize) -> usize;
+pub(super) type FirstPersonConfigure = unsafe extern "C" fn(u64, f64) -> u32;
+pub(super) type FirstPersonSetMode = unsafe extern "C" fn(u64, bool) -> u32;
+pub(super) type FirstPersonReleaseOwner = unsafe extern "C" fn(u64) -> u32;
 pub(super) struct Provider {
+    pub(super) flight_set: Option<unsafe extern "C" fn(u64, u32) -> i32>,
+    pub(super) flight_reset: Option<unsafe extern "C" fn(u64) -> i32>,
+    pub(super) flight_retire: Option<unsafe extern "C" fn(u64) -> i32>,
+    pub(super) flight_status:
+        Option<unsafe extern "C" fn(u64, *mut crate::FlightClientStatus) -> i32>,
+    pub(super) read_input_keys: Option<ReadInputKeys>,
+    pub(super) publish_notification: Option<PublishNotification>,
+    pub(super) take_vein_notices: Option<TakeVeinNotices>,
+    pub(super) query_map_overlay_service: Option<QueryMapOverlayService>,
+    pub(super) revoke_map_overlay_services: Option<RevokeMapOverlayServices>,
+    pub(super) drain_map_overlay_services: Option<DrainMapOverlayServices>,
+    pub(super) first_person_available: Option<FirstPersonAvailable>,
+    pub(super) first_person_detail: Option<FirstPersonDetail>,
+    pub(super) first_person_configure: Option<FirstPersonConfigure>,
+    pub(super) first_person_set_mode: Option<FirstPersonSetMode>,
+    pub(super) first_person_release_owner: Option<FirstPersonReleaseOwner>,
+    /// Presence of the private held-entry preparation export, not proof that
+    /// startup preparation ran successfully.
+    pub(super) first_person_held_entry_prepare: bool,
     pub(super) configure: Configure,
     pub(super) ready: Ready,
     pub(super) prop_query_ready: Option<Ready>,

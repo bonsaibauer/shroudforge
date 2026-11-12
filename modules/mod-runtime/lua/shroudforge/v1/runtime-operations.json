@@ -5,6 +5,7 @@
     "runtime.lifecycle",
     "runtime.is_main_menu",
     "runtime.player.name",
+    "runtime.first_person.set_mode",
     "runtime.network.status",
     "runtime.network.send",
     "runtime.network.send_mod",
@@ -32,6 +33,10 @@
     "runtime.world.entity.place",
     "runtime.world.entity.destroy",
     "runtime.world.entity.finish_building",
-    "runtime.gameplay.patch"
+    "runtime.gameplay.patch",
+    "runtime.map.frame",
+    "runtime.map.markers",
+    "runtime.map.fog",
+    "runtime.map.status"
   ]
 }

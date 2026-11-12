@@ -6,20 +6,23 @@ use serde_json::json;
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
-use super::read_ui_locale::read_ui_locale;
 use super::read_monotonic_clock::read_monotonic_clock;
+use super::read_ui_locale::read_ui_locale;
 use super::set_mod_settings::set_settings;
 use crate::lua::LuaValue;
 
 pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let table = lua.create_table()?;
     table.raw_set("version", env!("CARGO_PKG_VERSION"))?;
-    table.raw_set("clock", lua.create_function(|_, ()| Ok(read_monotonic_clock()))?)?;
+    table.raw_set(
+        "clock",
+        lua.create_function(|_, ()| Ok(read_monotonic_clock()))?,
+    )?;
     table.raw_set("contents", super::read_game_content::create(lua)?)?;
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
 
@@ -138,7 +141,8 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
         "set_keybind_extra_modifiers",
         lua.create_function(move |_, (key, modifiers): (String, Option<String>)| {
             if !extra_settings.iter().any(|setting| {
-                setting.key == key && matches!(setting.control, Some(mod_loader::SettingControl::Keybind))
+                setting.key == key
+                    && matches!(setting.control, Some(mod_loader::SettingControl::Keybind))
             }) {
                 return Err(mlua::Error::runtime("setting is not a declared keybind"));
             }
@@ -260,7 +264,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let notifications = lua.create_table()?;
     notifications.raw_set(
         "publish",
-        lua.create_function(move |_, notice: Table| {
+        lua.create_function(move |lua, notice: Table| {
             let id = notice.get::<String>("id")?;
             let title = notice.get::<String>("title")?;
             let message = notice.get::<String>("message")?;
@@ -281,20 +285,30 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             }
             let namespaced_id = format!("{mod_id}.{id}");
             let payload = json!({
-                "id": namespaced_id,
+                "id": &namespaced_id,
                 "modId": mod_id,
-                "title": title,
-                "message": message,
-                "level": level,
+                "title": &title,
+                "message": &message,
+                "level": &level,
                 "actionUrl": action_url,
                 "updatedAt": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
             });
-            shroudforge_news::write_event(&game_dir, &format!("{mod_id}-{id}"), &payload).map_err(mlua::Error::external)?;
+            super::notification_delivery::deliver(
+                || shroudforge_news::write_event(&game_dir, &format!("{mod_id}-{id}"), &payload),
+                || {
+                    if lua.app_data_ref::<crate::session::AppState>().is_some_and(|state| !state.is_server()) {
+                        shroudforge_runtime_bridge::publish_notification(&namespaced_id, &title, &message, &level)
+                    } else { 3 }
+                },
+            ).map_err(mlua::Error::external)?;
             Ok(())
         })?,
     )?;
     table.raw_set("notifications", notifications)?;
-    table.raw_set("native", super::call_mod_native_functions::create(lua, &r#mod.info().id)?)?;
+    table.raw_set(
+        "native",
+        super::call_mod_native_functions::create(lua, &r#mod.info().id)?,
+    )?;
 
     Ok(table)
 }
@@ -376,10 +390,9 @@ fn request_modloader_toggle() -> Result<(), String> {
         EVENT_MODIFY_STATE, GetCurrentProcessId, OpenEventW, SetEvent,
     };
 
-    let name = format!(
-        "Local\\ShroudForge.ModMenu.Open.{}",
-        unsafe { GetCurrentProcessId() }
-    );
+    let name = format!("Local\\ShroudForge.ModMenu.Open.{}", unsafe {
+        GetCurrentProcessId()
+    });
     let name: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
     let event = unsafe { OpenEventW(EVENT_MODIFY_STATE, 0, name.as_ptr()) };
     if event.is_null() {

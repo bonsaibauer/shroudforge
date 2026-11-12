@@ -4,12 +4,68 @@ use kfc::container::StaticMapBuilder;
 use kfc::guid::Guid;
 
 // Synthetic containers and reflected types only. No game files or native host.
-struct Fixture {
-    lua: mlua::Lua,
-    root: std::path::PathBuf,
+pub(crate) struct Fixture {
+    pub(crate) lua: mlua::Lua,
+    pub(crate) root: std::path::PathBuf,
 }
 
 impl Fixture {
+    pub(crate) fn generated(prepared: bool) -> Self {
+        let fixture = Self::new();
+        let input = fixture.root.join("input");
+        let output = fixture.root.join("output");
+        std::fs::create_dir(&input).unwrap();
+        std::fs::create_dir(&output).unwrap();
+        std::fs::write(input.join("fixture.kfc"), []).unwrap();
+        std::fs::write(input.join("fixture.kfc_resources"), []).unwrap();
+        let mut state = fixture.lua.app_data_mut::<AppState>().unwrap();
+        state.writer.borrow_mut().take();
+        let mut original =
+            KFCWriter::<KFCFile, _>::new(&input, "fixture", state.type_registry.clone(), "fixture")
+                .unwrap();
+        original
+            .write_content(&ContentHash::from_data(b"original"), b"original")
+            .unwrap();
+        original.finalize().unwrap();
+        state.ref_file = Rc::new(KFCFile::from_path(input.join("fixture.kfc"), false).unwrap());
+        state.env = ModEnvironment::load(camino::Utf8Path::from_path(&input).unwrap()).unwrap();
+        state.asset_input_root = input.clone();
+        state.asset_output_root = if prepared {
+            output.clone()
+        } else {
+            input.clone()
+        };
+        state.prepared_asset_output = prepared;
+        state.generated_asset_transaction = true;
+        state.asset_transaction.set(true);
+        let stage = if prepared {
+            shroudforge_game_assets::transaction::begin_generated_prepared(
+                &input, &output, "fixture",
+            )
+        } else {
+            shroudforge_game_assets::transaction::begin_generated(&input, "fixture")
+        }
+        .unwrap();
+        *state.reader.borrow_mut() = Some(
+            KFCReader::new(&input, "fixture")
+                .unwrap()
+                .into_cursor()
+                .unwrap(),
+        );
+        *state.writer.borrow_mut() = Some(
+            KFCWriter::new_generated_incremental(
+                &input,
+                &stage,
+                "fixture",
+                state.ref_file.clone(),
+                state.type_registry.clone(),
+            )
+            .unwrap(),
+        );
+        drop(state);
+        fixture
+    }
+
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!("sf-assets-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("mods/fixture/src")).unwrap();
@@ -45,6 +101,17 @@ impl Fixture {
         std::fs::write(root.join("fixture.kfc_resources"), []).unwrap();
         let writer = KFCWriter::new(&root, "fixture", registry.clone(), "fixture").unwrap();
         let state = AppState {
+            generated_asset_transaction: false,
+            defer_current_commit: false,
+            prepared_asset_output: false,
+            asset_input_root: root.clone(),
+            asset_output_root: root.clone(),
+            map_lua_owners: RefCell::new(HashMap::new()),
+            native_dlls: RefCell::new(Vec::new()),
+            pending_native_dlls: RefCell::new(Vec::new()),
+            native_plugin_services: RefCell::new(Arc::new(
+                native_plugin_abi::NoNativePluginServices,
+            )),
             runtime_configured: Cell::new(false),
             runtime_active_mods: RefCell::default(),
             runtime_effects: RefCell::default(),

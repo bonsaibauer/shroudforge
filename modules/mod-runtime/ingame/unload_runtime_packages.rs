@@ -20,6 +20,19 @@ impl IngameRuntime {
                 .unwrap()
                 .set_runtime_mod_active(&item.id, false);
             unloaded_ids.push(item.id.clone());
+            let native_stop = self
+                .runner
+                .lua
+                .app_data_ref::<AppState>()
+                .unwrap()
+                .stop_native_plugin(&item.id);
+            if let Err(error) = native_stop {
+                let mod_id = item.id.clone();
+                self.restore_previous_runtime(&unloaded_ids);
+                return Err(format!(
+                    "mod '{mod_id}' native plugin teardown prevented package unload: {error}"
+                ));
+            }
         }
         self.publish_status(true);
         Ok(())
