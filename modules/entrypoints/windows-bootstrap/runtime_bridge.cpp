@@ -14,7 +14,8 @@ StatusFunction status{};
 std::string error{"provider-not-loaded"};
 }
 namespace EcsRuntime {
-bool Initialize() {
+bool LoadProvider() {
+    if(provider)return true;
     HMODULE self{};
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         reinterpret_cast<LPCWSTR>(&Initialize), &self)) return false;
@@ -37,7 +38,35 @@ bool Initialize() {
         tick = nullptr; shutdown = nullptr; status = nullptr;
         FreeLibrary(provider); provider = nullptr; return false;
     }
-    return initialize();
+    return true;
+}
+bool Initialize() {
+    if(!LoadProvider())return false;
+    return reinterpret_cast<InitializeFunction>(GetProcAddress(provider,"KfcRuntimeInitialize"))();
+}
+bool PrepareSelected(const SelectedStartup::PlanV2& plan,const EngineHooks::HeldEntryProof& proof) {
+    if(!SelectedStartup::Valid(plan) || !LoadProvider())return false;
+    const auto prepare=reinterpret_cast<decltype(&KfcRuntimePrepareSelectedV1)>(GetProcAddress(provider,"KfcRuntimePrepareSelectedV1"));
+    // Resolve the complete selected lifecycle before publishing any callbacks.
+    if(!prepare || !GetProcAddress(provider,"KfcRuntimeActivateSelectedV1") ||
+        !GetProcAddress(provider,"KfcRuntimeRequireOriginalOwnersV1") || !GetProcAddress(provider,"KfcRuntimeFinalizeOriginalOwnersV1")) {
+        error="selected-runtime-exports-unavailable";return false;
+    }
+    unsigned completed{};
+    return prepare(&plan,&proof,nullptr,0,&completed) && completed==SelectedStartup::PreparedServices(plan);
+}
+bool ActivateSelected(const SelectedStartup::PlanV2& plan) {
+    if(!provider)return false;
+    const auto activate=reinterpret_cast<decltype(&KfcRuntimeActivateSelectedV1)>(GetProcAddress(provider,"KfcRuntimeActivateSelectedV1"));
+    unsigned completed{};return activate && activate(&plan,&completed) && completed==plan.services;
+}
+bool RequireOriginalOwners() {
+    const auto call=provider?reinterpret_cast<decltype(&KfcRuntimeRequireOriginalOwnersV1)>(GetProcAddress(provider,"KfcRuntimeRequireOriginalOwnersV1")):nullptr;
+    return call && call();
+}
+bool FinalizeOriginalOwners() {
+    const auto call=provider?reinterpret_cast<decltype(&KfcRuntimeFinalizeOriginalOwnersV1)>(GetProcAddress(provider,"KfcRuntimeFinalizeOriginalOwnersV1")):nullptr;
+    return call && call();
 }
 void Tick() { if (tick) tick(); }
 void Shutdown() { if (shutdown) shutdown(); }

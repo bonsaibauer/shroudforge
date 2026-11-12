@@ -1,5 +1,6 @@
 #[path = "asset_preparation/mod.rs"]
 mod pregame;
+mod startup_services;
 #[cfg(any(windows, target_os = "linux"))]
 #[path = "start_updater_controller.rs"]
 mod start_updater_controller;
@@ -165,6 +166,10 @@ impl ModLoader {
             .ok_or_else(|| LoaderError::Environment("game path is not UTF-8".into()))?;
         let environment = shroudforge_package::ModEnvironment::load(root)
             .map_err(|report| LoaderError::Environment(format!("{report:?}")))?;
+        self.load_environment(&environment)
+    }
+
+    fn load_environment(&mut self, environment: &shroudforge_package::ModEnvironment) -> Result<LoadReport, LoaderError> {
         let file_name = if self.is_client {
             "enshrouded"
         } else {
@@ -251,7 +256,10 @@ fn prepare_native_dlls_before_game_entry(game: &Path) -> bool {
                 .map(|name| name.to_string_lossy().into_owned())
         })
         .is_some_and(|name| name.eq_ignore_ascii_case("enshrouded_server.exe"));
-    match std::panic::catch_unwind(|| shroudforge_api::prepare_native_dlls(game, is_server)) {
+    match std::panic::catch_unwind(|| {
+        if shroudforge_api::startup_services::prepare(game, is_server)? { return Ok(()); }
+        shroudforge_api::prepare_native_dlls(game, is_server)
+    }) {
         Ok(Ok(())) => true,
         Ok(Err(error)) => {
             let _ = shroudforge_logging::append(game, 'E', "dll-manager", &error);
@@ -398,9 +406,13 @@ pub unsafe extern "C" fn shroudforge_create(game: *const u16) -> *mut RuntimeHan
             runtime: None,
             is_client,
         };
-        loader
-            .load_directory(&game)
-            .map_err(|error| format!("mod loading failed at {}: {error}", game.display()))?;
+        let admitted = shroudforge_api::startup_services::before_create(&game)?;
+        let result = match admitted {
+            Some(environment) => loader.load_environment(&environment),
+            None => loader.load_directory(&game),
+        };
+        shroudforge_api::startup_services::after_create(result.is_ok());
+        result.map_err(|error| format!("mod loading failed at {}: {error}", game.display()))?;
         Ok(RuntimeHandle(loader))
     }
     match std::panic::catch_unwind(|| {
@@ -417,6 +429,7 @@ pub unsafe extern "C" fn shroudforge_create(game: *const u16) -> *mut RuntimeHan
     }) {
         Ok(handle) => handle,
         Err(payload) => {
+            shroudforge_api::startup_services::after_create(false);
             if let Some(game) = path(game) {
                 let _ = shroudforge_logging::initialize(&game, false);
                 append_runtime_log(

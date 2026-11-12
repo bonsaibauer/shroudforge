@@ -212,6 +212,9 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
             }
         }
     }
+    if crate::startup_services::ordinary_already_loaded(root, &entry)? {
+        return Ok(());
+    }
     queue_process_library(root, entry)
 }
 
@@ -435,6 +438,20 @@ fn classify_plan_entries(
     (ordinary, deferred, rejected, issues)
 }
 
+/// Inspect the approved selection without loading a DLL or starting a worker.
+pub(crate) fn selected_startup_plugins(
+    root: &Path,
+    is_server: bool,
+) -> (Vec<DllLoadEntry>, Vec<DeferredNativePlugin>, bool) {
+    let plan = mod_loader::dll_manager::resolve_load_plan(root, is_server);
+    let (ordinary, plugins, rejected, issues) = classify_plan_entries(root, plan.entries);
+    (
+        ordinary,
+        plugins,
+        !plan.issues.is_empty() || !rejected.is_empty() || !issues.is_empty(),
+    )
+}
+
 pub(crate) fn deferred_native_plugins(
     root: &Path,
     is_server: bool,
@@ -502,6 +519,27 @@ fn is_authorized_deferred_entry(root: &Path, entry: &DllLoadEntry) -> Result<boo
 /// Called while the bootstrap holds the game entrypoint, outside the loader lock.
 /// File errors remain local to their DLL. A worker that never finishes must not
 /// release the game into an unknown, possibly locked initialization state.
+pub(crate) fn prepare_selected_startup(root: &Path, is_server: bool) -> Result<(), String> {
+    if APPLIED_PLAN.get().is_some() {
+        return Err("Native plan was applied before selected admission".into());
+    }
+    let plan = mod_loader::dll_manager::resolve_load_plan(root, is_server);
+    let identity = mod_loader::dll_manager::load_plan_identity(&plan);
+    let (_, deferred, rejected_entries, issues) = classify_plan_entries(root, plan.entries);
+    if !issues.is_empty() || !plan.issues.is_empty() || !rejected_entries.is_empty() {
+        return Err("Selected native plan is unresolved".into());
+    }
+    APPLIED_PLAN
+        .set(AppliedPlan {
+            root_key: root_key(root)?,
+            is_server,
+            identity,
+            entries: deferred,
+            rejected_entries,
+        })
+        .map_err(|_| "Native startup plan was already published".into())
+}
+
 pub fn prepare_startup(root: &Path, is_server: bool) -> Result<(), String> {
     apply_plan(root, is_server, true)
 }
@@ -656,7 +694,10 @@ fn path_key(path: &Path) -> String {
 }
 
 #[cfg(windows)]
-fn load_library(root: &Path, entry: &DllLoadEntry) -> (Option<isize>, Result<(), String>) {
+pub(crate) fn load_library(
+    root: &Path,
+    entry: &DllLoadEntry,
+) -> (Option<isize>, Result<(), String>) {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::{
         Foundation::HMODULE,
@@ -735,7 +776,10 @@ fn load_library(root: &Path, entry: &DllLoadEntry) -> (Option<isize>, Result<(),
 }
 
 #[cfg(not(windows))]
-fn load_library(_root: &Path, _entry: &DllLoadEntry) -> (Option<isize>, Result<(), String>) {
+pub(crate) fn load_library(
+    _root: &Path,
+    _entry: &DllLoadEntry,
+) -> (Option<isize>, Result<(), String>) {
     (
         None,
         Err("Native DLL loading is available only on Windows".into()),

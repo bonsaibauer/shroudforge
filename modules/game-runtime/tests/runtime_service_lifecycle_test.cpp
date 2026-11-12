@@ -1,5 +1,13 @@
 // Exercise the real host lifecycle with inert service owners.
 #include "host/manage_runtime_lifecycle.cpp"
+DWORD WINAPI SelectedFixtureModuleName(HMODULE,wchar_t* path,DWORD count) {
+    const wchar_t name[]=L"enshrouded.exe";
+    if(count<std::size(name))return 0;
+    std::memcpy(path,name,sizeof(name));return static_cast<DWORD>(std::size(name)-1);
+}
+#define GetModuleFileNameW SelectedFixtureModuleName
+#include "host/prepare_selected_startup.cpp"
+#undef GetModuleFileNameW
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
@@ -7,12 +15,14 @@
 namespace {
 std::vector<unsigned> stopped;
 unsigned ticks{}, resource_initializations{};
-bool fail_tick{}, fail_stop{}, fail_initialization{}, hooks_ready{};
+bool fail_tick{}, fail_stop{}, fail_initialization{}, hooks_ready{}, selected_execution{};
+std::vector<unsigned> prepared;
 void check(bool ok) { if (!ok) { std::fputs("Runtime owner retirement failed\n", stderr); std::exit(1); } }
 void verify_stopped() { check(stopped == std::vector<unsigned>{1, 2, 3, 4, 5, 6, 7, 8}); }
 }
 namespace EcsRuntime {
 bool Initialize() { return true; }
+bool Initialize(bool execution) {selected_execution=execution;prepared.push_back(1);return true;}
 void Tick() { ++ticks; }
 void Shutdown() { stopped.push_back(8); }
 }
@@ -31,22 +41,46 @@ void PrepareWriter() {}
 void StopPreparingWriter() { stopped.push_back(1); if (fail_stop) throw 1; }
 }
 namespace FirstPersonControl {
-bool Prepare(const EngineHooks::HeldEntryToken&) noexcept { return false; }
+bool Prepare(const EngineHooks::HeldEntryToken& token) noexcept {prepared.push_back(3);return token.ValidForCurrentThread();}
 void Shutdown() noexcept { stopped.push_back(2); }
 }
-namespace MapRuntime { void StopCapture() noexcept { stopped.push_back(3); } }
+namespace MapRuntime {
+void StopCapture() noexcept { stopped.push_back(3); }
+std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {prepared.push_back(2);return token.ValidForCurrentThread()?0:1;}
+bool RequireOriginalOwners() noexcept {prepared.push_back(5);return true;}
+bool FinalizeOriginalOwners() noexcept {prepared.push_back(6);return true;}
+}
 namespace OverlayRuntime {
-bool PrepareGraphicsBoot(bool) { return true; }
+bool PrepareGraphicsBoot(bool) {prepared.push_back(4);return true;}
 void TickServices() { if (fail_tick) throw 1; }
 void ShutdownServices() { stopped.push_back(4); }
 }
 namespace EngineHooks {
 bool StartupReady() { return hooks_ready; }
-bool RunHeldEntryPreparation(const HeldEntryProof&, HeldEntryCallback, void*) noexcept { return false; }
+bool HeldEntryToken::ValidForCurrentThread() const noexcept {return proof_.is_held && proof_.is_held(proof_.parked_thread_id);}
+bool RunHeldEntryPreparation(const HeldEntryProof& proof, HeldEntryCallback callback, void* context) noexcept {
+    if(!proof.is_held || !proof.is_held(proof.parked_thread_id))return false;
+    HeldEntryToken token(proof,GetCurrentThreadId());return callback(token,context);
+}
 }
 extern "C" void __cdecl KfcRuntimeNetworkServiceShutdown() { stopped.push_back(5); }
 
-int main() {
+int main(int argc,char**) {
+    if(argc>1) {
+        fail_initialization=true;
+        SelectedStartup::PlanV2 plan;plan.services=SelectedStartup::Metadata|SelectedStartup::MapCapture;
+        EngineHooks::HeldEntryProof proof;proof.parked_thread_id=123;
+        proof.is_held=+[](std::uint32_t thread) noexcept{return thread==123;};
+        unsigned completed=999;
+        check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==0);
+        verify_stopped();
+        check(prepared==std::vector<unsigned>{1});
+        check(!KfcRuntimeInitialize() && !KfcRuntimeActivateSelectedV1(&plan,&completed));
+        check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed));
+        verify_stopped();
+        std::puts("PASS: failed selected preparation retires once and cannot restart");
+        return 0;
+    }
     check(!KfcRuntimeStartupReady());
     check(KfcRuntimeInitialize());
     check(!KfcRuntimeStartupReady());
@@ -73,5 +107,24 @@ int main() {
     fail_initialization = true;
     check(!KfcRuntimeInitialize());
     verify_stopped();
-    std::puts("PASS: partial startup, shutdown failure and terminal tick retirement");
+    fail_initialization=fail_stop=fail_tick=false;stopped.clear();prepared.clear();
+    SelectedStartup::PlanV2 plan;plan.services=SelectedStartup::Metadata|SelectedStartup::MapCapture|SelectedStartup::FirstPerson|SelectedStartup::Graphics;
+    EngineHooks::HeldEntryProof proof;unsigned completed=999;
+    check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==0 && prepared.empty());
+    proof.parked_thread_id=123;proof.is_held=+[](std::uint32_t thread) noexcept{return thread==123;};
+    auto invalid=plan;invalid.services|=SelectedStartup::SharedProvider|SelectedStartup::FlightScalar;invalid.opt_ins=5;
+    check(!KfcRuntimePrepareSelectedV1(&invalid,&proof,nullptr,0,&completed) && prepared.empty());
+    invalid=plan;invalid.process_role=SelectedStartup::DedicatedServer;
+    check(!KfcRuntimePrepareSelectedV1(&invalid,&proof,nullptr,0,&completed));
+    check(KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==plan.services && !selected_execution);
+    check(prepared==std::vector<unsigned>({1,2,3,4}) && !KfcRuntimeInitialize());
+    check(!KfcRuntimeRequireOriginalOwnersV1()); // Preparation is not activation.
+    check(KfcRuntimeActivateSelectedV1(&plan,&completed) && completed==plan.services);
+    check(KfcRuntimeRequireOriginalOwnersV1() && KfcRuntimeFinalizeOriginalOwnersV1());
+    check(prepared==std::vector<unsigned>({1,2,3,4,5,6}));
+    const auto selected_resources=resource_initializations;KfcRuntimeTick();check(resource_initializations==selected_resources);
+    check(!KfcRuntimeActivateSelectedV1(&plan,&completed));
+    stopped.clear();KfcRuntimeShutdown();verify_stopped();
+    check(!KfcRuntimeInitialize() && !KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed));
+    std::puts("PASS: runtime lifecycle and actual selected export order, masks, held-entry and terminal retirement");
 }

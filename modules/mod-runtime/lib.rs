@@ -14,6 +14,7 @@ mod native_dlls;
 pub mod reflection;
 mod session;
 mod startup;
+pub mod startup_services;
 mod type_aliases;
 use ingame as runtime;
 use lua::bindings as env;

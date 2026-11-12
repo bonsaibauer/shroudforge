@@ -40,16 +40,8 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimePrepareHeldEntry(const EngineHooks::HeldE
 }
 
 KFC_RUNTIME_API bool __cdecl KfcRuntimeInitialize() {
-    try {
-        const auto initialized = EcsRuntime::Initialize();
-        ResourceRuntime::Initialize();
-        NativeMainMenu::Initialize();
-        provider_initialized.store(true, std::memory_order_release);
-        return initialized;
-    } catch (...) {
-        KfcRuntimeShutdown();
-        return false;
-    }
+    if (selected_startup_attempted()) return false;
+    return initialize_provider(true, false);
 }
 
 KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
@@ -65,13 +57,32 @@ KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
     }
     static ULONGLONG next_resource_profile_retry{};
     const auto now = GetTickCount64();
-    if (!ResourceRuntime::ProfileLoaded() && now >= next_resource_profile_retry) {
+    if (!selected_startup_attempted() && !ResourceRuntime::ProfileLoaded() && now >= next_resource_profile_retry) {
         next_resource_profile_retry = now + 2000;
         try { ResourceRuntime::Initialize(); } catch (...) {}
     }
 }
 
 KFC_RUNTIME_API void __cdecl KfcRuntimeShutdown() {
+    close_selected_startup();
+    shutdown_provider_components();
+}
+}
+
+namespace ProviderImplementation {
+bool initialize_provider(bool execution, bool selected) {
+    try {
+        const auto initialized = selected ? EcsRuntime::Initialize(execution) : EcsRuntime::Initialize();
+        // The selected state machine owns failure retirement exactly once.
+        if (selected && !initialized) return false;
+        const auto resources = ResourceRuntime::Initialize();
+        if (selected && !resources) return false;
+        NativeMainMenu::Initialize();
+        provider_initialized.store(true, std::memory_order_release);
+        return initialized;
+    } catch (...) { if (!selected) shutdown_provider_components(); return false; }
+}
+void shutdown_provider_components() noexcept {
     provider_initialized.store(false, std::memory_order_release);
     // A failed owner cleanup must not skip retirement of the remaining owners.
     const auto safely = [](auto stop) noexcept { try { stop(); } catch (...) {} };

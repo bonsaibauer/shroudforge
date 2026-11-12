@@ -111,6 +111,7 @@ add_library(kfc-runtime SHARED
     main-menu/resolve_game_flow.cpp
     main-menu/manage_native_main_menu.cpp
     host/manage_runtime_lifecycle.cpp
+    host/prepare_selected_startup.cpp
     code-inventory/export_function_inspection.cpp
     code-inventory/resolve_original_call_graph.cpp
     host/describe_runtime.cpp

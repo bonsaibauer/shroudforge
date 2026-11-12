@@ -1,9 +1,29 @@
 #include "bootstrap_state.h"
+#include "greeneye_entry.h"
 
 using namespace BootstrapImplementation;
 
 
 namespace BootstrapImplementation {
+namespace {
+struct SelectedContinuation {
+    std::filesystem::path root;
+    SelectedStartup::PlanV2 plan;
+    bool (__cdecl* commit)(const wchar_t*,unsigned){};
+    bool has_original{};
+    GreeneyeEntry::Context original;
+};
+// Retained process-lifetime context: a deadline must never free executing work.
+SelectedContinuation selected_continuation;
+bool __cdecl complete_selected(void* value,unsigned char* entry,const unsigned char* original) noexcept {
+    try {
+        auto& context=*static_cast<SelectedContinuation*>(value);
+        const bool ready=context.has_original?GreeneyeEntry::Continue(context.original,entry,original):
+            EcsRuntime::RequireOriginalOwners() && EcsRuntime::FinalizeOriginalOwners();
+        return ready && context.commit(context.root.c_str(),context.plan.services);
+    } catch(...) {return false;}
+}
+}
 long long seconds_now() {
     return std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
@@ -88,14 +108,45 @@ DWORD WINAPI run(void*) {
         FreeLibrary(runtime);
         return 1;
     }
-    // Install native hooks while the executable entrypoint is still parked.
-    // Releasing it first races hook writes against short-lived startup threads.
-    startup_stage(root, "native-provider-init");
-    if (!EcsRuntime::Initialize()) {
-        log('W', "KFC Runtime initialization failed: " + EcsRuntime::Status());
+    using TakeServices=unsigned(__cdecl*)(const wchar_t*,SelectedStartup::PlanV2*);
+    using CommitServices=bool(__cdecl*)(const wchar_t*,unsigned);
+    const auto take_services=reinterpret_cast<TakeServices>(GetProcAddress(runtime,"shroudforge_take_startup_services_v2"));
+    const auto commit_services=reinterpret_cast<CommitServices>(GetProcAddress(runtime,"shroudforge_commit_startup_services_v2"));
+    if(!take_services || !commit_services) {
+        startup_failed(root,"selected-startup-exports","Startup service admission exports are missing");return 1;
     }
-    log("Startup assets and native-provider setup complete. Releasing the game entrypoint");
+    SelectedStartup::PlanV2 plan;
+    const auto selected_mode=take_services(root.c_str(),&plan);
+    if(selected_mode>1) {startup_failed(root,"selected-startup-admission","Startup service selection was refused");return 1;}
+    if(selected_mode==1) {
+        const auto proof=StartupGate::CaptureHeldEntryProof();
+        if(!EcsRuntime::PrepareSelected(plan,proof) || !EcsRuntime::ActivateSelected(plan)) {
+            EcsRuntime::Shutdown();startup_failed(root,"selected-native-preparation",EcsRuntime::Status());return 1;
+        }
+        const auto take_original=reinterpret_cast<GreeneyeEntry::Take>(GetProcAddress(runtime,"shroudforge_take_original_startup_v1"));
+        const auto load_original=reinterpret_cast<GreeneyeEntry::Load>(GetProcAddress(runtime,"shroudforge_load_original_startup_v1"));
+        const auto confirm_original=reinterpret_cast<GreeneyeEntry::Confirm>(GetProcAddress(runtime,"shroudforge_confirm_original_startup_v1"));
+        if(!take_original || !load_original || !confirm_original) {
+            EcsRuntime::Shutdown();startup_failed(root,"original-loader-exports","Original loader admission exports are missing");return 1;
+        }
+        GreeneyeEntry::TicketV1 ticket;
+        const auto original_mode=take_original(root.c_str(),&ticket,sizeof(ticket));
+        if(original_mode<0 || original_mode>1) {
+            EcsRuntime::Shutdown();startup_failed(root,"original-loader-ticket","Original loader ticket was refused");return 1;
+        }
+        selected_continuation={root,plan,commit_services,original_mode==1,{root.wstring(),ticket,load_original,confirm_original}};
+        if(!StartupGate::ArmPostRestore(proof.parked_thread_id,complete_selected,&selected_continuation)) {
+            EcsRuntime::Shutdown();startup_failed(root,"selected-entry-continuation","Could not arm the original entry thread");return 1;
+        }
+    } else if(!EcsRuntime::Initialize()) {
+        log('W',"KFC Runtime initialization failed: "+EcsRuntime::Status());
+    }
     startup.release();
+    if(selected_mode==1 && !StartupGate::AwaitPostRestore()) {
+        // The entry thread may still be inside an original callback. Keep its
+        // context/provider/runtime resident; never start a second loader path.
+        startup_failed(root,"selected-entry-completion","Selected entry continuation did not complete");return 1;
+    }
     startup_stage(root, "runtime-create");
     std::mutex create_watchdog_mutex;
     std::condition_variable create_watchdog_condition;
