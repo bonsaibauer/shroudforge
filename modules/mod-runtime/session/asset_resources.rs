@@ -42,6 +42,10 @@ pub(super) enum ResourceSource {
 }
 
 impl ResourceInfo {
+    pub(crate) fn is_created_asset(&self) -> bool {
+        self.source == ResourceSource::AssetTransaction
+    }
+
     pub fn source_name(&self) -> &'static str {
         match self.source {
             ResourceSource::KfcFile => "kfc-file",

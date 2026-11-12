@@ -223,6 +223,8 @@ impl Drop for AppState {
 }
 
 mod asset_resources;
+#[cfg(test)]
+mod asset_tests;
 pub(crate) mod configure_component_contract;
 mod create_mod_session;
 pub(crate) mod loaded_resource_indexes;
