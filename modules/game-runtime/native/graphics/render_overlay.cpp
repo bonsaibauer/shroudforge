@@ -32,18 +32,12 @@ struct Registry::Owner {
             auto& gate=*static_cast<EncoderGate*>(opaque);if(!gate.Valid(id))return 3;
             try {return gate.backend.draw_textures ? gate.backend.draw_textures(gate.backend.context,id,values,count) : 3;}catch(...){return 7;}
         }
-        static std::int32_t Terrain(void* opaque,std::uint64_t id,const SFOverlayTerrainV1* value) {
-            auto& gate=*static_cast<EncoderGate*>(opaque);if(!gate.Valid(id))return 3;
-            try {return gate.backend.draw_terrain ? gate.backend.draw_terrain(gate.backend.context,id,value) : 3;}catch(...){return 7;}
-        }
+
         static std::int32_t TexturesV2(void* opaque,std::uint64_t id,const SFOverlayTextureCommandV2* values,std::uint32_t count) {
             auto& gate=*static_cast<EncoderGate*>(opaque);if(!gate.Valid(id))return 3;
             try {return gate.extended.draw_textures_v2 ? gate.extended.draw_textures_v2(gate.backend.context,id,values,count) : 3;}catch(...){return 7;}
         }
-        static std::int32_t TerrainV2(void* opaque,std::uint64_t id,const SFOverlayTerrainV2* value) {
-            auto& gate=*static_cast<EncoderGate*>(opaque);if(!gate.Valid(id))return 3;
-            try {return gate.extended.draw_terrain_v2 ? gate.extended.draw_terrain_v2(gate.backend.context,id,value) : 3;}catch(...){return 7;}
-        }
+
     } gate;
     SFOverlayFrameCallbackV1 callback{};
     void* callback_context{};
@@ -145,8 +139,8 @@ bool Registry::Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t n
         gate.extended={};
         if(input.version==2 && input.size>=sizeof(SFOverlayEncoderV2))gate.extended=*reinterpret_cast<const SFOverlayEncoderV2*>(&input);
         const bool extended=frame.version==2;
-        const SFOverlayEncoderV2 encoder{{extended ? sizeof(SFOverlayEncoderV2) : sizeof(SFOverlayEncoderV1),frame.version,&gate,owner->id,generation,Owner::EncoderGate::Rectangles,Owner::EncoderGate::Textures,Owner::EncoderGate::Terrain},Owner::EncoderGate::TexturesV2,Owner::EncoderGate::TerrainV2};
-        std::int32_t result=7; try {if(!extended || (gate.extended.draw_textures_v2 && gate.extended.draw_terrain_v2))result=callback(context,&frame,&encoder.base);}catch(...){}
+        const SFOverlayEncoderV2 encoder{{extended ? sizeof(SFOverlayEncoderV2) : sizeof(SFOverlayEncoderV1),frame.version,&gate,owner->id,generation,Owner::EncoderGate::Rectangles,Owner::EncoderGate::Textures},Owner::EncoderGate::TexturesV2};
+        std::int32_t result=7; try {if(!extended || (gate.extended.draw_textures_v2))result=callback(context,&frame,&encoder.base);}catch(...){}
         gate.active.store(false,std::memory_order_release);
         {std::lock_guard lock(owner->mutex); --owner->in_flight;
             if(result!=0) {success=false;owner->revoked=true;owner->callback=nullptr;} owner->changed.notify_all();}

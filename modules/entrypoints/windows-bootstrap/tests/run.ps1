@@ -13,15 +13,15 @@ try {
     if ($LASTEXITCODE) { throw 'Gate DLL build failed' }
     & cl /nologo /std:c++20 /EHsc /MT (Join-Path $PSScriptRoot 'startup_gate_exe.cpp') startup_gate_test.lib /link /OUT:startup_gate_test.exe
     if ($LASTEXITCODE) { throw 'Gate executable build failed' }
-    foreach ($mode in @('success', 'prepare-failure', 'witness-failure', 'deadline')) {
+    foreach ($mode in @('success', 'prepare-failure', 'completion-failure', 'deadline')) {
         $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $output 'startup_gate_test.exe'))
         $start.UseShellExecute = $false
         $start.CreateNoWindow = $true
         $start.Environment.Remove('SF_GATE_TEST_FAIL') | Out-Null
-        $start.Environment.Remove('SF_GATE_TEST_WITNESS_FAIL') | Out-Null
+        $start.Environment.Remove('SF_GATE_TEST_COMPLETION_FAIL') | Out-Null
         $start.Environment.Remove('SF_GATE_TEST_DEADLINE') | Out-Null
         if ($mode -eq 'prepare-failure') { $start.Environment['SF_GATE_TEST_FAIL'] = '1' }
-        if ($mode -eq 'witness-failure') { $start.Environment['SF_GATE_TEST_WITNESS_FAIL'] = '1' }
+        if ($mode -eq 'completion-failure') { $start.Environment['SF_GATE_TEST_COMPLETION_FAIL'] = '1' }
         if ($mode -eq 'deadline') { $start.Environment['SF_GATE_TEST_DEADLINE'] = '1' }
         $process = [Diagnostics.Process]::Start($start)
         if (-not $process.WaitForExit(10000)) {

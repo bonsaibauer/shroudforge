@@ -91,41 +91,20 @@ impl super::AppState {
             })
     }
     pub(crate) fn release_lua_map_owner(&self, id: &str) {
-        let Some(generation) = release_before_remove(&self.map_lua_owners, id, |generation| {
-            if let Err(reason) = shroudforge_runtime_bridge::first_person_release_owner(generation)
-            {
+        release_before_remove(&self.map_lua_owners, id, |generation| {
+            let revoke = shroudforge_runtime_bridge::revoke_map_overlay_services(id, generation);
+            let drain = shroudforge_runtime_bridge::drain_map_overlay_services(id, generation, 250);
+            if revoke != 0 || drain != 0 {
                 tracing::warn!(
                     mod_id = id,
-                    generation,
-                    %reason,
-                    "Lua first-person owner release failed"
+                    revoke,
+                    drain,
+                    "Native map owner retained pending drain"
                 );
             }
-            if id == "sf-unlimited-flight" {
-                let result = shroudforge_runtime_bridge::flight_retire(generation);
-                if result != 1 {
-                    tracing::warn!(
-                        mod_id = id,
-                        generation,
-                        result,
-                        "Flight owner retirement unconfirmed; native ownership remains fail-closed, restart may be required"
-                    );
-                }
-            }
-        }) else {
-            return;
-        };
-        let revoke = shroudforge_runtime_bridge::revoke_map_overlay_services(id, generation);
-        let drain = shroudforge_runtime_bridge::drain_map_overlay_services(id, generation, 250);
-        if revoke != 0 || drain != 0 {
-            tracing::warn!(
-                mod_id = id,
-                revoke,
-                drain,
-                "Lua map owner retained pending native drain"
-            );
-        }
+        });
     }
+
     pub(crate) fn release_all_lua_map_owners(&self) {
         let ids = self
             .map_lua_owners

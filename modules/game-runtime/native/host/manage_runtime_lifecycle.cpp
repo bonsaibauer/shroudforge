@@ -1,7 +1,6 @@
 #include "abi/runtime_api.h"
 #include "graphics/render_overlay.h"
 #include "map/capture_game_map.h"
-#include "first-person/first_person_control.h"
 #include "engine-hooks/install_engine_hooks.h"
 #include "ecs/entity_session.h"
 #include "loaded-resources/loaded_resource_access.h"
@@ -30,14 +29,7 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimePrepareOverlay(unsigned demand) {
     try { return demand <= 1 && OverlayRuntime::PrepareGraphicsBoot(demand == 1); }
     catch (...) { return false; }
 }
-KFC_RUNTIME_API bool __cdecl KfcRuntimePrepareHeldEntry(const EngineHooks::HeldEntryProof* proof, unsigned demand) {
-    if (demand == 0) return true;
-    if (demand != 1 || !proof) return false;
-    return EngineHooks::RunHeldEntryPreparation(*proof,
-        +[](const EngineHooks::HeldEntryToken& token, void*) noexcept {
-            return FirstPersonControl::Prepare(token);
-        }, nullptr);
-}
+
 
 KFC_RUNTIME_API bool __cdecl KfcRuntimeInitialize() {
     if (selected_startup_attempted()) return false;
@@ -87,7 +79,6 @@ void shutdown_provider_components() noexcept {
     // A failed owner cleanup must not skip retirement of the remaining owners.
     const auto safely = [](auto stop) noexcept { try { stop(); } catch (...) {} };
     safely([] { WorldRuntime::RegisteredVoxelGrid::StopPreparingWriter(); });
-    safely([] { FirstPersonControl::Shutdown(); });
     safely([] { MapRuntime::StopCapture(); });
     safely([] { OverlayRuntime::ShutdownServices(); });
     safely([] { KfcRuntimeNetworkServiceShutdown(); });

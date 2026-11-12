@@ -122,7 +122,6 @@ impl IngameRuntime {
         let package_revisions =
             super::watch_package_revisions::PackageRevisions::start(root.clone());
         let runtime = Self {
-            vein_notices: Default::default(),
             diagnostics,
             runner,
             lifecycle,

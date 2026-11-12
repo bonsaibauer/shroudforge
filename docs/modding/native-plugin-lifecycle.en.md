@@ -50,9 +50,8 @@ This also applies to plans containing only managed plugins.
   Query, revoke and drain must all be exported before the bridge exposes this
   capability. An incomplete provider cannot hand out a service table.
 
-Lua runtime APIs expose map snapshots, First Person and Flight control through
-the corresponding optional provider exports. Flight control retains its
-bundled-package authority and requires the complete control/retirement ABI.
+Lua runtime APIs expose bounded map snapshots through the optional provider.
+Gameplay controls and mod-specific compatibility adapters belong to mod packages.
 Neither a successful DLL load nor local tests establish game-build or server
 compatibility. Provider preparation must complete before the game entrypoint
 is released; `native_overlay_startup_demand` reports the selected overlay demand.

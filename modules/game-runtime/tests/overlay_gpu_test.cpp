@@ -136,9 +136,10 @@ void UnrecoverableWrapperRegression(bool swap,bool failed_submission) {
 }
 }
 int main(int argc,char** argv){
+    check_named("graphics refuses activation without guarded startup admission",!StartGraphics());
     const auto extended_owner=Services().Open("overlay-v2-probe",2);
     SFOverlayServiceV1 extended_service{};
-    check_named("0.5.16 overlay service is negotiated before registration",
+    check_named("extended overlay service is negotiated before registration",
         Services().Query(extended_owner,"shroudforge.overlay",2,sizeof(extended_service),&extended_service)==0 && extended_service.version==2);
     check(Services().Revoke(extended_owner)==0);
     if(argc==2){UnrecoverableWrapperRegression(std::strcmp(argv[1],"--terminal-swap")==0,false);return 0;}
@@ -178,47 +179,21 @@ int main(int argc,char** argv){
     check(Create(reinterpret_cast<void*>(77),&create,nullptr,&output)==0);check(swapchains[88].format==97 && swapchains[88].width==1920 && swapchains[88].colorSpace==1000104008);
     const auto generation=swapchains[88].generation;create.imageExtent={1280,720};Create(reinterpret_cast<void*>(77),&create,nullptr,&output);
     check(swapchains[88].generation>generation && swapchains[88].height==720);
-    Renderer renderer=ReadyRenderer(77);renderer.resources.resize(1);auto& slot=renderer.resources[0].terrain[1];
-    slot.frameTextureReady=true;slot.frameTextureImage=1;slot.frameStagingBuffer=2;slot.frameStagingMemory=3;slot.frameTextureWidth=32;slot.frameTextureHeight=34;
-    slot.key={1,1,1};slot.map_width=1;slot.map_height=2;slot.fog_width=32;slot.fog_height=32;
-    auto fog=std::make_shared<MapRuntime::FogSnapshot>();fog->columns=fog->rows=1;fog->world_width=fog->world_height=256;fog->tiles.resize(1024);
-    auto old=std::make_shared<MapRuntime::FogPublication>();old->meta={0,2000,5,1,100,SF_MAP_CLOCK_DOMAIN_WINDOWS_TICK64};old->value=fog;slot.fog=old;
-    auto changed=std::make_shared<MapRuntime::FogSnapshot>(*fog);changed->tiles[7]=255;auto current=std::make_shared<MapRuntime::FogPublication>(*old);current->meta.revision=2;current->value=changed;
-    RecordContext context;context.renderer=&renderer;context.image=&renderer.resources[0];context.map.fog=current;context.map.frame.session_generation=5;
-    SFOverlayTerrainV1 terrain{};terrain.world_map=texture;terrain.world_map.height=2;terrain.fog={current->meta,256,256,1,1,changed->tiles.data(),1024};
-    TerrainSlot* prepared{};check(PrepareTerrain(context,1,terrain,prepared));check(copies==1 && copied.size()==1 && copied[0].imageExtent.width==32 && copied[0].imageExtent.height==32);
-    check(barriers==2 && upload_bytes==4096 && upload_regions==1 && mapped[(2*32+7)*4]==255);
-    const auto old_copies=copies;check(PrepareTerrain(context,1,terrain,prepared) && copies==old_copies);
-    auto equal=std::make_shared<MapRuntime::FogPublication>(*current);equal->meta.revision=3;context.map.fog=equal;terrain.fog.meta=equal->meta;
-    check(PrepareTerrain(context,1,terrain,prepared) && copies==old_copies);
-    check(!FogValid(SFOverlayTerrainV1{},context));
-    // Force the real atlas-too-large fallback without a GPU allocator. The
-    // fallback uses the same generic white texture and records concrete runs.
-    std::vector<std::uint8_t> tall(4096*4,255);SFOverlayTerrainV1 fallback{};
-    fallback.world_map={7,1,1,4096,tall.data(),tall.size(),nullptr,0};fallback.radius=4;fallback.units_per_pixel=1;fallback.center_world_x=fallback.center_world_z=100;fallback.sample_step=2;
-    fallback.fog=terrain.fog;fallback.fog.meta=context.map.fog->meta;context.thread=GetCurrentThreadId();
+    Renderer renderer=ReadyRenderer(77);renderer.resources.resize(1);
+    RecordContext context;context.renderer=&renderer;context.image=&renderer.resources[0];context.thread=GetCurrentThreadId();
     TexturedResources white;white.frameTextureReady=true;white.frameTextureWidth=white.frameTextureHeight=1;
     context.image->textures.emplace(TextureKey{0,UINT64_MAX,1},white);
-    const auto prior_fallback=fallback_count.load();check(EncodeTerrain(&context,2,&fallback)==0 && !context.draws.empty() && fallback_count==prior_fallback+1);
-    check(context.draws[0].push[19]==1 && context.image->fallback_maps.size()==1);
+    static constexpr std::uint8_t solid[]={255,255,255,255};
+    SFOverlayTextureCommandV2 command{};command.base.texture={UINT64_MAX,1,1,1,solid,4,nullptr,0};
+    command.base.x=10;command.base.y=20;command.base.width=command.base.height=36;command.base.clip_radius=100;
+    command.base.tint_rgba=0x43e7fff2;command.square_clip=1;
+    check_named("generic V2 texture keeps tint and square clipping",EncodeTexturesV2(&context,0,&command,1)==0 &&
+        context.draws.back().push[15]==1 && context.draws.back().push[21]==0 && context.draws.back().push[24]==0);
+    command.square_clip=2;check(EncodeTexturesV2(&context,0,&command,1)==1);command.square_clip=0;
+    command.base.rotation_radians=std::numeric_limits<float>::quiet_NaN();check(EncodeTexturesV2(&context,0,&command,1)==1);
+    command.base.rotation_radians=0;
+    check_named("V1 texture keeps image semantics",EncodeTextures(&context,0,&command.base,1)==0 && context.draws.back().push[21]==0);
     check(EncodeTextures(&context,2,reinterpret_cast<const SFOverlayTextureCommandV1*>(1),1)==1);
-    const auto draw_count=context.draws.size();check(EncodeTerrain(&context,2,&fallback)==1 && context.draws.size()==draw_count);
-    SFOverlayTerrainV2 square_terrain{fallback,1,0};context.used_terrain.clear();context.draws.clear();
-    check_named("square CPU fallback retains corner pixels",EncodeTerrainV2(&context,2,&square_terrain)==0 && !context.draws.empty() &&
-        context.draws.front().push[0]==float(fallback.center_pixel_x-fallback.radius) && context.draws.front().push[1]==float(fallback.center_pixel_y-fallback.radius));
-    square_terrain.square=2;check(EncodeTerrainV2(&context,2,&square_terrain)==1);
-    static constexpr std::uint8_t effect_white[]={255,255,255,255};
-    SFOverlayTextureCommandV2 effect{};effect.base.texture={UINT64_MAX,1,1,1,effect_white,4,nullptr,0};
-    effect.base.x=10;effect.base.y=20;effect.base.width=effect.base.height=36;effect.base.clip_radius=100;
-    effect.base.tint_rgba=0x43e7fff2;effect.square_clip=1;effect.effect=SF_OVERLAY_EFFECT_ARROW_HALO;
-    effect.body_extent=26;effect.halo_radius=3;
-    check_named("V2 halo uses generic GPU pipeline and square clip",EncodeTexturesV2(&context,0,&effect,1)==0 &&
-        context.draws.back().push[15]==1 && context.draws.back().push[21]==1 &&
-        context.draws.back().push[24]==26 && context.draws.back().push[25]==3);
-    effect.effect=4;check(EncodeTexturesV2(&context,0,&effect,1)==1);effect.effect=1;
-    effect.body_extent=std::numeric_limits<float>::quiet_NaN();check(EncodeTexturesV2(&context,0,&effect,1)==1);effect.body_extent=26;
-    effect.square_clip=2;check(EncodeTexturesV2(&context,0,&effect,1)==1);effect.square_clip=0;
-    check_named("V1 texture operations retain image semantics",EncodeTextures(&context,0,&effect.base,1)==0 && context.draws.back().push[21]==0);
     // The real Present interceptor must preserve original waits on every
     // incomplete path and publish its own signal only after successful submit.
     auto owner=Services().Open("fixture-present",1);SFOverlayServiceV1 service{};check(Services().Query(owner,"shroudforge.overlay",1,sizeof(service),&service)==0);
@@ -334,5 +309,5 @@ int main(int argc,char** argv){
     render_mutex.lock();std::thread stopper([&]{StopGraphics();stopped.set_value();});
     check(stopped_result.wait_for(std::chrono::seconds(1))==std::future_status::ready && retirement_pending && !active);
     render_mutex.unlock();stopper.join();MaintainGraphics();check(!retirement_pending);
-    std::printf("PASS: %u actual native GPU validation/retirement/generation/dirty-fog checks\n",checks);
+    std::printf("PASS: %u actual native GPU validation/retirement/generation/drawing checks\n",checks);
 }

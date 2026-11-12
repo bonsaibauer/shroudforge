@@ -173,9 +173,6 @@ struct OverlayStatus {
     rendered: u64,
     busy: u64,
     failed: u64,
-    upload_bytes: u64,
-    upload_regions: u64,
-    fallback: u64,
 }
 #[repr(C)]
 struct OverlayService {
@@ -223,7 +220,7 @@ pub fn map_overlay_status(package: &str, generation: u64) -> Result<Value, i32> 
     Ok(
         json!({"status_domain":"SF_NATIVE_STATUS","status":value.status,"reason":value.reason,
         "action":match value.reason {1=>"requires observed swapchain recreation after interception; initial swapchain metadata is unavailable",2=>"requires a valid recreated device/swapchain",_=>""},
-        "device_generation":value.device.to_string(),"rendered_frames":value.rendered.to_string(),"busy_frames":value.busy.to_string(),"failed_frames":value.failed.to_string(),"terrain_upload_bytes":value.upload_bytes.to_string(),"terrain_upload_regions":value.upload_regions.to_string(),"cpu_fallback_frames":value.fallback.to_string()}),
+        "device_generation":value.device.to_string(),"rendered_frames":value.rendered.to_string(),"busy_frames":value.busy.to_string(),"failed_frames":value.failed.to_string()}),
     )
 }
 /// Summary contains no grid or marker arrays. IDs/timestamps are lossless strings.
@@ -318,7 +315,7 @@ mod tests {
         assert_eq!(size_of::<Frame>(), 640);
         assert_eq!(size_of::<Service>(), 40);
         assert_eq!(size_of::<OverlayService>(), 40);
-        assert_eq!(size_of::<OverlayStatus>(), 72);
+        assert_eq!(size_of::<OverlayStatus>(), 48);
         assert_eq!(map_markers("unused", 1, 6, 0, 1, 0).unwrap_err(), 1);
         assert_eq!(map_markers("unused", 1, 0, 0, 257, 0).unwrap_err(), 1);
         assert_eq!(map_fog("unused", 1, 0, 4097, 0, 0).unwrap_err(), 1);

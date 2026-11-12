@@ -4,6 +4,7 @@
 #include "map/capture_game_map.h"
 #include "map/hud_visibility.h"
 #include <windows.h>
+#include <algorithm>
 #include <map>
 #include <mutex>
 #include <string>
@@ -11,7 +12,7 @@
 namespace OverlayRuntime {
 void MaintainGraphics();
 namespace {
-struct Activation {std::uint64_t owner{};bool captured{},revoked{};};
+struct Activation {std::uint64_t owner{};bool captured{},graphics{},revoked{};};
 std::mutex service_mutex;
 std::map<std::pair<std::string,std::uint64_t>,Activation> activations;
 bool Text(const std::uint8_t* text,std::uint32_t size,std::uint32_t limit,std::string& out) {
@@ -53,8 +54,8 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeQueryMapOverlayService(const std:
         std::lock_guard lock(service_mutex);const auto key=std::make_pair(id,generation);
         if(!activations.contains(key) && activations.size()>=4096)return 6;auto& item=activations[key];if(item.revoked)return 3;
         if(!item.owner)item.owner=Services().Open(id,generation);if(!item.owner)return 6;
-        if(!item.captured){const auto result=MapRuntime::EnableCapture(item.owner,true);if(result!=SF_MAP_READY)return result==SF_MAP_FAILED ? 7:3;item.captured=true;}
-        if(name=="shroudforge.overlay" && !StartGraphics())return 3;
+        if(map_service && !item.captured){const auto result=MapRuntime::EnableCapture(item.owner,true);if(result!=SF_MAP_READY)return result==SF_MAP_FAILED ? 7:3;item.captured=true;}
+        if(!map_service && !item.graphics){if(!StartGraphics())return 3;item.graphics=true;}
         return Services().Query(item.owner,name,version,capacity,output);
     }catch(...){return 7;}
 }
@@ -75,9 +76,13 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeDrainMapOverlayServices(const std
         std::string id;if(!generation || timeout>250 || !Text(package,size,256,id))return 1;std::lock_guard lock(service_mutex);
         const auto found=activations.find({id,generation});if(found==activations.end())return 0;
         auto& item=found->second;const auto result=Services().Drain(item.owner,timeout);
-        if(result==0 && item.revoked && item.captured){
-            bool another=false;for(const auto& [_,other]:activations)if(&other!=&item && other.captured)another=true;
-            if(!another)StopGraphics();MapRuntime::DisableCapture(item.owner);item.captured=false;
+        if(result==0 && item.revoked){
+            if(item.captured){MapRuntime::DisableCapture(item.owner);item.captured=false;}
+            if(item.graphics){
+                item.graphics=false;
+                const bool another=std::any_of(activations.begin(),activations.end(),[](const auto& entry){return entry.second.graphics;});
+                if(!another)StopGraphics();
+            }
         }
         return result;
     }catch(...){return 7;}

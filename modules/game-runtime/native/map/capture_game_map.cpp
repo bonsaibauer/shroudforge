@@ -2,8 +2,6 @@
 // MIT, Copyright (c) 2024 Miguel Oppermann. See SOURCE-NOTICE.txt.
 #include "map/capture_game_map.h"
 #include "map/hud_visibility.h"
-#include "map/creative_fog_owner.h"
-#include "host/original_owner_failure.h"
 #include "profiles/game_profile.h"
 #include "map/current_client_map_contract.h"
 #include "map/native_iterator_snapshot.h"
@@ -43,8 +41,7 @@ struct ImageReader {
 #include "map/test4_guard_tables.h"
 
 namespace MapRuntime {
-static MapImageAdmission InspectMapImageImpl(std::span<const std::uint8_t> bytes, std::string_view sha, bool permitted,
-    const CreativeFogOwner::Admission* fog_owner) {
+static MapImageAdmission InspectMapImageImpl(std::span<const std::uint8_t> bytes, std::string_view sha, bool permitted) {
     MapImageAdmission result;
     if (!permitted) { result.failure_reason="capability-denied"; result.status=SF_MAP_CAPABILITY_DENIED; return result; }
     if (Current5d9ef2f1::Selected(sha)) {
@@ -68,13 +65,7 @@ static MapImageAdmission InspectMapImageImpl(std::span<const std::uint8_t> bytes
             for(std::size_t offset=0;offset<length;){
                 const auto count=(std::min)(std::size_t(256),length-offset);
                 bool matches=image.Match(rva+offset,expected+offset,count);
-                if(!matches && fog_owner && rva==CreativeFogOwner::Target && offset==0 && count>=15){
-                    std::array<unsigned char,15> original{},observed{};std::uint8_t actual[256]{};
-                    if(ReadMemory(base+rva,actual,count) && fog_owner->Prefix(original,&observed) && !std::memcmp(actual,observed.data(),observed.size())){
-                        std::memcpy(actual,original.data(),original.size());
-                        matches=!std::memcmp(actual,expected,count);
-                    }
-                }
+
                 if(!matches){
                     if(!result.failure_rva){
                         result.failure_rva=rva+offset;result.failure_reason="guard-read";
@@ -90,7 +81,7 @@ static MapImageAdmission InspectMapImageImpl(std::span<const std::uint8_t> bytes
                 }offset+=count;
             }return true;
         };
-        using namespace MinimapClient5d9ef2f1;
+        using namespace MapClient5d9ef2f1;
         result.player=MatchPins(CameraPins,match);result.renderer=MatchPins(RendererPins,match);
         result.markers=MatchMarkers(base,match);result.clock=MatchOptionalClock(base,match);
         result.weather=MatchOptionalWeather(base,match);result.fog=MatchOptionalFog(base,match);
@@ -137,7 +128,7 @@ static MapImageAdmission InspectMapImageImpl(std::span<const std::uint8_t> bytes
     return result;
 }
 MapImageAdmission InspectMapImage(std::span<const std::uint8_t> bytes,std::string_view sha,bool permitted) {
-    return InspectMapImageImpl(bytes,sha,permitted,nullptr);
+    return InspectMapImageImpl(bytes,sha,permitted);
 }
 std::uint32_t MapImageAdmission::Features() const {
     return (player ? SF_MAP_FEATURE_PLAYER : 0) | (markers ? SF_MAP_FEATURE_MARKERS : 0) |
@@ -223,8 +214,6 @@ std::unordered_set<std::uint64_t> owners;
 std::uintptr_t image_base{};
 IterInit iter_init{}; IterNext iter_next{}; GetWorld get_world{}; Lookup lookup{};
 WeatherSample weather_sample{}; FogUpdate fog_update{};
-CreativeFogOwner::Admission fog_owner;
-bool original_owners_required{},original_owners_complete{};
 MapImageAdmission admission;
 std::uint64_t source_session{}, next_generation{};
 std::vector<SFMapMarkerV1> pings;
@@ -389,15 +378,20 @@ float* __fastcall weather_callback(float* output,void* weather,const void* posit
     } catch (...) {}
     return result;
 }
+bool FogEntryUnmodified() {
+    constexpr std::uint8_t expected[]{0x40,0x53,0x56,0x57,0x41,0x56,0x41,0x57,0x48,0x81,0xec,0x80,0,0,0};
+    std::array<std::uint8_t,sizeof(expected)> actual{};
+    return fog_update && ReadMemory(reinterpret_cast<std::uintptr_t>(fog_update),actual.data(),actual.size()) &&
+        !std::memcmp(actual.data(),expected,actual.size());
+}
 void __fastcall fog_callback(void* fog,const float* position,float radius) noexcept {
     const auto generation=capture_generation.load();
     const auto now=GetTickCount64();
     const bool sample=accepting.load(std::memory_order_acquire) && throttle(last_fog,now,500);
-    std::array<unsigned char,15> original{};
-    const bool owner_before=!sample || !current_client_capture() || fog_owner.Prefix(original);
+    const bool owner_before=!sample || FogEntryUnmodified();
     fog_update(fog,position,radius);
     if (!sample || !accepting.load(std::memory_order_acquire) || generation!=capture_generation.load() || !owner_before ||
-        (current_client_capture() && !fog_owner.Prefix(original))) return;
+        !FogEntryUnmodified()) return;
     try { auto snapshot=std::make_shared<FogSnapshot>();
         if (ReadFog(reinterpret_cast<std::uintptr_t>(fog),*snapshot)) store.PublishFog(generation,std::move(snapshot),now);
     } catch (...) {}
@@ -522,8 +516,8 @@ bool ReadOwnedCameraEntryReplacement(std::span<const std::uint8_t> original,
         if(original.size()!=18 || replacement.size()!=18 || !original.data() || !replacement.data() ||
            !current_client_capture() || !image_base || image_base>UINTPTR_MAX-Current5d9ef2f1::CameraResume)return false;
         const auto target=image_base+Current5d9ef2f1::Camera;
-        const MinimapClient5d9ef2f1::Pin* selected=nullptr;
-        for(const auto& pin:MinimapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)selected=&pin;
+        const MapClient5d9ef2f1::Pin* selected=nullptr;
+        for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)selected=&pin;
         if(!selected || selected->size<18 || std::memcmp(original.data(),selected->bytes,18))return false;
         for(const auto& hook:hooks)if(hook.target==target){
             if(!hook.installed || !hook.publicationQualified || !hook.residentOwner || !hook.allocation ||
@@ -563,11 +557,8 @@ void StopCapture() noexcept {
         // No restoration, relay freeing, module release, or ownership retirement.
     }catch(...){accepting.store(false,std::memory_order_release);capture_generation.store(0);}
 }
-bool RendererAdmitted() {std::lock_guard lock(control_mutex);return accepting.load() && admission.renderer;}
-bool PreparedRendererAdmitted() noexcept {
-    try {std::lock_guard lock(control_mutex);return preparation==Preparation::Ready && current_client_capture() && admission.renderer;}
-    catch(...){return false;}
-}
+
+
 bool InstallSharedEntry(std::size_t rva,std::span<const std::uint8_t> expected,void* callback) {
     std::lock_guard lock(control_mutex);return accepting.load() && callback && entry_hook(rva,expected,callback);
 }
@@ -592,7 +583,7 @@ std::string PreparationStatus() {
         ",admission="+admission.failure_reason+",guard_rva="+std::to_string(admission.failure_rva)+
         ",expected="+std::to_string(admission.expected_byte)+",observed="+std::to_string(admission.observed_byte)+
         ",features="+std::to_string(admission.Features())+",renderer="+std::to_string(admission.renderer)+
-        ",fog_owner="+fog_owner.Reason()+",hud="+HudPreparationStatus();
+        ",hud="+HudPreparationStatus();
 }
 std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
     try {
@@ -601,7 +592,7 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         if(!token.ValidForCurrentThread()){preparation_reason="invalid-token";return SF_MAP_FAILED;}
         if(preparation==Preparation::Ready){
             std::array<std::uint8_t,18> original{},replacement{};
-            for(const auto& pin:MinimapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
+            for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
             preparation_step="owned-camera-readback";
             const bool owned=ReadOwnedCameraEntryReplacement(original,replacement);
             preparation_reason=owned?"none":"owned-camera-rejected";
@@ -612,12 +603,8 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         if(!current_client_capture() || Profile::image_size!=Current5d9ef2f1::ImageSize){preparation_reason="image-identity";preparation_result=SF_MAP_UNSUPPORTED_BUILD;return SF_MAP_UNSUPPORTED_BUILD;}
         preparation=Preparation::Preparing;
         image_base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-        preparation_step="fog-owner";
-        if(!fog_owner.Prepare(image_base,token)){
-            preparation=Preparation::Failed;preparation_reason=fog_owner.Reason();return SF_MAP_FAILED;
-        }
         preparation_step="image-admission";
-        admission=InspectMapImageImpl({reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size},Profile::image_sha256,true,&fog_owner);
+        admission=InspectMapImageImpl({reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size},Profile::image_sha256,true);
         if(admission.status!=SF_MAP_READY){preparation=Preparation::Failed;preparation_reason=admission.failure_reason;preparation_result=admission.status;return admission.status;}
         preparation_step="module-residency";
         HMODULE resident{};
@@ -656,35 +643,11 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         return SF_MAP_READY;
     }catch(...){preparation_reason="exception";preparation_result=SF_MAP_FAILED;preparingCapture=false;preparation=Preparation::Failed;accepting=false;capture_generation=0;return SF_MAP_FAILED;}
 }
-bool FinalizeOriginalOwners() noexcept {
-    try {
-        std::lock_guard control(control_mutex);
-        using namespace OriginalOwnerFailure;
-        if(!Check(Map,1,preparation==Preparation::Ready,"not-prepared"))return false;
-        if(!Check(Map,2,!accepting,"already-accepting"))return false;
-        if(!Check(Map,4,current_client_capture(),"not-current-client"))return false;
-        if(!Check(Map,8,original_owners_required,"not-required"))return false;
-        if(!Check(Map,16,!original_owners_complete,"already-complete"))return false;
-        original_owners_complete=FinalizeHudOriginalOwners();return original_owners_complete;
-    }catch(...){OriginalOwnerFailure::Record("map","finalize-exception");return false;}
-}
-bool RequireOriginalOwners() noexcept {
-    try {
-        std::lock_guard control(control_mutex);
-        using namespace OriginalOwnerFailure;
-        if(!Check(Map,1,preparation==Preparation::Ready,"not-prepared"))return false;
-        if(!Check(Map,2,!accepting,"already-accepting"))return false;
-        if(!Check(Map,4,current_client_capture(),"not-current-client"))return false;
-        if(!Check(Map,8,!original_owners_required,"already-required"))return false;
-        original_owners_required=true;return true;
-    }catch(...){OriginalOwnerFailure::Record("map","require-exception");return false;}
-}
+
+
 std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     if (!owner || !capability) return SF_MAP_CAPABILITY_DENIED;
     std::lock_guard control(control_mutex);
-    // An original scan may be installing its finite owner chain. Queries must
-    // not sample it, invalidate the retained epoch or spend a cold attempt.
-    if(original_owners_required && !original_owners_complete)return SF_MAP_BUSY;
     if (owners.contains(owner)) return SF_MAP_INVALID_ARGUMENT;
     if (!owners.empty()) { owners.insert(owner); return SF_MAP_READY; }
     if (!current_client_capture() && std::any_of(hooks.begin(),hooks.end(),[](const auto& hook){return hook.installed;})) return SF_MAP_FAILED;
@@ -692,7 +655,7 @@ std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     if(Current5d9ef2f1::Selected(Profile::image_sha256)){
         if(preparation!=Preparation::Ready)return SF_MAP_FAILED;
         std::array<std::uint8_t,18> original{},replacement{};
-        for(const auto& pin:MinimapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
+        for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
         if(!ReadOwnedCameraEntryReplacement(original,replacement) || !EnableHudVisibility(image_base,Profile::image_size))return SF_MAP_FAILED;
         capture_generation=0;source_session=0;store.SetAdmission(admission.Features()|SF_MAP_FEATURE_HUD);
         owners.insert(owner);accepting.store(true,std::memory_order_release);return SF_MAP_READY;
@@ -728,13 +691,13 @@ std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     admission.world=admission.world && entry_hook(0x2fefe0,world,reinterpret_cast<void*>(&world_callback));
     admission.deaths=admission.world && admission.deaths;
     deaths_enabled.store(admission.deaths);
-    // HUD/Creative ownership and discovery loop publication join the renderer
+    // HUD visibility and discovery loop publication join the renderer
     // integration stage. Do not advertise a capture that has no installed owner.
     admission.discovery=admission.discovery && discovery_hook();
     capture_generation.store(0); source_session=0; store.SetAdmission(admission.Features());
     owners.insert(owner); accepting.store(true,std::memory_order_release);
     if(EnableHudVisibility(image_base,KfcRuntimeCompatibility::EnshroudedClient::image_size))store.SetAdmission(admission.Features()|SF_MAP_FEATURE_HUD);
-    else OutputDebugStringA("[ESM map] HUD unavailable: renderer ownership/call-site guards or safe patch admission failed; gameplay visibility remains closed\n");
+    else OutputDebugStringA("[ShroudForge map] HUD unavailable: renderer ownership/call-site guards or safe patch admission failed; gameplay visibility remains closed\n");
     return SF_MAP_READY;
 }
 void DisableCapture(std::uint64_t owner) {

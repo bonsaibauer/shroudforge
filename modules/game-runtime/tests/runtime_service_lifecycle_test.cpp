@@ -18,7 +18,7 @@ unsigned ticks{}, resource_initializations{};
 bool fail_tick{}, fail_stop{}, fail_initialization{}, hooks_ready{}, selected_execution{};
 std::vector<unsigned> prepared;
 void check(bool ok) { if (!ok) { std::fputs("Runtime owner retirement failed\n", stderr); std::exit(1); } }
-void verify_stopped() { check(stopped == std::vector<unsigned>{1, 2, 3, 4, 5, 6, 7, 8}); }
+void verify_stopped() { check(stopped == std::vector<unsigned>{1, 3, 4, 5, 6, 7, 8}); }
 }
 namespace EcsRuntime {
 bool Initialize() { return true; }
@@ -40,15 +40,10 @@ namespace WorldRuntime::RegisteredVoxelGrid {
 void PrepareWriter() {}
 void StopPreparingWriter() { stopped.push_back(1); if (fail_stop) throw 1; }
 }
-namespace FirstPersonControl {
-bool Prepare(const EngineHooks::HeldEntryToken& token) noexcept {prepared.push_back(3);return token.ValidForCurrentThread();}
-void Shutdown() noexcept { stopped.push_back(2); }
-}
+
 namespace MapRuntime {
 void StopCapture() noexcept { stopped.push_back(3); }
 std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {prepared.push_back(2);return token.ValidForCurrentThread()?0:1;}
-bool RequireOriginalOwners() noexcept {prepared.push_back(5);return true;}
-bool FinalizeOriginalOwners() noexcept {prepared.push_back(6);return true;}
 }
 namespace OverlayRuntime {
 bool PrepareGraphicsBoot(bool) {prepared.push_back(4);return true;}
@@ -108,20 +103,26 @@ int main(int argc,char**) {
     check(!KfcRuntimeInitialize());
     verify_stopped();
     fail_initialization=fail_stop=fail_tick=false;stopped.clear();prepared.clear();
-    SelectedStartup::PlanV2 plan;plan.services=SelectedStartup::Metadata|SelectedStartup::MapCapture|SelectedStartup::FirstPerson|SelectedStartup::Graphics;
+    SelectedStartup::PlanV2 plan;plan.services=SelectedStartup::Metadata|SelectedStartup::MapCapture|SelectedStartup::Graphics;
     EngineHooks::HeldEntryProof proof;unsigned completed=999;
     check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==0 && prepared.empty());
     proof.parked_thread_id=123;proof.is_held=+[](std::uint32_t thread) noexcept{return thread==123;};
-    auto invalid=plan;invalid.services|=SelectedStartup::SharedProvider|SelectedStartup::FlightScalar;invalid.opt_ins=5;
+    for (const auto removed : {8u,32u,64u,128u}) {
+        auto unsupported=plan;unsupported.services|=removed;
+        check(!KfcRuntimePrepareSelectedV1(&unsupported,&proof,nullptr,0,&completed) && completed==0 && prepared.empty());
+    }
+    for (const auto opt_in : {1u,2u,4u}) {
+        auto unsupported=plan;unsupported.opt_ins=opt_in;
+        check(!KfcRuntimePrepareSelectedV1(&unsupported,&proof,nullptr,0,&completed) && completed==0 && prepared.empty());
+    }
+    auto invalid=plan;invalid.services|=32u|64u;invalid.opt_ins=5;
     check(!KfcRuntimePrepareSelectedV1(&invalid,&proof,nullptr,0,&completed) && prepared.empty());
     invalid=plan;invalid.process_role=SelectedStartup::DedicatedServer;
     check(!KfcRuntimePrepareSelectedV1(&invalid,&proof,nullptr,0,&completed));
     check(KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==plan.services && !selected_execution);
-    check(prepared==std::vector<unsigned>({1,2,3,4}) && !KfcRuntimeInitialize());
-    check(!KfcRuntimeRequireOriginalOwnersV1()); // Preparation is not activation.
+    check(prepared==std::vector<unsigned>({1,2,4}) && !KfcRuntimeInitialize());
     check(KfcRuntimeActivateSelectedV1(&plan,&completed) && completed==plan.services);
-    check(KfcRuntimeRequireOriginalOwnersV1() && KfcRuntimeFinalizeOriginalOwnersV1());
-    check(prepared==std::vector<unsigned>({1,2,3,4,5,6}));
+    check(prepared==std::vector<unsigned>({1,2,4}));
     const auto selected_resources=resource_initializations;KfcRuntimeTick();check(resource_initializations==selected_resources);
     check(!KfcRuntimeActivateSelectedV1(&plan,&completed));
     stopped.clear();KfcRuntimeShutdown();verify_stopped();

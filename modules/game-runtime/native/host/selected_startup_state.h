@@ -9,11 +9,7 @@ struct Operations {
     bool (*metadata)(void*, bool){};
     bool (*generic_ready)(void*){};
     bool (*map)(void*){};
-    bool (*first_person)(void*){};
     bool (*graphics)(void*){};
-    bool (*provider)(void*){};
-    bool (*scalar)(void*){};
-    bool (*vein)(void*){};
     void (*stop)(void*){};
 };
 class State final {
@@ -49,9 +45,7 @@ public:
                 stage_ = name;
                 return call && call(ops.context);
             };
-            if (!run(MapCapture, "map", ops.map) || !run(FirstPerson, "fp", ops.first_person) ||
-                !run(Graphics, "graphics", ops.graphics) || !run(SharedProvider, "provider", ops.provider) ||
-                !run(FlightScalar, "scalar", ops.scalar)) return fail(ops);
+            if (!run(MapCapture, "map", ops.map) || !run(Graphics, "graphics", ops.graphics)) return fail(ops);
             stage_ = "prepare-transition";
             expected = Phase::Preparing;
             if (!phase_.compare_exchange_strong(expected, Phase::Prepared)) return fail(ops);
@@ -67,8 +61,6 @@ public:
         stage_ = "activation-plan";
         if (!Same(plan_, plan)) return fail(ops);
         try {
-            stage_ = "vein";
-            if ((plan.services & Vein) && (!ops.vein || !ops.vein(ops.context))) return fail(ops);
             stage_ = "activate-transition";
             expected = Phase::Activating;
             if (!phase_.compare_exchange_strong(expected, Phase::Active)) return fail(ops);

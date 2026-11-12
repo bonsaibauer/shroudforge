@@ -243,54 +243,6 @@ pub fn read_input_keys(_: &[u32]) -> Result<Vec<InputKeyState>, i32> {
     Err(3)
 }
 
-pub fn first_person_available() -> bool {
-    false
-}
-
-pub fn first_person_detail() -> String {
-    "native first-person control is available on Windows only".into()
-}
-
-pub fn first_person_set_mode(_: u64, _: bool, _: f64) -> Result<(), String> {
-    Err(first_person_detail())
-}
-
-/// No native first-person owner can exist on a platform without the provider.
-pub fn first_person_release_owner(_: u64) -> Result<(), String> {
-    Ok(())
-}
-
-#[cfg(test)]
-mod first_person_tests {
-    use super::*;
-
-    #[test]
-    fn unsupported_platform_fails_closed_and_owner_release_is_idempotent() {
-        assert!(!first_person_available());
-        assert!(first_person_detail().contains("Windows only"));
-        assert!(first_person_set_mode(1, true, 0.0).is_err());
-        assert!(first_person_release_owner(1).is_ok());
-    }
-}
-
-pub fn flight_available() -> bool {
-    false
-}
 pub fn native_publish_notification(_: &str, _: &str, _: &str, _: u32) -> i32 {
     3
-}
-pub fn take_vein_notices() -> Result<crate::VeinNoticeBatch, i32> {
-    Err(3)
-}
-pub fn flight_set_enabled(_token: u64, _enabled: bool) -> i32 {
-    0
-}
-pub fn flight_reset(_token: u64) -> i32 {
-    0
-}
-pub fn flight_retire(_token: u64) -> i32 {
-    0
-}
-pub fn flight_status(_token: u64) -> Option<crate::FlightClientStatus> {
-    None
 }

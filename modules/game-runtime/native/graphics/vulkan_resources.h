@@ -199,7 +199,7 @@
     }
 
     bool TryCreateTexturedResourcesLocked(Renderer& renderer, TexturedResources& resource,
-        const std::vector<std::uint8_t>& rgba, int textureWidth, int textureHeight, bool terrain)
+        const std::vector<std::uint8_t>& rgba, int textureWidth, int textureHeight)
     {
         if (resource.frameTextureReady) return true;
         if (textureWidth <= 0 || textureHeight <= 0 || textureWidth > 4096 || textureHeight > 4096 ||
@@ -332,8 +332,8 @@
 
         std::vector<std::uint8_t> vertexShader;
         std::vector<std::uint8_t> fragmentShader;
-        if (!TryReadFrameShader(terrain ? "terrain.vert" : "texture.vert", vertexShader) ||
-            !TryReadFrameShader(terrain ? "terrain.frag" : "texture.frag", fragmentShader))
+        if (!TryReadFrameShader("texture.vert", vertexShader) ||
+            !TryReadFrameShader("texture.frag", fragmentShader))
         {
             return false;
         }
@@ -376,7 +376,7 @@
         VkPipelineRasterizationStateCreateInfo raster{};
         VkPipelineMultisampleStateCreateInfo multisample{};
         VkPipelineColorBlendAttachmentState blendAttachment{};
-        blendAttachment.blendEnable = terrain ? 0 : 1;
+        blendAttachment.blendEnable = 1;
         blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -534,14 +534,14 @@
         void* device = reinterpret_cast<void*>(g_renderer.device);
         if (device == nullptr || g_renderer.swapchain == 0 || !TryLoadVulkanRendererFns(g_renderer.fns, device))
         {
-            LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: missing device functions");
+            LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: missing device functions");
             RetireCurrentRenderer();
             return false;
         }
 
         if (!FetchRendererSwapchainImages(g_renderer, snapshot))
         {
-            LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: swapchain images unavailable");
+            LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: swapchain images unavailable");
             RetireCurrentRenderer();
             return false;
         }
@@ -554,7 +554,7 @@
 
         if (!CreateRendererCommandPoolLocked(queueFamily))
         {
-            LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: command pool creation failed");
+            LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: command pool creation failed");
             RetireCurrentRenderer();
             return false;
         }
@@ -574,7 +574,7 @@
         void* renderPass = nullptr;
         if (g_renderer.fns.createRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS || renderPass == nullptr)
         {
-            LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: render pass creation failed");
+            LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: render pass creation failed");
             RetireCurrentRenderer();
             return false;
         }
@@ -594,7 +594,7 @@
             void* imageView = nullptr;
             if (g_renderer.fns.createImageView(device, &imageViewInfo, nullptr, &imageView) != VK_SUCCESS || imageView == nullptr)
             {
-                LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: image view creation failed");
+                LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: image view creation failed");
                 RetireCurrentRenderer();
                 return false;
             }
@@ -612,7 +612,7 @@
             void* framebuffer = nullptr;
             if (g_renderer.fns.createFramebuffer(device, &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS || framebuffer == nullptr)
             {
-                LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: framebuffer creation failed");
+                LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: framebuffer creation failed");
                 RetireCurrentRenderer();
                 return false;
             }
@@ -625,7 +625,7 @@
         allocateInfo.commandBufferCount = static_cast<std::uint32_t>(g_renderer.commandBuffers.size());
         if (g_renderer.fns.allocateCommandBuffers(device, &allocateInfo, reinterpret_cast<void**>(g_renderer.commandBuffers.data())) != VK_SUCCESS)
         {
-            LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: command buffer allocation failed");
+            LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: command buffer allocation failed");
             RetireCurrentRenderer();
             return false;
         }
@@ -637,7 +637,7 @@
             void* semaphore = nullptr;
             if (g_renderer.fns.createSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS || semaphore == nullptr)
             {
-                LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: semaphore creation failed");
+                LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: semaphore creation failed");
                 RetireCurrentRenderer();
                 return false;
             }
@@ -652,7 +652,7 @@
             void* fence = nullptr;
             if (g_renderer.fns.createFence(device, &fenceInfo, nullptr, &fence) != VK_SUCCESS || fence == nullptr)
             {
-                LogRendererThrottled("[Minimap] Vulkan minimap renderer not ready: fence creation failed");
+                LogRendererThrottled("[ShroudForge] Vulkan overlay renderer not ready: fence creation failed");
                 RetireCurrentRenderer();
                 return false;
             }
@@ -671,7 +671,7 @@
         g_renderer.ready = true;
 
         std::ostringstream oss;
-        oss << "[Minimap] Vulkan minimap renderer ready"
+        oss << "[ShroudForge] Vulkan overlay renderer ready"
             << " | swapchain=" << Hex(g_renderer.swapchain)
             << " | extent=" << g_renderer.width << "x" << g_renderer.height
             << " | colorSpace=" << g_renderer.colorSpace

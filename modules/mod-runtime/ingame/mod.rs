@@ -2,7 +2,6 @@ use crate::{ShroudForgeApi, runner::LuaModRunner};
 use mlua::RegistryKey;
 
 mod activate_runtime_mod;
-mod deliver_vein_notices;
 mod load_native_plugins;
 mod load_runtime_callbacks;
 mod plan_runtime_mods;
@@ -18,7 +17,6 @@ mod unload_runtime_mod;
 mod unload_runtime_packages;
 mod update_ingame_runtime;
 mod update_mod_callbacks;
-mod vein_notice_pump;
 mod watch_package_revisions;
 
 #[cfg(test)]
@@ -38,7 +36,6 @@ pub(crate) struct Lifecycle {
 }
 
 pub struct IngameRuntime {
-    vein_notices: vein_notice_pump::Pump,
     diagnostics: shroudforge_runtime_diagnostics::Session,
     root: std::path::PathBuf,
     api: Option<ShroudForgeApi>,

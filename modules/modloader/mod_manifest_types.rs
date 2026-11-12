@@ -342,7 +342,6 @@ pub enum Capability {
     RuntimeRegisterDll,
     RuntimeEngineHooks,
     RuntimeMap,
-    RuntimeFirstPerson,
     RuntimeOverlay,
 }
 
@@ -354,6 +353,13 @@ impl Capability {
 
     /// EML native DLL registration participates in the live runtime lifecycle.
     pub fn requires_runtime(self) -> bool {
-        matches!(self, Self::Runtime | Self::RuntimeRegisterDll | Self::RuntimeEngineHooks | Self::RuntimeMap | Self::RuntimeFirstPerson | Self::RuntimeOverlay)
+        matches!(
+            self,
+            Self::Runtime
+                | Self::RuntimeRegisterDll
+                | Self::RuntimeEngineHooks
+                | Self::RuntimeMap
+                | Self::RuntimeOverlay
+        )
     }
 }

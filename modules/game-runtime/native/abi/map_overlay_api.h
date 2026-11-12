@@ -58,7 +58,7 @@ typedef struct SFMapMarkerV1 {
  * high order of each of the five captured identity words. They are opaque
  * integers, never addresses or dereferenceable engine pointers. Count 0 means
  * absent; counts greater than 10 are invalid. `id` retains full 64-bit identity.
- * The shared Minimap core alone selects a matching product atlas icon. */
+ * Consumers select their own matching assets and presentation. */
 typedef struct SFMapMarkerViewV1 {
     SFMapSnapshotMetaV1 meta;
     const SFMapMarkerV1* data;
@@ -122,7 +122,7 @@ typedef struct SFOverlayTextureV1 {
     uint64_t coverage_mask_bytes;
 } SFOverlayTextureV1;
 /* RGBA8 row-major, straight alpha. Optional coverage is one byte/texel, 0/1,
- * already including the core's alpha cutoff. Same owner/resource_id/revision
+ * provided by the caller. Same owner/resource_id/revision
  * identifies immutable content. The host copies/uploads only a new revision. */
 typedef struct SFOverlayRectangleV1 { int32_t x,y,width,height; uint32_t rgba; } SFOverlayRectangleV1;
 typedef struct SFOverlayTextureCommandV1 {
@@ -136,47 +136,29 @@ typedef struct SFOverlayTextureCommandV1 {
  * straight RGB/alpha independently. Source is texels (zero extent=full image),
  * destination is pixels, positive rotation clockwise around destination center,
  * clip_radius>0 applies a screen-space circle. */
-typedef struct SFOverlayTerrainV1 {
-    SFOverlayTextureV1 world_map;
-    int32_t center_pixel_x,center_pixel_y,radius;
-    float center_world_x,center_world_z,units_per_pixel,heading_radians;
-    int32_t sample_step,map_light;
-    uint32_t fog_enabled,reserved;
-    SFMapFogViewV1 fog;
-} SFOverlayTerrainV1;
 typedef struct SFOverlayEncoderV1 {
     uint32_t size,version;
     void* context;
     uint64_t owner_id,device_generation;
     int32_t (*draw_rectangles)(void*,uint64_t,const SFOverlayRectangleV1*,uint32_t);
     int32_t (*draw_textures)(void*,uint64_t,const SFOverlayTextureCommandV1*,uint32_t);
-    /* One full-terrain operation per owner per frame. */
-    int32_t (*draw_terrain)(void*,uint64_t,const SFOverlayTerrainV1*);
 } SFOverlayEncoderV1;
 /* Version 2 is requested through shroudforge.overlay before registration.
  * The V1 structures and callbacks retain their original layouts/semantics. */
-typedef enum SFOverlayEffectV2 {
-    SF_OVERLAY_EFFECT_IMAGE=0, SF_OVERLAY_EFFECT_ARROW_HALO=1,
-    SF_OVERLAY_EFFECT_DIAMOND_HALO=2, SF_OVERLAY_EFFECT_DEATH_PLATE=3
-} SFOverlayEffectV2;
 typedef struct SFOverlayTextureCommandV2 {
     SFOverlayTextureCommandV1 base;
-    uint32_t square_clip,effect;
-    float body_extent,halo_radius;
+    uint32_t square_clip;
 } SFOverlayTextureCommandV2;
-typedef struct SFOverlayTerrainV2 { SFOverlayTerrainV1 base; uint32_t square,reserved; } SFOverlayTerrainV2;
 typedef struct SFOverlayEncoderV2 {
     SFOverlayEncoderV1 base;
     int32_t (*draw_textures_v2)(void*,uint64_t,const SFOverlayTextureCommandV2*,uint32_t);
-    int32_t (*draw_terrain_v2)(void*,uint64_t,const SFOverlayTerrainV2*);
 } SFOverlayEncoderV2;
-/* Effect geometry is finite pixel units. body_extent means arrow full width,
- * diamond half-width, or death plate radius. halo_radius is positive for effects.
- * Base tint is straight RGBA glow colour/opacity. Square clipping uses the base
- * clip centre/radius; zero radius disables clipping. The host owns all shaders. */
 typedef struct SFOverlayFrameV1 {
     uint32_t size,version,width,height;
     uint64_t device_generation;
+    /* Optional synchronous snapshot, never a map-readiness promise. May be
+     * NULL; without map capture the current host provides SF_MAP_DISABLED.
+     * The pointer and all its spans expire when the callback returns. */
     const SFMapFrameV1* map_frame;
 } SFOverlayFrameV1;
 typedef int32_t (*SFOverlayFrameCallbackV1)(void*,const SFOverlayFrameV1*,const SFOverlayEncoderV1*);
@@ -201,7 +183,6 @@ typedef enum SFOverlayReasonV1 {
 typedef struct SFOverlayStatusV1 {
     uint32_t size,version,status,reason;
     uint64_t device_generation,rendered_frames,busy_frames,failed_frames;
-    uint64_t terrain_upload_bytes,terrain_upload_regions,cpu_fallback_frames;
 } SFOverlayStatusV1;
 typedef struct SFOverlayServiceV1 {
     uint32_t size,version;

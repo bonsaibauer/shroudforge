@@ -57,7 +57,6 @@ add_library(kfc-runtime SHARED
     graphics/render_overlay.cpp
     graphics/vulkan_overlay.cpp
     graphics/notification_overlay.cpp
-    first-person/first_person_control.cpp
     ecs/bind_world_entities.cpp
     ecs/resolve_entity_handle.cpp
     ecs/resolve_entity_command_queue.cpp
@@ -348,10 +347,6 @@ foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-life
     set_property(TARGET ${test_target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endforeach()
 
-add_executable(kfc-runtime-test-first-person-owner EXCLUDE_FROM_ALL ../tests/first_person_owner_test.cpp)
-target_include_directories(kfc-runtime-test-first-person-owner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_compile_features(kfc-runtime-test-first-person-owner PRIVATE cxx_std_20)
-set_property(TARGET kfc-runtime-test-first-person-owner PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_executable(kfc-runtime-test-executable-write EXCLUDE_FROM_ALL ../tests/executable_write_test.cpp)
 target_include_directories(kfc-runtime-test-executable-write PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(kfc-runtime-test-executable-write PRIVATE cxx_std_20)

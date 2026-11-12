@@ -1,4 +1,5 @@
 #include "map/read_map_frame.h"
+#include "map/current_client_hud_guards.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -19,6 +20,28 @@ template<class T> void put(std::vector<std::uint8_t>& bytes, std::size_t at, con
 }
 
 int main() {
+    // Native renderer bytes remain mandatory even when our retained CALL is
+    // independently normalized. A foreign detour cannot inherit admission.
+    using namespace MapRuntime::CurrentHud5d9ef2f1;
+    std::vector<std::uint8_t> image(Pins[8].rva + Pins[8].bytes.size());
+    for (const auto& pin : Pins)
+        std::memcpy(image.data() + pin.rva, pin.bytes.data(), pin.bytes.size());
+    const auto copy = +[](const std::uint8_t* at, void* out, std::size_t size) {
+        std::memcpy(out, at, size); return true;
+    };
+    check(Match(image.data(), image.size(), nullptr, 0, copy));
+    image[Pins[0].rva] = 0xe9;
+    check(!Match(image.data(), image.size(), nullptr, 0, copy));
+    image[Pins[0].rva] = std::uint8_t(Pins[0].bytes[0]);
+    image[Pins[7].rva + 1] ^= 1;
+    check(!Match(image.data(), image.size(), nullptr, 0, copy));
+    const auto* original_call = reinterpret_cast<const std::uint8_t*>(Pins[7].bytes.data());
+    check(Match(image.data(), image.size(), original_call, 5, copy));
+    image[Pins[0].rva] = 0xe9;
+    check(!Match(image.data(), image.size(), original_call, 5, copy));
+    image[Pins[0].rva] = std::uint8_t(Pins[0].bytes[0]);
+    image[Pins[7].rva + 6] ^= 1;
+    check(!Match(image.data(), image.size(), original_call, 5, copy));
     SFMapMarkerV1 identity{};const std::uint64_t identity_words[5]{UINT64_C(0x2233445566778899),UINT64_C(0x0102030405060708),3,4,5};
     MapRuntime::SetMarkerIdentity(identity,identity_words);
     check(identity.id==identity_words[0] && identity.icon_candidate_count==10);

@@ -1,5 +1,4 @@
 #include "bootstrap_state.h"
-#include "greeneye_entry.h"
 
 using namespace BootstrapImplementation;
 
@@ -10,17 +9,13 @@ struct SelectedContinuation {
     std::filesystem::path root;
     SelectedStartup::PlanV2 plan;
     bool (__cdecl* commit)(const wchar_t*,unsigned){};
-    bool has_original{};
-    GreeneyeEntry::Context original;
 };
 // Retained process-lifetime context: a deadline must never free executing work.
 SelectedContinuation selected_continuation;
 bool __cdecl complete_selected(void* value,unsigned char* entry,const unsigned char* original) noexcept {
     try {
         auto& context=*static_cast<SelectedContinuation*>(value);
-        const bool ready=context.has_original?GreeneyeEntry::Continue(context.original,entry,original):
-            EcsRuntime::RequireOriginalOwners() && EcsRuntime::FinalizeOriginalOwners();
-        return ready && context.commit(context.root.c_str(),context.plan.services);
+        return context.commit(context.root.c_str(),context.plan.services);
     } catch(...) {return false;}
 }
 }
@@ -123,18 +118,7 @@ DWORD WINAPI run(void*) {
         if(!EcsRuntime::PrepareSelected(plan,proof) || !EcsRuntime::ActivateSelected(plan)) {
             EcsRuntime::Shutdown();startup_failed(root,"selected-native-preparation",EcsRuntime::Status());return 1;
         }
-        const auto take_original=reinterpret_cast<GreeneyeEntry::Take>(GetProcAddress(runtime,"shroudforge_take_original_startup_v1"));
-        const auto load_original=reinterpret_cast<GreeneyeEntry::Load>(GetProcAddress(runtime,"shroudforge_load_original_startup_v1"));
-        const auto confirm_original=reinterpret_cast<GreeneyeEntry::Confirm>(GetProcAddress(runtime,"shroudforge_confirm_original_startup_v1"));
-        if(!take_original || !load_original || !confirm_original) {
-            EcsRuntime::Shutdown();startup_failed(root,"original-loader-exports","Original loader admission exports are missing");return 1;
-        }
-        GreeneyeEntry::TicketV1 ticket;
-        const auto original_mode=take_original(root.c_str(),&ticket,sizeof(ticket));
-        if(original_mode<0 || original_mode>1) {
-            EcsRuntime::Shutdown();startup_failed(root,"original-loader-ticket","Original loader ticket was refused");return 1;
-        }
-        selected_continuation={root,plan,commit_services,original_mode==1,{root.wstring(),ticket,load_original,confirm_original}};
+        selected_continuation={root,plan,commit_services};
         if(!StartupGate::ArmPostRestore(proof.parked_thread_id,complete_selected,&selected_continuation)) {
             EcsRuntime::Shutdown();startup_failed(root,"selected-entry-continuation","Could not arm the original entry thread");return 1;
         }

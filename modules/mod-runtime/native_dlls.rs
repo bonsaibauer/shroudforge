@@ -212,9 +212,7 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
             }
         }
     }
-    if crate::startup_services::ordinary_already_loaded(root, &entry)? {
-        return Ok(());
-    }
+    crate::startup_services::require_ordinary_loading()?;
     queue_process_library(root, entry)
 }
 

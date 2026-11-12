@@ -13,13 +13,6 @@ impl IngameRuntime {
             .app_data_ref::<AppState>()
             .unwrap()
             .poll_native_dll_loads();
-        let client = !self
-            .runner
-            .lua
-            .app_data_ref::<AppState>()
-            .unwrap()
-            .is_server();
-        self.deliver_vein_notices(client);
         self.process_runtime_reload_request();
         if std::time::Instant::now() >= self.next_status {
             let config =

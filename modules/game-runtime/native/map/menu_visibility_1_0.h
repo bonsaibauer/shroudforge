@@ -6,7 +6,7 @@
 #include <cstring>
 #include <string_view>
 
-namespace MinimapMenu10
+namespace EngineMenu10
 {
     constexpr std::uintptr_t RendererRva = 0xc4e0c0;
     constexpr std::uintptr_t UiContextRva = 0x281b498;
@@ -24,7 +24,6 @@ namespace MinimapMenu10
         struct Guard { std::size_t rva; std::string_view bytes; };
         inline bool MatchGuardTable(
             const std::uint8_t* image, std::size_t imageSize,
-            const std::uint8_t* rendererPrefix, std::size_t rendererPrefixSize,
             const std::uint8_t* callPrefix, std::size_t callPrefixSize, GuardReader reader, bool currentBuild)
         {
             constexpr Guard oldGuards[] = {
@@ -50,20 +49,10 @@ namespace MinimapMenu10
             {0xd6c860, "\x48\x89\x0d\x31\x1c\xab\x01\xc3"sv}
             };
             const auto& guards = currentBuild ? currentGuards : oldGuards;
-            const auto rendererRva = currentBuild ? 0xc4fc40u : RendererRva;
             const auto callRva = currentBuild ? 0xbc24bau : 0xbc093au;
             if (!image) return false;
 
-            if (rendererPrefix || rendererPrefixSize != 0)
-            {
-                const Guard* rendererGuard = nullptr;
-                for (const auto& guard : guards)
-                    if (guard.rva == rendererRva) { rendererGuard = &guard; break; }
-                if (!rendererPrefix || !rendererGuard || rendererPrefixSize != rendererGuard->bytes.size() ||
-                    rendererGuard->rva > imageSize || rendererGuard->bytes.size() > imageSize - rendererGuard->rva ||
-                    std::memcmp(rendererPrefix, rendererGuard->bytes.data(), rendererGuard->bytes.size()) != 0)
-                    return false;
-            }
+
 
             if (callPrefix || callPrefixSize) {
                 // Only the independently proved retained CALL's original5B can
@@ -74,7 +63,6 @@ namespace MinimapMenu10
             }
             for (const auto& guard : guards)
             {
-                if (rendererPrefix && guard.rva == rendererRva) continue;
                 if (guard.rva > imageSize || guard.bytes.size() > imageSize - guard.rva || guard.bytes.size() > 64)
                     return false;
                 std::array<std::uint8_t,64> actual{};
@@ -91,16 +79,15 @@ namespace MinimapMenu10
     // Check after exact-profile admission and before patching; the UI context is stack-local.
     inline bool MatchGuards(const std::uint8_t* image, std::size_t imageSize, GuardReader reader = nullptr, bool currentBuild = false)
     {
-        return detail::MatchGuardTable(image, imageSize, nullptr, 0, nullptr, 0, reader, currentBuild);
+        return detail::MatchGuardTable(image, imageSize, nullptr, 0, reader, currentBuild);
     }
 
-    // Only the exact original 18-byte renderer entry may be replaced after ownership proof.
-    inline bool MatchGuardsWithRendererPrefix(
+    // Only the independently verified framework-owned CALL may be normalized.
+    inline bool MatchGuardsWithOwnedCall(
         const std::uint8_t* image, std::size_t imageSize,
-        const std::uint8_t* rendererPrefix, std::size_t rendererPrefixSize,
         const std::uint8_t* ownedCallPrefix = nullptr, std::size_t ownedCallSize = 0, GuardReader reader = nullptr, bool currentBuild = false)
     {
-        return detail::MatchGuardTable(image, imageSize, rendererPrefix, rendererPrefixSize, ownedCallPrefix, ownedCallSize, reader, currentBuild);
+        return detail::MatchGuardTable(image, imageSize, ownedCallPrefix, ownedCallSize, reader, currentBuild);
     }
 
     class Snapshot

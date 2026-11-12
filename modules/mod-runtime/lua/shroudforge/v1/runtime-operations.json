@@ -5,7 +5,6 @@
     "runtime.lifecycle",
     "runtime.is_main_menu",
     "runtime.player.name",
-    "runtime.first_person.set_mode",
     "runtime.network.status",
     "runtime.network.send",
     "runtime.network.send_mod",

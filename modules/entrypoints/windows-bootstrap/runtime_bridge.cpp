@@ -48,8 +48,7 @@ bool PrepareSelected(const SelectedStartup::PlanV2& plan,const EngineHooks::Held
     if(!SelectedStartup::Valid(plan) || !LoadProvider())return false;
     const auto prepare=reinterpret_cast<decltype(&KfcRuntimePrepareSelectedV1)>(GetProcAddress(provider,"KfcRuntimePrepareSelectedV1"));
     // Resolve the complete selected lifecycle before publishing any callbacks.
-    if(!prepare || !GetProcAddress(provider,"KfcRuntimeActivateSelectedV1") ||
-        !GetProcAddress(provider,"KfcRuntimeRequireOriginalOwnersV1") || !GetProcAddress(provider,"KfcRuntimeFinalizeOriginalOwnersV1")) {
+    if(!prepare || !GetProcAddress(provider,"KfcRuntimeActivateSelectedV1")) {
         error="selected-runtime-exports-unavailable";return false;
     }
     unsigned completed{};
@@ -60,14 +59,8 @@ bool ActivateSelected(const SelectedStartup::PlanV2& plan) {
     const auto activate=reinterpret_cast<decltype(&KfcRuntimeActivateSelectedV1)>(GetProcAddress(provider,"KfcRuntimeActivateSelectedV1"));
     unsigned completed{};return activate && activate(&plan,&completed) && completed==plan.services;
 }
-bool RequireOriginalOwners() {
-    const auto call=provider?reinterpret_cast<decltype(&KfcRuntimeRequireOriginalOwnersV1)>(GetProcAddress(provider,"KfcRuntimeRequireOriginalOwnersV1")):nullptr;
-    return call && call();
-}
-bool FinalizeOriginalOwners() {
-    const auto call=provider?reinterpret_cast<decltype(&KfcRuntimeFinalizeOriginalOwnersV1)>(GetProcAddress(provider,"KfcRuntimeFinalizeOriginalOwnersV1")):nullptr;
-    return call && call();
-}
+
+
 void Tick() { if (tick) tick(); }
 void Shutdown() { if (shutdown) shutdown(); }
 std::string Status() {

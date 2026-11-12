@@ -1,40 +1,14 @@
 #include "../startup_gate.h"
-#include "../greeneye_entry.h"
 
 namespace StartupGate { void ReportFailure(const char* detail,DWORD) noexcept {OutputDebugStringA(detail);} }
 namespace {
 int continuation_context;
 std::atomic<bool> continued{};
-int original_stage{};
 HANDLE callback_entered{}, callback_release{};
-void RequireStage(int expected) { if(original_stage++ != expected) ExitProcess(42); }
-bool RejectWitness() {
+bool RejectCompletion() {
     wchar_t value[2]{};
-    return GetEnvironmentVariableW(L"SF_GATE_TEST_WITNESS_FAIL", value, 2) != 0;
+    return GetEnvironmentVariableW(L"SF_GATE_TEST_COMPLETION_FAIL", value, 2) != 0;
 }
-std::uintptr_t __cdecl LoadOriginal(const wchar_t*,const GreeneyeEntry::TicketV1*) {
-    RequireStage(1);
-    return 123;
-}
-bool __cdecl ConfirmOriginal(const wchar_t*,const GreeneyeEntry::TicketV1*,std::uintptr_t module,bool witness) {
-    RequireStage(3);
-    if(module != 123 || witness == RejectWitness()) ExitProcess(42);
-    return witness;
-}
-}
-// Exercise the production continuation with inert owner and loader seams.
-// No original DLL is loaded and no private scan is called by this fixture.
-namespace GreeneyeDynamic {
-bool Begin(unsigned char* entry,const unsigned char* original) noexcept {
-    RequireStage(0);
-    return !std::memcmp(entry,original,14) && !StartupGate::IsHeld(GetCurrentThreadId());
-}
-bool Witness(std::uintptr_t module) noexcept {
-    RequireStage(2);
-    return module == 123 && !RejectWitness();
-}
-bool Finalize() noexcept { RequireStage(4); return true; }
-const char* Failure() noexcept {return "fixture-original-failure";}
 }
 bool __cdecl Continue(void* value,unsigned char* entry,const unsigned char* original) noexcept {
     if(callback_entered) {
@@ -43,9 +17,7 @@ bool __cdecl Continue(void* value,unsigned char* entry,const unsigned char* orig
     }
     const bool valid=value==&continuation_context && GetCurrentThreadId()==StartupGate::parked_thread_id.load() &&
         !StartupGate::IsHeld(GetCurrentThreadId()) && !std::memcmp(entry,original,14);
-    GreeneyeEntry::Context context{L"inert-root",{48,1,2,0,{}},LoadOriginal,ConfirmOriginal};
-    const bool ready=valid && GreeneyeEntry::Continue(context,entry,original);
-    continued=ready && original_stage==5;
+    continued=valid && !RejectCompletion();
     return continued;
 }
 DWORD WINAPI Prepare(void*) {

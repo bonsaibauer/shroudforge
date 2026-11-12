@@ -43,14 +43,10 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken&) noexcept;
 void StopCapture() noexcept;
 // Retained control-plane evidence; does not query/mutate feature readiness.
 std::string PreparationStatus();
-bool FinalizeOriginalOwners() noexcept;
-bool RequireOriginalOwners() noexcept;
 bool ReadOwnedCameraEntryReplacement(std::span<const std::uint8_t> original,
     std::span<std::uint8_t> replacement) noexcept;
 void UpdateCaptureSession(std::uint64_t native_session, bool gameplay, bool menu, bool focused);
 SnapshotStore& CapturedFrames();
-bool RendererAdmitted();
-bool PreparedRendererAdmitted() noexcept;
 bool InstallSharedCall(std::size_t rva,std::size_t target,void* callback);
 bool SharedCallOwned(std::size_t rva,std::size_t target,void* callback);
 bool InstallSharedEntry(std::size_t rva,std::span<const std::uint8_t> expected,void* callback);

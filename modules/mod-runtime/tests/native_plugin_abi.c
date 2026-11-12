@@ -1,8 +1,10 @@
 #include <stddef.h>
 #include "../native_plugin_api.h"
 #include "../../game-runtime/native/abi/map_overlay_api.h"
+#include "../../game-runtime/native/abi/runtime_api.h"
 
 /* Match the Rust host layouts from an ordinary x64 C plugin consumer. */
+_Static_assert(KFC_RUNTIME_ABI_VERSION == 12u, "stable runtime ABI");
 _Static_assert(sizeof(SFNativePluginV1) == 48, "plugin layout");
 _Static_assert(offsetof(SFNativePluginV1, initialize) == 16, "initialize offset");
 _Static_assert(sizeof(SFNativeHostV1) == 96, "host layout");
@@ -18,8 +20,9 @@ _Static_assert(sizeof(SFMapMarkerV1) == 88, "map marker layout");
 _Static_assert(offsetof(SFMapMarkerV1, icon_candidates) == 48, "marker candidates offset");
 _Static_assert(sizeof(SFMapServiceV1) == 40, "map service layout");
 _Static_assert(sizeof(SFOverlayServiceV1) == 40, "overlay service layout");
-_Static_assert(sizeof(SFOverlayEncoderV1) == 56, "overlay encoder layout");
-_Static_assert(sizeof(SFOverlayStatusV1) == 72, "overlay status layout");
+_Static_assert(sizeof(SFOverlayEncoderV1) == 48, "overlay encoder layout");
+_Static_assert(sizeof(SFOverlayEncoderV2) == 56, "extended encoder layout");
+_Static_assert(sizeof(SFOverlayStatusV1) == 48, "overlay status layout");
 
 SFNativeStatusV1 SF_NATIVE_CALL ShroudForgePluginEntry(
     uint32_t requested_abi, uint32_t out_size, SFNativePluginV1 *out_plugin)

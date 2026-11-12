@@ -96,7 +96,6 @@
           "runtime-register-dll",
           "runtime-engine-hooks",
           "runtime-map",
-          "runtime-first-person",
           "runtime-overlay"
         ]
       }

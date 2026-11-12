@@ -2,11 +2,9 @@
 #include "abi/map_overlay_api.h"
 #include "host/selected_startup_state.h"
 #include "host/runtime_lifecycle_state.h"
-#include "host/original_owner_failure.h"
 #include "engine-hooks/held_entry_preparation.h"
 #include "engine-hooks/install_engine_hooks.h"
 #include "graphics/render_overlay.h"
-#include "first-person/first_person_control.h"
 #include "map/capture_game_map.h"
 #include <windows.h>
 #include <filesystem>
@@ -14,7 +12,7 @@
 namespace {
 SelectedStartup::State selected;
 constexpr unsigned public_services = SelectedStartup::Metadata | SelectedStartup::GenericHooks |
-    SelectedStartup::MapCapture | SelectedStartup::FirstPerson | SelectedStartup::Graphics;
+    SelectedStartup::MapCapture | SelectedStartup::Graphics;
 struct Context { const EngineHooks::HeldEntryToken* token{}; };
 unsigned actual_role() {
     wchar_t path[32768]{};
@@ -30,9 +28,7 @@ SelectedStartup::Operations operations(Context& context) {
         +[](void*,bool execution){return ProviderImplementation::initialize_provider(execution,true);},
         +[](void*){return ProviderImplementation::provider_initialized.load() && EngineHooks::StartupReady();},
         +[](void* value){const auto token=static_cast<Context*>(value)->token;return token && MapRuntime::PrepareCapture(*token)==SF_MAP_READY;},
-        +[](void* value){const auto token=static_cast<Context*>(value)->token;return token && FirstPersonControl::Prepare(*token);},
         +[](void*){return OverlayRuntime::PrepareGraphicsBoot(true);},
-        nullptr,nullptr,nullptr, // Optional external providers are not implemented by this binary.
         +[](void*){ProviderImplementation::shutdown_provider_components();}};
 }
 }
@@ -65,12 +61,6 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimeActivateSelectedV1(const SelectedStartup:
     *completed=0;if(!plan)return false;
     Context context;return selected.Activate(*plan,operations(context),*completed);
 }
-KFC_RUNTIME_API bool __cdecl KfcRuntimeRequireOriginalOwnersV1() noexcept {
-    const auto services=selected.ActiveServices();
-    return services && (!(services&SelectedStartup::MapCapture) || MapRuntime::RequireOriginalOwners());
-}
-KFC_RUNTIME_API bool __cdecl KfcRuntimeFinalizeOriginalOwnersV1() noexcept {
-    const auto services=selected.ActiveServices();
-    return services && (!(services&SelectedStartup::MapCapture) || MapRuntime::FinalizeOriginalOwners());
-}
+
+
 }

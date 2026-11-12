@@ -11,14 +11,6 @@ pub(super) fn has_capability(r#mod: &Mod, capability: Capability) -> bool {
 
 pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
     match feature {
-        "runtime.flight" => {
-            state.phase() == RuntimePhase::Ingame
-                && state.is_client()
-                && !state.is_server()
-                && r#mod.info().id == "sf-unlimited-flight"
-                && has_capability(r#mod, Capability::Runtime)
-                && shroudforge_runtime_bridge::flight_available()
-        }
         "game.assets.write" => {
             state.has_feature(AppFeatures::PATCH) && has_capability(r#mod, Capability::Patch)
         }
@@ -31,14 +23,7 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
         }
-        "runtime.first_person.set_mode" => {
-            state.phase() == RuntimePhase::Ingame
-                && state.is_client()
-                && r#mod.info().target.supports_process(false)
-                && state.api().has_runtime(feature)
-                && has_capability(r#mod, Capability::Runtime)
-                && runtime_provider::first_person_available()
-        }
+
         "runtime.lifecycle" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime("runtime.lifecycle")
@@ -222,30 +207,9 @@ pub(super) fn operation_status(
             },
         );
     }
-    if feature.starts_with("runtime.first_person.")
-        && (state.is_server() || !r#mod.info().target.supports_process(false))
-    {
-        return availability_to_lua(
-            lua,
-            Availability::Unavailable {
-                reason:
-                    "first-person camera control requires a client-targeted mod in a client process"
-                        .into(),
-            },
-        );
-    }
+
     let availability = state.api().runtime(&feature);
-    if feature == "runtime.first_person.set_mode"
-        && matches!(availability, Availability::Available)
-        && !runtime_provider::first_person_available()
-    {
-        return availability_to_lua(
-            lua,
-            Availability::Unavailable {
-                reason: runtime_provider::first_person_detail(),
-            },
-        );
-    }
+
     if feature == "runtime.is_main_menu"
         && matches!(availability, Availability::Available)
         && runtime_provider::is_main_menu().is_none()

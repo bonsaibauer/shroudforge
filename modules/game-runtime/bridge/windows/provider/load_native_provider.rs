@@ -49,30 +49,10 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                     ))
                 } else {
                     Ok(Provider {
-                        flight_set: optional_symbol!(
-                            "KfcRuntimeFlightClientSetEnabledV1",
-                            unsafe extern "C" fn(u64, u32) -> i32
-                        ),
-                        flight_reset: optional_symbol!(
-                            "KfcRuntimeFlightClientResetV1",
-                            unsafe extern "C" fn(u64) -> i32
-                        ),
-                        flight_retire: optional_symbol!(
-                            "KfcRuntimeFlightClientRetireV1",
-                            unsafe extern "C" fn(u64) -> i32
-                        ),
-                        flight_status: optional_symbol!(
-                            "KfcRuntimeFlightClientStatusV1",
-                            unsafe extern "C" fn(u64, *mut crate::FlightClientStatus) -> i32
-                        ),
                         read_input_keys: optional_symbol!("KfcRuntimeReadInputKeys", ReadInputKeys),
                         publish_notification: optional_symbol!(
                             "KfcRuntimePublishNotificationV1",
                             PublishNotification
-                        ),
-                        take_vein_notices: optional_symbol!(
-                            "KfcRuntimeTakeVeinNoticesV1",
-                            TakeVeinNotices
                         ),
                         map_overlay: super::super::map_overlay::MapOverlayExports::new(
                             optional_symbol!(
@@ -88,34 +68,6 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                                 DrainMapOverlayServices
                             ),
                         ),
-                        first_person_available: optional_symbol!(
-                            "KfcRuntimeFirstPersonAvailable",
-                            FirstPersonAvailable
-                        ),
-                        first_person_detail: optional_symbol!(
-                            "KfcRuntimeFirstPersonDetail",
-                            FirstPersonDetail
-                        ),
-                        first_person_configure: optional_symbol!(
-                            "KfcRuntimeFirstPersonConfigure",
-                            FirstPersonConfigure
-                        ),
-                        first_person_set_mode: optional_symbol!(
-                            "KfcRuntimeFirstPersonSetMode",
-                            FirstPersonSetMode
-                        ),
-                        first_person_release_owner: optional_symbol!(
-                            "KfcRuntimeFirstPersonReleaseOwner",
-                            FirstPersonReleaseOwner
-                        ),
-                        // This marker means the provider exposes the private
-                        // held-entry route. It does not establish that startup
-                        // preparation ran or completed successfully.
-                        first_person_held_entry_prepare: !GetProcAddress(
-                            module,
-                            c"KfcRuntimePrepareHeldEntry".as_ptr(),
-                        )
-                        .is_null(),
                         configure: symbol!("KfcRuntimeEcsConfigure", Configure),
                         ready: symbol!("KfcRuntimeEcsReady", Ready),
                         prop_query_ready: optional_symbol!("KfcRuntimeEcsPropQueryReady", Ready),

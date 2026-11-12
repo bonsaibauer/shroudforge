@@ -9,13 +9,9 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-mod original_loader;
-pub use original_loader::TicketV1;
-
 pub const METADATA: u32 = 1;
 pub const GENERIC_HOOKS: u32 = 2;
 pub const MAP: u32 = 4;
-pub const FIRST_PERSON: u32 = 8;
 pub const GRAPHICS: u32 = 16;
 
 #[repr(C)]
@@ -53,7 +49,6 @@ struct Admission {
     identity: serde_json::Value,
     inputs: Vec<Input>,
     phase: Phase,
-    original: Option<original_loader::Work>,
 }
 
 static ADMISSION: OnceLock<Mutex<Option<Admission>>> = OnceLock::new();
@@ -114,7 +109,6 @@ fn inspect(
             services |= match capability {
                 Capability::RuntimeEngineHooks => GENERIC_HOOKS,
                 Capability::RuntimeMap => MAP,
-                Capability::RuntimeFirstPerson => MAP | FIRST_PERSON,
                 Capability::RuntimeOverlay => GRAPHICS,
                 _ => 0,
             };
@@ -167,16 +161,16 @@ fn inspect(
         }
         files.insert(plugin.entry.path.clone());
     }
-    if services != 0 && (!issues.is_empty() || native_issues) {
+    if !issues.is_empty() || native_issues {
         return Err("Selected startup has unresolved package or DLL selections".into());
     }
-    if services != 0 {
-        files.extend(original_loader::inspect(root, &ordinary)?);
-    }
-    if server && services & (MAP | FIRST_PERSON | GRAPHICS) != 0 {
+    if !ordinary.is_empty() {
         return Err(
-            "Client map, camera and graphics services cannot start in a server process".into(),
+            "Selected startup cannot compose ordinary DLL execution with framework services".into(),
         );
+    }
+    if server && services & (MAP | GRAPHICS) != 0 {
+        return Err("Client map and graphics services cannot start in a server process".into());
     }
     let dll_plan = mod_loader::dll_manager::resolve_load_plan(root, server);
     let entries: Vec<_> = dll_plan
@@ -247,18 +241,6 @@ impl Admission {
                 _lease: lease,
             });
         }
-        let (ordinary, _, _) = crate::native_dlls::selected_startup_plugins(&root, server);
-        let binding: [u8; 32] = Sha256::digest(
-            serde_json::to_vec(&serde_json::json!({"root":root,"selection":identity,
-            "inputs":inputs.iter().map(|i|(&i.path,i.digest)).collect::<Vec<_>>()}))
-            .map_err(|e| e.to_string())?,
-        )
-        .into();
-        let original = if ordinary.is_empty() {
-            None
-        } else {
-            Some(original_loader::Work::capture(&root, ordinary, binding)?)
-        };
         let admitted = Self {
             root,
             plan: PlanV2 {
@@ -273,7 +255,6 @@ impl Admission {
             identity,
             inputs,
             phase: Phase::Admitted,
-            original,
         };
         admitted.verify()?;
         Ok(Some(admitted))
@@ -357,14 +338,7 @@ pub fn commit(root: &Path, completed: u32) -> Result<(), String> {
         .lock()
         .map_err(|_| "Startup admission lock poisoned")?;
     let admission = state.as_mut().ok_or("No admitted startup")?;
-    if admission
-        .original
-        .as_ref()
-        .is_some_and(|work| !work.confirmed)
-    {
-        admission.phase = Phase::Failed;
-        return Err("Original loader completion has not been witnessed".into());
-    }
+
     if completed != admission.plan.services {
         admission.phase = Phase::Failed;
         return Err("Native startup completed a different service mask".into());
@@ -389,148 +363,20 @@ pub fn after_create(success: bool) {
             } else {
                 Phase::Failed
             };
-            // Startup-only package leases no longer block the runtime's own settings.
-            admission.inputs.retain(|input| {
-                admission
-                    .original
-                    .as_ref()
-                    .is_some_and(|work| work.retains(&input.path))
-            });
+            // Startup-only package leases no longer block runtime settings.
+            admission.inputs.clear();
         }
     }
 }
 
-/// One-shot ticket for the original entry thread; no caller-supplied DLL path.
-pub fn take_original(root: &Path) -> Result<Option<TicketV1>, String> {
-    let mut state = state()
-        .lock()
-        .map_err(|_| "Startup admission lock poisoned")?;
-    let admission = state.as_mut().ok_or("No selected startup admission")?;
-    if admission.phase != Phase::Taken || canonical(root)? != admission.root {
-        return Err("Original loader startup phase or root differs".into());
-    }
-    admission.verify()?;
-    let Some(work) = admission.original.as_mut() else {
-        return Ok(None);
-    };
-    if work.taken {
-        admission.phase = Phase::Failed;
-        return Err("Original loader ticket was already taken".into());
-    }
-    work.taken = true;
-    Ok(Some(work.ticket))
-}
-pub fn load_original(root: &Path, ticket: &TicketV1) -> Result<usize, String> {
-    let entry = {
-        let mut state = state()
-            .lock()
-            .map_err(|_| "Startup admission lock poisoned")?;
-        let admission = state.as_mut().ok_or("No selected startup admission")?;
-        if admission.phase != Phase::Taken || canonical(root)? != admission.root {
-            return Err("Original loader phase or root differs".into());
-        }
-        admission.verify()?;
-        let work = admission
-            .original
-            .as_mut()
-            .ok_or("No admitted original loader")?;
-        if !work.taken || work.loading || work.handle.is_some() || work.ticket != *ticket {
-            admission.phase = Phase::Failed;
-            return Err("Original loader ticket is invalid or spent".into());
-        }
-        work.loading = true;
-        (work.entry.clone(), work.preloads.clone())
-    };
-    // Do not hold a Rust state lock through an original DllMain.
-    let (entry, preloads) = entry;
-    let mut preload_result = Ok(());
-    for preload in preloads {
-        let (_, result) = original_loader::load(root, &preload);
-        if result.is_err() {
-            preload_result = result;
-            break;
-        }
-    }
-    let (handle, result) = match preload_result {
-        Ok(()) => original_loader::load(root, &entry),
-        Err(error) => (None, Err(error)),
-    };
-    let mut state = state()
-        .lock()
-        .map_err(|_| "Startup admission lock poisoned")?;
-    let admission = state
-        .as_mut()
-        .ok_or("Original loader admission disappeared")?;
-    let work = admission
-        .original
-        .as_mut()
-        .ok_or("Original loader disappeared")?;
-    work.handle = handle;
-    if let Err(error) = result {
-        admission.phase = Phase::Failed;
-        return Err(error);
-    }
-    if admission.phase != Phase::Taken || !work.loading || work.ticket != *ticket {
-        admission.phase = Phase::Failed;
-        return Err("Original loader expired while executing".into());
-    }
-    Ok(handle.ok_or("Original loader returned no module")? as usize)
-}
-pub fn confirm_original(
-    root: &Path,
-    ticket: &TicketV1,
-    module: usize,
-    witness: bool,
-) -> Result<(), String> {
-    let mut state = state()
-        .lock()
-        .map_err(|_| "Startup admission lock poisoned")?;
-    let admission = state.as_mut().ok_or("No original loader admission")?;
-    let valid = admission.phase == Phase::Taken
-        && canonical(root)? == admission.root
-        && witness
-        && module != 0
-        && admission.original.as_ref().is_some_and(|w| {
-            w.taken
-                && w.loading
-                && !w.confirmed
-                && w.ticket == *ticket
-                && w.handle == Some(module as isize)
-        });
-    if !valid {
-        admission.phase = Phase::Failed;
-        return Err("Original loader witness differs or was repeated".into());
-    }
-    admission.original.as_mut().unwrap().confirmed = true;
-    Ok(())
-}
-/// An admitted original must never also enter the ordinary DLL worker.
-pub(crate) fn ordinary_already_loaded(
-    root: &Path,
-    entry: &mod_loader::dll_manager::DllLoadEntry,
-) -> Result<bool, String> {
+pub(crate) fn require_ordinary_loading() -> Result<(), String> {
     let state = state()
         .lock()
         .map_err(|_| "Startup admission lock poisoned")?;
-    let Some(admission) = state.as_ref() else {
-        return Ok(false);
-    };
-    if canonical(root)? == admission.root
-        && matches!(
-            admission.phase,
-            Phase::Committed | Phase::Creating | Phase::Running
-        )
-        && admission.original.as_ref().is_some_and(|w| {
-            w.confirmed
-                && (w.entry.path == entry.path && w.entry.mode == entry.mode
-                    || w.preloads
-                        .iter()
-                        .any(|p| p.path == entry.path && p.mode == entry.mode))
-        })
-    {
-        return Ok(true);
+    if state.is_some() {
+        return Err("Ordinary DLL execution is unsupported in selected startup".into());
     }
-    Err("An ordinary DLL cannot bypass the selected original-loader plan".into())
+    Ok(())
 }
 
 #[cfg(test)]
@@ -575,7 +421,7 @@ mod tests {
     fn selected_startup_uses_actual_package_demand_and_refuses_changed_inputs() {
         let legacy = Fixture::new(&["runtime"]);
         assert!(Admission::capture(&legacy.0, false).unwrap().is_none());
-        let fixture = Fixture::new(&["runtime-first-person", "runtime-overlay"]);
+        let fixture = Fixture::new(&["runtime-map", "runtime-overlay"]);
         let config = fixture.0.join("mods/probe/config.ini");
         let log = fixture.0.join("mods/probe/runtime.log");
         fs::write(&config, b"[Settings]\nValue=1\n").unwrap();
@@ -589,10 +435,7 @@ mod tests {
             b"{ \"schemaVersion\":1, \"enabled\":true, \"targets\":[\"client\"] }\n",
         )
         .unwrap();
-        assert_eq!(
-            admission.plan.services,
-            METADATA | MAP | FIRST_PERSON | GRAPHICS
-        );
+        assert_eq!(admission.plan.services, METADATA | MAP | GRAPHICS);
         assert!(
             admission
                 .transition(&fixture.0, Phase::Admitted, Phase::Taken)
@@ -630,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    fn selected_startup_rejects_wrong_root_early_create_and_original_loaders() {
+    fn selected_startup_rejects_wrong_root_early_create_and_ordinary_dll_composition() {
         let fixture = Fixture::new(&["runtime-map"]);
         let other = Fixture::new(&["runtime-map"]);
         for (root, from) in [(&other.0, Phase::Admitted), (&fixture.0, Phase::Committed)] {
@@ -645,7 +488,29 @@ mod tests {
         )
         .unwrap();
         fs::write(ordinary.join("original.dll"), b"must never execute").unwrap();
-        assert!(Admission::capture(&fixture.0, false).is_err());
+        let (entries, plugins, issues) =
+            crate::native_dlls::selected_startup_plugins(&fixture.0, false);
+        assert_eq!(entries.len(), 1);
+        assert!(plugins.is_empty() && !issues);
+        let error = Admission::capture(&fixture.0, false).err().unwrap();
+        assert!(error.contains("ordinary DLL execution"), "{error}");
+        // Without selected service demand, the same ordinary DLL stays on the
+        // existing data-driven loading path; it is never executed by this test.
+        let manifest = fixture.0.join("mods/probe/mod.json");
+        fs::write(
+            manifest,
+            br#"{"id":"probe","name":"Probe","version":"1.0.0","capabilities":["runtime"]}"#,
+        )
+        .unwrap();
+        assert!(Admission::capture(&fixture.0, false).unwrap().is_none());
+    }
+
+    #[test]
+    fn removed_capability_cannot_enter_the_executable_package_plan() {
+        let fixture = Fixture::new(&["runtime-first-person"]);
+        let env = environment(&fixture.0).unwrap();
+        assert!(!env.mod_registry().contains_key("probe"));
+        assert!(env.plan(false, crate::API_VERSION).is_empty());
     }
 
     #[test]
@@ -662,7 +527,9 @@ mod tests {
         }"#,
         )
         .unwrap();
+        assert!(require_ordinary_loading().is_ok());
         assert!(prepare(&fixture.0, false).unwrap());
+        assert!(require_ordinary_loading().is_err());
         let plan = take(&fixture.0).unwrap().unwrap();
         assert_eq!(plan.services, METADATA | MAP);
         commit(&fixture.0, plan.services).unwrap();
@@ -677,6 +544,7 @@ mod tests {
             .unwrap();
         assert_eq!(script, "return {}");
         after_create(true);
+        assert!(require_ordinary_loading().is_err());
         assert!(before_create(&fixture.0).is_err());
         assert!(take(&fixture.0).is_err());
         // Clear only this test-owned singleton; ordinary DLL executor was never started.

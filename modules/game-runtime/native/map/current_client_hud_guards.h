@@ -5,7 +5,7 @@
 #include <cstring>
 #include <string_view>
 // Exact selected current HUD dependencies, adapted from accepted557 profile2.
-// No historical guard table is changed. Only retained native18/CALL5 overlay.
+// Renderer entries stay original; only a verified framework-owned CALL can be normalized.
 namespace MapRuntime::CurrentHud5d9ef2f1 {
 using Reader=bool(*)(const std::uint8_t*,void*,std::size_t);
 struct Pin{std::size_t rva;std::string_view bytes;};
@@ -21,19 +21,14 @@ inline constexpr Pin Pins[]={
 {0xbd160a,"\xe8\xc1\xed\x08\x00\xe8\x2c\xb2\x0b\x00"sv},
 {0xd80f30,"\x48\x89\x0d\x71\xe5\xab\x01\xc3"sv}
 };
-inline bool Match(const std::uint8_t* image,std::size_t size,const std::uint8_t* rendererPrefix,
-    std::size_t rendererSize,const std::uint8_t* callPrefix,std::size_t callSize,Reader read) {
+inline bool Match(const std::uint8_t* image,std::size_t size,const std::uint8_t* callPrefix,std::size_t callSize,Reader read) {
     if(!image || !read)return false;
-    if(rendererPrefix || rendererSize){
-        if(!rendererPrefix || rendererSize!=Pins[0].bytes.size() ||
-           std::memcmp(rendererPrefix,Pins[0].bytes.data(),rendererSize))return false;
-    }
+
     if(callPrefix || callSize){
         if(!callPrefix || callSize!=5 || std::memcmp(callPrefix,Pins[7].bytes.data(),5))return false;
     }
     for(const auto& pin:Pins){
         if(pin.rva>size || pin.bytes.size()>size-pin.rva || pin.bytes.size()>64)return false;
-        if(rendererPrefix && pin.rva==0xc603d0)continue;
         std::array<std::uint8_t,64> actual{};
         if(!read(image+pin.rva,actual.data(),pin.bytes.size()))return false;
         if(callPrefix && pin.rva==0xbd160a)std::memcpy(actual.data(),callPrefix,5);
