@@ -3,6 +3,11 @@
 using namespace BootstrapImplementation;
 
 
+namespace StartupGate {
+void ReportFailure(const char* detail,DWORD error) noexcept {
+    try { BootstrapImplementation::log('E',std::string("Startup gate: ")+detail+" error="+std::to_string(error)); } catch(...) {}
+}
+}
 namespace BootstrapImplementation {
 HMODULE self_module{};
 

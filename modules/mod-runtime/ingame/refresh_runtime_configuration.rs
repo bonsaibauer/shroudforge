@@ -1,7 +1,7 @@
 use super::IngameRuntime;
 use crate::env::AppState;
 
-pub(super) fn settings_only_manifest_change(
+pub(crate) fn settings_only_manifest_change(
     desired: &serde_json::Value,
     applied: &serde_json::Value,
 ) -> bool {
@@ -85,14 +85,15 @@ pub(super) fn settings_to_apply_live(
 
 impl IngameRuntime {
     pub(super) fn refresh_configuration(&mut self) {
-        let world_editor_enabled = shroudforge_loader_config::config::read_loader_in_background(&self.root)
-            .ok()
-            .and_then(|config| {
-                config
-                    .pointer("/modules/worldEditor/enabled")
-                    .and_then(serde_json::Value::as_bool)
-            })
-            .unwrap_or(false);
+        let world_editor_enabled =
+            shroudforge_loader_config::config::read_loader_in_background(&self.root)
+                .ok()
+                .and_then(|config| {
+                    config
+                        .pointer("/modules/worldEditor/enabled")
+                        .and_then(serde_json::Value::as_bool)
+                })
+                .unwrap_or(false);
         let configured_enabled: std::collections::HashMap<String, bool> = self
             .configurations
             .iter()
@@ -235,10 +236,22 @@ impl IngameRuntime {
                         item.activate_runtime_mod(&self.runner.lua, None)
                             .and_then(|result| result)
                             .map_err(|error| error.to_string())
+                            .and_then(|()| {
+                                self.runner
+                                    .lua
+                                    .app_data_ref::<AppState>()
+                                    .unwrap()
+                                    .restart_native_plugin(id)
+                            })
                     } else if item.active {
                         self.diagnostics.release_mod_host(id);
                         item.try_unload(&self.runner.lua)
                             .map_err(|error| error.to_string())
+                            .and_then(|()| {
+                                let state = self.runner.lua.app_data_ref::<AppState>().unwrap();
+                                state.set_runtime_mod_active(id, false);
+                                state.stop_native_plugin(id).map(|_| ())
+                            })
                     } else {
                         Ok(())
                     };
@@ -257,10 +270,28 @@ impl IngameRuntime {
                             tracing::info!(target:"shroudforge::runtime", mod_id=%id, enabled=wanted_enabled, "Runtime mod activation changed live");
                         }
                         Err(error) => {
-                            if !wanted_enabled {
-                                // Keep the requested disable pending until on_unload
-                                // has released the mod's temporary engine state.
+                            if !wanted_enabled && item.cleanup_pending {
+                                // Retry Lua cleanup until on_unload has released
+                                // the mod's temporary engine state.
                                 self.observed.remove(package);
+                            }
+                            if !wanted_enabled && !item.active && !item.cleanup_pending {
+                                match item
+                                    .activate_runtime_mod(&self.runner.lua, None)
+                                    .and_then(|result| result)
+                                {
+                                    Ok(()) => item.active = true,
+                                    Err(rollback) => {
+                                        tracing::error!(target:"shroudforge::runtime", mod_id=%id,
+                                            "Live disable rollback could not restore the mod: {rollback}");
+                                        if let Err(cleanup) =
+                                            item.rollback_failed_activation(&self.runner.lua)
+                                        {
+                                            tracing::error!(target:"shroudforge::runtime", mod_id=%id,
+                                                "Live disable rollback cleanup is pending: {cleanup}");
+                                        }
+                                    }
+                                }
                             }
                             if wanted_enabled {
                                 if let Err(rollback) =
@@ -292,23 +323,14 @@ impl IngameRuntime {
                     settings_to_apply_live(&manifest, &applied["settingValues"])
                 {
                     if live_settings != applied["settingValues"] {
-                        match crate::env::shroudforge::set_settings(
-                            &self.runner.lua,
-                            id,
-                            &live_settings,
-                        ) {
-                            Ok(()) => {
-                                let restart_settings_pending = live_settings != desired_settings;
-                                applied["settingValues"] = live_settings;
-                                applied["settings"] = desired["settings"].clone();
-                                if restart_settings_pending {
-                                    tracing::info!(target:"shroudforge::runtime", mod_id=%id,
-                                        "Live runtime settings applied; restart-required settings remain pending");
-                                } else {
-                                    tracing::info!(target:"shroudforge::runtime", mod_id=%id,
-                                        "Runtime settings applied live");
-                                }
-                            }
+                        let previous_values = applied["settingValues"].clone();
+                        let host_settings = self
+                            .runner
+                            .lua
+                            .app_data_ref::<AppState>()
+                            .unwrap()
+                            .update_native_plugin_settings(id, &live_settings);
+                        match host_settings {
                             Err(error) => {
                                 self.errors.insert(
                                     id.clone(),
@@ -317,6 +339,43 @@ impl IngameRuntime {
                                 tracing::error!(target:"shroudforge::runtime", mod_id=%id,
                                     "Live settings update failed: {error}");
                             }
+                            Ok(()) => match crate::env::shroudforge::set_settings(
+                                &self.runner.lua,
+                                id,
+                                &live_settings,
+                            ) {
+                                Ok(()) => {
+                                    let restart_settings_pending =
+                                        live_settings != desired_settings;
+                                    applied["settingValues"] = live_settings;
+                                    applied["settings"] = desired["settings"].clone();
+                                    if restart_settings_pending {
+                                        tracing::info!(target:"shroudforge::runtime", mod_id=%id,
+                                            "Live runtime settings applied; restart-required settings remain pending");
+                                    } else {
+                                        tracing::info!(target:"shroudforge::runtime", mod_id=%id,
+                                            "Runtime settings applied live");
+                                    }
+                                }
+                                Err(error) => {
+                                    if let Err(rollback) = self
+                                        .runner
+                                        .lua
+                                        .app_data_ref::<AppState>()
+                                        .unwrap()
+                                        .update_native_plugin_settings(id, &previous_values)
+                                    {
+                                        tracing::error!(target:"shroudforge::runtime", mod_id=%id,
+                                            "Native plugin settings rollback failed: {rollback}");
+                                    }
+                                    self.errors.insert(
+                                        id.clone(),
+                                        format!("live settings update failed: {error}").into(),
+                                    );
+                                    tracing::error!(target:"shroudforge::runtime", mod_id=%id,
+                                        "Live settings update failed: {error}");
+                                }
+                            },
                         }
                     }
                 }

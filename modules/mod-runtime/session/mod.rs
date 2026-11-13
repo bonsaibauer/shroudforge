@@ -38,10 +38,14 @@ pub(crate) const GAME_FILE_HANDLES_RELEASED: &str =
 pub struct AppState {
     pub(crate) runtime_configured: Cell<bool>,
     runtime_active_mods: RefCell<HashSet<String>>,
+    map_lua_owners: RefCell<HashMap<String, u64>>,
     runtime_effects: RefCell<HashMap<String, serde_json::Value>>,
     runtime_write_fault: RefCell<Option<(u64, String)>>,
     runtime_ownership:
         Rc<RefCell<crate::lua::ingame::overrides::claim_runtime_storage::OwnershipStore>>,
+    native_dlls: RefCell<Vec<native_plugins::NativeDll>>,
+    pending_native_dlls: RefCell<Vec<native_plugins::PendingNativeDll>>,
+    native_plugin_services: RefCell<Arc<dyn native_plugin_abi::NativePluginServiceLifetime>>,
     env: ModEnvironment,
     api: ShroudForgeApi,
     config: AppConfig,
@@ -59,6 +63,11 @@ pub struct AppState {
     reader: RefCell<Option<KFCCursor<KFCReader>>>,
     writer: RefCell<Option<KFCWriter<Rc<KFCFile>, Rc<TypeRegistry>>>>,
     asset_transaction: Cell<bool>,
+    generated_asset_transaction: bool,
+    defer_current_commit: bool,
+    prepared_asset_output: bool,
+    asset_input_root: std::path::PathBuf,
+    asset_output_root: std::path::PathBuf,
     asset_stem: String,
 
     // NOTE: the `Vec<u8>` must always be treated as immutable
@@ -207,7 +216,9 @@ impl AppState {
 
 impl Drop for AppState {
     fn drop(&mut self) {
-        if self.asset_transaction.get() {
+        self.shutdown_native_dlls();
+        self.release_all_lua_map_owners();
+        if self.asset_transaction.get() && !self.prepared_asset_output {
             // Struct fields drop only after this body, so the handles must be
             // closed explicitly before the rollback replaces any file.
             self.reader.get_mut().take();
@@ -223,11 +234,73 @@ impl Drop for AppState {
 }
 
 mod asset_resources;
+#[cfg(test)]
+pub(crate) mod asset_tests;
 pub(crate) mod configure_component_contract;
 mod create_mod_session;
 pub(crate) mod loaded_resource_indexes;
 mod loaded_resources;
+mod map_overlay_services;
+mod native_plugin_abi;
+mod native_plugin_lifecycle;
 mod native_plugins;
+mod validate_generated_assets;
+pub(crate) use native_plugins::native_overlay_startup_demand;
+
+pub(crate) fn new_native_plugin_service_lifetime(
+    env: &ModEnvironment,
+    is_server: bool,
+) -> Arc<dyn native_plugin_abi::NativePluginServiceLifetime> {
+    Arc::new(map_overlay_services::MapOverlayServices::new(env, is_server))
+}
+
+pub(crate) fn load_selected_native_plugins(
+    root: &std::path::Path,
+    is_server: bool,
+    environment: &ModEnvironment,
+) -> Result<(), String> {
+    native_plugins::load_selected_native_plugins(root, is_server, environment)
+}
+
+pub(crate) fn stage_selected_native_plugins_before_entry(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<(), String> {
+    native_plugins::stage_selected_native_plugins_before_entry(root, is_server)
+}
+
+pub(crate) fn prepare_selected_native_plugins(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<(), String> {
+    native_plugins::prepare_selected_native_plugins(root, is_server)
+}
+
+pub(crate) fn selected_native_plugin_services(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<Option<Arc<dyn native_plugin_abi::NativePluginServiceLifetime>>, String> {
+    native_plugins::selected_native_plugin_services(root, is_server)
+}
+
+pub(crate) fn selected_native_plugins_adopted(root: &std::path::Path, is_server: bool) -> bool {
+    native_plugins::selected_native_plugins_adopted(root, is_server)
+}
+
+pub(crate) fn discard_staged_native_plugins(root: &std::path::Path, is_server: bool) {
+    native_plugins::discard_staged_native_plugins(root, is_server)
+}
+
+pub(crate) fn dispatch_selected_native_plugins_entry_restored() -> bool {
+    native_plugins::dispatch_published_entry_restored_callbacks()
+}
+
+pub(crate) fn finalize_selected_native_plugins_entry_restored(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<(), String> {
+    native_plugins::finalize_entry_restored_callbacks(root, is_server)
+}
 mod record_runtime_state;
 pub(crate) use asset_resources::ContentReadPermit;
 pub use asset_resources::ResourceInfo;

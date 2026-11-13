@@ -43,11 +43,12 @@ std::string sha256_file(const std::filesystem::path& path) {
 bool IdentifyGameImage(const wchar_t* process_path, const std::uint8_t*& base, const IMAGE_NT_HEADERS64*& nt) {
     const auto process_hash = sha256_file(process_path);
     base = reinterpret_cast<const std::uint8_t*>(GetModuleHandleW(nullptr));
+    if (!base) return false;
     const auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
     if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
     nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
     if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) return false;
-    // Loaded-image identity belongs to discovery even when no compatible
+    // Loaded-image identity is needed independently of discovery or a compatible
     // execution profile exists. Profiles only authorize engine adapters.
     image_timestamp = nt->FileHeader.TimeDateStamp;
     image_size = nt->OptionalHeader.SizeOfImage;

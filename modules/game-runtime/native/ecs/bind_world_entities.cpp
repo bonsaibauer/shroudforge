@@ -1,4 +1,7 @@
 #include "ecs/component_operation.h"
+#include "ecs/entity_session.h"
+#include "ecs/generic_write_policy.h"
+#include "ecs/initialize_metadata.h"
 #include "ecs/building_prop_query_state.h"
 #include "ecs/registry/component_discovery_state.h"
 #include "engine-context/observe_entity_manager.h"
@@ -103,6 +106,8 @@ bool invoke_read_operation(GameThreadDispatcher::Operation operation, const std:
 }
 
 namespace EcsRuntime {
+namespace { EcsImplementation::GenericWritePolicy generic_writes; }
+bool GenericWritesAllowed() { return generic_writes.Allows(EngineHooks::StartupReady()); }
 struct SessionGuard::State {
     std::unique_lock<std::mutex> lock{state_mutex};
     EngineContext::EcsView view;
@@ -138,7 +143,7 @@ bool SessionGuard::TryAcquire(std::uint64_t expected_session) {
 
 const EngineContext::EcsView& SessionGuard::View() const { return state_->view; }
 
-bool SessionGuard::WritesAllowed() const { return state_ && !write_fault_active_locked(); }
+bool SessionGuard::WritesAllowed() const { return state_ && GenericWritesAllowed() && !write_fault_active_locked(); }
 
 bool SessionGuard::ResolveEntityIdentity(std::uint32_t handle,
     std::uint32_t& id, std::uint32_t& generation) const {
@@ -167,20 +172,18 @@ bool MarkSessionWriteUncertain(std::uint64_t expected_session, const char* reaso
     return true;
 }
 
-bool Initialize() {
-    const bool execution_profile = KfcRuntimeCompatibility::EnshroudedClient::Load();
-    image_base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-    if (!image_base) return false;
-    const auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(image_base);
-    if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
-    const auto nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(image_base + dos->e_lfanew);
-    if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
-    image_size = nt->OptionalHeader.SizeOfImage;
-    stop_requested.store(false, std::memory_order_release);
-    if (execution_profile) EngineHooks::Install();
+namespace {
+bool initialize_metadata(bool enable_execution_hooks) {
+    if (!InitializeMetadata(enable_execution_hooks, image_base, image_size, stop_requested)) return false;
     // Metadata discovery remains available when a build lacks proven native
     // execution adapters. Original-owner entity reads do not authorize writes.
     return true;
+}
+}
+bool Initialize() { generic_writes.Legacy(); return initialize_metadata(true); }
+bool Initialize(bool enable_execution_hooks) {
+    generic_writes.Selected(enable_execution_hooks);
+    return initialize_metadata(enable_execution_hooks);
 }
 
 void Tick() {

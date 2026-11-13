@@ -1,4 +1,6 @@
 pub mod documents;
+mod notice_delivery;
+mod notice_protocol;
 use kfc::{ResourceReference, TypeDefinition};
 use shroudforge_compatibility::GameContract;
 use std::path::PathBuf;
@@ -12,6 +14,7 @@ mod native_dlls;
 pub mod reflection;
 mod session;
 mod startup;
+pub mod startup_services;
 mod type_aliases;
 use ingame as runtime;
 use lua::bindings as env;
@@ -24,6 +27,14 @@ use startup::cache;
 use startup::open_game_assets as game_files;
 
 pub const API_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Whether the selected client plugins request the native overlay service.
+/// Startup callers must prepare graphics before releasing the game entrypoint.
+pub fn native_overlay_startup_demand(
+    environment: &mod_loader::ModEnvironment,
+) -> Result<bool, String> {
+    session::native_overlay_startup_demand(environment)
+}
 
 /// Deployed contract must describe this binary, not invent native capabilities.
 /// ECS readiness and per-component compatibility are still checked at call time.
@@ -112,6 +123,11 @@ impl RuntimePhase {
 
 #[derive(Debug, Clone, Default)]
 pub struct RunOptions {
+    /// Apply selected patch mods to the current composition with generated output.
+    /// The caller owns the startup lease and publication/recovery lifecycle.
+    pub current_asset_mods: Option<Vec<String>>,
+    /// Keep validated generated assets in their stage for the caller to publish.
+    pub defer_current_commit: bool,
     /// If true, it will ignore the cache and re-apply all mods.
     pub skip_cache: bool,
     /// If true, keep the asset writer enabled even when input fingerprints match.
@@ -142,7 +158,9 @@ pub use runtime::IngameRuntime;
 pub use startup::manage_asset_baseline::{
     backup_companion_file, create_working_kfc_backup, restore, working_baseline_is_incompatible,
 };
-pub use startup::run_startup_mods::{run, run_with_local_schema};
+pub use startup::run_startup_mods::{
+    run, run_prepared, run_prepared_with_local_schema, run_with_local_schema,
+};
 
 #[cfg(test)]
 use runtime::Lifecycle;

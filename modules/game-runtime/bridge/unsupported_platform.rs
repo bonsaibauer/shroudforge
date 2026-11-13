@@ -210,3 +210,39 @@ pub fn resolve_entity(_: u32) -> Option<u32> {
 pub fn compare_exchange(_: u32, _: &str, _: &[u8], _: &[u8], _: &[u8]) -> Result<(), String> {
     Err("native ECS runtime is available on Windows only".into())
 }
+
+/// No native map/overlay provider exists on this platform.
+/// # Safety
+/// The output buffer follows the native service query contract.
+pub unsafe fn query_map_overlay_service(
+    _: &str,
+    _: u64,
+    _: &str,
+    _: u32,
+    _: u32,
+    _: *mut std::ffi::c_void,
+) -> i32 {
+    3
+}
+pub fn revoke_map_overlay_services(_: &str, _: u64) -> i32 {
+    0
+}
+pub fn drain_map_overlay_services(_: &str, _: u64, _: u32) -> i32 {
+    0
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct InputKeyState {
+    pub virtual_key: u32,
+    pub flags: u32,
+    pub sequence: u64,
+    pub sampled_at_ms: u64,
+}
+pub fn read_input_keys(_: &[u32]) -> Result<Vec<InputKeyState>, i32> {
+    Err(3)
+}
+
+pub fn native_publish_notification(_: &str, _: &str, _: &str, _: u32) -> i32 {
+    3
+}

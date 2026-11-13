@@ -4,6 +4,26 @@ using namespace BootstrapImplementation;
 
 
 namespace BootstrapImplementation {
+namespace {
+struct SelectedContinuation {
+    std::filesystem::path root;
+    SelectedStartup::PlanV2 plan;
+    bool (__cdecl* entry_restored)(){};
+    bool (__cdecl* commit)(const wchar_t*,unsigned){};
+};
+// Retained process-lifetime context: a deadline must never free executing work.
+SelectedContinuation selected_continuation;
+bool __cdecl complete_selected(void* value,unsigned char*,const unsigned char*) noexcept {
+    try {
+        auto& context=*static_cast<SelectedContinuation*>(value);
+        if((context.plan.services&SelectedStartup::NativePluginPreentry) &&
+            (!context.entry_restored || !context.entry_restored())) return false;
+        return StartupGate::ActivateSelectedAndCommitIfPostRestoreActive(
+            [&] { return EcsRuntime::ActivateSelected(context.plan); },
+            [&] { return context.commit(context.root.c_str(),context.plan.services); });
+    } catch(...) {return false;}
+}
+}
 long long seconds_now() {
     return std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
@@ -88,14 +108,58 @@ DWORD WINAPI run(void*) {
         FreeLibrary(runtime);
         return 1;
     }
-    // Install native hooks while the executable entrypoint is still parked.
-    // Releasing it first races hook writes against short-lived startup threads.
-    startup_stage(root, "native-provider-init");
-    if (!EcsRuntime::Initialize()) {
-        log('W', "KFC Runtime initialization failed: " + EcsRuntime::Status());
+    using TakeServices=unsigned(__cdecl*)(const wchar_t*,SelectedStartup::PlanV2*);
+    using CommitServices=bool(__cdecl*)(const wchar_t*,unsigned);
+    using StageNativePlugins=bool(__cdecl*)();
+    using PrepareNativePlugins=bool(__cdecl*)();
+    using RunEntryRestored=bool(__cdecl*)();
+    const auto take_services=reinterpret_cast<TakeServices>(GetProcAddress(runtime,"shroudforge_take_startup_services_v2"));
+    const auto commit_services=reinterpret_cast<CommitServices>(GetProcAddress(runtime,"shroudforge_commit_startup_services_v2"));
+    const auto stage_native_plugins=reinterpret_cast<StageNativePlugins>(
+        GetProcAddress(runtime,"shroudforge_stage_selected_native_plugins"));
+    const auto prepare_native_plugins=reinterpret_cast<PrepareNativePlugins>(
+        GetProcAddress(runtime,"shroudforge_prepare_selected_native_plugins"));
+    const auto run_entry_restored=reinterpret_cast<RunEntryRestored>(
+        GetProcAddress(runtime,"shroudforge_run_selected_native_plugins_entry_restored"));
+    if(!take_services || !commit_services) {
+        startup_failed(root,"selected-startup-exports","Startup service admission exports are missing");return 1;
     }
-    log("Startup assets and native-provider setup complete. Releasing the game entrypoint");
+    SelectedStartup::PlanV2 plan;
+    const auto selected_mode=take_services(root.c_str(),&plan);
+    if(selected_mode>1) {startup_failed(root,"selected-startup-admission","Startup service selection was refused");return 1;}
+    if(selected_mode==1) {
+        const auto proof=StartupGate::CaptureHeldEntryProof();
+        if((plan.services&SelectedStartup::NativePluginPreentry) && !run_entry_restored) {
+            EcsRuntime::Shutdown();
+            startup_failed(root,"selected-native-plugin-continuation-export","V2 entry-restored dispatcher is unavailable");
+            return 1;
+        }
+        if((plan.services&SelectedStartup::NativePluginPreentry) && !prepare_native_plugins) {
+            EcsRuntime::Shutdown();
+            startup_failed(root,"selected-native-plugin-export","V2 native preparation dispatcher is unavailable");
+            return 1;
+        }
+        if((plan.services&SelectedStartup::NativePluginPreentry) && !stage_native_plugins) {
+            EcsRuntime::Shutdown();
+            startup_failed(root,"selected-native-plugin-stage-export","V2 native staging dispatcher is unavailable");
+            return 1;
+        }
+        if(!EcsRuntime::PrepareSelected(plan,proof,stage_native_plugins,prepare_native_plugins)) {
+            EcsRuntime::Shutdown();startup_failed(root,"selected-native-preparation",EcsRuntime::Status());return 1;
+        }
+        selected_continuation={root,plan,run_entry_restored,commit_services};
+        if(!StartupGate::ArmPostRestore(proof.parked_thread_id,complete_selected,&selected_continuation)) {
+            EcsRuntime::Shutdown();startup_failed(root,"selected-entry-continuation","Could not arm the original entry thread");return 1;
+        }
+    } else if(!EcsRuntime::Initialize()) {
+        log('W',"KFC Runtime initialization failed: "+EcsRuntime::Status());
+    }
     startup.release();
+    if(selected_mode==1 && !StartupGate::AwaitPostRestore()) {
+        // The entry thread may still be inside an original callback. Keep its
+        // context/provider/runtime resident; never start a second loader path.
+        startup_failed(root,"selected-entry-completion","Selected entry continuation did not complete");return 1;
+    }
     startup_stage(root, "runtime-create");
     std::mutex create_watchdog_mutex;
     std::condition_variable create_watchdog_condition;

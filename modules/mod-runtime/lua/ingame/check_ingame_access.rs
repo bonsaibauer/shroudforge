@@ -17,6 +17,13 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
         "export" => {
             state.has_feature(AppFeatures::EXPORT) && has_capability(r#mod, Capability::Export)
         }
+        "runtime.map.frame" | "runtime.map.markers" | "runtime.map.fog" | "runtime.map.status" => {
+            state.phase() == RuntimePhase::Ingame
+                && state.is_client()
+                && state.api().has_runtime(feature)
+                && has_capability(r#mod, Capability::Runtime)
+        }
+
         "runtime.lifecycle" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime("runtime.lifecycle")
@@ -77,7 +84,9 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && runtime_provider::world_operation_available(feature)
                 && runtime_provider::world_context_active()
         }
-        "runtime.world.cursor.get" | "runtime.world.building.input" | "runtime.world.voxel.read" => {
+        "runtime.world.cursor.get"
+        | "runtime.world.building.input"
+        | "runtime.world.voxel.read" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
@@ -190,7 +199,17 @@ pub(super) fn operation_status(
             },
         );
     }
+    if feature.starts_with("runtime.map.") && state.is_server() {
+        return availability_to_lua(
+            lua,
+            Availability::Unavailable {
+                reason: "map services require a client process".into(),
+            },
+        );
+    }
+
     let availability = state.api().runtime(&feature);
+
     if feature == "runtime.is_main_menu"
         && matches!(availability, Availability::Available)
         && runtime_provider::is_main_menu().is_none()
@@ -257,33 +276,34 @@ pub(super) fn operation_status(
             },
         );
     }
-    let world_ready =
-        if feature == "runtime.world.cursor.get" || feature == "runtime.world.building.input"
-            || feature == "runtime.world.voxel.read" {
-            runtime_provider::world_operation_available(&feature)
-        } else if feature == "runtime.world.voxel.grid_spec" {
-            runtime_provider::world_operation_available("runtime.world.voxel.read")
-        } else if feature == "runtime.world.entity.set_scale" {
-            runtime_provider::world_entity_query_props_ready()
-                && runtime_provider::can_write_component("keen::ecs::CurrentTransform")
-        } else if feature == "runtime.world.entity.destroy" || feature == "runtime.world.entity.spawn" {
-            runtime_provider::world_operation_available(&feature)
-                && runtime_provider::world_entity_query_props_ready()
-        } else if feature == "runtime.world.entity.query_props"
-            || feature == "runtime.world.entity.query_props_in_bounds"
-            || feature == "runtime.world.entity.register_prop_recipes"
-            || feature == "runtime.world.entity.get_transform"
-        {
-            runtime_provider::world_entity_query_props_ready()
-        } else if feature.starts_with("runtime.world.entity.") {
-            runtime_provider::world_operation_available(&feature)
-                && runtime_provider::world_entity_context_ready()
-        } else if feature.starts_with("runtime.world.") {
-            runtime_provider::world_operation_available(&feature)
-                && runtime_provider::world_context_active()
-        } else {
-            true
-        };
+    let world_ready = if feature == "runtime.world.cursor.get"
+        || feature == "runtime.world.building.input"
+        || feature == "runtime.world.voxel.read"
+    {
+        runtime_provider::world_operation_available(&feature)
+    } else if feature == "runtime.world.voxel.grid_spec" {
+        runtime_provider::world_operation_available("runtime.world.voxel.read")
+    } else if feature == "runtime.world.entity.set_scale" {
+        runtime_provider::world_entity_query_props_ready()
+            && runtime_provider::can_write_component("keen::ecs::CurrentTransform")
+    } else if feature == "runtime.world.entity.destroy" || feature == "runtime.world.entity.spawn" {
+        runtime_provider::world_operation_available(&feature)
+            && runtime_provider::world_entity_query_props_ready()
+    } else if feature == "runtime.world.entity.query_props"
+        || feature == "runtime.world.entity.query_props_in_bounds"
+        || feature == "runtime.world.entity.register_prop_recipes"
+        || feature == "runtime.world.entity.get_transform"
+    {
+        runtime_provider::world_entity_query_props_ready()
+    } else if feature.starts_with("runtime.world.entity.") {
+        runtime_provider::world_operation_available(&feature)
+            && runtime_provider::world_entity_context_ready()
+    } else if feature.starts_with("runtime.world.") {
+        runtime_provider::world_operation_available(&feature)
+            && runtime_provider::world_context_active()
+    } else {
+        true
+    };
     if feature.starts_with("runtime.world.")
         && matches!(availability, Availability::Available)
         && !world_ready

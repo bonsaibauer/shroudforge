@@ -79,6 +79,18 @@ pub(super) fn lua_get_resources_by_type(
         result.push(resource)?;
     }
 
+    // Mods can add ItemInfo resources before a later mod scans recipe outputs.
+    // Include those session resources once, alongside the original KFC entries.
+    for info in app_state.get_cached_resources() {
+        if info.is_created_asset()
+            && !file.resources().contains_key(&info.resource_id)
+            && kfc_format::type_for_resource(app_state.type_registry(), &info.resource_id)
+                .is_some_and(|metadata| metadata.index == r#type.index)
+        {
+            result.push(Resource::new(info))?;
+        }
+    }
+
     Ok(result)
 }
 

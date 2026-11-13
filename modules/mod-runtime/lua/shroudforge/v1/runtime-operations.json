@@ -32,6 +32,10 @@
     "runtime.world.entity.place",
     "runtime.world.entity.destroy",
     "runtime.world.entity.finish_building",
-    "runtime.gameplay.patch"
+    "runtime.gameplay.patch",
+    "runtime.map.frame",
+    "runtime.map.markers",
+    "runtime.map.fog",
+    "runtime.map.status"
   ]
 }
