@@ -35,6 +35,11 @@ context; the runtime reports that a restart is required. Plugins must stop
 their workers and release host pointers before returning from shutdown. A
 pending load cancelled during disable cannot initialize later.
 
+The executable-span validation registry retains drained generation tombstones
+so an old generation cannot be reused. It keeps at most 4,096 distinct package
+generations for the process lifetime. Once that limit is reached, queries for
+new validation-service generations return BUSY until the process restarts.
+
 Before starting a managed DLL worker, the host pins its own runtime module for
 the process lifetime. Pending workers and retained callback contexts therefore
 remain backed by mapped code even after the bootstrap releases its reference.
@@ -56,6 +61,15 @@ This also applies to plans containing only managed plugins.
   or a changed observation returns an error without writing the result. The
   service never returns code bytes or addresses and never authorizes a patch or
   proves quiescence.
+- shroudforge.executable-span-validation v1 is a client-only, bounded
+  callback service for package-owned engine guards. It requires an enabled
+  package with runtime, runtime-register-dll and runtime-engine-hooks.
+  Registrations are limited to 16 spans per package generation and 64 total;
+  callbacks must stay loaded until revoke and drain succeed. Callbacks can
+  run synchronously on any thread and must not call host services, retain
+  request pointers, or modify executable memory. The host compares the
+  registered prefix through a local buffer while preserving every guard
+  suffix byte-for-byte.
 - `shroudforge.map` v1 and `shroudforge.overlay` v1/v2/v3 are optional native-provider
   services. Query their exact version and handle `UNAVAILABLE`. Host support
   does not establish that a particular game build supplies the service.

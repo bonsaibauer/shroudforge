@@ -145,6 +145,8 @@ add_library(kfc-runtime SHARED
     main-menu/manage_native_main_menu.cpp
     host/manage_runtime_lifecycle.cpp
     host/prepare_selected_startup.cpp
+    host/executable_span_validation.cpp
+    host/executable_span_validation_runtime.cpp
     code-inventory/export_function_inspection.cpp
     code-inventory/resolve_original_call_graph.cpp
     host/describe_runtime.cpp
@@ -366,6 +368,25 @@ set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY
 # Inert fixtures exercise the same owners and renderer as the native provider.
 add_executable(kfc-runtime-test-map-frame EXCLUDE_FROM_ALL
     ../tests/map_frame_test.cpp map/read_map_frame.cpp)
+add_executable(kfc-runtime-test-executable-span-validation EXCLUDE_FROM_ALL
+    ../tests/executable_span_validation_test.cpp host/executable_span_validation.cpp)
+target_include_directories(kfc-runtime-test-executable-span-validation PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_features(kfc-runtime-test-executable-span-validation PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-executable-span-validation PRIVATE
+    WIN32_LEAN_AND_MEAN NOMINMAX)
+set_property(TARGET kfc-runtime-test-executable-span-validation PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+add_library(kfc-runtime-test-span-service-runtime OBJECT EXCLUDE_FROM_ALL
+    host/executable_span_validation.cpp host/executable_span_validation_runtime.cpp
+    ../tests/executable_span_validation_runtime_fixture.cpp)
+target_include_directories(kfc-runtime-test-span-service-runtime PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_features(kfc-runtime-test-span-service-runtime PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-span-service-runtime PRIVATE
+    KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
+set_property(TARGET kfc-runtime-test-span-service-runtime PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
     ../tests/map_service_lifetime_test.cpp map/read_map_frame.cpp
     graphics/render_overlay.cpp graphics/notification_overlay.cpp
@@ -373,7 +394,8 @@ add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
 add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
     map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp
-    engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp)
+    engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp
+    engine-hooks/owned_executable_span.cpp)
 foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-lifetime kfc-runtime-test-overlay-gpu)
     target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_compile_features(${test_target} PRIVATE cxx_std_20)
@@ -391,6 +413,14 @@ target_include_directories(kfc-runtime-test-service-lifecycle PRIVATE ${prop_tes
 target_compile_features(kfc-runtime-test-service-lifecycle PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-test-service-lifecycle PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
 set_property(TARGET kfc-runtime-test-service-lifecycle PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+foreach(test_target kfc-runtime-test-service-lifecycle kfc-runtime-test-map-service-lifetime
+    kfc-runtime-test-overlay-gpu)
+    target_sources(${test_target} PRIVATE $<TARGET_OBJECTS:kfc-runtime-test-span-service-runtime>)
+endforeach()
+target_sources(kfc-runtime-test-service-lifecycle PRIVATE
+    ../tests/executable_span_validation_held_entry_fixture.cpp)
+target_sources(kfc-runtime-test-map-service-lifetime PRIVATE
+    ../tests/executable_span_validation_held_entry_fixture.cpp)
 add_executable(kfc-runtime-test-metadata-startup EXCLUDE_FROM_ALL ../tests/metadata_startup_test.cpp)
 target_include_directories(kfc-runtime-test-metadata-startup PRIVATE ${prop_test_includes})
 target_compile_features(kfc-runtime-test-metadata-startup PRIVATE cxx_std_20)

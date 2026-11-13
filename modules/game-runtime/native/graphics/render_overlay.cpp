@@ -8,8 +8,7 @@
 #include <vector>
 
 namespace OverlayRuntime {
-namespace {
-bool WritableSpanResult(void* output,std::size_t size) noexcept {
+bool WritableServiceOutput(void* output,std::size_t size) noexcept {
     if(!output || !size)return false;
     MEMORY_BASIC_INFORMATION region{};
     if(VirtualQuery(output,&region,sizeof(region))!=sizeof(region) || region.State!=MEM_COMMIT ||
@@ -21,7 +20,6 @@ bool WritableSpanResult(void* output,std::size_t size) noexcept {
     const auto region_begin=reinterpret_cast<std::uintptr_t>(region.BaseAddress);
     return begin>=region_begin && begin-region_begin<=region.RegionSize &&
         size<=region.RegionSize-(begin-region_begin);
-}
 }
 struct Registry::Owner {
     Registry* registry{};
@@ -92,7 +90,7 @@ std::int32_t Registry::Query(std::uint64_t id,const std::string& name,std::uint3
     const auto required=name=="shroudforge.map" ? sizeof(SFMapServiceV1) :
         name==SF_EXECUTABLE_SPAN_SERVICE_NAME ? sizeof(SFExecutableSpanServiceV1) : sizeof(SFOverlayServiceV1);
     if(capacity<required)return 5;
-    if(name==SF_EXECUTABLE_SPAN_SERVICE_NAME && !WritableSpanResult(output,required))
+    if(name==SF_EXECUTABLE_SPAN_SERVICE_NAME && !WritableServiceOutput(output,required))
         return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
     auto owner=Find(id); if(!owner) return 1;
     std::lock_guard lock(owner->mutex); if(owner->revoked) return 3;
@@ -150,7 +148,7 @@ std::int32_t Registry::Status(void* context,std::uint32_t capacity,SFOverlayStat
 }
 std::int32_t Registry::ExecutableSpanQuery(void* context,const SFExecutableSpanQueryV1* request,
     std::uint32_t out_size,SFExecutableSpanResultV1* output) {
-    if(!context || !request || !output || !WritableSpanResult(output,sizeof(*output)))return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
+    if(!context || !request || !output || !WritableServiceOutput(output,sizeof(*output)))return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
     if(out_size<sizeof(*output))return SF_EXECUTABLE_SPAN_STATUS_BUFFER_TOO_SMALL;
     SFExecutableSpanQueryV1 copied{};SIZE_T bytes_read{};
     if(!ReadProcessMemory(GetCurrentProcess(),request,&copied,sizeof(copied),&bytes_read) || bytes_read!=sizeof(copied))

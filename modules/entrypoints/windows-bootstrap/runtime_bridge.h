@@ -5,7 +5,8 @@
 
 namespace EcsRuntime {
 bool Initialize();
-bool PrepareSelected(const SelectedStartup::PlanV2&,const EngineHooks::HeldEntryProof&);
+bool PrepareSelected(const SelectedStartup::PlanV2&,const EngineHooks::HeldEntryProof&,
+    SelectedStartup::StageNativePlugins,SelectedStartup::PrepareNativePlugins);
 bool ActivateSelected(const SelectedStartup::PlanV2&);
 void Tick();
 std::string Status();

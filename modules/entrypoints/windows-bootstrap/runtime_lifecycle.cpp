@@ -8,14 +8,19 @@ namespace {
 struct SelectedContinuation {
     std::filesystem::path root;
     SelectedStartup::PlanV2 plan;
+    bool (__cdecl* entry_restored)(){};
     bool (__cdecl* commit)(const wchar_t*,unsigned){};
 };
 // Retained process-lifetime context: a deadline must never free executing work.
 SelectedContinuation selected_continuation;
-bool __cdecl complete_selected(void* value,unsigned char* entry,const unsigned char* original) noexcept {
+bool __cdecl complete_selected(void* value,unsigned char*,const unsigned char*) noexcept {
     try {
         auto& context=*static_cast<SelectedContinuation*>(value);
-        return context.commit(context.root.c_str(),context.plan.services);
+        if((context.plan.services&SelectedStartup::NativePluginPreentry) &&
+            (!context.entry_restored || !context.entry_restored())) return false;
+        return StartupGate::ActivateSelectedAndCommitIfPostRestoreActive(
+            [&] { return EcsRuntime::ActivateSelected(context.plan); },
+            [&] { return context.commit(context.root.c_str(),context.plan.services); });
     } catch(...) {return false;}
 }
 }
@@ -105,8 +110,17 @@ DWORD WINAPI run(void*) {
     }
     using TakeServices=unsigned(__cdecl*)(const wchar_t*,SelectedStartup::PlanV2*);
     using CommitServices=bool(__cdecl*)(const wchar_t*,unsigned);
+    using StageNativePlugins=bool(__cdecl*)();
+    using PrepareNativePlugins=bool(__cdecl*)();
+    using RunEntryRestored=bool(__cdecl*)();
     const auto take_services=reinterpret_cast<TakeServices>(GetProcAddress(runtime,"shroudforge_take_startup_services_v2"));
     const auto commit_services=reinterpret_cast<CommitServices>(GetProcAddress(runtime,"shroudforge_commit_startup_services_v2"));
+    const auto stage_native_plugins=reinterpret_cast<StageNativePlugins>(
+        GetProcAddress(runtime,"shroudforge_stage_selected_native_plugins"));
+    const auto prepare_native_plugins=reinterpret_cast<PrepareNativePlugins>(
+        GetProcAddress(runtime,"shroudforge_prepare_selected_native_plugins"));
+    const auto run_entry_restored=reinterpret_cast<RunEntryRestored>(
+        GetProcAddress(runtime,"shroudforge_run_selected_native_plugins_entry_restored"));
     if(!take_services || !commit_services) {
         startup_failed(root,"selected-startup-exports","Startup service admission exports are missing");return 1;
     }
@@ -115,10 +129,25 @@ DWORD WINAPI run(void*) {
     if(selected_mode>1) {startup_failed(root,"selected-startup-admission","Startup service selection was refused");return 1;}
     if(selected_mode==1) {
         const auto proof=StartupGate::CaptureHeldEntryProof();
-        if(!EcsRuntime::PrepareSelected(plan,proof) || !EcsRuntime::ActivateSelected(plan)) {
+        if((plan.services&SelectedStartup::NativePluginPreentry) && !run_entry_restored) {
+            EcsRuntime::Shutdown();
+            startup_failed(root,"selected-native-plugin-continuation-export","V2 entry-restored dispatcher is unavailable");
+            return 1;
+        }
+        if((plan.services&SelectedStartup::NativePluginPreentry) && !prepare_native_plugins) {
+            EcsRuntime::Shutdown();
+            startup_failed(root,"selected-native-plugin-export","V2 native preparation dispatcher is unavailable");
+            return 1;
+        }
+        if((plan.services&SelectedStartup::NativePluginPreentry) && !stage_native_plugins) {
+            EcsRuntime::Shutdown();
+            startup_failed(root,"selected-native-plugin-stage-export","V2 native staging dispatcher is unavailable");
+            return 1;
+        }
+        if(!EcsRuntime::PrepareSelected(plan,proof,stage_native_plugins,prepare_native_plugins)) {
             EcsRuntime::Shutdown();startup_failed(root,"selected-native-preparation",EcsRuntime::Status());return 1;
         }
-        selected_continuation={root,plan,commit_services};
+        selected_continuation={root,plan,run_entry_restored,commit_services};
         if(!StartupGate::ArmPostRestore(proof.parked_thread_id,complete_selected,&selected_continuation)) {
             EcsRuntime::Shutdown();startup_failed(root,"selected-entry-continuation","Could not arm the original entry thread");return 1;
         }

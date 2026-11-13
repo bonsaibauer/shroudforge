@@ -62,3 +62,49 @@ pub unsafe extern "C" fn shroudforge_commit_startup_services_v2(
     })
     .unwrap_or(false)
 }
+
+/// Trusted provider dispatch only. Held-entry proof material and tokens remain
+/// inside the native provider and never cross the plugin C ABI.
+#[unsafe(no_mangle)]
+pub extern "C" fn shroudforge_stage_selected_native_plugins() -> bool {
+    std::panic::catch_unwind(
+        || match startup_services::stage_native_plugins_before_entry() {
+            Ok(true) => true,
+            Ok(false) => false,
+            Err(error) => {
+                tracing::error!(target: "shroudforge::runtime", %error,
+                    "Selected V2 native plugins could not stage before framework preparation");
+                false
+            }
+        },
+    )
+    .unwrap_or(false)
+}
+
+/// Trusted provider dispatch only. Held-entry proof material and tokens remain
+/// inside the native provider and never cross the plugin C ABI.
+#[unsafe(no_mangle)]
+pub extern "C" fn shroudforge_prepare_selected_native_plugins() -> bool {
+    std::panic::catch_unwind(
+        || match startup_services::prepare_native_plugins_before_entry() {
+            Ok(true) => true,
+            Ok(false) => false,
+            Err(error) => {
+                tracing::error!(target: "shroudforge::runtime", %error,
+                    "Selected V2 native plugins could not prepare before game entry");
+                false
+            }
+        },
+    )
+    .unwrap_or(false)
+}
+
+/// Serial post-restore dispatch from the original executable entry thread.
+/// Callbacks receive only their opaque context, never a held-entry token or host table.
+#[unsafe(no_mangle)]
+pub extern "C" fn shroudforge_run_selected_native_plugins_entry_restored() -> bool {
+    std::panic::catch_unwind(|| {
+        shroudforge_api::startup_services::dispatch_native_plugins_entry_restored()
+    })
+    .unwrap_or(false)
+}

@@ -12,6 +12,7 @@ use std::{
 pub const METADATA: u32 = 1;
 pub const GENERIC_HOOKS: u32 = 2;
 pub const MAP: u32 = 4;
+pub const NATIVE_PLUGIN_PREENTRY: u32 = 8;
 pub const GRAPHICS: u32 = 16;
 
 #[repr(C)]
@@ -119,6 +120,14 @@ fn inspect(
         crate::native_dlls::selected_startup_plugins(root, server);
     for plugin in &plugins {
         if plugin.declaration.state.is_enabled() {
+            if plugin
+                .declaration
+                .lifecycle
+                .as_deref()
+                .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
+            {
+                services |= NATIVE_PLUGIN_PREENTRY;
+            }
             if plugin.declaration.declares_service("shroudforge.map") {
                 services |= MAP;
             }
@@ -307,22 +316,86 @@ impl Admission {
 /// Called after asset preparation, before any native loading. A selected plan
 /// never falls back to legacy startup after admission or native preparation fails.
 pub fn prepare(root: &Path, server: bool) -> Result<bool, String> {
-    let mut state = state()
-        .lock()
-        .map_err(|_| "Startup admission lock poisoned")?;
-    if state.is_some() {
-        return Err("Selected startup was already admitted".into());
-    }
     let Some(admission) = Admission::capture(root, server)? else {
         return Ok(false);
     };
-    *state = Some(admission);
+    let plan = admission.plan;
+    let staging_environment = admission.environment.clone();
+    {
+        let mut current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        if current.is_some() {
+            return Err("Selected startup was already admitted".into());
+        }
+        *current = Some(admission);
+    }
     if let Err(error) = crate::native_dlls::prepare_selected_startup(root, server) {
-        state.as_mut().unwrap().phase = Phase::Failed;
+        fail_admission();
+        return Err(error);
+    }
+    if plan.services & NATIVE_PLUGIN_PREENTRY != 0
+        && let Err(error) =
+            crate::session::load_selected_native_plugins(root, server, &staging_environment)
+    {
+        fail_admission();
         return Err(error);
     }
     Ok(true)
 }
+
+fn fail_admission() {
+    if let Ok(mut state) = state().lock()
+        && let Some(admission) = state.as_mut()
+    {
+        admission.phase = Phase::Failed;
+    }
+}
+
+/// Called by the trusted provider operation during its held-entry preparation.
+/// No proof or held-entry token crosses this Rust/native plugin boundary.
+pub fn stage_native_plugins_before_entry() -> Result<bool, String> {
+    let (root, server) = {
+        let current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let Some(admission) = current.as_ref() else {
+            return Err("No admitted selected startup".into());
+        };
+        if admission.phase != Phase::Taken || admission.plan.services & NATIVE_PLUGIN_PREENTRY == 0
+        {
+            return Err("Selected startup has no native pre-entry staging demand".into());
+        }
+        (admission.root.clone(), admission.plan.process_role == 2)
+    };
+    crate::session::stage_selected_native_plugins_before_entry(&root, server)?;
+    Ok(true)
+}
+
+pub fn prepare_native_plugins_before_entry() -> Result<bool, String> {
+    let (root, server) = {
+        let current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let Some(admission) = current.as_ref() else {
+            return Err("No admitted selected startup".into());
+        };
+        if admission.phase != Phase::Taken || admission.plan.services & NATIVE_PLUGIN_PREENTRY == 0
+        {
+            return Err("Selected startup has no native pre-entry preparation demand".into());
+        }
+        (admission.root.clone(), admission.plan.process_role == 2)
+    };
+    crate::session::prepare_selected_native_plugins(&root, server)?;
+    Ok(true)
+}
+
+/// Runs the bounded opaque-context continuation after the entry bytes have been
+/// restored. This dispatcher is called serially on the original entry thread.
+pub fn dispatch_native_plugins_entry_restored() -> bool {
+    crate::session::dispatch_selected_native_plugins_entry_restored()
+}
+
 pub fn take(root: &Path) -> Result<Option<PlanV2>, String> {
     let mut state = state()
         .lock()
@@ -355,18 +428,38 @@ pub fn before_create(root: &Path) -> Result<Option<ModEnvironment>, String> {
     admission.transition(root, Phase::Committed, Phase::Creating)?;
     Ok(Some(admission.environment.clone()))
 }
-pub fn after_create(success: bool) {
-    if let Ok(mut state) = state().lock() {
-        if let Some(admission) = state.as_mut() {
-            admission.phase = if success && admission.phase == Phase::Creating {
-                Phase::Running
-            } else {
-                Phase::Failed
-            };
-            // Startup-only package leases no longer block runtime settings.
-            admission.inputs.clear();
+pub fn after_create(success: bool) -> Result<(), String> {
+    let selected_v2 = {
+        let mut current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let Some(admission) = current.as_mut() else {
+            return Ok(());
+        };
+        let selected_v2 = admission.plan.services & NATIVE_PLUGIN_PREENTRY != 0;
+        let identity = (admission.root.clone(), admission.plan.process_role == 2);
+        admission.phase = if success && admission.phase == Phase::Creating {
+            Phase::Running
+        } else {
+            Phase::Failed
+        };
+        // Startup-only package leases no longer block runtime settings.
+        admission.inputs.clear();
+        selected_v2.then_some(identity)
+    };
+    if let Some((root, server)) = selected_v2 {
+        if success && crate::session::selected_native_plugins_adopted(&root, server) {
+            return crate::session::finalize_selected_native_plugins_entry_restored(&root, server);
+        }
+        let _ = crate::session::finalize_selected_native_plugins_entry_restored(&root, server);
+        crate::session::discard_staged_native_plugins(&root, server);
+        if success {
+            return Err(
+                "Runtime creation completed without adopting the selected V2 native plugins".into(),
+            );
         }
     }
+    Ok(())
 }
 
 pub(crate) fn require_ordinary_loading() -> Result<(), String> {
@@ -409,6 +502,23 @@ mod tests {
             )
             .unwrap();
             Self(root)
+        }
+
+        fn select_dll(&self, directory: &str, path: &str) {
+            let mut config = shroudforge_loader_config::config::read_loader_defaults().unwrap();
+            config["modules"]["dllManager"]["enabled"] = true.into();
+            config["modules"]["dllManager"]["profiles"] = serde_json::json!([{
+                "id":"fixture-native-plugin",
+                "packageDirectory":directory,
+                "name":"Fixture native plugin",
+                "target":"client",
+                "enabled":true,
+                "approved":true,
+                "files":[{"path":path,"mode":"library"}]
+            }]);
+            let config_path = shroudforge_loader_config::paths::loader_config(&self.0);
+            fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+            fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
         }
     }
     impl Drop for Fixture {
@@ -470,6 +580,23 @@ mod tests {
                 .transition(&fixture.0, Phase::Admitted, Phase::Taken)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn v2_plugin_alone_admits_the_held_native_preentry_service() {
+        let fixture = Fixture::new(&["runtime-register-dll"]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(
+            package.join("native-plugin.ini"),
+            b"[Plugin]\nEnabled=true\nDll=probe.dll\nLifecycle=shroudforge-v2\n",
+        )
+        .unwrap();
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fixture.select_dll("probe", "probe.dll");
+
+        let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        assert_eq!(admission.plan.services, METADATA | NATIVE_PLUGIN_PREENTRY);
+        assert_eq!(admission.plan.process_role, 1);
     }
 
     #[test]
@@ -543,7 +670,7 @@ mod tests {
             .read_to_string(&mut script)
             .unwrap();
         assert_eq!(script, "return {}");
-        after_create(true);
+        after_create(true).unwrap();
         assert!(require_ordinary_loading().is_err());
         assert!(before_create(&fixture.0).is_err());
         assert!(take(&fixture.0).is_err());

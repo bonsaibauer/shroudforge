@@ -36,6 +36,16 @@ inline HANDLE post_restore_completed{};
 // 0 absent, 5 reserving, 1 armed, 2 executing, 3 success, 4 failed.
 inline std::atomic<unsigned> post_restore_state{};
 inline std::atomic<bool> run_started{};
+template <typename Activate, typename Commit>
+inline bool ActivateSelectedAndCommitIfPostRestoreActive(Activate&& activate, Commit&& commit) {
+    // These checks prevent starting activation or commit after the worker has
+    // poisoned the deadline state. They cannot cancel work already running;
+    // RestoreAndContinue's final compare-exchange remains the release authority.
+    if (post_restore_state.load(std::memory_order_acquire) != 2) return false;
+    if (!activate()) return false;
+    if (post_restore_state.load(std::memory_order_acquire) != 2) return false;
+    return commit();
+}
 inline bool ExactJump() noexcept {
     if (!entrypoint) return false;
     unsigned char jump[14]{0xff,0x25,0,0,0,0};

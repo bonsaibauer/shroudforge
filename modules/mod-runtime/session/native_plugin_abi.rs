@@ -12,6 +12,7 @@ use std::{
 };
 
 pub(crate) const NATIVE_PLUGIN_ABI_V1: u32 = 1;
+pub(crate) const NATIVE_PLUGIN_ABI_V2: u32 = 2;
 pub(crate) const NATIVE_HOST_ABI_V1: u32 = 1;
 pub(crate) const NATIVE_STATUS_OK: i32 = 0;
 pub(crate) const NATIVE_MAX_SETTINGS_JSON_BYTES: usize = 65_536;
@@ -21,6 +22,8 @@ pub(crate) const NATIVE_DRAIN_TIMEOUT_MS: u32 = 250;
 pub(crate) const NATIVE_SERVICE_MAP_V1: &str = "shroudforge.map";
 pub(crate) const NATIVE_SERVICE_OVERLAY_V1: &str = "shroudforge.overlay";
 pub(crate) const NATIVE_SERVICE_EXECUTABLE_SPANS_V1: &str = "shroudforge.executable-spans";
+pub(crate) const NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1: &str =
+    "shroudforge.executable-span-validation";
 
 pub(crate) const NATIVE_STATUS_INVALID_ARGUMENT: i32 = 1;
 pub(crate) const NATIVE_STATUS_ABI_MISMATCH: i32 = 2;
@@ -46,6 +49,7 @@ pub(crate) const NATIVE_MAX_ASSET_PATH_BYTES: usize = 1_024;
 pub(crate) enum NativePluginMode {
     LegacyLoadOnly,
     ShroudForgeV1,
+    ShroudForgeV2,
 }
 
 pub(crate) type NativePluginEntry = unsafe extern "C" fn(u32, u32, *mut SFNativePluginV1) -> i32;
@@ -53,6 +57,9 @@ type NativeInitializeFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV
 type NativeUpdateFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1, u64) -> i32;
 type NativeStopFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1) -> i32;
 type NativeShutdownFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1) -> i32;
+type NativePrepareBeforeEntryFnV2 = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1) -> i32;
+type NativeStageBeforeEntryFnV2 = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1) -> i32;
+type NativeEntryRestoredFnV2 = unsafe extern "C" fn(*mut c_void) -> i32;
 type NativeLogFn = unsafe extern "C" fn(*mut c_void, u32, *const u8, u32);
 type NativeReadSettingsFn = unsafe extern "C" fn(*mut c_void, *mut u8, u32, *mut u32) -> i32;
 type NativeReadAssetFn =
@@ -84,6 +91,41 @@ impl Default for SFNativePluginV1 {
             stop: None,
             shutdown: None,
         }
+    }
+}
+
+#[repr(C)]
+struct SFNativePluginV2 {
+    base: SFNativePluginV1,
+    prepare_before_entry: Option<NativePrepareBeforeEntryFnV2>,
+    stage_before_entry: Option<NativeStageBeforeEntryFnV2>,
+    entry_restored: Option<NativeEntryRestoredFnV2>,
+}
+
+impl Default for SFNativePluginV2 {
+    fn default() -> Self {
+        Self {
+            base: SFNativePluginV1::default(),
+            prepare_before_entry: None,
+            stage_before_entry: None,
+            entry_restored: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct NativeEntryRestoredContinuation {
+    callback: NativeEntryRestoredFnV2,
+    plugin_context: usize,
+}
+
+impl NativeEntryRestoredContinuation {
+    pub(crate) fn address(self) -> *const c_void {
+        self.callback as *const () as *const c_void
+    }
+
+    pub(crate) fn invoke(self) -> i32 {
+        unsafe { (self.callback)(self.plugin_context as *mut c_void) }
     }
 }
 
@@ -290,6 +332,10 @@ impl NativePluginHostContext {
 
 pub(crate) struct NativePluginInstance {
     plugin: SFNativePluginV1,
+    prepare_before_entry: Option<NativePrepareBeforeEntryFnV2>,
+    stage_before_entry: Option<NativeStageBeforeEntryFnV2>,
+    entry_restored: Option<NativeEntryRestoredFnV2>,
+    is_v2: bool,
     host_context: Box<NativePluginHostContext>,
     host: Box<SFNativeHostV1>,
     state: NativePluginInstanceState,
@@ -298,6 +344,9 @@ pub(crate) struct NativePluginInstance {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NativePluginInstanceState {
     New,
+    Staged,
+    Preparing,
+    Prepared,
     Active,
     Stopped,
     Retained,
@@ -308,33 +357,172 @@ impl NativePluginInstance {
         entry: NativePluginEntry,
         metadata: NativePluginHostMetadata,
     ) -> Result<Self, String> {
+        Self::load_with_mode(entry, metadata, NativePluginMode::ShroudForgeV1)
+    }
+
+    pub(crate) fn load_with_mode(
+        entry: NativePluginEntry,
+        metadata: NativePluginHostMetadata,
+        mode: NativePluginMode,
+    ) -> Result<Self, String> {
+        let abi = match mode {
+            NativePluginMode::ShroudForgeV1 => NATIVE_PLUGIN_ABI_V1,
+            NativePluginMode::ShroudForgeV2 => NATIVE_PLUGIN_ABI_V2,
+            NativePluginMode::LegacyLoadOnly => {
+                return Err("legacy native DLLs do not negotiate a lifecycle".into());
+            }
+        };
+        let is_v2 = mode == NativePluginMode::ShroudForgeV2;
         let mut host_context = Box::new(NativePluginHostContext::new(metadata)?);
         let host = Box::new(host_context.host_table());
-        let mut plugin = SFNativePluginV1::default();
-        let out_size = size_of::<SFNativePluginV1>() as u32;
-        let status = unsafe { entry(NATIVE_PLUGIN_ABI_V1, out_size, &mut plugin) };
+        let (plugin, prepare_before_entry, stage_before_entry, entry_restored, out_size, status) =
+            if is_v2 {
+                let mut plugin = SFNativePluginV2::default();
+                let out_size = size_of::<SFNativePluginV2>() as u32;
+                let status = unsafe {
+                    entry(
+                        NATIVE_PLUGIN_ABI_V2,
+                        out_size,
+                        (&mut plugin.base) as *mut SFNativePluginV1,
+                    )
+                };
+                (
+                    plugin.base,
+                    plugin.prepare_before_entry,
+                    plugin.stage_before_entry,
+                    plugin.entry_restored,
+                    out_size,
+                    status,
+                )
+            } else {
+                let mut plugin = SFNativePluginV1::default();
+                let out_size = size_of::<SFNativePluginV1>() as u32;
+                let status = unsafe { entry(NATIVE_PLUGIN_ABI_V1, out_size, &mut plugin) };
+                (plugin, None, None, None, out_size, status)
+            };
         if status != NATIVE_STATUS_OK {
             return Err(format!(
-                "ShroudForgePluginEntry rejected ABI v1: {}",
-                native_status_description(status)
+                "ShroudForgePluginEntry rejected ABI v{abi}: {}",
+                native_status_description(status),
             ));
         }
-        validate_plugin_table(out_size, &plugin)?;
+        validate_plugin_table(out_size, &plugin, is_v2, prepare_before_entry.is_some())?;
         Ok(Self {
             plugin,
+            prepare_before_entry,
+            stage_before_entry,
+            entry_restored,
+            is_v2,
             host_context,
             host,
             state: NativePluginInstanceState::New,
         })
     }
 
+    pub(crate) fn stage_before_entry(&mut self) -> Result<(), InitializationFailure> {
+        if !self.is_v2 || self.state != NativePluginInstanceState::New {
+            return Err(InitializationFailure {
+                status: NATIVE_STATUS_FAILED,
+                cleanup: TeardownOutcome::Retain {
+                    stage: "invalid pre-entry staging state",
+                    status: NATIVE_STATUS_FAILED,
+                },
+            });
+        }
+        if !self.host_context.is_owner_thread() {
+            return Err(InitializationFailure {
+                status: NATIVE_STATUS_WRONG_THREAD,
+                cleanup: TeardownOutcome::Retain {
+                    stage: "pre-entry staging owner thread",
+                    status: NATIVE_STATUS_WRONG_THREAD,
+                },
+            });
+        }
+        self.state = NativePluginInstanceState::Preparing;
+        let status = match self.stage_before_entry {
+            Some(callback) => unsafe { callback(self.plugin.plugin_context, self.host.as_ref()) },
+            None => NATIVE_STATUS_OK,
+        };
+        if status == NATIVE_STATUS_OK {
+            self.state = NativePluginInstanceState::Staged;
+            return Ok(());
+        }
+        let failure = InitializationFailure {
+            status,
+            cleanup: teardown(self),
+        };
+        self.state = match failure.cleanup {
+            TeardownOutcome::Quiescent => NativePluginInstanceState::Stopped,
+            TeardownOutcome::Retain { .. } => NativePluginInstanceState::Retained,
+        };
+        Err(failure)
+    }
+
+    pub(crate) fn prepare_before_entry(&mut self) -> Result<(), InitializationFailure> {
+        if !self.is_v2 || self.state != NativePluginInstanceState::Staged {
+            return Err(InitializationFailure {
+                status: NATIVE_STATUS_FAILED,
+                cleanup: TeardownOutcome::Retain {
+                    stage: "invalid pre-entry preparation state",
+                    status: NATIVE_STATUS_FAILED,
+                },
+            });
+        }
+        if !self.host_context.is_owner_thread() {
+            return Err(InitializationFailure {
+                status: NATIVE_STATUS_WRONG_THREAD,
+                cleanup: TeardownOutcome::Retain {
+                    stage: "pre-entry owner thread",
+                    status: NATIVE_STATUS_WRONG_THREAD,
+                },
+            });
+        }
+        self.state = NativePluginInstanceState::Preparing;
+        let status = unsafe {
+            self.prepare_before_entry
+                .expect("validated v2 preparation callback")(
+                self.plugin.plugin_context,
+                self.host.as_ref(),
+            )
+        };
+        if status == NATIVE_STATUS_OK {
+            self.state = NativePluginInstanceState::Prepared;
+            return Ok(());
+        }
+
+        let failure = InitializationFailure {
+            status,
+            cleanup: teardown(self),
+        };
+        self.state = match failure.cleanup {
+            TeardownOutcome::Quiescent => NativePluginInstanceState::Stopped,
+            TeardownOutcome::Retain { .. } => NativePluginInstanceState::Retained,
+        };
+        Err(failure)
+    }
+
     pub(crate) fn start(&mut self) -> Result<(), InitializationFailure> {
-        if self.state != NativePluginInstanceState::New {
+        if self.state
+            != if self.is_v2 {
+                NativePluginInstanceState::Prepared
+            } else {
+                NativePluginInstanceState::New
+            }
+        {
             return Err(InitializationFailure {
                 status: NATIVE_STATUS_FAILED,
                 cleanup: TeardownOutcome::Retain {
                     stage: "duplicate initialization",
                     status: NATIVE_STATUS_FAILED,
+                },
+            });
+        }
+        if !self.host_context.is_owner_thread() {
+            return Err(InitializationFailure {
+                status: NATIVE_STATUS_WRONG_THREAD,
+                cleanup: TeardownOutcome::Retain {
+                    stage: "runtime owner thread",
+                    status: NATIVE_STATUS_WRONG_THREAD,
                 },
             });
         }
@@ -388,6 +576,58 @@ impl NativePluginInstance {
             return Err("native plugin is not active".into());
         }
         self.host_context.update_settings_json(settings_json)
+    }
+
+    pub(crate) fn mode(&self) -> NativePluginMode {
+        if self.is_v2 {
+            NativePluginMode::ShroudForgeV2
+        } else {
+            NativePluginMode::ShroudForgeV1
+        }
+    }
+
+    pub(crate) fn service_lifetime(&self) -> Arc<dyn NativePluginServiceLifetime> {
+        self.host_context.services.clone()
+    }
+
+    pub(crate) fn package_generation(&self) -> u64 {
+        self.host_context.package_generation
+    }
+
+    pub(crate) fn entry_restored_continuation(&self) -> Option<NativeEntryRestoredContinuation> {
+        self.entry_restored
+            .map(|callback| NativeEntryRestoredContinuation {
+                callback,
+                plugin_context: self.plugin.plugin_context as usize,
+            })
+    }
+
+    pub(crate) fn rollback_preparation(&mut self) -> TeardownOutcome {
+        if !self.is_v2 || !self.host_context.is_owner_thread() {
+            return TeardownOutcome::Retain {
+                stage: "pre-entry rollback state or owner thread",
+                status: NATIVE_STATUS_FAILED,
+            };
+        }
+        if self.state == NativePluginInstanceState::New {
+            self.state = NativePluginInstanceState::Stopped;
+            return TeardownOutcome::Quiescent;
+        }
+        if !matches!(
+            self.state,
+            NativePluginInstanceState::Staged | NativePluginInstanceState::Prepared
+        ) {
+            return TeardownOutcome::Retain {
+                stage: "pre-entry rollback state or owner thread",
+                status: NATIVE_STATUS_FAILED,
+            };
+        }
+        let outcome = teardown(self);
+        self.state = match outcome {
+            TeardownOutcome::Quiescent => NativePluginInstanceState::Stopped,
+            TeardownOutcome::Retain { .. } => NativePluginInstanceState::Retained,
+        };
+        outcome
     }
 }
 
@@ -449,24 +689,42 @@ pub(crate) fn entrypoint_for_mode(
         NativePluginMode::ShroudForgeV1 => lookup()
             .map(Some)
             .ok_or_else(|| "opt-in native plugin is missing ShroudForgePluginEntry".into()),
+        NativePluginMode::ShroudForgeV2 => lookup()
+            .map(Some)
+            .ok_or_else(|| "opt-in native plugin is missing ShroudForgePluginEntry".into()),
     }
 }
 
-fn validate_plugin_table(out_size: u32, plugin: &SFNativePluginV1) -> Result<(), String> {
-    let required_size = size_of::<SFNativePluginV1>() as u32;
+fn validate_plugin_table(
+    out_size: u32,
+    plugin: &SFNativePluginV1,
+    is_v2: bool,
+    has_prepare_callback: bool,
+) -> Result<(), String> {
+    let required_size = if is_v2 {
+        size_of::<SFNativePluginV2>() as u32
+    } else {
+        size_of::<SFNativePluginV1>() as u32
+    };
     if out_size < required_size
         || plugin.struct_size < required_size
         || plugin.struct_size > out_size
     {
         return Err(format!(
-            "native plugin ABI v1 table size {} is incompatible with host size {out_size}",
+            "native plugin ABI v{} table size {} is incompatible with host size {out_size}",
+            if is_v2 { 2 } else { 1 },
             plugin.struct_size
         ));
     }
-    if plugin.abi_version != NATIVE_PLUGIN_ABI_V1 {
+    let requested_abi = if is_v2 {
+        NATIVE_PLUGIN_ABI_V2
+    } else {
+        NATIVE_PLUGIN_ABI_V1
+    };
+    if plugin.abi_version != requested_abi {
         return Err(format!(
             "native plugin ABI version {} is unsupported; expected {}",
-            plugin.abi_version, NATIVE_PLUGIN_ABI_V1
+            plugin.abi_version, requested_abi
         ));
     }
     if plugin.initialize.is_none()
@@ -475,6 +733,9 @@ fn validate_plugin_table(out_size: u32, plugin: &SFNativePluginV1) -> Result<(),
         || plugin.shutdown.is_none()
     {
         return Err("native plugin ABI v1 table is missing a required callback".into());
+    }
+    if is_v2 && !has_prepare_callback {
+        return Err("native plugin ABI v2 table is missing prepare_before_entry".into());
     }
     Ok(())
 }
@@ -673,6 +934,7 @@ unsafe extern "C" fn host_query_service(
         NATIVE_SERVICE_MAP_V1
             | NATIVE_SERVICE_OVERLAY_V1
             | NATIVE_SERVICE_EXECUTABLE_SPANS_V1
+            | NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1
             | keybinds::SERVICE
             | notifications::SERVICE
     ) {
@@ -705,6 +967,21 @@ unsafe extern "C" fn host_query_service(
         {
             return NATIVE_STATUS_UNAVAILABLE;
         }
+    }
+    if name == NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1
+        && (!context.package.info().enabled
+            || !context
+                .package
+                .info()
+                .capabilities
+                .contains(&mod_loader::Capability::RuntimeRegisterDll)
+            || !context
+                .package
+                .info()
+                .capabilities
+                .contains(&mod_loader::Capability::RuntimeEngineHooks))
+    {
+        return NATIVE_STATUS_UNAVAILABLE;
     }
     if name == notifications::SERVICE {
         return unsafe {
@@ -815,10 +1092,119 @@ unsafe extern "C" fn host_drain_services(
 mod tests {
     use super::*;
     use std::{
+        cell::Cell,
         fs,
         path::PathBuf,
         sync::{Arc, Mutex},
     };
+
+    struct V2TestState {
+        calls: Vec<&'static str>,
+        stage_status: i32,
+        prepare_status: i32,
+        entry_restored_status: i32,
+        entry_restored_thread: Option<std::thread::ThreadId>,
+    }
+
+    thread_local! {
+        static V2_TEST_STATE: Cell<*mut V2TestState> = const { Cell::new(std::ptr::null_mut()) };
+    }
+
+    unsafe extern "C" fn v2_prepare(
+        plugin_context: *mut c_void,
+        _host: *const SFNativeHostV1,
+    ) -> i32 {
+        let state = unsafe { &mut *plugin_context.cast::<V2TestState>() };
+        state.calls.push("prepare");
+        state.prepare_status
+    }
+
+    unsafe extern "C" fn v2_stage(
+        plugin_context: *mut c_void,
+        _host: *const SFNativeHostV1,
+    ) -> i32 {
+        let state = unsafe { &mut *plugin_context.cast::<V2TestState>() };
+        state.calls.push("stage");
+        state.stage_status
+    }
+
+    unsafe extern "C" fn v2_entry_restored(plugin_context: *mut c_void) -> i32 {
+        let state = unsafe { &mut *plugin_context.cast::<V2TestState>() };
+        state.calls.push("restored");
+        state.entry_restored_thread = Some(std::thread::current().id());
+        state.entry_restored_status
+    }
+
+    unsafe extern "C" fn v2_initialize(
+        plugin_context: *mut c_void,
+        _host: *const SFNativeHostV1,
+    ) -> i32 {
+        unsafe { &mut *plugin_context.cast::<V2TestState>() }
+            .calls
+            .push("initialize");
+        NATIVE_STATUS_OK
+    }
+
+    unsafe extern "C" fn v2_update(
+        _plugin_context: *mut c_void,
+        _host: *const SFNativeHostV1,
+        _elapsed_microseconds: u64,
+    ) -> i32 {
+        NATIVE_STATUS_OK
+    }
+
+    unsafe extern "C" fn v2_stop(plugin_context: *mut c_void, _host: *const SFNativeHostV1) -> i32 {
+        unsafe { &mut *plugin_context.cast::<V2TestState>() }
+            .calls
+            .push("stop");
+        NATIVE_STATUS_OK
+    }
+
+    unsafe extern "C" fn v2_shutdown(
+        plugin_context: *mut c_void,
+        _host: *const SFNativeHostV1,
+    ) -> i32 {
+        unsafe { &mut *plugin_context.cast::<V2TestState>() }
+            .calls
+            .push("shutdown");
+        NATIVE_STATUS_OK
+    }
+
+    unsafe extern "C" fn bounded_v2_entry(
+        requested_abi: u32,
+        out_size: u32,
+        out_plugin: *mut SFNativePluginV1,
+    ) -> i32 {
+        if requested_abi != NATIVE_PLUGIN_ABI_V2
+            || out_size < size_of::<SFNativePluginV2>() as u32
+            || out_plugin.is_null()
+        {
+            return NATIVE_STATUS_ABI_MISMATCH;
+        }
+        let plugin_context: *mut c_void = V2_TEST_STATE.with(Cell::get).cast();
+        unsafe { &mut *plugin_context.cast::<V2TestState>() }
+            .calls
+            .push("factory");
+        unsafe {
+            out_plugin
+                .cast::<SFNativePluginV2>()
+                .write(SFNativePluginV2 {
+                    base: SFNativePluginV1 {
+                        struct_size: size_of::<SFNativePluginV2>() as u32,
+                        abi_version: NATIVE_PLUGIN_ABI_V2,
+                        plugin_context,
+                        initialize: Some(v2_initialize),
+                        update: Some(v2_update),
+                        stop: Some(v2_stop),
+                        shutdown: Some(v2_shutdown),
+                    },
+                    prepare_before_entry: Some(v2_prepare),
+                    stage_before_entry: Some(v2_stage),
+                    entry_restored: Some(v2_entry_restored),
+                })
+        };
+        NATIVE_STATUS_OK
+    }
 
     struct TestPackage {
         package: Mod,
@@ -851,6 +1237,9 @@ mod tests {
             Self::with_capabilities(capabilities)
         }
         fn with_capabilities(capabilities: Vec<&str>) -> Self {
+            Self::with_capabilities_and_enabled(&capabilities, true)
+        }
+        fn with_capabilities_and_enabled(capabilities: &[&str], enabled: bool) -> Self {
             let target = std::env::var_os("CARGO_TARGET_DIR")
                 .map(PathBuf::from)
                 .unwrap_or_else(std::env::temp_dir);
@@ -860,12 +1249,13 @@ mod tests {
             fs::write(
                 package_root.join("mod.json"),
                 serde_json::json!({"id":"example","name":"Example","version":"1.0.0",
-                    "capabilities":capabilities}).to_string(),
+                    "capabilities":capabilities})
+                .to_string(),
             )
             .unwrap();
             fs::write(
                 package_root.join("extended.mod.json"),
-                r#"{"schemaVersion":1,"enabled":true,"targets":["client"],"settings":{}}"#,
+                serde_json::json!({"schemaVersion":1,"enabled":enabled,"targets":["client"],"settings":{}}).to_string(),
             )
             .unwrap();
             fs::write(package_root.join("assets").join("atlas.bin"), b"atlas").unwrap();
@@ -1063,6 +1453,126 @@ mod tests {
     }
 
     #[test]
+    fn v2_preparation_precedes_runtime_initialization_on_one_instance() {
+        let mut test_state = V2TestState {
+            calls: Vec::new(),
+            stage_status: NATIVE_STATUS_OK,
+            prepare_status: NATIVE_STATUS_OK,
+            entry_restored_status: NATIVE_STATUS_OK,
+            entry_restored_thread: None,
+        };
+        V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
+        let package = TestPackage::new();
+        let metadata = NativePluginHostMetadata {
+            package_id: "example".into(),
+            package: package.package.clone(),
+            package_generation: 42,
+            is_server: false,
+            settings_json: b"{}".to_vec(),
+            services: Arc::new(NoNativePluginServices),
+        };
+        let mut instance = NativePluginInstance::load_with_mode(
+            bounded_v2_entry,
+            metadata,
+            NativePluginMode::ShroudForgeV2,
+        )
+        .unwrap();
+
+        assert!(instance.stage_before_entry().is_ok());
+        assert!(instance.prepare_before_entry().is_ok());
+        assert_eq!(instance.package_generation(), 42);
+        let continuation = instance.entry_restored_continuation().unwrap();
+        let owner_thread = std::thread::current().id();
+        let (status, callback_thread) =
+            std::thread::spawn(move || (continuation.invoke(), std::thread::current().id()))
+                .join()
+                .unwrap();
+        assert_eq!(status, NATIVE_STATUS_OK);
+        assert_ne!(callback_thread, owner_thread);
+        assert_eq!(test_state.entry_restored_thread, Some(callback_thread));
+        assert!(instance.start().is_ok());
+        assert_eq!(
+            test_state.calls,
+            ["factory", "stage", "prepare", "restored", "initialize"]
+        );
+        assert_eq!(instance.state, NativePluginInstanceState::Active);
+        V2_TEST_STATE.with(|slot| slot.set(std::ptr::null_mut()));
+    }
+
+    #[test]
+    fn failed_v2_preparation_rolls_back_without_runtime_initialization() {
+        let mut test_state = V2TestState {
+            calls: Vec::new(),
+            stage_status: NATIVE_STATUS_OK,
+            prepare_status: NATIVE_STATUS_FAILED,
+            entry_restored_status: NATIVE_STATUS_OK,
+            entry_restored_thread: None,
+        };
+        V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
+        let package = TestPackage::new();
+        let metadata = NativePluginHostMetadata {
+            package_id: "example".into(),
+            package: package.package.clone(),
+            package_generation: 43,
+            is_server: false,
+            settings_json: b"{}".to_vec(),
+            services: Arc::new(NoNativePluginServices),
+        };
+        let mut instance = NativePluginInstance::load_with_mode(
+            bounded_v2_entry,
+            metadata,
+            NativePluginMode::ShroudForgeV2,
+        )
+        .unwrap();
+
+        assert!(instance.stage_before_entry().is_ok());
+        let failure = instance.prepare_before_entry().unwrap_err();
+        assert_eq!(failure.status, NATIVE_STATUS_FAILED);
+        assert_eq!(failure.cleanup, TeardownOutcome::Quiescent);
+        assert_eq!(
+            test_state.calls,
+            ["factory", "stage", "prepare", "stop", "shutdown"]
+        );
+        assert_eq!(instance.state, NativePluginInstanceState::Stopped);
+        assert!(instance.start().is_err());
+        V2_TEST_STATE.with(|slot| slot.set(std::ptr::null_mut()));
+    }
+
+    #[test]
+    fn failed_v2_staging_rolls_back_before_framework_preparation() {
+        let mut test_state = V2TestState {
+            calls: Vec::new(),
+            stage_status: NATIVE_STATUS_FAILED,
+            prepare_status: NATIVE_STATUS_OK,
+            entry_restored_status: NATIVE_STATUS_OK,
+            entry_restored_thread: None,
+        };
+        V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
+        let package = TestPackage::new();
+        let metadata = NativePluginHostMetadata {
+            package_id: "example".into(),
+            package: package.package.clone(),
+            package_generation: 44,
+            is_server: false,
+            settings_json: b"{}".to_vec(),
+            services: Arc::new(NoNativePluginServices),
+        };
+        let mut instance = NativePluginInstance::load_with_mode(
+            bounded_v2_entry,
+            metadata,
+            NativePluginMode::ShroudForgeV2,
+        )
+        .unwrap();
+
+        let failure = instance.stage_before_entry().unwrap_err();
+        assert_eq!(failure.status, NATIVE_STATUS_FAILED);
+        assert_eq!(failure.cleanup, TeardownOutcome::Quiescent);
+        assert_eq!(test_state.calls, ["factory", "stage", "stop", "shutdown"]);
+        assert_eq!(instance.state, NativePluginInstanceState::Stopped);
+        V2_TEST_STATE.with(|slot| slot.set(std::ptr::null_mut()));
+    }
+
+    #[test]
     fn short_output_buffer_is_rejected_before_any_write() {
         #[repr(C)]
         struct GuardedOutput {
@@ -1093,12 +1603,12 @@ mod tests {
     fn plugin_table_requires_matching_version_size_and_callbacks() {
         let out_size = size_of::<SFNativePluginV1>() as u32;
         let valid = valid_plugin_table();
-        assert!(validate_plugin_table(out_size, &valid).is_ok());
+        assert!(validate_plugin_table(out_size, &valid, false, false).is_ok());
 
         let mut wrong_version = valid_plugin_table();
         wrong_version.abi_version = 2;
         assert!(
-            validate_plugin_table(out_size, &wrong_version)
+            validate_plugin_table(out_size, &wrong_version, false, false)
                 .unwrap_err()
                 .contains("version 2")
         );
@@ -1106,7 +1616,7 @@ mod tests {
         let mut short_table = valid_plugin_table();
         short_table.struct_size -= 1;
         assert!(
-            validate_plugin_table(out_size, &short_table)
+            validate_plugin_table(out_size, &short_table, false, false)
                 .unwrap_err()
                 .contains("table size")
         );
@@ -1114,9 +1624,36 @@ mod tests {
         let mut missing_callback = valid_plugin_table();
         missing_callback.shutdown = None;
         assert!(
-            validate_plugin_table(out_size, &missing_callback)
+            validate_plugin_table(out_size, &missing_callback, false, false)
                 .unwrap_err()
                 .contains("missing a required callback")
+        );
+    }
+
+    #[test]
+    fn v2_table_requires_its_larger_size_version_and_preparation_callback() {
+        let mut valid = valid_plugin_table();
+        valid.struct_size = size_of::<SFNativePluginV2>() as u32;
+        valid.abi_version = NATIVE_PLUGIN_ABI_V2;
+        let out_size = size_of::<SFNativePluginV2>() as u32;
+        assert!(validate_plugin_table(out_size, &valid, true, true).is_ok());
+        assert!(
+            validate_plugin_table(out_size, &valid, true, false)
+                .unwrap_err()
+                .contains("missing prepare_before_entry")
+        );
+        assert!(
+            validate_plugin_table(size_of::<SFNativePluginV1>() as u32, &valid, true, true,)
+                .unwrap_err()
+                .contains("table size")
+        );
+
+        let mut wrong_version = valid;
+        wrong_version.abi_version = NATIVE_PLUGIN_ABI_V1;
+        assert!(
+            validate_plugin_table(out_size, &wrong_version, true, true)
+                .unwrap_err()
+                .contains("expected 2")
         );
     }
 
@@ -1729,6 +2266,117 @@ mod tests {
             )
         };
         assert_eq!(unknown_result, NATIVE_STATUS_UNKNOWN_SERVICE);
+    }
+
+    #[test]
+    fn executable_span_validation_requires_enabled_client_and_all_authorities() {
+        fn query(
+            package: &TestPackage,
+            services: Arc<TestServiceLifetime>,
+            is_server: bool,
+            version: u32,
+        ) -> (i32, u32, Option<(String, u64, String, u32, u32)>) {
+            let mut context = Box::new(
+                NativePluginHostContext::new(NativePluginHostMetadata {
+                    package_id: "example".into(),
+                    package: package.package.clone(),
+                    package_generation: 77,
+                    is_server,
+                    settings_json: b"{}".to_vec(),
+                    services: services.clone(),
+                })
+                .unwrap(),
+            );
+            let host = context.host_table();
+            let name = NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1.as_bytes();
+            let mut output = 0xA5A5_A5A5;
+            let status = unsafe {
+                host.query_service.unwrap()(
+                    host.package_context,
+                    name.as_ptr(),
+                    name.len() as u32,
+                    version,
+                    size_of::<u32>() as u32,
+                    (&mut output as *mut u32).cast(),
+                )
+            };
+            (
+                status,
+                output,
+                services.queried_owner.lock().unwrap().clone(),
+            )
+        }
+
+        let cases: [(&[&str], bool, bool); 5] = [
+            (&["runtime", "runtime-register-dll"], true, false),
+            (&["runtime", "runtime-engine-hooks"], true, false),
+            (
+                &["runtime-register-dll", "runtime-engine-hooks"],
+                true,
+                false,
+            ),
+            (
+                &["runtime", "runtime-register-dll", "runtime-engine-hooks"],
+                false,
+                false,
+            ),
+            (
+                &["runtime", "runtime-register-dll", "runtime-engine-hooks"],
+                true,
+                true,
+            ),
+        ];
+        for (capabilities, enabled, is_server) in cases {
+            let package = TestPackage::with_capabilities_and_enabled(capabilities, enabled);
+            let services = Arc::new(TestServiceLifetime {
+                revoke_status: 0,
+                drain_status: 0,
+                queried_owner: Mutex::new(None),
+                revoked_owner: Mutex::new(None),
+                drained_owner: Mutex::new(None),
+            });
+            let (status, output, queried) = query(&package, services, is_server, 1);
+            assert_eq!(status, NATIVE_STATUS_UNAVAILABLE);
+            assert_eq!(output, 0xA5A5_A5A5);
+            assert!(queried.is_none());
+        }
+
+        let package = TestPackage::with_capabilities_and_enabled(
+            &["runtime", "runtime-register-dll", "runtime-engine-hooks"],
+            true,
+        );
+        let services = Arc::new(TestServiceLifetime {
+            revoke_status: 0,
+            drain_status: 0,
+            queried_owner: Mutex::new(None),
+            revoked_owner: Mutex::new(None),
+            drained_owner: Mutex::new(None),
+        });
+        let (status, output, queried) = query(&package, services, false, 1);
+        assert_eq!(status, NATIVE_STATUS_OK);
+        assert_eq!(output, 0x5346_4D50);
+        assert_eq!(
+            queried,
+            Some((
+                "example".to_owned(),
+                77,
+                NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1.to_owned(),
+                1,
+                size_of::<u32>() as u32,
+            ))
+        );
+
+        let services = Arc::new(TestServiceLifetime {
+            revoke_status: 0,
+            drain_status: 0,
+            queried_owner: Mutex::new(None),
+            revoked_owner: Mutex::new(None),
+            drained_owner: Mutex::new(None),
+        });
+        let (status, output, queried) = query(&package, services, false, 2);
+        assert_eq!(status, NATIVE_STATUS_ABI_MISMATCH);
+        assert_eq!(output, 0xA5A5_A5A5);
+        assert!(queried.is_none());
     }
 
     #[test]

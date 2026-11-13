@@ -3,10 +3,14 @@
 #include <cstddef>
 #include <string>
 namespace MapRuntime {
-bool PrepareHudVisibility(std::uintptr_t image,std::size_t image_size);
+bool PreflightHudPreparation(std::uintptr_t image,std::size_t image_size);
+bool InstallPreparedHudHooks();
+bool ValidatePreparedHudActivation();
+bool ActivatePreparedHudVisibility();
+bool PreflightLegacyHudVisibility(std::uintptr_t image,std::size_t image_size);
+bool InstallPreflightedLegacyHudVisibility();
 // Preparation and this snapshot run under the Map capture control mutex.
 std::string HudPreparationStatus();
-bool EnableHudVisibility(std::uintptr_t image,std::size_t image_size);
 void DisableHudVisibility();
 bool HudInputAllowed(std::uint64_t now);
 bool HudGameplay(std::uint64_t now);

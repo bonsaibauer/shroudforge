@@ -8,6 +8,7 @@
 // Renderer entries stay original; only a verified framework-owned CALL can be normalized.
 namespace MapRuntime::CurrentHud5d9ef2f1 {
 using Reader=bool(*)(const std::uint8_t*,void*,std::size_t);
+using Normalizer=bool(*)(std::uint32_t,const std::uint8_t*,const std::uint8_t*,std::size_t);
 struct Pin{std::size_t rva;std::string_view bytes;};
 using namespace std::literals;
 inline constexpr Pin Pins[]={
@@ -21,7 +22,8 @@ inline constexpr Pin Pins[]={
 {0xbd160a,"\xe8\xc1\xed\x08\x00\xe8\x2c\xb2\x0b\x00"sv},
 {0xd80f30,"\x48\x89\x0d\x71\xe5\xab\x01\xc3"sv}
 };
-inline bool Match(const std::uint8_t* image,std::size_t size,const std::uint8_t* callPrefix,std::size_t callSize,Reader read) {
+inline bool Match(const std::uint8_t* image,std::size_t size,const std::uint8_t* callPrefix,
+        std::size_t callSize,Reader read,Normalizer normalize=nullptr) {
     if(!image || !read)return false;
 
     if(callPrefix || callSize){
@@ -32,7 +34,9 @@ inline bool Match(const std::uint8_t* image,std::size_t size,const std::uint8_t*
         std::array<std::uint8_t,64> actual{};
         if(!read(image+pin.rva,actual.data(),pin.bytes.size()))return false;
         if(callPrefix && pin.rva==0xbd160a)std::memcpy(actual.data(),callPrefix,5);
-        if(std::memcmp(actual.data(),pin.bytes.data(),pin.bytes.size()))return false;
+        if(std::memcmp(actual.data(),pin.bytes.data(),pin.bytes.size()) &&
+            (!normalize || pin.rva>UINT32_MAX || !normalize(static_cast<std::uint32_t>(pin.rva),
+                reinterpret_cast<const std::uint8_t*>(pin.bytes.data()),actual.data(),pin.bytes.size())))return false;
     }return true;
 }
 }

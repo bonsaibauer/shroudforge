@@ -13,6 +13,7 @@ struct HeldEntryProof {
 class HeldEntryToken;
 using HeldEntryCallback = bool (*)(const HeldEntryToken&, void*) noexcept;
 bool RunHeldEntryPreparation(const HeldEntryProof&, HeldEntryCallback, void*) noexcept;
+bool HeldEntryPreparationActiveOnCurrentThread() noexcept;
 
 class HeldEntryToken final {
 public:

@@ -60,10 +60,12 @@ impl NativePluginServiceLifetime for MapOverlayServices {
 }
 impl super::AppState {
     pub(crate) fn install_map_overlay_services(&self) -> Result<(), String> {
-        self.set_native_plugin_service_lifetime(std::sync::Arc::new(MapOverlayServices::new(
-            self.env(),
+        let services = super::selected_native_plugin_services(
+            self.env().game_dir().as_std_path(),
             self.is_server(),
-        )))
+        )?
+        .unwrap_or_else(|| super::new_native_plugin_service_lifetime(self.env(), self.is_server()));
+        self.set_native_plugin_service_lifetime(services)
     }
 }
 

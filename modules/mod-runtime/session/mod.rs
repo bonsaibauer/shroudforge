@@ -246,6 +246,61 @@ mod native_plugin_lifecycle;
 mod native_plugins;
 mod validate_generated_assets;
 pub(crate) use native_plugins::native_overlay_startup_demand;
+
+pub(crate) fn new_native_plugin_service_lifetime(
+    env: &ModEnvironment,
+    is_server: bool,
+) -> Arc<dyn native_plugin_abi::NativePluginServiceLifetime> {
+    Arc::new(map_overlay_services::MapOverlayServices::new(env, is_server))
+}
+
+pub(crate) fn load_selected_native_plugins(
+    root: &std::path::Path,
+    is_server: bool,
+    environment: &ModEnvironment,
+) -> Result<(), String> {
+    native_plugins::load_selected_native_plugins(root, is_server, environment)
+}
+
+pub(crate) fn stage_selected_native_plugins_before_entry(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<(), String> {
+    native_plugins::stage_selected_native_plugins_before_entry(root, is_server)
+}
+
+pub(crate) fn prepare_selected_native_plugins(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<(), String> {
+    native_plugins::prepare_selected_native_plugins(root, is_server)
+}
+
+pub(crate) fn selected_native_plugin_services(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<Option<Arc<dyn native_plugin_abi::NativePluginServiceLifetime>>, String> {
+    native_plugins::selected_native_plugin_services(root, is_server)
+}
+
+pub(crate) fn selected_native_plugins_adopted(root: &std::path::Path, is_server: bool) -> bool {
+    native_plugins::selected_native_plugins_adopted(root, is_server)
+}
+
+pub(crate) fn discard_staged_native_plugins(root: &std::path::Path, is_server: bool) {
+    native_plugins::discard_staged_native_plugins(root, is_server)
+}
+
+pub(crate) fn dispatch_selected_native_plugins_entry_restored() -> bool {
+    native_plugins::dispatch_published_entry_restored_callbacks()
+}
+
+pub(crate) fn finalize_selected_native_plugins_entry_restored(
+    root: &std::path::Path,
+    is_server: bool,
+) -> Result<(), String> {
+    native_plugins::finalize_entry_restored_callbacks(root, is_server)
+}
 mod record_runtime_state;
 pub(crate) use asset_resources::ContentReadPermit;
 pub use asset_resources::ResourceInfo;

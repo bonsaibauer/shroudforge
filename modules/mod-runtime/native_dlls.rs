@@ -187,6 +187,11 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
     if !entry.path.is_file() {
         return Err("The selected native DLL is not a regular file".into());
     }
+    let disposition = mod_loader::dll_manager::classify_selected_plugin_dll(
+        root,
+        &entry.package_directory,
+        &entry.path,
+    )?;
     let declaration = selected_plugin_declaration(root, &entry)?;
     if let Some(plan) = APPLIED_PLAN.get() {
         if plan.root_key != root_key(root)? {
@@ -194,22 +199,25 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
         }
         ensure_prepared_entry_unchanged(plan, &entry, declaration.as_ref())?;
     }
-    if let Some(declaration) = declaration {
-        match mod_loader::dll_manager::classify_plugin_load(&declaration, true)? {
-            PluginLoadDisposition::Ordinary => {}
-            PluginLoadDisposition::ShroudForgeV1 => {
-                if entry.mode != DllLoadMode::Library {
-                    return Err("Lifecycle-managed plugins require library loading mode".into());
-                }
-                if !is_authorized_deferred_entry(root, &entry)? {
-                    return Err(
-                        "Lifecycle-managed plugin is not present in the current approved DLL Manager plan. Enable and approve its package selection, then restart the game".into(),
-                    );
-                }
-                tracing::debug!(target: "shroudforge::dll_manager", dll = %entry.path.display(),
-                    "Deferring lifecycle plugin initialization to its runtime owner");
-                return Ok(());
+    match disposition {
+        PluginLoadDisposition::Ordinary => {}
+        PluginLoadDisposition::ShroudForgeV1 | PluginLoadDisposition::ShroudForgeV2 => {
+            if declaration.is_none() {
+                return Err(
+                    "Lifecycle-managed plugin declaration changed while it was selected".into(),
+                );
             }
+            if entry.mode != DllLoadMode::Library {
+                return Err("Lifecycle-managed plugins require library loading mode".into());
+            }
+            if !is_authorized_deferred_entry(root, &entry)? {
+                return Err(
+                    "Lifecycle-managed plugin is not present in the current approved DLL Manager plan. Enable and approve its package selection, then restart the game".into(),
+                );
+            }
+            tracing::debug!(target: "shroudforge::dll_manager", dll = %entry.path.display(),
+                "Deferring lifecycle plugin initialization to its runtime owner");
+            return Ok(());
         }
     }
     crate::startup_services::require_ordinary_loading()?;
@@ -382,12 +390,12 @@ fn classify_plan_entries(
     let (mut ordinary, mut deferred, mut rejected, mut issues) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for entry in entries {
-        let declaration = match selected_plugin_declaration(root, &entry) {
-            Ok(Some(declaration)) => declaration,
-            Ok(None) => {
-                ordinary.push(entry);
-                continue;
-            }
+        let disposition = match mod_loader::dll_manager::classify_selected_plugin_dll(
+            root,
+            &entry.package_directory,
+            &entry.path,
+        ) {
+            Ok(disposition) => disposition,
             Err(detail) => {
                 issues.push(mod_loader::dll_manager::DllPlanIssue {
                     status_id: entry.status_id.clone(),
@@ -401,8 +409,36 @@ fn classify_plan_entries(
                 continue;
             }
         };
-        match mod_loader::dll_manager::classify_plugin_load(&declaration, true) {
-            Ok(PluginLoadDisposition::ShroudForgeV1) => {
+        match disposition {
+            PluginLoadDisposition::ShroudForgeV1 | PluginLoadDisposition::ShroudForgeV2 => {
+                let declaration = match selected_plugin_declaration(root, &entry) {
+                    Ok(Some(declaration)) => declaration,
+                    Ok(None) => {
+                        let detail = "Lifecycle-managed plugin declaration changed while the DLL plan was being classified".to_owned();
+                        issues.push(mod_loader::dll_manager::DllPlanIssue {
+                            status_id: entry.status_id.clone(),
+                            detail: detail.clone(),
+                        });
+                        rejected.push(RejectedNativePlugin {
+                            entry,
+                            declaration: None,
+                            detail,
+                        });
+                        continue;
+                    }
+                    Err(detail) => {
+                        issues.push(mod_loader::dll_manager::DllPlanIssue {
+                            status_id: entry.status_id.clone(),
+                            detail: detail.clone(),
+                        });
+                        rejected.push(RejectedNativePlugin {
+                            entry,
+                            declaration: None,
+                            detail,
+                        });
+                        continue;
+                    }
+                };
                 if entry.mode != DllLoadMode::Library {
                     let detail =
                         "Lifecycle-managed plugins require library loading mode".to_owned();
@@ -419,18 +455,7 @@ fn classify_plan_entries(
                     deferred.push(DeferredNativePlugin { entry, declaration });
                 }
             }
-            Ok(PluginLoadDisposition::Ordinary) => ordinary.push(entry),
-            Err(detail) => {
-                issues.push(mod_loader::dll_manager::DllPlanIssue {
-                    status_id: entry.status_id.clone(),
-                    detail: detail.clone(),
-                });
-                rejected.push(RejectedNativePlugin {
-                    entry,
-                    declaration: Some(declaration),
-                    detail,
-                });
-            }
+            PluginLoadDisposition::Ordinary => ordinary.push(entry),
         }
     }
     (ordinary, deferred, rejected, issues)
@@ -863,6 +888,31 @@ mod managed_plugin_plan_tests {
             deferred[0]
                 .declaration
                 .declares_service("shroudforge.overlay")
+        );
+    }
+
+    #[test]
+    fn v2_package_rejects_undeclared_dll_from_plan_and_direct_queue() {
+        let fixture = Fixture::new();
+        fixture.package(
+            "v2-owned",
+            "[Plugin]\nEnabled=true\nDll=plugin.dll\nLifecycle=shroudforge-v2\n",
+            &["plugin.dll", "other.dll"],
+        );
+        let other = fixture.entry("v2-owned", "other.dll", DllLoadMode::Library);
+
+        let (ordinary, deferred, rejected, issues) =
+            classify_plan_entries(&fixture.0, vec![other.clone()]);
+
+        assert!(ordinary.is_empty());
+        assert!(deferred.is_empty());
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(issues.len(), 1);
+        assert!(issues[0].detail.contains("V2 native plugin declaration"));
+        assert!(
+            queue(&fixture.0, other)
+                .unwrap_err()
+                .contains("V2 native plugin declaration")
         );
     }
 

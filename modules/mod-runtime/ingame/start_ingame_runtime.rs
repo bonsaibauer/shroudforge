@@ -61,6 +61,9 @@ impl IngameRuntime {
         state
             .install_map_overlay_services()
             .map_err(anyhow::Error::msg)?;
+        state
+            .adopt_selected_native_plugins()
+            .map_err(anyhow::Error::msg)?;
         let runner = LuaModRunner::new(state)?;
         tracing::debug!(target: "shroudforge::runtime", stage = "lua-runner", "Runtime startup stage completed");
         let is_server = runner.lua.app_data_ref::<AppState>().unwrap().is_server();

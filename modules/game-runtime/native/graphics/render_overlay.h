@@ -1,11 +1,13 @@
 #pragma once
 #include "engine-hooks/owned_executable_span.h"
 #include "map/read_map_frame.h"
+#include <cstddef>
 #include <condition_variable>
 #include <string>
 #include <unordered_map>
 
 namespace OverlayRuntime {
+bool WritableServiceOutput(void* output, std::size_t size) noexcept;
 class Registry {
 public:
     explicit Registry(MapRuntime::SnapshotStore& frames) : frames_(frames) {}

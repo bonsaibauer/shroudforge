@@ -12,6 +12,7 @@
 #include "engine-hooks/write_executable_bytes.h"
 #include "engine-hooks/held_entry_preparation.h"
 #include "engine-hooks/owned_executable_span.h"
+#include "host/executable_span_validation.h"
 #include <windows.h>
 #include <algorithm>
 #include <atomic>
@@ -26,7 +27,12 @@ struct ImageReader {
     bool Match(std::size_t rva, const void* expected, std::size_t size) const {
         if (rva > bytes.size() || size > bytes.size()-rva || size > 1024) return false;
         std::uint8_t actual[1024]{};
-        return ReadMemory(reinterpret_cast<std::uintptr_t>(bytes.data()+rva),actual,size) && !std::memcmp(actual,expected,size);
+        if(!ReadMemory(reinterpret_cast<std::uintptr_t>(bytes.data()+rva),actual,size))return false;
+        if(!std::memcmp(actual,expected,size))return true;
+        if(rva>UINT32_MAX || size>512)return false;
+        return ExecutableSpanValidation::Services().ValidateGuard(static_cast<std::uint32_t>(rva),
+            static_cast<const std::uint8_t*>(expected),actual,size,
+            SF_EXECUTABLE_SPAN_PHASE_NORMALIZE);
     }
     bool Named(std::size_t rva, const char* name, std::size_t function) const {
         std::uintptr_t descriptor[3]{}; char actual[96]{}; const auto length=std::strlen(name)+1;
@@ -217,6 +223,17 @@ IterInit iter_init{}; IterNext iter_next{}; GetWorld get_world{}; Lookup lookup{
 WeatherSample weather_sample{}; FogUpdate fog_update{};
 MapImageAdmission admission;
 std::uint64_t source_session{}, next_generation{};
+std::uint64_t preparation_generation{};
+std::uint64_t capture_enable_generation{};
+bool capture_enable_in_progress{};
+struct CaptureEnableReservation {
+    std::uint64_t generation{};
+    ~CaptureEnableReservation() {
+        if(!generation)return;
+        std::lock_guard lock(control_mutex);
+        if(capture_enable_generation==generation)capture_enable_in_progress=false;
+    }
+};
 std::vector<SFMapMarkerV1> pings;
 struct DiscoveryEntry {DiscoveryIdentity identity;SFMapMarkerV1 value;};
 std::vector<DiscoveryEntry> discoveries;
@@ -380,20 +397,26 @@ float* __fastcall weather_callback(float* output,void* weather,const void* posit
     } catch (...) {}
     return result;
 }
-bool FogEntryUnmodified() {
+bool FogEntryValidated(std::uint32_t phase,std::uint8_t identity[SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES]) {
     constexpr std::uint8_t expected[]{0x40,0x53,0x56,0x57,0x41,0x56,0x41,0x57,0x48,0x81,0xec,0x80,0,0,0};
     std::array<std::uint8_t,sizeof(expected)> actual{};
-    return fog_update && ReadMemory(reinterpret_cast<std::uintptr_t>(fog_update),actual.data(),actual.size()) &&
-        !std::memcmp(actual.data(),expected,actual.size());
+    if(!fog_update || !image_base || !ReadMemory(reinterpret_cast<std::uintptr_t>(fog_update),actual.data(),actual.size()))return false;
+    const auto address=reinterpret_cast<std::uintptr_t>(fog_update);
+    if(address<image_base || address-image_base>UINT32_MAX)return false;
+    return ExecutableSpanValidation::Services().ValidateGuard(static_cast<std::uint32_t>(address-image_base),
+        expected,actual.data(),actual.size(),phase,identity);
 }
 void __fastcall fog_callback(void* fog,const float* position,float radius) noexcept {
     const auto generation=capture_generation.load();
     const auto now=GetTickCount64();
     const bool sample=accepting.load(std::memory_order_acquire) && throttle(last_fog,now,500);
-    const bool owner_before=!sample || FogEntryUnmodified();
+    std::array<std::uint8_t,SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES> identity_before{};
+    const bool owner_before=FogEntryValidated(SF_EXECUTABLE_SPAN_PHASE_BEFORE_ORIGINAL,identity_before.data());
     fog_update(fog,position,radius);
-    if (!sample || !accepting.load(std::memory_order_acquire) || generation!=capture_generation.load() || !owner_before ||
-        !FogEntryUnmodified()) return;
+    std::array<std::uint8_t,SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES> identity_after{};
+    const bool owner_after=FogEntryValidated(SF_EXECUTABLE_SPAN_PHASE_AFTER_ORIGINAL,identity_after.data());
+    if (!sample || !accepting.load(std::memory_order_acquire) || generation!=capture_generation.load() ||
+        !owner_before || !owner_after || identity_before!=identity_after) return;
     try { auto snapshot=std::make_shared<FogSnapshot>();
         if (ReadFog(reinterpret_cast<std::uintptr_t>(fog),*snapshot)) store.PublishFog(generation,std::move(snapshot),now);
     } catch (...) {}
@@ -560,6 +583,7 @@ bool SF_EXECUTABLE_SPAN_CALL verify_owned_camera_entry_span(std::uint32_t rva,co
 void StopCapture() noexcept {
     try {
         std::lock_guard control(control_mutex);
+        ++preparation_generation; ++capture_enable_generation; capture_enable_in_progress=false;
         accepting.store(false,std::memory_order_release);capture_generation.store(0);
         DisableHudVisibility();store.Disable();owners.clear();
         std::lock_guard transient(transient_mutex);pings.clear();discoveries.clear();source_session=0;
@@ -596,7 +620,7 @@ std::string PreparationStatus() {
 }
 std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
     try {
-        std::lock_guard control(control_mutex);
+        std::unique_lock control(control_mutex);
         preparation_step="preconditions";preparation_reason="none";preparation_result=SF_MAP_FAILED;
         if(!token.ValidForCurrentThread()){preparation_reason="invalid-token";return SF_MAP_FAILED;}
         if(preparation==Preparation::Ready){
@@ -613,9 +637,22 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         preparation=Preparation::Preparing;
         executable_span_published=false;
         image_base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+        const auto attempt=++preparation_generation;
+        if(!image_base){preparation=Preparation::Failed;preparation_reason="image-base";return SF_MAP_FAILED;}
         preparation_step="image-admission";
-        admission=InspectMapImageImpl({reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size},Profile::image_sha256,true);
+        const auto image=std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size);
+        control.unlock();
+        auto candidate=InspectMapImageImpl(image,Profile::image_sha256,true);
+        const bool hud_preflight=candidate.status==SF_MAP_READY && PreflightHudPreparation(image_base,Profile::image_size);
+        control.lock();
+        if(attempt!=preparation_generation || preparation!=Preparation::Preparing){
+            DisableHudVisibility();preparation=Preparation::Failed;preparation_reason="preparation-superseded";
+            preparation_result=SF_MAP_FAILED;return preparation_result;
+        }
+        if(!token.ValidForCurrentThread()){preparation=Preparation::Failed;preparation_reason="invalid-token-after-validation";return SF_MAP_FAILED;}
+        admission=std::move(candidate);
         if(admission.status!=SF_MAP_READY){preparation=Preparation::Failed;preparation_reason=admission.failure_reason;preparation_result=admission.status;return admission.status;}
+        if(!hud_preflight){preparation=Preparation::Failed;preparation_reason="hud-preflight";preparation_result=SF_MAP_FAILED;return SF_MAP_FAILED;}
         preparation_step="module-residency";
         HMODULE resident{};
         if(!token.ValidForCurrentThread() || !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,
@@ -643,7 +680,7 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
             run("weather",[&]{return call_hook(Current5d9ef2f1::WeatherCall,Current5d9ef2f1::WeatherSample,reinterpret_cast<void*>(&weather_callback));}) &&
             run("fog",[&]{return call_hook(Current5d9ef2f1::FogCall,Current5d9ef2f1::FogUpdate,reinterpret_cast<void*>(&fog_callback));}) &&
             entry("world",Current5d9ef2f1::World,world,&world_callback) && run("discovery",[&]{return discovery_hook();}) &&
-            run("hud",[&]{return PrepareHudVisibility(image_base,Profile::image_size);}) && run("held-entry-final",[]{return true;});
+            run("hud",[]{return InstallPreparedHudHooks();}) && run("held-entry-final",[]{return true;});
         if(!complete){preparation=Preparation::Failed;accepting=false;capture_generation=0;return SF_MAP_FAILED;}
         // The pinned shared writer guarantees false=no publication/verified rollback;
         // its indeterminate branch fails fast. Never use the old79f writer here.
@@ -659,38 +696,63 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         preparation_reason=executable_span_published?"none":"owned-span-unavailable";preparation_result=SF_MAP_READY;
         capture_generation=0;source_session=0;deaths_enabled=admission.deaths;
         return SF_MAP_READY;
-    }catch(...){preparation_reason="exception";preparation_result=SF_MAP_FAILED;preparingCapture=false;preparation=Preparation::Failed;accepting=false;capture_generation=0;return SF_MAP_FAILED;}
+    }catch(...){
+        std::lock_guard control(control_mutex);
+        ++preparation_generation;preparation_reason="exception";preparation_result=SF_MAP_FAILED;
+        preparingCapture=false;preparation=Preparation::Failed;accepting=false;capture_generation=0;
+        DisableHudVisibility();return SF_MAP_FAILED;
+    }
 }
 
 
 std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     if (!owner || !capability) return SF_MAP_CAPABILITY_DENIED;
-    std::lock_guard control(control_mutex);
+    std::unique_lock control(control_mutex);
     if (owners.contains(owner)) return SF_MAP_INVALID_ARGUMENT;
     if (!owners.empty()) { owners.insert(owner); return SF_MAP_READY; }
+    if(capture_enable_in_progress)return SF_MAP_BUSY;
     if (!current_client_capture() && std::any_of(hooks.begin(),hooks.end(),[](const auto& hook){return hook.installed;})) return SF_MAP_FAILED;
     namespace Profile=KfcRuntimeCompatibility::EnshroudedClient;
-    if(Current5d9ef2f1::Selected(Profile::image_sha256)){
-        if(preparation!=Preparation::Ready)return SF_MAP_FAILED;
-        std::array<std::uint8_t,18> original{},replacement{};
-        for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
-        if(!ReadOwnedCameraEntryReplacement(original,replacement) || !EnableHudVisibility(image_base,Profile::image_size))return SF_MAP_FAILED;
-        capture_generation=0;source_session=0;store.SetAdmission(admission.Features()|SF_MAP_FEATURE_HUD);
-        owners.insert(owner);accepting.store(true,std::memory_order_release);return SF_MAP_READY;
+    const bool current=Current5d9ef2f1::Selected(Profile::image_sha256);
+    if(current && preparation!=Preparation::Ready)return SF_MAP_FAILED;
+    capture_enable_in_progress=true;
+    const auto attempt=++capture_enable_generation;
+    CaptureEnableReservation reservation{attempt};
+    if(!current)image_base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+    const auto selected_image=image_base;
+    if(!selected_image){capture_enable_in_progress=false;return SF_MAP_FAILED;}
+    auto candidate=current ? admission : MapImageAdmission{};
+    control.unlock();
+    if(!current)candidate=InspectMapImage({reinterpret_cast<const std::uint8_t*>(selected_image),Profile::image_size},Profile::image_sha256,capability);
+    const bool hud_preflight=current ? ValidatePreparedHudActivation() :
+        (candidate.status==SF_MAP_READY && PreflightLegacyHudVisibility(selected_image,Profile::image_size));
+    control.lock();
+    if(attempt!=capture_enable_generation || !capture_enable_in_progress){
+        DisableHudVisibility();return SF_MAP_FAILED;
     }
-    image_base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-    admission=InspectMapImage({reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size},Profile::image_sha256,capability);
-    if (admission.status != SF_MAP_READY) return admission.status;
+    if(!current && candidate.status!=SF_MAP_READY){capture_enable_in_progress=false;return candidate.status;}
+    if(current && !hud_preflight){DisableHudVisibility();capture_enable_in_progress=false;return SF_MAP_FAILED;}
+    admission=std::move(candidate);
     HMODULE pinned{};
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
-        reinterpret_cast<LPCWSTR>(&EnableCapture),&pinned)) return SF_MAP_FAILED;
+        reinterpret_cast<LPCWSTR>(&EnableCapture),&pinned)) {capture_enable_in_progress=false;return SF_MAP_FAILED;}
+    if(current){
+        std::array<std::uint8_t,18> original{},replacement{};
+        for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
+        if(!ReadOwnedCameraEntryReplacement(original,replacement) || !ActivatePreparedHudVisibility()){
+            DisableHudVisibility();capture_enable_in_progress=false;return SF_MAP_FAILED;
+        }
+        capture_generation=0;source_session=0;store.SetAdmission(admission.Features()|SF_MAP_FEATURE_HUD);
+        owners.insert(owner);accepting.store(true,std::memory_order_release);capture_enable_in_progress=false;
+        return SF_MAP_READY;
+    }
     if (!iter_init) {
         iter_init=reinterpret_cast<IterInit>(image_base+0x9bc1a0); iter_next=reinterpret_cast<IterNext>(image_base+0x9b6e60);
         get_world=reinterpret_cast<GetWorld>(image_base+0x9b43d0); lookup=reinterpret_cast<Lookup>(image_base+0x9a7200);
         weather_sample=reinterpret_cast<WeatherSample>(image_base+0xa9d530); fog_update=reinterpret_cast<FogUpdate>(image_base+0x39c430);
     }
     constexpr std::uint8_t camera[]{0x40,0x55,0x57,0x48,0x8d,0xac,0x24,0xb8,0xfe,0xff,0xff,0x48,0x81,0xec,0x48,0x02,0,0};
-    if (!entry_hook(0x2b2b60,camera,reinterpret_cast<void*>(&camera_callback))) { restore_hooks(); return SF_MAP_FAILED; }
+    if (!entry_hook(0x2b2b60,camera,reinterpret_cast<void*>(&camera_callback))) { restore_hooks(); capture_enable_in_progress=false; return SF_MAP_FAILED; }
     constexpr std::uint8_t waypoint[]{0x48,0x89,0x5c,0x24,0x18,0x48,0x89,0x6c,0x24,0x20};
     constexpr std::uint8_t remote[]{0x48,0x89,0x4c,0x24,0x08};
     const auto marker_hooks_start=hooks.size();
@@ -699,7 +761,7 @@ std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     if (!admission.markers) for (auto i=marker_hooks_start;i<hooks.size();++i) {
         auto& hook=hooks[i];
         if (hook.installed && EngineHooks::ReplaceExecutableBytes(hook.target,hook.replacement.data(),hook.original.data(),hook.original.size())) hook.installed=false;
-        if (hook.installed) { restore_hooks(); return SF_MAP_FAILED; }
+        if (hook.installed) { restore_hooks(); capture_enable_in_progress=false; return SF_MAP_FAILED; }
     }
     constexpr std::uint8_t clock[]{0x41,0x56,0x48,0x83,0xec,0x60,0x41,0xb8,0x28,0,0,0,0x48,0x8d,0x54,0x24,0x30};
     admission.clock=admission.clock && entry_hook(0x2b3340,clock,reinterpret_cast<void*>(&clock_callback));
@@ -714,8 +776,9 @@ std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     admission.discovery=admission.discovery && discovery_hook();
     capture_generation.store(0); source_session=0; store.SetAdmission(admission.Features());
     owners.insert(owner); accepting.store(true,std::memory_order_release);
-    if(EnableHudVisibility(image_base,KfcRuntimeCompatibility::EnshroudedClient::image_size))store.SetAdmission(admission.Features()|SF_MAP_FEATURE_HUD);
+    if(hud_preflight && InstallPreflightedLegacyHudVisibility())store.SetAdmission(admission.Features()|SF_MAP_FEATURE_HUD);
     else OutputDebugStringA("[ShroudForge map] HUD unavailable: renderer ownership/call-site guards or safe patch admission failed; gameplay visibility remains closed\n");
+    capture_enable_in_progress=false;
     return SF_MAP_READY;
 }
 void DisableCapture(std::uint64_t owner) {

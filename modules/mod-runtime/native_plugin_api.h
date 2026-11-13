@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 #define SF_NATIVE_PLUGIN_ABI_V1 1u
+#define SF_NATIVE_PLUGIN_ABI_V2 2u
 #define SF_NATIVE_HOST_ABI_V1 1u
 #define SF_NATIVE_MAX_SETTINGS_JSON_BYTES 65536u
 #define SF_NATIVE_MAX_ASSET_PATH_BYTES 1024u
@@ -202,12 +203,47 @@ typedef struct SFNativePluginV1 {
     SFNativeShutdownFnV1 shutdown;
 } SFNativePluginV1;
 
+typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativePrepareBeforeEntryFnV2)(
+    void *plugin_context,
+    const SFNativeHostV1 *host);
+typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativeStageBeforeEntryFnV2)(
+    void *plugin_context,
+    const SFNativeHostV1 *host);
+typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativeEntryRestoredFnV2)(
+    void *plugin_context);
+
+/* V2 is requested only by Lifecycle=shroudforge-v2. Its V1 prefix is byte-for-
+ * byte the V1 table; preparation is required and the later phase callbacks
+ * are optional. */
+typedef struct SFNativePluginV2 {
+    SFNativePluginV1 base;
+    SFNativePrepareBeforeEntryFnV2 prepare_before_entry;
+    SFNativeStageBeforeEntryFnV2 stage_before_entry;
+    SFNativeEntryRestoredFnV2 entry_restored;
+} SFNativePluginV2;
+
 /*
  * ABI and lifetime contract:
  * - Entry must reject unsupported requested_abi, NULL out_plugin, or an
- *   out_size smaller than sizeof(SFNativePluginV1) before writing any byte.
- *   It negotiates the table only; initialization belongs in initialize after
- *   the host's asynchronous DLL load has completed.
+ *   out_size smaller than the requested table before writing any byte. V1
+ *   callers provide sizeof(SFNativePluginV1); V2 callers provide
+ *   sizeof(SFNativePluginV2) through the stable V1 pointer declaration. V2
+ *   implementations cast only after validating ABI, size, and pointer.
+ * - It negotiates the table only; callbacks are invoked by the host according
+ *   to the declared lifecycle, after isolated DLL loading has completed.
+ * - V2 stage_before_entry is optional and runs on the same bootstrap/runtime
+ *   owner thread after factory negotiation and before framework preparation.
+ *   The required prepare_before_entry runs on that thread after framework
+ *   startup services are prepared. Both callbacks run inside the trusted
+ *   held-entry preparation operation, without host locks held across plugin
+ *   code. The host does not suspend peer threads. The
+ *   optional entry_restored runs on the original entry thread after its bytes
+ *   are restored and before the original entrypoint executes. That callback
+ *   receives no host table and must not use owner-thread-bound host callbacks
+ *   or retained host pointers.
+ * - Optional V2 callbacks must be null when not used. The size-tagged V2 tail
+ *   remains the extension point for later optional phases. The V1 prefix and
+ *   entry export signature remain unchanged.
  * - The host table, package ID bytes, and package_context stay valid through
  *   initialize/update/stop/shutdown and the host's final service drain.
  * - The plugin must stop its worker threads and stop using every host pointer

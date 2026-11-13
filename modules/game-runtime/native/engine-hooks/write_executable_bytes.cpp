@@ -152,6 +152,11 @@ EngineHooks::ExecutableWrite::Result write_locked(std::uintptr_t address,const v
 }
 
 namespace EngineHooks {
+bool HeldEntryPreparationActiveOnCurrentThread() noexcept {
+    const auto worker = GetCurrentThreadId();
+    return worker && held_entry_worker.load(std::memory_order_acquire) == worker;
+}
+
 bool WriteExecutableBytes(std::uintptr_t address,const void* bytes,std::size_t size,const void* expected) {
     std::lock_guard lock(executable_writer_mutex);
     return write_locked(address,bytes,size,expected).outcome == ExecutableWrite::Outcome::Published;

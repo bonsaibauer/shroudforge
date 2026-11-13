@@ -50,6 +50,11 @@ int main(){
         SF_EXECUTABLE_SPAN_SERVICE_VERSION,sizeof(span_service),
         reinterpret_cast<SFExecutableSpanServiceV1*>(1))==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT);
     check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),8,
+        reinterpret_cast<const std::uint8_t*>(SF_EXECUTABLE_SPAN_VALIDATION_SERVICE_V1),
+        static_cast<std::uint32_t>(std::strlen(SF_EXECUTABLE_SPAN_VALIDATION_SERVICE_V1)),
+        SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1,sizeof(SFExecutableSpanValidationServiceV1),
+        reinterpret_cast<SFExecutableSpanValidationServiceV1*>(1))==1);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),8,
         reinterpret_cast<const std::uint8_t*>(SF_EXECUTABLE_SPAN_SERVICE_NAME),
         static_cast<std::uint32_t>(std::strlen(SF_EXECUTABLE_SPAN_SERVICE_NAME)),
         SF_EXECUTABLE_SPAN_SERVICE_VERSION,sizeof(span_service),&span_service)==SF_EXECUTABLE_SPAN_STATUS_OK);

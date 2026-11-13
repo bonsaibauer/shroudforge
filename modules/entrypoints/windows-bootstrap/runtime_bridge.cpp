@@ -44,15 +44,29 @@ bool Initialize() {
     if(!LoadProvider())return false;
     return reinterpret_cast<InitializeFunction>(GetProcAddress(provider,"KfcRuntimeInitialize"))();
 }
-bool PrepareSelected(const SelectedStartup::PlanV2& plan,const EngineHooks::HeldEntryProof& proof) {
+bool PrepareSelected(const SelectedStartup::PlanV2& plan,const EngineHooks::HeldEntryProof& proof,
+        SelectedStartup::StageNativePlugins stage_native_plugins,
+        SelectedStartup::PrepareNativePlugins native_plugins) {
     if(!SelectedStartup::Valid(plan) || !LoadProvider())return false;
-    const auto prepare=reinterpret_cast<decltype(&KfcRuntimePrepareSelectedV1)>(GetProcAddress(provider,"KfcRuntimePrepareSelectedV1"));
     // Resolve the complete selected lifecycle before publishing any callbacks.
-    if(!prepare || !GetProcAddress(provider,"KfcRuntimeActivateSelectedV1")) {
+    const auto activate=GetProcAddress(provider,"KfcRuntimeActivateSelectedV1");
+    if(!activate) {
         error="selected-runtime-exports-unavailable";return false;
     }
     unsigned completed{};
-    return prepare(&plan,&proof,nullptr,0,&completed) && completed==SelectedStartup::PreparedServices(plan);
+    if(plan.services&SelectedStartup::NativePluginPreentry) {
+        const auto prepare=reinterpret_cast<decltype(&KfcRuntimePrepareSelectedV2)>(
+            GetProcAddress(provider,"KfcRuntimePrepareSelectedV2"));
+        if(!prepare || !stage_native_plugins || !native_plugins) {
+            error="selected-v2-native-plugin-exports-unavailable";return false;
+        }
+        return prepare(&plan,&proof,stage_native_plugins,native_plugins,&completed) &&
+            completed==SelectedStartup::PreparedServices(plan);
+    }
+    const auto prepare=reinterpret_cast<decltype(&KfcRuntimePrepareSelectedV1)>(
+        GetProcAddress(provider,"KfcRuntimePrepareSelectedV1"));
+    return prepare && prepare(&plan,&proof,nullptr,0,&completed) &&
+        completed==SelectedStartup::PreparedServices(plan);
 }
 bool ActivateSelected(const SelectedStartup::PlanV2& plan) {
     if(!provider)return false;

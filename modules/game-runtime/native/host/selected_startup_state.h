@@ -10,6 +10,9 @@ struct Operations {
     bool (*generic_ready)(void*){};
     bool (*map)(void*){};
     bool (*graphics)(void*){};
+    bool (*stage_native_plugins)(void*){};
+    bool (*native_plugins)(void*){};
+    bool (*revalidate_registered_spans)(void*){};
     void (*stop)(void*){};
 };
 class State final {
@@ -37,6 +40,10 @@ public:
         if (!phase_.compare_exchange_strong(expected, Phase::Preparing)) return false;
         plan_ = plan;
         try {
+            if (plan.services & NativePluginPreentry) {
+                stage_ = "native-plugin-stage";
+                if (!ops.stage_native_plugins || !ops.stage_native_plugins(ops.context)) return fail(ops);
+            }
             if (!ops.metadata || !ops.metadata(ops.context, (plan.services & GenericHooks) != 0)) return fail(ops);
             stage_ = "generic";
             if ((plan.services & GenericHooks) && (!ops.generic_ready || !ops.generic_ready(ops.context))) return fail(ops);
@@ -46,6 +53,10 @@ public:
                 return call && call(ops.context);
             };
             if (!run(MapCapture, "map", ops.map) || !run(Graphics, "graphics", ops.graphics)) return fail(ops);
+            if (plan.services & NativePluginPreentry) {
+                stage_ = "native-plugins";
+                if (!ops.native_plugins || !ops.native_plugins(ops.context)) return fail(ops);
+            }
             stage_ = "prepare-transition";
             expected = Phase::Preparing;
             if (!phase_.compare_exchange_strong(expected, Phase::Prepared)) return fail(ops);
@@ -61,6 +72,8 @@ public:
         stage_ = "activation-plan";
         if (!Same(plan_, plan)) return fail(ops);
         try {
+            stage_ = "executable-span-revalidation";
+            if (!ops.revalidate_registered_spans || !ops.revalidate_registered_spans(ops.context)) return fail(ops);
             stage_ = "activate-transition";
             expected = Phase::Activating;
             if (!phase_.compare_exchange_strong(expected, Phase::Active)) return fail(ops);
