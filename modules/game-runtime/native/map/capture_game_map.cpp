@@ -11,6 +11,7 @@
 #include "engine-hooks/encode_relative_jump.h"
 #include "engine-hooks/write_executable_bytes.h"
 #include "engine-hooks/held_entry_preparation.h"
+#include "engine-hooks/owned_executable_span.h"
 #include <windows.h>
 #include <algorithm>
 #include <atomic>
@@ -234,6 +235,7 @@ const char* preparation_reason="none";
 std::uintptr_t preparation_rva{};
 unsigned preparation_writer_failure{};
 DWORD preparation_windows_error{};
+bool executable_span_published{};
 std::int32_t preparation_result=SF_MAP_UNSUPPORTED_BUILD;
 bool publication_failure(const char* reason,DWORD error=0) {
     preparation_reason=reason;preparation_windows_error=error;return false;
@@ -548,6 +550,13 @@ bool ReadOwnedCameraEntryReplacement(std::span<const std::uint8_t> original,
     }catch(...){return false;}
     return false;
 }
+bool SF_EXECUTABLE_SPAN_CALL verify_owned_camera_entry_span(std::uint32_t rva,const std::uint8_t* original,
+    const std::uint8_t* replacement,std::uint32_t byte_count) noexcept {
+    if(rva!=Current5d9ef2f1::Camera || !original || !replacement || byte_count!=18u)return false;
+    std::array<std::uint8_t,18> verified{};
+    return ReadOwnedCameraEntryReplacement({original,byte_count},verified) &&
+        !std::memcmp(verified.data(),replacement,byte_count);
+}
 void StopCapture() noexcept {
     try {
         std::lock_guard control(control_mutex);
@@ -583,7 +592,7 @@ std::string PreparationStatus() {
         ",admission="+admission.failure_reason+",guard_rva="+std::to_string(admission.failure_rva)+
         ",expected="+std::to_string(admission.expected_byte)+",observed="+std::to_string(admission.observed_byte)+
         ",features="+std::to_string(admission.Features())+",renderer="+std::to_string(admission.renderer)+
-        ",hud="+HudPreparationStatus();
+        ",hud="+HudPreparationStatus()+",executable-span="+(executable_span_published?"published":"unavailable");
 }
 std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
     try {
@@ -595,13 +604,14 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
             for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
             preparation_step="owned-camera-readback";
             const bool owned=ReadOwnedCameraEntryReplacement(original,replacement);
-            preparation_reason=owned?"none":"owned-camera-rejected";
+            preparation_reason=owned?(executable_span_published?"none":"owned-span-unavailable"):"owned-camera-rejected";
             preparation_result=owned?SF_MAP_READY:SF_MAP_FAILED;return preparation_result;
         }
         if(preparation!=Preparation::Unprepared || accepting || !hooks.empty()){preparation_reason="prior-preparation-or-publication";return SF_MAP_FAILED;}
         namespace Profile=KfcRuntimeCompatibility::EnshroudedClient;
         if(!current_client_capture() || Profile::image_size!=Current5d9ef2f1::ImageSize){preparation_reason="image-identity";preparation_result=SF_MAP_UNSUPPORTED_BUILD;return SF_MAP_UNSUPPORTED_BUILD;}
         preparation=Preparation::Preparing;
+        executable_span_published=false;
         image_base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
         preparation_step="image-admission";
         admission=InspectMapImageImpl({reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size},Profile::image_sha256,true);
@@ -638,7 +648,15 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         // The pinned shared writer guarantees false=no publication/verified rollback;
         // its indeterminate branch fails fast. Never use the old79f writer here.
         for(auto& hook:hooks){hook.residentOwner=resident;hook.publicationQualified=true;}
-        preparation=Preparation::Ready;preparation_step="ready";preparation_reason="none";preparation_result=SF_MAP_READY;
+        const auto camera_hook=std::find_if(hooks.begin(),hooks.end(),[](const auto& hook){return hook.target==image_base+Current5d9ef2f1::Camera;});
+        if(camera_hook!=hooks.end() && camera_hook->installed && camera_hook->publicationQualified && camera_hook->target>=image_base &&
+           camera_hook->target-image_base<=UINT32_MAX && camera_hook->original.size()==18 && camera_hook->replacement.size()==18) {
+            executable_span_published=EngineHooks::PublishOwnedExecutableSpan(
+                static_cast<std::uint32_t>(camera_hook->target-image_base),camera_hook->original,camera_hook->replacement,
+                verify_owned_camera_entry_span);
+        }
+        preparation=Preparation::Ready;preparation_step="ready";
+        preparation_reason=executable_span_published?"none":"owned-span-unavailable";preparation_result=SF_MAP_READY;
         capture_generation=0;source_session=0;deaths_enabled=admission.deaths;
         return SF_MAP_READY;
     }catch(...){preparation_reason="exception";preparation_result=SF_MAP_FAILED;preparingCapture=false;preparation=Preparation::Failed;accepting=false;capture_generation=0;return SF_MAP_FAILED;}

@@ -1,4 +1,5 @@
 #pragma once
+#include "engine-hooks/owned_executable_span.h"
 #include "map/read_map_frame.h"
 #include <condition_variable>
 #include <string>
@@ -26,6 +27,7 @@ private:
     static std::int32_t Register(void*,SFOverlayFrameCallbackV1,void*,SFOverlayRegistrationV1*);
     static std::int32_t Unregister(void*,SFOverlayRegistrationV1);
     static std::int32_t Status(void*,std::uint32_t,SFOverlayStatusV1*);
+    static std::int32_t ExecutableSpanQuery(void*,const SFExecutableSpanQueryV1*,std::uint32_t,SFExecutableSpanResultV1*);
 };
 Registry& Services();
 std::int32_t SampleKeys(const std::uint32_t* keys,std::uint32_t count,std::uint32_t capacity,SFInputKeyStateV1* output);

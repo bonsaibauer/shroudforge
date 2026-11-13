@@ -9,12 +9,15 @@ package can opt into managed callbacks with `native-plugin.ini`:
 Enabled=true
 Dll=bin/plugin.dll
 Lifecycle=shroudforge-v1
-Services=shroudforge.map,shroudforge.overlay,shroudforge.keybinds,shroudforge.notifications
+Services=shroudforge.map,shroudforge.overlay,shroudforge.executable-spans,shroudforge.keybinds,shroudforge.notifications
 ```
 
 Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`. The
 DLL must export `ShroudForgePluginEntry` with the C layout and calling
 convention in [native_plugin_api.h](../../modules/mod-runtime/native_plugin_api.h).
+The optional executable-span service uses the standalone
+[executable_span_api.h](../../modules/game-runtime/native/abi/executable_span_api.h)
+contract.
 The entrypoint negotiates a table; initialize work belongs in its `initialize`
 callback. A DLL with an invalid explicit lifecycle declaration is rejected,
 including through a profile or Lua registration. It cannot fall back to an
@@ -44,6 +47,15 @@ This also applies to plans containing only managed plugins.
 - `shroudforge.notifications` v1 publishes bounded, package-namespaced notices.
   The persisted feed remains authoritative when an optional HUD presenter is
   unavailable.
+- `shroudforge.executable-spans` v1 is a client-only, read-only query for a
+  bounded executable byte span in the main image. It requires `runtime`,
+  `runtime-register-dll` and `runtime-engine-hooks`. The caller supplies both
+  the expected original bytes and its current observation; the host checks the
+  observation against executable, readable memory before returning
+  `UNCHANGED`, `VERIFIED_HOST_OWNED` or `FOREIGN_OR_UNAVAILABLE`. Invalid input
+  or a changed observation returns an error without writing the result. The
+  service never returns code bytes or addresses and never authorizes a patch or
+  proves quiescence.
 - `shroudforge.map` v1 and `shroudforge.overlay` v1/v2/v3 are optional native-provider
   services. Query their exact version and handle `UNAVAILABLE`. Host support
   does not establish that a particular game build supplies the service.

@@ -20,6 +20,7 @@ pub(crate) const NATIVE_MAX_LOG_BYTES: usize = 4_096;
 pub(crate) const NATIVE_DRAIN_TIMEOUT_MS: u32 = 250;
 pub(crate) const NATIVE_SERVICE_MAP_V1: &str = "shroudforge.map";
 pub(crate) const NATIVE_SERVICE_OVERLAY_V1: &str = "shroudforge.overlay";
+pub(crate) const NATIVE_SERVICE_EXECUTABLE_SPANS_V1: &str = "shroudforge.executable-spans";
 
 pub(crate) const NATIVE_STATUS_INVALID_ARGUMENT: i32 = 1;
 pub(crate) const NATIVE_STATUS_ABI_MISMATCH: i32 = 2;
@@ -671,6 +672,7 @@ unsafe extern "C" fn host_query_service(
         name,
         NATIVE_SERVICE_MAP_V1
             | NATIVE_SERVICE_OVERLAY_V1
+            | NATIVE_SERVICE_EXECUTABLE_SPANS_V1
             | keybinds::SERVICE
             | notifications::SERVICE
     ) {
@@ -695,6 +697,14 @@ unsafe extern "C" fn host_query_service(
             .contains(&mod_loader::Capability::Runtime)
     {
         return NATIVE_STATUS_UNAVAILABLE;
+    }
+    if name == NATIVE_SERVICE_EXECUTABLE_SPANS_V1 {
+        let capabilities = &context.package.info().capabilities;
+        if !capabilities.contains(&mod_loader::Capability::RuntimeRegisterDll)
+            || !capabilities.contains(&mod_loader::Capability::RuntimeEngineHooks)
+        {
+            return NATIVE_STATUS_UNAVAILABLE;
+        }
     }
     if name == notifications::SERVICE {
         return unsafe {
@@ -820,6 +830,27 @@ mod tests {
             Self::with_runtime(true)
         }
         fn with_runtime(runtime: bool) -> Self {
+            let capabilities = if runtime {
+                vec!["runtime-register-dll", "runtime"]
+            } else {
+                vec!["runtime-register-dll"]
+            };
+            Self::with_capabilities(capabilities)
+        }
+        fn with_span_capabilities(runtime: bool, register_dll: bool, engine_hooks: bool) -> Self {
+            let mut capabilities = Vec::new();
+            if register_dll {
+                capabilities.push("runtime-register-dll");
+            }
+            if runtime {
+                capabilities.push("runtime");
+            }
+            if engine_hooks {
+                capabilities.push("runtime-engine-hooks");
+            }
+            Self::with_capabilities(capabilities)
+        }
+        fn with_capabilities(capabilities: Vec<&str>) -> Self {
             let target = std::env::var_os("CARGO_TARGET_DIR")
                 .map(PathBuf::from)
                 .unwrap_or_else(std::env::temp_dir);
@@ -829,7 +860,7 @@ mod tests {
             fs::write(
                 package_root.join("mod.json"),
                 serde_json::json!({"id":"example","name":"Example","version":"1.0.0",
-                    "capabilities":if runtime {vec!["runtime-register-dll","runtime"]}else{vec!["runtime-register-dll"]}}).to_string(),
+                    "capabilities":capabilities}).to_string(),
             )
             .unwrap();
             fs::write(
@@ -1971,6 +2002,87 @@ mod tests {
                 assert_eq!(output, 0);
             }
         }
+    }
+
+    #[test]
+    fn executable_span_service_requires_runtime_hook_and_dll_authority() {
+        let name = NATIVE_SERVICE_EXECUTABLE_SPANS_V1.as_bytes();
+        for (runtime, register_dll, engine_hooks) in [(true, true, false), (true, false, true)] {
+            let package = TestPackage::with_span_capabilities(runtime, register_dll, engine_hooks);
+            let services = Arc::new(TestServiceLifetime {
+                revoke_status: NATIVE_STATUS_OK,
+                drain_status: NATIVE_STATUS_OK,
+                queried_owner: Mutex::new(None),
+                revoked_owner: Mutex::new(None),
+                drained_owner: Mutex::new(None),
+            });
+            let mut context = NativePluginHostContext::new(NativePluginHostMetadata {
+                package_id: "example".into(),
+                package: package.package.clone(),
+                package_generation: 401,
+                is_server: false,
+                settings_json: b"{}".to_vec(),
+                services: services.clone(),
+            })
+            .unwrap();
+            let mut output = 0xA5A5_5A5Au32;
+            assert_eq!(
+                unsafe {
+                    query_native_service(
+                        &mut context,
+                        name,
+                        1,
+                        size_of::<u32>() as u32,
+                        (&mut output as *mut u32).cast(),
+                    )
+                },
+                NATIVE_STATUS_UNAVAILABLE
+            );
+            assert_eq!(output, 0xA5A5_5A5A);
+            assert!(services.queried_owner.lock().unwrap().is_none());
+        }
+
+        let package = TestPackage::with_span_capabilities(true, true, true);
+        let services = Arc::new(TestServiceLifetime {
+            revoke_status: NATIVE_STATUS_OK,
+            drain_status: NATIVE_STATUS_OK,
+            queried_owner: Mutex::new(None),
+            revoked_owner: Mutex::new(None),
+            drained_owner: Mutex::new(None),
+        });
+        let mut context = NativePluginHostContext::new(NativePluginHostMetadata {
+            package_id: "example".into(),
+            package: package.package.clone(),
+            package_generation: 402,
+            is_server: false,
+            settings_json: b"{}".to_vec(),
+            services: services.clone(),
+        })
+        .unwrap();
+        let mut output = 0u32;
+        assert_eq!(
+            unsafe {
+                query_native_service(
+                    &mut context,
+                    name,
+                    1,
+                    size_of::<u32>() as u32,
+                    (&mut output as *mut u32).cast(),
+                )
+            },
+            NATIVE_STATUS_OK
+        );
+        assert_eq!(output, 0x5346_4D50);
+        assert_eq!(
+            services.queried_owner.lock().unwrap().as_ref(),
+            Some(&(
+                "example".to_owned(),
+                402,
+                NATIVE_SERVICE_EXECUTABLE_SPANS_V1.to_owned(),
+                1,
+                size_of::<u32>() as u32,
+            ))
+        );
     }
 
     #[test]

@@ -88,6 +88,7 @@ add_library(kfc-runtime SHARED
     map/hud_visibility.cpp
     map/serve_map_overlay.cpp
     graphics/render_overlay.cpp
+    engine-hooks/owned_executable_span.cpp
     graphics/vulkan_overlay.cpp
     graphics/notification_overlay.cpp
     ecs/bind_world_entities.cpp
@@ -367,7 +368,8 @@ add_executable(kfc-runtime-test-map-frame EXCLUDE_FROM_ALL
     ../tests/map_frame_test.cpp map/read_map_frame.cpp)
 add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
     ../tests/map_service_lifetime_test.cpp map/read_map_frame.cpp
-    graphics/render_overlay.cpp graphics/notification_overlay.cpp)
+    graphics/render_overlay.cpp graphics/notification_overlay.cpp
+    engine-hooks/owned_executable_span.cpp)
 add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
     map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp

@@ -8,10 +8,26 @@
 #include <vector>
 
 namespace OverlayRuntime {
+namespace {
+bool WritableSpanResult(void* output,std::size_t size) noexcept {
+    if(!output || !size)return false;
+    MEMORY_BASIC_INFORMATION region{};
+    if(VirtualQuery(output,&region,sizeof(region))!=sizeof(region) || region.State!=MEM_COMMIT ||
+       (region.Protect&(PAGE_GUARD|PAGE_NOACCESS)))return false;
+    const auto protection=region.Protect&0xff;
+    if(protection!=PAGE_READWRITE && protection!=PAGE_WRITECOPY &&
+       protection!=PAGE_EXECUTE_READWRITE && protection!=PAGE_EXECUTE_WRITECOPY)return false;
+    const auto begin=reinterpret_cast<std::uintptr_t>(output);
+    const auto region_begin=reinterpret_cast<std::uintptr_t>(region.BaseAddress);
+    return begin>=region_begin && begin-region_begin<=region.RegionSize &&
+        size<=region.RegionSize-(begin-region_begin);
+}
+}
 struct Registry::Owner {
     Registry* registry{};
     std::string package;
     std::uint64_t id{},generation{},registration{},next_lease{},next_registration{};
+    DWORD executable_span_thread{};
     std::mutex mutex;
     std::condition_variable changed;
     bool revoked{};
@@ -72,12 +88,22 @@ std::uint64_t Registry::Open(const std::string& package,std::uint64_t generation
 std::int32_t Registry::Query(std::uint64_t id,const std::string& name,std::uint32_t version,std::uint32_t capacity,void* output) {
     if(version!=1 && !((version==2 || version==3) && name=="shroudforge.overlay")) return 2;
     if(!output) return 1;
-    if(name!="shroudforge.map" && name!="shroudforge.overlay") return 4;
-    if(capacity < (name=="shroudforge.map" ? sizeof(SFMapServiceV1) : sizeof(SFOverlayServiceV1))) return 5;
+    if(name!="shroudforge.map" && name!="shroudforge.overlay" && name!=SF_EXECUTABLE_SPAN_SERVICE_NAME) return 4;
+    const auto required=name=="shroudforge.map" ? sizeof(SFMapServiceV1) :
+        name==SF_EXECUTABLE_SPAN_SERVICE_NAME ? sizeof(SFExecutableSpanServiceV1) : sizeof(SFOverlayServiceV1);
+    if(capacity<required)return 5;
+    if(name==SF_EXECUTABLE_SPAN_SERVICE_NAME && !WritableSpanResult(output,required))
+        return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
     auto owner=Find(id); if(!owner) return 1;
     std::lock_guard lock(owner->mutex); if(owner->revoked) return 3;
     if(name=="shroudforge.map") {
         SFMapServiceV1 table{sizeof(table),1,owner.get(),Acquire,Release,Keys}; std::memcpy(output,&table,sizeof(table));
+    } else if(name==SF_EXECUTABLE_SPAN_SERVICE_NAME) {
+        const auto thread=GetCurrentThreadId();
+        if(owner->executable_span_thread && owner->executable_span_thread!=thread)return SF_EXECUTABLE_SPAN_STATUS_WRONG_THREAD;
+        owner->executable_span_thread=thread;
+        SFExecutableSpanServiceV1 table{sizeof(table),SF_EXECUTABLE_SPAN_SERVICE_VERSION,owner.get(),ExecutableSpanQuery};
+        std::memcpy(output,&table,sizeof(table));
     } else {
         if(owner->overlay_version!=version && (owner->callback || owner->in_flight))return 6;
         owner->overlay_version=version;
@@ -121,6 +147,37 @@ std::int32_t Registry::Status(void* context,std::uint32_t capacity,SFOverlayStat
     if(!context || !status) return 1; if(capacity<sizeof(*status)) return 5;
     auto& owner=*static_cast<Owner*>(context); std::lock_guard lock(owner.mutex);
     if(owner.revoked) return 3; *status=GraphicsStatus(); status->version=owner.overlay_version; return 0;
+}
+std::int32_t Registry::ExecutableSpanQuery(void* context,const SFExecutableSpanQueryV1* request,
+    std::uint32_t out_size,SFExecutableSpanResultV1* output) {
+    if(!context || !request || !output || !WritableSpanResult(output,sizeof(*output)))return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
+    if(out_size<sizeof(*output))return SF_EXECUTABLE_SPAN_STATUS_BUFFER_TOO_SMALL;
+    SFExecutableSpanQueryV1 copied{};SIZE_T bytes_read{};
+    if(!ReadProcessMemory(GetCurrentProcess(),request,&copied,sizeof(copied),&bytes_read) || bytes_read!=sizeof(copied))
+        return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
+    if(copied.size<sizeof(copied) || copied.version!=SF_EXECUTABLE_SPAN_SERVICE_VERSION ||
+       !copied.byte_count || copied.byte_count>SF_EXECUTABLE_SPAN_MAX_BYTES ||
+       copied.rva>UINT32_MAX-copied.byte_count)return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
+
+    auto& owner=*static_cast<Owner*>(context);
+    {
+        std::lock_guard lock(owner.mutex);
+        if(owner.revoked)return SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE;
+        if(!owner.executable_span_thread || owner.executable_span_thread!=GetCurrentThreadId())return SF_EXECUTABLE_SPAN_STATUS_WRONG_THREAD;
+        ++owner.in_flight;
+    }
+    SFExecutableSpanResultV1 result{};
+    std::int32_t status=SF_EXECUTABLE_SPAN_STATUS_FAILED;
+    try {status=EngineHooks::QueryMainImageExecutableSpan(copied,result);}catch(...) {status=SF_EXECUTABLE_SPAN_STATUS_FAILED;}
+    if(status==SF_EXECUTABLE_SPAN_STATUS_OK) {
+        SIZE_T bytes_written{};
+        if(!WriteProcessMemory(GetCurrentProcess(),output,&result,sizeof(result),&bytes_written) || bytes_written!=sizeof(result))
+            status=SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
+    }
+    {
+        std::lock_guard lock(owner.mutex);--owner.in_flight;owner.changed.notify_all();
+    }
+    return status;
 }
 std::int32_t Registry::Keys(void* context,const std::uint32_t* keys,std::uint32_t count,std::uint32_t capacity,SFInputKeyStateV1* output) {
     if(!context) return 1; auto& owner=*static_cast<Owner*>(context);

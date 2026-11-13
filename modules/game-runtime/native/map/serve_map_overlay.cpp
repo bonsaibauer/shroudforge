@@ -46,16 +46,21 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeQueryMapOverlayService(const std:
     std::uint32_t capacity,void* output) {
     using namespace OverlayRuntime;try {
         std::string id,name;if(!generation || !output || !Text(package,package_size,256,id) || !Text(service,service_size,64,name))return 1;
-        if(name!="shroudforge.map" && name!="shroudforge.overlay")return 4;
+        if(name!="shroudforge.map" && name!="shroudforge.overlay" && name!=SF_EXECUTABLE_SPAN_SERVICE_NAME)return 4;
         const bool map_service=name=="shroudforge.map";
+        const bool executable_span_service=name==SF_EXECUTABLE_SPAN_SERVICE_NAME;
         if((map_service && version!=SF_MAP_SERVICE_VERSION) ||
-            (!map_service && version!=SF_OVERLAY_SERVICE_VERSION && version!=SF_OVERLAY_EXTENDED_SERVICE_VERSION && version!=SF_OVERLAY_PROGRAMMABLE_SERVICE_VERSION))return 2;
-        if(capacity<(name=="shroudforge.map" ? sizeof(SFMapServiceV1):sizeof(SFOverlayServiceV1)))return 5;
+            (executable_span_service && version!=SF_EXECUTABLE_SPAN_SERVICE_VERSION) ||
+            (!map_service && !executable_span_service && version!=SF_OVERLAY_SERVICE_VERSION &&
+                version!=SF_OVERLAY_EXTENDED_SERVICE_VERSION && version!=SF_OVERLAY_PROGRAMMABLE_SERVICE_VERSION))return 2;
+        const auto required=map_service ? sizeof(SFMapServiceV1) :
+            executable_span_service ? sizeof(SFExecutableSpanServiceV1) : sizeof(SFOverlayServiceV1);
+        if(capacity<required)return 5;
         std::lock_guard lock(service_mutex);const auto key=std::make_pair(id,generation);
         if(!activations.contains(key) && activations.size()>=4096)return 6;auto& item=activations[key];if(item.revoked)return 3;
         if(!item.owner)item.owner=Services().Open(id,generation);if(!item.owner)return 6;
         if(map_service && !item.captured){const auto result=MapRuntime::EnableCapture(item.owner,true);if(result!=SF_MAP_READY)return result==SF_MAP_FAILED ? 7:3;item.captured=true;}
-        if(!map_service && !item.graphics){if(!StartGraphics())return 3;item.graphics=true;}
+        if(!map_service && !executable_span_service && !item.graphics){if(!StartGraphics())return 3;item.graphics=true;}
         return Services().Query(item.owner,name,version,capacity,output);
     }catch(...){return 7;}
 }
