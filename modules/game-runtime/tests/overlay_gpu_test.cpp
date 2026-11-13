@@ -135,6 +135,155 @@ void UnrecoverableWrapperRegression(bool swap,bool failed_submission) {
     raise_shutdown_failure=original_raise;cold_wait_result=0;g_renderer={};devices.erase(677);swapchains.erase(688);
 }
 }
+namespace {
+unsigned program_pipelines{},program_destroyed{},program_pool_destroyed{},program_images_destroyed{},program_writes{};
+bool fail_program_pipeline{};
+std::uintptr_t next_program_handle=2000;
+void* ProgramHandle(){return reinterpret_cast<void*>(++next_program_handle);}
+void ProgramFns(Renderer& r){
+    auto& f=r.fns;
+    f.createImageView=[](void*,const VkImageViewCreateInfo*,const void*,void** out)->std::int32_t{*out=ProgramHandle();return 0;};
+    f.destroyImageView=[](void*,void*,const void*){};
+    f.createBuffer=[](void*,const VkBufferCreateInfo*,const void*,void** out)->std::int32_t{*out=ProgramHandle();return 0;};
+    f.destroyBuffer=[](void*,void*,const void*){};
+    f.getBufferMemoryRequirements=[](void*,void*,VkMemoryRequirements* out){out->size=4096;out->memoryTypeBits=1;};
+    f.createImage=[](void*,const VkImageCreateInfo*,const void*,void** out)->std::int32_t{*out=ProgramHandle();return 0;};
+    f.destroyImage=[](void*,void*,const void*){++program_images_destroyed;};
+    f.getImageMemoryRequirements=f.getBufferMemoryRequirements;
+    f.allocateMemory=[](void*,const VkMemoryAllocateInfo*,const void*,void** out)->std::int32_t{*out=ProgramHandle();return 0;};
+    f.freeMemory=[](void*,void*,const void*){};
+    f.bindBufferMemory=[](void*,void*,void*,std::uint64_t)->std::int32_t{return 0;};f.bindImageMemory=f.bindBufferMemory;
+    f.createSampler=[](void*,const VkSamplerCreateInfo*,const void*,void** out)->std::int32_t{*out=ProgramHandle();return 0;};
+    f.destroySampler=[](void*,void*,const void*){};
+    f.createShaderModule=[](void*,const VkShaderModuleCreateInfo* info,const void*,void** out)->std::int32_t{
+        check(info->pCode && info->codeSize>=20 && info->pCode[0]==0x07230203);*out=ProgramHandle();return 0;
+    };
+    f.destroyShaderModule=[](void*,void*,const void*){};
+    f.createDescriptorSetLayout=[](void*,const VkDescriptorSetLayoutCreateInfo* info,const void*,void** out)->std::int32_t{
+        check(info->bindingCount==4);*out=ProgramHandle();return 0;
+    };
+    f.destroyDescriptorSetLayout=[](void*,void*,const void*){};
+    f.createDescriptorPool=[](void*,const VkDescriptorPoolCreateInfo* info,const void*,void** out)->std::int32_t{
+        check(info->maxSets==64 && info->pPoolSizes[0].descriptorCount==256);*out=ProgramHandle();return 0;
+    };
+    f.destroyDescriptorPool=[](void*,void*,const void*){++program_pool_destroyed;};
+    f.allocateDescriptorSets=[](void*,const VkDescriptorSetAllocateInfo*,void** out)->std::int32_t{*out=ProgramHandle();return 0;};
+    f.updateDescriptorSets=[](void*,std::uint32_t count,const VkWriteDescriptorSet* writes,std::uint32_t,const void*){
+        check(count==4);for(unsigned i=0;i<4;++i)check(writes[i].dstBinding==i && writes[i].pImageInfo->imageView && writes[i].pImageInfo->sampler);++program_writes;
+    };
+    f.createPipelineLayout=[](void*,const VkPipelineLayoutCreateInfo* info,const void*,void** out)->std::int32_t{
+        check(info->pushConstantRangeCount==1 && info->pPushConstantRanges[0].stageFlags==VK_SHADER_STAGE_FRAGMENT_BIT && info->pPushConstantRanges[0].size==128);*out=ProgramHandle();return 0;
+    };
+    f.destroyPipelineLayout=[](void*,void*,const void*){};
+    f.createGraphicsPipelines=[](void*,void*,std::uint32_t,const VkGraphicsPipelineCreateInfo* info,const void*,void** out)->std::int32_t{
+        check(info->pDynamicState && info->pViewportState->pViewports==nullptr && info->pColorBlendState->pAttachments[0].blendEnable);
+        ++program_pipelines;*out=ProgramHandle();return fail_program_pipeline?-2:0;
+    };
+    f.destroyPipeline=[](void*,void*,const void*){++program_destroyed;};
+    f.cmdSetViewport=[](void*,std::uint32_t,std::uint32_t,const VkViewport*){};
+    f.cmdSetScissor=[](void*,std::uint32_t,std::uint32_t,const VkRect2D*){};
+    f.cmdBindPipeline=[](void*,std::uint32_t,void*){};
+    f.cmdBindDescriptorSets=[](void*,std::uint32_t,void*,std::uint32_t,std::uint32_t,void*const*,std::uint32_t,const std::uint32_t*){};
+    f.cmdPushConstants=[](void*,void*,std::uint32_t,std::uint32_t,std::uint32_t,const void*){};
+    f.cmdDraw=[](void*,std::uint32_t,std::uint32_t,std::uint32_t,std::uint32_t){++draws;};
+    f.resetCommandBuffer=[](void*,std::uint32_t)->std::int32_t{return 0;};
+    f.beginCommandBuffer=[](void*,const VkCommandBufferBeginInfo*)->std::int32_t{return 0;};
+    f.endCommandBuffer=[](void*)->std::int32_t{return 0;};
+}
+void GenericPrograms(){
+    static_assert(sizeof(SFOverlayShaderV1)==40 && sizeof(SFOverlayProgramCommandV1)==80);
+    static_assert(sizeof(SFOverlayEncoderV1)==48 && sizeof(SFOverlayEncoderV2)==56 && sizeof(SFOverlayEncoderV3)==64);
+    static_assert(sizeof(SFOverlayFrameV1)==32 && sizeof(SFOverlayFrameV3)==64);
+    std::vector<std::uint32_t> shader(std::begin(Shaders::texture_frag),std::end(Shaders::texture_frag));
+    check_named("complete validator accepts the fixed fragment interface",ValidateOverlayFragment(shader));
+    auto invalid=shader;invalid.pop_back();check(!ValidateOverlayFragment(invalid));
+    invalid=shader;invalid[5]=0;check(!ValidateOverlayFragment(invalid));
+    invalid=shader;invalid[3]=65537;check(!ValidateOverlayFragment(invalid));
+    invalid=shader;
+    for(std::size_t at=5;at<invalid.size();at+=invalid[at]>>16)if((invalid[at]&65535)==71 && invalid[at+2]==34){invalid[at+3]=1;break;}
+    check_named("a valid Vulkan descriptor set outside the fixed contract is refused",!ValidateOverlayFragment(invalid));
+    Renderer renderer=ReadyRenderer(977);renderer.device_generation=42;renderer.commandBuffers={20};renderer.resources.resize(1);ProgramFns(renderer);
+    RecordContext context;context.renderer=&renderer;context.image=&renderer.resources[0];context.thread=GetCurrentThreadId();context.generation=42;
+    std::uint8_t pixel[]{1,2,3,255};SFOverlayTextureV1 image{1,1,1,1,pixel,4,nullptr,0};std::uint32_t constant=0x12345678;
+    SFOverlayProgramCommandV1 command{};command.shader={sizeof(SFOverlayShaderV1),1,1,1,shader.data(),unsigned(shader.size()*4),0};
+    command.x=10;command.y=20;command.width=30;command.height=40;command.texture_count=1;command.textures=&image;command.constant_bytes=4;command.constants=&constant;
+    auto bad=command;bad.shader.spirv=invalid.data();
+    check(EncodePrograms(&context,7,reinterpret_cast<const SFOverlayProgramCommandV1*>(UINTPTR_MAX-16),2)==1 && program_pipelines==0);
+    check(EncodePrograms(&context,7,&bad,1)==1 && program_pipelines==0 && context.image->textures.empty());
+    bad=command;bad.width=2000;check(EncodePrograms(&context,7,&bad,1)==1 && program_pipelines==0);
+    bad=command;bad.constant_bytes=129;check(EncodePrograms(&context,7,&bad,1)==1 && program_pipelines==0);
+    bad=command;bad.texture_count=5;check(EncodePrograms(&context,7,&bad,1)==1 && program_pipelines==0);
+    bad=command;bad.textures=reinterpret_cast<const SFOverlayTextureV1*>(UINTPTR_MAX-8);check(EncodePrograms(&context,7,&bad,1)==1 && program_pipelines==0);
+    bad=command;bad.constants=reinterpret_cast<const void*>(1);check(EncodePrograms(&context,7,&bad,1)==1 && program_pipelines==0);
+    device_destroyed=false;
+    check_named("V3 creates an independent program and texture-only resources",EncodePrograms(&context,7,&command,1)==0 && program_pipelines==1 && context.image->programs.size()==1 && context.image->textures.size()==2);
+    check(context.draws.back().viewport.x==10 && context.draws.back().scissor.extent.height==40 && context.draws.back().push[1]==0);
+    check(!std::memcmp(context.draws.back().push.data(),&constant,4));
+    const auto pipeline=context.draws.back().program->pipeline,descriptor=context.draws.back().descriptor;
+    ++image.revision;
+    check_named("texture revision changes do not create another pipeline",EncodePrograms(&context,7,&command,1)==0 && program_pipelines==1 && context.draws.back().program->pipeline==pipeline && context.draws.back().descriptor!=descriptor);
+    const auto allocations=next_program_handle;
+    check_named("same immutable program and textures reuse their caches",EncodePrograms(&context,7,&command,1)==0 && program_pipelines==1 && next_program_handle==allocations+1);
+    context.generation=41;check(EncodePrograms(&context,7,&command,1)==1);context.generation=42;
+    bad=command;bad.shader.program_id=99;
+    for(unsigned i=2;i<=32;++i)context.image->programs.emplace(ProgramKey{7,i,1,42},ProgramResources{});
+    check_named("owner program cap refuses without creating a pipeline",EncodePrograms(&context,7,&bad,1)==6 && program_pipelines==1);
+    for(unsigned i=0;context.image->programs.size()<128;++i)context.image->programs.emplace(ProgramKey{100+i,1,1,42},ProgramResources{});
+    check(EncodePrograms(&context,8,&bad,1)==6 && program_pipelines==1);
+    fail_program_pipeline=true;const auto before_cleanup=program_destroyed;ProgramResources failed_program;
+    check_named("partial pipeline creation failure releases local handles",!CreateProgram(renderer,shader,failed_program) && !failed_program.pipeline && !failed_program.pipeline_layout && program_destroyed==before_cleanup+1);
+    fail_program_pipeline=false;
+    const auto probe=Services().Open("program-probe",1);SFOverlayServiceV1 service{};
+    const auto legacy_owner=Services().Open("legacy-program-probe",1);SFOverlayServiceV1 legacy_service{};
+    check(Services().Query(legacy_owner,"shroudforge.overlay",1,sizeof(legacy_service),&legacy_service)==0);
+    SFOverlayRegistrationV1 legacy_registration{};
+    check(legacy_service.register_frame(legacy_service.context,+[](void*,const SFOverlayFrameV1* frame,const SFOverlayEncoderV1* encoder)->std::int32_t{
+        check(frame->version==1 && frame->size==32 && encoder->size==48);
+        check(encoder->draw_rectangles(encoder->context,encoder->owner_id,nullptr,4097)==0);
+        const auto& extended=*reinterpret_cast<const SFOverlayEncoderV3*>(encoder);
+        check_named("legacy owners cannot bypass V3 negotiation",extended.draw_programs(encoder->context,encoder->owner_id,nullptr,1)==3);return 0;
+    },nullptr,&legacy_registration)==0);
+    check(Services().Query(probe,"shroudforge.overlay",3,sizeof(service),&service)==0 && service.version==3);
+    SFOverlayEncoderV3 saved{};SFOverlayRegistrationV1 registration{};
+    struct Probe {SFOverlayEncoderV3* saved;unsigned calls{};} probe_state{&saved};
+    check(service.register_frame(service.context,+[](void* data,const SFOverlayFrameV1* base,const SFOverlayEncoderV1* encoder)->std::int32_t{
+        auto& probe=*static_cast<Probe*>(data);const auto& frame=*reinterpret_cast<const SFOverlayFrameV3*>(base);const auto& v3=*reinterpret_cast<const SFOverlayEncoderV3*>(encoder);
+        check(base->version==3 && base->size==64 && encoder->version==3 && encoder->size==64 && frame.target_encoding==SF_OVERLAY_TARGET_SCRGB_LINEAR && frame.linear_unit_nits==80 && frame.diffuse_white_nits==203);
+        *probe.saved=v3;
+        check(encoder->draw_rectangles(encoder->context,encoder->owner_id,nullptr,4097)==10);
+        check(encoder->draw_rectangles(encoder->context,encoder->owner_id,nullptr,4095)==0);
+        check(v3.draw_programs(encoder->context,encoder->owner_id,nullptr,1)==0);
+        check(v3.base.draw_textures_v2(encoder->context,encoder->owner_id,nullptr,1)==10);++probe.calls;return 0;
+    },&probe_state,&registration)==0);
+    const SFOverlayEncoderV3 backend{{{sizeof(backend),3,nullptr,0,42,
+        +[](void*,std::uint64_t,const SFOverlayRectangleV1*,std::uint32_t)->std::int32_t{return 0;},
+        +[](void*,std::uint64_t,const SFOverlayTextureCommandV1*,std::uint32_t)->std::int32_t{return 0;}},
+        +[](void*,std::uint64_t,const SFOverlayTextureCommandV2*,std::uint32_t)->std::int32_t{return 0;}},
+        +[](void*,std::uint64_t,const SFOverlayProgramCommandV1*,std::uint32_t)->std::int32_t{return 0;}};
+    renderer.colorSpace=1000104002;check(Services().Dispatch(800,600,100,42,backend.base.base,nullptr,TargetFrame(renderer)) && probe_state.calls==1);
+    check(Services().Revoke(legacy_owner)==0 && Services().Drain(legacy_owner,0)==0);
+    check(saved.draw_programs(saved.base.base.context,saved.base.base.owner_id,nullptr,1)==3);
+    check(service.unregister_frame(service.context,registration)==0);
+    check(service.register_frame(service.context,+[](void* data,const SFOverlayFrameV1*,const SFOverlayEncoderV1* encoder)->std::int32_t{
+        const auto& v3=*reinterpret_cast<const SFOverlayEncoderV3*>(encoder);
+        check(v3.draw_programs(encoder->context,encoder->owner_id,static_cast<SFOverlayProgramCommandV1*>(data),1)==0);return 7;
+    },&command,&registration)==0);
+    // Clear inert cap rows; keep the real cached program. A failed owner must
+    // prevent the entire recorded command batch from entering a render pass.
+    std::erase_if(context.image->programs,[](const auto& p){return !p.second.pipeline;});
+    renderer.colorSpace=1000104008;check(TargetFrame(renderer).target_encoding==SF_OVERLAY_TARGET_HDR10_PQ && TargetFrame(renderer).pq_peak_nits==10000);
+    renderer.colorSpace=0;check(TargetFrame(renderer).target_encoding==SF_OVERLAY_TARGET_SRGB_VALUES);
+    const auto drawn=draws;Submission submission;submission.renderer=&renderer;submission.index=0;
+    check_named("failed V3 callback cannot submit its partial commands",!Record(&submission) && submission.record.failed && draws==drawn);
+    check(Services().Revoke(probe)==0 && Services().Drain(probe,0)==0);
+    auto device=std::make_shared<Device>();device->handle=977;device->alive=true;devices[977]=device;
+    g_renderer=std::move(renderer);fence_result=1;const auto destroyed=program_destroyed,pools=program_pool_destroyed,images=program_images_destroyed;
+    RetireCurrentRenderer();ReapRetired();check(program_destroyed==destroyed && program_pool_destroyed==pools && program_images_destroyed==images);
+    fence_result=0;device->uncertain=true;ReapRetired();check(program_destroyed==destroyed && program_pool_destroyed==pools && program_images_destroyed==images);
+    device->uncertain=false;ReapRetired();check_named("programs descriptors and images retire only after their image fences",program_destroyed>destroyed && program_pool_destroyed>pools && program_images_destroyed>images);
+    devices.erase(977);
+}
+}
 int main(int argc,char** argv){
     check_named("graphics refuses activation without guarded startup admission",!StartGraphics());
     const auto extended_owner=Services().Open("overlay-v2-probe",2);
@@ -309,5 +458,6 @@ int main(int argc,char** argv){
     render_mutex.lock();std::thread stopper([&]{StopGraphics();stopped.set_value();});
     check(stopped_result.wait_for(std::chrono::seconds(1))==std::future_status::ready && retirement_pending && !active);
     render_mutex.unlock();stopper.join();MaintainGraphics();check(!retirement_pending);
+    GenericPrograms();
     std::printf("PASS: %u actual native GPU validation/retirement/generation/drawing checks\n",checks);
 }

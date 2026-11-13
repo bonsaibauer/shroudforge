@@ -12,7 +12,7 @@ public:
     std::int32_t Query(std::uint64_t owner,const std::string& name,std::uint32_t version,std::uint32_t capacity,void* output);
     std::int32_t Revoke(std::uint64_t owner);
     std::int32_t Drain(std::uint64_t owner,std::uint32_t timeout_ms);
-    bool Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t now,std::uint64_t device_generation,const SFOverlayEncoderV1& encoder,const SFMapFrameV1* frame=nullptr);
+    bool Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t now,std::uint64_t device_generation,const SFOverlayEncoderV1& encoder,const SFMapFrameV1* frame=nullptr,SFOverlayFrameV3 target={});
 private:
     struct Owner;
     MapRuntime::SnapshotStore& frames_;

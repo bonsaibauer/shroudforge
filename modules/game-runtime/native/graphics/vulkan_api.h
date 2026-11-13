@@ -563,6 +563,12 @@ using std::uintptr_t;
         std::uint32_t scissorCount = 0;
         const VkRect2D* pScissors = nullptr;
     };
+    struct VkPipelineDynamicStateCreateInfo {
+        std::uint32_t sType = 27;
+        const void* pNext = nullptr;
+        std::uint32_t flags = 0, dynamicStateCount = 0;
+        const std::uint32_t* pDynamicStates = nullptr;
+    };
 
     struct VkPipelineRasterizationStateCreateInfo
     {
@@ -705,6 +711,8 @@ using std::uintptr_t;
     using CmdBindDescriptorSetsFn = void(__fastcall*)(void* commandBuffer, std::uint32_t pipelineBindPoint, void* layout, std::uint32_t firstSet, std::uint32_t descriptorSetCount, void* const* descriptorSets, std::uint32_t dynamicOffsetCount, const std::uint32_t* dynamicOffsets);
     using CmdPushConstantsFn = void(__fastcall*)(void* commandBuffer, void* layout, std::uint32_t stageFlags, std::uint32_t offset, std::uint32_t size, const void* values);
     using CmdDrawFn = void(__fastcall*)(void* commandBuffer, std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance);
+    using CmdSetViewportFn = void(__fastcall*)(void*,std::uint32_t,std::uint32_t,const VkViewport*);
+    using CmdSetScissorFn = void(__fastcall*)(void*,std::uint32_t,std::uint32_t,const VkRect2D*);
     using FlushMappedMemoryRangesFn = std::int32_t(__fastcall*)(void* device, std::uint32_t rangeCount, const VkMappedMemoryRange* ranges);
     using CreateSemaphoreFn = std::int32_t(__fastcall*)(void* device, const VkSemaphoreCreateInfo* createInfo, const void* allocator, void** semaphore);
     using DestroySemaphoreFn = void(__fastcall*)(void* device, void* semaphore, const void* allocator);
@@ -731,6 +739,9 @@ using std::uintptr_t;
     };
     struct VulkanRendererFns
     {
+        // Optional for V3; never added to the V1/V2 readiness predicate.
+        CmdSetViewportFn cmdSetViewport = nullptr;
+        CmdSetScissorFn cmdSetScissor = nullptr;
         GetSwapchainImagesFn getSwapchainImages = nullptr;
         CreateImageViewFn createImageView = nullptr;
         DestroyImageViewFn destroyImageView = nullptr;

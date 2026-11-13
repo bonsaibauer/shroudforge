@@ -44,11 +44,13 @@ This also applies to plans containing only managed plugins.
 - `shroudforge.notifications` v1 publishes bounded, package-namespaced notices.
   The persisted feed remains authoritative when an optional HUD presenter is
   unavailable.
-- `shroudforge.map` v1 and `shroudforge.overlay` v1/v2 are optional native-provider
+- `shroudforge.map` v1 and `shroudforge.overlay` v1/v2/v3 are optional native-provider
   services. Query their exact version and handle `UNAVAILABLE`. Host support
   does not establish that a particular game build supplies the service.
   Query, revoke and drain must all be exported before the bridge exposes this
   capability. An incomplete provider cannot hand out a service table.
+  Overlay v3 adds bounded fragment programs; its drawing contract is documented
+  in [Native map and overlay services](../runtime/native-map-services.en.md).
 
 Lua runtime APIs expose bounded map snapshots through the optional provider.
 Gameplay controls and mod-specific compatibility adapters belong to mod packages.

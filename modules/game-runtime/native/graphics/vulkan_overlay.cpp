@@ -8,6 +8,8 @@
 #include "profiles/game_profile.h"
 #include "graphics/present_transaction.h"
 #include "graphics/shaders/embedded_shaders.h"
+#include "graphics/shaders/embedded_program_shader.h"
+#include "graphics/validate_overlay_shader.h"
 #include "map/capture_game_map.h"
 #include "map/current_client_map_contract.h"
 #include "map/hud_visibility.h"
@@ -43,11 +45,24 @@ void LogRendererThrottled(const std::string& value) {static std::uint64_t last{}
 template<class T> bool read(std::uintptr_t address,T& value) {return MapRuntime::ReadMemory(address,&value,sizeof(value));}
 struct TextureKey {
     std::uint64_t owner{},identity{},revision{};
+    bool sample_only{};
     bool operator==(const TextureKey&) const=default;
 };
-struct TextureHash {std::size_t operator()(const TextureKey& k) const {return std::size_t(k.owner^(k.identity*1099511628211ULL)^(k.revision*0x9e3779b97f4a7c15ULL));}};
+struct TextureHash {std::size_t operator()(const TextureKey& k) const {return std::size_t(k.owner^(k.identity*1099511628211ULL)^(k.revision*0x9e3779b97f4a7c15ULL)^std::uint64_t(k.sample_only));}};
+struct ProgramKey {
+    std::uint64_t owner{},identity{},revision{},generation{};
+    bool operator==(const ProgramKey&) const=default;
+};
+struct ProgramHash {std::size_t operator()(const ProgramKey& k)const{return TextureHash{}({k.owner,k.identity,k.revision})^std::size_t(k.generation);}};
+struct ProgramResources {
+    std::uintptr_t set_layout{},pipeline_layout{},pipeline{};
+    std::vector<std::uint32_t> words;
+};
 struct ImageResources {
     std::unordered_map<TextureKey,TexturedResources,TextureHash> textures;
+    std::unordered_map<ProgramKey,ProgramResources,ProgramHash> programs;
+    std::vector<std::uintptr_t> program_pools;
+    unsigned program_sets{};
     std::uint64_t allocated_bytes{};
 };
 struct Renderer : TexturedResources {
@@ -119,6 +134,12 @@ void DestroyRenderer(Renderer& renderer,bool abandon) {
     if(!abandon) {
         auto* device=reinterpret_cast<void*>(renderer.device);auto& f=renderer.fns;
         for(auto& image:renderer.resources) {
+            for(auto pool:image.program_pools)f.destroyDescriptorPool(device,reinterpret_cast<void*>(pool),nullptr);
+            for(auto& [_,program]:image.programs){
+                if(program.pipeline)f.destroyPipeline(device,reinterpret_cast<void*>(program.pipeline),nullptr);
+                if(program.pipeline_layout)f.destroyPipelineLayout(device,reinterpret_cast<void*>(program.pipeline_layout),nullptr);
+                if(program.set_layout)f.destroyDescriptorSetLayout(device,reinterpret_cast<void*>(program.set_layout),nullptr);
+            }
             for(auto& [_,resource]:image.textures) DestroyTexturedResources(renderer,resource);
         }
         for(auto handle:renderer.renderCompleteSemaphores)if(handle && f.destroySemaphore)f.destroySemaphore(device,reinterpret_cast<void*>(handle),nullptr);
@@ -161,36 +182,45 @@ bool CopyTexture(const SFOverlayTextureV1& image,std::vector<std::uint8_t>& byte
     }
     return true;
 }
-struct Draw {TexturedResources* texture{};std::array<float,32> push{};};
+struct Draw {
+    TexturedResources* texture{};std::array<float,32> push{};
+    ProgramResources* program{};std::uintptr_t descriptor{};
+    VkViewport viewport{};VkRect2D scissor{};
+};
 struct RecordContext {
     Renderer* renderer{};ImageResources* image{};void* command{};
     std::uint64_t generation{};DWORD thread{};
     MapRuntime::FrameLease map;
     std::vector<Draw> draws;
     std::unordered_set<TextureKey,TextureHash> used_textures;
+    std::unordered_set<ProgramKey,ProgramHash> used_programs;
     bool failed{},no_work{};
     std::uint64_t notification_frame{};
 };
 void DrawTextureResource(RecordContext& context,TexturedResources& texture,const float* push) {
     Draw draw;draw.texture=&texture;std::copy_n(push,32,draw.push.begin());context.draws.push_back(draw);
 }
-TexturedResources* Texture(RecordContext& context,std::uint64_t owner,const SFOverlayTextureV1& image) {
+TexturedResources* Texture(RecordContext& context,std::uint64_t owner,const SFOverlayTextureV1& image,
+    bool sample_only=false,const std::vector<std::uint8_t>* staged=nullptr) {
     if(!TextureValid(image)) return nullptr;
-    const TextureKey key{owner,image.resource_id,image.revision};auto& cache=context.image->textures;
+    const TextureKey key{owner,image.resource_id,image.revision,sample_only};auto& cache=context.image->textures;
     if(auto found=cache.find(key);found!=cache.end()){context.used_textures.insert(key);return &found->second;}
     for(auto it=cache.begin();it!=cache.end();) {
         const auto& previous=it->first;
-        if(previous.owner!=owner || previous.identity!=image.resource_id || context.used_textures.contains(previous)){++it;continue;}
+        if(previous.owner!=owner || previous.identity!=image.resource_id || previous.sample_only!=sample_only || context.used_textures.contains(previous)){++it;continue;}
         context.image->allocated_bytes-=std::uint64_t(it->second.frameTextureWidth)*it->second.frameTextureHeight*4;
         DestroyTexturedResources(*context.renderer,it->second);it=cache.erase(it);
     }
     if(cache.size()>=512 || context.image->allocated_bytes+image.rgba_bytes>UINT64_C(268435456))return nullptr;
-    std::vector<std::uint8_t> bytes;if(!CopyTexture(image,bytes))return nullptr;
+    std::vector<std::uint8_t> bytes;if(!staged && !CopyTexture(image,bytes))return nullptr;
     TexturedResources resource;
-    if(!TryCreateTexturedResourcesLocked(*context.renderer,resource,bytes,int(image.width),int(image.height)))return nullptr;
+    if(!TryCreateTexturedResourcesLocked(*context.renderer,resource,staged?*staged:bytes,int(image.width),int(image.height),sample_only))return nullptr;
+    const auto cleanup=[&](void*){DestroyTexturedResources(*context.renderer,resource);};
+    std::unique_ptr<void,decltype(cleanup)> pending(reinterpret_cast<void*>(1),cleanup);
     RecordTextureUpload(*context.renderer,resource,context.command);
     context.image->allocated_bytes+=image.rgba_bytes;
-    context.used_textures.insert(key);return &cache.emplace(key,resource).first->second;
+    context.used_textures.insert(key);auto* result=&cache.emplace(key,resource).first->second;
+    pending.release();return result;
 }
 std::int32_t EncodeTexture(RecordContext& context,std::uint64_t owner,const SFOverlayTextureCommandV1& command,
     std::uint32_t square=0) {
@@ -241,6 +271,7 @@ std::int32_t EncodeRectangles(void* opaque,std::uint64_t owner,const SFOverlayRe
     }
     return 0;
 }
+#include "graphics/vulkan_programs.inl"
 struct Submission {Renderer* renderer{};void* queue{};const VkPresentInfoKHR* present{};unsigned index{};RecordContext record;};
 bool Record(void* opaque) {
     auto& submission=*static_cast<Submission*>(opaque);auto& renderer=*submission.renderer;
@@ -248,6 +279,8 @@ bool Record(void* opaque) {
     if(f.resetCommandBuffer(command,0)!=0){submission.record.failed=true;return false;}VkCommandBufferBeginInfo begin{};if(f.beginCommandBuffer(command,&begin)!=0){submission.record.failed=true;return false;}
     renderer.resources.resize(renderer.commandBuffers.size());
     auto& context=submission.record;context.renderer=&renderer;context.image=&renderer.resources[submission.index];context.command=command;
+    // Record is reached only after Fence confirms this image's prior work.
+    ResetProgramDescriptors(renderer,*context.image);
     context.thread=GetCurrentThreadId();context.generation=renderer.device_generation;
     context.notification_frame=NotificationOverlay::BeginFrame();
     context.map=MapRuntime::CapturedFrames().Acquire(0,GetTickCount64());
@@ -255,12 +288,20 @@ bool Record(void* opaque) {
         context.map.frame.state_flags&=~(SF_MAP_STATE_GAMEPLAY|SF_MAP_STATE_MENU);
         if(MapRuntime::HudKnown(context.map.frame.now_ms))context.map.frame.state_flags|=MapRuntime::HudGameplay(context.map.frame.now_ms)?SF_MAP_STATE_GAMEPLAY:SF_MAP_STATE_MENU;
     }
-    const SFOverlayEncoderV2 encoder{{sizeof(encoder),2,&context,0,renderer.device_generation,EncodeRectangles,EncodeTextures},EncodeTexturesV2};
-    if(!Services().Dispatch(renderer.width,renderer.height,context.map.frame.now_ms,renderer.device_generation,encoder.base,&context.map.frame))context.failed=true;
+    const SFOverlayEncoderV3 encoder{{{sizeof(encoder),3,&context,0,renderer.device_generation,EncodeRectangles,EncodeTextures},EncodeTexturesV2},EncodePrograms};
+    if(!Services().Dispatch(renderer.width,renderer.height,context.map.frame.now_ms,renderer.device_generation,encoder.base.base,&context.map.frame,TargetFrame(renderer)))context.failed=true;
     if(context.failed || context.draws.empty()){context.no_work=!context.failed && context.draws.empty();return false;}
     VkRenderPassBeginInfo pass{};pass.renderPass=reinterpret_cast<void*>(renderer.renderPass);pass.framebuffer=reinterpret_cast<void*>(renderer.framebuffers[submission.index]);
     pass.renderArea.extent={renderer.width,renderer.height};f.cmdBeginRenderPass(command,&pass,0);
     for(const auto& draw:context.draws) {
+        if(draw.program){
+            auto* layout=reinterpret_cast<void*>(draw.program->pipeline_layout);auto* set=reinterpret_cast<void*>(draw.descriptor);
+            f.cmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,reinterpret_cast<void*>(draw.program->pipeline));
+            f.cmdSetViewport(command,0,1,&draw.viewport);f.cmdSetScissor(command,0,1,&draw.scissor);
+            f.cmdBindDescriptorSets(command,VK_PIPELINE_BIND_POINT_GRAPHICS,layout,0,1,&set,0,nullptr);
+            f.cmdPushConstants(command,layout,VK_SHADER_STAGE_FRAGMENT_BIT,0,128,draw.push.data());f.cmdDraw(command,6,1,0,0);
+            continue;
+        }
         auto* set=reinterpret_cast<void*>(draw.texture->frameDescriptorSet);auto* layout=reinterpret_cast<void*>(draw.texture->framePipelineLayout);
         f.cmdBindPipeline(command,VK_PIPELINE_BIND_POINT_GRAPHICS,reinterpret_cast<void*>(draw.texture->framePipeline));
         f.cmdBindDescriptorSets(command,VK_PIPELINE_BIND_POINT_GRAPHICS,layout,0,1,&set,0,nullptr);

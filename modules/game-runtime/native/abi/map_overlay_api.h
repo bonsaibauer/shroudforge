@@ -110,6 +110,14 @@ typedef struct SFMapServiceV1 {
  * no pointer, command, or encoder may be retained after the callback returns. */
 #define SF_OVERLAY_SERVICE_VERSION 1u
 #define SF_OVERLAY_EXTENDED_SERVICE_VERSION 2u
+#define SF_OVERLAY_PROGRAMMABLE_SERVICE_VERSION 3u
+#define SF_OVERLAY_SHADER_VERSION 1u
+#define SF_OVERLAY_MAX_SHADER_BYTES 262144u
+#define SF_OVERLAY_MAX_PROGRAM_TEXTURES 4u
+#define SF_OVERLAY_MAX_PROGRAM_CONSTANT_BYTES 128u
+#define SF_OVERLAY_MAX_PROGRAMS_PER_OWNER 32u
+#define SF_OVERLAY_MAX_PROGRAMS_PER_IMAGE 128u
+#define SF_OVERLAY_MAX_PROGRAM_DRAWS 4096u
 #define SF_OVERLAY_MAX_TEXTURE_BYTES UINT64_C(67108864)
 #define SF_OVERLAY_MAX_RECTANGLES 262144u
 #define SF_OVERLAY_MAX_TEXTURE_COMMANDS 4096u
@@ -153,6 +161,38 @@ typedef struct SFOverlayEncoderV2 {
     SFOverlayEncoderV1 base;
     int32_t (*draw_textures_v2)(void*,uint64_t,const SFOverlayTextureCommandV2*,uint32_t);
 } SFOverlayEncoderV2;
+/* V3 is append-only. Program identity/revision denotes immutable fragment
+ * SPIR-V, independent of texture identities and revisions. Words are copied
+ * synchronously on first use; a cached revision does not reread that span.
+ * Use Vulkan 1.0 / SPIR-V 1.0, one Fragment entry named main, optional smooth
+ * float32 vec2 UV input at location 0, optional float32 vec4 FragCoord input,
+ * location 0 float32 vec4 straight-alpha output, set 0 bindings 0..3 combined
+ * samplers. The fixed vertex supplies UV even when the fragment omits it.
+ * Bindings are sampler2D. An optional push-constant block at offset 0 is at most 128
+ * bytes. No other resources, capabilities or shader stages are supported. */
+typedef struct SFOverlayShaderV1 {
+    uint32_t size, version;
+    uint64_t program_id, revision;
+    const uint32_t* spirv;
+    uint32_t spirv_bytes, reserved;
+} SFOverlayShaderV1;
+typedef struct SFOverlayProgramCommandV1 {
+    SFOverlayShaderV1 shader;
+    /* Positive rectangle wholly inside the target, each side <=16384 pixels.
+     * Fixed quad UV is (0,0) at top-left and (1,1) at bottom-right. */
+    int32_t x,y,width,height;
+    uint32_t texture_count, constant_bytes;
+    /* Index i supplies set 0 binding i. Missing bindings use transparent black
+     * RGBA (0,0,0,0), 1x1. Texture dimensions/revision rules match V1. */
+    const SFOverlayTextureV1* textures;
+    /* Opaque bytes, count divisible by 4, at most 128. Remaining bytes are zero.
+     * Fragment constants alone own clipping, rotation and rendering behavior. */
+    const void* constants;
+} SFOverlayProgramCommandV1;
+typedef struct SFOverlayEncoderV3 {
+    SFOverlayEncoderV2 base;
+    int32_t (*draw_programs)(void*,uint64_t,const SFOverlayProgramCommandV1*,uint32_t);
+} SFOverlayEncoderV3;
 typedef struct SFOverlayFrameV1 {
     uint32_t size,version,width,height;
     uint64_t device_generation;
@@ -161,6 +201,19 @@ typedef struct SFOverlayFrameV1 {
      * The pointer and all its spans expire when the callback returns. */
     const SFMapFrameV1* map_frame;
 } SFOverlayFrameV1;
+/* These are output encodings, not VkColorSpaceKHR values. V3 does no implicit
+ * color conversion. Shaders encode RGB for the observed target before output;
+ * alpha is straight coverage, unchanged by color encoding. */
+typedef enum SFOverlayTargetEncodingV3 {
+    SF_OVERLAY_TARGET_SRGB_VALUES=0,
+    SF_OVERLAY_TARGET_SCRGB_LINEAR=1,
+    SF_OVERLAY_TARGET_HDR10_PQ=2
+} SFOverlayTargetEncodingV3;
+typedef struct SFOverlayFrameV3 {
+    SFOverlayFrameV1 base;
+    uint32_t target_encoding, reserved[3];
+    float diffuse_white_nits, linear_unit_nits, pq_peak_nits, reserved_float;
+} SFOverlayFrameV3;
 typedef int32_t (*SFOverlayFrameCallbackV1)(void*,const SFOverlayFrameV1*,const SFOverlayEncoderV1*);
 typedef uint64_t SFOverlayRegistrationV1;
 typedef enum SFOverlayReasonV1 {

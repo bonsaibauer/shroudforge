@@ -31,6 +31,35 @@ FetchContent_Declare(zydis
     GIT_TAG a2278f1d254e492f6a6b39f6cb5d1f5d515659dc
     GIT_SHALLOW FALSE)
 FetchContent_MakeAvailable(zydis)
+
+# Validate programmable fragments before handing them to a driver. The Tools
+# release's DEPS file pins this matching Headers revision. No optimizer, CLI,
+# tests or shared validator are part of the runtime dependency graph.
+FetchContent_Declare(sf_spirv_headers
+    URL https://codeload.github.com/KhronosGroup/SPIRV-Headers/tar.gz/b824a462d4256d720bebb40e78b9eb8f78bbb305
+    URL_HASH SHA256=c693867f10a7760ef1bcf85419d51783586768cc2c601d03841bc6a8b2554b9c
+    SOURCE_SUBDIR download-only)
+FetchContent_Declare(sf_spirv_tools
+    URL https://codeload.github.com/KhronosGroup/SPIRV-Tools/tar.gz/262bdab48146c937467f826699a40da0fdfc0f1a
+    URL_HASH SHA256=8f830936b057003be77e90d37068ff6066eb87a1bab0033f8f2f5feaa966ce56
+    SOURCE_SUBDIR download-only)
+FetchContent_MakeAvailable(sf_spirv_headers sf_spirv_tools)
+set(SPIRV-Headers_SOURCE_DIR "${sf_spirv_headers_SOURCE_DIR}")
+set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)
+set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)
+set(SKIP_SPIRV_TOOLS_INSTALL ON CACHE BOOL "" FORCE)
+set(SPIRV_TOOLS_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(SPIRV_TOOLS_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
+add_subdirectory("${sf_spirv_tools_SOURCE_DIR}" "${sf_spirv_tools_BINARY_DIR}" EXCLUDE_FROM_ALL)
+set_property(TARGET SPIRV-Tools-static PROPERTY MSVC_RUNTIME_LIBRARY
+    "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+add_library(shroudforge-overlay-shader STATIC graphics/validate_overlay_shader.cpp)
+target_include_directories(shroudforge-overlay-shader PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${sf_spirv_headers_SOURCE_DIR}/include")
+target_compile_features(shroudforge-overlay-shader PRIVATE cxx_std_20)
+target_link_libraries(shroudforge-overlay-shader PRIVATE SPIRV-Tools-static)
+set_property(TARGET shroudforge-overlay-shader PROPERTY MSVC_RUNTIME_LIBRARY
+    "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../game-profile-discovery"
     "${CMAKE_BINARY_DIR}/modules/game-profile-discovery")
 set_property(TARGET Zydis Zycore PROPERTY MSVC_RUNTIME_LIBRARY
@@ -43,10 +72,14 @@ file(MAKE_DIRECTORY "${generated_dir}")
 set(runtime_license_rc "${generated_dir}/runtime_licenses.rc")
 file(TO_CMAKE_PATH "${zydis_SOURCE_DIR}/LICENSE" zydis_license_path)
 file(TO_CMAKE_PATH "${zydis_SOURCE_DIR}/dependencies/zycore/LICENSE" zycore_license_path)
+file(TO_CMAKE_PATH "${sf_spirv_tools_SOURCE_DIR}/LICENSE" spirv_tools_license_path)
+file(TO_CMAKE_PATH "${sf_spirv_headers_SOURCE_DIR}/LICENSE" spirv_headers_license_path)
 set(runtime_license_content "#include <windows.h>\n")
 string(APPEND runtime_license_content
     "\"ZYDIS_LICENSE\" RCDATA \"${zydis_license_path}\"\n"
-    "\"ZYCORE_LICENSE\" RCDATA \"${zycore_license_path}\"\n")
+    "\"ZYCORE_LICENSE\" RCDATA \"${zycore_license_path}\"\n"
+    "\"SPIRV_TOOLS_LICENSE\" RCDATA \"${spirv_tools_license_path}\"\n"
+    "\"SPIRV_HEADERS_LICENSE\" RCDATA \"${spirv_headers_license_path}\"\n")
 file(CONFIGURE OUTPUT "${runtime_license_rc}" CONTENT "@runtime_license_content@" @ONLY)
 
 add_library(kfc-runtime SHARED
@@ -362,3 +395,10 @@ target_compile_features(kfc-runtime-test-metadata-startup PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-test-metadata-startup PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
 target_link_libraries(kfc-runtime-test-metadata-startup PRIVATE bcrypt)
 set_property(TARGET kfc-runtime-test-metadata-startup PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+# These existing fixtures compile the real renderer as part of their source set.
+foreach(shader_consumer kfc-runtime kfc-runtime-test-overlay-gpu
+    kfc-runtime-test-prop-query kfc-runtime-test-ecs-read kfc-runtime-test-service
+    kfc-runtime-test-world-context)
+    target_link_libraries(${shader_consumer} PRIVATE shroudforge-overlay-shader)
+endforeach()

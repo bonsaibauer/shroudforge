@@ -677,7 +677,7 @@ unsafe extern "C" fn host_query_service(
         return NATIVE_STATUS_UNKNOWN_SERVICE;
     }
     let version_supported = match name {
-        NATIVE_SERVICE_OVERLAY_V1 => matches!(requested_version, 1 | 2),
+        NATIVE_SERVICE_OVERLAY_V1 => matches!(requested_version, 1 | 2 | 3),
         _ => requested_version == 1,
     };
     if !version_supported {
@@ -1428,7 +1428,7 @@ mod tests {
     }
 
     #[test]
-    fn overlay_v2_is_forwarded_without_enabling_other_v2_services() {
+    fn overlay_versions_are_forwarded_without_enabling_other_service_versions() {
         let package = TestPackage::with_keybind(true, "");
         let services = Arc::new(TestServiceLifetime {
             revoke_status: NATIVE_STATUS_OK,
@@ -1452,7 +1452,7 @@ mod tests {
         let query = host.query_service.unwrap();
         let overlay_name = NATIVE_SERVICE_OVERLAY_V1.as_bytes();
 
-        for version in [1, 2] {
+        for version in [1, 2, 3] {
             let mut output: u32 = 0xA5A5_A5A5;
             assert_eq!(
                 unsafe {
@@ -1479,6 +1479,25 @@ mod tests {
                 ))
             );
             *services.queried_owner.lock().unwrap() = None;
+        }
+
+        for version in [0, 4, u32::MAX] {
+            let mut output: u32 = 0xA5A5_A5A5;
+            assert_eq!(
+                unsafe {
+                    query(
+                        host.package_context,
+                        overlay_name.as_ptr(),
+                        overlay_name.len() as u32,
+                        version,
+                        size_of::<u32>() as u32,
+                        (&mut output as *mut u32).cast(),
+                    )
+                },
+                NATIVE_STATUS_ABI_MISMATCH
+            );
+            assert_eq!(output, 0xA5A5_A5A5);
+            assert!(services.queried_owner.lock().unwrap().is_none());
         }
 
         let mut map_output: u32 = 0xA5A5_A5A5;

@@ -103,6 +103,8 @@
         fns.cmdBindDescriptorSets = ResolveDeviceFunction<CmdBindDescriptorSetsFn>(getDeviceProcAddr, device, "vkCmdBindDescriptorSets");
         fns.cmdPushConstants = ResolveDeviceFunction<CmdPushConstantsFn>(getDeviceProcAddr, device, "vkCmdPushConstants");
         fns.cmdDraw = ResolveDeviceFunction<CmdDrawFn>(getDeviceProcAddr, device, "vkCmdDraw");
+        fns.cmdSetViewport = ResolveDeviceFunction<CmdSetViewportFn>(getDeviceProcAddr,device,"vkCmdSetViewport");
+        fns.cmdSetScissor = ResolveDeviceFunction<CmdSetScissorFn>(getDeviceProcAddr,device,"vkCmdSetScissor");
         fns.flushMappedMemoryRanges = ResolveDeviceFunction<FlushMappedMemoryRangesFn>(getDeviceProcAddr, device, "vkFlushMappedMemoryRanges");
         fns.createSemaphore = ResolveDeviceFunction<CreateSemaphoreFn>(getDeviceProcAddr, device, "vkCreateSemaphore");
         fns.destroySemaphore = ResolveDeviceFunction<DestroySemaphoreFn>(getDeviceProcAddr, device, "vkDestroySemaphore");
@@ -199,7 +201,7 @@
     }
 
     bool TryCreateTexturedResourcesLocked(Renderer& renderer, TexturedResources& resource,
-        const std::vector<std::uint8_t>& rgba, int textureWidth, int textureHeight)
+        const std::vector<std::uint8_t>& rgba, int textureWidth, int textureHeight, bool textureOnly=false)
     {
         if (resource.frameTextureReady) return true;
         if (textureWidth <= 0 || textureHeight <= 0 || textureWidth > 4096 || textureHeight > 4096 ||
@@ -226,6 +228,7 @@
         void* textureMemory = nullptr;
         void* textureImageView = nullptr;
         void* sampler = nullptr;
+        void* descriptorSet = nullptr;
         void* setLayout = nullptr;
         void* descriptorPool = nullptr;
         void* vertexModule = nullptr;
@@ -296,6 +299,7 @@
         if (renderer.fns.createSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS || sampler == nullptr)
             return false;
 
+        if(!textureOnly) {
         VkDescriptorSetLayoutBinding binding{};
         VkDescriptorSetLayoutCreateInfo setLayoutInfo{};
         setLayoutInfo.bindingCount = 1;
@@ -311,7 +315,6 @@
         if (renderer.fns.createDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS || descriptorPool == nullptr)
             return false;
 
-        void* descriptorSet = nullptr;
         void* setLayoutForAlloc = setLayout;
         VkDescriptorSetAllocateInfo setAlloc{};
         setAlloc.descriptorPool = descriptorPool;
@@ -404,6 +407,7 @@
         if (!pipelineOk)
             return false;
 
+        }
         resource.frameStagingBuffer = reinterpret_cast<uintptr_t>(stagingBuffer);
         resource.frameStagingMemory = reinterpret_cast<uintptr_t>(stagingMemory);
         resource.frameTextureImage = reinterpret_cast<uintptr_t>(textureImage);
