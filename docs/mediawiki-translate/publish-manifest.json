@@ -42,6 +42,47 @@
       ]
     },
     {
+      "id": "dinput8-chain",
+      "title": "DInput8 chain loading standard",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-DInput8 chain loading standard",
+      "wikitext": "docs/mediawiki-translate/dinput8-chain/en.wikitext",
+      "asset": "modules/wiki/articles/dinput8-chain/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-dinput8-chain.svg",
+      "po": "docs/mediawiki-translate/dinput8-chain/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/dinput8-chain/de-at.po",
+        "docs/mediawiki-translate/dinput8-chain/de-ch.po",
+        "docs/mediawiki-translate/dinput8-chain/de.po",
+        "docs/mediawiki-translate/dinput8-chain/es.po",
+        "docs/mediawiki-translate/dinput8-chain/fr.po",
+        "docs/mediawiki-translate/dinput8-chain/hi.po",
+        "docs/mediawiki-translate/dinput8-chain/it.po",
+        "docs/mediawiki-translate/dinput8-chain/ja.po",
+        "docs/mediawiki-translate/dinput8-chain/nl.po",
+        "docs/mediawiki-translate/dinput8-chain/pl.po",
+        "docs/mediawiki-translate/dinput8-chain/sv.po",
+        "docs/mediawiki-translate/dinput8-chain/zh.po"
+      ],
+      "categories": [
+        "Modding:Shroudforge"
+      ]
+    },
+    {
       "id": "dll-manager",
       "title": "DLL Manager",
       "sourceLanguage": "en-GB",
