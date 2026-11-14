@@ -107,4 +107,6 @@ Zum Prüfen der Queue braucht der Wiki-Host Zugriff auf die MediaWiki-Installati
 - `publish.ps1` erstellt fehlende Seiten, lädt fehlende Bilder hoch, markiert die Seite und setzt alle unterstützten Prioritätssprachen.
 - `import-po.ps1` lädt PO-Dateien über `Special:ImportTranslations` hoch, verifiziert die gespeicherten Einträge und prüft, ob die Sprach-Unterseiten gerendert wurden.
 
+Die deutschen, spanischen und französischen Übersetzungen für den Artikel `dinput8-chain` übernehmen die gemeinsam dokumentierte DInput8-Chain-Spezifikation. Die englische Quelle und der Quellenlink am Ende des Artikels verweisen auf die ursprüngliche CC0-Fassung.
+
 Die deutsche PO-Datei für `Dependencies` wurde anhand der echten Translate-Nachrichten-IDs erstellt. Sie ergänzt die fehlenden Zusammenfassungs- und Abschnittstitel und korrigiert den übersetzten Seitentitel.
