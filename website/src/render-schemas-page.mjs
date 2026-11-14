@@ -76,10 +76,11 @@ export function renderSchemasPage({ config, siteUrl, schemaVersions, currentVers
 		<main id="main-content" class="main-content schemas-main">
 			<section class="page-intro schema-intro" aria-labelledby="page-title">
 				<div class="eyebrow">SHROUDFORGE TOOLS · STANDARDS</div>
-				<div class="tool-intro-row schema-intro-row"><div><h1 id="page-title">Schemas</h1><p>Versioned contracts for ShroudForge mod packages. Pin a schema URL to the Modloader version your mod supports.</p></div><label class="preview-version-picker schema-version-picker"><span>Modloader version</span><select data-schema-version aria-label="Modloader version">${versionOptions}</select></label></div>
+				<h1 id="page-title">Schema</h1>
+				<p>Versioned contracts for ShroudForge mod packages. Pin a schema URL to the Modloader version your mod supports.</p>
 			</section>
 			<section class="schema-reference panel" aria-labelledby="schema-reference-title">
-				<header class="tool-section-heading"><div><span class="eyebrow">MACHINE-READABLE REFERENCES</span><h2 id="schema-reference-title">Mod package schemas</h2><p>Open a schema in your editor or copy its version-specific URL into the <code>$schema</code> field.</p></div></header>
+				<header class="tool-section-heading"><div><span class="eyebrow">MACHINE-READABLE REFERENCES</span><h2 id="schema-reference-title">Mod package schemas</h2><p>Open a schema in your editor or copy its version-specific URL into the <code>$schema</code> field.</p></div><label class="preview-version-picker schema-version-picker"><span>Modloader version</span><select data-schema-version aria-label="Modloader version">${versionOptions}</select></label></header>
 				<div class="schema-manifest-example"><span>Example for <code>mod.json</code></span><code class="schema-url-value" data-schema-manifest-example>"$schema": "${escapeHtml(manifestSchemaUrl)}"</code></div>
 				${versionSections}
 			</section>

@@ -2,7 +2,6 @@
 .schema-intro{margin-bottom:20px}
 .schema-intro h1{font-size:30px}
 .schema-intro p{max-width:760px}
-.schema-intro-row{align-items:center}
 .schema-version-picker{align-self:flex-start}
 .schema-reference{padding:clamp(16px,2.5vw,24px);margin-bottom:18px}
 .schema-reference>.tool-section-heading{margin-bottom:18px}
