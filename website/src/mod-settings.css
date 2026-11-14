@@ -3,6 +3,7 @@ html{scrollbar-gutter:stable}
 .tools-sidebar{padding-top:4px}
 .tools-sidebar-panel{padding:17px 11px}
 .tools-sidebar-panel h2{margin:0 8px 15px;font-size:14px;font-weight:700}
+.tools-nav-group{display:grid;gap:0;margin-bottom:12px}
 .tool-intro-row{display:flex;align-items:center;justify-content:space-between;gap:18px}
 .tool-intro-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .tool-download-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
@@ -13,7 +14,8 @@ html{scrollbar-gutter:stable}
 .tool-intro-row .reset-example-button:hover{border-color:#74151b;color:#fff;background:#911b22}
 .tool-intro-row .reset-example-button:focus-visible{outline:3px solid #fca5a5;outline-offset:2px}
 .tools-category-label{margin:14px 8px 6px;color:var(--text-secondary);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
-.tool-nav-item{display:flex;align-items:center;min-height:37px;padding:0 10px;margin:3px 0;border:1px solid transparent;border-radius:9px;color:var(--text-secondary);font-size:12px;font-weight:600}
+.tool-nav-item{display:flex;align-items:center;gap:7px;min-height:37px;padding:0 10px;margin:3px 0;border:1px solid transparent;border-radius:9px;color:var(--text-secondary);font-size:12px;font-weight:600}
+.tool-nav-item .icon{width:14px;height:14px;flex:0 0 14px}
 .tool-nav-item:hover{background:var(--surface-3);color:var(--text-primary)}
 .tool-nav-item.is-active{border-color:rgb(99 201 245 / 17%);color:var(--brand);background:rgb(99 201 245 / 9%)}
 .mod-settings-main{max-width:none;min-width:0}
@@ -203,7 +205,7 @@ html{scrollbar-gutter:stable}
 .tool-intro-row .reset-example-button:hover,.remove-template:hover{border-color:#74151b;color:#fff;background:#911b22;filter:none}
 .tool-intro-row .reset-example-button:focus-visible,.remove-template:focus-visible{outline:3px solid #fca5a5;outline-offset:2px}
 @media(max-width:1100px){.tool-shell{grid-template-columns:190px minmax(0,1fr)}.setting-template-catalog{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:900px){.tool-shell{grid-template-columns:minmax(0,1fr);gap:15px}.tools-sidebar{padding:0}.tools-sidebar-panel{display:flex;align-items:center;gap:12px;padding:9px 11px}.tools-sidebar-panel h2{margin:0 4px 0 2px}.tools-category-label{margin:0 0 0 auto}.tool-nav-item{min-height:31px;margin:0;padding:0 9px}.preview-version-picker{flex-basis:160px}.tool-intro-row{align-items:flex-start;flex-direction:column;gap:12px}.tool-intro-actions{justify-content:flex-start;align-self:stretch}}
+@media(max-width:900px){.tool-shell{grid-template-columns:minmax(0,1fr);gap:15px}.tools-sidebar{padding:0}.tools-sidebar-panel{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:9px 11px}.tools-sidebar-panel h2{margin:0 4px 0 2px}.tools-nav-group{display:flex;align-items:center;gap:6px;margin:0}.tools-category-label{margin:0}.tool-nav-item{min-height:31px;margin:0;padding:0 9px}.preview-version-picker{flex-basis:160px}.tool-intro-row{align-items:flex-start;flex-direction:column;gap:12px}.tool-intro-actions{justify-content:flex-start;align-self:stretch}}
 @media(max-width:650px){.tool-intro h1{font-size:26px}.tool-intro-row{align-items:flex-start;flex-direction:column;gap:11px}.tool-intro-actions{width:100%;justify-content:flex-start}.tool-section-heading{display:grid}.preview-version-picker{max-width:220px}.template-catalog,.badge-template-catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.setting-template-catalog{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-fields,.builder-form-grid{grid-template-columns:minmax(0,1fr)}.field-wide,.builder-field-wide{grid-column:auto}.json-editor{min-height:220px;padding:11px 11px 11px 48px;font-size:10px}.json-editor[data-json-editor="manifest"]{min-height:440px}.json-editor[data-json-editor="extended"]{min-height:440px}.json-line-numbers{top:11px;bottom:11px;width:39px;font-size:10px;line-height:19.8px}.mod-preview-section,.editor-stage{padding:15px}.tool-footer-note{align-items:flex-start;flex-direction:column}}
 @media(max-width:650px){.manifest-dependency-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.manifest-dependency-row{grid-template-columns:minmax(0,1fr)}.manifest-editor-heading{align-items:flex-start;flex-direction:column}}

@@ -1,15 +1,22 @@
 import { escapeHtml, renderSiteHeader } from './render-page.mjs'
+import { icon } from './icons.mjs'
 
 const route = '/tools/modding/mod-settings/'
 const schemasRoute = '/schemas/'
 
-export function renderToolsSidebar(active) {
+export function renderToolsSidebar(active, config) {
 	return `<aside class="sidebar tools-sidebar" aria-label="Tools navigation">
 		<div class="tools-sidebar-panel panel">
 			<h2>Tools</h2>
-			<div class="tools-category-label">Modding</div>
-			<a class="tool-nav-item${active === 'mod-settings' ? ' is-active' : ''}" href="${route}"${active === 'mod-settings' ? ' aria-current="page"' : ''}>Mod-Settings</a>
-			<a class="tool-nav-item${active === 'schemas' ? ' is-active' : ''}" href="${schemasRoute}"${active === 'schemas' ? ' aria-current="page"' : ''}>SDK &amp; Schemas</a>
+			<div class="tools-nav-group">
+				<div class="tools-category-label">Modding</div>
+				<a class="tool-nav-item${active === 'mod-settings' ? ' is-active' : ''}" href="${route}"${active === 'mod-settings' ? ' aria-current="page"' : ''}>Mod-Settings</a>
+			</div>
+			<div class="tools-nav-group">
+				<div class="tools-category-label">Standards</div>
+				<a class="tool-nav-item${active === 'schemas' ? ' is-active' : ''}" href="${schemasRoute}"${active === 'schemas' ? ' aria-current="page"' : ''}>Schemas</a>
+				<a class="tool-nav-item" href="${escapeHtml(config.dinput8ChainStandardUrl)}">${icon('external')} DInput8 Standard</a>
+			</div>
 		</div>
 	</aside>`
 }
@@ -45,7 +52,7 @@ export function renderModSettingsPage({ config, siteUrl, version, manifest, exte
 	<a class="skip-link" href="#main-content">Skip to Mod Settings</a>
 	${renderSiteHeader(config, 'tools')}
 	<div class="page-shell tool-shell">
-		${renderToolsSidebar('mod-settings')}
+		${renderToolsSidebar('mod-settings', config)}
 		<main id="main-content" class="main-content mod-settings-main" data-mod-settings-tool>
 			<section class="page-intro tool-intro" aria-labelledby="page-title">
 				<div class="eyebrow">SHROUDFORGE TOOLS · MODDING</div>

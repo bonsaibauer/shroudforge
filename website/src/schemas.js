@@ -10,3 +10,24 @@ document.addEventListener('click', async event => {
 		status.textContent = 'Copy is unavailable. Select the JSON URL above.'
 	}
 })
+
+const versionPicker = document.querySelector('[data-schema-version]')
+if (versionPicker) {
+	const versionSections = [...document.querySelectorAll('[data-schema-version-section]')]
+	const manifestExample = document.querySelector('[data-schema-manifest-example]')
+	const sourceLink = document.querySelector('[data-schema-source-link]')
+
+	versionPicker.addEventListener('change', () => {
+		const selectedOption = versionPicker.selectedOptions[0]
+		const selectedVersion = versionPicker.value
+		for (const section of versionSections) {
+			section.hidden = section.dataset.schemaVersionSection !== selectedVersion
+		}
+		if (manifestExample && selectedOption?.dataset.manifestSchemaUrl) {
+			manifestExample.textContent = `"$schema": "${selectedOption.dataset.manifestSchemaUrl}"`
+		}
+		if (sourceLink && selectedOption) {
+			sourceLink.href = selectedOption.dataset.sourceUrl || '#'
+		}
+	})
+}

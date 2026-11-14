@@ -163,7 +163,7 @@ async function validate() {
   const toolTags = tagsFrom(toolHtml);
   assert(/^<!doctype html>/i.test(toolHtml.trimStart()), "Mod-Settings must be an HTML5 document.");
   assert((toolHtml.match(/<h1\b/gi) || []).length === 1 && /<h1[^>]*>Mod-Settings<\/h1>/i.test(toolHtml), "Mod-Settings needs one visible title.");
-  assert(toolHtml.includes('class="tools-category-label">Modding</div>') && toolHtml.includes('aria-current="page">Mod-Settings</a>'), "Mod-Settings must appear under the Modding category in the Tools sidebar.");
+  assert(/<div class="tools-nav-group">\s*<div class="tools-category-label">Modding<\/div>\s*<a[^>]*href="\/tools\/modding\/mod-settings\/"[^>]*>Mod-Settings<\/a>\s*<\/div>/.test(toolHtml), "Mod-Settings must appear under the Modding category in the Tools sidebar.");
   assert(toolHtml.includes(`value="${repositoryVersion}">${repositoryVersion}</option>`), "The preview selector must display only the current repository Modloader version.");
   assert(toolHtml.includes('data-json-editor="manifest"') && toolHtml.includes('data-json-editor="extended"'), "Mod-Settings must expose both manifest JSON editors.");
   assert(["id", "name", "version", "description", "authors", "license", "icon"].every(field => toolHtml.includes(`data-manifest-field="${field}"`)) && !toolHtml.includes('data-manifest-field="$schema"') && toolHtml.includes("data-manifest-dependencies") && toolHtml.includes("data-manifest-capabilities"), "The Mod-Settings form must expose manifest metadata, dependencies and capabilities without a manual schema-path field.");
@@ -174,6 +174,8 @@ async function validate() {
   assert(toolTags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/mod-settings.js"), "Mod-Settings browser controls are missing.");
   const toolNavigation = toolHtml.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/i)?.[1] || "";
   assert(tagsFrom(toolNavigation).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/mod-settings/"), "The Tools navigation must keep the Mod-Settings route reachable.");
+  const standardsNavGroup = toolHtml.match(/<div class="tools-nav-group">\s*<div class="tools-category-label">Standards<\/div>([\s\S]*?)<\/div>\s*<\/div>\s*<\/aside>/)?.[0] || "";
+  assert(standardsNavGroup.includes('href="/schemas/">Schemas</a>') && standardsNavGroup.includes('class="icon ') && standardsNavGroup.includes("DInput8 Standard") && tagsFrom(standardsNavGroup).some(tag => tag.name === "a" && tag.attributes.href === config.dinput8ChainStandardUrl), "The Standards category must link to Schemas and the DInput8 Wiki article with an external-link icon.");
   const example = JSON.parse(toolHtml.match(/<template id="mod-settings-example">([\s\S]*?)<\/template>/i)?.[1]?.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") || "null");
   const starterManifest = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/mod.json"), "utf8"));
   const starterExtended = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/extended.mod.json"), "utf8"));
@@ -211,14 +213,15 @@ async function validate() {
   const robots = await readRequired("robots.txt");
   assert(robots.includes("Allow: /") && robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`), "Website robots.txt does not expose the canonical sitemap.");
   const sitemap = await readRequired("sitemap.xml");
-  assert(sitemap.includes(`<loc>${siteUrl}/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/mod-settings/</loc>`) && sitemap.includes(`<loc>${siteUrl}/schemas/</loc>`), "Website sitemap must contain the canonical homepage, Mod-Settings tool and schema catalog.");
+  assert(sitemap.includes(`<loc>${siteUrl}/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/mod-settings/</loc>`) && sitemap.includes(`<loc>${siteUrl}/schemas/</loc>`) && !sitemap.includes("/standards/dinput8-chain/"), "Website sitemap must contain the homepage, Mod-Settings tool and schema catalog, with external standards linked directly.");
   await validateLocalLinks(toolTags, siteUrl, toolRelative);
   const schemaHtml = await readRequired("schemas/index.html");
   const schemaTags = tagsFrom(schemaHtml);
-  assert(/^<!doctype html>/i.test(schemaHtml.trimStart()) && schemaHtml.includes("SDK &amp; Schemas"), "The SDK & Schemas catalog must render as an HTML page.");
-  assert(schemaHtml.includes(`href="${config.dinput8ChainStandardUrl}"`) && schemaHtml.includes("DInput8 chain interoperability"), "The schema catalog must link to the shared DInput8 chain standard article.");
-  assert(schemaHtml.includes(`Modloader ${repositoryVersion}`) && schemaHtml.includes("Current version"), "The schema catalog must identify the current Modloader schema version.");
-  assert(schemaTags.some(tag => tag.name === "link" && tag.attributes.rel === "canonical" && tag.attributes.href === `${siteUrl}/schemas/`), "The SDK & Schemas page must declare its canonical URL.");
+  assert(/^<!doctype html>/i.test(schemaHtml.trimStart()) && schemaHtml.includes("<title>Schemas |") && /<h1[^>]*>Schemas<\/h1>/i.test(schemaHtml), "The schema catalog must render as an HTML page titled Schemas.");
+  assert(!schemaHtml.includes('class="schema-standard-panel'), "The DInput8 standard card must be separate from the schema catalog page.");
+  assert(schemaHtml.includes('data-schema-version aria-label="Modloader version"') && schemaHtml.includes(`value="${repositoryVersion}"`) && schemaHtml.includes('selected>'), "The schema catalog must select the current Modloader version.");
+  assert(schemaTags.some(tag => tag.name === "link" && tag.attributes.rel === "canonical" && tag.attributes.href === `${siteUrl}/schemas/`), "The Schemas page must declare its canonical URL.");
+  await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
   const schemaNames = ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"];
   const snapshotDirectory = path.resolve(import.meta.dirname, "../schema-snapshots");
   const versions = (await fs.readdir(snapshotDirectory, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name);
@@ -231,7 +234,6 @@ async function validate() {
       assert(typeof schema.$schema === "string", `Published schema must declare its JSON Schema dialect: ${relative}`);
     }
   }
-  await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
   console.log(`Validated download website: ${feed.releases.length} releases, ${securityCount} security reports, Mod-Settings v${repositoryVersion}, versioned schemas, static preview assets and SEO metadata.`);
 }
 
