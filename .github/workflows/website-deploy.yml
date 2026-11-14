@@ -1,4 +1,4 @@
-name: Deploy ShroudForge download website
+name: Deploy shroudforge.net website
 
 on:
   workflow_dispatch:

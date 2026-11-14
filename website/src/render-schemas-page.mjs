@@ -55,7 +55,7 @@ export function renderSchemasPage({ config, siteUrl, schemaVersions, currentVers
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Schemas | ${escapeHtml(config.name)}</title>
+	<title>Schema | ${escapeHtml(config.name)}</title>
 	<meta name="description" content="Versioned ShroudForge Modloader schemas for mod manifests, settings extensions and localized mod text.">
 	<meta name="theme-color" content="#ffffff">
 	<meta name="color-scheme" content="light">
@@ -69,7 +69,7 @@ export function renderSchemasPage({ config, siteUrl, schemaVersions, currentVers
 	<script src="/assets/schemas.js" defer></script>
 </head>
 <body>
-	<a class="skip-link" href="#main-content">Skip to Schemas</a>
+	<a class="skip-link" href="#main-content">Skip to Schema</a>
 	${renderSiteHeader(config, 'tools')}
 	<div class="page-shell tool-shell">
 		${renderToolsSidebar('schemas', config)}

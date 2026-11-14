@@ -217,10 +217,10 @@ async function validate() {
   await validateLocalLinks(toolTags, siteUrl, toolRelative);
   const schemaHtml = await readRequired("schemas/index.html");
   const schemaTags = tagsFrom(schemaHtml);
-  assert(/^<!doctype html>/i.test(schemaHtml.trimStart()) && schemaHtml.includes("<title>Schemas |") && /<h1[^>]*>Schemas<\/h1>/i.test(schemaHtml), "The schema catalog must render as an HTML page titled Schemas.");
+  assert(/^<!doctype html>/i.test(schemaHtml.trimStart()) && schemaHtml.includes("<title>Schema |") && /<h1[^>]*>Schema<\/h1>/i.test(schemaHtml), "The schema catalog must render as an HTML page titled Schema.");
   assert(!schemaHtml.includes('class="schema-standard-panel'), "The DInput8 standard card must be separate from the schema catalog page.");
   assert(schemaHtml.includes('data-schema-version aria-label="Modloader version"') && schemaHtml.includes(`value="${repositoryVersion}"`) && schemaHtml.includes('selected>'), "The schema catalog must select the current Modloader version.");
-  assert(schemaTags.some(tag => tag.name === "link" && tag.attributes.rel === "canonical" && tag.attributes.href === `${siteUrl}/schemas/`), "The Schemas page must declare its canonical URL.");
+  assert(schemaTags.some(tag => tag.name === "link" && tag.attributes.rel === "canonical" && tag.attributes.href === `${siteUrl}/schemas/`), "The Schema page must declare its canonical URL.");
   await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
   const schemaNames = ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"];
   const snapshotDirectory = path.resolve(import.meta.dirname, "../schema-snapshots");
