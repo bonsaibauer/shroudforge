@@ -9,6 +9,7 @@ if (tool) {
   const extendedEditor = tool.querySelector('[data-json-editor="extended"]')
   const preview = tool.querySelector('[data-modloader-preview]')
   const versionSelect = tool.querySelector('[data-modloader-version]')
+  const exampleSourceLink = tool.querySelector('[data-example-source-link]')
   const settingCatalog = tool.querySelector('[data-setting-catalog]')
   const settingFields = tool.querySelector('[data-setting-fields]')
   const settingItems = tool.querySelector('[data-setting-items]')
@@ -808,6 +809,9 @@ if (tool) {
 
   versionSelect.addEventListener('change', () => {
     currentVersion = versionSelect.value
+    if (exampleSourceLink?.dataset.versionUrlTemplate) {
+      exampleSourceLink.href = exampleSourceLink.dataset.versionUrlTemplate.replace('{version}', encodeURIComponent(currentVersion))
+    }
     updateSchemaReferences()
     publishPreview()
   })

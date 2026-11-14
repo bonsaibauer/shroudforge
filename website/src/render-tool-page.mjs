@@ -31,6 +31,8 @@ export function renderModSettingsPage({ config, siteUrl, version, manifest, exte
 	const toolTitle = 'Mod Settings editor and live preview'
 	const description = 'Build a mod settings page in your browser. Preview the current ShroudForge Modloader UI and edit mod.json and extended.mod.json together.'
 	const example = { manifest, extended, links, version, schemaBaseUrl: new URL('/schemas/', siteUrl).href }
+	const exampleSourceUrl = config.repository ? `https://github.com/${config.repository}/tree/${version}/docs/examples/starter-mod` : '#'
+	const exampleSourceUrlTemplate = config.repository ? `https://github.com/${config.repository}/tree/{version}/docs/examples/starter-mod` : '#'
 	return `<!doctype html>
 <html lang="en" data-theme="light">
 <head>
@@ -61,7 +63,7 @@ export function renderModSettingsPage({ config, siteUrl, version, manifest, exte
 			<section class="mod-preview-section panel" aria-labelledby="preview-heading">
 				<div class="tool-section-heading">
 					<div><span class="eyebrow">LIVE MODLOADER UI</span><h2 id="preview-heading">Your mod preview</h2><p>One example mod is loaded. Preview controls work locally and never send data to a server.</p></div>
-					<label class="preview-version-picker"><span>Modloader version</span><select data-modloader-version aria-label="Modloader version"><option value="${escapeHtml(version)}">${escapeHtml(version)}</option></select></label>
+					<div class="preview-version-controls"><label class="preview-version-picker"><span>Modloader version</span><select data-modloader-version aria-label="Modloader version"><option value="${escapeHtml(version)}">${escapeHtml(version)}</option></select></label><a class="preview-example-source-link" data-example-source-link data-version-url-template="${escapeHtml(exampleSourceUrlTemplate)}" href="${escapeHtml(exampleSourceUrl)}" target="_blank" rel="noopener" aria-label="Open the Starter Mod example on GitHub" title="Open the Starter Mod example on GitHub">${icon('github')}</a></div>
 				</div>
 				<iframe class="modloader-preview-frame" data-modloader-preview src="${route}preview.html" title="Live ShroudForge Modloader preview" loading="eager" scrolling="no"></iframe>
 			</section>
