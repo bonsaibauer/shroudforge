@@ -2,7 +2,7 @@
   "name": "shroudforge-website",
   "private": true,
   "scripts": {
-    "downloads:build": "node website/tools/build-site.mjs",
+    "downloads:build": "node website/tools/build-site.mjs && npm --prefix modules/modloader/ui run website-preview",
     "downloads:validate": "node website/tools/validate-site.mjs",
     "downloads:test": "node --test website/tests/*.test.mjs",
     "downloads:check": "npm run downloads:test && npm run downloads:build && npm run downloads:validate",

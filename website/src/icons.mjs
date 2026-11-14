@@ -15,6 +15,7 @@ const paths = {
 	discord: '<path d="M8 5a16 16 0 0 1 8 0l1-2 3 1c2 3 3 7 3 11a16 16 0 0 1-6 4l-1-2a14 14 0 0 0 2-1 14 14 0 0 1-12 0l2 1-1 2a16 16 0 0 1-6-4C1 11 2 7 4 4l3-1 1 2Z"/><path d="M8 11v2m8-2v2"/>',
 	youtube: '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/>',
 	branch: '<circle cx="6" cy="5" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="19" r="3"/><path d="M6 8v8M18 9a9 9 0 0 1-9 9"/>',
+	sliders: '<path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M2 14h4m4-6h4m4 8h4"/>',
 }
 
 export function icon(name, className = '') {

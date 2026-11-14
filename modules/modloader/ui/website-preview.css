@@ -1,0 +1,18 @@
+html{scrollbar-gutter:stable}
+html,body,#root{width:100%;height:auto;min-height:0;overflow:visible}
+body{overflow:hidden!important;scrollbar-gutter:stable}
+.website-preview-shell{color:var(--sf-text);background:radial-gradient(circle at 78% -12%,rgba(65,149,182,.13),transparent 35%),radial-gradient(circle at 6% 100%,rgba(202,170,103,.08),transparent 30%),var(--sf-bg)}
+.website-preview-topbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;min-height:54px;padding:0 20px;border-bottom:1px solid var(--sf-line);background:rgba(8,16,19,.92);backdrop-filter:blur(18px);font-size:10px;letter-spacing:.08em}
+.preview-brand-mark{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;color:#091114;background:linear-gradient(135deg,#e2cd98,#a98845);font-weight:900;letter-spacing:-.06em}
+.website-preview-content{min-height:0;max-width:940px;margin:0 auto;padding:28px clamp(16px,4vw,38px) 34px;overflow:visible}
+.website-preview-content>*{max-width:none}
+.website-preview-content .page-header{margin-bottom:20px}
+.website-preview-content .page-header h1{font-size:23px}
+.website-preview-actions{display:flex;gap:7px}
+.website-preview-actions .button{min-height:32px;padding:0 10px;font-size:10px}
+.website-preview-content .mod-status-row{margin-bottom:12px}
+.website-preview-content .segments{margin-bottom:16px}
+.website-preview-content .card{margin-bottom:0}
+.website-preview-loading,.website-preview-error{display:grid;place-items:center;padding:20px;color:#aababc;background:#10191b;font:12px/1.6 "Segoe UI",sans-serif}
+.website-preview-error{color:#ffb5b8}
+@media(max-width:760px){.website-preview-topbar{min-height:48px;padding:0 13px}.website-preview-content{padding:20px 14px 24px}.website-preview-content .page-header h1{font-size:20px}.website-preview-actions .button{min-height:30px;padding:0 8px}}
