@@ -42,4 +42,4 @@ Whether a missing or incompatible dependency blocks startup.
 
 ## Source
 
-Schema: [mod.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/manifest/manifest.schema.json). The package reader checks additional relationships between fields.
+Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). The package reader checks additional relationships between fields.

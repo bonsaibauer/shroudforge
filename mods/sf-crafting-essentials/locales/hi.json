@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "SF Crafting Essentials",
     "description": "रेसिपी लागत और उत्पादन समय को समायोजित करता है और उपयोग किए जाने पर समर्थित वस्तुओं को उपभोग होने से रोकता है।"

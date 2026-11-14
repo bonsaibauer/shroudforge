@@ -30,7 +30,7 @@ mods/your-mod/
 └── src/mod.lua
 ```
 
-Das Schema steht unter [`mod-locale.schema.json`](https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json). Locale-Dateien sind optional und ändern weder `mod.json` noch `extended.mod.json` oder die gespeicherten Einstellungswerte.
+Das Schema steht unter [`mod-locale.schema.json`](https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json). Locale-Dateien sind optional und ändern weder `mod.json` noch `extended.mod.json` oder die gespeicherten Einstellungswerte.
 
 ## Sichtbare Modloader-Texte
 
@@ -38,7 +38,7 @@ Das Schema steht unter [`mod-locale.schema.json`](https://bonsaibauer.github.io/
 
 ```json
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": { "name": "Mein Mod", "description": "Eine lokalisierte Beschreibung." },
   "settings": {
     "severity": {

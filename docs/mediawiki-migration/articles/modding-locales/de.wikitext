@@ -14,11 +14,11 @@ source: modules/wiki/articles/modding-locales/de.md
 
 Lege pro Sprache eine Datei unter <code>locales/&lt;code&gt;.json</code> an. Aktuelle Codes aus der Modloader-Sprachauswahl sind <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code> und <code>zh</code>. Der Dateiname entspricht exakt dem Code. Die Dateien sind zusätzlich zu <code>mod.json</code> und <code>extended.mod.json</code>.
 
-Das Schema steht unter [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. Ein Locale-Katalog kann <code>mod.name</code> und <code>mod.description</code>, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-<code>strings</code> enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
+Das Schema steht unter [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json <code>mod-locale.schema.json</code>]. Ein Locale-Katalog kann <code>mod.name</code> und <code>mod.description</code>, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-<code>strings</code> enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
 
 <pre>
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Protokollstufe",

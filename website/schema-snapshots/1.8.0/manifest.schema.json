@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+  "$id": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
   "title": "EML mod manifest",
   "type": "object",
   "additionalProperties": false,

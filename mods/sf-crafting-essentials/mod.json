@@ -1,5 +1,5 @@
 {
-  "$schema": "../../modules/modloader/manifest/manifest.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
   "id": "sf-crafting-essentials",
   "name": "SF Crafting Essentials",
   "version": "1.0.0",

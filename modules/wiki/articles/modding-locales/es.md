@@ -6,11 +6,11 @@ Los textos visibles del Modloader y los textos de Lua usan los mismos archivos d
 
 Añade un archivo `locales/<código>.json` por cada idioma. Los códigos actuales del selector de idioma del Modloader son `de`, `de-AT`, `de-CH`, `en-GB`, `en-US`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` y `zh`. El nombre del archivo debe coincidir exactamente con el código. Estos archivos se guardan junto a `mod.json` y `extended.mod.json`.
 
-El esquema está publicado en [`mod-locale.schema.json`](https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json). El catálogo puede traducir `mod.name`, `mod.description`, las etiquetas de ajustes y opciones, los grupos, las acciones, las notas de versión y las cadenas Lua bajo `strings`. Los catálogos pueden estar incompletos. El texto original se conserva si falta una traducción.
+El esquema está publicado en [`mod-locale.schema.json`](https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json). El catálogo puede traducir `mod.name`, `mod.description`, las etiquetas de ajustes y opciones, los grupos, las acciones, las notas de versión y las cadenas Lua bajo `strings`. Los catálogos pueden estar incompletos. El texto original se conserva si falta una traducción.
 
 ```json
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Nivel del registro",
