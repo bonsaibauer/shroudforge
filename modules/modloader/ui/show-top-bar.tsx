@@ -49,6 +49,14 @@ export function TopBar({
   const { t } = useI18n()
   const [password, setPassword] = useState('')
   const passwordValid = new TextEncoder().encode(password).length <= 1024
+  const serverAdminWikiHelp = (
+    <WikiHelp
+      articleId="modloader-p2p-connection"
+      compact
+      moduleSettings={data.settings.modulePreferences?.wiki as WikiModuleSettings | undefined}
+      onOpenCategory={onOpenWikiCategory}
+    />
+  )
   useEffect(() => {
     if (remoteTarget !== 'server' || serverAdminAuthenticated || !serverAdminLoginAvailable) {
       setPassword('')
@@ -159,6 +167,15 @@ export function TopBar({
                     : t('serverAdmin.unavailableTitle')}
               </h2>
             </div>
+            <button
+              className="window-control window-close"
+              type="button"
+              onClick={() => onRemoteTargetChange('client')}
+              aria-label={t('common.close')}
+              title={t('common.close')}
+            >
+              ×
+            </button>
           </header>
           <div className="modal-body">
             <div className="server-admin-visual" aria-hidden="true">
@@ -249,14 +266,7 @@ export function TopBar({
                     <p className="remote-admin-error" role="alert">{serverAdminLoginError}</p>
                   )}
                   <div className="remote-admin-actions">
-                    <button
-                      className="button ghost"
-                      type="button"
-                      disabled={serverAdminLoginPending}
-                      onClick={() => onRemoteTargetChange('client')}
-                    >
-                      {t('common.cancel')}
-                    </button>
+                    {serverAdminWikiHelp}
                     <button
                       className="button"
                       type="submit"
@@ -287,21 +297,9 @@ export function TopBar({
                     ? 'serverAdmin.enterWorld'
                     : 'serverAdmin.serverNotConnected')}</p>
                 )}
-                <button
-                  className="button ghost"
-                  type="button"
-                  onClick={() => onRemoteTargetChange('client')}
-                >
-                  {t('common.cancel')}
-                </button>
+                {serverAdminWikiHelp}
               </div>
             )}
-            <WikiHelp
-              articleId="modloader-p2p-connection"
-              compact
-              moduleSettings={data.settings.modulePreferences?.wiki as WikiModuleSettings | undefined}
-              onOpenCategory={onOpenWikiCategory}
-            />
           </div>
         </section>
       </div>

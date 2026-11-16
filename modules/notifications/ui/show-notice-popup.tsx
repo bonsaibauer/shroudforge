@@ -46,7 +46,15 @@ export function Chirper({
               )}
             </div>
           </div>
-          <button onClick={close}>×</button>
+          <button
+            className="window-control window-close"
+            type="button"
+            onClick={close}
+            aria-label={t('common.close')}
+            title={t('common.close')}
+          >
+            ×
+          </button>
         </header>
         <div className="modal-body">
           {items.length ? (
