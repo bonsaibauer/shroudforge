@@ -3947,6 +3947,7 @@ dependencies = [
  "shroudforge-player-name",
  "shroudforge-release-feed",
  "shroudforge-runtime-diagnostics",
+ "shroudforge-steam-networking",
  "shroudforge-ui-resources",
  "shroudforge-window-management",
  "tao",
@@ -4036,10 +4037,13 @@ name = "shroudforge-steam-networking"
 version = "1.0.0"
 dependencies = [
  "mlua",
+ "semver",
  "serde_json",
+ "shroudforge-hotkeys",
  "shroudforge-loader-config",
  "shroudforge-package",
  "tracing",
+ "uuid",
  "windows-sys 0.61.2",
 ]
 

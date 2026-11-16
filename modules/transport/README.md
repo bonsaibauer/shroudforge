@@ -1,6 +1,8 @@
 # Built-in Steam Networking module
 
-This module supplies the Windows runtime binding for Steam Networking Messages. The game initializes Steam. The module only uses the client or dedicated-server interface already loaded in that process. It ships with ShroudForge and is not a `mod.json` package.
+This module supplies the Windows runtime binding for Steam Networking Messages. The game initializes Steam. The module only uses the client or dedicated-server interface already loaded in that process. It ships with ShroudForge and is not a `mod.json` package. Channel 65534 is reserved internally for Modloader file mirroring; Lua mods can use channels 0 through 65533. Channel 65535 remains reserved for Network health checks.
+
+The Modloader mirrors the existing server settings and logs over that same channel. A server settings change uses the current mirror as its expected version; the server checks it under the existing installation write lock before saving, then returns the canonical settings. Server writes require an in-memory session token issued after the server validates a `userGroups` password in `enshrouded_server.json` and confirms all five admin permission flags. The password is sent only to the server, never returned to the client UI, and never persisted by ShroudForge.
 
 Runtime mods use `runtime.network`:
 

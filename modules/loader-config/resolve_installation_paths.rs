@@ -122,6 +122,15 @@ pub fn config_dir(root: &Path) -> PathBuf {
 pub fn loader_config(root: &Path) -> PathBuf {
     config_dir(root).join("modloader-config.json")
 }
+pub fn remote_server_config(root: &Path) -> PathBuf {
+    config_dir(root).join("server-modloader-config.json")
+}
+pub fn remote_server_game_log(root: &Path) -> PathBuf {
+    logs_dir(root).join("enshrouded_server.log")
+}
+pub fn remote_server_loader_log(root: &Path) -> PathBuf {
+    logs_dir(root).join("shroudforge-server.log")
+}
 pub fn version_file(root: &Path) -> PathBuf {
     data_dir(root).join("version.json")
 }

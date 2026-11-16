@@ -1,4 +1,14 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum RemoteServerConnectionState {
+    Connecting = 0,
+    Connected = 1,
+    Disconnected = 2,
+}
+
+static NETWORK_REMOTE_SERVER_STATE: AtomicU8 = AtomicU8::new(0);
 
 static NETWORK_ACKS_REPORTED: AtomicU64 = AtomicU64::new(0);
 static NETWORK_SEND_FAILURES_REPORTED: AtomicU64 = AtomicU64::new(0);
@@ -6,8 +16,17 @@ static NETWORK_PROBE_TIMEOUTS_REPORTED: AtomicU64 = AtomicU64::new(0);
 static NETWORK_SERVICE_STATE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 static NETWORK_PROBE_OUTAGE_REPORTED: AtomicBool = AtomicBool::new(false);
 static NETWORK_ACKNOWLEDGED_PEER: AtomicU64 = AtomicU64::new(0);
+static NETWORK_REMOTE_SERVER_PEER: AtomicU64 = AtomicU64::new(0);
 static NETWORK_PROBE_LAST_FAILURE: std::sync::Mutex<Option<std::time::Instant>> =
     std::sync::Mutex::new(None);
+
+pub fn remote_server_connection_state() -> RemoteServerConnectionState {
+    match NETWORK_REMOTE_SERVER_STATE.load(Ordering::Acquire) {
+        1 => RemoteServerConnectionState::Connected,
+        2 => RemoteServerConnectionState::Disconnected,
+        _ => RemoteServerConnectionState::Connecting,
+    }
+}
 
 fn network_probe_failure_started() -> bool {
     let mut last_failure = NETWORK_PROBE_LAST_FAILURE
@@ -39,6 +58,52 @@ pub fn report_network_health(
 ) {
     crate::service_tick(authorized_clients, restrict_network_clients);
     let network = crate::status();
+    let remote_server_peer = network
+        .remote_dedicated_server_steam_id
+        .as_deref()
+        .and_then(|peer| peer.parse::<u64>().ok())
+        .unwrap_or_default();
+    let previous_remote_server_peer =
+        NETWORK_REMOTE_SERVER_PEER.swap(remote_server_peer, Ordering::AcqRel);
+    let previous_remote_server_state = remote_server_connection_state();
+    let remote_server_state = if remote_server_peer != 0 {
+        RemoteServerConnectionState::Connected
+    } else if previous_remote_server_peer != 0
+        || previous_remote_server_state == RemoteServerConnectionState::Disconnected
+        || network.service_ready
+    {
+        RemoteServerConnectionState::Disconnected
+    } else {
+        RemoteServerConnectionState::Connecting
+    };
+    NETWORK_REMOTE_SERVER_STATE.store(remote_server_state as u8, Ordering::Release);
+    if remote_server_state != previous_remote_server_state {
+        match remote_server_state {
+            RemoteServerConnectionState::Connecting => tracing::info!(
+                target: "shroudforge::network",
+                "Steam P2P service is starting; remote server status is pending"
+            ),
+            RemoteServerConnectionState::Connected => tracing::info!(
+                target: "shroudforge::network",
+                peer = remote_server_peer,
+                "Remote server P2P health probe confirmed"
+            ),
+            RemoteServerConnectionState::Disconnected => {
+                if previous_remote_server_state == RemoteServerConnectionState::Connected {
+                    tracing::warn!(
+                        target: "shroudforge::network",
+                        peer = previous_remote_server_peer,
+                        "Remote server P2P health probe expired"
+                    );
+                } else {
+                    tracing::warn!(
+                        target: "shroudforge::network",
+                        "Steam P2P service is ready but no remote server health probe is confirmed"
+                    );
+                }
+            }
+        }
+    }
     let network_state = if !network.available {
         2
     } else if network.service_ready {

@@ -5,6 +5,8 @@
 //! loaded Steam API DLL and passes bounded messages through the native runtime.
 
 pub const MAX_MESSAGE_BYTES: usize = 512 * 1024;
+/// Reserved for Modloader file mirroring. 65535 remains Network health.
+pub const REMOTE_UI_CHANNEL: i32 = 65_534;
 
 #[cfg(windows)]
 static RECEIVE_BUFFER: std::sync::OnceLock<std::sync::Mutex<Vec<u8>>> = std::sync::OnceLock::new();
@@ -85,13 +87,27 @@ pub fn send(
     channel: i32,
     reliable: bool,
 ) -> Result<(), String> {
+    send_on_channel(peer_steam_id, payload, channel, reliable, false)
+}
+
+pub(crate) fn send_remote_ui(peer_steam_id: u64, payload: &[u8]) -> Result<(), String> {
+    send_on_channel(peer_steam_id, payload, REMOTE_UI_CHANNEL, true, true)
+}
+
+fn send_on_channel(
+    peer_steam_id: u64,
+    payload: &[u8],
+    channel: i32,
+    reliable: bool,
+    remote_ui: bool,
+) -> Result<(), String> {
     if peer_steam_id == 0 {
         return Err("peer Steam ID must be nonzero".into());
     }
     if payload.len() > MAX_MESSAGE_BYTES {
         return Err(format!("payload exceeds {MAX_MESSAGE_BYTES} bytes"));
     }
-    validate_channel(channel)?;
+    validate_channel(channel, remote_ui)?;
     #[cfg(windows)]
     unsafe {
         type NetworkSend = unsafe extern "C" fn(u64, *const u8, usize, i32, i32) -> i32;
@@ -250,7 +266,15 @@ pub fn connected_peers() -> Result<Vec<String>, String> {
 }
 
 pub fn receive(channel: i32) -> Result<Option<Message>, String> {
-    validate_channel(channel)?;
+    receive_on_channel(channel, false)
+}
+
+pub(crate) fn receive_remote_ui() -> Result<Option<Message>, String> {
+    receive_on_channel(REMOTE_UI_CHANNEL, true)
+}
+
+fn receive_on_channel(channel: i32, remote_ui: bool) -> Result<Option<Message>, String> {
+    validate_channel(channel, remote_ui)?;
     #[cfg(windows)]
     unsafe {
         type NetworkReceive =
@@ -290,12 +314,13 @@ pub fn receive(channel: i32) -> Result<Option<Message>, String> {
     Err("Steam Networking Messages is supported only by the Windows game runtime".into())
 }
 
-fn validate_channel(channel: i32) -> Result<(), String> {
-    if !(0..=65_534).contains(&channel) {
-        return Err(
-            "channel must be between 0 and 65534; 65535 is reserved for Network health checks"
-                .into(),
-        );
+fn validate_channel(channel: i32, remote_ui: bool) -> Result<(), String> {
+    if remote_ui {
+        if channel != REMOTE_UI_CHANNEL {
+            return Err("invalid internal Modloader UI channel".into());
+        }
+    } else if !(0..=65_533).contains(&channel) {
+        return Err("channel must be between 0 and 65533; 65534 is reserved for Modloader UI and 65535 for Network health checks".into());
     }
     Ok(())
 }
@@ -330,7 +355,14 @@ fn symbol(name: &[u8]) -> Option<*const ()> {
 #[path = "lua/network.rs"]
 pub mod lua;
 
+mod remote_ui;
+pub use remote_ui::tick as service_remote_ui;
+mod local_bridge;
+pub use local_bridge::submit as request_remote_ui;
+
 mod read_network_allowlist;
 mod report_network_health;
 pub use read_network_allowlist::read_network_allowlist;
-pub use report_network_health::report_network_health;
+pub use report_network_health::{
+    RemoteServerConnectionState, remote_server_connection_state, report_network_health,
+};
