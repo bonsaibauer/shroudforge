@@ -37,6 +37,7 @@ use super::refresh_installed_mod::refresh_installed_mod;
 use super::refresh_ui_snapshot::SnapshotRefresher;
 use super::reload_loader_settings::reload_loader_settings;
 use super::report_command_result::report_command_result;
+use super::report_command_result::report_command_result_with_group_name;
 use super::request_diagnostics::request_diagnostics;
 use super::request_mod_action::request_mod_action;
 use super::request_module_visibility::request_module_visibility;
@@ -115,6 +116,7 @@ pub(crate) enum UiEvent {
     KeybindCaptureFailed(String, String),
     PageCursor(tao::window::CursorIcon),
     RemoteCommandResult(String, String, Result<(), String>, &'static str, bool),
+    RemoteAdminLoginResult(String, Result<String, String>),
     RemoteModResponse(String, String, serde_json::Value),
 }
 
@@ -1158,7 +1160,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 )
                                 .and_then(|response| {
                                     if response["success"] == true {
-                                        Ok(())
+                                        Ok(response["groupName"]
+                                            .as_str()
+                                            .filter(|name| !name.trim().is_empty())
+                                            .unwrap_or("Server admin")
+                                            .to_owned())
                                     } else {
                                         Err(response["message"]
                                             .as_str()
@@ -1167,20 +1173,14 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                     }
                                 });
                                 password.clear();
-                                let _ = proxy.send_event(UiEvent::RemoteCommandResult(
+                                let _ = proxy.send_event(UiEvent::RemoteAdminLoginResult(
                                     request_id,
-                                    "Sign in to server Modloader".into(),
                                     result,
-                                    "settings.saved",
-                                    false,
                                 ));
                             }) {
-                                let _ = failure_proxy.send_event(UiEvent::RemoteCommandResult(
+                                let _ = failure_proxy.send_event(UiEvent::RemoteAdminLoginResult(
                                     failure_request_id,
-                                    "Sign in to server Modloader".into(),
                                     Err(message.into()),
-                                    "settings.saved",
-                                    false,
                                 ));
                             }
                         }
@@ -1511,6 +1511,25 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     success_message,
                     None,
                     restore_settings,
+                );
+                next_refresh = Instant::now();
+            }
+            Event::UserEvent(UiEvent::RemoteAdminLoginResult(request_id, result)) => {
+                let (result, group_name) = match result {
+                    Ok(group_name) => (Ok(()), Some(group_name)),
+                    Err(error) => (Err(error), None),
+                };
+                report_command_result_with_group_name(
+                    &arguments.root,
+                    &webview,
+                    &request_id,
+                    "Server Modloader",
+                    "Sign in to server Modloader",
+                    result,
+                    "settings.saved",
+                    None,
+                    false,
+                    group_name.as_deref(),
                 );
                 next_refresh = Instant::now();
             }

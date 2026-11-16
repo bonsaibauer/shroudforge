@@ -20,6 +20,7 @@ pub(crate) fn notify_command_result(
         restore_settings,
         ecosystem,
         None,
+        None,
     );
 }
 
@@ -34,12 +35,16 @@ pub(crate) fn notify_command_result_with_revision(
     restore_settings: bool,
     ecosystem: Option<&str>,
     revision: Option<&str>,
+    group_name: Option<&str>,
 ) {
     let (success, message) = match result {
         Ok(()) => (true, success_message.to_owned()),
         Err(error) => (false, error),
     };
-    let payload = serde_json::json!({"requestId":request_id,"success":success,"message":message,"level":level.as_str(),"batchKey":batch_key,"restoreSettings":restore_settings,"ecosystem":ecosystem,"revision":revision});
+    let mut payload = serde_json::json!({"requestId":request_id,"success":success,"message":message,"level":level.as_str(),"batchKey":batch_key,"restoreSettings":restore_settings,"ecosystem":ecosystem,"revision":revision});
+    if let Some(group_name) = group_name {
+        payload["groupName"] = serde_json::Value::String(group_name.to_owned());
+    }
     if let Ok(payload) = serde_json::to_string(&payload) {
         let _ = webview.evaluate_script(&format!("window.__shroudforgeCommandResult({payload});"));
     }
