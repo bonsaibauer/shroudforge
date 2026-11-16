@@ -53,5 +53,5 @@ pub fn mark_news_read_for_target(
         .filter(|id| valid_news_id(id))
         .cloned()
         .collect::<Vec<_>>();
-    crate::mark_read_for_target(root, &ids, server)
+    mark_read_for_target(root, &ids, server)
 }
