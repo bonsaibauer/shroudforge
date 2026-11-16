@@ -3,6 +3,7 @@ import { Icon } from './show-icon'
 export function HeaderLink({
   label,
   icon,
+  iconOnly = false,
   tone = '',
   badge,
   severity,
@@ -12,6 +13,7 @@ export function HeaderLink({
 }: {
   label: string
   icon: string
+  iconOnly?: boolean
   tone?: string
   badge?: number
   severity?: string
@@ -34,8 +36,9 @@ export function HeaderLink({
               : ''
   return (
     <button
-      className={`header-link ${tone}${severity ? ` chirper--${severity}` : ''}${crowded ? ' chirper-crowded' : ''}`}
-      title={title}
+      className={`header-link ${tone}${iconOnly ? ' icon-only' : ''}${severity ? ` chirper--${severity}` : ''}${crowded ? ' chirper-crowded' : ''}`}
+      aria-label={iconOnly ? label : undefined}
+      title={title ?? (iconOnly ? label : undefined)}
       onClick={onClick}
     >
       {asset ? (
@@ -43,7 +46,7 @@ export function HeaderLink({
       ) : (
         <Icon name={icon} />
       )}
-      <span>{label}</span>
+      {!iconOnly && <span>{label}</span>}
       {marker && (
         <i className="chirper-severity-mark" aria-hidden="true">
           {marker}

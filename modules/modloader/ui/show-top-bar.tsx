@@ -51,6 +51,7 @@ export function TopBar({
         <HeaderLink
           label={t('header.github')}
           icon="github"
+          iconOnly
           tone="github"
           onClick={() => external('https://github.com/bonsaibauer/shroudforge')}
         />
