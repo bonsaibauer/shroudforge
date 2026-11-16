@@ -79,6 +79,7 @@ pub(crate) struct Snapshot {
     pub(crate) notices: Vec<shroudforge_news::Notice>,
     pub(crate) news_templates: serde_json::Value,
     pub(crate) read_notice_ids: Vec<String>,
+    pub(crate) read_notice_ids_server: Vec<String>,
     pub(crate) release: serde_json::Value,
     pub(crate) release_announcement: serde_json::Value,
     pub(crate) update_queue: serde_json::Value,
@@ -93,6 +94,7 @@ pub(crate) struct Snapshot {
 pub(crate) struct SnapshotSettings {
     pub(crate) config_revision: String,
     pub(crate) module_preferences: serde_json::Value,
+    pub(crate) target_ui: serde_json::Value,
     pub(crate) protected_hotkeys: shroudforge_package::ProtectedHotkeyGroups,
     pub(crate) compact_mode: bool,
     pub(crate) reduced_motion: bool,

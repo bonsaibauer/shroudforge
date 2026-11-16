@@ -40,7 +40,6 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "toggleKey",
                         "refreshMilliseconds",
                         "tailBytes",
-                        "visibleInServerTarget",
                     ][..],
                 ),
                 (
@@ -50,7 +49,6 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "startPage",
                         "toggleKey",
                         "refreshMilliseconds",
-                        "visibleInServerTarget",
                     ][..],
                 ),
                 (
@@ -61,7 +59,6 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "pageSize",
                         "maxResultsPerQuery",
                         "refreshIntervalMinutes",
-                        "visibleInServerTarget",
                     ][..],
                 ),
                 (
@@ -70,12 +67,11 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "enabled",
                         "toggleKey",
                         "refreshMilliseconds",
-                        "visibleInServerTarget",
                     ][..],
                 ),
                 (
                     "gameProfileDiscovery",
-                    &["enabled", "visibleInServerTarget"][..],
+                    &["enabled"][..],
                 ),
                 (
                     "runtimeDiagnostics",
@@ -87,7 +83,6 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "slowCallbackMilliseconds",
                         "continuous",
                         "onlyChanges",
-                        "visibleInServerTarget",
                     ][..],
                 ),
             ] {

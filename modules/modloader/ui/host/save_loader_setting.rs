@@ -30,6 +30,7 @@ pub(crate) fn save_setting_to(
                 | "zoomPercent"
                 | "usernameMode"
                 | "messageNameFallback"
+                | "uiTargets"
         ) {
             return Err("unsupported general setting".into());
         }
@@ -131,23 +132,6 @@ pub(crate) fn save_setting_to(
         return Err("unsupported settings scope".into());
     }
     let module = module.ok_or("missing module setting target")?;
-    let supports_server_target_visibility = matches!(
-        module,
-        "modDetection"
-            | "dllManager"
-            | "debugConsole"
-            | "worldEditor"
-            | "network"
-            | "modloaderUi"
-            | "wiki"
-            | "runtimeDiagnostics"
-            | "gameProfileDiscovery"
-            | "updates"
-    );
-    if key == "visibleInServerTarget" && supports_server_target_visibility && !setting.is_boolean()
-    {
-        return Err("server target visibility must be boolean".into());
-    }
     let module_setting_valid = match module {
         "modDetection" => matches!(key, "enabled" | "tolerateUnknownManifestFields"),
         "dllManager" => matches!(key, "enabled" | "profiles" | "excludedDllNames"),
@@ -194,9 +178,7 @@ pub(crate) fn save_setting_to(
         "updates.recycleBin" => matches!(key, "automaticCleanup" | "retentionDays"),
         _ => false,
     };
-    let valid = module_setting_valid
-        || (key == "visibleInServerTarget" && supports_server_target_visibility);
-    if !valid {
+    if !module_setting_valid {
         return Err("unsupported module setting".into());
     }
     if module == "updates"

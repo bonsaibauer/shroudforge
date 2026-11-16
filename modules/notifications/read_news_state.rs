@@ -15,13 +15,26 @@ fn read_state(root: &Path) -> Result<serde_json::Value, String> {
 }
 
 pub fn read_ids(root: &Path) -> Result<Vec<String>, String> {
+    read_ids_for_target(root, false)
+}
+
+pub fn read_server_ids(root: &Path) -> Result<Vec<String>, String> {
+    read_ids_for_target(root, true)
+}
+
+fn read_ids_for_target(root: &Path, server: bool) -> Result<Vec<String>, String> {
     let state = read_state(root)?;
     let news = read(root)?;
     let messages = news["messages"].as_array().ok_or("missing news messages")?;
     let mut unread = Vec::new();
-    for value in state["read"].as_array().unwrap() {
+    let (read_key, read_at_key) = if server {
+        ("serverRead", "serverReadAt")
+    } else {
+        ("read", "readAt")
+    };
+    for value in state[read_key].as_array().into_iter().flatten() {
         let id = value.as_str().ok_or("news read id must be a string")?;
-        let timestamp = state["readAt"][id]
+        let timestamp = state[read_at_key][id]
             .as_u64()
             .ok_or_else(|| format!("news read ID has no timestamp: {id}"))?;
         let interval = messages

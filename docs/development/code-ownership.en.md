@@ -183,11 +183,13 @@ A file contains the implementation of the action named by that file. Related hel
 | Select the mod load order | `modules/modloader/plan_mod_load_order.rs` |
 | Detect native components and resolve the DLL load plan | `modules/modloader/dll_manager.rs` |
 | Read compatibility adapters and match automatic or manual selections | `modules/modloader/mod_profiles.rs`, `modules/modloader/mod-profiles/README.md` |
+| Build the shared client and dedicated-server compatibility status | `modules/modloader/compatibility_status.rs` |
 | Load native DLLs once per process | `modules/mod-runtime/native_dlls.rs` |
 | Initialize a mod DLL's native bridge and keep its registered functions | `modules/mod-runtime/native_bridge/register_mod_functions.rs`, C contract in `shroudforge_mod_native.h` |
 | Give a mod's DLL the local camera while the mod has runtime access | `modules/mod-runtime/native_bridge/read_local_camera.rs`, `track_game_access.rs` (granted from `modules/mod-runtime/session/record_runtime_state.rs`), reader `KfcRuntimeReadLocalCamera` |
 | Call a mod's own native functions from its Lua code | `modules/mod-runtime/native_bridge/call_mod_function.rs`, Lua table in `modules/mod-runtime/lua/shroudforge/v1/call_mod_native_functions.rs` |
 | Read or save loader settings | `modules/loader-config/read_loader_settings.rs`, `save_loader_settings.rs` |
+| Migrate saved per-module Server visibility into the target UI matrix | `modules/loader-config/migrate_module_target_visibility.rs`, queued by `modules/updater/maintenance_jobs.rs` |
 | Fit, resize, position, save, and reset native Modloader, Updater, and Debug Console window geometry | `modules/window-management/window_geometry.rs`, `reset_window_geometry.rs` |
 | Write a log entry | `modules/logging/append_log.rs` |
 | Log a Wiki or Compatibility UI event | `modules/logging/ui/log-ui-event.ts`, `modules/modloader/ui/host/record_ui_log.rs` |

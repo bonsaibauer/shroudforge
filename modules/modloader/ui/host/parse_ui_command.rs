@@ -46,6 +46,8 @@ pub(crate) struct UiCommand {
     #[serde(default)]
     pub(crate) read: Option<bool>,
     #[serde(default)]
+    pub(crate) target: Option<String>,
+    #[serde(default)]
     pub(crate) project_id: Option<String>,
     #[serde(default)]
     pub(crate) title: Option<String>,
@@ -104,7 +106,7 @@ pub(crate) enum Command {
     SaveLanguage(String, String),
     RunModAction(String, String, String),
     UpdaterRequest(String, String, String, serde_json::Value),
-    SetNewsRead(Vec<String>, bool, String),
+    SetNewsRead(Vec<String>, bool, bool, String),
     Diagnostics(String, Option<String>, String),
     UiReady,
     UiError(String),
@@ -240,6 +242,11 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
         "set-news-read" => Command::SetNewsRead(
             value.ids.unwrap_or_default(),
             value.read.unwrap_or(true),
+            match value.target.as_deref().unwrap_or("client") {
+                "client" => false,
+                "server" => true,
+                _ => return None,
+            },
             value.request_id.unwrap_or_default(),
         ),
         "ui-ready" => Command::UiReady,

@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "ゲーム接続を検索中",
   "serverAdmin.searchingMessage": "ShroudForge は確認済みの Steam P2P 接続を待っています。サーバーのゲームワールドに入ってください。接続が確立すると、ここにパスワード欄が表示されます。",
   "serverAdmin.searchingLink": "接続を検索中",
-  "settings.modules.serverTargetVisibility.title": "サーバー対象での表示",
-  "settings.modules.serverTargetVisibility.description": "サーバー対象の選択中に表示するモジュール項目と設定を選びます。モジュールの有効化や無効化には影響しません。Wiki項目を選ぶと、引き続きクライアントWikiが開きます。",
-  "settings.modules.serverTargetVisibility.item": "サーバー対象で{module}を表示"
+  "settings.modules.serverTargetVisibility.title": "対象ごとの表示設定",
+  "settings.modules.serverTargetVisibility.description": "クライアント対象とサーバー対象で表示するページとモジュール設定を個別に選択します。これは表示のみを制御し、モジュールの実行状態は変更しません。Wikiリンクは選択した対象で開きます。",
+  "settings.modules.serverTargetVisibility.item": "{target}対象に{module}を表示",
+  "settings.modules.serverTargetVisibility.pages": "ページ",
+  "settings.modules.serverTargetVisibility.modules": "モジュール設定",
+  "settings.modules.serverTargetVisibility.clientTarget": "クライアント対象",
+  "settings.modules.serverTargetVisibility.serverTarget": "サーバー対象",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Wikiリンクの移動先",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "現在の対象",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "クライアント対象",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "サーバー対象"
 }

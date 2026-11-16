@@ -1133,6 +1133,9 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 40
+        },
+        "uiTargets": {
+          "$ref": "#/$defs/uiTargetSettings"
         }
       },
       "additionalProperties": false
@@ -1140,7 +1143,67 @@
   },
   "$defs": {
     "moduleServerTargetVisibility": {
-      "type": "boolean"
+      "type": "boolean",
+      "deprecated": true
+    },
+    "uiTargetSettings": {
+      "type": "object",
+      "required": ["visibility", "wikiLinkTarget"],
+      "properties": {
+        "visibility": {
+          "type": "object",
+          "required": ["client", "server"],
+          "properties": {
+            "client": { "$ref": "#/$defs/uiTargetVisibility" },
+            "server": { "$ref": "#/$defs/uiTargetVisibility" }
+          },
+          "additionalProperties": false
+        },
+        "wikiLinkTarget": { "enum": ["current", "client", "server"] }
+      },
+      "additionalProperties": false
+    },
+    "uiTargetVisibility": {
+      "type": "object",
+      "required": ["pages", "modules"],
+      "properties": {
+        "pages": { "$ref": "#/$defs/uiTargetPages" },
+        "modules": { "$ref": "#/$defs/uiTargetModules" }
+      },
+      "additionalProperties": false
+    },
+    "uiTargetPages": {
+      "type": "object",
+      "required": ["activity", "news", "compatibility", "settings", "wiki", "discover", "installed", "updates", "recycle-bin"],
+      "properties": {
+        "activity": { "type": "boolean" },
+        "news": { "type": "boolean" },
+        "compatibility": { "type": "boolean" },
+        "settings": { "type": "boolean" },
+        "wiki": { "type": "boolean" },
+        "discover": { "type": "boolean" },
+        "installed": { "type": "boolean" },
+        "updates": { "type": "boolean" },
+        "recycle-bin": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "uiTargetModules": {
+      "type": "object",
+      "required": ["modDetection", "dllManager", "debugConsole", "worldEditor", "modloaderUi", "wiki", "network", "runtimeDiagnostics", "gameProfileDiscovery", "updates"],
+      "properties": {
+        "modDetection": { "type": "boolean" },
+        "dllManager": { "type": "boolean" },
+        "debugConsole": { "type": "boolean" },
+        "worldEditor": { "type": "boolean" },
+        "modloaderUi": { "type": "boolean" },
+        "wiki": { "type": "boolean" },
+        "network": { "type": "boolean" },
+        "runtimeDiagnostics": { "type": "boolean" },
+        "gameProfileDiscovery": { "type": "boolean" },
+        "updates": { "type": "boolean" }
+      },
+      "additionalProperties": false
     },
     "protectedHotkey": {
       "type": "object",

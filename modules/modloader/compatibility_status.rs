@@ -355,7 +355,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
             if path.is_dir() && !path.join("mod.json").is_file() {
                 continue;
             }
-            if let Err(error) = shroudforge_package::config::read_manifest_path(root, &path) {
+            if let Err(error) = crate::config::read_manifest_path(root, &path) {
                 errors.push(format!("{}: {error}", path.display()));
             }
         }
@@ -364,7 +364,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
         .to_str()
         .ok_or("installation path is not UTF-8")
         .and_then(|path| {
-            shroudforge_package::ModEnvironment::load(path).map_err(|_| "mod discovery failed")
+            crate::ModEnvironment::load(path).map_err(|_| "mod discovery failed")
         }) {
         Ok(env) => {
             let (plan, failures) = env.plan_report_detailed(server, api);
@@ -372,10 +372,10 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 .iter()
                 .map(|issue| (issue.mod_id.as_str(), issue))
                 .collect();
-            let applied_assets = shroudforge_package::prepared::fingerprint(&env, server, api)
+            let applied_assets = crate::prepared::fingerprint(&env, server, api)
                 .ok()
                 .is_some_and(|fingerprint| {
-                    shroudforge_package::prepared::matches(root, &fingerprint)
+                    crate::prepared::matches(root, &fingerprint)
                 });
             let preparation = shroudforge_loader_config::config::read_document(
                 root,
@@ -570,9 +570,9 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 assets = if let Some(error) = preparation_error {
                     json!({"state":"failed","code":"asset-preparation-failed","detail":error})
                 } else {
-                    match shroudforge_package::prepared::fingerprint(&env, server, api) {
+                    match crate::prepared::fingerprint(&env, server, api) {
                         Ok(fingerprint) => {
-                            if shroudforge_package::prepared::matches(root, &fingerprint) {
+                            if crate::prepared::matches(root, &fingerprint) {
                                 if blocked_pregame > 0 {
                                     json!({"state":"partial","detail":format!("Preparation matches the runnable mods. {blocked_pregame} startup mod(s) were skipped because of compatibility or dependency issues.")})
                                 } else {
@@ -594,10 +594,10 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
         Err(error) => errors.push(error.into()),
     }
     // The UI reports the same resolved plan that the runtime executes.
-    let dll_plan = shroudforge_package::dll_manager::resolve_load_plan(root, server);
+    let dll_plan = crate::dll_manager::resolve_load_plan(root, server);
     let dll_plan_changed = runtime_fresh
         && runtime.as_ref().is_some_and(|runtime| {
-            runtime["dllPlan"] != shroudforge_package::dll_manager::load_plan_identity(&dll_plan)
+            runtime["dllPlan"] != crate::dll_manager::load_plan_identity(&dll_plan)
         });
     let dll_enabled = loader_config
         .as_ref()
@@ -673,9 +673,9 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                     });
                 let lua_active = effect["nativeSource"] == "Lua register_dll"
                     && dll_enabled
-                    && !shroudforge_package::dll_manager::is_excluded_dll_name(root, relative)
+                    && !crate::dll_manager::is_excluded_dll_name(root, relative)
                     && id.split(':').nth(1).is_some_and(|directory| {
-                        let enabled = shroudforge_package::dll_manager::read_selections(root)
+                        let enabled = crate::dll_manager::read_selections(root)
                             .into_iter()
                             .find(|selection| {
                                 selection.package_directory.eq_ignore_ascii_case(directory)
@@ -686,7 +686,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                                     && selection.target.applies_to(server)
                             });
                         enabled
-                            && shroudforge_package::read_manifest_path(
+                            && crate::read_manifest_path(
                                 root,
                                 &shroudforge_loader_config::paths::mods_dir(root).join(directory),
                             )
@@ -711,7 +711,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
             json!({"state":"failed","detail":issue.detail}),
         );
     }
-    for entry in shroudforge_package::dll_manager::chain_load_entries(root) {
+    for entry in crate::dll_manager::chain_load_entries(root) {
         mod_states.entry(entry.status_id).or_insert_with(|| {
             json!({
                 "state":"disabled", "detail":if dll_enabled {

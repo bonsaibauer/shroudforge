@@ -16,14 +16,16 @@ mod validate_notification_event;
 mod write_mod_event;
 mod write_notification_event;
 
-pub use mark_news_read::{mark_news_read, mark_read};
-pub use mark_news_unread::{mark_news_unread, mark_unread};
+pub use mark_news_read::{mark_news_read, mark_news_read_for_target, mark_read};
+pub use mark_news_unread::{mark_news_unread, mark_news_unread_for_target, mark_unread};
 pub use migrate_legacy_event_levels::migrate_legacy_event_levels;
 pub use notification::{ModNotification, Notice, NoticeAction, NoticeBanner, NoticeLink};
 pub use notification_paths::{directory, events_directory};
 pub use read_news::read;
-pub use read_news_state::{read_ids, read_news_state};
-pub use read_notifications::{normalize_legacy_event_level, read_notifications};
+pub use read_news_state::{read_ids, read_news_state, read_server_ids};
+pub use read_notifications::{
+    normalize_legacy_event_level, read_event_notifications, read_notifications,
+};
 pub use sync_mod_events::sync_mod_events;
 pub use validate_news_id::valid_news_id;
 pub use validate_notification_event::validate_event;

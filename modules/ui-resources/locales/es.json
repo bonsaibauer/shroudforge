@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "Buscando conexión con la partida",
   "serverAdmin.searchingMessage": "ShroudForge espera una conexión Steam P2P confirmada. Entra en el mundo del servidor. El campo de contraseña aparecerá aquí cuando la conexión esté lista.",
   "serverAdmin.searchingLink": "BUSCANDO CONEXIÓN",
-  "settings.modules.serverTargetVisibility.title": "Visibilidad del destino del servidor",
-  "settings.modules.serverTargetVisibility.description": "Elige qué secciones y ajustes de módulos aparecen al seleccionar el destino del servidor. Esto no activa ni desactiva módulos. La entrada Wiki sigue abriendo la Wiki del cliente.",
-  "settings.modules.serverTargetVisibility.item": "Mostrar {module} en el destino del servidor"
+  "settings.modules.serverTargetVisibility.title": "Visibilidad por destino",
+  "settings.modules.serverTargetVisibility.description": "Elige por separado qué páginas y ajustes de módulos aparecen en los destinos Cliente y Servidor. Esto solo controla la visibilidad, no si se ejecuta un módulo. Los enlaces de Wiki se abren en el destino elegido.",
+  "settings.modules.serverTargetVisibility.item": "Mostrar {module} en el destino {target}",
+  "settings.modules.serverTargetVisibility.pages": "Páginas",
+  "settings.modules.serverTargetVisibility.modules": "Ajustes de módulos",
+  "settings.modules.serverTargetVisibility.clientTarget": "Destino Cliente",
+  "settings.modules.serverTargetVisibility.serverTarget": "Destino Servidor",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Destino de los enlaces de Wiki",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "Destino actual",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "Destino Cliente",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "Destino Servidor"
 }

@@ -63,6 +63,7 @@ enum Action {
     MigrateLegacyMods,
     MigrateLegacyEventLevels,
     MigrateLegacyToggleKeys,
+    MigrateModuleTargetVisibility,
     NormalizeWikiRefreshInterval,
     UpdateLoaderSettings,
     PurgeExpiredRecycleBin,
@@ -77,6 +78,7 @@ impl Action {
                 | Self::MigrateLegacyMods
                 | Self::MigrateLegacyEventLevels
                 | Self::MigrateLegacyToggleKeys
+                | Self::MigrateModuleTargetVisibility
                 | Self::NormalizeWikiRefreshInterval
                 | Self::UpdateLoaderSettings
         )
@@ -84,7 +86,7 @@ impl Action {
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 10] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 11] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -125,6 +127,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 10] = [
         Trigger::AfterInstall,
         "migration.legacy-toggle-key-settings",
         Action::MigrateLegacyToggleKeys,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.module-target-visibility",
+        Action::MigrateModuleTargetVisibility,
         1,
     ),
     (
@@ -201,6 +209,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
     (
         "migrate-legacy-toggle-key-settings.json",
         include_str!("migrate-legacy-toggle-key-settings.json"),
+    ),
+    (
+        "migrate-module-target-visibility.json",
+        include_str!("migrate-module-target-visibility.json"),
     ),
     (
         "migrate-wiki-refresh-interval.json",
@@ -465,6 +477,9 @@ pub(crate) fn execute(root: &Path, item: &serde_json::Value) -> Result<(), Strin
         Action::MigrateLegacyMods => migrate_legacy_mods(root)?,
         Action::MigrateLegacyEventLevels => migrate_legacy_event_levels(root)?,
         Action::MigrateLegacyToggleKeys => migrate_legacy_toggle_keys(root)?,
+        Action::MigrateModuleTargetVisibility => {
+            shroudforge_loader_config::config::migrate_module_target_visibility(root)?;
+        }
         Action::NormalizeWikiRefreshInterval => {
             shroudforge_loader_config::config::migrate_wiki_refresh_interval(root)?;
         }
@@ -492,6 +507,7 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
         Some("MigrateLegacyMods") => Ok(Action::MigrateLegacyMods),
         Some("MigrateLegacyEventLevels") => Ok(Action::MigrateLegacyEventLevels),
         Some("MigrateLegacyToggleKeys") => Ok(Action::MigrateLegacyToggleKeys),
+        Some("MigrateModuleTargetVisibility") => Ok(Action::MigrateModuleTargetVisibility),
         Some("NormalizeWikiRefreshInterval") => Ok(Action::NormalizeWikiRefreshInterval),
         Some("UpdateLoaderSettings") => Ok(Action::UpdateLoaderSettings),
         Some("PurgeExpiredRecycleBin") => Ok(Action::PurgeExpiredRecycleBin),

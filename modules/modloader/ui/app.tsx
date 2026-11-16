@@ -1,9 +1,13 @@
 import type { Settings } from '../../loader-config/ui/loader-settings'
-import { isVisibleInServerTarget } from '../../loader-config/ui/module-visibility'
+import {
+  isTargetUiVisible,
+  resolveUiTargetSettings,
+} from '../../loader-config/ui/module-visibility'
 import { post, postRequest } from '../../transport/ui/send-host-command'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { I18nProvider, useI18n } from '../../ui-resources/i18n'
-import { PageId, Snapshot, empty } from './ui-snapshot'
+import { PageId, ServerView, Snapshot, empty } from './ui-snapshot'
+import type { ServerViewDetails } from './ui-snapshot'
 import type { NoticeAction } from '../../notifications/ui/notification-types'
 import type { RuntimeProblemCode } from './ui-snapshot'
 import type { ModInfo } from './mod-types'
@@ -57,13 +61,16 @@ export function App() {
   const [chirper, setChirper] = useState(false)
   const [settings, setSettings] = useState<Settings>(empty.settings)
   const [remoteTarget, setRemoteTarget] = useState<'client' | 'server'>('client')
-  const [serverMods, setServerMods] = useState<ModInfo[] | null>(null)
+  const [serverView, setServerView] = useState<ServerView | null>(null)
   const [serverAdminAuthenticated, setServerAdminAuthenticated] = useState(false)
   const [serverAdminGroupName, setServerAdminGroupName] = useState<string | null>(null)
   const [serverAdminLoginPending, setServerAdminLoginPending] = useState(false)
   const [serverAdminLoginError, setServerAdminLoginError] = useState<string | null>(null)
   const pendingServerLogin = useRef<string | null>(null)
-  const [read, setRead] = useState<string[]>([])
+  const [read, setRead] = useState<Record<'client' | 'server', string[]>>({
+    client: [],
+    server: [],
+  })
   const previousBannerKey = useRef<string | null>(null)
   const {
     message: saveMessage,
@@ -115,7 +122,7 @@ export function App() {
       ) {
         setServerAdminAuthenticated(false)
         setServerAdminGroupName(null)
-        setServerMods(null)
+        setServerView(null)
         setServerAdminLoginError(result.message ?? 'Server admin access expired')
       }
     }
@@ -128,13 +135,27 @@ export function App() {
       const detail = (event as CustomEvent<{
         mods?: ModInfo[]
         mod?: ModInfo
+        serverView?: ServerViewDetails
       }>).detail
       if (Array.isArray(detail?.mods)) {
-        setServerMods(detail.mods)
+        const view = detail.serverView
+        if (view) {
+          setServerView({
+            ...view,
+            mode: 'SERVER',
+            mods: detail.mods,
+            dllCandidates: view.dllCandidates ?? [],
+            dllChainEntries: view.dllChainEntries ?? [],
+            hotkeyConflicts: view.hotkeyConflicts ?? [],
+            notices: view.notices ?? [],
+          })
+        }
       } else if (detail?.mod && typeof detail.mod.id === 'string') {
         const updated = detail.mod
-        setServerMods((current) =>
-          current ? current.map((mod) => (mod.id === updated.id ? updated : mod)) : current,
+        setServerView((current) =>
+          current
+            ? { ...current, mods: current.mods.map((mod) => (mod.id === updated.id ? updated : mod)) }
+            : current,
         )
       }
     }
@@ -145,7 +166,7 @@ export function App() {
 
   useEffect(() => {
     if (remoteTarget !== 'server') {
-      setServerMods(null)
+      setServerView(null)
       return
     }
     if (serverAdminAuthenticated) {
@@ -153,16 +174,33 @@ export function App() {
     }
   }, [remoteTarget, serverAdminAuthenticated, data.locale])
 
-  const displayedMods =
-    remoteTarget === 'server'
-      ? serverAdminAuthenticated
-        ? serverMods ?? []
-        : []
-      : data.mods
+  const activeData: Snapshot = remoteTarget === 'server'
+    ? {
+        ...data,
+        ...(serverView ?? {}),
+        mode: 'SERVER',
+        gameVersion: serverView?.gameVersion ?? '',
+        mods: serverAdminAuthenticated ? serverView?.mods ?? [] : [],
+        notices: serverAdminAuthenticated ? serverView?.notices ?? [] : [],
+        newsTemplates: serverAdminAuthenticated ? serverView?.newsTemplates : {},
+        configuration: serverAdminAuthenticated ? serverView?.configuration : undefined,
+        dllCandidates: serverAdminAuthenticated ? serverView?.dllCandidates ?? [] : [],
+        dllChainEntries: serverAdminAuthenticated ? serverView?.dllChainEntries ?? [] : [],
+        hotkeyConflicts: serverAdminAuthenticated ? serverView?.hotkeyConflicts ?? [] : [],
+        release: remoteTarget === 'server'
+          ? { ...data.release, updateAvailable: false, staged: false }
+          : data.release,
+        releaseAnnouncement: remoteTarget === 'server'
+          ? { updateAvailable: false }
+          : data.releaseAnnouncement,
+        readNoticeIds: read.server,
+      }
+    : { ...data, readNoticeIds: read.client }
+  const displayedMods = activeData.mods
 
   const newsSource = {
-    ...data,
-    updatesEnabled: data.settings.modulePreferences?.updates?.enabled === true,
+    ...activeData,
+    updatesEnabled: activeData.settings.modulePreferences?.updates?.enabled === true,
   }
   const {
     news,
@@ -171,25 +209,62 @@ export function App() {
     chirperTitle,
     chirperItems,
     markRead,
-  } = useNotifications(newsSource, settings, read, setRead)
+  } = useNotifications(newsSource, settings, remoteTarget, read[remoteTarget], setRead)
   const activeMod = displayedMods.find((mod) => mod.id === selectedMod)
-  const compatibilityStatus = compatibilityNavigationStatus(data)
-  const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
+  const compatibilityStatus = compatibilityNavigationStatus(activeData)
+  const runtimeCheck = activeData.configuration?.checks.find((check) => check.id === 'runtime')
+  const clientRuntimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
+  const targetUi = useMemo(
+    () => resolveUiTargetSettings(settings.targetUi),
+    [settings.targetUi],
+  )
+  const pageVisible = (id: PageId, target: 'client' | 'server' = remoteTarget) =>
+    isTargetUiVisible('pages', id, target, targetUi) &&
+    (id !== 'compatibility' ||
+      ['modDetection', 'dllManager', 'modloaderUi', 'runtimeDiagnostics'].some((module) =>
+        isTargetUiVisible('modules', module, target, targetUi),
+      ))
+  const firstVisiblePage = (target: 'client' | 'server'): PageId => {
+    const pages: PageId[] = [
+      'news',
+      'activity',
+      'installed',
+      'compatibility',
+      'discover',
+      'updates',
+      'recycle-bin',
+      'wiki',
+      'settings',
+    ]
+    return pages.find((id) => pageVisible(id, target)) ?? 'settings'
+  }
+  useEffect(() => {
+    if (!pageVisible(page)) {
+      setPage(firstVisiblePage(remoteTarget))
+      setSelectedMod(null)
+      setSelectedWikiArticle(null)
+    } else if (!pageVisible('installed') && selectedMod) {
+      setSelectedMod(null)
+    }
+  }, [page, remoteTarget, selectedMod, targetUi])
   const serverAdminLoginRequiresWorld = data.mode === 'DESKTOP' ||
-    runtimeCheck?.phase === 'main-menu' ||
-    runtimeCheck?.phase === 'waiting-world'
+    clientRuntimeCheck?.phase === 'main-menu' ||
+    clientRuntimeCheck?.phase === 'waiting-world'
   const serverAdminLoginAvailable = data.mode === 'CLIENT' &&
-    runtimeCheck?.phase === 'normal' &&
+    clientRuntimeCheck?.phase === 'normal' &&
     data.remoteServerState === 'connected'
   const serverAdminLoginSearching = data.mode === 'CLIENT' &&
-    runtimeCheck?.phase === 'normal' &&
+    clientRuntimeCheck?.phase === 'normal' &&
     data.remoteServerState === 'connecting'
-  const profileDiscovery = data.configuration?.gameProfileDiscovery
+  const profileDiscovery = isTargetUiVisible('modules', 'gameProfileDiscovery', remoteTarget, targetUi)
+    ? activeData.configuration?.gameProfileDiscovery
+    : undefined
   const profileSearching = profileDiscovery?.state === 'searching'
   const profileWaitingForWorld = profileDiscovery?.state === 'waiting-for-world'
   const profileBetaActive = profileDiscovery?.state === 'beta-active'
   const profileDiscoveryPending = profileSearching || profileWaitingForWorld
-  const runtimeBannerKey = runtimeCheck?.state === 'warning'
+  const runtimeBannerKey = isTargetUiVisible('modules', 'runtimeDiagnostics', remoteTarget, targetUi) &&
+    runtimeCheck?.state === 'warning'
     ? `runtime:${runtimeCheck.code ?? 'generic'}`
     : null
   const profileBannerKey = runtimeCheck?.state !== 'warning' &&
@@ -243,16 +318,12 @@ export function App() {
   const changeRemoteTarget = (target: 'client' | 'server') => {
     if (target === remoteTarget) return
     setRemoteTarget(target)
-    setServerMods(null)
+    setServerView(null)
     setSelectedMod(null)
-    setServerAdminAuthenticated(false)
-    setServerAdminGroupName(null)
-    setServerAdminLoginPending(false)
     setServerAdminLoginError(null)
-    pendingServerLogin.current = null
-    if (target === 'server' && page === 'wiki') {
+    if (!pageVisible(page, target)) {
       setSelectedWikiArticle(null)
-      setPage('installed')
+      setPage(firstVisiblePage(target))
     }
     postRequest('save-setting', {
       scope: 'module',
@@ -261,25 +332,22 @@ export function App() {
       value: target,
     })
   }
-  const navigate = (next: PageId) => {
-    if (next === 'wiki' && remoteTarget === 'server') {
-      changeRemoteTarget('client')
-    }
-    setSelectedMod(null)
-    setSelectedWikiArticle(null)
-    if (next === 'wiki' && page !== 'wiki' && !wikiCategory) {
-      setWikiCategory(DEFAULT_WIKI_CATEGORY)
-    }
-    setPage(next)
+  const wikiTarget = () => {
+    const configured = targetUi.wikiLinkTarget
+    const requested = configured === 'current' ? remoteTarget : configured
+    if (pageVisible('wiki', requested)) return requested
+    if (pageVisible('wiki', remoteTarget)) return remoteTarget
+    const other = remoteTarget === 'client' ? 'server' : 'client'
+    return pageVisible('wiki', other) ? other : requested
   }
   const navigateToWiki = (
     destination:
       | { type: 'article'; articleId: string }
       | { type: 'category'; category: string },
   ) => {
-    if (remoteTarget === 'server') {
-      changeRemoteTarget('client')
-    }
+    const target = wikiTarget()
+    if (!pageVisible('wiki', target)) return
+    if (target !== remoteTarget) changeRemoteTarget(target)
     setSelectedMod(null)
     if (destination.type === 'category') {
       setWikiCategory(destination.category)
@@ -289,11 +357,22 @@ export function App() {
     }
     setPage('wiki')
   }
+  const navigate = (next: PageId) => {
+    if (next === 'wiki') {
+      navigateToWiki({ type: 'category', category: wikiCategory || DEFAULT_WIKI_CATEGORY })
+      return
+    }
+    if (!pageVisible(next)) return
+    setSelectedMod(null)
+    setSelectedWikiArticle(null)
+    setPage(next)
+  }
   const openWikiArticle = (articleId: string) =>
     navigateToWiki({ type: 'article', articleId })
   const openWikiCategory = (category: string) =>
     navigateToWiki({ type: 'category', category })
   const openCompatibility = (tab: CompatibilityTab) => {
+    if (!pageVisible('compatibility')) return
     setSelectedMod(null)
     setSelectedWikiArticle(null)
     setCompatibilityTab(tab)
@@ -312,30 +391,40 @@ export function App() {
     if (action.kind === 'open-installed-mods') navigate('installed')
     else if (action.kind === 'open-wiki') navigate('wiki')
     else if (action.kind === 'open-mod' && action.target) {
-      if (data.mods.some((mod) => mod.id === action.target)) {
+      if (activeData.mods.some((mod) => mod.id === action.target) && pageVisible('installed')) {
+        setSelectedWikiArticle(null)
         setPage('installed')
         setSelectedMod(action.target)
       } else navigate('installed')
-    } else if (action.kind === 'open-debug-console')
+    } else if (
+      action.kind === 'open-debug-console' &&
+      isTargetUiVisible('modules', 'debugConsole', remoteTarget, targetUi)
+    )
       postRequest('set-window-visibility', {
         module: 'debugConsole',
         visible: true,
       })
-    else if (action.kind === 'check-updates') postRequest('check-updates')
-    else if (action.kind === 'open-updates') navigate('updates')
-    else if (action.kind === 'queue-system-update')
+    else if (
+      action.kind === 'check-updates' &&
+      pageVisible('updates')
+    ) postRequest('check-updates')
+    else if (action.kind === 'open-updates' && pageVisible('updates')) navigate('updates')
+    else if (
+      action.kind === 'queue-system-update' &&
+      pageVisible('updates')
+    )
       postRequest('queue-system-update')
   }
 
   return (
     <main className={`shell ${remoteTarget === 'server' ? 'server-target-active' : ''}`}>
       <Toasts
-        errors={data.configuration?.errors}
+        errors={activeData.configuration?.errors}
         message={saveMessage}
         onDismissMessage={dismissCommandToast}
       />
       <TopBar
-        data={data}
+        data={activeData}
         remoteTarget={remoteTarget}
         serverAdminAuthenticated={serverAdminAuthenticated}
         serverAdminGroupName={serverAdminGroupName}
@@ -353,6 +442,9 @@ export function App() {
         }}
         onRemoteTargetChange={changeRemoteTarget}
         onOpenWikiCategory={openWikiCategory}
+        showChirper={pageVisible('news')}
+        showWikiHelp={isTargetUiVisible('modules', 'wiki', remoteTarget, targetUi)}
+        isWikiPage={page === 'wiki'}
         unread={unread.length}
         severity={chirperSeverity}
         crowded={unread.length >= 5}
@@ -373,23 +465,23 @@ export function App() {
             </div>
             <NavGroup
               title={t('nav.modloader')}
-              version={data.version}
+              version={activeData.version}
               className="nav-group-modloader"
             >
-              <Nav
+              {pageVisible('activity') && <Nav
                 icon="activity"
                 label={t('nav.activity')}
                 active={!activeMod && page === 'activity'}
                 onClick={() => navigate('activity')}
-              />
-              <Nav
+              />}
+              {pageVisible('news') && <Nav
                 icon="news"
                 label={t('nav.news')}
                 badge={unread.length || undefined}
                 active={!activeMod && page === 'news'}
                 onClick={() => navigate('news')}
-              />
-              <Nav
+              />}
+              {pageVisible('compatibility') && <Nav
                 icon="compatibility"
                 label={t('nav.compatibility')}
                 status={compatibilityStatus}
@@ -398,17 +490,14 @@ export function App() {
                   : undefined}
                 active={!activeMod && page === 'compatibility'}
                 onClick={() => openCompatibility('mod-detection')}
-              />
-              <Nav
+              />}
+              {pageVisible('settings') && <Nav
                 icon="settings"
                 label={t('nav.settings')}
                 active={!activeMod && page === 'settings'}
                 onClick={() => navigate('settings')}
-              />
-              {(remoteTarget !== 'server' || isVisibleInServerTarget(
-                'wiki',
-                settings.modulePreferences,
-              )) && (
+              />}
+              {pageVisible('wiki') && (
                 <Nav
                   icon="wiki"
                   label={t('nav.wiki')}
@@ -418,34 +507,34 @@ export function App() {
               )}
             </NavGroup>
             <NavGroup title={t('nav.modsManagement')}>
-              <Nav
+              {pageVisible('discover') && <Nav
                 icon="discover"
                 label={t('nav.discover')}
                 active={!activeMod && page === 'discover'}
                 onClick={() => navigate('discover')}
-              />
-              <Nav
+              />}
+              {pageVisible('installed') && <Nav
                 icon="installed"
                 label={t('nav.installed')}
                 badge={displayedMods.length || undefined}
                 active={!activeMod && page === 'installed'}
                 onClick={() => navigate('installed')}
-              />
-              <Nav
+              />}
+              {pageVisible('updates') && <Nav
                 icon="updates"
                 label={t('nav.updates')}
-                badge={data.release.updateAvailable ? 1 : undefined}
+                badge={activeData.release.updateAvailable ? 1 : undefined}
                 active={!activeMod && page === 'updates'}
                 onClick={() => navigate('updates')}
-              />
-              <Nav
+              />}
+              {pageVisible('recycle-bin') && <Nav
                 icon="trash"
                 label={t('nav.recycleBin')}
                 active={!activeMod && page === 'recycle-bin'}
                 onClick={() => navigate('recycle-bin')}
-              />
+              />}
             </NavGroup>
-            <NavGroup className="nav-group-mods" title={t('nav.mods')}>
+            {pageVisible('installed') && <NavGroup className="nav-group-mods" title={t('nav.mods')}>
               <div className="sidebar-mods">
                 {displayedMods.map((mod) => (
                   <button
@@ -458,7 +547,7 @@ export function App() {
                   </button>
                 ))}
               </div>
-            </NavGroup>
+            </NavGroup>}
           </aside>
           <section className="content">
             {showProfileDiscovery && (
@@ -511,19 +600,21 @@ export function App() {
                   >
                     {t('common.details')}
                   </button>
-                  <button
-                    className="button ghost"
-                    onClick={() => {
-                      navigate('updates')
-                      window.setTimeout(() => postRequest('check-updates'), 2000)
-                    }}
-                  >
-                    {data.release.updateAvailable && data.release.latestVersion
-                      ? t('runtime.blocker.updateTo', {
-                          version: data.release.latestVersion,
-                        })
-                      : t('runtime.blocker.checkUpdates')}
-                  </button>
+                  {pageVisible('updates') && (
+                    <button
+                      className="button ghost"
+                      onClick={() => {
+                        navigate('updates')
+                        window.setTimeout(() => postRequest('check-updates'), 2000)
+                      }}
+                    >
+                      {activeData.release.updateAvailable && activeData.release.latestVersion
+                        ? t('runtime.blocker.updateTo', {
+                            version: activeData.release.latestVersion,
+                          })
+                        : t('runtime.blocker.checkUpdates')}
+                    </button>
+                  )}
                   <button
                     className="button ghost"
                     onClick={() =>
@@ -541,20 +632,14 @@ export function App() {
               <ModPage
                 key={activeMod.id}
                 mod={activeMod}
-                status={remoteTarget === 'server'
-                  ? undefined
-                  : data.configuration?.modStates?.[activeMod.id]}
-                dependencyStates={remoteTarget === 'server'
-                  ? {}
-                  : data.configuration?.modStates || {}}
+                status={activeData.configuration?.modStates?.[activeMod.id]}
+                dependencyStates={activeData.configuration?.modStates || {}}
                 remoteTarget={remoteTarget}
               />
             ) : (
               <Page
                 id={page}
-                data={page === 'installed' && remoteTarget === 'server'
-                  ? { ...data, mods: displayedMods }
-                  : data}
+                data={activeData}
                 settings={settings}
                 setSettings={setSettings}
                 notifyCommandResult={notifyCommandResult}
@@ -565,7 +650,7 @@ export function App() {
                 openWikiArticle={openWikiArticle}
                 openWikiCategory={openWikiCategory}
                 unread={unread}
-                read={read}
+                read={read[remoteTarget]}
                 markRead={markRead}
                 runNoticeAction={runNoticeAction}
                 openNews={() => navigate('news')}

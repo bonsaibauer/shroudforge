@@ -22,6 +22,9 @@ export function TopBar({
   onRemoteAdminLogin,
   onRemoteTargetChange,
   onOpenWikiCategory,
+  showChirper,
+  showWikiHelp,
+  isWikiPage,
   unread,
   severity,
   crowded,
@@ -40,6 +43,9 @@ export function TopBar({
   onRemoteAdminLogin(password: string): void
   onRemoteTargetChange(target: 'client' | 'server'): void
   onOpenWikiCategory(category: string): void
+  showChirper: boolean
+  showWikiHelp: boolean
+  isWikiPage: boolean
   unread: number
   severity: string
   crowded: boolean
@@ -49,7 +55,7 @@ export function TopBar({
   const { t } = useI18n()
   const [password, setPassword] = useState('')
   const passwordValid = new TextEncoder().encode(password).length <= 1024
-  const serverAdminWikiHelp = (
+  const serverAdminWikiHelp = showWikiHelp && (
     <WikiHelp
       articleId="modloader-p2p-connection"
       compact
@@ -97,7 +103,7 @@ export function TopBar({
           tone="support"
           onClick={() => external('https://buymeacoffee.com/bonsaibauer')}
         />
-        <HeaderLink
+        {showChirper && <HeaderLink
           label={t('header.chirper')}
           icon="chirper"
           tone="chirper"
@@ -106,7 +112,7 @@ export function TopBar({
           crowded={crowded}
           title={title}
           onClick={onChirper}
-        />
+        />}
       </nav>
       <LanguageMenu />
       <ModeBadge
@@ -148,7 +154,7 @@ export function TopBar({
         </button>
       </div>
     </header>
-    {remoteTarget === 'server' && !serverAdminAuthenticated && (
+    {remoteTarget === 'server' && !serverAdminAuthenticated && !isWikiPage && (
       <div className="overlay server-admin-overlay" role="presentation">
         <section
           className="modal server-admin-modal"

@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "Searching for game connection",
   "serverAdmin.searchingMessage": "ShroudForge is waiting for a confirmed Steam P2P connection. Enter the server’s game world. The password field will appear here once the connection is ready.",
   "serverAdmin.searchingLink": "SEARCHING FOR CONNECTION",
-  "settings.modules.serverTargetVisibility.title": "Server target visibility",
-  "settings.modules.serverTargetVisibility.description": "Choose which module sections and settings appear while the Server target is selected. This does not enable or disable modules. The Wiki entry still opens the client Wiki.",
-  "settings.modules.serverTargetVisibility.item": "Show {module} in the Server target"
+  "settings.modules.serverTargetVisibility.title": "Visibility by target",
+  "settings.modules.serverTargetVisibility.description": "Choose independently which pages and module settings appear in the Client and Server targets. This controls visibility only, not whether a module runs. Wiki links open in the selected target.",
+  "settings.modules.serverTargetVisibility.item": "Show {module} in the {target} target",
+  "settings.modules.serverTargetVisibility.pages": "Pages",
+  "settings.modules.serverTargetVisibility.modules": "Module settings",
+  "settings.modules.serverTargetVisibility.clientTarget": "Client target",
+  "settings.modules.serverTargetVisibility.serverTarget": "Server target",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Wiki link destination",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "Current target",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "Client target",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "Server target"
 }

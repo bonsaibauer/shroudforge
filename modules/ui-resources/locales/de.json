@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "Suche nach Spielverbindung",
   "serverAdmin.searchingMessage": "ShroudForge wartet auf eine bestätigte Steam-P2P-Verbindung. Betritt die Spielwelt des Servers. Sobald die Verbindung steht, erscheint hier das Passwortfeld.",
   "serverAdmin.searchingLink": "VERBINDUNG WIRD GESUCHT",
-  "settings.modules.serverTargetVisibility.title": "Sichtbarkeit im Serverziel",
-  "settings.modules.serverTargetVisibility.description": "Lege fest, welche Modulbereiche und Einstellungen im Serverziel angezeigt werden. Das ändert nicht, ob ein Modul aktiviert ist. Der Wiki-Eintrag öffnet weiterhin das Client-Wiki.",
-  "settings.modules.serverTargetVisibility.item": "{module} im Serverziel anzeigen"
+  "settings.modules.serverTargetVisibility.title": "Sichtbarkeit nach Ziel",
+  "settings.modules.serverTargetVisibility.description": "Lege für Client- und Serverziel getrennt fest, welche Seiten und Moduleinstellungen angezeigt werden. Das steuert nur die Sichtbarkeit und nicht, ob ein Modul ausgeführt wird. Wiki-Verweise öffnen das gewählte Ziel.",
+  "settings.modules.serverTargetVisibility.item": "{module} im Ziel {target} anzeigen",
+  "settings.modules.serverTargetVisibility.pages": "Seiten",
+  "settings.modules.serverTargetVisibility.modules": "Moduleinstellungen",
+  "settings.modules.serverTargetVisibility.clientTarget": "Clientziel",
+  "settings.modules.serverTargetVisibility.serverTarget": "Serverziel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Ziel interner Wiki-Verweise",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "Aktuelles Ziel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "Clientziel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "Serverziel"
 }

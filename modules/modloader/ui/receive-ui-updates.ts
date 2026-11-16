@@ -11,7 +11,7 @@ type UiUpdateActions = {
   data: Snapshot
   setData: SetValue<Snapshot>
   setSettings: SetValue<Settings>
-  setRead: SetValue<string[]>
+  setRead: SetValue<Record<'client' | 'server', string[]>>
   setLocale(locale: string): void
   setPage: SetValue<PageId>
   setSelectedMod: SetValue<string | null>
@@ -72,7 +72,10 @@ export function useUiUpdates({
           ? snapshot.settings
           : current,
       )
-      setRead(snapshot.readNoticeIds || [])
+      setRead({
+        client: snapshot.readNoticeIds || [],
+        server: snapshot.readNoticeIdsServer || [],
+      })
     }
     window.__shroudforgeWindowState = (state) => {
       const windows = state as Snapshot['windows']

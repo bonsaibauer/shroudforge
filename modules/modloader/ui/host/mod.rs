@@ -27,7 +27,6 @@ mod open_storage_folder;
 mod parse_ui_command;
 mod read_activity_log;
 mod read_client_ui_process;
-mod read_configuration_status;
 mod read_game_version;
 mod read_host_arguments;
 mod read_installed_mods;

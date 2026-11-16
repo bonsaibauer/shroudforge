@@ -1249,9 +1249,10 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 &updater_request_sender,
                             );
                         }
-                        Command::SetNewsRead(ids, read, request_id) => change_notice_read_state(
+                        Command::SetNewsRead(ids, read, server, request_id) => change_notice_read_state(
                             ids,
                             read,
+                            server,
                             request_id,
                             &arguments,
                             &webview,
@@ -1534,7 +1535,10 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                 next_refresh = Instant::now();
             }
             Event::UserEvent(UiEvent::RemoteModResponse(request_id, action, response)) => {
-                if response["mods"].is_array() || response["mod"].is_object() {
+                if response["mods"].is_array()
+                    || response["mod"].is_object()
+                    || response["serverView"].is_object()
+                {
                     if let Ok(payload) = serde_json::to_string(&response) {
                         let _ = webview.evaluate_script(&format!(
                             "window.dispatchEvent(new CustomEvent('shroudforge-remote-mod-data',{{detail:{payload}}}));"

@@ -4,7 +4,9 @@
   "required": ["read", "readAt"],
   "properties": {
     "read": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 200}},
-    "readAt": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+    "readAt": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "serverRead": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 200}},
+    "serverReadAt": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
   },
   "additionalProperties": false
 }

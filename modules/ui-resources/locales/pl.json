@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "Wyszukiwanie połączenia z grą",
   "serverAdmin.searchingMessage": "ShroudForge czeka na potwierdzone połączenie Steam P2P. Wejdź do świata gry na serwerze. Pole hasła pojawi się tutaj, gdy połączenie będzie gotowe.",
   "serverAdmin.searchingLink": "WYSZUKIWANIE POŁĄCZENIA",
-  "settings.modules.serverTargetVisibility.title": "Widoczność w trybie serwera",
-  "settings.modules.serverTargetVisibility.description": "Wybierz, które sekcje i ustawienia modułów są widoczne po wybraniu trybu serwera. Nie włącza ani nie wyłącza to modułów. Pozycja Wiki nadal otwiera Wiki klienta.",
-  "settings.modules.serverTargetVisibility.item": "Pokaż {module} w trybie serwera"
+  "settings.modules.serverTargetVisibility.title": "Widoczność według celu",
+  "settings.modules.serverTargetVisibility.description": "Wybierz osobno, które strony i ustawienia modułów są widoczne w celu klienta i serwera. To steruje tylko widocznością, a nie uruchamianiem modułów. Linki Wiki otwierają się w wybranym celu.",
+  "settings.modules.serverTargetVisibility.item": "Pokaż {module} w celu {target}",
+  "settings.modules.serverTargetVisibility.pages": "Strony",
+  "settings.modules.serverTargetVisibility.modules": "Ustawienia modułów",
+  "settings.modules.serverTargetVisibility.clientTarget": "Cel klienta",
+  "settings.modules.serverTargetVisibility.serverTarget": "Cel serwera",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Cel linków Wiki",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "Bieżący cel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "Cel klienta",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "Cel serwera"
 }

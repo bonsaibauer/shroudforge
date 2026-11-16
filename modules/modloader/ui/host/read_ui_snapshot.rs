@@ -131,7 +131,7 @@ pub(crate) fn read_ui_snapshot(
         dll_candidates: shroudforge_package::dll_manager::discover_dll_candidates(root),
         dll_chain_entries: shroudforge_package::dll_manager::chain_load_entries(root),
         windows: shroudforge_loader_config::config::window_state(root),
-        configuration: super::read_configuration_status::configuration(
+        configuration: shroudforge_package::compatibility_status::configuration(
             root,
             server,
             env!("CARGO_PKG_VERSION"),
@@ -151,12 +151,13 @@ pub(crate) fn read_ui_snapshot(
         notices: shroudforge_news::read_notifications(root, &notification_mods),
         mods,
         hotkey_conflicts,
-        activity: read_activity(root).unwrap_or_default(),
+        activity: read_activity(root, remote_target == "server").unwrap_or_default(),
         news_templates: shroudforge_news::read(root)
             .ok()
             .and_then(|value| value.get("templates").cloned())
             .unwrap_or_else(|| serde_json::json!({})),
         read_notice_ids: shroudforge_news::read_news_state(root),
+        read_notice_ids_server: shroudforge_news::read_server_ids(root).unwrap_or_default(),
         release: release_snapshot,
         release_announcement: release_announcement
             .lock()
@@ -170,6 +171,10 @@ pub(crate) fn read_ui_snapshot(
         settings: SnapshotSettings {
             config_revision: config_revision(&central),
             module_preferences,
+            target_ui: central
+                .pointer("/general/uiTargets")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
             protected_hotkeys: shroudforge_package::protected_hotkeys(&central),
             compact_mode: central
                 .pointer("/general/compactMode")

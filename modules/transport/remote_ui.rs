@@ -18,8 +18,6 @@ const MAX_LOG_DELTA_BYTES: u64 = 64 * 1024;
 const RECEIVE_BUDGET: usize = 16;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
 const SERVER_PEER_TIMEOUT: Duration = Duration::from_secs(30);
-const ADMIN_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
-const ADMIN_SESSION_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60);
 const LOGIN_FAILURE_LIMIT: u8 = 5;
 const LOGIN_COOLDOWN: Duration = Duration::from_secs(60);
 const PENDING_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -79,8 +77,6 @@ struct CompletedAction {
 struct AdminSession {
     token: String,
     group_name: String,
-    created: Instant,
-    last_active: Instant,
 }
 
 #[derive(Default)]
@@ -175,11 +171,12 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
         .and_then(serde_json::Value::as_str)
         == Some("server");
     if !selected_server {
-        if let Some(peer) = client.peer.take() {
-            let _ = send_json(peer, &serde_json::json!({ "type": "unsubscribe" }));
+        if client.last_heartbeat.is_some() {
+            if let Some(peer) = client.peer {
+                let _ = send_json(peer, &serde_json::json!({ "type": "unsubscribe" }));
+            }
         }
         client.last_heartbeat = None;
-        clear_admin_session(client);
         fail_pending(
             client,
             "Server target was closed before the request completed",
@@ -631,7 +628,6 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
             }
             Some("unsubscribe") => {
                 server.peers.remove(&peer);
-                server.admin_sessions.remove(&peer);
                 forget_completed_actions(server, peer);
                 tracing::debug!(target: "shroudforge::network", peer, "Remote UI peer unsubscribed");
             }
@@ -672,15 +668,12 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                 }
                 if let Some(group_name) = matching_admin_group(root, password) {
                     server.login_failures.remove(&peer);
-                    let now = Instant::now();
                     let token = uuid::Uuid::new_v4().to_string();
                     server.admin_sessions.insert(
                         peer,
                         AdminSession {
                             token: token.clone(),
                             group_name: group_name.clone(),
-                            created: now,
-                            last_active: now,
                         },
                     );
                     if let Err(error) = send_auth_result(
@@ -758,16 +751,16 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
         .collect::<Vec<_>>();
     for peer in expired_peers {
         server.peers.remove(&peer);
-        server.admin_sessions.remove(&peer);
         server.login_failures.remove(&peer);
         forget_completed_actions(server, peer);
         tracing::info!(target: "shroudforge::network", peer, "Remote UI peer disconnected or lost network authorization");
     }
-    let active_peers = &server.peers;
-    server.admin_sessions.retain(|peer, session| {
-        active_peers.contains_key(peer)
-            && session.last_active.elapsed() < ADMIN_IDLE_TIMEOUT
-            && session.created.elapsed() < ADMIN_SESSION_TIMEOUT
+    server.admin_sessions.retain(|peer, _| {
+        crate::is_authorized_server_peer(*peer)
+            && (!restrict_clients
+                || allowed_clients
+                    .iter()
+                    .any(|value| value.parse::<u64>().ok() == Some(*peer)))
     });
     server.login_failures.retain(|peer, failures| {
         crate::is_authorized_server_peer(*peer)
@@ -922,23 +915,11 @@ fn authorize_admin_request(
     if !server.peers.contains_key(&peer) {
         return false;
     }
-    let now = Instant::now();
     let Some(session) = server.admin_sessions.get(&peer) else {
         return false;
     };
-    let expired = session.last_active.elapsed() >= ADMIN_IDLE_TIMEOUT
-        || session.created.elapsed() >= ADMIN_SESSION_TIMEOUT;
     let token_matches = supplied_token == Some(session.token.as_str());
     let group_name = session.group_name.clone();
-    if expired {
-        server.admin_sessions.remove(&peer);
-        tracing::warn!(
-            target: "shroudforge::network",
-            group = %group_name,
-            "Server admin session expired"
-        );
-        return false;
-    }
     if !token_matches {
         return false;
     }
@@ -951,12 +932,7 @@ fn authorize_admin_request(
         );
         return false;
     }
-    if let Some(session) = server.admin_sessions.get_mut(&peer) {
-        session.last_active = now;
-        true
-    } else {
-        false
-    }
+    true
 }
 
 fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server: &mut ServerState) {
@@ -999,8 +975,10 @@ fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server:
         );
         return;
     }
-    match server_mods_snapshot(root, locale) {
-        Ok(mods) => {
+    match server_mods_snapshot(root, locale)
+        .and_then(|mods| server_view_snapshot(root, mods))
+    {
+        Ok((mods, server_view)) => {
             let mod_count = mods.as_array().map_or(0, Vec::len);
             let result = send_json(
                 peer,
@@ -1009,7 +987,8 @@ fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server:
                     "requestId": request_id,
                     "success": true,
                     "authorized": true,
-                    "mods": mods
+                    "mods": mods,
+                    "serverView": server_view
                 }),
             );
             if let Err(error) = result {
@@ -1705,6 +1684,68 @@ fn read_server_mod_icon(
     Some((icon.to_owned(), data))
 }
 
+fn server_view_snapshot(
+    root: &Path,
+    mods: serde_json::Value,
+) -> Result<(serde_json::Value, serde_json::Value), String> {
+    let entries = mods.as_array().ok_or("server mod snapshot must be an array")?;
+    let owned_notice_mods = entries
+        .iter()
+        .map(|item| {
+            (
+                item["id"].as_str().unwrap_or_default().to_owned(),
+                item["name"].as_str().unwrap_or_default().to_owned(),
+                item["version"].as_str().unwrap_or_default().to_owned(),
+                item["ecosystem"].as_str().unwrap_or("SF").to_owned(),
+                item["changelog"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(serde_json::Value::as_str)
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let notification_mods = owned_notice_mods
+        .iter()
+        .map(|(id, name, version, ecosystem, changelog)| shroudforge_news::ModNotification {
+            id,
+            name,
+            version,
+            ecosystem,
+            changelog,
+        })
+        .collect::<Vec<_>>();
+    let notices = shroudforge_news::read_event_notifications(root, &notification_mods);
+    let news_templates = shroudforge_news::read(root)
+        .ok()
+        .and_then(|value| value.get("templates").cloned())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let game_version = fs::read(shroudforge_loader_config::paths::version_file(root))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|value| value["gameVersion"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| "Automatisch erkannt".into());
+    let compatibility = mod_loader::compatibility_status::configuration(
+        root,
+        true,
+        env!("CARGO_PKG_VERSION"),
+        shroudforge_loader_config::runtime_status::runtime_pid(root),
+    );
+    let server_view = serde_json::json!({
+        "notices": notices,
+        "newsTemplates": news_templates,
+        "gameVersion": game_version,
+        "configuration": compatibility,
+        "dllCandidates": mod_loader::dll_manager::discover_dll_candidates(root),
+        "dllChainEntries": mod_loader::dll_manager::chain_load_entries(root),
+        "hotkeyConflicts": [],
+        "mode": "SERVER"
+    });
+    Ok((mods, server_view))
+}
+
 fn server_mod_info(root: &Path, id: &str, locale: &str) -> Option<serde_json::Value> {
     server_mods_snapshot(root, locale)
         .ok()?
@@ -1998,7 +2039,6 @@ fn send_payload_to_peers(peers: &HashMap<u64, Instant>, payload: &[u8]) -> Vec<u
 fn remove_failed_peers(server: &mut ServerState, failed: impl IntoIterator<Item = u64>) {
     for peer in failed {
         server.peers.remove(&peer);
-        server.admin_sessions.remove(&peer);
         server.login_failures.remove(&peer);
         forget_completed_actions(server, peer);
         tracing::warn!(target: "shroudforge::network", peer, "Removed remote UI peer after a Steam send failure");
@@ -2179,8 +2219,6 @@ mod tests {
             AdminSession {
                 token: "current-token".into(),
                 group_name: "Admin".into(),
-                created: Instant::now(),
-                last_active: Instant::now(),
             },
         );
 

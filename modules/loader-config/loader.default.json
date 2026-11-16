@@ -5,7 +5,62 @@
     "showNativeModMenu": true,
     "zoomPercent": 100,
     "usernameMode": "auto",
-    "messageNameFallback": "Flameborn"
+    "messageNameFallback": "Flameborn",
+    "uiTargets": {
+      "visibility": {
+        "client": {
+          "pages": {
+            "activity": true,
+            "news": true,
+            "compatibility": true,
+            "settings": true,
+            "wiki": true,
+            "discover": true,
+            "installed": true,
+            "updates": true,
+            "recycle-bin": true
+          },
+          "modules": {
+            "modDetection": true,
+            "dllManager": true,
+            "debugConsole": true,
+            "worldEditor": true,
+            "modloaderUi": true,
+            "wiki": true,
+            "network": true,
+            "runtimeDiagnostics": true,
+            "gameProfileDiscovery": true,
+            "updates": true
+          }
+        },
+        "server": {
+          "pages": {
+            "activity": true,
+            "news": true,
+            "compatibility": true,
+            "settings": true,
+            "wiki": false,
+            "discover": false,
+            "installed": true,
+            "updates": false,
+            "recycle-bin": false
+          },
+          "modules": {
+            "modDetection": true,
+            "dllManager": true,
+            "debugConsole": true,
+            "worldEditor": true,
+            "modloaderUi": true,
+            "wiki": false,
+            "network": true,
+            "runtimeDiagnostics": true,
+            "gameProfileDiscovery": true,
+            "updates": true
+          }
+        }
+      },
+      "wikiLinkTarget": "client"
+    }
   },
   "logging": {
     "minimumLevel": "INFO"
@@ -240,18 +295,15 @@
   "modules": {
     "modDetection": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "tolerateUnknownManifestFields": true
     },
     "dllManager": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "excludedDllNames": [],
       "profiles": []
     },
     "debugConsole": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "popupMode": "bootstrap",
       "popupCooldownSeconds": 30,
       "defaultSource": "game",
@@ -266,13 +318,11 @@
     },
     "worldEditor": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "toggleKey": "SDL:59",
       "refreshMilliseconds": 1000
     },
     "modloaderUi": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "startPage": "news",
       "remoteTarget": "client",
       "toggleKey": "SDL:66",
@@ -283,19 +333,16 @@
     },
     "wiki": {
       "enabled": true,
-      "visibleInServerTarget": false,
       "itemsPerPage": 30,
       "refreshIntervalMinutes": 1440
     },
     "network": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "serverSteamId": "",
       "allowedClientSteamIds": ""
     },
     "runtimeDiagnostics": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "sessionActive": false,
       "intervalMilliseconds": 2000,
       "continuous": true,
@@ -306,12 +353,10 @@
       "requestId": 0
     },
     "gameProfileDiscovery": {
-      "enabled": true,
-      "visibleInServerTarget": true
+      "enabled": true
     },
     "updates": {
       "enabled": true,
-      "visibleInServerTarget": true,
       "window": {
         "position": null
       },

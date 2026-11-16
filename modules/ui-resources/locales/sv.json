@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "Söker efter spelanslutning",
   "serverAdmin.searchingMessage": "ShroudForge väntar på en bekräftad Steam P2P-anslutning. Gå in i serverns spelvärld. Lösenordsfältet visas här när anslutningen är redo.",
   "serverAdmin.searchingLink": "SÖKER EFTER ANSLUTNING",
-  "settings.modules.serverTargetVisibility.title": "Synlighet i serverläget",
-  "settings.modules.serverTargetVisibility.description": "Välj vilka modulavsnitt och inställningar som visas när serverläget är valt. Detta aktiverar eller inaktiverar inte moduler. Wiki-posten öppnar fortfarande klientens Wiki.",
-  "settings.modules.serverTargetVisibility.item": "Visa {module} i serverläget"
+  "settings.modules.serverTargetVisibility.title": "Synlighet per mål",
+  "settings.modules.serverTargetVisibility.description": "Välj separat vilka sidor och modulinställningar som visas i klient- och servermålet. Detta styr endast synligheten och ändrar inte om en modul körs. Wiki-länkar öppnas i det valda målet.",
+  "settings.modules.serverTargetVisibility.item": "Visa {module} i målet {target}",
+  "settings.modules.serverTargetVisibility.pages": "Sidor",
+  "settings.modules.serverTargetVisibility.modules": "Modulinställningar",
+  "settings.modules.serverTargetVisibility.clientTarget": "Klientmål",
+  "settings.modules.serverTargetVisibility.serverTarget": "Servermål",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Mål för Wiki-länkar",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "Aktuellt mål",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "Klientmål",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "Servermål"
 }

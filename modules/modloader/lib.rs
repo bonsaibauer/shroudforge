@@ -69,6 +69,7 @@ pub mod config {
     };
     pub use shroudforge_loader_config::config::*;
 }
+pub mod compatibility_status;
 pub use shroudforge_loader_config::paths;
 
 mod create_mod;

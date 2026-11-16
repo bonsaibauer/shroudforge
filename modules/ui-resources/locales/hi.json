@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "गेम कनेक्शन खोजा जा रहा है",
   "serverAdmin.searchingMessage": "ShroudForge पुष्टि किए गए Steam P2P कनेक्शन की प्रतीक्षा कर रहा है। सर्वर की गेम दुनिया में प्रवेश करें। कनेक्शन तैयार होने पर पासवर्ड फ़ील्ड यहाँ दिखाई देगा।",
   "serverAdmin.searchingLink": "कनेक्शन खोजा जा रहा है",
-  "settings.modules.serverTargetVisibility.title": "सर्वर लक्ष्य दृश्यता",
-  "settings.modules.serverTargetVisibility.description": "सर्वर लक्ष्य चुने जाने पर दिखने वाले मॉड्यूल अनुभाग और सेटिंग चुनें। इससे मॉड्यूल चालू या बंद नहीं होते। Wiki प्रविष्टि अब भी क्लाइंट Wiki खोलती है।",
-  "settings.modules.serverTargetVisibility.item": "सर्वर लक्ष्य में {module} दिखाएँ"
+  "settings.modules.serverTargetVisibility.title": "लक्ष्य के अनुसार दृश्यता",
+  "settings.modules.serverTargetVisibility.description": "चुनें कि क्लाइंट और सर्वर लक्ष्यों में कौन से पृष्ठ और मॉड्यूल सेटिंग दिखाई दें। यह केवल दृश्यता नियंत्रित करता है, मॉड्यूल के चलने को नहीं। Wiki लिंक चुने हुए लक्ष्य में खुलते हैं।",
+  "settings.modules.serverTargetVisibility.item": "{target} लक्ष्य में {module} दिखाएँ",
+  "settings.modules.serverTargetVisibility.pages": "पृष्ठ",
+  "settings.modules.serverTargetVisibility.modules": "मॉड्यूल सेटिंग",
+  "settings.modules.serverTargetVisibility.clientTarget": "क्लाइंट लक्ष्य",
+  "settings.modules.serverTargetVisibility.serverTarget": "सर्वर लक्ष्य",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Wiki लिंक का लक्ष्य",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "वर्तमान लक्ष्य",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "क्लाइंट लक्ष्य",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "सर्वर लक्ष्य"
 }

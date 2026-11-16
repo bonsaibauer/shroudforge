@@ -921,7 +921,15 @@
   "serverAdmin.searchingTitle": "Zoeken naar gameverbinding",
   "serverAdmin.searchingMessage": "ShroudForge wacht op een bevestigde Steam P2P-verbinding. Betreed de gamewereld van de server. Het wachtwoordveld verschijnt hier zodra de verbinding gereed is.",
   "serverAdmin.searchingLink": "VERBINDING WORDT GEZOCHT",
-  "settings.modules.serverTargetVisibility.title": "Zichtbaarheid in de serverdoelmodus",
-  "settings.modules.serverTargetVisibility.description": "Kies welke moduleonderdelen en instellingen worden getoond wanneer de serverdoelmodus is geselecteerd. Dit schakelt modules niet in of uit. De Wiki-vermelding opent nog steeds de client-Wiki.",
-  "settings.modules.serverTargetVisibility.item": "{module} tonen in de serverdoelmodus"
+  "settings.modules.serverTargetVisibility.title": "Zichtbaarheid per doel",
+  "settings.modules.serverTargetVisibility.description": "Kies afzonderlijk welke pagina’s en module-instellingen zichtbaar zijn in het client- en serverdoel. Dit regelt alleen de zichtbaarheid en verandert niet of een module wordt uitgevoerd. Wiki-links openen in het gekozen doel.",
+  "settings.modules.serverTargetVisibility.item": "{module} tonen in het doel {target}",
+  "settings.modules.serverTargetVisibility.pages": "Pagina’s",
+  "settings.modules.serverTargetVisibility.modules": "Module-instellingen",
+  "settings.modules.serverTargetVisibility.clientTarget": "Clientdoel",
+  "settings.modules.serverTargetVisibility.serverTarget": "Serverdoel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget": "Bestemming van Wiki-links",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.current": "Huidig doel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.client": "Clientdoel",
+  "settings.modules.serverTargetVisibility.wikiLinkTarget.server": "Serverdoel"
 }
