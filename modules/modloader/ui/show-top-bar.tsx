@@ -11,6 +11,7 @@ export function TopBar({
   data,
   remoteTarget,
   serverAdminAuthenticated,
+  serverAdminGroupName,
   serverAdminLoginPending,
   serverAdminLoginError,
   onRemoteAdminLogin,
@@ -24,6 +25,7 @@ export function TopBar({
   data: Snapshot
   remoteTarget: 'client' | 'server'
   serverAdminAuthenticated: boolean
+  serverAdminGroupName: string | null
   serverAdminLoginPending: boolean
   serverAdminLoginError: string | null
   onRemoteAdminLogin(password: string): void
@@ -94,7 +96,9 @@ export function TopBar({
           : undefined}
       />
       {remoteTarget === 'server' && serverAdminAuthenticated && (
-        <span className="remote-admin-status" role="status">Server admin</span>
+        <span className="remote-admin-status" role="status">
+          {serverAdminGroupName ?? 'Server admin'}
+        </span>
       )}
       <div className="window-controls">
         <button

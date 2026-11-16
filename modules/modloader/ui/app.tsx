@@ -58,6 +58,7 @@ export function App() {
   const [remoteTarget, setRemoteTarget] = useState<'client' | 'server'>('client')
   const [serverMods, setServerMods] = useState<ModInfo[] | null>(null)
   const [serverAdminAuthenticated, setServerAdminAuthenticated] = useState(false)
+  const [serverAdminGroupName, setServerAdminGroupName] = useState<string | null>(null)
   const [serverAdminLoginPending, setServerAdminLoginPending] = useState(false)
   const [serverAdminLoginError, setServerAdminLoginError] = useState<string | null>(null)
   const pendingServerLogin = useRef<string | null>(null)
@@ -95,11 +96,15 @@ export function App() {
         requestId: string
         success: boolean
         message?: string
+        groupName?: string
       }>).detail
       if (result?.requestId === pendingServerLogin.current) {
         pendingServerLogin.current = null
         setServerAdminLoginPending(false)
         setServerAdminAuthenticated(result.success)
+        setServerAdminGroupName(
+          result.success ? result.groupName ?? 'Server admin' : null,
+        )
         setServerAdminLoginError(result.success ? null : result.message ?? 'Admin authentication failed')
       } else if (
         remoteTarget === 'server' &&
@@ -108,6 +113,7 @@ export function App() {
           result?.message?.startsWith('Sign in with a server admin group'))
       ) {
         setServerAdminAuthenticated(false)
+        setServerAdminGroupName(null)
         setServerMods(null)
         setServerAdminLoginError(result.message ?? 'Server admin access expired')
       }
@@ -290,6 +296,7 @@ export function App() {
     setServerMods(null)
     setSelectedMod(null)
     setServerAdminAuthenticated(false)
+    setServerAdminGroupName(null)
     setServerAdminLoginPending(false)
     setServerAdminLoginError(null)
     pendingServerLogin.current = null
@@ -312,6 +319,7 @@ export function App() {
         data={data}
         remoteTarget={remoteTarget}
         serverAdminAuthenticated={serverAdminAuthenticated}
+        serverAdminGroupName={serverAdminGroupName}
         serverAdminLoginPending={serverAdminLoginPending}
         serverAdminLoginError={serverAdminLoginError}
         onRemoteAdminLogin={(password) => {

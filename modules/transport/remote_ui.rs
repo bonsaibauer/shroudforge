@@ -487,9 +487,15 @@ fn receive_auth_result(value: &serde_json::Value, client: &mut ClientState) {
             elapsed_ms = pending.started.elapsed().as_millis() as u64,
             "Server admin authentication completed"
         );
-        let _ = pending
-            .response
-            .send(serde_json::json!({ "success": true, "message": "Server admin access granted" }));
+        let group_name = value["groupName"]
+            .as_str()
+            .filter(|group_name| !group_name.trim().is_empty())
+            .unwrap_or("Server admin");
+        let _ = pending.response.send(serde_json::json!({
+            "success": true,
+            "message": "Server admin access granted",
+            "groupName": group_name
+        }));
     } else {
         let message = value["message"]
             .as_str()
@@ -638,7 +644,13 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                 };
                 let password = value["password"].as_str().unwrap_or_default();
                 if password.is_empty() || password.len() > 1024 {
-                    let _ = send_auth_result(peer, request_id, None, "Admin authentication failed");
+                    let _ = send_auth_result(
+                        peer,
+                        request_id,
+                        None,
+                        None,
+                        "Admin authentication failed",
+                    );
                     continue;
                 }
                 if server.login_failures.get(&peer).is_some_and(|failure| {
@@ -646,7 +658,13 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                         .blocked_until
                         .is_some_and(|until| until > Instant::now())
                 }) {
-                    let _ = send_auth_result(peer, request_id, None, "Admin authentication failed");
+                    let _ = send_auth_result(
+                        peer,
+                        request_id,
+                        None,
+                        None,
+                        "Admin authentication failed",
+                    );
                     continue;
                 }
                 if let Some(group_name) = matching_admin_group(root, password) {
@@ -662,7 +680,13 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                             last_active: now,
                         },
                     );
-                    if let Err(error) = send_auth_result(peer, request_id, Some(&token), "") {
+                    if let Err(error) = send_auth_result(
+                        peer,
+                        request_id,
+                        Some(&token),
+                        Some(&group_name),
+                        "",
+                    ) {
                         server.admin_sessions.remove(&peer);
                         tracing::warn!(
                             target: "shroudforge::network",
@@ -699,7 +723,13 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                             "Server admin login was rejected"
                         );
                     }
-                    let _ = send_auth_result(peer, request_id, None, "Admin authentication failed");
+                    let _ = send_auth_result(
+                        peer,
+                        request_id,
+                        None,
+                        None,
+                        "Admin authentication failed",
+                    );
                 }
             }
             Some("config-update") => {
@@ -779,6 +809,7 @@ fn send_auth_result(
     peer: u64,
     request_id: &str,
     token: Option<&str>,
+    group_name: Option<&str>,
     message: &str,
 ) -> Result<(), String> {
     let value = match token {
@@ -786,7 +817,8 @@ fn send_auth_result(
             "type": "admin-auth-result",
             "requestId": request_id,
             "success": true,
-            "token": token
+            "token": token,
+            "groupName": group_name
         }),
         None => serde_json::json!({
             "type": "admin-auth-result",

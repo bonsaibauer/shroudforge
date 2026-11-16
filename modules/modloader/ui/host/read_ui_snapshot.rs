@@ -74,17 +74,30 @@ pub(crate) fn read_ui_snapshot(
         .unwrap_or("client");
     let active_runtime_pid = (!desktop).then(|| runtime_pid(root)).flatten();
     let diagnostics = shroudforge_runtime_diagnostics::status(root);
+    let runtime_status = shroudforge_loader_config::config::read_document(
+        root,
+        shroudforge_runtime_diagnostics::documents::MOD_STATUS,
+    )
+    .unwrap_or(serde_json::Value::Null);
     let connected = active_runtime_pid.is_some();
     let network_enabled = central
         .pointer("/modules/network/enabled")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let runtime_status_fresh = runtime_status["running"] == true
+        && runtime_status["pid"].as_u64() == active_runtime_pid.map(u64::from)
+        && runtime_status["updatedAt"]
+            .as_u64()
+            .is_some_and(|updated_at| updated_at <= now && now - updated_at <= 5);
     let remote_server_state = if network_enabled
         && connected
-        && diagnostics["fresh"] == true
-        && diagnostics["pid"].as_u64() == active_runtime_pid.map(u64::from)
+        && runtime_status_fresh
     {
-        match diagnostics["network"]["remoteServerState"].as_str() {
+        match runtime_status["network"]["remoteServerState"].as_str() {
             Some("connected") => "connected",
             Some("disconnected") => "disconnected",
             _ => "connecting",
