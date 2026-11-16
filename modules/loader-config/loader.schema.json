@@ -848,6 +848,10 @@
             "enabled": {
               "type": "boolean"
             },
+            "itemsPerPage": {
+              "type": "integer",
+              "enum": [10, 20, 30, 50]
+            },
             "pageSize": {
               "type": "integer",
               "minimum": 1,

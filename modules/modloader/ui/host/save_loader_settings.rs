@@ -50,6 +50,7 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                     "wiki",
                     &[
                         "enabled",
+                        "itemsPerPage",
                         "pageSize",
                         "maxResultsPerQuery",
                         "refreshIntervalMinutes",

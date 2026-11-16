@@ -84,7 +84,7 @@ impl Action {
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 9] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 10] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -131,6 +131,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 9] = [
         Trigger::AfterInstall,
         "migration.wiki-refresh-interval",
         Action::NormalizeWikiRefreshInterval,
+        1,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.wiki-pagination-settings",
+        Action::UpdateLoaderSettings,
         1,
     ),
     (
@@ -199,6 +205,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
     (
         "migrate-wiki-refresh-interval.json",
         include_str!("migrate-wiki-refresh-interval.json"),
+    ),
+    (
+        "migrate-wiki-pagination-settings.json",
+        include_str!("migrate-wiki-pagination-settings.json"),
     ),
     (
         "restore-updates-module.json",

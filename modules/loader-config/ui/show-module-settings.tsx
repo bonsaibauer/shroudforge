@@ -20,7 +20,7 @@ import { worldEditorSettingsFields } from '../../world-editor/ui/settings'
 import { NetworkSettings } from '../../transport/ui/settings'
 import { UpdatePreferences } from '../../updater/ui/edit-update-preferences'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
-import { refreshWikiSearchCache, resolveWikiApiSettings } from '../../wiki/mediawiki-api'
+import { refreshWikiSearchCache } from '../../wiki/mediawiki-api'
 import { WikiActions } from '../../wiki/ui/show-wiki-actions'
 
 function WindowGeometryControls({
@@ -150,8 +150,6 @@ export function ModulePreferencesEditor({
     ...worldEditorSettingsFields,
     ['modloaderUi', 'toggleKey', 'settings.modules.field.hotkey'],
     ['modloaderUi', 'refreshMilliseconds', 'settings.modules.field.refresh'],
-    ['wiki', 'pageSize', 'settings.modules.field.wikiPageSize'],
-    ['wiki', 'maxResultsPerQuery', 'settings.modules.field.wikiMaximumResults'],
     ['wiki', 'refreshIntervalMinutes', 'settings.modules.field.wikiRefreshMinutes'],
   ]
   const controlVisibility = (
@@ -168,8 +166,6 @@ export function ModulePreferencesEditor({
     slowCallbackMilliseconds: [0.1, 60000],
     popupCooldownSeconds: [0, 3600],
     refreshMilliseconds: [100, 10000],
-    pageSize: [1, 100],
-    maxResultsPerQuery: [1, 500],
     refreshIntervalMinutes: [60, 1440],
     tailBytes: [1024, 1048576],
   }
@@ -322,10 +318,7 @@ export function ModulePreferencesEditor({
                     notifyCommandResult={notifyCommandResult}
                     refreshDisabled={!moduleEnabled('wiki')}
                     onRefresh={async () => {
-                      const wikiSettings = resolveWikiApiSettings(prefs.wiki)
-                      await refreshWikiSearchCache(
-                        '', locale, wikiSettings.pageSize, wikiSettings.maxResultsPerQuery,
-                      )
+                      await refreshWikiSearchCache('', locale)
                     }}
                   />
                 </div>

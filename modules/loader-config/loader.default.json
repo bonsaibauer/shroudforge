@@ -278,8 +278,7 @@
     },
     "wiki": {
       "enabled": true,
-      "pageSize": 30,
-      "maxResultsPerQuery": 120,
+      "itemsPerPage": 30,
       "refreshIntervalMinutes": 1440
     },
     "network": {

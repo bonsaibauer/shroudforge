@@ -156,7 +156,7 @@ pub(crate) fn save_setting_to(
         }
         "wiki" => matches!(
             key,
-            "enabled" | "pageSize" | "maxResultsPerQuery" | "refreshIntervalMinutes"
+            "enabled" | "itemsPerPage" | "pageSize" | "maxResultsPerQuery" | "refreshIntervalMinutes"
         ),
         "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
         "network" => matches!(key, "enabled" | "serverSteamId" | "allowedClientSteamIds"),

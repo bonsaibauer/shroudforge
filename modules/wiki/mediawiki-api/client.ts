@@ -118,43 +118,30 @@ function writeCache(cache: WikiCache) {
 }
 
 function searchKey(query: string, locale: string, category = '', language = 'auto') {
-  return JSON.stringify([locale, language, category.trim(), query.trim()]
+  return JSON.stringify(['v2', locale, language, category.trim(), query.trim()]
     .map((part) => part.toLocaleLowerCase()))
 }
 
 export function readCachedWikiSearch(
   query: string,
   locale: string,
-  maximumResults: number = WIKI_API_SETTINGS.defaultMaxResultsPerQuery,
   category = '',
   language = 'auto',
 ): CachedWikiSearch | undefined {
-  const cached = readCache().searches[searchKey(query, locale, category, language)]
-  if (!cached) return undefined
-  const resultLimit = Math.max(1, Math.min(WIKI_API_SETTINGS.maxApiPageSize, Math.floor(maximumResults)))
-  const pages = cached.pages.slice(0, resultLimit)
-  return {
-    ...cached,
-    pages,
-    continuation: pages.length >= resultLimit ? undefined : cached.continuation,
-  }
+  return readCache().searches[searchKey(query, locale, category, language)]
 }
 
 export function writeCachedWikiSearch(
   query: string,
   locale: string,
   pages: WikiPageSummary[],
-  continuation?: Record<string, string>,
-  maximumResults: number = WIKI_API_SETTINGS.defaultMaxResultsPerQuery,
   category = '',
   language = 'auto',
 ) {
-  const resultLimit = Math.max(1, Math.min(WIKI_API_SETTINGS.maxApiPageSize, Math.floor(maximumResults)))
   const cache = readCache()
   cache.searches[searchKey(query, locale, category, language)] = {
     savedAt: Date.now(),
-    pages: pages.slice(0, resultLimit),
-    continuation: pages.length >= resultLimit ? undefined : continuation,
+    pages,
   }
   writeCache(cache)
 }
@@ -491,7 +478,7 @@ export async function searchWikiPages(
   filters: WikiSearchFilters,
   continuation?: Record<string, string>,
   signal?: AbortSignal,
-  requestedLimit: number = WIKI_API_SETTINGS.defaultPageSize,
+  requestedLimit: number = WIKI_API_SETTINGS.maxApiPageSize,
 ): Promise<WikiSearchPage> {
   const query = filters.query.trim()
   const category = filters.category.trim()
@@ -563,15 +550,43 @@ export async function searchWikiPages(
   return { pages, continuation: next }
 }
 
+export async function searchAllWikiPages(
+  filters: WikiSearchFilters,
+  signal?: AbortSignal,
+): Promise<WikiSearchPage> {
+  let pages: WikiPageSummary[] = []
+  let continuation: Record<string, string> | undefined
+  const seenContinuations = new Set<string>()
+
+  do {
+    const continuationKey = JSON.stringify(continuation || {})
+    if (seenContinuations.has(continuationKey)) {
+      throw new Error('MediaWiki search continuation did not advance.')
+    }
+    seenContinuations.add(continuationKey)
+    const result = await searchWikiPages(
+      filters,
+      continuation,
+      signal,
+      WIKI_API_SETTINGS.maxApiPageSize,
+    )
+    pages = mergeWikiPages(pages, result.pages)
+    continuation = result.continuation
+  } while (continuation)
+
+  return { pages }
+}
+
 export async function refreshWikiSearchCache(
   query: string,
   locale: string,
-  requestedLimit: number,
-  maximumResults: number,
   signal?: AbortSignal,
 ): Promise<WikiSearchPage> {
-  const result = await searchWikiPages({ query, category: '', language: 'auto', locale }, undefined, signal, requestedLimit)
-  writeCachedWikiSearch(query, locale, result.pages, result.continuation, maximumResults)
+  const result = await searchAllWikiPages(
+    { query, category: '', language: 'auto', locale },
+    signal,
+  )
+  writeCachedWikiSearch(query, locale, result.pages)
   return result
 }
 
