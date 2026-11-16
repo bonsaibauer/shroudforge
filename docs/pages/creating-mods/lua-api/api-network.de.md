@@ -31,7 +31,7 @@
 
 ## Eigene Kanäle
 
-`send` und `receive` arbeiten mit binärsicheren Lua-Strings. Öffentliche Kanäle reichen von 0 bis 65534. Kanal 65535 ist für die interne Health-Prüfung reserviert. Der Kanal muss auf beiden Seiten übereinstimmen.
+`send` und `receive` arbeiten mit binärsicheren Lua-Strings. Öffentliche Kanäle reichen von 0 bis 65533. Kanal 65534 ist für die Modloader-Dateispiegelung und Kanal 65535 für die interne Health-Prüfung reserviert. Der Kanal muss auf beiden Seiten übereinstimmen.
 
 ## Serverfreigabe und SteamID64
 
