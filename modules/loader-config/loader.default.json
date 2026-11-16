@@ -240,15 +240,18 @@
   "modules": {
     "modDetection": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "tolerateUnknownManifestFields": true
     },
     "dllManager": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "excludedDllNames": [],
       "profiles": []
     },
     "debugConsole": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "popupMode": "bootstrap",
       "popupCooldownSeconds": 30,
       "defaultSource": "game",
@@ -263,11 +266,13 @@
     },
     "worldEditor": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "toggleKey": "SDL:59",
       "refreshMilliseconds": 1000
     },
     "modloaderUi": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "startPage": "news",
       "remoteTarget": "client",
       "toggleKey": "SDL:66",
@@ -278,16 +283,19 @@
     },
     "wiki": {
       "enabled": true,
+      "visibleInServerTarget": false,
       "itemsPerPage": 30,
       "refreshIntervalMinutes": 1440
     },
     "network": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "serverSteamId": "",
       "allowedClientSteamIds": ""
     },
     "runtimeDiagnostics": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "sessionActive": false,
       "intervalMilliseconds": 2000,
       "continuous": true,
@@ -298,10 +306,12 @@
       "requestId": 0
     },
     "gameProfileDiscovery": {
-      "enabled": true
+      "enabled": true,
+      "visibleInServerTarget": true
     },
     "updates": {
       "enabled": true,
+      "visibleInServerTarget": true,
       "window": {
         "position": null
       },

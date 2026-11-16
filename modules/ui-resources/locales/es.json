@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "Umbral para funciones de devolución de llamada lentas (ms)",
   "settings.modules.field.onlyChanges": "Registrar solo los cambios",
   "settings.modules.field.active": "Módulo activo",
-  "settings.modules.field.wikiPageSize": "Artículos por solicitud a la API",
-  "settings.modules.field.wikiMaximumResults": "Máximo de artículos por búsqueda",
   "settings.modules.field.wikiRefreshMinutes": "Intervalo de actualización (minutos)",
   "settings.modules.field.continuous": "Diagnósticos continuos",
   "settings.modules.field.source": "Origen del registro",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "CONEXIÓN P2P ACTIVA",
   "serverAdmin.searchingTitle": "Buscando conexión con la partida",
   "serverAdmin.searchingMessage": "ShroudForge espera una conexión Steam P2P confirmada. Entra en el mundo del servidor. El campo de contraseña aparecerá aquí cuando la conexión esté lista.",
-  "serverAdmin.searchingLink": "BUSCANDO CONEXIÓN"
+  "serverAdmin.searchingLink": "BUSCANDO CONEXIÓN",
+  "settings.modules.serverTargetVisibility.title": "Visibilidad del destino del servidor",
+  "settings.modules.serverTargetVisibility.description": "Elige qué secciones y ajustes de módulos aparecen al seleccionar el destino del servidor. Esto no activa ni desactiva módulos. La entrada Wiki sigue abriendo la Wiki del cliente.",
+  "settings.modules.serverTargetVisibility.item": "Mostrar {module} en el destino del servidor"
 }

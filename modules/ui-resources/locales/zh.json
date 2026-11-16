@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "慢速回调阈值（毫秒）",
   "settings.modules.field.onlyChanges": "仅日志更改",
   "settings.modules.field.active": "模块处于活动状态",
-  "settings.modules.field.wikiPageSize": "每次 API 请求的文章数",
-  "settings.modules.field.wikiMaximumResults": "每次搜索的文章上限",
   "settings.modules.field.wikiRefreshMinutes": "刷新间隔（分钟）",
   "settings.modules.field.continuous": "连续诊断",
   "settings.modules.field.source": "日志源",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "P2P 连接已启用",
   "serverAdmin.searchingTitle": "正在搜索游戏连接",
   "serverAdmin.searchingMessage": "ShroudForge 正在等待已确认的 Steam P2P 连接。请进入服务器所在的游戏世界。连接就绪后，密码输入框会显示在这里。",
-  "serverAdmin.searchingLink": "正在搜索连接"
+  "serverAdmin.searchingLink": "正在搜索连接",
+  "settings.modules.serverTargetVisibility.title": "服务器目标显示设置",
+  "settings.modules.serverTargetVisibility.description": "选择服务器目标处于选中状态时显示的模块区域和设置。这不会启用或停用模块。Wiki 入口仍会打开客户端 Wiki。",
+  "settings.modules.serverTargetVisibility.item": "在服务器目标中显示 {module}"
 }

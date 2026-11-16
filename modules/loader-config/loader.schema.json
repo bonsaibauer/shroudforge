@@ -597,6 +597,7 @@
           "type": "object",
           "properties": {
             "enabled": { "type": "boolean" },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "tolerateUnknownManifestFields": { "type": "boolean" }
           },
           "additionalProperties": false
@@ -605,6 +606,7 @@
           "type": "object",
           "properties": {
             "enabled": { "type": "boolean" },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "excludedDllNames": {
               "type": "array",
               "maxItems": 64,
@@ -650,6 +652,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "popupMode": {
               "enum": [
                 "bootstrap",
@@ -743,6 +746,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "toggleKey": {
               "$ref": "#/$defs/keybind"
             },
@@ -760,6 +764,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "serverSteamId": {
               "type": "string",
               "maxLength": 20,
@@ -778,6 +783,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "startPage": {
               "enum": [
                 "activity",
@@ -848,6 +854,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "itemsPerPage": {
               "type": "integer",
               "enum": [10, 20, 30, 50]
@@ -876,6 +883,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "jobId": {
               "type": "string",
               "minLength": 1,
@@ -917,7 +925,8 @@
           "properties": {
             "enabled": {
               "type": "boolean"
-            }
+            },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" }
           },
           "additionalProperties": false
         },
@@ -927,6 +936,7 @@
             "enabled": {
               "type": "boolean"
             },
+            "visibleInServerTarget": { "$ref": "#/$defs/moduleServerTargetVisibility" },
             "window": {
               "type": "object",
               "properties": {
@@ -1129,6 +1139,9 @@
     }
   },
   "$defs": {
+    "moduleServerTargetVisibility": {
+      "type": "boolean"
+    },
     "protectedHotkey": {
       "type": "object",
       "required": ["scancode", "label", "emoji", "text"],

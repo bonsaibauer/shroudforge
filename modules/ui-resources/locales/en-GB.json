@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "Slow callback threshold (ms)",
   "settings.modules.field.onlyChanges": "Log changes only",
   "settings.modules.field.active": "Module active",
-  "settings.modules.field.wikiPageSize": "Articles per API request",
-  "settings.modules.field.wikiMaximumResults": "Maximum articles per search",
   "settings.modules.field.wikiRefreshMinutes": "Refresh interval (minutes)",
   "settings.modules.field.continuous": "Continuous diagnostics",
   "settings.modules.field.source": "Log source",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "P2P LINK ACTIVE",
   "serverAdmin.searchingTitle": "Searching for game connection",
   "serverAdmin.searchingMessage": "ShroudForge is waiting for a confirmed Steam P2P connection. Enter the server’s game world. The password field will appear here once the connection is ready.",
-  "serverAdmin.searchingLink": "SEARCHING FOR CONNECTION"
+  "serverAdmin.searchingLink": "SEARCHING FOR CONNECTION",
+  "settings.modules.serverTargetVisibility.title": "Server target visibility",
+  "settings.modules.serverTargetVisibility.description": "Choose which module sections and settings appear while the Server target is selected. This does not enable or disable modules. The Wiki entry still opens the client Wiki.",
+  "settings.modules.serverTargetVisibility.item": "Show {module} in the Server target"
 }

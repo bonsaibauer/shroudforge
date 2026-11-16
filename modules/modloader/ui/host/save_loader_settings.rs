@@ -40,11 +40,18 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "toggleKey",
                         "refreshMilliseconds",
                         "tailBytes",
+                        "visibleInServerTarget",
                     ][..],
                 ),
                 (
                     "modloaderUi",
-                    &["enabled", "startPage", "toggleKey", "refreshMilliseconds"][..],
+                    &[
+                        "enabled",
+                        "startPage",
+                        "toggleKey",
+                        "refreshMilliseconds",
+                        "visibleInServerTarget",
+                    ][..],
                 ),
                 (
                     "wiki",
@@ -54,13 +61,22 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "pageSize",
                         "maxResultsPerQuery",
                         "refreshIntervalMinutes",
+                        "visibleInServerTarget",
                     ][..],
                 ),
                 (
                     "worldEditor",
-                    &["enabled", "toggleKey", "refreshMilliseconds"][..],
+                    &[
+                        "enabled",
+                        "toggleKey",
+                        "refreshMilliseconds",
+                        "visibleInServerTarget",
+                    ][..],
                 ),
-                ("gameProfileDiscovery", &["enabled"][..]),
+                (
+                    "gameProfileDiscovery",
+                    &["enabled", "visibleInServerTarget"][..],
+                ),
                 (
                     "runtimeDiagnostics",
                     &[
@@ -71,6 +87,7 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                         "slowCallbackMilliseconds",
                         "continuous",
                         "onlyChanges",
+                        "visibleInServerTarget",
                     ][..],
                 ),
             ] {

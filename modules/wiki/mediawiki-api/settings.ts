@@ -36,8 +36,7 @@ export const WIKI_API_SETTINGS = {
 
 export type WikiModuleSettings = {
   enabled?: boolean
-  pageSize?: number
-  maxResultsPerQuery?: number
+  itemsPerPage?: number
   refreshIntervalMinutes?: number
 }
 

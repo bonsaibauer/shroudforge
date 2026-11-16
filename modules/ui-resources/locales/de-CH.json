@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "Grenzwert für langsami Aufrüef (ms)",
   "settings.modules.field.onlyChanges": "Nur Änderige protokollieren",
   "settings.modules.field.active": "Modul isch igschaltet",
-  "settings.modules.field.wikiPageSize": "Artikel pro API-Aafrag",
-  "settings.modules.field.wikiMaximumResults": "Maximali Artikel pro Suechi",
   "settings.modules.field.wikiRefreshMinutes": "Aktualisierungsintervall (Minute)",
   "settings.modules.field.continuous": "Kontinuierliche Diagnose",
   "settings.modules.field.source": "Protokollquelle",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "P2P-VERBINDUNG AKTIV",
   "serverAdmin.searchingTitle": "Suche nach Spielverbindung",
   "serverAdmin.searchingMessage": "ShroudForge wartet auf eine bestätigte Steam-P2P-Verbindung. Betritt die Spielwelt des Servers. Sobald die Verbindung steht, erscheint hier das Passwortfeld.",
-  "serverAdmin.searchingLink": "VERBINDUNG WIRD GESUCHT"
+  "serverAdmin.searchingLink": "VERBINDUNG WIRD GESUCHT",
+  "settings.modules.serverTargetVisibility.title": "Sichtbarkeit im Serverziel",
+  "settings.modules.serverTargetVisibility.description": "Lege fest, welche Modulbereiche und Einstellungen im Serverziel angezeigt werden. Das ändert nicht, ob ein Modul eingeschaltet ist. Der Wiki-Eintrag öffnet weiterhin das Client-Wiki.",
+  "settings.modules.serverTargetVisibility.item": "{module} im Serverziel anzeigen"
 }

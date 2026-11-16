@@ -1,4 +1,5 @@
 import type { Settings } from '../../loader-config/ui/loader-settings'
+import { isVisibleInServerTarget } from '../../loader-config/ui/module-visibility'
 import { post, postRequest } from '../../transport/ui/send-host-command'
 import { useEffect, useRef, useState } from 'react'
 import { I18nProvider, useI18n } from '../../ui-resources/i18n'
@@ -239,7 +240,31 @@ export function App() {
     label: t('common.dismiss'),
     onClick: dismissBanner,
   }
+  const changeRemoteTarget = (target: 'client' | 'server') => {
+    if (target === remoteTarget) return
+    setRemoteTarget(target)
+    setServerMods(null)
+    setSelectedMod(null)
+    setServerAdminAuthenticated(false)
+    setServerAdminGroupName(null)
+    setServerAdminLoginPending(false)
+    setServerAdminLoginError(null)
+    pendingServerLogin.current = null
+    if (target === 'server' && page === 'wiki') {
+      setSelectedWikiArticle(null)
+      setPage('installed')
+    }
+    postRequest('save-setting', {
+      scope: 'module',
+      module: 'modloaderUi',
+      key: 'remoteTarget',
+      value: target,
+    })
+  }
   const navigate = (next: PageId) => {
+    if (next === 'wiki' && remoteTarget === 'server') {
+      changeRemoteTarget('client')
+    }
     setSelectedMod(null)
     setSelectedWikiArticle(null)
     if (next === 'wiki' && page !== 'wiki' && !wikiCategory) {
@@ -252,6 +277,9 @@ export function App() {
       | { type: 'article'; articleId: string }
       | { type: 'category'; category: string },
   ) => {
+    if (remoteTarget === 'server') {
+      changeRemoteTarget('client')
+    }
     setSelectedMod(null)
     if (destination.type === 'category') {
       setWikiCategory(destination.category)
@@ -297,24 +325,6 @@ export function App() {
     else if (action.kind === 'open-updates') navigate('updates')
     else if (action.kind === 'queue-system-update')
       postRequest('queue-system-update')
-  }
-
-  const changeRemoteTarget = (target: 'client' | 'server') => {
-    if (target === remoteTarget) return
-    setRemoteTarget(target)
-    setServerMods(null)
-    setSelectedMod(null)
-    setServerAdminAuthenticated(false)
-    setServerAdminGroupName(null)
-    setServerAdminLoginPending(false)
-    setServerAdminLoginError(null)
-    pendingServerLogin.current = null
-    postRequest('save-setting', {
-      scope: 'module',
-      module: 'modloaderUi',
-      key: 'remoteTarget',
-      value: target,
-    })
   }
 
   return (
@@ -395,12 +405,17 @@ export function App() {
                 active={!activeMod && page === 'settings'}
                 onClick={() => navigate('settings')}
               />
-              <Nav
-                icon="wiki"
-                label={t('nav.wiki')}
-                active={!activeMod && page === 'wiki'}
-                onClick={() => navigate('wiki')}
-              />
+              {(remoteTarget !== 'server' || isVisibleInServerTarget(
+                'wiki',
+                settings.modulePreferences,
+              )) && (
+                <Nav
+                  icon="wiki"
+                  label={t('nav.wiki')}
+                  active={!activeMod && page === 'wiki'}
+                  onClick={() => navigate('wiki')}
+                />
+              )}
             </NavGroup>
             <NavGroup title={t('nav.modsManagement')}>
               <Nav

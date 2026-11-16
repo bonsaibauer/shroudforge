@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "Långsam callback tröskel (ms)",
   "settings.modules.field.onlyChanges": "Logga ändringar endast",
   "settings.modules.field.active": "Modul aktiv",
-  "settings.modules.field.wikiPageSize": "Artiklar per API-begäran",
-  "settings.modules.field.wikiMaximumResults": "Högsta antal artiklar per sökning",
   "settings.modules.field.wikiRefreshMinutes": "Uppdateringsintervall (minuter)",
   "settings.modules.field.continuous": "Kontinuerlig diagnostik",
   "settings.modules.field.source": "Loggkälla",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "P2P-ANSLUTNING AKTIV",
   "serverAdmin.searchingTitle": "Söker efter spelanslutning",
   "serverAdmin.searchingMessage": "ShroudForge väntar på en bekräftad Steam P2P-anslutning. Gå in i serverns spelvärld. Lösenordsfältet visas här när anslutningen är redo.",
-  "serverAdmin.searchingLink": "SÖKER EFTER ANSLUTNING"
+  "serverAdmin.searchingLink": "SÖKER EFTER ANSLUTNING",
+  "settings.modules.serverTargetVisibility.title": "Synlighet i serverläget",
+  "settings.modules.serverTargetVisibility.description": "Välj vilka modulavsnitt och inställningar som visas när serverläget är valt. Detta aktiverar eller inaktiverar inte moduler. Wiki-posten öppnar fortfarande klientens Wiki.",
+  "settings.modules.serverTargetVisibility.item": "Visa {module} i serverläget"
 }

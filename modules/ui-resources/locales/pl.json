@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "Próg powolnych połączeń zwrotnych (ms)",
   "settings.modules.field.onlyChanges": "Tylko zmiany dziennika",
   "settings.modules.field.active": "Aktywny moduł",
-  "settings.modules.field.wikiPageSize": "Artykuły na żądanie API",
-  "settings.modules.field.wikiMaximumResults": "Maksymalna liczba artykułów na wyszukiwanie",
   "settings.modules.field.wikiRefreshMinutes": "Interwał odświeżania (minuty)",
   "settings.modules.field.continuous": "Diagnostyka ciągła",
   "settings.modules.field.source": "Źródło dziennika",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "POŁĄCZENIE P2P AKTYWNE",
   "serverAdmin.searchingTitle": "Wyszukiwanie połączenia z grą",
   "serverAdmin.searchingMessage": "ShroudForge czeka na potwierdzone połączenie Steam P2P. Wejdź do świata gry na serwerze. Pole hasła pojawi się tutaj, gdy połączenie będzie gotowe.",
-  "serverAdmin.searchingLink": "WYSZUKIWANIE POŁĄCZENIA"
+  "serverAdmin.searchingLink": "WYSZUKIWANIE POŁĄCZENIA",
+  "settings.modules.serverTargetVisibility.title": "Widoczność w trybie serwera",
+  "settings.modules.serverTargetVisibility.description": "Wybierz, które sekcje i ustawienia modułów są widoczne po wybraniu trybu serwera. Nie włącza ani nie wyłącza to modułów. Pozycja Wiki nadal otwiera Wiki klienta.",
+  "settings.modules.serverTargetVisibility.item": "Pokaż {module} w trybie serwera"
 }

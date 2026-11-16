@@ -1,4 +1,8 @@
 import type { Settings } from './loader-settings'
+import {
+  isVisibleInServerTarget,
+  SERVER_TARGET_VISIBILITY_MODULES,
+} from './module-visibility'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { TranslationKey, useI18n } from '../../ui-resources/i18n'
 import type { Snapshot } from '../../modloader/ui/ui-snapshot'
@@ -158,6 +162,7 @@ export function ModulePreferencesEditor({
   ) => postRequest('set-window-visibility', { module, visible })
   const moduleEnabled = (module: string) =>
     prefs[module]?.enabled ?? (module === 'debugConsole' || module === 'wiki')
+  const serverTargetSelected = prefs.modloaderUi?.remoteTarget === 'server'
   const updaterAvailable = data.release.updaterAvailable === true
   const updatesEnabled = moduleEnabled('updates') && updaterAvailable
   const ranges: Record<string, [number, number]> = {
@@ -171,6 +176,25 @@ export function ModulePreferencesEditor({
   }
   return (
     <>
+      {serverTargetSelected && (
+        <Card title={t('settings.modules.serverTargetVisibility.title')}>
+          <p className="hint settings-module-description">
+            {t('settings.modules.serverTargetVisibility.description')}
+          </p>
+          <div className="settings-options">
+            {SERVER_TARGET_VISIBILITY_MODULES.map((module) => (
+              <Toggle
+                key={module}
+                label={t('settings.modules.serverTargetVisibility.item', {
+                  module: t(`settings.modules.${module}.title` as TranslationKey),
+                })}
+                checked={isVisibleInServerTarget(module, prefs)}
+                onChange={(value) => change(module, 'visibleInServerTarget', value)}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
       <UpdatePreferences
         system={system}
         automatic={automatic}
@@ -196,15 +220,11 @@ export function ModulePreferencesEditor({
         change={change}
       />
       <div className="settings-module-list">
-        {(
-          [
-            'debugConsole',
-            'worldEditor',
-            'modloaderUi',
-            'wiki',
-            'runtimeDiagnostics',
-          ] as const
-        ).map((module) => (
+        {SERVER_TARGET_VISIBILITY_MODULES
+          .filter((module) =>
+            !serverTargetSelected || isVisibleInServerTarget(module, prefs),
+          )
+          .map((module) => (
           <Card key={module} title={t(`settings.modules.${module}.title`)}>
             <p className="hint settings-module-description">
               {t(`settings.modules.${module}.description`)}
@@ -345,7 +365,7 @@ export function ModulePreferencesEditor({
               />
             )}
           </Card>
-        ))}
+          ))}
       </div>
     </>
   )

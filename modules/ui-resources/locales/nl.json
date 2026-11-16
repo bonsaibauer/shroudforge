@@ -710,8 +710,6 @@
   "settings.modules.field.threshold": "Langzame terugbeldrempel (ms)",
   "settings.modules.field.onlyChanges": "Alleen logwijzigingen",
   "settings.modules.field.active": "Module actief",
-  "settings.modules.field.wikiPageSize": "Artikelen per API-aanvraag",
-  "settings.modules.field.wikiMaximumResults": "Maximumaantal artikelen per zoekopdracht",
   "settings.modules.field.wikiRefreshMinutes": "Verversingsinterval (minuten)",
   "settings.modules.field.continuous": "Continue diagnose",
   "settings.modules.field.source": "Logboekbron",
@@ -922,5 +920,8 @@
   "serverAdmin.activeLink": "P2P-VERBINDING ACTIEF",
   "serverAdmin.searchingTitle": "Zoeken naar gameverbinding",
   "serverAdmin.searchingMessage": "ShroudForge wacht op een bevestigde Steam P2P-verbinding. Betreed de gamewereld van de server. Het wachtwoordveld verschijnt hier zodra de verbinding gereed is.",
-  "serverAdmin.searchingLink": "VERBINDING WORDT GEZOCHT"
+  "serverAdmin.searchingLink": "VERBINDING WORDT GEZOCHT",
+  "settings.modules.serverTargetVisibility.title": "Zichtbaarheid in de serverdoelmodus",
+  "settings.modules.serverTargetVisibility.description": "Kies welke moduleonderdelen en instellingen worden getoond wanneer de serverdoelmodus is geselecteerd. Dit schakelt modules niet in of uit. De Wiki-vermelding opent nog steeds de client-Wiki.",
+  "settings.modules.serverTargetVisibility.item": "{module} tonen in de serverdoelmodus"
 }
