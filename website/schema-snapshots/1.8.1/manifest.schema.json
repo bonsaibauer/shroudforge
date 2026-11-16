@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shroudforge.net/schemas/1.8.1/manifest.schema.json",
+  "title": "EML mod manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "maxLength": 80
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "license": {
+      "description": "Optional license identifier (for example, MIT). Use null when no license is declared.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "icon": {
+      "description": "Optional mod icon filename in the package root or path under assets/. Use null when the mod has no icon.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^(?:assets/[A-Za-z0-9._/-]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$"
+    },
+    "dependencies": {
+      "description": "Mods that must be available before this mod starts. Each id is another mod's manifest id. Version is a SemVer version requirement. If optional is true, the dependency does not block startup when missing, disabled, or outside the version range.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "One mod dependency.",
+        "required": [
+          "id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "description": "Exact id from the dependency mod's mod.json.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "maxLength": 80
+          },
+          "version": {
+            "description": "SemVer version requirement, for example ^1.2.0 or >=1.2.0, <2.0.0.",
+            "type": "string"
+          },
+          "optional": {
+            "description": "When true, this mod may start if the dependency is unavailable. Defaults to false.",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    "$schema": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "patch",
+          "export",
+          "runtime",
+          "runtime-register-dll"
+        ]
+      }
+    }
+  }
+}
