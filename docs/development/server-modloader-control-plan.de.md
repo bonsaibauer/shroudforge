@@ -81,7 +81,7 @@ Das Log ist dabei ein guter Vergleichsnachweis. Der Produktpfad sollte die struk
 
 Das Passwort bleibt in `enshrouded_server.json` auf dem Server. Der Client sendet es einmal über den bestehenden Steam-P2P-Kanal. Der Server vergleicht es mit einer Gruppe, die alle fünf oben genannten Flags auf `true` hat. Der Gruppenname wird nicht fest einprogrammiert; die passende Gruppe wird zur Sitzung im Serverspeicher gehalten. Passwort und Token werden weder in eine Modloader-Konfiguration geschrieben noch an die WebView zurückgegeben.
 
-Nach erfolgreicher Prüfung erhält ausschließlich die Client-Runtime ein zufälliges Sitzungstoken. Der Server bindet es an die authentifizierte Steam-Peer-ID, prüft es bei jeder Änderung erneut und verwirft es bei Trennung, Rechteentzug, 15 Minuten Inaktivität oder spätestens nach acht Stunden. Fünf fehlgeschlagene Anmeldungen sperren den Peer für eine Minute. Die bestehende Network-Allowlist bleibt eine zusätzliche Zugangsschranke und wird nicht durch die Admin-Anmeldung ersetzt.
+Nach erfolgreicher Prüfung erhält ausschließlich die Client-Runtime ein zufälliges Sitzungstoken. Der Server bindet es an die authentifizierte Steam-Peer-ID und prüft es bei jeder Änderung erneut. Die Anmeldung gilt für die verbundene Spielsitzung und endet bei Trennung, Rechteentzug oder Serverneustart. Ein Wechsel der Modloader-Ansicht beendet nur das Spiegel-Abonnement und verwirft das Token nicht. Fünf fehlgeschlagene Anmeldungen sperren den Peer für eine Minute. Die bestehende Network-Allowlist bleibt eine zusätzliche Zugangsschranke und wird nicht durch die Admin-Anmeldung ersetzt.
 
 | Freigabe | Wirkung |
 | --- | --- |
