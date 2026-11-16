@@ -6,16 +6,22 @@ import { LanguageMenu } from '../../ui-resources/choose-language'
 import { useEffect, useState } from 'react'
 import { Snapshot } from './ui-snapshot'
 import { ModeBadge } from '../../ui-resources/show-mode-badge'
+import { WikiHelp } from '../../wiki/ui/show-wiki-help'
+import type { WikiModuleSettings } from '../../wiki/mediawiki-api'
 
 export function TopBar({
   data,
   remoteTarget,
   serverAdminAuthenticated,
   serverAdminGroupName,
+  serverAdminLoginAvailable,
+  serverAdminLoginRequiresWorld,
+  serverAdminLoginSearching,
   serverAdminLoginPending,
   serverAdminLoginError,
   onRemoteAdminLogin,
   onRemoteTargetChange,
+  onOpenWikiCategory,
   unread,
   severity,
   crowded,
@@ -26,10 +32,14 @@ export function TopBar({
   remoteTarget: 'client' | 'server'
   serverAdminAuthenticated: boolean
   serverAdminGroupName: string | null
+  serverAdminLoginAvailable: boolean
+  serverAdminLoginRequiresWorld: boolean
+  serverAdminLoginSearching: boolean
   serverAdminLoginPending: boolean
   serverAdminLoginError: string | null
   onRemoteAdminLogin(password: string): void
   onRemoteTargetChange(target: 'client' | 'server'): void
+  onOpenWikiCategory(category: string): void
   unread: number
   severity: string
   crowded: boolean
@@ -40,8 +50,10 @@ export function TopBar({
   const [password, setPassword] = useState('')
   const passwordValid = new TextEncoder().encode(password).length <= 1024
   useEffect(() => {
-    if (remoteTarget !== 'server' || serverAdminAuthenticated) setPassword('')
-  }, [remoteTarget, serverAdminAuthenticated])
+    if (remoteTarget !== 'server' || serverAdminAuthenticated || !serverAdminLoginAvailable) {
+      setPassword('')
+    }
+  }, [remoteTarget, serverAdminAuthenticated, serverAdminLoginAvailable])
   const external = (url: string) => postRequest('open-url', { url })
   return (
     <>
@@ -139,7 +151,13 @@ export function TopBar({
           <header>
             <div>
               <small>SHROUDFORGE · SERVER ACCESS</small>
-              <h2 id="server-admin-title">Server administration</h2>
+              <h2 id="server-admin-title">
+                {serverAdminLoginAvailable
+                  ? t('serverAdmin.title')
+                  : serverAdminLoginSearching
+                    ? t('serverAdmin.searchingTitle')
+                    : t('serverAdmin.unavailableTitle')}
+              </h2>
             </div>
           </header>
           <div className="modal-body">
@@ -164,14 +182,23 @@ export function TopBar({
                 </defs>
                 <rect x=".5" y=".5" width="419" height="145" rx="14" fill="url(#server-admin-panel)" />
                 <rect x=".5" y=".5" width="419" height="145" rx="14" fill="url(#server-admin-glow)" />
-                <path d="M112 61h188" stroke="#d8b56c" strokeOpacity=".42" strokeDasharray="3 6" />
-                <path d="M112 61h188" stroke="#d8b56c" strokeOpacity=".3" strokeWidth="5" filter="url(#server-admin-light)" />
-                <circle cx="205" cy="61" r="20" stroke="#d8b56c" strokeOpacity=".2" strokeDasharray="2 5" />
-                <circle cx="205" cy="61" r="11" fill="#142226" stroke="#e2cd98" strokeOpacity=".8" />
+                {serverAdminLoginAvailable ? (
+                  <>
+                    <path d="M112 61h188" stroke="#d8b56c" strokeOpacity=".42" strokeDasharray="3 6" />
+                    <path d="M112 61h188" stroke="#d8b56c" strokeOpacity=".3" strokeWidth="5" filter="url(#server-admin-light)" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M112 61h67m52 0h69" stroke="#789197" strokeOpacity=".48" strokeDasharray="3 6" />
+                    <path d="M205 41v7m0 26v7" stroke="#d8b56c" strokeOpacity=".55" strokeDasharray="2 3" />
+                  </>
+                )}
+                <circle cx="205" cy="61" r="20" stroke={serverAdminLoginAvailable ? '#d8b56c' : '#789197'} strokeOpacity=".35" strokeDasharray="2 5" />
+                <circle cx="205" cy="61" r="11" fill="#142226" stroke={serverAdminLoginAvailable ? '#e2cd98' : '#9aabad'} strokeOpacity=".8" />
                 <path d="M201 62.5v-3a4 4 0 1 1 8 0v3m-9 0h10v7h-10z" stroke="#e2cd98" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 <rect x="34" y="29" width="80" height="59" rx="7" fill="#0d181b" stroke="#789197" strokeOpacity=".52" />
                 <rect x="41" y="36" width="66" height="45" rx="3" fill="url(#server-admin-screen)" />
-                <circle cx="52" cy="49" r="3" fill="#59c398" />
+                <circle cx="52" cy="49" r="3" fill={serverAdminLoginAvailable ? '#59c398' : '#d8b56c'} />
                 <path d="M60 49h34M49 59h48M49 66h31" stroke="#9eb1ad" strokeOpacity=".42" strokeWidth="2" strokeLinecap="round" />
                 <path d="m27 95 8-5h78l8 5a2 2 0 0 1-1 4H28a2 2 0 0 1-1-4Z" fill="#27383c" stroke="#789197" strokeOpacity=".5" />
                 <path d="M60 94h28" stroke="#d8b56c" strokeOpacity=".7" strokeWidth="2" strokeLinecap="round" />
@@ -184,53 +211,97 @@ export function TopBar({
                 <circle cx="316" cy="85" r="2.5" fill="#59c398" />
                 <path d="M324 41h39m-39 22h39m-39 22h39" stroke="#8fa3a3" strokeOpacity=".5" strokeWidth="2" strokeLinecap="round" />
                 <text x="74" y="123" fill="#9aabad" fontSize="8" fontWeight="700" letterSpacing="2" textAnchor="middle">CLIENT UI</text>
-                <text x="205" y="104" fill="#cbb478" fontSize="7" fontWeight="700" letterSpacing="1.5" textAnchor="middle">P2P LINK</text>
+                <text x="205" y="104" fill={serverAdminLoginAvailable ? '#cbb478' : '#9aabad'} fontSize="7" fontWeight="700" letterSpacing="1.5" textAnchor="middle">
+                  {t(serverAdminLoginAvailable
+                    ? 'serverAdmin.activeLink'
+                    : serverAdminLoginSearching
+                      ? 'serverAdmin.searchingLink'
+                      : 'serverAdmin.waitingLink')}
+                </text>
                 <text x="342" y="123" fill="#9aabad" fontSize="8" fontWeight="700" letterSpacing="2" textAnchor="middle">SERVER</text>
                 <rect x=".5" y=".5" width="419" height="145" rx="14" stroke="#d7e2df" strokeOpacity=".1" />
               </svg>
             </div>
-            <p>Sign in to unlock the server pages in this Modloader.</p>
-            <form
-              className="remote-admin-login"
-              onSubmit={(event) => {
-                event.preventDefault()
-                if (!password || !passwordValid || serverAdminLoginPending) return
-                onRemoteAdminLogin(password)
-                setPassword('')
-              }}
-            >
-              <label htmlFor="server-admin-password">Admin password</label>
-              <input
-                id="server-admin-password"
-                type="password"
-                value={password}
-                autoComplete="off"
-                autoFocus
-                aria-label="Server admin group password"
-                maxLength={1024}
-                onChange={(event) => setPassword(event.currentTarget.value)}
-              />
-              {serverAdminLoginError && (
-                <p className="remote-admin-error" role="alert">{serverAdminLoginError}</p>
-              )}
-              <div className="remote-admin-actions">
+            {serverAdminLoginAvailable ? (
+              <>
+                <p>{t('serverAdmin.prompt')}</p>
+                <form
+                  className="remote-admin-login"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    if (!password || !passwordValid || serverAdminLoginPending || !serverAdminLoginAvailable) return
+                    onRemoteAdminLogin(password)
+                    setPassword('')
+                  }}
+                >
+                  <label htmlFor="server-admin-password">{t('serverAdmin.password')}</label>
+                  <input
+                    id="server-admin-password"
+                    type="password"
+                    value={password}
+                    autoComplete="off"
+                    autoFocus
+                    aria-label={t('serverAdmin.passwordAria')}
+                    maxLength={1024}
+                    onChange={(event) => setPassword(event.currentTarget.value)}
+                  />
+                  {serverAdminLoginError && (
+                    <p className="remote-admin-error" role="alert">{serverAdminLoginError}</p>
+                  )}
+                  <div className="remote-admin-actions">
+                    <button
+                      className="button ghost"
+                      type="button"
+                      disabled={serverAdminLoginPending}
+                      onClick={() => onRemoteTargetChange('client')}
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      className="button"
+                      type="submit"
+                      disabled={!password || !passwordValid || serverAdminLoginPending}
+                    >
+                      {serverAdminLoginPending ? '…' : t('serverAdmin.signIn')}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div
+                className="server-admin-unavailable"
+                role="status"
+                aria-live="polite"
+                aria-busy={serverAdminLoginSearching}
+              >
+                {serverAdminLoginSearching ? (
+                  <div className="server-admin-searching">
+                    <span className="server-admin-spinner" aria-hidden="true" />
+                    <div>
+                      <strong>{t('serverAdmin.searchingTitle')}</strong>
+                      <p>{t('serverAdmin.searchingMessage')}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p>{t(serverAdminLoginRequiresWorld
+                    ? 'serverAdmin.enterWorld'
+                    : 'serverAdmin.serverNotConnected')}</p>
+                )}
                 <button
                   className="button ghost"
                   type="button"
-                  disabled={serverAdminLoginPending}
                   onClick={() => onRemoteTargetChange('client')}
                 >
                   {t('common.cancel')}
                 </button>
-                <button
-                  className="button"
-                  type="submit"
-                  disabled={!password || !passwordValid || serverAdminLoginPending}
-                >
-                  {serverAdminLoginPending ? '…' : 'Sign in'}
-                </button>
               </div>
-            </form>
+            )}
+            <WikiHelp
+              articleId="modloader-p2p-connection"
+              compact
+              moduleSettings={data.settings.modulePreferences?.wiki as WikiModuleSettings | undefined}
+              onOpenCategory={onOpenWikiCategory}
+            />
           </div>
         </section>
       </div>

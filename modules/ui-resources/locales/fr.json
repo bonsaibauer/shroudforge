@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Profil de jeu créé automatiquement et actif",
   "runtime.profileDiscovery.betaDescription": "ShroudForge a créé et chargé un profil adapté à votre version d’Enshrouded. Il aide à trouver les données nécessaires aux mods compatibles. La création automatique des profils est encore en test. Cet avis restera affiché jusqu’à ce que ShroudForge fournisse un profil standard vérifié pour votre version. Il sera chargé au prochain démarrage du jeu, puis l’avis disparaîtra. Si la fonction se montre fiable même pour les petites mises à jour, elle pourra devenir la norme plus tard. Cela ne confirme pas le bon fonctionnement de chaque fonction des mods.",
   "runtime.profileDiscovery.betaBadge": "Créé automatiquement",
-  "runtime.profileDiscovery.openGuide": "Qu’est-ce qu’un profil de jeu ?"
+  "runtime.profileDiscovery.openGuide": "Qu’est-ce qu’un profil de jeu ?",
+  "serverAdmin.title": "Administration du serveur",
+  "serverAdmin.unavailableTitle": "Accès au serveur indisponible",
+  "serverAdmin.prompt": "Connectez-vous avec le mot de passe d’un groupe administrateur pour accéder aux pages du serveur dans ce Modloader.",
+  "serverAdmin.enterWorld": "La connexion Steam P2P est disponible uniquement quand Enshrouded est lancé dans un monde de jeu. Lancez le jeu et entrez dans le monde du serveur. Une fois la connexion confirmée, vous pourrez saisir le mot de passe administrateur ici.",
+  "serverAdmin.serverNotConnected": "Aucune connexion Steam P2P au serveur n’est confirmée. Rejoignez son monde et réessayez lorsque l’état de connexion indiquera que vous êtes connecté.",
+  "serverAdmin.password": "Mot de passe administrateur",
+  "serverAdmin.passwordAria": "Mot de passe du groupe administrateur du serveur",
+  "serverAdmin.signIn": "Se connecter",
+  "serverAdmin.waitingLink": "EN ATTENTE DU LIEN DE JEU",
+  "serverAdmin.activeLink": "LIEN P2P ACTIF",
+  "serverAdmin.searchingTitle": "Recherche de la connexion au jeu",
+  "serverAdmin.searchingMessage": "ShroudForge attend une connexion Steam P2P confirmée. Entrez dans le monde du serveur. Le champ du mot de passe apparaîtra ici dès que la connexion sera prête.",
+  "serverAdmin.searchingLink": "CONNEXION EN RECHERCHE"
 }

@@ -30,6 +30,7 @@ export const WIKI_API_SETTINGS = {
     'game-profile-discovery': 'Automatic beta game profiles',
     hotkeys: 'Keyboard shortcuts',
     'mod-detection': 'Mod Detection',
+    'modloader-p2p-connection': 'Modloader P2P connection',
   },
 } as const
 

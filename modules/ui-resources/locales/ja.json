@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "自動作成されたゲームプロフィールが有効です",
   "runtime.profileDiscovery.betaDescription": "ShroudForge は Enshrouded のバージョンに合うゲームプロフィールを作成して読み込みました。対応 Mod が必要なゲームデータを見つけるために使われます。プロフィールの自動作成機能はまだテスト中です。このお知らせは、ShroudForge があなたのバージョン向けに確認済みの通常プロフィールを公開するまで表示されます。次回のゲーム起動時にそのプロフィールが読み込まれると、お知らせは自動で消えます。小規模な更新でも安定して動作するようになれば、この機能は将来標準になる可能性があります。すべての Mod 機能が動作することを保証するものではありません。",
   "runtime.profileDiscovery.betaBadge": "自動作成済み",
-  "runtime.profileDiscovery.openGuide": "ゲームプロフィールとは？"
+  "runtime.profileDiscovery.openGuide": "ゲームプロフィールとは？",
+  "serverAdmin.title": "サーバー管理",
+  "serverAdmin.unavailableTitle": "サーバーに接続できません",
+  "serverAdmin.prompt": "この Modloader のサーバーページを開くには、サーバー管理者グループのパスワードでサインインしてください。",
+  "serverAdmin.enterWorld": "Steam P2P 接続は Enshrouded を起動してゲームワールドに入った後に利用できます。ゲームを起動し、サーバーのワールドに入ってください。接続が確認されると、ここで管理者パスワードを入力できます。",
+  "serverAdmin.serverNotConnected": "サーバーとの Steam P2P 接続を確認できません。サーバーのワールドに入り、接続状態が接続済みになってから再試行してください。",
+  "serverAdmin.password": "管理者パスワード",
+  "serverAdmin.passwordAria": "サーバー管理者グループのパスワード",
+  "serverAdmin.signIn": "サインイン",
+  "serverAdmin.waitingLink": "ゲーム接続を待機中",
+  "serverAdmin.activeLink": "P2P 接続中",
+  "serverAdmin.searchingTitle": "ゲーム接続を検索中",
+  "serverAdmin.searchingMessage": "ShroudForge は確認済みの Steam P2P 接続を待っています。サーバーのゲームワールドに入ってください。接続が確立すると、ここにパスワード欄が表示されます。",
+  "serverAdmin.searchingLink": "接続を検索中"
 }

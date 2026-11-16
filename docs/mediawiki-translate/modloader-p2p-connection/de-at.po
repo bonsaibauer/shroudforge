@@ -1,0 +1,54 @@
+# Translation of Modloader P2P connection to German
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-16 19:16:38+0000\n"
+"POT-Creation-Date: 2026-11-16 19:16:38+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de_at\n"
+"X-Generator: MediaWiki Translate API\n"
+"X-Language-Code: de-at\n"
+"X-Message-Group: page-Modloader P2P connection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Modloader_P2P_connection/Page_display_title"
+msgid "Modloader P2P connection"
+msgstr "Modloader-P2P-Verbindung"
+
+#
+msgctxt "Modloader_P2P_connection/1"
+msgid "Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration."
+msgstr "Hier erfährst du, wann der Modloader einen Dedicated Server über Steam P2P erreicht und welche Enshrouded-Benutzergruppen die Serveradministration freischalten."
+
+#
+msgctxt "Modloader_P2P_connection/2"
+msgid "== Connect in game =="
+msgstr "== Im Spiel verbinden =="
+
+#
+msgctxt "Modloader_P2P_connection/3"
+msgid "# Start Enshrouded and join a game world hosted by the dedicated server.\n# Open the Modloader and select '''Server''' as the target.\n# Wait for the server status to show '''Connected'''. The desktop window and the game’s main menu do not confirm an in-world P2P connection, so the server password field stays hidden.\n# Enter the password for a qualifying <code>userGroups</code> entry. The server checks the password over the P2P connection."
+msgstr "# Starte Enshrouded und betrete eine Spielwelt des Dedicated Servers.\n# Öffne den Modloader und wähle '''Server''' als Ziel aus.\n# Warte, bis der Serverstatus '''Verbunden''' anzeigt. Im Desktopfenster und im Hauptmenü ist keine P2P-Verbindung in einer Spielwelt bestätigt. Deshalb bleibt das Serverpasswortfeld ausgeblendet.\n# Gib das Passwort eines passenden Eintrags unter <code>userGroups</code> ein. Der Server prüft das Passwort über die P2P-Verbindung."
+
+#
+msgctxt "Modloader_P2P_connection/4"
+msgid "== Required server group permissions =="
+msgstr "== Erforderliche Rechte der Servergruppe =="
+
+#
+msgctxt "Modloader_P2P_connection/5"
+msgid "The entered password must exactly match a group with a non-empty <code>name</code>. That same group must set all five permission fields below to the JSON boolean <code>true</code>. A missing field, <code>false</code>, or a non-boolean value does not qualify the group for Modloader server administration."
+msgstr "Das eingegebene Passwort muss exakt zu einer Gruppe mit einem nicht leeren <code>name</code> passen. Dieselbe Gruppe muss alle fünf unten aufgeführten Rechte auf den JSON-Wert <code>true</code> setzen. Ein fehlendes Feld, <code>false</code> oder ein Wert mit einem anderen Datentyp qualifiziert die Gruppe nicht für die Serveradministration im Modloader."
+
+#
+msgctxt "Modloader_P2P_connection/6"
+msgid "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+msgstr "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+
+#
+msgctxt "Modloader_P2P_connection/7"
+msgid "<code>reservedSlots</code> controls reserved player slots and is not part of the Modloader permission check. ShroudForge sends the submitted password to the server for validation and does not store it. The server checks the group permissions again when it handles admin actions. Five failed password attempts start a 60-second login cooldown."
+msgstr "<code>reservedSlots</code> legt reservierte Spielplätze fest und gehört nicht zur Rechteprüfung des Modloaders. ShroudForge sendet das eingegebene Passwort zur Prüfung an den Server und speichert es nicht. Der Server prüft die Gruppenrechte erneut, wenn er Adminaktionen ausführt. Fünf fehlgeschlagene Anmeldeversuche lösen eine 60-sekündige Anmeldesperre aus."

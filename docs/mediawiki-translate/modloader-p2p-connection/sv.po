@@ -1,0 +1,54 @@
+# Translation of Modloader P2P connection to Swedish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-16 19:16:38+0000\n"
+"POT-Creation-Date: 2026-11-16 19:16:38+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: sv\n"
+"X-Generator: MediaWiki Translate API\n"
+"X-Language-Code: sv\n"
+"X-Message-Group: page-Modloader P2P connection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Modloader_P2P_connection/Page_display_title"
+msgid "Modloader P2P connection"
+msgstr "Modloader P2P-anslutning"
+
+#
+msgctxt "Modloader_P2P_connection/1"
+msgid "Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration."
+msgstr "Läs när Modloader kan nå en dedikerad server via Steam P2P och vilka behörigheter i Enshroudeds användargrupper som ger serveradministration."
+
+#
+msgctxt "Modloader_P2P_connection/2"
+msgid "== Connect in game =="
+msgstr "== Anslut i spelet =="
+
+#
+msgctxt "Modloader_P2P_connection/3"
+msgid "# Start Enshrouded and join a game world hosted by the dedicated server.\n# Open the Modloader and select '''Server''' as the target.\n# Wait for the server status to show '''Connected'''. The desktop window and the game’s main menu do not confirm an in-world P2P connection, so the server password field stays hidden.\n# Enter the password for a qualifying <code>userGroups</code> entry. The server checks the password over the P2P connection."
+msgstr "# Starta Enshrouded och gå in i en spelvärld som den dedikerade servern står värd för.\n# Öppna Modloader och välj '''Server''' som mål.\n# Vänta tills serverstatusen visar '''Connected'''. Skrivbordsfönstret och spelets huvudmeny bekräftar inte en P2P-anslutning i en värld, så serverns lösenordsfält förblir dolt.\n# Ange lösenordet för en behörig post i `userGroups`. Servern kontrollerar lösenordet via P2P-anslutningen."
+
+#
+msgctxt "Modloader_P2P_connection/4"
+msgid "== Required server group permissions =="
+msgstr "== Nödvändiga behörigheter för servergruppen =="
+
+#
+msgctxt "Modloader_P2P_connection/5"
+msgid "The entered password must exactly match a group with a non-empty <code>name</code>. That same group must set all five permission fields below to the JSON boolean <code>true</code>. A missing field, <code>false</code>, or a non-boolean value does not qualify the group for Modloader server administration."
+msgstr "Det angivna lösenordet måste exakt matcha en grupp med ett namn (`name`) som inte är tomt. Samma grupp måste ställa in alla fem behörighetsfält nedan till JSON-booleanvärdet `true`. Ett saknat fält, `false` eller ett värde av annan typ ger inte behörighet att administrera servern från Modloader."
+
+#
+msgctxt "Modloader_P2P_connection/6"
+msgid "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+msgstr "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+
+#
+msgctxt "Modloader_P2P_connection/7"
+msgid "<code>reservedSlots</code> controls reserved player slots and is not part of the Modloader permission check. ShroudForge sends the submitted password to the server for validation and does not store it. The server checks the group permissions again when it handles admin actions. Five failed password attempts start a 60-second login cooldown."
+msgstr "`reservedSlots` styr reserverade spelarplatser och ingår inte i Modloaders behörighetskontroll. ShroudForge skickar lösenordet till servern för kontroll och sparar det inte. Servern kontrollerar gruppens behörigheter igen när den hanterar adminåtgärder. Fem misslyckade lösenordsförsök startar en inloggningspaus på 60 sekunder."

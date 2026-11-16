@@ -1,0 +1,54 @@
+# Translation of Modloader P2P connection to Chinese
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-16 19:16:38+0000\n"
+"POT-Creation-Date: 2026-11-16 19:16:38+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: zh\n"
+"X-Generator: MediaWiki Translate API\n"
+"X-Language-Code: zh\n"
+"X-Message-Group: page-Modloader P2P connection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Modloader_P2P_connection/Page_display_title"
+msgid "Modloader P2P connection"
+msgstr "Modloader P2P 连接"
+
+#
+msgctxt "Modloader_P2P_connection/1"
+msgid "Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration."
+msgstr "了解 Modloader 何时可以通过 Steam P2P 连接专用服务器，以及 Enshrouded 用户组需要哪些权限才能管理服务器。"
+
+#
+msgctxt "Modloader_P2P_connection/2"
+msgid "== Connect in game =="
+msgstr "== 在游戏中连接 =="
+
+#
+msgctxt "Modloader_P2P_connection/3"
+msgid "# Start Enshrouded and join a game world hosted by the dedicated server.\n# Open the Modloader and select '''Server''' as the target.\n# Wait for the server status to show '''Connected'''. The desktop window and the game’s main menu do not confirm an in-world P2P connection, so the server password field stays hidden.\n# Enter the password for a qualifying <code>userGroups</code> entry. The server checks the password over the P2P connection."
+msgstr "# 启动 Enshrouded 并进入由专用服务器托管的游戏世界。\n# 打开 Modloader，并将目标设为 '''Server'''。\n# 等待服务器状态显示 '''Connected'''。桌面窗口和游戏主菜单无法确认游戏世界内的 P2P 连接，因此服务器密码框会保持隐藏。\n# 输入符合条件的 `userGroups` 条目密码。服务器会通过 P2P 连接验证密码。"
+
+#
+msgctxt "Modloader_P2P_connection/4"
+msgid "== Required server group permissions =="
+msgstr "== 服务器用户组所需权限 =="
+
+#
+msgctxt "Modloader_P2P_connection/5"
+msgid "The entered password must exactly match a group with a non-empty <code>name</code>. That same group must set all five permission fields below to the JSON boolean <code>true</code>. A missing field, <code>false</code>, or a non-boolean value does not qualify the group for Modloader server administration."
+msgstr "输入的密码必须与某个 `name` 非空的用户组密码完全一致。同一用户组必须将下面五个权限字段全部设置为 JSON 布尔值 `true`。缺少字段、值为 `false` 或字段类型不是布尔值时，该用户组不能通过 Modloader 管理服务器。"
+
+#
+msgctxt "Modloader_P2P_connection/6"
+msgid "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+msgstr "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+
+#
+msgctxt "Modloader_P2P_connection/7"
+msgid "<code>reservedSlots</code> controls reserved player slots and is not part of the Modloader permission check. ShroudForge sends the submitted password to the server for validation and does not store it. The server checks the group permissions again when it handles admin actions. Five failed password attempts start a 60-second login cooldown."
+msgstr "`reservedSlots` 用于设置预留玩家席位，不属于 Modloader 权限检查。ShroudForge 会将输入的密码发送给服务器进行验证，但不会保存密码。服务器处理管理操作时会再次检查用户组权限。密码连续输错五次后，登录会暂停 60 秒。"

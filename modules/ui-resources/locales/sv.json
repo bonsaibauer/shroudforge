@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Automatiskt skapad spelprofil är aktiv",
   "runtime.profileDiscovery.betaDescription": "ShroudForge har skapat och läst in en profil som passar din Enshrouded-version. Den hjälper moddar som stöds att hitta nödvändiga speldata. Automatisk profilskapning testas fortfarande. Det här meddelandet visas tills ShroudForge tillhandahåller en granskad vanlig profil för din version. Profilen läses in nästa gång spelet startas, och därefter försvinner meddelandet. Om funktionen fungerar tillförlitligt även för små uppdateringar kan den bli standard längre fram. Det bekräftar inte att varje modfunktion fungerar.",
   "runtime.profileDiscovery.betaBadge": "Skapad automatiskt",
-  "runtime.profileDiscovery.openGuide": "Vad är en spelprofil?"
+  "runtime.profileDiscovery.openGuide": "Vad är en spelprofil?",
+  "serverAdmin.title": "Serveradministration",
+  "serverAdmin.unavailableTitle": "Serveråtkomst är inte tillgänglig än",
+  "serverAdmin.prompt": "Logga in med lösenordet för en serveradministratörsgrupp för att låsa upp serversidorna i den här Modloadern.",
+  "serverAdmin.enterWorld": "Steam P2P-anslutningen är bara tillgänglig när Enshrouded körs i en spelvärld. Starta spelet och gå in i serverns värld. När anslutningen har bekräftats kan du ange administratörslösenordet här.",
+  "serverAdmin.serverNotConnected": "Ingen bekräftad Steam P2P-anslutning till servern finns. Gå in i serverns spelvärld och försök igen när anslutningsstatusen visar ansluten.",
+  "serverAdmin.password": "Administratörslösenord",
+  "serverAdmin.passwordAria": "Lösenord för serverns administratörsgrupp",
+  "serverAdmin.signIn": "Logga in",
+  "serverAdmin.waitingLink": "VÄNTAR PÅ SPELANSUTNING",
+  "serverAdmin.activeLink": "P2P-ANSLUTNING AKTIV",
+  "serverAdmin.searchingTitle": "Söker efter spelanslutning",
+  "serverAdmin.searchingMessage": "ShroudForge väntar på en bekräftad Steam P2P-anslutning. Gå in i serverns spelvärld. Lösenordsfältet visas här när anslutningen är redo.",
+  "serverAdmin.searchingLink": "SÖKER EFTER ANSLUTNING"
 }

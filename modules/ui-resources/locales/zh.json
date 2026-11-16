@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "自动创建的游戏配置文件已启用",
   "runtime.profileDiscovery.betaDescription": "ShroudForge 已为你的 Enshrouded 版本创建并加载了匹配的游戏配置文件。它能帮助受支持的模组找到所需游戏数据。自动创建配置文件的功能仍在测试中。此提示会一直显示，直到 ShroudForge 为你的版本提供经过审核的常规配置文件。下次启动游戏时会加载该配置文件，随后提示会自动消失。如果这项功能也能可靠处理小型更新，今后可能成为标准功能。这并不代表每项模组功能都已验证可用。",
   "runtime.profileDiscovery.betaBadge": "已自动创建",
-  "runtime.profileDiscovery.openGuide": "什么是游戏配置文件？"
+  "runtime.profileDiscovery.openGuide": "什么是游戏配置文件？",
+  "serverAdmin.title": "服务器管理",
+  "serverAdmin.unavailableTitle": "服务器访问暂不可用",
+  "serverAdmin.prompt": "使用服务器管理员组密码登录，以解锁此 Modloader 中的服务器页面。",
+  "serverAdmin.enterWorld": "只有在 Enshrouded 正在运行且已进入游戏世界时，Steam P2P 连接才可用。请启动游戏并进入服务器所在的世界。确认连接后，即可在此输入管理员密码。",
+  "serverAdmin.serverNotConnected": "尚未确认与服务器的 Steam P2P 连接。请进入服务器所在的游戏世界，等连接状态显示已连接后再试。",
+  "serverAdmin.password": "管理员密码",
+  "serverAdmin.passwordAria": "服务器管理员组密码",
+  "serverAdmin.signIn": "登录",
+  "serverAdmin.waitingLink": "等待游戏连接",
+  "serverAdmin.activeLink": "P2P 连接已启用",
+  "serverAdmin.searchingTitle": "正在搜索游戏连接",
+  "serverAdmin.searchingMessage": "ShroudForge 正在等待已确认的 Steam P2P 连接。请进入服务器所在的游戏世界。连接就绪后，密码输入框会显示在这里。",
+  "serverAdmin.searchingLink": "正在搜索连接"
 }

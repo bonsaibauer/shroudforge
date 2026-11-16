@@ -1687,5 +1687,77 @@
       "== 已保存值和兼容性 ==",
       "现有字符串选项标签、已保存数组、未设置 <code>tab</code> 的分组以及未使用 <code>optionGroups</code> 的本地化文件无需迁移即可继续使用。只有选项超过 12 个的多选列表才显示搜索控件。分组选项对象、<code>tab: true</code> 和本地化文件中的 <code>optionGroups</code> 需要 ShroudForge 1.8.0 或更新版本。旧版本会拒绝无法识别的字段。"
     ]
+  },
+  "modloader-p2p-connection": {
+    "hi": [
+      "Modloader P2P कनेक्शन",
+      "जानें कि Modloader Steam P2P के माध्यम से dedicated server से कब जुड़ सकता है और Enshrouded की कौन-सी userGroups अनुमतियाँ सर्वर प्रशासन के लिए योग्य हैं।",
+      "== गेम के अंदर कनेक्ट करें ==",
+      "# Enshrouded शुरू करें और dedicated server की गेम दुनिया में जाएँ।\n# Modloader खोलें और लक्ष्य के रूप में '''Server''' चुनें।\n# सर्वर स्थिति में '''Connected''' दिखने तक प्रतीक्षा करें। Desktop विंडो और गेम का मुख्य मेनू दुनिया के अंदर P2P कनेक्शन की पुष्टि नहीं करते, इसलिए सर्वर पासवर्ड फ़ील्ड छिपा रहता है।\n# योग्य `userGroups` प्रविष्टि का पासवर्ड दर्ज करें। सर्वर P2P कनेक्शन पर पासवर्ड की जाँच करता है।",
+      "== सर्वर समूह के लिए आवश्यक अनुमतियाँ ==",
+      "दर्ज किया गया पासवर्ड ऐसे समूह से बिल्कुल मेल खाना चाहिए जिसका `name` खाली न हो। उसी समूह में नीचे दी गई सभी पाँच अनुमति फ़ील्ड का JSON boolean मान `true` होना चाहिए। कोई फ़ील्ड छूटा हो, `false` हो या boolean न हो, तो वह समूह Modloader सर्वर प्रशासन के लिए योग्य नहीं है।",
+      null,
+      "`reservedSlots` आरक्षित खिलाड़ी स्लॉट नियंत्रित करता है और Modloader अनुमति जाँच का हिस्सा नहीं है। ShroudForge पासवर्ड सत्यापन के लिए सर्वर को भेजता है और उसे सहेजता नहीं है। सर्वर admin कार्रवाई करते समय समूह अनुमतियों की फिर जाँच करता है। पाँच असफल पासवर्ड प्रयासों के बाद 60 सेकंड का login cooldown शुरू होता है।"
+    ],
+    "it": [
+      "Connessione P2P del Modloader",
+      "Scopri quando il Modloader può raggiungere un server dedicato tramite Steam P2P e quali permessi dei gruppi utenti di Enshrouded consentono di amministrare il server.",
+      "== Connettersi nel gioco ==",
+      "# Avvia Enshrouded ed entra in un mondo di gioco ospitato dal server dedicato.\n# Apri il Modloader e seleziona '''Server''' come destinazione.\n# Attendi che lo stato del server indichi '''Connected'''. La finestra desktop e il menu principale del gioco non confermano una connessione P2P nel mondo, quindi il campo della password del server resta nascosto.\n# Inserisci la password di una voce `userGroups` idonea. Il server verifica la password tramite la connessione P2P.",
+      "== Permessi richiesti per il gruppo del server ==",
+      "La password inserita deve corrispondere esattamente a un gruppo con un `name` non vuoto. Lo stesso gruppo deve impostare tutti e cinque i campi dei permessi qui sotto sul valore booleano JSON `true`. Un campo assente, impostato su `false` o con un tipo diverso da booleano non abilita l’amministrazione del server dal Modloader.",
+      null,
+      "`reservedSlots` controlla gli slot giocatore riservati e non fa parte della verifica dei permessi del Modloader. ShroudForge invia la password al server per verificarla e non la salva. Il server ricontrolla i permessi del gruppo quando gestisce le azioni amministrative. Cinque tentativi di password non riusciti avviano un blocco di 60 secondi prima di un nuovo accesso."
+    ],
+    "ja": [
+      "Modloader P2P 接続",
+      "Modloader が Steam P2P 経由で専用サーバーに接続できるタイミングと、サーバー管理に必要な Enshrouded の userGroups 権限を説明します。",
+      "== ゲーム内で接続する ==",
+      "# Enshrouded を起動し、専用サーバーのゲームワールドに入ります。\n# Modloader を開き、接続先として '''Server''' を選びます。\n# サーバーの状態が '''Connected''' になるまで待ちます。デスクトップウィンドウやゲームのメインメニューでは、ワールド内の P2P 接続を確認できないため、サーバーパスワード欄は表示されません。\n# 条件を満たす `userGroups` のパスワードを入力します。サーバーは P2P 接続経由でパスワードを検証します。",
+      "== サーバーグループに必要な権限 ==",
+      "入力したパスワードは、空でない `name` を持つグループのパスワードと完全に一致する必要があります。同じグループで、以下の5つの権限をすべて JSON の真偽値 `true` に設定してください。項目がない場合、`false` の場合、または真偽値でない場合、そのグループでは Modloader のサーバー管理を利用できません。",
+      null,
+      "`reservedSlots` は予約プレイヤースロット数を設定する項目で、Modloader の権限確認には使われません。ShroudForge は検証のために入力パスワードをサーバーへ送り、保存しません。サーバーは管理操作を処理する際にもグループ権限を再確認します。パスワードを5回間違えると、60秒間ログインできなくなります。"
+    ],
+    "nl": [
+      "Modloader P2P-verbinding",
+      "Lees wanneer de Modloader een dedicated server via Steam P2P kan bereiken en welke Enshrouded-gebruikersgroepsrechten serverbeheer toestaan.",
+      "== Verbinden in de game ==",
+      "# Start Enshrouded en betreed een gamewereld die door de dedicated server wordt gehost.\n# Open de Modloader en kies '''Server''' als doel.\n# Wacht tot de serverstatus '''Connected''' toont. Het desktopvenster en het hoofdmenu van de game bevestigen geen P2P-verbinding in een wereld. Daarom blijft het serverwachtwoordveld verborgen.\n# Voer het wachtwoord in van een geschikte `userGroups`-vermelding. De server controleert het wachtwoord via de P2P-verbinding.",
+      "== Vereiste rechten voor de servergroep ==",
+      "Het ingevoerde wachtwoord moet exact overeenkomen met een groep met een niet-lege `name`. Diezelfde groep moet alle vijf onderstaande rechten instellen op de JSON-boolean `true`. Een ontbrekend veld, `false` of een waarde van een ander type geeft geen Modloader-beheertoegang tot de server.",
+      null,
+      "`reservedSlots` bepaalt gereserveerde spelersplaatsen en hoort niet bij de Modloader-rechtencontrole. ShroudForge stuurt het wachtwoord naar de server ter controle en slaat het niet op. De server controleert de groepsrechten opnieuw wanneer deze beheeracties verwerkt. Na vijf mislukte pogingen geldt een aanmeldpauze van 60 seconden."
+    ],
+    "pl": [
+      "Połączenie P2P Modloadera",
+      "Dowiedz się, kiedy Modloader może połączyć się z serwerem dedykowanym przez Steam P2P oraz które uprawnienia grup użytkowników Enshrouded umożliwiają administrację serwerem.",
+      "== Łączenie w grze ==",
+      "# Uruchom Enshrouded i wejdź do świata gry hostowanego przez serwer dedykowany.\n# Otwórz Modloader i wybierz '''Server''' jako cel.\n# Poczekaj, aż stan serwera pokaże '''Connected'''. Okno pulpitu i menu główne gry nie potwierdzają połączenia P2P w świecie, więc pole hasła serwera pozostaje ukryte.\n# Wpisz hasło pasującego wpisu `userGroups`. Serwer sprawdza hasło przez połączenie P2P.",
+      "== Wymagane uprawnienia grupy serwera ==",
+      "Wpisane hasło musi dokładnie pasować do grupy z niepustą wartością `name`. Ta sama grupa musi mieć wszystkie pięć poniższych pól uprawnień ustawionych na wartość logiczną JSON `true`. Brak pola, wartość `false` lub inny typ danych nie uprawnia do administrowania serwerem w Modloaderze.",
+      null,
+      "`reservedSlots` określa zarezerwowane miejsca dla graczy i nie bierze udziału w kontroli uprawnień Modloadera. ShroudForge wysyła podane hasło do serwera w celu sprawdzenia i go nie zapisuje. Serwer ponownie sprawdza uprawnienia grupy podczas obsługi działań administracyjnych. Pięć nieudanych prób powoduje 60-sekundową przerwę w logowaniu."
+    ],
+    "sv": [
+      "Modloader P2P-anslutning",
+      "Läs när Modloader kan nå en dedikerad server via Steam P2P och vilka behörigheter i Enshroudeds användargrupper som ger serveradministration.",
+      "== Anslut i spelet ==",
+      "# Starta Enshrouded och gå in i en spelvärld som den dedikerade servern står värd för.\n# Öppna Modloader och välj '''Server''' som mål.\n# Vänta tills serverstatusen visar '''Connected'''. Skrivbordsfönstret och spelets huvudmeny bekräftar inte en P2P-anslutning i en värld, så serverns lösenordsfält förblir dolt.\n# Ange lösenordet för en behörig post i `userGroups`. Servern kontrollerar lösenordet via P2P-anslutningen.",
+      "== Nödvändiga behörigheter för servergruppen ==",
+      "Det angivna lösenordet måste exakt matcha en grupp med ett namn (`name`) som inte är tomt. Samma grupp måste ställa in alla fem behörighetsfält nedan till JSON-booleanvärdet `true`. Ett saknat fält, `false` eller ett värde av annan typ ger inte behörighet att administrera servern från Modloader.",
+      null,
+      "`reservedSlots` styr reserverade spelarplatser och ingår inte i Modloaders behörighetskontroll. ShroudForge skickar lösenordet till servern för kontroll och sparar det inte. Servern kontrollerar gruppens behörigheter igen när den hanterar adminåtgärder. Fem misslyckade lösenordsförsök startar en inloggningspaus på 60 sekunder."
+    ],
+    "zh": [
+      "Modloader P2P 连接",
+      "了解 Modloader 何时可以通过 Steam P2P 连接专用服务器，以及 Enshrouded 用户组需要哪些权限才能管理服务器。",
+      "== 在游戏中连接 ==",
+      "# 启动 Enshrouded 并进入由专用服务器托管的游戏世界。\n# 打开 Modloader，并将目标设为 '''Server'''。\n# 等待服务器状态显示 '''Connected'''。桌面窗口和游戏主菜单无法确认游戏世界内的 P2P 连接，因此服务器密码框会保持隐藏。\n# 输入符合条件的 `userGroups` 条目密码。服务器会通过 P2P 连接验证密码。",
+      "== 服务器用户组所需权限 ==",
+      "输入的密码必须与某个 `name` 非空的用户组密码完全一致。同一用户组必须将下面五个权限字段全部设置为 JSON 布尔值 `true`。缺少字段、值为 `false` 或字段类型不是布尔值时，该用户组不能通过 Modloader 管理服务器。",
+      null,
+      "`reservedSlots` 用于设置预留玩家席位，不属于 Modloader 权限检查。ShroudForge 会将输入的密码发送给服务器进行验证，但不会保存密码。服务器处理管理操作时会再次检查用户组权限。密码连续输错五次后，登录会暂停 60 秒。"
+    ]
   }
 }

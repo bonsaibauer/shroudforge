@@ -318,6 +318,15 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .server-admin-visual{overflow:hidden;border:1px solid var(--sf-line);border-radius:14px;background:#0b1418;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
 .server-admin-visual svg{display:block;width:100%;height:auto}
 .server-admin-modal .modal-body>p{margin:0;color:var(--sf-muted);font-size:12px;line-height:1.5}
+.server-admin-unavailable{display:grid;gap:12px}
+.server-admin-unavailable p{margin:0;color:var(--sf-muted);font-size:12px;line-height:1.6}
+.server-admin-unavailable .button{justify-self:start}
+.server-admin-searching{display:grid;grid-template-columns:16px minmax(0,1fr);align-items:start;gap:10px}
+.server-admin-searching strong{color:var(--sf-text);font-size:12px}
+.server-admin-searching p{margin-top:4px}
+.server-admin-spinner{width:14px;height:14px;margin-top:1px;border:2px solid rgba(216,181,108,.25);border-top-color:var(--sf-gold-bright);border-radius:50%;animation:server-admin-spin .8s linear infinite}
+@keyframes server-admin-spin{to{transform:rotate(360deg)}}
+body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-gold-bright);opacity:.75}
 .remote-admin-login{display:grid;gap:9px;margin:0}
 .remote-admin-login label{color:var(--sf-text);font-size:11px;font-weight:600}
 .remote-admin-login input{box-sizing:border-box;width:100%;height:40px;padding:0 11px;border:1px solid var(--sf-line-strong);border-radius:8px;color:var(--sf-text);background:#0b1519;font:500 13px var(--sf-font)}

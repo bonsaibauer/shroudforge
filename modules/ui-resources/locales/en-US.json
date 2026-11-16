@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Automatically created game profile is active",
   "runtime.profileDiscovery.betaDescription": "ShroudForge has created and loaded a game profile that matches your Enshrouded version. It helps find the game data supported mods need. Automatic profile creation is still being tested. This notice stays until ShroudForge provides a reviewed regular profile for your version. It will load the next time you start the game, and the notice will disappear. If the feature proves reliable even for small updates, it may become standard later. This does not confirm that every mod feature works.",
   "runtime.profileDiscovery.betaBadge": "Created automatically",
-  "runtime.profileDiscovery.openGuide": "What is a game profile?"
+  "runtime.profileDiscovery.openGuide": "What is a game profile?",
+  "serverAdmin.title": "Server administration",
+  "serverAdmin.unavailableTitle": "Server access is not ready",
+  "serverAdmin.prompt": "Sign in with a server admin group password to unlock the server pages in this Modloader.",
+  "serverAdmin.enterWorld": "The Steam P2P connection is available only while Enshrouded is running in a game world. Start the game and enter the server’s world. Once the connection is confirmed, you can enter the admin password here.",
+  "serverAdmin.serverNotConnected": "There is no confirmed Steam P2P connection to the server. Join the server’s game world and try again when the connection status shows connected.",
+  "serverAdmin.password": "Admin password",
+  "serverAdmin.passwordAria": "Server admin group password",
+  "serverAdmin.signIn": "Sign in",
+  "serverAdmin.waitingLink": "WAITING FOR GAME LINK",
+  "serverAdmin.activeLink": "P2P LINK ACTIVE",
+  "serverAdmin.searchingTitle": "Searching for game connection",
+  "serverAdmin.searchingMessage": "ShroudForge is waiting for a confirmed Steam P2P connection. Enter the server’s game world. The password field will appear here once the connection is ready.",
+  "serverAdmin.searchingLink": "SEARCHING FOR CONNECTION"
 }

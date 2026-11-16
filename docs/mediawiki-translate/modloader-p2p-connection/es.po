@@ -1,0 +1,54 @@
+# Translation of Modloader P2P connection to Spanish
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-16 19:16:38+0000\n"
+"POT-Creation-Date: 2026-11-16 19:16:38+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"X-Generator: MediaWiki Translate API\n"
+"X-Language-Code: es\n"
+"X-Message-Group: page-Modloader P2P connection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Modloader_P2P_connection/Page_display_title"
+msgid "Modloader P2P connection"
+msgstr "Conexión P2P del Modloader"
+
+#
+msgctxt "Modloader_P2P_connection/1"
+msgid "Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration."
+msgstr "Descubre cuándo el Modloader puede conectarse a un servidor dedicado mediante Steam P2P y qué permisos de los grupos de usuarios de Enshrouded permiten administrar el servidor."
+
+#
+msgctxt "Modloader_P2P_connection/2"
+msgid "== Connect in game =="
+msgstr "== Conectarse dentro del juego =="
+
+#
+msgctxt "Modloader_P2P_connection/3"
+msgid "# Start Enshrouded and join a game world hosted by the dedicated server.\n# Open the Modloader and select '''Server''' as the target.\n# Wait for the server status to show '''Connected'''. The desktop window and the game’s main menu do not confirm an in-world P2P connection, so the server password field stays hidden.\n# Enter the password for a qualifying <code>userGroups</code> entry. The server checks the password over the P2P connection."
+msgstr "# Inicia Enshrouded y entra en un mundo de juego alojado por el servidor dedicado.\n# Abre el Modloader y selecciona '''Servidor''' como destino.\n# Espera hasta que el estado del servidor indique '''Conectado'''. La ventana de escritorio y el menú principal no confirman una conexión P2P dentro de un mundo, por lo que el campo de contraseña del servidor permanece oculto.\n# Introduce la contraseña de una entrada válida de <code>userGroups</code>. El servidor comprueba la contraseña mediante la conexión P2P."
+
+#
+msgctxt "Modloader_P2P_connection/4"
+msgid "== Required server group permissions =="
+msgstr "== Permisos necesarios para el grupo del servidor =="
+
+#
+msgctxt "Modloader_P2P_connection/5"
+msgid "The entered password must exactly match a group with a non-empty <code>name</code>. That same group must set all five permission fields below to the JSON boolean <code>true</code>. A missing field, <code>false</code>, or a non-boolean value does not qualify the group for Modloader server administration."
+msgstr "La contraseña introducida debe coincidir exactamente con un grupo que tenga un <code>name</code> no vacío. Ese mismo grupo debe establecer los cinco permisos siguientes en el valor booleano JSON <code>true</code>. Si falta un campo, es <code>false</code> o tiene otro tipo de dato, el grupo no podrá administrar el servidor desde el Modloader."
+
+#
+msgctxt "Modloader_P2P_connection/6"
+msgid "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+msgstr "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+
+#
+msgctxt "Modloader_P2P_connection/7"
+msgid "<code>reservedSlots</code> controls reserved player slots and is not part of the Modloader permission check. ShroudForge sends the submitted password to the server for validation and does not store it. The server checks the group permissions again when it handles admin actions. Five failed password attempts start a 60-second login cooldown."
+msgstr "<code>reservedSlots</code> define plazas reservadas para jugadores y no forma parte de la comprobación de permisos del Modloader. ShroudForge envía la contraseña al servidor para validarla y no la almacena. El servidor vuelve a comprobar los permisos del grupo al procesar acciones administrativas. Cinco intentos fallidos activan una espera de 60 segundos antes de volver a iniciar sesión."

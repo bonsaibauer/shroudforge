@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Aktywny profil gry utworzony automatycznie",
   "runtime.profileDiscovery.betaDescription": "ShroudForge utworzył i wczytał profil pasujący do Twojej wersji Enshrouded. Pomaga on obsługiwanym modom znaleźć potrzebne dane gry. Automatyczne tworzenie profili jest nadal testowane. Ten komunikat będzie widoczny, dopóki ShroudForge nie udostępni sprawdzonego, zwykłego profilu dla Twojej wersji. Profil zostanie wczytany przy następnym uruchomieniu gry, a komunikat zniknie. Jeśli funkcja będzie niezawodna także przy małych aktualizacjach, może w przyszłości stać się standardem. Nie potwierdza to działania każdej funkcji moda.",
   "runtime.profileDiscovery.betaBadge": "Utworzono automatycznie",
-  "runtime.profileDiscovery.openGuide": "Czym jest profil gry?"
+  "runtime.profileDiscovery.openGuide": "Czym jest profil gry?",
+  "serverAdmin.title": "Administracja serwerem",
+  "serverAdmin.unavailableTitle": "Dostęp do serwera jest niedostępny",
+  "serverAdmin.prompt": "Zaloguj się hasłem grupy administratorów serwera, aby odblokować strony serwera w tym Modloaderze.",
+  "serverAdmin.enterWorld": "Połączenie Steam P2P jest dostępne tylko wtedy, gdy Enshrouded działa w świecie gry. Uruchom grę i wejdź do świata serwera. Gdy połączenie zostanie potwierdzone, możesz tutaj wpisać hasło administratora.",
+  "serverAdmin.serverNotConnected": "Nie potwierdzono połączenia Steam P2P z serwerem. Dołącz do jego świata gry i spróbuj ponownie, gdy stan połączenia pokaże, że jest aktywne.",
+  "serverAdmin.password": "Hasło administratora",
+  "serverAdmin.passwordAria": "Hasło grupy administratorów serwera",
+  "serverAdmin.signIn": "Zaloguj się",
+  "serverAdmin.waitingLink": "OCZEKIWANIE NA POŁĄCZENIE Z GRĄ",
+  "serverAdmin.activeLink": "POŁĄCZENIE P2P AKTYWNE",
+  "serverAdmin.searchingTitle": "Wyszukiwanie połączenia z grą",
+  "serverAdmin.searchingMessage": "ShroudForge czeka na potwierdzone połączenie Steam P2P. Wejdź do świata gry na serwerze. Pole hasła pojawi się tutaj, gdy połączenie będzie gotowe.",
+  "serverAdmin.searchingLink": "WYSZUKIWANIE POŁĄCZENIA"
 }

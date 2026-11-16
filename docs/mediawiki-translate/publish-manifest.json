@@ -412,6 +412,47 @@
       ]
     },
     {
+      "id": "modloader-p2p-connection",
+      "title": "Modloader P2P connection",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Modloader P2P connection",
+      "wikitext": "docs/mediawiki-translate/modloader-p2p-connection/en.wikitext",
+      "asset": "modules/wiki/articles/modloader-p2p-connection/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-modloader-p2p-connection.svg",
+      "po": "docs/mediawiki-translate/modloader-p2p-connection/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/modloader-p2p-connection/de-at.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/de-ch.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/de.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/es.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/fr.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/hi.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/it.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/ja.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/nl.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/pl.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/sv.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
       "id": "startup-asset-backups",
       "title": "Startup stops because asset backups are incompatible",
       "sourceLanguage": "en-GB",

@@ -1,0 +1,54 @@
+# Translation of Modloader P2P connection to Hindi
+# Exported from Shroudforge
+#
+msgid ""
+msgstr ""
+"PO-Revision-Date: 2026-11-16 19:16:38+0000\n"
+"POT-Creation-Date: 2026-11-16 19:16:38+0000\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: hi\n"
+"X-Generator: MediaWiki Translate API\n"
+"X-Language-Code: hi\n"
+"X-Message-Group: page-Modloader P2P connection\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+msgctxt "Modloader_P2P_connection/Page_display_title"
+msgid "Modloader P2P connection"
+msgstr "Modloader P2P कनेक्शन"
+
+#
+msgctxt "Modloader_P2P_connection/1"
+msgid "Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration."
+msgstr "जानें कि Modloader Steam P2P के माध्यम से dedicated server से कब जुड़ सकता है और Enshrouded की कौन-सी userGroups अनुमतियाँ सर्वर प्रशासन के लिए योग्य हैं।"
+
+#
+msgctxt "Modloader_P2P_connection/2"
+msgid "== Connect in game =="
+msgstr "== गेम के अंदर कनेक्ट करें =="
+
+#
+msgctxt "Modloader_P2P_connection/3"
+msgid "# Start Enshrouded and join a game world hosted by the dedicated server.\n# Open the Modloader and select '''Server''' as the target.\n# Wait for the server status to show '''Connected'''. The desktop window and the game’s main menu do not confirm an in-world P2P connection, so the server password field stays hidden.\n# Enter the password for a qualifying <code>userGroups</code> entry. The server checks the password over the P2P connection."
+msgstr "# Enshrouded शुरू करें और dedicated server की गेम दुनिया में जाएँ।\n# Modloader खोलें और लक्ष्य के रूप में '''Server''' चुनें।\n# सर्वर स्थिति में '''Connected''' दिखने तक प्रतीक्षा करें। Desktop विंडो और गेम का मुख्य मेनू दुनिया के अंदर P2P कनेक्शन की पुष्टि नहीं करते, इसलिए सर्वर पासवर्ड फ़ील्ड छिपा रहता है।\n# योग्य `userGroups` प्रविष्टि का पासवर्ड दर्ज करें। सर्वर P2P कनेक्शन पर पासवर्ड की जाँच करता है।"
+
+#
+msgctxt "Modloader_P2P_connection/4"
+msgid "== Required server group permissions =="
+msgstr "== सर्वर समूह के लिए आवश्यक अनुमतियाँ =="
+
+#
+msgctxt "Modloader_P2P_connection/5"
+msgid "The entered password must exactly match a group with a non-empty <code>name</code>. That same group must set all five permission fields below to the JSON boolean <code>true</code>. A missing field, <code>false</code>, or a non-boolean value does not qualify the group for Modloader server administration."
+msgstr "दर्ज किया गया पासवर्ड ऐसे समूह से बिल्कुल मेल खाना चाहिए जिसका `name` खाली न हो। उसी समूह में नीचे दी गई सभी पाँच अनुमति फ़ील्ड का JSON boolean मान `true` होना चाहिए। कोई फ़ील्ड छूटा हो, `false` हो या boolean न हो, तो वह समूह Modloader सर्वर प्रशासन के लिए योग्य नहीं है।"
+
+#
+msgctxt "Modloader_P2P_connection/6"
+msgid "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+msgstr "<pre>\n\"userGroups\": [\n  {\n    \"name\": \"Admin\",\n    \"password\": \"REPLACE_WITH_A_PRIVATE_PASSWORD\",\n    \"canKickBan\": true,\n    \"canAccessInventories\": true,\n    \"canEditWorld\": true,\n    \"canEditBase\": true,\n    \"canExtendBase\": true,\n    \"reservedSlots\": 0\n  }\n]\n</pre>"
+
+#
+msgctxt "Modloader_P2P_connection/7"
+msgid "<code>reservedSlots</code> controls reserved player slots and is not part of the Modloader permission check. ShroudForge sends the submitted password to the server for validation and does not store it. The server checks the group permissions again when it handles admin actions. Five failed password attempts start a 60-second login cooldown."
+msgstr "`reservedSlots` आरक्षित खिलाड़ी स्लॉट नियंत्रित करता है और Modloader अनुमति जाँच का हिस्सा नहीं है। ShroudForge पासवर्ड सत्यापन के लिए सर्वर को भेजता है और उसे सहेजता नहीं है। सर्वर admin कार्रवाई करते समय समूह अनुमतियों की फिर जाँच करता है। पाँच असफल पासवर्ड प्रयासों के बाद 60 सेकंड का login cooldown शुरू होता है।"

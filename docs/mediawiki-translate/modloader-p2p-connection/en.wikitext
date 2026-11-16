@@ -1,0 +1,48 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Modloader P2P connection
+description: Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration.
+language: en-GB
+picture:ShroudForge-Wiki-modloader-p2p-connection.svg
+creator: Bonsaibauer
+-->
+
+[[File:ShroudForge-Wiki-modloader-p2p-connection.svg|thumb|left|600px|Modloader P2P connection]]
+
+<br style="clear:both;" />
+
+<translate>
+
+Learn when the Modloader can reach a dedicated server over Steam P2P and which Enshrouded user-group permissions qualify for server administration.
+
+== Connect in game ==
+
+# Start Enshrouded and join a game world hosted by the dedicated server.
+# Open the Modloader and select '''Server''' as the target.
+# Wait for the server status to show '''Connected'''. The desktop window and the game’s main menu do not confirm an in-world P2P connection, so the server password field stays hidden.
+# Enter the password for a qualifying <code>userGroups</code> entry. The server checks the password over the P2P connection.
+
+== Required server group permissions ==
+
+The entered password must exactly match a group with a non-empty <code>name</code>. That same group must set all five permission fields below to the JSON boolean <code>true</code>. A missing field, <code>false</code>, or a non-boolean value does not qualify the group for Modloader server administration.
+
+<pre>
+"userGroups": [
+  {
+    "name": "Admin",
+    "password": "REPLACE_WITH_A_PRIVATE_PASSWORD",
+    "canKickBan": true,
+    "canAccessInventories": true,
+    "canEditWorld": true,
+    "canEditBase": true,
+    "canExtendBase": true,
+    "reservedSlots": 0
+  }
+]
+</pre>
+
+<code>reservedSlots</code> controls reserved player slots and is not part of the Modloader permission check. ShroudForge sends the submitted password to the server for validation and does not store it. The server checks the group permissions again when it handles admin actions. Five failed password attempts start a 60-second login cooldown.
+</translate>
+
+[[Category:guide:Shroudforge]]

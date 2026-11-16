@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Automatisch gemaakt spelprofiel actief",
   "runtime.profileDiscovery.betaDescription": "ShroudForge heeft een passend profiel voor jouw Enshrouded-versie gemaakt en geladen. Het helpt ondersteunde mods de benodigde gamegegevens te vinden. Het automatisch maken van profielen wordt nog getest. Deze melding blijft staan totdat ShroudForge een gecontroleerd regulier profiel voor jouw versie aanbiedt. Dat profiel wordt bij de volgende gamestart geladen, waarna de melding automatisch verdwijnt. Als de functie ook kleine updates betrouwbaar verwerkt, kan ze later de standaard worden. Dit bevestigt niet dat elke modfunctie werkt.",
   "runtime.profileDiscovery.betaBadge": "Automatisch gemaakt",
-  "runtime.profileDiscovery.openGuide": "Wat is een spelprofiel?"
+  "runtime.profileDiscovery.openGuide": "Wat is een spelprofiel?",
+  "serverAdmin.title": "Serverbeheer",
+  "serverAdmin.unavailableTitle": "Servertoegang is nog niet beschikbaar",
+  "serverAdmin.prompt": "Meld je aan met het wachtwoord van een serverbeheerdersgroep om de serverpagina’s in deze Modloader te openen.",
+  "serverAdmin.enterWorld": "De Steam P2P-verbinding is alleen beschikbaar wanneer Enshrouded in een gamewereld draait. Start de game en betreed de wereld van de server. Zodra de verbinding is bevestigd, kun je hier het beheerderswachtwoord invoeren.",
+  "serverAdmin.serverNotConnected": "Er is geen bevestigde Steam P2P-verbinding met de server. Betreed de gamewereld van de server en probeer het opnieuw zodra de verbindingsstatus verbonden aangeeft.",
+  "serverAdmin.password": "Beheerderswachtwoord",
+  "serverAdmin.passwordAria": "Wachtwoord van de serverbeheerdersgroep",
+  "serverAdmin.signIn": "Aanmelden",
+  "serverAdmin.waitingLink": "WACHT OP GAMEVERBINDING",
+  "serverAdmin.activeLink": "P2P-VERBINDING ACTIEF",
+  "serverAdmin.searchingTitle": "Zoeken naar gameverbinding",
+  "serverAdmin.searchingMessage": "ShroudForge wacht op een bevestigde Steam P2P-verbinding. Betreed de gamewereld van de server. Het wachtwoordveld verschijnt hier zodra de verbinding gereed is.",
+  "serverAdmin.searchingLink": "VERBINDING WORDT GEZOCHT"
 }

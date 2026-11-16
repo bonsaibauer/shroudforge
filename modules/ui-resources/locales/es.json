@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Perfil del juego creado automáticamente y activo",
   "runtime.profileDiscovery.betaDescription": "ShroudForge ha creado y cargado un perfil adecuado para tu versión de Enshrouded. Ayuda a encontrar los datos que necesitan los mods compatibles. La creación automática de perfiles todavía se está probando. Este aviso seguirá hasta que ShroudForge publique un perfil normal revisado para tu versión. Se cargará la próxima vez que inicies el juego y entonces el aviso desaparecerá. Si la función resulta fiable incluso con actualizaciones pequeñas, más adelante podría convertirse en la opción habitual. Esto no confirma que todas las funciones de los mods funcionen.",
   "runtime.profileDiscovery.betaBadge": "Creado automáticamente",
-  "runtime.profileDiscovery.openGuide": "¿Qué es un perfil de juego?"
+  "runtime.profileDiscovery.openGuide": "¿Qué es un perfil de juego?",
+  "serverAdmin.title": "Administración del servidor",
+  "serverAdmin.unavailableTitle": "El acceso al servidor aún no está disponible",
+  "serverAdmin.prompt": "Inicia sesión con una contraseña del grupo de administración para desbloquear las páginas del servidor en este Modloader.",
+  "serverAdmin.enterWorld": "La conexión Steam P2P solo está disponible cuando Enshrouded se está ejecutando dentro de un mundo. Inicia el juego y entra en el mundo del servidor. Cuando se confirme la conexión, podrás introducir aquí la contraseña de administrador.",
+  "serverAdmin.serverNotConnected": "No hay una conexión Steam P2P confirmada con el servidor. Entra en su mundo y vuelve a intentarlo cuando el estado de conexión indique que está conectado.",
+  "serverAdmin.password": "Contraseña de administración",
+  "serverAdmin.passwordAria": "Contraseña del grupo de administración del servidor",
+  "serverAdmin.signIn": "Iniciar sesión",
+  "serverAdmin.waitingLink": "ESPERANDO CONEXIÓN DEL JUEGO",
+  "serverAdmin.activeLink": "CONEXIÓN P2P ACTIVA",
+  "serverAdmin.searchingTitle": "Buscando conexión con la partida",
+  "serverAdmin.searchingMessage": "ShroudForge espera una conexión Steam P2P confirmada. Entra en el mundo del servidor. El campo de contraseña aparecerá aquí cuando la conexión esté lista.",
+  "serverAdmin.searchingLink": "BUSCANDO CONEXIÓN"
 }

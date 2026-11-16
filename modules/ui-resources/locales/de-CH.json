@@ -909,5 +909,18 @@
   "runtime.profileDiscovery.betaTitle": "Automatisch erstelltes Spielprofil aktiv",
   "runtime.profileDiscovery.betaDescription": "ShroudForge hat ein passendes Spielprofil für deine Enshrouded-Version erstellt und geladen. Es hilft, die Spieldaten für unterstützte Mods zu finden. Die automatische Profilerstellung wird noch getestet. Dieser Hinweis bleibt, bis ShroudForge ein geprüftes reguläres Profil für deine Version bereitstellt. Beim nächsten Spielstart wird es geladen und der Hinweis verschwindet automatisch. Wenn die Funktion auch bei kleinen Updates zuverlässig funktioniert, kann sie später zum Standard werden. Das bestätigt nicht, dass jede Modfunktion funktioniert.",
   "runtime.profileDiscovery.betaBadge": "Automatisch erstellt",
-  "runtime.profileDiscovery.openGuide": "Was ist ein Spielprofil?"
+  "runtime.profileDiscovery.openGuide": "Was ist ein Spielprofil?",
+  "serverAdmin.title": "Serververwaltung",
+  "serverAdmin.unavailableTitle": "Serverzugriff noch nicht verfügbar",
+  "serverAdmin.prompt": "Melde dich mit einem Passwort der Server-Admin-Gruppe an, um die Serverseiten in diesem Modloader freizuschalten.",
+  "serverAdmin.enterWorld": "Die Steam-P2P-Verbindung steht erst zur Verfügung, wenn Enshrouded läuft und du eine Spielwelt betreten hast. Starte das Spiel und betrete die Welt des Servers. Sobald die Verbindung bestätigt ist, kannst du hier das Admin-Passwort eingeben.",
+  "serverAdmin.serverNotConnected": "Es besteht keine bestätigte Steam-P2P-Verbindung zum Server. Betritt die Spielwelt des Servers und versuche es erneut, sobald der Verbindungsstatus „verbunden“ anzeigt.",
+  "serverAdmin.password": "Admin-Passwort",
+  "serverAdmin.passwordAria": "Passwort der Server-Admin-Gruppe",
+  "serverAdmin.signIn": "Anmelden",
+  "serverAdmin.waitingLink": "SPIELVERBINDUNG AUSSTEHEND",
+  "serverAdmin.activeLink": "P2P-VERBINDUNG AKTIV",
+  "serverAdmin.searchingTitle": "Suche nach Spielverbindung",
+  "serverAdmin.searchingMessage": "ShroudForge wartet auf eine bestätigte Steam-P2P-Verbindung. Betritt die Spielwelt des Servers. Sobald die Verbindung steht, erscheint hier das Passwortfeld.",
+  "serverAdmin.searchingLink": "VERBINDUNG WIRD GESUCHT"
 }

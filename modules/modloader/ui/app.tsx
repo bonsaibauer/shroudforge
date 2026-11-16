@@ -174,6 +174,15 @@ export function App() {
   const activeMod = displayedMods.find((mod) => mod.id === selectedMod)
   const compatibilityStatus = compatibilityNavigationStatus(data)
   const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
+  const serverAdminLoginRequiresWorld = data.mode === 'DESKTOP' ||
+    runtimeCheck?.phase === 'main-menu' ||
+    runtimeCheck?.phase === 'waiting-world'
+  const serverAdminLoginAvailable = data.mode === 'CLIENT' &&
+    runtimeCheck?.phase === 'normal' &&
+    data.remoteServerState === 'connected'
+  const serverAdminLoginSearching = data.mode === 'CLIENT' &&
+    runtimeCheck?.phase === 'normal' &&
+    data.remoteServerState === 'connecting'
   const profileDiscovery = data.configuration?.gameProfileDiscovery
   const profileSearching = profileDiscovery?.state === 'searching'
   const profileWaitingForWorld = profileDiscovery?.state === 'waiting-for-world'
@@ -320,15 +329,20 @@ export function App() {
         remoteTarget={remoteTarget}
         serverAdminAuthenticated={serverAdminAuthenticated}
         serverAdminGroupName={serverAdminGroupName}
+        serverAdminLoginAvailable={serverAdminLoginAvailable}
+        serverAdminLoginRequiresWorld={serverAdminLoginRequiresWorld}
+        serverAdminLoginSearching={serverAdminLoginSearching}
         serverAdminLoginPending={serverAdminLoginPending}
         serverAdminLoginError={serverAdminLoginError}
         onRemoteAdminLogin={(password) => {
+          if (!serverAdminLoginAvailable) return
           setServerAdminLoginError(null)
           const requestId = postRequest('remote-admin-login', { password })
           pendingServerLogin.current = requestId
           setServerAdminLoginPending(true)
         }}
         onRemoteTargetChange={changeRemoteTarget}
+        onOpenWikiCategory={openWikiCategory}
         unread={unread.length}
         severity={chirperSeverity}
         crowded={unread.length >= 5}
