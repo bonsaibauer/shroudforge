@@ -5,6 +5,7 @@ import { I18nProvider, useI18n } from '../../ui-resources/i18n'
 import { PageId, Snapshot, empty } from './ui-snapshot'
 import type { NoticeAction } from '../../notifications/ui/notification-types'
 import type { RuntimeProblemCode } from './ui-snapshot'
+import type { ModInfo } from './mod-types'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { Chirper } from '../../notifications/ui/show-notice-popup'
 import { useNotifications } from '../../notifications/ui/read-notifications'
@@ -13,7 +14,7 @@ import { Nav, NavGroup } from '../../ui-resources/show-navigation'
 import { ModIcon } from './show-mod-icon'
 import { ModPage } from './show-mod'
 import { useUiUpdates } from './receive-ui-updates'
-import { TopBar } from './show-top-bar'
+import { RemoteTargetSwitch, TopBar } from './show-top-bar'
 import { Page } from './show-page'
 import { UiErrorBoundary } from './show-ui-error'
 import { compatibilityNavigationStatus } from './show-compatibility'
@@ -54,6 +55,12 @@ export function App() {
   const [dismissedBannerKey, setDismissedBannerKey] = useState<string | null>(null)
   const [chirper, setChirper] = useState(false)
   const [settings, setSettings] = useState<Settings>(empty.settings)
+  const [remoteTarget, setRemoteTarget] = useState<'client' | 'server'>('client')
+  const [serverMods, setServerMods] = useState<ModInfo[] | null>(null)
+  const [serverAdminAuthenticated, setServerAdminAuthenticated] = useState(false)
+  const [serverAdminLoginPending, setServerAdminLoginPending] = useState(false)
+  const [serverAdminLoginError, setServerAdminLoginError] = useState<string | null>(null)
+  const pendingServerLogin = useRef<string | null>(null)
   const [read, setRead] = useState<string[]>([])
   const previousBannerKey = useRef<string | null>(null)
   const {
@@ -75,6 +82,76 @@ export function App() {
     document.body.classList.toggle('compact', settings.compactMode)
     document.body.classList.toggle('reduced-motion', settings.reducedMotion)
   }, [settings.compactMode, settings.reducedMotion])
+  useEffect(() => {
+    setRemoteTarget(
+      settings.modulePreferences?.modloaderUi?.remoteTarget === 'server'
+        ? 'server'
+        : 'client',
+    )
+  }, [settings.modulePreferences?.modloaderUi?.remoteTarget])
+  useEffect(() => {
+    const onCommandResult = (event: Event) => {
+      const result = (event as CustomEvent<{
+        requestId: string
+        success: boolean
+        message?: string
+      }>).detail
+      if (result?.requestId === pendingServerLogin.current) {
+        pendingServerLogin.current = null
+        setServerAdminLoginPending(false)
+        setServerAdminAuthenticated(result.success)
+        setServerAdminLoginError(result.success ? null : result.message ?? 'Admin authentication failed')
+      } else if (
+        remoteTarget === 'server' &&
+        !result?.success &&
+        (result?.message?.startsWith('Server admin access expired') ||
+          result?.message?.startsWith('Sign in with a server admin group'))
+      ) {
+        setServerAdminAuthenticated(false)
+        setServerMods(null)
+        setServerAdminLoginError(result.message ?? 'Server admin access expired')
+      }
+    }
+    window.addEventListener('shroudforge-command-result', onCommandResult)
+    return () => window.removeEventListener('shroudforge-command-result', onCommandResult)
+  }, [remoteTarget])
+
+  useEffect(() => {
+    const onRemoteModData = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        mods?: ModInfo[]
+        mod?: ModInfo
+      }>).detail
+      if (Array.isArray(detail?.mods)) {
+        setServerMods(detail.mods)
+      } else if (detail?.mod && typeof detail.mod.id === 'string') {
+        const updated = detail.mod
+        setServerMods((current) =>
+          current ? current.map((mod) => (mod.id === updated.id ? updated : mod)) : current,
+        )
+      }
+    }
+    window.addEventListener('shroudforge-remote-mod-data', onRemoteModData)
+    return () =>
+      window.removeEventListener('shroudforge-remote-mod-data', onRemoteModData)
+  }, [])
+
+  useEffect(() => {
+    if (remoteTarget !== 'server') {
+      setServerMods(null)
+      return
+    }
+    if (serverAdminAuthenticated) {
+      postRequest('fetch-server-mods', { locale: data.locale })
+    }
+  }, [remoteTarget, serverAdminAuthenticated, data.locale])
+
+  const displayedMods =
+    remoteTarget === 'server'
+      ? serverAdminAuthenticated
+        ? serverMods ?? []
+        : []
+      : data.mods
 
   const newsSource = {
     ...data,
@@ -88,7 +165,7 @@ export function App() {
     chirperItems,
     markRead,
   } = useNotifications(newsSource, settings, read, setRead)
-  const activeMod = data.mods.find((mod) => mod.id === selectedMod)
+  const activeMod = displayedMods.find((mod) => mod.id === selectedMod)
   const compatibilityStatus = compatibilityNavigationStatus(data)
   const runtimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
   const profileDiscovery = data.configuration?.gameProfileDiscovery
@@ -207,8 +284,25 @@ export function App() {
       postRequest('queue-system-update')
   }
 
+  const changeRemoteTarget = (target: 'client' | 'server') => {
+    if (target === remoteTarget) return
+    setRemoteTarget(target)
+    setServerMods(null)
+    setSelectedMod(null)
+    setServerAdminAuthenticated(false)
+    setServerAdminLoginPending(false)
+    setServerAdminLoginError(null)
+    pendingServerLogin.current = null
+    postRequest('save-setting', {
+      scope: 'module',
+      module: 'modloaderUi',
+      key: 'remoteTarget',
+      value: target,
+    })
+  }
+
   return (
-    <main className="shell">
+    <main className={`shell ${remoteTarget === 'server' ? 'server-target-active' : ''}`}>
       <Toasts
         errors={data.configuration?.errors}
         message={saveMessage}
@@ -216,6 +310,17 @@ export function App() {
       />
       <TopBar
         data={data}
+        remoteTarget={remoteTarget}
+        serverAdminAuthenticated={serverAdminAuthenticated}
+        serverAdminLoginPending={serverAdminLoginPending}
+        serverAdminLoginError={serverAdminLoginError}
+        onRemoteAdminLogin={(password) => {
+          setServerAdminLoginError(null)
+          const requestId = postRequest('remote-admin-login', { password })
+          pendingServerLogin.current = requestId
+          setServerAdminLoginPending(true)
+        }}
+        onRemoteTargetChange={changeRemoteTarget}
         unread={unread.length}
         severity={chirperSeverity}
         crowded={unread.length >= 5}
@@ -228,6 +333,12 @@ export function App() {
       >
         <div className="workspace">
           <aside className="sidebar">
+            <div className="sidebar-target">
+              <RemoteTargetSwitch
+                remoteTarget={remoteTarget}
+                onChange={changeRemoteTarget}
+              />
+            </div>
             <NavGroup
               title={t('nav.modloader')}
               version={data.version}
@@ -279,7 +390,7 @@ export function App() {
               <Nav
                 icon="installed"
                 label={t('nav.installed')}
-                badge={data.mods.length || undefined}
+                badge={displayedMods.length || undefined}
                 active={!activeMod && page === 'installed'}
                 onClick={() => navigate('installed')}
               />
@@ -299,7 +410,7 @@ export function App() {
             </NavGroup>
             <NavGroup className="nav-group-mods" title={t('nav.mods')}>
               <div className="sidebar-mods">
-                {data.mods.map((mod) => (
+                {displayedMods.map((mod) => (
                   <button
                     key={mod.id}
                     className={`nav-item ${activeMod?.id === mod.id ? 'active' : ''}`}
@@ -393,13 +504,20 @@ export function App() {
               <ModPage
                 key={activeMod.id}
                 mod={activeMod}
-                status={data.configuration?.modStates?.[activeMod.id]}
-                dependencyStates={data.configuration?.modStates || {}}
+                status={remoteTarget === 'server'
+                  ? undefined
+                  : data.configuration?.modStates?.[activeMod.id]}
+                dependencyStates={remoteTarget === 'server'
+                  ? {}
+                  : data.configuration?.modStates || {}}
+                remoteTarget={remoteTarget}
               />
             ) : (
               <Page
                 id={page}
-                data={data}
+                data={page === 'installed' && remoteTarget === 'server'
+                  ? { ...data, mods: displayedMods }
+                  : data}
                 settings={settings}
                 setSettings={setSettings}
                 notifyCommandResult={notifyCommandResult}

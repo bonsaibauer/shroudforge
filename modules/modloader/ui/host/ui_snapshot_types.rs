@@ -69,6 +69,7 @@ pub(crate) struct Snapshot {
     pub(crate) windows: serde_json::Value,
     pub(crate) configuration: serde_json::Value,
     pub(crate) connected: bool,
+    pub(crate) remote_server_state: &'static str,
     pub(crate) mode: &'static str,
     pub(crate) game_version: String,
     pub(crate) version: String,

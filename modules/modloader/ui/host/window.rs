@@ -1,20 +1,21 @@
+use super::apply_key_reservation::apply_key_reservation;
 use super::apply_language_change::apply_language_change;
 use super::apply_loader_setting::apply_loader_setting;
 use super::apply_loader_settings::apply_loader_settings;
-use super::assess_hotkey_change::assess_hotkey_change;
 use super::apply_mod_enabled::apply_mod_enabled;
-use super::apply_key_reservation::apply_key_reservation;
 use super::apply_mod_settings::apply_mod_settings;
+use super::assess_hotkey_change::assess_hotkey_change;
 use super::change_notice_read_state::change_notice_read_state;
 use super::change_storage_folder::change_storage_folder;
 use super::copy_activity_log::copy_activity_log;
+use super::handoff_to_client::handoff_to_client;
 use super::invoke_updater_request::{UpdaterRequestResult, spawn as spawn_updater_request};
+use super::native_menu_toggle::NativeMenuToggle;
 use super::open_requested_folder::open_requested_folder;
 use super::open_requested_link::open_requested_link;
 use super::parse_ui_command::Command;
 use super::parse_ui_command::UiCommand;
 use super::parse_ui_command::parse_ui_command;
-use super::handoff_to_client::handoff_to_client;
 use super::read_host_arguments::Arguments;
 use super::read_host_arguments::arguments;
 use super::read_missing_updater_announcement;
@@ -31,7 +32,6 @@ use super::read_window_focus::foreground_is_shroudforge_window;
 use super::read_window_focus::foreground_process;
 use super::read_window_focus::foreground_title;
 use super::read_window_focus::open_event;
-use super::native_menu_toggle::NativeMenuToggle;
 use super::refresh_activity_log::refresh_activity_log;
 use super::refresh_installed_mod::refresh_installed_mod;
 use super::refresh_ui_snapshot::SnapshotRefresher;
@@ -42,8 +42,7 @@ use super::request_mod_action::request_mod_action;
 use super::request_module_visibility::request_module_visibility;
 use super::ui_snapshot_types::ModuleConfig;
 use super::{
-    dispatch_control_actions::dispatch_control_actions,
-    watch_toggle_key::watch_toggle_key,
+    dispatch_control_actions::dispatch_control_actions, watch_toggle_key::watch_toggle_key,
 };
 use shroudforge_logging::write_activity;
 use shroudforge_window_management::WindowDefaults;
@@ -55,6 +54,7 @@ use std::process::Child;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 use std::time::Instant;
@@ -73,12 +73,83 @@ use windows_sys::Win32::System::Threading::WaitForSingleObject;
 use wry::WebContext;
 use wry::WebViewBuilder;
 
+const MAX_REMOTE_UI_WORKERS: usize = 8;
+static ACTIVE_REMOTE_UI_WORKERS: AtomicUsize = AtomicUsize::new(0);
+
+pub(crate) fn spawn_remote_ui_worker(
+    task: impl FnOnce() + Send + 'static,
+) -> Result<(), &'static str> {
+    if ACTIVE_REMOTE_UI_WORKERS
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |active| {
+            (active < MAX_REMOTE_UI_WORKERS).then_some(active + 1)
+        })
+        .is_err()
+    {
+        return Err("Too many server requests are already in progress");
+    }
+    let result = std::thread::Builder::new()
+        .name("shroudforge-remote-ui".into())
+        .spawn(move || {
+            struct WorkerGuard;
+            impl Drop for WorkerGuard {
+                fn drop(&mut self) {
+                    ACTIVE_REMOTE_UI_WORKERS.fetch_sub(1, Ordering::AcqRel);
+                }
+            }
+            let _guard = WorkerGuard;
+            task();
+        });
+    match result {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            ACTIVE_REMOTE_UI_WORKERS.fetch_sub(1, Ordering::AcqRel);
+            Err("Could not start a server request worker")
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) enum UiEvent {
     Toggle,
     KeybindLabels(Vec<String>),
     KeybindCaptureFailed(String, String),
     PageCursor(tao::window::CursorIcon),
+    RemoteCommandResult(String, String, Result<(), String>, &'static str, bool),
+    RemoteModResponse(String, String, serde_json::Value),
+}
+
+fn submit_remote_mod_request(
+    root: &std::path::Path,
+    proxy: tao::event_loop::EventLoopProxy<UiEvent>,
+    request: serde_json::Value,
+    action: String,
+) {
+    let root = root.to_owned();
+    let request_id = request["requestId"].as_str().unwrap_or_default().to_owned();
+    let failure_request_id = request_id.clone();
+    let failure_action = action.clone();
+    let failure_proxy = proxy.clone();
+    if let Err(message) = spawn_remote_ui_worker(move || {
+        let response = shroudforge_steam_networking::request_remote_ui(&root, &request)
+            .unwrap_or_else(|error| {
+                serde_json::json!({
+                    "success": false,
+                    "authorized": true,
+                    "message": error
+                })
+            });
+        let _ = proxy.send_event(UiEvent::RemoteModResponse(request_id, action, response));
+    }) {
+        let _ = failure_proxy.send_event(UiEvent::RemoteModResponse(
+            failure_request_id,
+            failure_action,
+            serde_json::json!({
+                "success": false,
+                "authorized": true,
+                "message": message
+            }),
+        ));
+    }
 }
 
 struct KeybindCapture {
@@ -97,7 +168,8 @@ fn cancel_keybind_capture(capture: &Mutex<Option<KeybindCapture>>, request_id: O
         return;
     }
     *owner = None;
-    let _ = shroudforge_hotkeys::set_capture_active(false, shroudforge_hotkeys::InputDevice::Keyboard);
+    let _ =
+        shroudforge_hotkeys::set_capture_active(false, shroudforge_hotkeys::InputDevice::Keyboard);
     let _ = shroudforge_hotkeys::take_captured_hotkey();
 }
 
@@ -209,7 +281,10 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
         apply_window_geometry(&window, &saved_position, false, window_defaults);
     let (sender, receiver) = mpsc::channel();
     let hotkey_proxy = event_loop.create_proxy();
-    let hotkey_key = Arc::new(RwLock::new(shroudforge_hotkeys::parse_hotkey(&module_config.toggle_key)?));
+    let remote_proxy = event_loop.create_proxy();
+    let hotkey_key = Arc::new(RwLock::new(shroudforge_hotkeys::parse_hotkey(
+        &module_config.toggle_key,
+    )?));
     let hotkey_key_watcher = hotkey_key.clone();
     let game_pid = arguments.game_pid;
     watch_toggle_key(
@@ -257,14 +332,19 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                 return;
             };
             let _ = shroudforge_hotkeys::take_captured_hotkey();
-            let device = value.device.unwrap_or(shroudforge_hotkeys::InputDevice::Keyboard);
+            let device = value
+                .device
+                .unwrap_or(shroudforge_hotkeys::InputDevice::Keyboard);
             if let Err(error) = shroudforge_hotkeys::set_capture_active(true, device) {
                 *owner = None;
                 let _ = shroudforge_logging::append(&capture_root, 'E', "hotkeys", &error);
                 let _ = keybind_proxy.send_event(UiEvent::KeybindCaptureFailed(request_id, error));
             } else {
                 let _ = shroudforge_logging::append(
-                    &capture_root, 'D', "hotkeys", &format!("Shortcut capture started: {device:?}"),
+                    &capture_root,
+                    'D',
+                    "hotkeys",
+                    &format!("Shortcut capture started: {device:?}"),
                 );
                 *owner = Some(KeybindCapture {
                     request_id,
@@ -777,6 +857,119 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     next_refresh = Instant::now();
                 }
                 while let Ok(command) = receiver.try_recv() {
+                    let server_target = shroudforge_loader_config::config::read_loader(&arguments.root)
+                        .ok()
+                        .and_then(|config| {
+                            config
+                                .pointer("/modules/modloaderUi/remoteTarget")
+                                .and_then(serde_json::Value::as_str)
+                                .map(|target| target == "server")
+                        })
+                        .unwrap_or(false);
+                    let remote_request = if server_target {
+                        match &command {
+                            Command::FetchServerMods(_, request_id)
+                            | Command::RefreshMod(_, request_id)
+                            | Command::SetModEnabled(_, _, _, request_id)
+                            | Command::SaveKeyReservation(_, _, _, _, request_id)
+                            | Command::SaveModSettings(_, _, _, request_id)
+                            | Command::AssessHotkey(
+                                shroudforge_package::HotkeyAssessmentTarget::Mod { .. },
+                                request_id,
+                            )
+                            | Command::SaveSettings(_, request_id)
+                            | Command::RunModAction(_, _, request_id)
+                            | Command::UpdaterRequest(_, _, request_id, _)
+                            | Command::Diagnostics(_, _, request_id) => Some(request_id.clone()),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(request_id) = remote_request {
+                        let locale = read_central_config(&arguments.root)
+                            .pointer("/general/locale")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("en-GB")
+                            .to_owned();
+                        let request = match &command {
+                            Command::FetchServerMods(server_locale, request_id) => serde_json::json!({
+                                "type": "mods-list",
+                                "requestId": request_id,
+                                "locale": server_locale
+                            }),
+                            Command::RefreshMod(_, request_id) => serde_json::json!({
+                                "type": "mods-list",
+                                "requestId": request_id,
+                                "locale": locale
+                            }),
+                            Command::SetModEnabled(id, enabled, revision, request_id) => serde_json::json!({
+                                "type": "mod-operation", "operation": "set-enabled",
+                                "requestId": request_id, "modId": id, "enabled": enabled,
+                                "revision": revision, "locale": locale
+                            }),
+                            Command::SaveModSettings(id, values, revision, request_id) => serde_json::json!({
+                                "type": "mod-operation", "operation": "save-settings",
+                                "requestId": request_id, "modId": id, "values": values,
+                                "revision": revision, "locale": locale
+                            }),
+                            Command::SaveKeyReservation(id, key, device, reserved, request_id) => {
+                                let device = match device {
+                                    shroudforge_hotkeys::InputDevice::Keyboard => "keyboard",
+                                    shroudforge_hotkeys::InputDevice::Mouse => "mouse",
+                                };
+                                serde_json::json!({
+                                    "type": "mod-operation", "operation": "key-reservation",
+                                    "requestId": request_id, "modId": id, "key": key,
+                                    "device": device, "reserved": reserved, "locale": locale
+                                })
+                            }
+                            Command::AssessHotkey(
+                                shroudforge_package::HotkeyAssessmentTarget::Mod { id, key, values },
+                                request_id,
+                            ) => serde_json::json!({
+                                "type": "mod-operation", "operation": "assess-hotkey",
+                                "requestId": request_id, "modId": id, "key": key,
+                                "values": values, "locale": locale
+                            }),
+                            Command::RunModAction(id, action, request_id) => serde_json::json!({
+                                "type": "mod-operation", "operation": "run-action",
+                                "requestId": request_id, "modId": id, "action": action,
+                                "locale": locale
+                            }),
+                            _ => {
+                                report_command_result(
+                                    &arguments.root,
+                                    &webview,
+                                    &request_id,
+                                    "Modloader",
+                                    "Server action",
+                                    Err("This action is not available for the server target yet.".into()),
+                                    "settings.saved",
+                                    None,
+                                    false,
+                                );
+                                continue;
+                            }
+                        };
+                        let action = match &command {
+                            Command::FetchServerMods(_, _) | Command::RefreshMod(_, _) => "Load server mods",
+                            Command::SaveModSettings(_, _, _, _) => "Save server mod settings",
+                            Command::SetModEnabled(_, enabled, _, _) if *enabled => "Enable server mod",
+                            Command::SetModEnabled(_, _, _, _) => "Disable server mod",
+                            Command::SaveKeyReservation(_, _, _, _, _) => "Save server key reservation",
+                            Command::AssessHotkey(_, _) => "Assess server hotkey",
+                            Command::RunModAction(_, _, _) => "Run server mod action",
+                            _ => "Server Modloader action",
+                        };
+                        submit_remote_mod_request(
+                            &arguments.root,
+                            remote_proxy.clone(),
+                            request,
+                            action.to_owned(),
+                        );
+                        continue;
+                    }
                     match command {
                         Command::MinimizeWindow => window.set_minimized(true),
                         Command::ToggleMaximizeWindow => {
@@ -857,6 +1050,17 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             &arguments,
                             &webview,
                         ),
+                        Command::FetchServerMods(_, request_id) => report_command_result(
+                            &arguments.root,
+                            &webview,
+                            &request_id,
+                            "Server Modloader",
+                            "Load server mods",
+                            Err("Select the server target before loading server mods".into()),
+                            "mod.refreshed",
+                            None,
+                            false,
+                        ),
                         Command::RefreshMod(id, request_id) => refresh_installed_mod(
                             id,
                             request_id,
@@ -935,8 +1139,51 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             request_id,
                             &arguments,
                             &webview,
+                            remote_proxy.clone(),
                             &mut next_refresh,
                         ),
+                        Command::RemoteAdminLogin(mut password, request_id) => {
+                            let root = arguments.root.clone();
+                            let proxy = remote_proxy.clone();
+                            let failure_request_id = request_id.clone();
+                            let failure_proxy = proxy.clone();
+                            if let Err(message) = spawn_remote_ui_worker(move || {
+                                let result = shroudforge_steam_networking::request_remote_ui(
+                                    &root,
+                                    &serde_json::json!({
+                                        "type": "admin-login",
+                                        "requestId": request_id.clone(),
+                                        "password": password.clone()
+                                    }),
+                                )
+                                .and_then(|response| {
+                                    if response["success"] == true {
+                                        Ok(())
+                                    } else {
+                                        Err(response["message"]
+                                            .as_str()
+                                            .unwrap_or("Admin authentication failed")
+                                            .to_owned())
+                                    }
+                                });
+                                password.clear();
+                                let _ = proxy.send_event(UiEvent::RemoteCommandResult(
+                                    request_id,
+                                    "Sign in to server Modloader".into(),
+                                    result,
+                                    "settings.saved",
+                                    false,
+                                ));
+                            }) {
+                                let _ = failure_proxy.send_event(UiEvent::RemoteCommandResult(
+                                    failure_request_id,
+                                    "Sign in to server Modloader".into(),
+                                    Err(message.into()),
+                                    "settings.saved",
+                                    false,
+                                ));
+                            }
+                        }
                         Command::BrowsePath(key, request_id) => change_storage_folder(
                             key,
                             request_id,
@@ -1246,6 +1493,90 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     None,
                     false,
                 );
+            }
+            Event::UserEvent(UiEvent::RemoteCommandResult(
+                request_id,
+                action,
+                result,
+                success_message,
+                restore_settings,
+            )) => {
+                report_command_result(
+                    &arguments.root,
+                    &webview,
+                    &request_id,
+                    "Server Modloader",
+                    &action,
+                    result,
+                    success_message,
+                    None,
+                    restore_settings,
+                );
+                next_refresh = Instant::now();
+            }
+            Event::UserEvent(UiEvent::RemoteModResponse(request_id, action, response)) => {
+                if response["mods"].is_array() || response["mod"].is_object() {
+                    if let Ok(payload) = serde_json::to_string(&response) {
+                        let _ = webview.evaluate_script(&format!(
+                            "window.dispatchEvent(new CustomEvent('shroudforge-remote-mod-data',{{detail:{payload}}}));"
+                        ));
+                    }
+                }
+                if action == "Assess server hotkey" {
+                    let mut assessment = response["assessment"]
+                        .as_object()
+                        .cloned()
+                        .unwrap_or_default();
+                    assessment
+                        .entry("allowed")
+                        .or_insert(serde_json::Value::Bool(false));
+                    assessment.insert("requestId".into(), request_id.clone().into());
+                    if let Ok(payload) = serde_json::to_string(&assessment) {
+                        let _ = webview.evaluate_script(&format!(
+                            "window.dispatchEvent(new CustomEvent('shroudforge-hotkey-assessed',{{detail:{payload}}}));"
+                        ));
+                    }
+                }
+                let succeeded = response["success"] == true;
+                let error = response["message"]
+                    .as_str()
+                    .unwrap_or("Server Modloader request failed")
+                    .to_owned();
+                if action == "Assess server hotkey" {
+                    if !succeeded {
+                        report_command_result(
+                            &arguments.root,
+                            &webview,
+                            &request_id,
+                            "Server Hotkeys",
+                            &action,
+                            Err(error),
+                            "settings.saved",
+                            None,
+                            false,
+                        );
+                    }
+                } else {
+                    let revision = response["mod"]["revision"].as_str().map(str::to_owned);
+                    let success_message = if action == "Load server mods" {
+                        "mod.refreshed"
+                    } else {
+                        "settings.saved"
+                    };
+                    super::report_command_result::report_command_result_with_revision(
+                        &arguments.root,
+                        &webview,
+                        &request_id,
+                        "Server Modloader",
+                        &action,
+                        if succeeded { Ok(()) } else { Err(error) },
+                        success_message,
+                        None,
+                        false,
+                        revision.as_deref(),
+                    );
+                }
+                next_refresh = Instant::now();
             }
             Event::UserEvent(UiEvent::Toggle) => {
                 if !arguments.server && !shroudforge_hotkeys::is_capture_active()

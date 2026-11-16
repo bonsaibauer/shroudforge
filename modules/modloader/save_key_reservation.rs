@@ -13,13 +13,7 @@ pub fn save_key_reservation(
     device: InputDevice,
     reserved: bool,
 ) -> Result<(), String> {
-    let package =
-        crate::package_lookup::find_mod_package(root, id).ok_or("mod package not found")?;
-    let manifest = crate::config::read_manifest_path(root, &package)?;
-    let revision = crate::config_revision(
-        &serde_json::json!({"enabled": manifest.enabled, "settings": manifest.setting_values}),
-    );
-    crate::update_mod_configuration::update_mod_configuration(root, id, &revision, |extension| {
+    crate::update_mod_configuration::update_mod_configuration(root, id, None, |extension, _| {
         let block = extension
             .get_mut("inputReservations")
             .and_then(serde_json::Value::as_object_mut)

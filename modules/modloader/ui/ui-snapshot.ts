@@ -49,6 +49,7 @@ export type Snapshot = {
     lastUpdate?: { version: string; build: string; installedAt: number }
   }
   connected: boolean
+  remoteServerState: 'connecting' | 'connected' | 'disconnected'
   mode: string
   gameVersion: string
   version: string
@@ -154,6 +155,7 @@ export const empty: Snapshot = {
   dllCandidates: [],
   dllChainEntries: [],
   connected: false,
+  remoteServerState: 'connecting',
   mode: 'DESKTOP',
   gameVersion: '',
   version: '1.0.0',

@@ -269,6 +269,7 @@
     "modloaderUi": {
       "enabled": true,
       "startPage": "news",
+      "remoteTarget": "client",
       "toggleKey": "SDL:66",
       "refreshMilliseconds": 2000,
       "window": {

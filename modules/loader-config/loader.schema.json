@@ -790,6 +790,9 @@
                 "settings"
               ]
             },
+            "remoteTarget": {
+              "enum": ["client", "server"]
+            },
             "toggleKey": {
               "$ref": "#/$defs/keybind"
             },

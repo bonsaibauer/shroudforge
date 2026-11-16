@@ -10,6 +10,17 @@ pub(crate) fn save_setting(
     key: &str,
     setting: &serde_json::Value,
 ) -> Result<(), String> {
+    save_setting_to(root, scope, module, key, setting, None)
+}
+
+pub(crate) fn save_setting_to(
+    root: &Path,
+    scope: &str,
+    module: Option<&str>,
+    key: &str,
+    setting: &serde_json::Value,
+    remote_config: Option<&Path>,
+) -> Result<(), String> {
     if scope == "general" {
         if !matches!(
             key,
@@ -140,7 +151,7 @@ pub(crate) fn save_setting(
         "modloaderUi" => {
             matches!(
                 key,
-                "enabled" | "startPage" | "toggleKey" | "refreshMilliseconds"
+                "enabled" | "startPage" | "remoteTarget" | "toggleKey" | "refreshMilliseconds"
             ) || key == "window.position"
         }
         "wiki" => matches!(
@@ -178,7 +189,7 @@ pub(crate) fn save_setting(
     }
     if module == "runtimeDiagnostics" && key == "jobId" {
         let job_id = setting.as_str().ok_or("diagnostic job id must be text")?;
-        let config = shroudforge_loader_config::config::read_loader(root)?;
+        let config = read_config(root, remote_config)?;
         let catalog = shroudforge_runtime_diagnostics::diagnostic_job_catalog(
             root,
             &config["modules"]["runtimeDiagnostics"],
@@ -186,7 +197,7 @@ pub(crate) fn save_setting(
         if !catalog.jobs.iter().any(|job| job.id == job_id) {
             return Err(format!("diagnostic job was not found: {job_id}"));
         }
-        return shroudforge_loader_config::config::update_loader(root, |config| {
+        return update_config(root, remote_config, |config| {
             config["modules"]["runtimeDiagnostics"]["jobId"] = setting.clone();
             Ok(())
         });
@@ -195,7 +206,7 @@ pub(crate) fn save_setting(
         && key == "enabled"
         && setting == &serde_json::Value::Bool(false)
     {
-        return shroudforge_loader_config::config::update_loader(root, |config| {
+        return update_config(root, remote_config, |config| {
             config["modules"]["runtimeDiagnostics"]["enabled"] = setting.clone();
             config["modules"]["runtimeDiagnostics"]["sessionActive"] = false.into();
             Ok(())
@@ -244,7 +255,7 @@ pub(crate) fn save_setting(
             }
         }
     }
-    shroudforge_loader_config::config::update_loader(root, |config| {
+    update_config(root, remote_config, |config| {
         if key == "window.position" {
             config["modules"][module]["window"]["position"] = setting.clone();
         } else if module == "updates.automatic" {
@@ -263,6 +274,24 @@ pub(crate) fn save_setting(
         }
         Ok(())
     })
+}
+
+fn read_config(root: &Path, remote_config: Option<&Path>) -> Result<serde_json::Value, String> {
+    match remote_config {
+        Some(path) => shroudforge_loader_config::config::read_loader_file(root, path),
+        None => shroudforge_loader_config::config::read_loader(root),
+    }
+}
+
+fn update_config(
+    root: &Path,
+    remote_config: Option<&Path>,
+    update: impl FnOnce(&mut serde_json::Value) -> Result<(), String>,
+) -> Result<(), String> {
+    match remote_config {
+        Some(path) => shroudforge_loader_config::config::update_loader_file(root, path, update),
+        None => shroudforge_loader_config::config::update_loader(root, update),
+    }
 }
 
 #[cfg(test)]
