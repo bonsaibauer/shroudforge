@@ -9,6 +9,7 @@ rust-version.workspace = true
 path = "lib.rs"
 
 [dependencies]
+base64 = "0.22"
 tracing = "0.1"
 shroudforge-loader-config.workspace = true
 shroudforge-hotkeys.workspace = true

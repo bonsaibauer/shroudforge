@@ -4,6 +4,7 @@
 //! server log files and module settings to files beside the local client data.
 
 use crate::MAX_MESSAGE_BYTES;
+use base64::Engine as _;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -28,6 +29,8 @@ const COMPLETED_ACTION_TTL: Duration = Duration::from_secs(10 * 60);
 const MAX_COMPLETED_ACTIONS: usize = 128;
 const MAX_REMOTE_LOG_MIRROR_BYTES: u64 = 1024 * 1024;
 const RETAIN_REMOTE_LOG_MIRROR_BYTES: u64 = 512 * 1024;
+const MAX_SERVER_MOD_ICON_DATA_BYTES: usize = 192 * 1024;
+const MAX_SERVER_MOD_ICON_FILE_BYTES: usize = 96 * 1024;
 
 #[derive(Default)]
 struct ClientState {
@@ -1536,7 +1539,7 @@ fn compare_and_swap_modules(
 fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, String> {
     let entries = fs::read_dir(shroudforge_loader_config::paths::mods_dir(root))
         .map_err(|error| format!("Could not read server mods: {error}"))?;
-    let manifests: Vec<_> = entries
+    let mut manifests: Vec<_> = entries
         .flatten()
         .filter_map(|entry| {
             let package = entry.path();
@@ -1562,6 +1565,14 @@ fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, 
         })
         .collect();
 
+    manifests.sort_by(|left, right| {
+        left.1["name"]
+            .as_str()
+            .unwrap_or_default()
+            .to_lowercase()
+            .cmp(&right.1["name"].as_str().unwrap_or_default().to_lowercase())
+    });
+    let mut icon_data_remaining = MAX_SERVER_MOD_ICON_DATA_BYTES;
     let mut mods = manifests
         .into_iter()
         .map(|(package, mut manifest)| {
@@ -1586,7 +1597,18 @@ fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, 
             manifest["asset"] = asset.into();
             manifest["runtime"] = runtime.into();
             manifest["source"] = "local".into();
-            manifest["assets"] = serde_json::json!({});
+            let icon_assets = read_server_mod_icon(
+                &package,
+                manifest["icon"].as_str(),
+                &mut icon_data_remaining,
+            )
+            .map(|(icon, data)| {
+                let mut assets = serde_json::Map::new();
+                assets.insert(icon, data.into());
+                serde_json::Value::Object(assets)
+            })
+            .unwrap_or_else(|| serde_json::json!({}));
+            manifest["assets"] = icon_assets;
             let dependencies = manifest["dependencies"]
                 .as_array()
                 .cloned()
@@ -1641,6 +1663,46 @@ fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, 
             .cmp(&right["name"].as_str().unwrap_or_default().to_lowercase())
     });
     Ok(serde_json::Value::Array(mods))
+}
+
+fn read_server_mod_icon(
+    package: &Path,
+    icon: Option<&str>,
+    remaining_data_bytes: &mut usize,
+) -> Option<(String, String)> {
+    let icon = icon?;
+    if icon.contains("..") || icon.contains('\\') {
+        return None;
+    }
+    let mime = match Path::new(icon)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        _ => return None,
+    };
+    if package.is_dir()
+        && fs::metadata(package.join(icon)).ok()?.len() > MAX_SERVER_MOD_ICON_FILE_BYTES as u64
+    {
+        return None;
+    }
+    let bytes = mod_loader::package_files::read_package_file(package, icon).ok()?;
+    if bytes.len() > MAX_SERVER_MOD_ICON_FILE_BYTES {
+        return None;
+    }
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    let data = format!("data:{mime};base64,{encoded}");
+    if data.len() > *remaining_data_bytes {
+        return None;
+    }
+    *remaining_data_bytes -= data.len();
+    Some((icon.to_owned(), data))
 }
 
 fn server_mod_info(root: &Path, id: &str, locale: &str) -> Option<serde_json::Value> {
