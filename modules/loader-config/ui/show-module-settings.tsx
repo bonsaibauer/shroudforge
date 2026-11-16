@@ -24,7 +24,7 @@ import { worldEditorSettingsFields } from '../../world-editor/ui/settings'
 import { NetworkSettings } from '../../transport/ui/settings'
 import { UpdatePreferences } from '../../updater/ui/edit-update-preferences'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
-import { refreshWikiSearchCache } from '../../wiki/mediawiki-api'
+import { refreshWikiSearchCache, WIKI_PAGE_SIZE_OPTIONS } from '../../wiki/mediawiki-api'
 import { WikiActions } from '../../wiki/ui/show-wiki-actions'
 
 function WindowGeometryControls({
@@ -154,6 +154,7 @@ export function ModulePreferencesEditor({
     ...worldEditorSettingsFields,
     ['modloaderUi', 'toggleKey', 'settings.modules.field.hotkey'],
     ['modloaderUi', 'refreshMilliseconds', 'settings.modules.field.refresh'],
+    ['wiki', 'itemsPerPage', 'wiki.itemsPerPage', WIKI_PAGE_SIZE_OPTIONS.map(String)],
     ['wiki', 'refreshIntervalMinutes', 'settings.modules.field.wikiRefreshMinutes'],
   ]
   const controlVisibility = (
@@ -289,8 +290,14 @@ export function ModulePreferencesEditor({
                         />
                       ) : options ? (
                         <select
-                          value={prefs[module]?.[key] ?? options[0]}
-                          onChange={(e) => change(module, key, e.target.value)}
+                          value={key === 'itemsPerPage'
+                            ? String(prefs[module]?.[key] ?? options[0])
+                            : prefs[module]?.[key] ?? options[0]}
+                          onChange={(e) => change(
+                            module,
+                            key,
+                            key === 'itemsPerPage' ? Number(e.target.value) : e.target.value,
+                          )}
                         >
                           {options.map((option) => (
                             <option key={option} value={option}>
