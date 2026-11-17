@@ -21,7 +21,7 @@
 └── src/
     └── mod.lua</code></pre><p><code>mod.json</code> ist der Zettel mit den Mod-Infos. <code>mod.lua</code> enthält die eine Anweisung, die unser Beispiel ausführt.</p></div></div>
     <div class="lesson-step"><span class="step-num">02</span><div><h2>Den Mod-Infozettel ausfüllen</h2><p>Erstelle im neuen Ordner die Datei <code>mod.json</code> und kopiere dieses Beispiel hinein. Du kannst deinen Namen und die Beschreibung ändern:</p><pre><code>{
-  "$schema": "../../modules/modloader/manifest/manifest.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
   "id": "deinname.erster-mod",
   "name": "Mein erster Mod",
   "version": "1.0.0",

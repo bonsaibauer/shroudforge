@@ -6,6 +6,7 @@
   "scripts": {
     "build": "npm run locale:check && npm run flags:build && vite build && vite build --mode updater",
     "dev": "npm run locale:check && npm run flags:build && vite",
+    "website-preview": "npm run locale:check && npm run flags:build && vite build --mode website-preview",
     "flags:build": "node scripts/generate-flags.mjs",
     "locale:check": "node scripts/check-locales.mjs"
   },

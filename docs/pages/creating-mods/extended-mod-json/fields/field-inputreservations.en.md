@@ -73,4 +73,4 @@ A ShroudForge without input reservations ignores this top-level field, so the sa
 
 ## Source
 
-Schema: [extended.mod.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/manifest/extended.mod.schema.json). The package reader checks that each context named by `when` is declared, that `keys` names `keybind` settings and `wheels` boolean settings.
+Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks that each context named by `when` is declared, that `keys` names `keybind` settings and `wheels` boolean settings.

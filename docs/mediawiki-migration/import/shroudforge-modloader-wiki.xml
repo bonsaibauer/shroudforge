@@ -1896,11 +1896,11 @@ source: modules/wiki/articles/modding-locales/de.md
 
 Lege pro Sprache eine Datei unter &lt;code&gt;locales/&amp;lt;code&amp;gt;.json&lt;/code&gt; an. Aktuelle Codes aus der Modloader-Sprachauswahl sind &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt; und &lt;code&gt;zh&lt;/code&gt;. Der Dateiname entspricht exakt dem Code. Die Dateien sind zusätzlich zu &lt;code&gt;mod.json&lt;/code&gt; und &lt;code&gt;extended.mod.json&lt;/code&gt;.
 
-Das Schema steht unter [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. Ein Locale-Katalog kann &lt;code&gt;mod.name&lt;/code&gt; und &lt;code&gt;mod.description&lt;/code&gt;, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-&lt;code&gt;strings&lt;/code&gt; enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
+Das Schema steht unter [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. Ein Locale-Katalog kann &lt;code&gt;mod.name&lt;/code&gt; und &lt;code&gt;mod.description&lt;/code&gt;, Einstellungs- und Optionsbeschriftungen, Gruppen, Aktionen, Changelog-Zeilen und Lua-&lt;code&gt;strings&lt;/code&gt; enthalten. Unvollständige Dateien sind erlaubt. Nicht übersetzte Einträge verwenden den Quelltext.
 
 &lt;pre&gt;
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Protokollstufe",
@@ -1962,11 +1962,11 @@ Translate visible Modloader text and Lua text from the same locale files in the 
 
 Add one file under &lt;code&gt;locales/&amp;lt;code&amp;gt;.json&lt;/code&gt; for each language. Current codes from the Modloader language selector are &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt;, and &lt;code&gt;zh&lt;/code&gt;. The filename matches its code exactly. These files sit beside &lt;code&gt;mod.json&lt;/code&gt; and &lt;code&gt;extended.mod.json&lt;/code&gt;.
 
-The schema is published as [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. A locale catalog can translate &lt;code&gt;mod.name&lt;/code&gt; and &lt;code&gt;mod.description&lt;/code&gt;, setting and option labels, groups, actions, changelog lines, and Lua &lt;code&gt;strings&lt;/code&gt;. Catalogs may be partial. Entries without a translation keep their source text.
+The schema is published as [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. A locale catalog can translate &lt;code&gt;mod.name&lt;/code&gt; and &lt;code&gt;mod.description&lt;/code&gt;, setting and option labels, groups, actions, changelog lines, and Lua &lt;code&gt;strings&lt;/code&gt;. Catalogs may be partial. Entries without a translation keep their source text.
 
 &lt;pre&gt;
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Log level",
@@ -2028,11 +2028,11 @@ Los textos visibles del Modloader y los textos de Lua usan los mismos archivos d
 
 Añade un archivo &lt;code&gt;locales/&amp;lt;código&amp;gt;.json&lt;/code&gt; por cada idioma. Los códigos actuales del selector de idioma del Modloader son &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt; y &lt;code&gt;zh&lt;/code&gt;. El nombre del archivo debe coincidir exactamente con el código. Estos archivos se guardan junto a &lt;code&gt;mod.json&lt;/code&gt; y &lt;code&gt;extended.mod.json&lt;/code&gt;.
 
-El esquema está publicado en [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. El catálogo puede traducir &lt;code&gt;mod.name&lt;/code&gt;, &lt;code&gt;mod.description&lt;/code&gt;, las etiquetas de ajustes y opciones, los grupos, las acciones, las notas de versión y las cadenas Lua bajo &lt;code&gt;strings&lt;/code&gt;. Los catálogos pueden estar incompletos. El texto original se conserva si falta una traducción.
+El esquema está publicado en [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. El catálogo puede traducir &lt;code&gt;mod.name&lt;/code&gt;, &lt;code&gt;mod.description&lt;/code&gt;, las etiquetas de ajustes y opciones, los grupos, las acciones, las notas de versión y las cadenas Lua bajo &lt;code&gt;strings&lt;/code&gt;. Los catálogos pueden estar incompletos. El texto original se conserva si falta una traducción.
 
 &lt;pre&gt;
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Nivel del registro",
@@ -2094,11 +2094,11 @@ Les textes visibles dans le Modloader et les textes Lua utilisent les mêmes fic
 
 Ajoutez un fichier &lt;code&gt;locales/&amp;lt;code&amp;gt;.json&lt;/code&gt; par langue. Les codes actuels du sélecteur du Modloader sont &lt;code&gt;de&lt;/code&gt;, &lt;code&gt;de-AT&lt;/code&gt;, &lt;code&gt;de-CH&lt;/code&gt;, &lt;code&gt;en-GB&lt;/code&gt;, &lt;code&gt;en-US&lt;/code&gt;, &lt;code&gt;es&lt;/code&gt;, &lt;code&gt;fr&lt;/code&gt;, &lt;code&gt;hi&lt;/code&gt;, &lt;code&gt;it&lt;/code&gt;, &lt;code&gt;ja&lt;/code&gt;, &lt;code&gt;nl&lt;/code&gt;, &lt;code&gt;pl&lt;/code&gt;, &lt;code&gt;sv&lt;/code&gt; et &lt;code&gt;zh&lt;/code&gt;. Le nom du fichier reprend exactement le code. Ces fichiers accompagnent &lt;code&gt;mod.json&lt;/code&gt; et &lt;code&gt;extended.mod.json&lt;/code&gt;.
 
-Le schéma est publié sous [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. Le catalogue peut traduire &lt;code&gt;mod.name&lt;/code&gt;, &lt;code&gt;mod.description&lt;/code&gt;, les libellés des paramètres et des options, les groupes, les actions, les notes de version et les chaînes Lua sous &lt;code&gt;strings&lt;/code&gt;. Les fichiers peuvent être incomplets. Le texte source est conservé pour les traductions manquantes.
+Le schéma est publié sous [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json &lt;code&gt;mod-locale.schema.json&lt;/code&gt;]. Le catalogue peut traduire &lt;code&gt;mod.name&lt;/code&gt;, &lt;code&gt;mod.description&lt;/code&gt;, les libellés des paramètres et des options, les groupes, les actions, les notes de version et les chaînes Lua sous &lt;code&gt;strings&lt;/code&gt;. Les fichiers peuvent être incomplets. Le texte source est conservé pour les traductions manquantes.
 
 &lt;pre&gt;
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Niveau du journal",

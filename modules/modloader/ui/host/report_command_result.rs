@@ -28,7 +28,7 @@ pub(crate) fn report_command_result(
     batch_key: Option<&str>,
     restore_settings: bool,
 ) {
-    report_command_result_with_revision(
+    report_command_result_with_group_name(
         root,
         webview,
         request_id,
@@ -39,6 +39,33 @@ pub(crate) fn report_command_result(
         batch_key,
         restore_settings,
         None,
+    );
+}
+
+pub(crate) fn report_command_result_with_group_name(
+    root: &Path,
+    webview: &wry::WebView,
+    request_id: &str,
+    source: &str,
+    action: &str,
+    result: Result<(), String>,
+    success_message: &str,
+    batch_key: Option<&str>,
+    restore_settings: bool,
+    group_name: Option<&str>,
+) {
+    report_command_result_internal(
+        root,
+        webview,
+        request_id,
+        source,
+        action,
+        result,
+        success_message,
+        batch_key,
+        restore_settings,
+        None,
+        group_name,
     );
 }
 
@@ -55,6 +82,34 @@ pub(crate) fn report_command_result_with_revision(
     batch_key: Option<&str>,
     restore_settings: bool,
     revision: Option<&str>,
+) {
+    report_command_result_internal(
+        root,
+        webview,
+        request_id,
+        source,
+        action,
+        result,
+        success_message,
+        batch_key,
+        restore_settings,
+        revision,
+        None,
+    );
+}
+
+fn report_command_result_internal(
+    root: &Path,
+    webview: &wry::WebView,
+    request_id: &str,
+    source: &str,
+    action: &str,
+    result: Result<(), String>,
+    success_message: &str,
+    batch_key: Option<&str>,
+    restore_settings: bool,
+    revision: Option<&str>,
+    group_name: Option<&str>,
 ) {
     let unavailable = result
         .as_ref()
@@ -92,5 +147,6 @@ pub(crate) fn report_command_result_with_revision(
         restore_settings,
         ecosystem,
         revision,
+        group_name,
     );
 }

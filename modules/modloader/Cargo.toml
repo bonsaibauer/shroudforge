@@ -12,6 +12,8 @@ path = "lib.rs"
 shroudforge-hotkeys.workspace = true
 shroudforge-loader-config.workspace = true
 shroudforge-game-assets = { path = "../game-files" }
+shroudforge-news.workspace = true
+shroudforge-runtime-diagnostics = { path = "../runtime-diagnostics" }
 thiserror = "2.0"
 walkdir = "2.5"
 serde.workspace = true
@@ -28,3 +30,6 @@ tracing = "0.1"
 [target.'cfg(windows)'.dependencies]
 
 zip = "9.0.5"
+
+[dev-dependencies]
+tempfile = "3"

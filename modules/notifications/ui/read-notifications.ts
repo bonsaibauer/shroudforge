@@ -14,8 +14,9 @@ import { sortNewsItems } from './sort-news-items'
 export function useNotifications(
   data: NewsDisplaySource,
   settings: NewsPersonalization,
+  target: 'client' | 'server',
   read: string[],
-  setRead: Dispatch<SetStateAction<string[]>>,
+  setRead: Dispatch<SetStateAction<Record<'client' | 'server', string[]>>>,
 ) {
   const { t } = useI18n()
   const news = useMemo<NewsItem[]>(
@@ -51,8 +52,8 @@ export function useNotifications(
     const next = isRead
       ? Array.from(new Set([...read, ...ids]))
       : read.filter((id) => !ids.includes(id))
-    setRead(next)
-    postRequest('set-news-read', { ids, read: isRead })
+    setRead((current) => ({ ...current, [target]: next }))
+    postRequest('set-news-read', { ids, read: isRead, target })
   }
   return { news, unread, chirperSeverity, chirperTitle, chirperItems, markRead }
 }

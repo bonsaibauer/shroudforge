@@ -94,7 +94,7 @@ automatically export functions or create shared globals. Cross-mod module
 loading uses the existing `require("mods.<id>.<module>")` support separately.
 `capabilities` describes the loader features a mod uses.
 
-The current [manifest schema](../../modules/modloader/manifest/manifest.schema.json) defines every accepted field.
+The current [manifest schema](https://shroudforge.net/schemas/1.8.0/manifest.schema.json) defines every accepted field.
 
 ## Add a switch or slider
 
@@ -102,7 +102,7 @@ The optional **extended.mod.json** file can add settings to the Modloader. For e
 
 ~~~json
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json",
   "schemaVersion": 1,
   "targets": ["client"],
   "enabled": true,
@@ -145,7 +145,7 @@ This valid example creates a text field and places it under the **Greeting** hea
 
 ```json
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json",
   "schemaVersion": 1,
   "enabled": false,
   "settings": {

@@ -7,6 +7,7 @@ use crate::read_log_tail::LogFollower;
 pub(crate) struct ConsoleFollowers {
     pub(crate) game: LogFollower,
     pub(crate) loader: LogFollower,
+    target: Option<&'static str>,
 }
 
 impl ConsoleFollowers {
@@ -27,14 +28,38 @@ pub(crate) fn read_console_snapshot(
     auto_open_alert: bool,
     followers: &mut ConsoleFollowers,
 ) -> (serde_json::Value, serde_json::Value) {
-    let game_path = arguments.root.join("enshrouded.log");
-    let loader_path = shroudforge_loader_config::paths::current_log(&arguments.root);
+    let selected_server = shroudforge_loader_config::config::read_loader(&arguments.root)
+        .ok()
+        .and_then(|value| {
+            value
+                .pointer("/modules/modloaderUi/remoteTarget")
+                .and_then(serde_json::Value::as_str)
+                .map(|target| target == "server")
+        })
+        .unwrap_or(false);
+    let target = if selected_server { "server" } else { "client" };
+    if followers.target != Some(target) {
+        followers.reset();
+        followers.target = Some(target);
+    }
+    let (game_path, loader_path) = if selected_server {
+        (
+            shroudforge_loader_config::paths::remote_server_game_log(&arguments.root),
+            shroudforge_loader_config::paths::remote_server_loader_log(&arguments.root),
+        )
+    } else {
+        (
+            arguments.root.join("enshrouded.log"),
+            shroudforge_loader_config::paths::current_log(&arguments.root),
+        )
+    };
     let settings = serde_json::json!({
         "paths": {
             "game": game_path.display().to_string(),
             "loader": loader_path.display().to_string(),
         },
         "connected": !arguments.desktop,
+        "target": target,
         "minimumLevel": minimum_level,
         "autoOpen": auto_open_alert,
         "preferences": preferences,

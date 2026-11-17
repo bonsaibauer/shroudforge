@@ -2,30 +2,44 @@
 
 Independent runtime mod using the public ShroudForge API. It has no dependency
 on SF Survival or another mod. The mod itself is disabled by default. When
-enabled, upward gliding starts on, unlimited glider stamina starts off, and the
+enabled, upward gliding and unlimited glider stamina start on, and the
 speed multipliers start at 100 percent.
 Runtime updates run every 100 ms to reduce repeated ECS and resource access.
-Steering inputs and landing are sampled at that interval. The pitch guard still
-uses the measured elapsed time, and restoration uses the same checked writers.
+Steering inputs and landing are sampled at that interval. Each pitch movement
+uses at most 100 ms of measured elapsed time. Restoration uses checked writers.
 
-`Upward Gliding` controls the original glider pitch-rate input. The separate
+`Upward Gliding` steers each gliding player's ECS orientation independently. The separate
 `Unlimited Glider Stamina` setting sets the glider-specific stamina depletion
 modifier to zero. The active actor action selects its actual loaded `ItemInfo`.
-Rotation and movement remain in the original game systems. The four percentage
+The original game systems continue to calculate yaw, bank and movement. The four percentage
 sliders multiply the glider's original yaw rate, forward acceleration and air
 resistance coefficients. Higher lift or descend resistance increases drag.
 
-Upward steering currently supports `YawSpeedPitchSpeed` controls with one player
-in the authoritative world. Negative input uses a signed native pitch rate,
-neutral input holds and positive input descends. The sampled controller reduces
-its rate near 85 degrees upward using twice the largest update interval observed
-during the current flight, with a minimum horizon of 250 ms. An inverted basis
-starts recovery through the original positive rate and blocks further upward
-acceleration until the input is released and orientation is upright again.
-This is not a hard engine limit. A stalled Lua
-callback can leave the last stored rate active longer than its sampling horizon.
-Target-angle controls and steering several players through one shared ItemInfo
-are unsupported. The original rate is restored on landing or unsupported input.
+There is no player-count limit in the mod. Run it in the authoritative process:
+the host for a hosted world, or the dedicated server for a server world.
+A joined client with read-only replica access cannot control server entities.
+`YawSpeedPitchSpeed` integrates each player's input at the original glider pitch
+rate. Negative input climbs, neutral holds and positive input descends.
+`YawSpeedPitchTargetAngle` steers toward that player's input times 90 degrees,
+using the same original rate. Individual movement steps stop at 85 degrees
+upward and 80 degrees downward. An inverted orientation blocks scripted pitch
+movement until upright and the climb input has been released. Recovery state
+belongs to the individual entity and ends when that player's glider use ends.
+
+The original pitch calculation begins with each entity's `CurrentTransform`.
+A shared `ItemInfo.pitchAngleSpeed` of zero makes the native pitch step hold
+that current angle. The mod applies this same zero to all users of a resource,
+then writes each player's finite pitch step through `runtime.ecs.write_fields`
+with the expected starting quaternion. Player inputs never select a shared rate.
+A busy or changed transform skips that player's step until the next update.
+A Lua pause leaves the native pitch rate at zero. No stored negative rate can
+continue rotating the player past the scripted bound during the pause.
+
+All active users of a glider resource are admitted before its pitch rate is
+held. An unsupported input mode restores that group's original native rate.
+The original rate is also restored after its last active glider user lands,
+on disable and on unload. Current orientations are movement state, so cleanup
+does not rotate players back to a pose captured earlier in their flight.
 
 ItemInfo values are shared by every user of that glider resource. The public API
 owns normalization, expected values, claims, original baselines and restoration.
@@ -33,12 +47,15 @@ Other mods use the same `runtime.overrides` target factories. Disable shared
 settings before leaving the world and wait for restoration. The loader performs
 cleanup automatically when this mod is disabled, unloaded or its callback fails.
 
-The native data path has been executed privately through the original game
+The earlier single-player native rate data path was executed privately through the original game
 instructions. That includes 108 parameter cases, 120 rotation steps, 12
 interpolation cases and 177 frames with the captured player's actual rotation
 template. The user confirmed immediate upward flight in the first performance
 build. Its vertical flip was subsequently captured and the sampled guard was
 corrected. The user confirmed the installed R2 build working without problems.
-Its 120-second API measurement had no mod errors. A separate quantitative R2
-near-vertical angle capture was not obtained. These observations predate the
-100 ms update interval, which has not yet been validated in game.
+Its 120-second API measurement had no mod errors. These historical observations
+do not validate the new per-entity movement path. Current client and server
+instruction evidence confirms native pitch holding at rate zero. A fresh server
+capture confirms the writable untracked `CurrentTransform` registration.
+Lua fixtures cover simultaneous players and restoration. Visible multiplayer
+flight and client prediction with this implementation remain unverified.

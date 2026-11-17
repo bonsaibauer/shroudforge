@@ -43,4 +43,4 @@ With `"keybind"`, `value` must be one SDL binding string such as `"SDL:64"`, `"M
 
 ## Source
 
-Schema: [extended.mod.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/manifest/extended.mod.schema.json). The package reader checks additional relationships between fields.
+Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.

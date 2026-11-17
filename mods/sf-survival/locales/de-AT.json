@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "SF Survival",
     "description": "Bietet Einstellungen für Fallschaden, Gesundheits- und Manaregeneration, Ausdauer, Atem unter Wasser, Waffenhaltbarkeit und Kälteschutz."

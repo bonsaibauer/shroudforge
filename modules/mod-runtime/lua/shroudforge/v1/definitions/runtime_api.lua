@@ -230,7 +230,7 @@ runtime.network = {}
 ---@return RuntimeNetworkStatus status
 function runtime.network.status() end
 ---@class RuntimeNetworkSendOptions
----@field channel integer? Destination channel, 0..65534; 65535 is reserved for the automatic Network health probe. Use the same channel on receive.
+---@field channel integer? Destination channel, 0..65533; 65534 is reserved for Modloader file mirroring and 65535 for the automatic Network health probe. Use the same channel on receive.
 ---@field reliable boolean? Reliable, ordered delivery on this peer/channel; default true.
 --- Send raw bytes to a Steam peer. This is a separate Steam P2P session, not an Enshrouded game packet. True means Steam accepted the send request, not that the peer acknowledged it.
 ---@param peer_steam_id string Decimal SteamID64 from runtime.network.status().local_steam_id on the remote process.

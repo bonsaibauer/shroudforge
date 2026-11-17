@@ -4,6 +4,13 @@ import { renderSecurityRow, renderVirusTotalLink } from './render-security.mjs'
 
 export { escapeHtml } from './html.mjs'
 
+export function renderSiteHeader(config, active = 'files') {
+	const repositoryUrl = `https://github.com/${config.repository}`
+	const link = (id, href, label, symbol, external = false) =>
+		`<a class="nav-link${active === id ? ' nav-link-active' : ''}" href="${escapeHtml(href)}"${active === id ? ' aria-current="page"' : ''}>${icon(symbol)} ${label}${external ? icon('external', 'nav-external') : ''}</a>`
+	return `<header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="ShroudForge home"><img src="/assets/hammer.png" alt="" width="48" height="48" fetchpriority="high"><span>ShroudForge</span></a><nav class="primary-navigation" aria-label="Main navigation">${link('files', '/', 'Files', 'file')}${link('tools', '/tools/modding/mod-settings/', 'Tools', 'sliders')}${link('wiki', config.wikiUrl, 'Wiki', 'book-open', true)}${link('github', repositoryUrl, 'GitHub', 'github', true)}${link('discord', config.discordUrl, 'Discord', 'discord', true)}${link('youtube', config.youtubeUrl, 'YouTube', 'youtube', true)}</nav></div></header>`
+}
+
 function releaseId(release) {
 	return `release-${encodeURIComponent(release.tag).replace(/%/g, '-')}`
 }
@@ -135,7 +142,7 @@ export function renderPage({ releases, generatedAt, siteUrl, config, securityRep
 </head>
 <body>
 	<a class="skip-link" href="#main-content">Skip to downloads</a>
-	<header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="ShroudForge home"><img src="/assets/hammer.png" alt="" width="48" height="48" fetchpriority="high"><span>ShroudForge</span></a><nav class="primary-navigation" aria-label="Main navigation"><a class="nav-link nav-link-active" href="/" aria-current="page">${icon('file')} Files</a><a class="nav-link" href="${escapeHtml(config.wikiUrl)}">${icon('book-open')} Wiki ${icon('external', 'nav-external')}</a><a class="nav-link" href="${repositoryUrl}">${icon('github')} GitHub ${icon('external', 'nav-external')}</a><a class="nav-link" href="${escapeHtml(config.discordUrl)}">${icon('discord')} Discord ${icon('external', 'nav-external')}</a><a class="nav-link" href="${escapeHtml(config.youtubeUrl)}">${icon('youtube')} YouTube ${icon('external', 'nav-external')}</a></nav></div></header>
+	${renderSiteHeader(config, 'files')}
 	<div class="page-shell">
 		${renderSidebar(releases, repositoryUrl)}
 		<main id="main-content" class="main-content">

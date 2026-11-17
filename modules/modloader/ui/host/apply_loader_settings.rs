@@ -12,7 +12,20 @@ pub(crate) fn apply_loader_settings(
     active_provider: &mut serde_json::Value,
     next_refresh: &mut Instant,
 ) {
-    let result = save_settings(&arguments.root, &settings);
+    let remote_target = shroudforge_loader_config::config::read_loader(&arguments.root)
+        .ok()
+        .and_then(|config| {
+            config
+                .pointer("/modules/modloaderUi/remoteTarget")
+                .and_then(serde_json::Value::as_str)
+                .map(|target| target == "server")
+        })
+        .unwrap_or(false);
+    let result = if remote_target {
+        Err("Bulk settings save is still local-only. Save individual server module settings instead.".into())
+    } else {
+        save_settings(&arguments.root, &settings)
+    };
     *next_refresh = Instant::now();
     if result.is_ok() {
         active_provider["baseUrl"] = settings.base_url.into();

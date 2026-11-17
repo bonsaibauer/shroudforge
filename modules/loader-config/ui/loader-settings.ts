@@ -1,5 +1,21 @@
 export type ModulePreferences = Record<string, Record<string, any>>
 
+export type TargetUiVisibility = {
+  client: {
+    pages: Record<string, boolean>
+    modules: Record<string, boolean>
+  }
+  server: {
+    pages: Record<string, boolean>
+    modules: Record<string, boolean>
+  }
+}
+
+export type UiTargetSettings = {
+  visibility: TargetUiVisibility
+  wikiLinkTarget: 'current' | 'client' | 'server'
+}
+
 export type StoragePath = { id: string; path: string; defaultPath: string }
 export type DiagnosticJob = {
   id: string
@@ -21,6 +37,7 @@ export type ProtectedHotkeyGroups = {
 export type Settings = {
   configRevision?: string
   modulePreferences?: ModulePreferences
+  targetUi?: UiTargetSettings
   protectedHotkeys?: ProtectedHotkeyGroups
   compactMode: boolean
   reducedMotion: boolean

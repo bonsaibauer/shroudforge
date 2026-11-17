@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "SF Survival",
     "description": "添加坠落伤害、生命值和法力再生、耐力、水下呼吸、武器耐用性和寒冷防护的设置。"

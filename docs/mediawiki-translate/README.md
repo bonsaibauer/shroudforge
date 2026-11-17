@@ -75,7 +75,7 @@ pwsh -NoProfile -File docs/mediawiki-translate/run.ps1 -ArticleId dll-manager
 
 MediaWiki akzeptiert `de-at`, `de-ch`, `de`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv` und `zh` als Prioritätssprachen. `en-GB` bleibt die Quellsprache. `en-US` weist die Wiki-API als ungültige Prioritätssprache zurück und wird nicht als zusätzliche Zielseite angelegt.
 
-Für alle elf Artikel liegen vollständige PO-Dateien in den zwölf von MediaWiki akzeptierten Zielsprachen vor. Das sind insgesamt 132 Dateien. Die Texte für Sprachen ohne Modloader-Wikiartikel werden lokal in `offline-translations.json` gepflegt. Der Ablauf erzeugt daraus PO-Dateien mit den echten Nachrichten-IDs der jeweiligen MediaWiki-Gruppe. Das Importskript prüft alle Einträge und stoppt bei leeren oder unvollständigen PO-Dateien.
+Für alle zwölf Artikel liegen vollständige PO-Dateien in den zwölf von MediaWiki akzeptierten Zielsprachen vor. Das sind insgesamt 144 Dateien. Die Texte für Sprachen ohne Modloader-Wikiartikel werden lokal in `offline-translations.json` gepflegt. Der Ablauf erzeugt daraus PO-Dateien mit den echten Nachrichten-IDs der jeweiligen MediaWiki-Gruppe. Das Importskript prüft alle Einträge und stoppt bei leeren oder unvollständigen PO-Dateien.
 
 ## Zugang und Importweg
 
@@ -106,5 +106,7 @@ Zum Prüfen der Queue braucht der Wiki-Host Zugriff auf die MediaWiki-Installati
 - `build-pages.py` erzeugt Wikitext und Manifest.
 - `publish.ps1` erstellt fehlende Seiten, lädt fehlende Bilder hoch, markiert die Seite und setzt alle unterstützten Prioritätssprachen.
 - `import-po.ps1` lädt PO-Dateien über `Special:ImportTranslations` hoch, verifiziert die gespeicherten Einträge und prüft, ob die Sprach-Unterseiten gerendert wurden.
+
+Die deutschen, spanischen und französischen Übersetzungen für den Artikel `dinput8-chain` übernehmen die gemeinsam dokumentierte DInput8-Chain-Spezifikation. Die englische Quelle und der Quellenlink am Ende des Artikels verweisen auf die ursprüngliche CC0-Fassung.
 
 Die deutsche PO-Datei für `Dependencies` wurde anhand der echten Translate-Nachrichten-IDs erstellt. Sie ergänzt die fehlenden Zusammenfassungs- und Abschnittstitel und korrigiert den übersetzten Seitentitel.

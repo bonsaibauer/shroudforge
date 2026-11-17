@@ -1,6 +1,6 @@
 export function createExampleModManifests() {
   const exampleManifest = {
-    $schema: "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+    $schema: "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
     id: "example.hello-ember",
     name: "Hello Ember",
     version: "1.0.0",
@@ -12,7 +12,7 @@ export function createExampleModManifests() {
     capabilities: ["runtime"]
   };
   const exampleExtended = {
-    $schema: "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+    $schema: "https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json",
     schemaVersion: 1,
     enabled: false,
     launcher: "SF",

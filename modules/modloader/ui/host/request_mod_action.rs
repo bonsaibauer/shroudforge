@@ -1,6 +1,6 @@
-use super::queue_mod_action::queue_mod_action;
 use super::read_host_arguments::Arguments;
 use super::report_command_result::report_command_result;
+use shroudforge_package::queue_mod_action;
 use std::time::Instant;
 
 pub(crate) fn request_mod_action(

@@ -62,7 +62,7 @@ Die Serverinstallation hat aktuell Netzwerk-P2P aktiviert und eine Allowlist mit
 
 ## 3. Rechte-Modell
 
-Die Implementierung braucht getrennte Freigaben für Spielaktionen und ShroudForge-Verwaltung. In der ersten Ausbaustufe leitet der Serververwaltungszugang `CanKickBan` aus den effektiven Enshrouded-Rechten ab. Weltaktionen prüfen ihre passenden Enshrouded-Rechte zusätzlich.
+Die Implementierung trennt den ShroudForge-Modloaderzugang von Enshrouded-Spielrechten. Für den Modloader prüft der Server `enshrouded_server.json`: Eine dynamisch gefundene `userGroups`-Gruppe zählt als Admin, wenn ihr Name und Passwort zusammenpassen und alle fünf Rechte `canKickBan`, `canAccessInventories`, `canEditWorld`, `canEditBase` und `canExtendBase` exakt `true` sind. World-Editor-Aktionen prüfen ihre passenden Enshrouded-Spielrechte weiterhin zusätzlich.
 
 ### 3.1 Enshrouded-Spielrechte
 
@@ -77,31 +77,25 @@ Vor der Freigabe dieser Integration wird eine Runtime-Untersuchung benötigt, di
 
 Das Log ist dabei ein guter Vergleichsnachweis. Der Produktpfad sollte die strukturierte Live-Spielerberechtigung lesen. Ein freier Logtextparser wäre für die Autorisierung zu zerbrechlich und besitzt in der gelesenen Zeile keine SteamID. Wenn der Server die SteamID nicht sicher einem aktiven Spielerobjekt mit Rechtemaske zuordnen kann, lehnt er die Verwaltungsanfrage ab.
 
-### 3.2 Empfohlene Freigabe des Modloader-Serverbereichs
+### 3.2 Freigabe des Modloader-Serverbereichs
 
-Auf der geprüften Serverkonfiguration besitzt nur die Gruppe Admin `canKickBan`. Der Live-Serverlog bestätigt diese effektive Berechtigung beim aktuellen Admin-Spieler. Deshalb ist `CanKickBan` der naheliegende serverseitige Zugangsschlüssel für den Modloader-Serverbereich.
+Das Passwort bleibt in `enshrouded_server.json` auf dem Server. Der Client sendet es einmal über den bestehenden Steam-P2P-Kanal. Der Server vergleicht es mit einer Gruppe, die alle fünf oben genannten Flags auf `true` hat. Der Gruppenname wird nicht fest einprogrammiert; die passende Gruppe wird zur Sitzung im Serverspeicher gehalten. Passwort und Token werden weder in eine Modloader-Konfiguration geschrieben noch an die WebView zurückgegeben.
 
-Empfohlene erste Zuordnung:
+Nach erfolgreicher Prüfung erhält ausschließlich die Client-Runtime ein zufälliges Sitzungstoken. Der Server bindet es an die authentifizierte Steam-Peer-ID und prüft es bei jeder Änderung erneut. Die Anmeldung gilt für die verbundene Spielsitzung und endet bei Trennung, Rechteentzug oder Serverneustart. Ein Wechsel der Modloader-Ansicht beendet nur das Spiegel-Abonnement und verwirft das Token nicht. Fünf fehlgeschlagene Anmeldungen sperren den Peer für eine Minute. Die bestehende Network-Allowlist bleibt eine zusätzliche Zugangsschranke und wird nicht durch die Admin-Anmeldung ersetzt.
 
-| Effektives Enshrouded-Recht | Modloader-Freigabe |
+| Freigabe | Wirkung |
 | --- | --- |
-| `CanKickBan` | Serverbereich öffnen und Serverstatus, Mods, Logs, Settings, Diagnostik und Updateaktionen verwalten |
-| `CanEditWorld` | World-Editor-Aktionen prüfen, die die Welt verändern |
-| `CanEditBase` | World-Editor-Aktionen prüfen, die den jeweiligen Basenbereich betreffen |
-| `CanExtendBase` | World-Editor-Aktionen prüfen, die eine Basengrenze erweitern |
-| `CanAccessInventories` | Für künftige Modloader-Funktionen mit Inventarzugriff prüfen |
+| Steam-Peer ist verbunden und nach der Network-Allowlist erlaubt | P2P-Verbindung, Serverlogs und lesender Modloader-Snapshot |
+| Passwort stimmt mit einer `userGroups`-Gruppe überein und alle fünf Flags sind `true` | Serverseitige Modloader-Einstellungen ändern |
+| Enshrouded `PlayerPermissions` | Separate Prüfung für passende World-Editor-Spielaktionen |
 
-Die genaue Enshrouded-Rechtekombination für jede World-Editor-Operation wird anhand der originalen Serverprüfung belegt. `CanKickBan` verleiht keine Weltberechtigung. Ein Spieler ohne `CanKickBan` erhält im ersten Ausbau keinen Modloader-Server-Snapshot und kann keine Serververwaltungsaktionen auslösen. Der Server prüft das effektive Recht für jede Anfrage erneut.
-
-Ein Namenswechsel darf keinerlei Rechte ändern. Ändert ein anderer Account seinen Steam- oder Enshrouded-Anzeigenamen auf den Namen eines Admins, bleibt seine SteamID gleich und der Server liest weiter seine eigenen effektiven Rechte. Ohne `CanKickBan` wird der Zugriff abgelehnt. Der Client darf einen Spielernamen als unverbindlichen Anzeigetext mitsenden. Der Server verwendet für die Berechtigung nur die Steam-Peeridentität und die serverseitig zugeordnete Rechtebitmaske.
-
-Eine getrennte SteamID-Rollenliste ist eine optionale Erweiterung für Serverbetreiber, die den Modloader auch ohne aktive Enshrouded-Spielersitzung verwalten müssen. Der aktuelle Transport lässt nur authentifizierte verbundene Spielpeers zu. Deshalb benötigt dieser erste P2P-Ausbau eine aktive Verbindung des berechtigten Spielers. `allowedClientSteamIds` kann diese Verbindung zusätzlich begrenzen, vergibt selbst aber kein Verwaltungsrecht.
+`CanKickBan` allein ist damit kein Modloader-Login. Die fünf JSON-Flags werden bei schreibenden Aktionen erneut geprüft; wird eines davon entzogen, verfällt die Sitzung.
 
 ### 3.3 Durchsetzung
 
 Die UI blendet nicht verfügbare Aktionen passend aus und zeigt die fehlende Berechtigung. Das ist Bedienhilfe. Die echte Entscheidung fällt ausschließlich im Serverprozess.
 
-Jede Anfrage enthält eine Aktionskennung und Anfragennummer. Der Server bezieht die Absender-SteamID aus Steam. Eine Payload-SteamID oder ein Payload-Spielername wird ignoriert. Der Server prüft die verbundene Enshrouded-Sitzung und die aktuellen effektiven Rechte. Die Prüfung läuft beim Empfang und unmittelbar vor der Ausführung. Rechteentzug und Spielerverbindung werden zeitnah berücksichtigt.
+Jede schreibende Anfrage enthält eine Anfragennummer, das Sitzungstoken und den erwarteten bisherigen Modulstand. Der Server bezieht die Absender-SteamID aus Steam und verlangt eine passende, aktive Sitzung. Die Änderung wird unter dem vorhandenen Installations-Lock nur gespeichert, wenn der aktuelle Modulstand noch dem erwarteten Stand entspricht. Bei gleichzeitiger Änderung durch einen anderen Client wird die Änderung abgelehnt und der aktuelle Serverstand zurückgesendet. Das UI wiederholt sie nicht automatisch.
 
 Client- und Serverlog erhalten dieselbe Request-ID. Der Client protokolliert Ziel, Aktion, serverbestätigten Spielernamen und Ergebnis. Der Server protokolliert die authentifizierte Peeridentität, den daraus ermittelten Enshrouded-Spielernamen, die effektiven Rechte, die Entscheidung und das Ausführungsergebnis. Roh-IDs erscheinen nur in einem für Administratoren zugänglichen Log. Damit lässt sich ein Vorgang auf beiden Seiten nachvollziehen, ohne dem Clientnamen zu vertrauen.
 
@@ -110,25 +104,25 @@ Client- und Serverlog erhalten dieselbe Request-ID. Der Client protokolliert Zie
 | Modloader-Funktion | Serveransicht | Schreib- oder Aktionsrecht |
 | --- | --- | --- |
 | **Zielumschalter** | Client oder konfigurierter Dedicated Server. Zeigt Zielname, Steam-Verbindung, Server-Runtime, ShroudForge-Version und letzten Snapshot-Zeitpunkt. | Auswahl ist lokal. Serververbindung selbst gewährt kein Recht. |
-| **Aktivität** | Zeigt die Aktivitäten des gewählten Ziels. Servereinträge erhalten Ziel- und Zeitmarkierung. | `CanKickBan` für Serveraktivität. Kopieren exportiert nur die sichtbaren Einträge. |
-| **News und Benachrichtigungen** | Globale News bleiben gemeinsame Katalogdaten. Modbenachrichtigungen und Gelesenstatus können pro Ziel geladen werden. | Globale News bleiben öffentlich. Serverbezogene Modbenachrichtigungen benötigen `CanKickBan`. |
+| **Aktivität** | Zeigt die Aktivitäten des gewählten Ziels. Servereinträge erhalten Ziel- und Zeitmarkierung. | Network-Allowlist für Serverlogs; keine Admin-Anmeldung zum Lesen. Kopieren exportiert nur sichtbare Einträge. |
+| **News und Benachrichtigungen** | Globale News bleiben gemeinsame Katalogdaten. Modbenachrichtigungen und Gelesenstatus können pro Ziel geladen werden. | Globale News bleiben öffentlich. Serverbezogene Modbenachrichtigungen benötigen die Admin-Sitzung. |
 | **Wiki** | Artikel bleiben gemeinsam und offline verfügbar. Kontextuelle Links können auf die gewählte Zielseite führen. | Kein Remote-Schreibrecht. |
-| **Entdecken** | Katalogdaten können clientseitig gesucht werden. Installieren adressiert ausdrücklich das gewählte Ziel und zeigt Serverpaket, Zielplattform und Version. | `CanKickBan` für Installation und Paketänderung. |
-| **Installierte Mods** | Serverliste mit Manifest, Aktivierung, Version, Ziel, Laufzeitstatus, Abhängigkeiten und verfügbaren Einstellungen. | `CanKickBan` für Ansicht, Einstellungen und Aktivierung. |
-| **Mod-Detailseite** | Bestehende Detailseite wird mit Server-Snapshot gerendert. Paketlinks, Beschreibung, Changelog und Abhängigkeiten bleiben sichtbar. | `CanKickBan` für Einstellungen, Aktualisierung, Modaktionen und Entfernen. Jede Modaktion wird serverseitig geprüft. |
-| **Updates** | System- und Modupdatezustand, Warteschlange, Fortschritt, Release-Notizen und Fehler des Servers. | `CanKickBan` für Queue und Installation. Neustart und Prozessverwaltung bleiben beim bestehenden Serverbetrieb. |
-| **Papierkorb** | Zeigt den serverseitigen Updater-Papierkorb samt Alter und Wiederherstellungsstatus. | `CanKickBan` für Wiederherstellen und endgültiges Löschen. |
-| **Kompatibilität: Mod-Erkennung** | Zeigt serverseitige Paketvalidierung und Konfigurationsfehler. | `CanKickBan`. Ein Refresh bleibt eine begrenzte Serveraktion. |
-| **Kompatibilität: DLL-Manager** | Zeigt Kandidaten, Filter, Reihenfolge und Profil des Serverziels. Änderungen können einen Serverneustart erfordern. | `CanKickBan`. Keine DLL-Ausführung durch die UI. Bestehende Freigabe- und Ladeplanregeln bleiben maßgeblich. |
+| **Entdecken** | Katalogdaten können clientseitig gesucht werden. Installieren adressiert ausdrücklich das gewählte Ziel und zeigt Serverpaket, Zielplattform und Version. | Admin-Sitzung für Installation und Paketänderung. |
+| **Installierte Mods** | Serverliste mit Manifest, Aktivierung, Version, Ziel, Laufzeitstatus, Abhängigkeiten und verfügbaren Einstellungen. | Admin-Sitzung für Ansicht, Einstellungen und Aktivierung. |
+| **Mod-Detailseite** | Bestehende Detailseite wird mit Server-Snapshot gerendert. Paketlinks, Beschreibung, Changelog und Abhängigkeiten bleiben sichtbar. | Admin-Sitzung für Einstellungen, Aktualisierung, Modaktionen und Entfernen. Jede Modaktion wird serverseitig geprüft. |
+| **Updates** | System- und Modupdatezustand, Warteschlange, Fortschritt, Release-Notizen und Fehler des Servers. | Admin-Sitzung für Queue und Installation. Neustart und Prozessverwaltung bleiben beim bestehenden Serverbetrieb. |
+| **Papierkorb** | Zeigt den serverseitigen Updater-Papierkorb samt Alter und Wiederherstellungsstatus. | Admin-Sitzung für Wiederherstellen und endgültiges Löschen. |
+| **Kompatibilität: Mod-Erkennung** | Zeigt serverseitige Paketvalidierung und Konfigurationsfehler. | Admin-Sitzung. Ein Refresh bleibt eine begrenzte Serveraktion. |
+| **Kompatibilität: DLL-Manager** | Zeigt Kandidaten, Filter, Reihenfolge und Profil des Serverziels. Änderungen können einen Serverneustart erfordern. | Admin-Sitzung. Keine DLL-Ausführung durch die UI. Bestehende Freigabe- und Ladeplanregeln bleiben maßgeblich. |
 | **Kompatibilität: Hotkeys** | Für den Dedicated Server nicht anwendbar. Client-Hotkeys bleiben lokale Einstellungen. | Nur lokale Clientkonfiguration. |
-| **Kompatibilität: Abhängigkeiten** | Berechnet den Plan aus der Serverinstallation und den aktivierten Servermods. | `CanKickBan`. Änderungen führen über bestehende Mod-Einstellungs- oder Paketaktionen. |
-| **Kompatibilität: Spiel und Runtime** | Zeigt Serverbuild, Serverprofil, Runtimebereitschaft, Provider und Serverdiagnose. Clientprofil und Serverprofil bleiben unterscheidbar. | `CanKickBan`. Profiländerungen folgen bestehenden Profilregeln. |
+| **Kompatibilität: Abhängigkeiten** | Berechnet den Plan aus der Serverinstallation und den aktivierten Servermods. | Admin-Sitzung. Änderungen führen über bestehende Mod-Einstellungs- oder Paketaktionen. |
+| **Kompatibilität: Spiel und Runtime** | Zeigt Serverbuild, Serverprofil, Runtimebereitschaft, Provider und Serverdiagnose. Clientprofil und Serverprofil bleiben unterscheidbar. | Admin-Sitzung. Profiländerungen folgen bestehenden Profilregeln. |
 | **Einstellungen: Allgemein und Darstellung** | Sprache, Zoom, Animation und Fensterverhalten gehören dem Modloader-Client und bleiben lokal. | Lokal. Keine P2P-Anfrage. |
-| **Einstellungen: Module** | Zeigt serverseitige Modulpräferenzen, Logging und Netzwerkstatus. Nur servertaugliche Felder sind editierbar. | `CanKickBan` für freigegebene Felder. Sicherheits- und Transportkonfiguration benötigt zusätzlich eine serverlokale Freigabe. |
-| **Einstellungen: Pfade** | Zeigt normalisierte Serverpfade mit passenden Labels. Zugangsdaten und private Verzeichnisse werden nicht ungefiltert übertragen. | `CanKickBan`. Erlaubt sind nur vorhandene, validierte Pfadfelder. |
-| **Serverkonfiguration** | Kann Servername, Slots und nichtgeheime Rechteprofile aus `enshrouded_server.json` anzeigen. Passwörter, Netzwerkadresse und Bannkonten bleiben verborgen. | `CanKickBan` zum Lesen. Schreibunterstützung braucht Validierung gegen das Spielschema, atomisches Sichern und einen klaren Neustarthinweis. |
-| **Runtime-Diagnostik** | Zeigt serverseitige Diagnosestatus und freigegebene Jobdefinitionen. Ergebnisdateien werden begrenzt und gezielt übertragen. | `CanKickBan` für geprüfte Jobs. Schreibende oder weltverändernde Jobs brauchen eine zusätzliche Freigabe und dürfen nicht als allgemeine Diagnose angeboten werden. |
-| **Debug Console** | Eigene Umschaltung für Client- und Serverlogs. Serverlogs kommen live oder in begrenzten Blöcken aus dem Serverprozess. | `CanKickBan`. Serverpfade werden nicht gesendet. Sichtbare Logdaten unterliegen der Aufbewahrungsgrenze. |
+| **Einstellungen: Module** | Zeigt serverseitige Modulpräferenzen, Logging und Netzwerkstatus. Nur servertaugliche Felder sind editierbar. | Admin-Sitzung für freigegebene Felder. Sicherheits- und Transportkonfiguration benötigt zusätzlich eine serverlokale Freigabe. |
+| **Einstellungen: Pfade** | Zeigt normalisierte Serverpfade mit passenden Labels. Zugangsdaten und private Verzeichnisse werden nicht ungefiltert übertragen. | Admin-Sitzung. Erlaubt sind nur vorhandene, validierte Pfadfelder. |
+| **Serverkonfiguration** | Kann Servername, Slots und nichtgeheime Rechteprofile aus `enshrouded_server.json` anzeigen. Passwörter, Netzwerkadresse und Bannkonten bleiben verborgen. | Admin-Sitzung zum Lesen. Schreibunterstützung braucht Validierung gegen das Spielschema, atomisches Sichern und einen klaren Neustarthinweis. |
+| **Runtime-Diagnostik** | Zeigt serverseitige Diagnosestatus und freigegebene Jobdefinitionen. Ergebnisdateien werden begrenzt und gezielt übertragen. | Admin-Sitzung für geprüfte Jobs. Schreibende oder weltverändernde Jobs brauchen eine zusätzliche Freigabe und dürfen nicht als allgemeine Diagnose angeboten werden. |
+| **Debug Console** | Eigene Umschaltung für Client- und Serverlogs. Serverlogs kommen live oder in begrenzten Blöcken aus dem Serverprozess. | Network-Allowlist; keine Admin-Anmeldung zum Lesen. Serverpfade werden nicht gesendet. Sichtbare Logdaten unterliegen der Aufbewahrungsgrenze. |
 | **World Editor** | Bestehendes World-Editor-Fenster bleibt der Besitzer seiner Weltaktionen. Die Modloader-Zielauswahl zeigt an, zu welchem Server die P2P-Operation gehört. | Jede Weltaktion prüft die dafür nötigen effektiven Enshrouded-Rechte. `CanKickBan` allein reicht dafür nicht. |
 
 ## 5. UI- und Snapshot-Konzept
@@ -175,7 +169,7 @@ Für große Logs und Snapshots gelten Obergrenzen für Gesamtdaten, Chunkanzahl,
 | --- | --- |
 | `modules/modloader/ui/` | Zielauswahl, gemeinsame Seiten, Berechtigungsanzeige, Serverstatus und Ergebnisdarstellung. |
 | `modules/modloader/ui/host/` | WebView-Befehle validieren, lokale Requestzustände verwalten und Remote-Ergebnisse in den vorhandenen Snapshotfluss übergeben. |
-| `modules/modloader/` | Typisierte Modloader-Remoteaktionen, Snapshotvertrag und die Zuordnung von `CanKickBan` zur Serververwaltung. Keine beliebigen Dateipfade oder Shellaktionen. |
+| `modules/modloader/` | Bestehende Modloader-Settings bleiben der Eigentümer der Einstellungsvalidierung; die Admin-Sitzung autorisiert ihre Remoteänderung. Keine beliebigen Dateipfade oder Shellaktionen. |
 | `modules/mod-runtime/ingame/` | Nachrichten während der vorhandenen Runtime-Lebensdauer zustellen und die Serverausführung an den richtigen Runtime-Zeitpunkt übergeben. |
 | `modules/transport/` | Steam-Nachrichten, P2P-Peers, begrenzte Frames und versionierte Transportregeln. Keine zweite Steam-Callback-Pumpe und keine neue öffentliche Lua-API ohne tatsächlichen Bedarf. |
 | `modules/game-runtime/` | Nur wenn die Recherche eine neue native Operation für die strukturierte Abfrage effektiver Enshrouded-Spielrechte begründet. Eine Logzeile allein ist keine native Freigabe. |
@@ -201,18 +195,18 @@ Ein zusätzlicher Negativfall ändert den Steam- oder Enshrouded-Anzeigenamen ei
 
 - Zielumschalter mit dem einen eingerichteten Server.
 - P2P-Handshake, Serveridentität, Runtimeversion und Capability-Snapshot.
-- Die serverseitige SteamID-zu-Spieler- und Rechtezuordnung verifizieren und `CanKickBan` bei jeder Anfrage prüfen.
+- Steam-Peer und Network-Allowlist für den lesenden Zugriff prüfen. Admin-Sitzung und Gruppenflags gelten zusätzlich nur für Schreibaktionen.
 - Lesender Snapshot für Status, Modliste, Abhängigkeiten, Aktivität und Netzwerkzustand.
 - Debug Console für Serverlogs mit Limits und Wiederverbindung.
 
-**Abnahme:** Ein verbundener Spieler ohne `CanKickBan` erhält keinen Server-Snapshot und kann keine Serveraktion auslösen. Ein Serverausfall erzeugt einen klaren Offlinezustand.
+**Abnahme:** Ein verbundener, erlaubter Peer kann Logs und den lesenden Snapshot empfangen. Ohne gültige Admin-Sitzung kann er keine Servereinstellung ändern. Ein Serverausfall erzeugt einen klaren Offlinezustand.
 
 ### Phase 2: Begrenzte Modverwaltung
 
 - Serverseitige Moddetails und Einstellungen lesen.
 - Einstellungen speichern und Mods aktivieren oder deaktivieren.
 - Serverantwort mit Rücklesewert und Neustartbedarf anzeigen.
-- Modaktion nur ausführen, wenn `CanKickBan` vorliegt und die konkrete Aktion serverseitig freigegeben ist.
+- Modaktion nur mit gültiger Admin-Sitzung und serverseitiger Freigabe der konkreten Aktion ausführen.
 
 **Abnahme:** Jeder Schreibbefehl bleibt an Ziel, Steam-Absender, Serverinstanz, Request-ID und Mod-ID gebunden. Veraltete oder doppelte Requests ändern keine zweite Mod.
 
@@ -230,7 +224,7 @@ Ein zusätzlicher Negativfall ändert den Steam- oder Enshrouded-Anzeigenamen ei
 - Geprüfte Diagnosejobs nach Risiko klassifizieren.
 - Nichtgeheime `enshrouded_server.json`-Werte zunächst nur anzeigen.
 - Falls Schreibunterstützung benötigt wird, nur konkrete bekannte Felder atomar ändern, Sicherung erzeugen und die erforderliche Serverneustartgrenze respektieren.
-- DLL-Auswahl, Papierkorb, Gamefile-Backups und Wiederherstellung mit `CanKickBan` und expliziten Bestätigungen ergänzen.
+- DLL-Auswahl, Papierkorb, Gamefile-Backups und Wiederherstellung mit der Admin-Sitzung und expliziten Bestätigungen ergänzen.
 
 **Abnahme:** Passwörter und andere Geheimnisse gelangen nie in UI-Snapshots oder Logs. Destruktive Aktionen zeigen Umfang und erwartete Wirkung vor dem Absenden.
 
@@ -238,14 +232,14 @@ Ein zusätzlicher Negativfall ändert den Steam- oder Enshrouded-Anzeigenamen ei
 
 - Effektive `PlayerPermissions` für World-Editor- und weitere bestehende Spielaktionen verwenden.
 - Rechteänderungen während einer Session erneut prüfen.
-- `CanKickBan` bleibt die festgelegte Zuordnung für den Modloader-Serverbereich. Die übrigen Spielrechte gelten nur für passend zugeordnete Spielaktionen.
+- `userGroups`-Passwort plus alle fünf Admin-Flags bleibt die Freigabe für Modloader-Serveränderungen. Enshrouded-Spielrechte gelten nur für passend zugeordnete Spielaktionen.
 
 **Abnahme:** Eine Anfrage wird vom Server abgelehnt, wenn die für genau diese Spielaktion erforderliche Enshrouded-Berechtigung fehlt.
 
 ## 9. Sicherheits- und Zuverlässigkeitsregeln
 
 1. Steam-Transportidentität ist die Peeridentität. Payloadfelder und `from_mod` sind keine Identitätsquelle.
-2. Netzwerk-Allowlist, `CanKickBan` für den Modloader-Serverbereich und die Enshrouded-Spielrechte für Weltaktionen bleiben getrennte Prüfungen.
+2. Network-Allowlist, Admin-Sitzung für Modloader-Schreibaktionen und Enshrouded-Spielrechte für Weltaktionen bleiben getrennte Prüfungen.
 3. Alle Schreibaktionen werden im Serverprozess autorisiert und vor der Ausführung erneut geprüft.
 4. Es gibt keine generische Schreibdatei-, Shell-, DLL-Lade- oder Lua-Eval-Nachricht.
 5. Nachrichten, Logs, Warteschlangen, Chunks, Replays und Zeitfenster sind begrenzt.
@@ -255,15 +249,15 @@ Ein zusätzlicher Negativfall ändert den Steam- oder Enshrouded-Anzeigenamen ei
 9. Berechtigungsentzug oder getrennte Enshrouded-Verbindung sperren neue Aktionen sofort und laufende Aktionen nach der definierten sicheren Abbruchgrenze.
 10. Bestehende native Lade-, Update-, Wiederherstellungs- und Welt-Lebenszeitregeln bleiben Eigentum ihrer Module.
 
-## 10. Entscheidungen vor Implementierungsbeginn
+## 10. Festgelegte Entscheidungen und spätere Fragen
 
-1. `CanKickBan` ist die empfohlene Zugangsvoraussetzung für den gesamten Modloader-Serverbereich einschließlich Paketinstallationen, Updates und Wiederherstellungen. Soll es für besonders riskante Aktionen trotzdem eine zusätzliche Serverbestätigung geben?
+1. Festgelegt: Für Modloader-Schreibaktionen gelten die dynamische `userGroups`-Passwortprüfung und alle fünf Admin-Flags. Besonders riskante Aktionen können in einer späteren Phase zusätzlich eine Serverbestätigung verlangen.
 2. Welche Enshrouded-Rechte verlangen World-Editor-Lesen, Platzieren, Rückgängig und Abbruch jeweils? Diese Zuordnung wird getrennt pro Operation festgelegt.
 3. Reicht zunächst ein fest konfigurierter Server, oder wird schon in Version eins eine Liste mehrerer Server benötigt?
 4. Welche Modaktionen sind aus der Ferne erlaubt? Paketmetadaten deklarieren die Aktion, aber nicht zwingend ihr Schadenspotenzial.
 5. Dürfen `enshrouded_server.json`-Felder später geändert werden, oder bleibt diese Datei in der ersten Ausbaustufe nur lesbar?
 
-Empfehlung: zuerst einen fest konfigurierten Server und `CanKickBan` als serverseitig geprüfte Freigabe für den Modloader-Serverbereich. Die Zuordnung der SteamID zu `PlayerPermissions` wird zuvor strukturiert nachgewiesen. Enshrouded-Weltrechte werden unabhängig davon an passende World-Editor-Aktionen gebunden.
+Empfehlung: ein fest konfigurierter Server, Serverprüfung der `userGroups`-Zugangsdaten und der fünf Flags, Sitzungstoken nur im Speicher und konfliktgeprüfte Settingsänderungen. Die Zuordnung von SteamID zu `PlayerPermissions` bleibt eine getrennte Voraussetzung für spätere World-Editor-Aktionen.
 
 ## 11. Geprüfte Quellen und Grenzen
 

@@ -38,4 +38,4 @@ use allows_log_level::configured_level;
 mod write_activity;
 pub use write_activity::{activity_log_level, write_activity, write_activity_at_level};
 mod read_activity;
-pub use read_activity::{ActivityLogEntry, read_activity};
+pub use read_activity::{ActivityLogEntry, read_activity, read_activity_from_path};

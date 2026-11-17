@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "SF Unlock Blueprints",
     "description": "Unlocks all blueprints after restart, regardless of their original recipe unlock requirements. Warning: Reverting this change requires resetting all affected unlock progress. Therefore, this option is disabled by default."

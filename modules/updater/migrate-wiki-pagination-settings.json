@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.wiki-pagination-settings",
+  "revision": 1,
+  "name": "Set the Wiki page size",
+  "description": "Persists the default Wiki page size while preserving a customized page size.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "update-loader-settings",
+  "settings": [
+    {
+      "path": ["modules", "wiki", "itemsPerPage"],
+      "previousValue": 30,
+      "value": 30
+    }
+  ]
+}

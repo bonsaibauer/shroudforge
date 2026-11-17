@@ -1,13 +1,14 @@
 const WIKI_SITE_ORIGIN = 'https://wiki.shroudforge.net'
 
-export const DEFAULT_WIKI_CATEGORY = 'Guide:shroudforge'
+export const DEFAULT_WIKI_CATEGORY = 'Guide:Shroudforge'
+
+export const WIKI_PAGE_SIZE_OPTIONS = [10, 20, 30, 50] as const
 
 export const WIKI_API_SETTINGS = {
   siteOrigin: WIKI_SITE_ORIGIN,
   endpoint: `${WIKI_SITE_ORIGIN}/api.php`,
   cacheKey: 'sf-wiki-cache-v1',
-  defaultPageSize: 30,
-  defaultMaxResultsPerQuery: 120,
+  defaultItemsPerPage: 30,
   defaultRefreshIntervalMinutes: 1440,
   maxApiPageSize: 500,
   summaryTitleBatchSize: 50,
@@ -29,13 +30,13 @@ export const WIKI_API_SETTINGS = {
     'game-profile-discovery': 'Automatic beta game profiles',
     hotkeys: 'Keyboard shortcuts',
     'mod-detection': 'Mod Detection',
+    'modloader-p2p-connection': 'Modloader P2P connection',
   },
 } as const
 
 export type WikiModuleSettings = {
   enabled?: boolean
-  pageSize?: number
-  maxResultsPerQuery?: number
+  itemsPerPage?: number
   refreshIntervalMinutes?: number
 }
 
@@ -52,15 +53,17 @@ export function resolveWikiApiSettings(settings?: WikiModuleSettings) {
     60,
     1440,
   )
+  const itemsPerPage = boundedInteger(
+    settings?.itemsPerPage,
+    WIKI_API_SETTINGS.defaultItemsPerPage,
+    WIKI_PAGE_SIZE_OPTIONS[0],
+    WIKI_PAGE_SIZE_OPTIONS[WIKI_PAGE_SIZE_OPTIONS.length - 1],
+  )
   return {
     enabled: settings?.enabled === true,
-    pageSize: boundedInteger(settings?.pageSize, WIKI_API_SETTINGS.defaultPageSize, 1, 100),
-    maxResultsPerQuery: boundedInteger(
-      settings?.maxResultsPerQuery,
-      WIKI_API_SETTINGS.defaultMaxResultsPerQuery,
-      1,
-      WIKI_API_SETTINGS.maxApiPageSize,
-    ),
+    itemsPerPage: WIKI_PAGE_SIZE_OPTIONS.some((option) => option === itemsPerPage)
+      ? itemsPerPage
+      : WIKI_API_SETTINGS.defaultItemsPerPage,
     refreshIntervalMs: refreshIntervalMinutes * 60 * 1000,
   }
 }

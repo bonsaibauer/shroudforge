@@ -31,7 +31,7 @@
 
 ## Raw channels
 
-`send` and `receive` use binary-safe Lua strings. Public channels are 0 through 65534. Channel 65535 is reserved for the internal health probe. Both sides must use the same channel.
+`send` and `receive` use binary-safe Lua strings. Public channels are 0 through 65533. Channel 65534 is reserved for Modloader file mirroring and channel 65535 for the internal health probe. Both sides must use the same channel.
 
 ## Server authorization and SteamID64
 

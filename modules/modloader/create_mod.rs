@@ -37,7 +37,7 @@ pub fn create_mod(
     let mods = shroudforge_loader_config::paths::mods_dir(game);
     let destination = mods.join(id);
     let manifest = serde_json::json!({
-        "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+        "$schema": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
         "id": id,
         "name": name,
         "version": "0.1.0",
@@ -46,7 +46,7 @@ pub fn create_mod(
         "capabilities": capabilities
     });
     let extension = serde_json::json!({
-        "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+        "$schema": "https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json",
         "schemaVersion": 1,
         "enabled": true,
         "targets": ["client"],

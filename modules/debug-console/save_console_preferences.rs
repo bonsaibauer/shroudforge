@@ -12,6 +12,12 @@ pub(crate) fn save_console_preferences(
                 value["modules"]["debugConsole"][key] = setting.clone();
             }
         }
+        if let Some(setting) = patch.get("remoteTarget") {
+            if !matches!(setting.as_str(), Some("client" | "server")) {
+                return Err("remote target must be client or server".into());
+            }
+            value["modules"]["modloaderUi"]["remoteTarget"] = setting.clone();
+        }
         Ok(())
     });
     if let Err(error) = result {

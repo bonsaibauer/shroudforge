@@ -20,10 +20,12 @@ export function ModPage({
   mod,
   status,
   dependencyStates,
+  remoteTarget,
 }: {
   mod: ModInfo
   status?: { state: string; code?: string; detail: string }
   dependencyStates: Record<string, { state: string; detail: string }>
+  remoteTarget: 'client' | 'server'
 }) {
   const { t } = useI18n()
   const { enabled, values, save, updateSetting, setEnabled } =
@@ -149,7 +151,7 @@ export function ModPage({
         subtitle={mod.description || mod.id}
         actions={
           <>
-            {mod.source === 'shroudedit' && (
+            {remoteTarget === 'client' && mod.source === 'shroudedit' && (
               <button
                 className="button ghost"
                 onClick={() =>
@@ -159,13 +161,15 @@ export function ModPage({
                 {t('updates.queue.addMod')}
               </button>
             )}
-            <button className="button danger" onClick={remove}>
-              {t('mod.remove')}
-            </button>
+            {remoteTarget === 'client' && (
+              <button className="button danger" onClick={remove}>
+                {t('mod.remove')}
+              </button>
+            )}
             <button
               className="button"
               onClick={() => {
-                save()
+                if (remoteTarget === 'client') save()
                 postRequest('refresh-mod', { modId: mod.id })
               }}
             >

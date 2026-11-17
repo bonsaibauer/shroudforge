@@ -36,13 +36,13 @@ msgstr "हर भाषा के लिए <code>locales/&lt;code&gt;.json</co
 
 #
 msgctxt "Translate_mod_text/4"
-msgid "The schema is published as [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. A locale catalog can translate <code>mod.name</code> and <code>mod.description</code>, setting and option labels, groups, actions, changelog lines, and Lua <code>strings</code>. Catalogs may be partial. Entries without a translation keep their source text."
-msgstr "स्कीमा [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>] के रूप में प्रकाशित है। Locale कैटलॉग <code>mod.name</code> और <code>mod.description</code>, सेटिंग और विकल्प लेबल, समूह, कार्रवाइयाँ, changelog पंक्तियाँ और Lua <code>strings</code> का अनुवाद कर सकता है। कैटलॉग आंशिक हो सकते हैं। जिन प्रविष्टियों का अनुवाद नहीं है, वे स्रोत टेक्स्ट ही दिखाती हैं।"
+msgid "The schema is published as [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json <code>mod-locale.schema.json</code>]. A locale catalog can translate <code>mod.name</code> and <code>mod.description</code>, setting and option labels, groups, actions, changelog lines, and Lua <code>strings</code>. Catalogs may be partial. Entries without a translation keep their source text."
+msgstr "स्कीमा [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json <code>mod-locale.schema.json</code>] के रूप में प्रकाशित है। Locale कैटलॉग <code>mod.name</code> और <code>mod.description</code>, सेटिंग और विकल्प लेबल, समूह, कार्रवाइयाँ, changelog पंक्तियाँ और Lua <code>strings</code> का अनुवाद कर सकता है। कैटलॉग आंशिक हो सकते हैं। जिन प्रविष्टियों का अनुवाद नहीं है, वे स्रोत टेक्स्ट ही दिखाती हैं।"
 
 #
 msgctxt "Translate_mod_text/5"
-msgid "<pre>\n{\n  \"$schema\": \"https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
-msgstr "<pre>\n{\n  \"$schema\": \"https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
+msgid "<pre>\n{\n  \"$schema\": \"https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
+msgstr "<pre>\n{\n  \"$schema\": \"https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json\",\n  \"settings\": {\n    \"severity\": {\n      \"label\": \"Log level\",\n      \"options\": { \"info\": \"Information\", \"warn\": \"Warning\" }\n    }\n  },\n  \"groups\": [\n    { \"label\": \"Logging\", \"actions\": { \"write\": { \"label\": \"Write message\" } } }\n  ],\n  \"strings\": { \"overlay.ready\": \"Ready\" }\n}\n</pre>"
 
 #
 msgctxt "Translate_mod_text/6"

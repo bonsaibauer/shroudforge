@@ -1,4 +1,12 @@
 import type { Settings } from './loader-settings'
+import {
+  isTargetUiVisible,
+  resolveUiTargetSettings,
+  TARGET_UI_MODULES,
+  TARGET_UI_PAGES,
+  type TargetUiModule,
+  type TargetUiPage,
+} from './module-visibility'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { TranslationKey, useI18n } from '../../ui-resources/i18n'
 import type { Snapshot } from '../../modloader/ui/ui-snapshot'
@@ -20,7 +28,7 @@ import { worldEditorSettingsFields } from '../../world-editor/ui/settings'
 import { NetworkSettings } from '../../transport/ui/settings'
 import { UpdatePreferences } from '../../updater/ui/edit-update-preferences'
 import { KeybindInput } from '../../hotkeys/ui/edit-keybind'
-import { refreshWikiSearchCache, resolveWikiApiSettings } from '../../wiki/mediawiki-api'
+import { refreshWikiSearchCache, WIKI_PAGE_SIZE_OPTIONS } from '../../wiki/mediawiki-api'
 import { WikiActions } from '../../wiki/ui/show-wiki-actions'
 
 function WindowGeometryControls({
@@ -150,8 +158,7 @@ export function ModulePreferencesEditor({
     ...worldEditorSettingsFields,
     ['modloaderUi', 'toggleKey', 'settings.modules.field.hotkey'],
     ['modloaderUi', 'refreshMilliseconds', 'settings.modules.field.refresh'],
-    ['wiki', 'pageSize', 'settings.modules.field.wikiPageSize'],
-    ['wiki', 'maxResultsPerQuery', 'settings.modules.field.wikiMaximumResults'],
+    ['wiki', 'itemsPerPage', 'wiki.itemsPerPage', WIKI_PAGE_SIZE_OPTIONS.map(String)],
     ['wiki', 'refreshIntervalMinutes', 'settings.modules.field.wikiRefreshMinutes'],
   ]
   const controlVisibility = (
@@ -160,6 +167,9 @@ export function ModulePreferencesEditor({
   ) => postRequest('set-window-visibility', { module, visible })
   const moduleEnabled = (module: string) =>
     prefs[module]?.enabled ?? (module === 'debugConsole' || module === 'wiki')
+  const serverTargetSelected = prefs.modloaderUi?.remoteTarget === 'server'
+  const target = serverTargetSelected ? 'server' : 'client'
+  const targetUi = resolveUiTargetSettings(settings.targetUi)
   const updaterAvailable = data.release.updaterAvailable === true
   const updatesEnabled = moduleEnabled('updates') && updaterAvailable
   const ranges: Record<string, [number, number]> = {
@@ -168,14 +178,120 @@ export function ModulePreferencesEditor({
     slowCallbackMilliseconds: [0.1, 60000],
     popupCooldownSeconds: [0, 3600],
     refreshMilliseconds: [100, 10000],
-    pageSize: [1, 100],
-    maxResultsPerQuery: [1, 500],
     refreshIntervalMinutes: [60, 1440],
     tailBytes: [1024, 1048576],
   }
+  const pageLabels: Record<TargetUiPage, TranslationKey> = {
+    activity: 'nav.activity',
+    news: 'nav.news',
+    compatibility: 'nav.compatibility',
+    settings: 'nav.settings',
+    wiki: 'nav.wiki',
+    discover: 'nav.discover',
+    installed: 'nav.installed',
+    updates: 'nav.updates',
+    'recycle-bin': 'nav.recycleBin',
+  }
+  const moduleLabels: Record<TargetUiModule, TranslationKey> = {
+    modDetection: 'compatibility.modDetection.title',
+    dllManager: 'compatibility.dllManager.title',
+    debugConsole: 'settings.modules.debugConsole.title',
+    worldEditor: 'settings.modules.worldEditor.title',
+    modloaderUi: 'settings.modules.modloaderUi.title',
+    wiki: 'settings.modules.wiki.title',
+    network: 'settings.modules.network.title',
+    runtimeDiagnostics: 'settings.modules.runtimeDiagnostics.title',
+    gameProfileDiscovery: 'settings.modules.gameProfileDiscovery.title',
+    updates: 'settings.modules.updates.title',
+  }
+  const changeTargetVisibility = (
+    group: 'pages' | 'modules',
+    id: TargetUiPage | TargetUiModule,
+    targetId: 'client' | 'server',
+    visible: boolean,
+  ) => {
+    const next = {
+      ...targetUi,
+      visibility: {
+        ...targetUi.visibility,
+        [targetId]: {
+          ...targetUi.visibility[targetId],
+          [group]: {
+            ...targetUi.visibility[targetId][group],
+            [id]: visible,
+          },
+        },
+      },
+    }
+    setSettings({ ...settings, targetUi: next })
+    postRequest('save-setting', {
+      scope: 'general',
+      key: 'uiTargets',
+      value: next,
+    })
+  }
+  const visibleInTarget = (module: string) =>
+    isTargetUiVisible('modules', module, target, targetUi)
+  const targetVisibilityEditor = (
+    group: 'pages' | 'modules',
+    ids: readonly (TargetUiPage | TargetUiModule)[],
+    labels: Record<string, TranslationKey | undefined>,
+  ) => ids.map((id) => (
+    <div className="settings-option target-visibility-row" key={group + id}>
+      <strong>{t(labels[id]!)}</strong>
+      <Toggle
+        label={t('settings.modules.serverTargetVisibility.item', {
+          module: t(labels[id]!),
+          target: t('settings.modules.serverTargetVisibility.clientTarget'),
+        })}
+        checked={isTargetUiVisible(group, id, 'client', targetUi)}
+        disabled={group === 'pages' && id === 'settings'}
+        onChange={(value) => changeTargetVisibility(group, id, 'client', value)}
+      />
+      <Toggle
+        label={t('settings.modules.serverTargetVisibility.item', {
+          module: t(labels[id]!),
+          target: t('settings.modules.serverTargetVisibility.serverTarget'),
+        })}
+        checked={isTargetUiVisible(group, id, 'server', targetUi)}
+        disabled={group === 'pages' && id === 'settings'}
+        onChange={(value) => changeTargetVisibility(group, id, 'server', value)}
+      />
+    </div>
+  ))
   return (
     <>
-      <UpdatePreferences
+      <Card title={t('settings.modules.serverTargetVisibility.title')}>
+        <p className="hint settings-module-description">
+          {t('settings.modules.serverTargetVisibility.description')}
+        </p>
+        <div className="settings-options target-visibility-matrix">
+          <h4>{t('settings.modules.serverTargetVisibility.pages')}</h4>
+          {targetVisibilityEditor('pages', TARGET_UI_PAGES, pageLabels)}
+          <h4>{t('settings.modules.serverTargetVisibility.modules')}</h4>
+          {targetVisibilityEditor('modules', TARGET_UI_MODULES, moduleLabels)}
+        </div>
+        <SettingsRow
+          label={t('settings.modules.serverTargetVisibility.wikiLinkTarget')}
+          control={
+            <select
+              value={targetUi.wikiLinkTarget}
+              onChange={(event) => {
+                const next = { ...targetUi, wikiLinkTarget: event.target.value as typeof targetUi.wikiLinkTarget }
+                setSettings({ ...settings, targetUi: next })
+                postRequest('save-setting', { scope: 'general', key: 'uiTargets', value: next })
+              }}
+            >
+              {(['current', 'client', 'server'] as const).map((value) => (
+                <option key={value} value={value}>
+                  {t(('settings.modules.serverTargetVisibility.wikiLinkTarget.' + value) as TranslationKey)}
+                </option>
+              ))}
+            </select>
+          }
+        />
+      </Card>
+      {visibleInTarget('updates') && <UpdatePreferences
         system={system}
         automatic={automatic}
         enabled={updatesEnabled}
@@ -193,22 +309,19 @@ export function ModulePreferencesEditor({
         recycleBin={recycleBin}
         changeRecycleBin={changeRecycleBin}
         geometryControls={<WindowGeometryControls module="updates" />}
-      />
-      <NetworkSettings
+      />}
+      {visibleInTarget('network') && <NetworkSettings
         prefs={prefs}
         enabled={moduleEnabled('network')}
         change={change}
-      />
+      />}
       <div className="settings-module-list">
-        {(
-          [
-            'debugConsole',
-            'worldEditor',
-            'modloaderUi',
-            'wiki',
-            'runtimeDiagnostics',
-          ] as const
-        ).map((module) => (
+        {TARGET_UI_MODULES
+          .filter((module) => (
+            ['debugConsole', 'worldEditor', 'modloaderUi', 'wiki', 'runtimeDiagnostics'].includes(module) &&
+            visibleInTarget(module)
+          ))
+          .map((module) => (
           <Card key={module} title={t(`settings.modules.${module}.title`)}>
             <p className="hint settings-module-description">
               {t(`settings.modules.${module}.description`)}
@@ -273,8 +386,14 @@ export function ModulePreferencesEditor({
                         />
                       ) : options ? (
                         <select
-                          value={prefs[module]?.[key] ?? options[0]}
-                          onChange={(e) => change(module, key, e.target.value)}
+                          value={key === 'itemsPerPage'
+                            ? String(prefs[module]?.[key] ?? options[0])
+                            : prefs[module]?.[key] ?? options[0]}
+                          onChange={(e) => change(
+                            module,
+                            key,
+                            key === 'itemsPerPage' ? Number(e.target.value) : e.target.value,
+                          )}
                         >
                           {options.map((option) => (
                             <option key={option} value={option}>
@@ -322,10 +441,7 @@ export function ModulePreferencesEditor({
                     notifyCommandResult={notifyCommandResult}
                     refreshDisabled={!moduleEnabled('wiki')}
                     onRefresh={async () => {
-                      const wikiSettings = resolveWikiApiSettings(prefs.wiki)
-                      await refreshWikiSearchCache(
-                        '', locale, wikiSettings.pageSize, wikiSettings.maxResultsPerQuery,
-                      )
+                      await refreshWikiSearchCache('', locale)
                     }}
                   />
                 </div>
@@ -352,7 +468,7 @@ export function ModulePreferencesEditor({
               />
             )}
           </Card>
-        ))}
+          ))}
       </div>
     </>
   )

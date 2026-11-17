@@ -67,4 +67,4 @@ Die Einstellungsseite ist im Desktopfenster und im Fenster aus dem Eintrag **Mod
 
 ## Quelle
 
-Schema: [extended.mod.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/manifest/extended.mod.schema.json). Der Paketleser prüft die oben beschriebenen Beziehungen.
+Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft die oben beschriebenen Beziehungen.

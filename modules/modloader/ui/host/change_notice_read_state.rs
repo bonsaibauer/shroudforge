@@ -5,15 +5,16 @@ use std::time::Instant;
 pub(crate) fn change_notice_read_state(
     ids: Vec<String>,
     read: bool,
+    server: bool,
     request_id: String,
     arguments: &Arguments,
     webview: &wry::WebView,
     next_refresh: &mut Instant,
 ) {
     let result = if read {
-        shroudforge_news::mark_news_read(&arguments.root, &ids)
+        shroudforge_news::mark_news_read_for_target(&arguments.root, &ids, server)
     } else {
-        shroudforge_news::mark_news_unread(&arguments.root, &ids)
+        shroudforge_news::mark_news_unread_for_target(&arguments.root, &ids, server)
     };
     report_command_result(
         &arguments.root,
