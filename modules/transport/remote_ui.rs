@@ -1717,7 +1717,7 @@ fn server_view_snapshot(
             changelog,
         })
         .collect::<Vec<_>>();
-    let notices = shroudforge_news::read_event_notifications(root, &notification_mods);
+    let notices = shroudforge_news::read_notifications(root, &notification_mods);
     let news_templates = shroudforge_news::read(root)
         .ok()
         .and_then(|value| value.get("templates").cloned())
