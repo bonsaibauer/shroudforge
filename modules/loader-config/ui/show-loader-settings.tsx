@@ -12,7 +12,7 @@ import { PageHeader, usePageZoom } from '../../ui-resources/show-page-header'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { GamefileBackupManagement } from '../../game-files/ui/show-game-file-backups'
 import { StoragePathsEditor } from './show-storage-paths'
-import { ModulePreferencesEditor } from './show-module-settings'
+import { AdvancedSettingsEditor, ModulePreferencesEditor } from './show-module-settings'
 import { GameProfileDiscoverySettings } from '../../game-profile-discovery/ui/settings'
 
 export function SettingsPage({
@@ -155,6 +155,7 @@ export function SettingsPage({
           ['general', t('settings.general')],
           ['modules', t('settings.modules')],
           ['paths', t('settings.paths.title')],
+          ['advanced', t('settings.advanced')],
         ]}
       />
       {tab === 'general' && (
@@ -364,6 +365,9 @@ export function SettingsPage({
         />
       )}
       {tab === 'paths' && <StoragePathsEditor data={data} />}
+      {tab === 'advanced' && (
+        <AdvancedSettingsEditor settings={settings} setSettings={setSettings} />
+      )}
     </>
   )
 }

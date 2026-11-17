@@ -79,6 +79,120 @@ function WindowGeometryControls({
   )
 }
 
+export function AdvancedSettingsEditor({
+  settings,
+  setSettings,
+}: {
+  settings: Settings
+  setSettings(v: Settings): void
+}) {
+  const { t } = useI18n()
+  const targetUi = resolveUiTargetSettings(settings.targetUi)
+  const pageLabels: Record<TargetUiPage, TranslationKey> = {
+    activity: 'nav.activity',
+    news: 'nav.news',
+    compatibility: 'nav.compatibility',
+    settings: 'nav.settings',
+    wiki: 'nav.wiki',
+    discover: 'nav.discover',
+    installed: 'nav.installed',
+    updates: 'nav.updates',
+    'recycle-bin': 'nav.recycleBin',
+  }
+  const moduleLabels: Record<TargetUiModule, TranslationKey> = {
+    modDetection: 'compatibility.modDetection.title',
+    dllManager: 'compatibility.dllManager.title',
+    debugConsole: 'settings.modules.debugConsole.title',
+    worldEditor: 'settings.modules.worldEditor.title',
+    modloaderUi: 'settings.modules.modloaderUi.title',
+    wiki: 'settings.modules.wiki.title',
+    network: 'settings.modules.network.title',
+    runtimeDiagnostics: 'settings.modules.runtimeDiagnostics.title',
+    gameProfileDiscovery: 'settings.modules.gameProfileDiscovery.title',
+    updates: 'settings.modules.updates.title',
+  }
+  const changeTargetVisibility = (
+    group: 'pages' | 'modules',
+    id: TargetUiPage | TargetUiModule,
+    targetId: 'client' | 'server',
+    visible: boolean,
+  ) => {
+    const next = {
+      ...targetUi,
+      visibility: {
+        ...targetUi.visibility,
+        [targetId]: {
+          ...targetUi.visibility[targetId],
+          [group]: {
+            ...targetUi.visibility[targetId][group],
+            [id]: visible,
+          },
+        },
+      },
+    }
+    setSettings({ ...settings, targetUi: next })
+    postRequest('save-setting', {
+      scope: 'general',
+      key: 'uiTargets',
+      value: next,
+    })
+  }
+  const targetVisibilityEditor = (
+    group: 'pages' | 'modules',
+    ids: readonly (TargetUiPage | TargetUiModule)[],
+    labels: Record<string, TranslationKey | undefined>,
+  ) => ids.map((id) => (
+    <div className="settings-option target-visibility-row" key={group + id}>
+      <strong>{t(labels[id]!)}</strong>
+      <Toggle
+        label={t('settings.modules.serverTargetVisibility.item', {
+          module: t(labels[id]!),
+          target: t('settings.modules.serverTargetVisibility.clientTarget'),
+        })}
+        checked={isTargetUiVisible(group, id, 'client', targetUi)}
+        disabled={group === 'pages' && id === 'settings'}
+        onChange={(value) => changeTargetVisibility(group, id, 'client', value)}
+      />
+      <Toggle
+        label={t('settings.modules.serverTargetVisibility.item', {
+          module: t(labels[id]!),
+          target: t('settings.modules.serverTargetVisibility.serverTarget'),
+        })}
+        checked={isTargetUiVisible(group, id, 'server', targetUi)}
+        disabled={group === 'pages' && id === 'settings'}
+        onChange={(value) => changeTargetVisibility(group, id, 'server', value)}
+      />
+    </div>
+  ))
+  const targetHeader = (
+    <div className="target-visibility-header">
+      <span />
+      <span>{t('settings.modules.serverTargetVisibility.clientTarget')}</span>
+      <span>{t('settings.modules.serverTargetVisibility.serverTarget')}</span>
+    </div>
+  )
+  return (
+    <div className="target-visibility-settings">
+      <div className="target-visibility-intro">
+        <h2>{t('settings.modules.serverTargetVisibility.title')}</h2>
+        <p className="hint">{t('settings.modules.serverTargetVisibility.description')}</p>
+      </div>
+      <Card title={t('settings.modules.serverTargetVisibility.pages')}>
+        {targetHeader}
+        <div className="settings-options">
+          {targetVisibilityEditor('pages', TARGET_UI_PAGES, pageLabels)}
+        </div>
+      </Card>
+      <Card title={t('settings.modules.serverTargetVisibility.modules')}>
+        {targetHeader}
+        <div className="settings-options">
+          {targetVisibilityEditor('modules', TARGET_UI_MODULES, moduleLabels)}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 export function ModulePreferencesEditor({
   data,
   settings,
@@ -181,116 +295,10 @@ export function ModulePreferencesEditor({
     refreshIntervalMinutes: [60, 1440],
     tailBytes: [1024, 1048576],
   }
-  const pageLabels: Record<TargetUiPage, TranslationKey> = {
-    activity: 'nav.activity',
-    news: 'nav.news',
-    compatibility: 'nav.compatibility',
-    settings: 'nav.settings',
-    wiki: 'nav.wiki',
-    discover: 'nav.discover',
-    installed: 'nav.installed',
-    updates: 'nav.updates',
-    'recycle-bin': 'nav.recycleBin',
-  }
-  const moduleLabels: Record<TargetUiModule, TranslationKey> = {
-    modDetection: 'compatibility.modDetection.title',
-    dllManager: 'compatibility.dllManager.title',
-    debugConsole: 'settings.modules.debugConsole.title',
-    worldEditor: 'settings.modules.worldEditor.title',
-    modloaderUi: 'settings.modules.modloaderUi.title',
-    wiki: 'settings.modules.wiki.title',
-    network: 'settings.modules.network.title',
-    runtimeDiagnostics: 'settings.modules.runtimeDiagnostics.title',
-    gameProfileDiscovery: 'settings.modules.gameProfileDiscovery.title',
-    updates: 'settings.modules.updates.title',
-  }
-  const changeTargetVisibility = (
-    group: 'pages' | 'modules',
-    id: TargetUiPage | TargetUiModule,
-    targetId: 'client' | 'server',
-    visible: boolean,
-  ) => {
-    const next = {
-      ...targetUi,
-      visibility: {
-        ...targetUi.visibility,
-        [targetId]: {
-          ...targetUi.visibility[targetId],
-          [group]: {
-            ...targetUi.visibility[targetId][group],
-            [id]: visible,
-          },
-        },
-      },
-    }
-    setSettings({ ...settings, targetUi: next })
-    postRequest('save-setting', {
-      scope: 'general',
-      key: 'uiTargets',
-      value: next,
-    })
-  }
   const visibleInTarget = (module: string) =>
     isTargetUiVisible('modules', module, target, targetUi)
-  const targetVisibilityEditor = (
-    group: 'pages' | 'modules',
-    ids: readonly (TargetUiPage | TargetUiModule)[],
-    labels: Record<string, TranslationKey | undefined>,
-  ) => ids.map((id) => (
-    <div className="settings-option target-visibility-row" key={group + id}>
-      <strong>{t(labels[id]!)}</strong>
-      <Toggle
-        label={t('settings.modules.serverTargetVisibility.item', {
-          module: t(labels[id]!),
-          target: t('settings.modules.serverTargetVisibility.clientTarget'),
-        })}
-        checked={isTargetUiVisible(group, id, 'client', targetUi)}
-        disabled={group === 'pages' && id === 'settings'}
-        onChange={(value) => changeTargetVisibility(group, id, 'client', value)}
-      />
-      <Toggle
-        label={t('settings.modules.serverTargetVisibility.item', {
-          module: t(labels[id]!),
-          target: t('settings.modules.serverTargetVisibility.serverTarget'),
-        })}
-        checked={isTargetUiVisible(group, id, 'server', targetUi)}
-        disabled={group === 'pages' && id === 'settings'}
-        onChange={(value) => changeTargetVisibility(group, id, 'server', value)}
-      />
-    </div>
-  ))
   return (
     <>
-      <Card title={t('settings.modules.serverTargetVisibility.title')}>
-        <p className="hint settings-module-description">
-          {t('settings.modules.serverTargetVisibility.description')}
-        </p>
-        <div className="settings-options target-visibility-matrix">
-          <h4>{t('settings.modules.serverTargetVisibility.pages')}</h4>
-          {targetVisibilityEditor('pages', TARGET_UI_PAGES, pageLabels)}
-          <h4>{t('settings.modules.serverTargetVisibility.modules')}</h4>
-          {targetVisibilityEditor('modules', TARGET_UI_MODULES, moduleLabels)}
-        </div>
-        <SettingsRow
-          label={t('settings.modules.serverTargetVisibility.wikiLinkTarget')}
-          control={
-            <select
-              value={targetUi.wikiLinkTarget}
-              onChange={(event) => {
-                const next = { ...targetUi, wikiLinkTarget: event.target.value as typeof targetUi.wikiLinkTarget }
-                setSettings({ ...settings, targetUi: next })
-                postRequest('save-setting', { scope: 'general', key: 'uiTargets', value: next })
-              }}
-            >
-              {(['current', 'client', 'server'] as const).map((value) => (
-                <option key={value} value={value}>
-                  {t(('settings.modules.serverTargetVisibility.wikiLinkTarget.' + value) as TranslationKey)}
-                </option>
-              ))}
-            </select>
-          }
-        />
-      </Card>
       {visibleInTarget('updates') && <UpdatePreferences
         system={system}
         automatic={automatic}
@@ -433,6 +441,34 @@ export function ModulePreferencesEditor({
                     }
                   />
                 ))}
+              {module === 'wiki' && (
+                <SettingsRow
+                  label={t('settings.modules.serverTargetVisibility.wikiLinkTarget')}
+                  control={
+                    <select
+                      value={targetUi.wikiLinkTarget}
+                      onChange={(event) => {
+                        const next = {
+                          ...targetUi,
+                          wikiLinkTarget: event.target.value as typeof targetUi.wikiLinkTarget,
+                        }
+                        setSettings({ ...settings, targetUi: next })
+                        postRequest('save-setting', {
+                          scope: 'general',
+                          key: 'uiTargets',
+                          value: next,
+                        })
+                      }}
+                    >
+                      {(['current', 'client', 'server'] as const).map((value) => (
+                        <option key={value} value={value}>
+                          {t((`settings.modules.serverTargetVisibility.wikiLinkTarget.${value}`) as TranslationKey)}
+                        </option>
+                      ))}
+                    </select>
+                  }
+                />
+              )}
               {module === 'wiki' && (
                 <div className="wiki-module-actions">
                   <strong>{t('settings.modules.wiki.actions')}</strong>
