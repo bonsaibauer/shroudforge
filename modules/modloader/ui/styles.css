@@ -36,6 +36,8 @@
 .shell.server-target-active .feature-banner{background:linear-gradient(145deg,#203652,#162943)}
 .shell.server-target-active .modal{background:linear-gradient(145deg,#223956,#172a44)}
 .shell.server-target-active .segments{background:linear-gradient(135deg,#1c304d,#14243b)}
+.shell.server-target-active input:not([type=checkbox]):not([type=radio]):not([type=range]),.shell.server-target-active select,.shell.server-target-active textarea,.shell.server-target-active output{background-color:#13243c}
+.shell.server-target-active .language-popover,.shell.server-target-active .server-admin-visual{background:#172a44}
 .language-select{display:flex;align-items:center;gap:10px}.language-select select{flex:1}
 
 html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(--sf-text);background:var(--sf-bg);font-family:var(--sf-font);font-size:14px}.shell{height:100%;display:grid;grid-template-rows:66px minmax(0,1fr);background:radial-gradient(circle at 78% -12%,rgba(65,149,182,.13),transparent 35%),radial-gradient(circle at 6% 100%,rgba(202,170,103,.08),transparent 30%),var(--sf-bg)}
