@@ -1,0 +1,7 @@
+{
+  "id": "video-youtube",
+  "labelKey": "mod.link.badge.videoYoutube",
+  "descriptionKey": "mod.link.badge.videoYoutube.description",
+  "icon": "video-youtube",
+  "appearance": "youtube"
+}

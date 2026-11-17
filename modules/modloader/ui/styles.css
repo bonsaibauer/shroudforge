@@ -361,3 +361,4 @@ body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-g
 .remote-target.server-selected button.server-target[aria-pressed="true"]{border-color:rgba(255,220,145,.82);color:#ffe7ae;background-color:var(--sf-gold-soft);box-shadow:0 0 0 1px rgba(222,170,70,.24),0 0 9px 2px rgba(235,185,76,.48)}
 @keyframes remote-server-glint{to{--remote-server-glint-angle:360deg}}
 @media(prefers-reduced-motion:reduce){.remote-target button.server-target::after{animation:none;--remote-server-glint-angle:35deg}.remote-target.server-selected button.server-target[aria-pressed="true"]{box-shadow:0 0 0 1px rgba(255,225,157,.58),0 0 8px 2px rgba(235,185,76,.42)}}
+.mod-links .header-link.discord{--header-color:#b4baff;--header-border:rgba(88,101,242,.48);--header-bg:rgba(55,63,145,.3)}.mod-links .header-link.youtube{--header-color:#ff9c9c;--header-border:rgba(255,72,72,.42);--header-bg:rgba(112,28,28,.28)}

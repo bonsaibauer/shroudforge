@@ -1,0 +1,7 @@
+{
+  "id": "community-discord",
+  "labelKey": "mod.link.badge.communityDiscord",
+  "descriptionKey": "mod.link.badge.communityDiscord.description",
+  "icon": "discord",
+  "appearance": "discord"
+}
