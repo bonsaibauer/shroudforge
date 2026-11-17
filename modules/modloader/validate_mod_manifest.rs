@@ -170,3 +170,58 @@ fn condition_matches_type(value: &serde_json::Value, value_type: SettingValueTyp
         SettingValueType::Array => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+    use std::path::Path;
+
+    fn registered_link_ids() -> Vec<String> {
+        serde_json::from_str(include_str!("mod_link_order.json"))
+            .expect("the link registry is a JSON list")
+    }
+
+    #[test]
+    fn every_registered_link_id_has_one_modloader_button_definition() {
+        let links = Path::new(env!("CARGO_MANIFEST_DIR")).join("ui/links");
+        let ids = registered_link_ids();
+        for id in &ids {
+            let path = links.join(format!("{id}.json"));
+            let text = std::fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            let definition: Value = serde_json::from_str(&text)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            assert_eq!(definition["id"], id.as_str(), "{}", path.display());
+        }
+        for entry in std::fs::read_dir(&links).expect("the link definitions directory exists") {
+            let path = entry.expect("a link definition entry is readable").path();
+            if path.extension().is_some_and(|extension| extension == "json") {
+                let stem = path.file_stem().and_then(|stem| stem.to_str()).unwrap_or_default();
+                assert!(
+                    ids.iter().any(|id| id == stem),
+                    "{} is not in mod_link_order.json",
+                    path.display()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn discord_and_youtube_links_are_accepted_and_unknown_links_refused() {
+        let manifest = |links: Value| {
+            crate::parse_manifest_with_extension(
+                Path::new("."),
+                json!({"id": "sf-links", "name": "Links", "version": "1.0.0"}),
+                Some(json!({"schemaVersion": 1, "enabled": false, "links": links})),
+            )
+        };
+        let accepted = manifest(json!({
+            "community-discord": "https://discord.com/invite/example",
+            "video-youtube": "https://www.youtube.com/@example"
+        }))
+        .expect("Discord and YouTube links are registered");
+        assert_eq!(accepted.links.0.len(), 2);
+        assert!(manifest(json!({"video-twitch": "https://www.twitch.tv/example"})).is_err());
+        assert!(manifest(json!({"community-discord": "http://discord.com/invite/example"})).is_err());
+    }
+}
