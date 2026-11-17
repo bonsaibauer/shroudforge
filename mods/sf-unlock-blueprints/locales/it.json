@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "SF Unlock Blueprints",
     "description": "Sblocca tutti i progetti dopo il riavvio, indipendentemente dai requisiti di sblocco della ricetta originale. Avviso: per annullare questa modifica è necessario reimpostare tutti i progressi di sblocco interessati. Pertanto, questa opzione è disabilitata per impostazione predefinita."

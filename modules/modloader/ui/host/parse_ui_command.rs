@@ -1,7 +1,7 @@
 use super::loader_settings_input::UiSettings;
 use super::record_ui_log::UiLogEvent;
-use shroudforge_package::HotkeyAssessmentTarget;
 use serde::{Deserialize, Serialize};
+use shroudforge_package::HotkeyAssessmentTarget;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,6 +46,8 @@ pub(crate) struct UiCommand {
     #[serde(default)]
     pub(crate) read: Option<bool>,
     #[serde(default)]
+    pub(crate) target: Option<String>,
+    #[serde(default)]
     pub(crate) project_id: Option<String>,
     #[serde(default)]
     pub(crate) title: Option<String>,
@@ -63,6 +65,8 @@ pub(crate) struct UiCommand {
     pub(crate) key: Option<String>,
     #[serde(default)]
     pub(crate) value: serde_json::Value,
+    #[serde(default, skip_serializing)]
+    pub(crate) password: Option<String>,
     #[serde(default)]
     pub(crate) request_id: Option<String>,
     #[serde(default)]
@@ -79,6 +83,7 @@ pub(crate) enum Command {
     ResetWindowGeometry(String, String, String),
     Refresh(Option<String>),
     CopyLogs(String),
+    FetchServerMods(String, String),
     RefreshMod(String, String),
     ReloadSettings(String),
     OpenUrl(String, String),
@@ -94,13 +99,14 @@ pub(crate) enum Command {
     AssessHotkey(HotkeyAssessmentTarget, String),
     SaveSettings(UiSettings, String),
     SaveSetting(String, Option<String>, String, serde_json::Value, String),
+    RemoteAdminLogin(String, String),
     BrowsePath(String, String),
     OpenPath(String, String),
     SetWindowVisibility(String, bool, String),
     SaveLanguage(String, String),
     RunModAction(String, String, String),
     UpdaterRequest(String, String, String, serde_json::Value),
-    SetNewsRead(Vec<String>, bool, String),
+    SetNewsRead(Vec<String>, bool, bool, String),
     Diagnostics(String, Option<String>, String),
     UiReady,
     UiError(String),
@@ -131,6 +137,10 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
         },
         "refresh" => Command::Refresh(value.request_id),
         "copy-logs" => Command::CopyLogs(value.request_id.unwrap_or_default()),
+        "fetch-server-mods" => Command::FetchServerMods(
+            value.locale.unwrap_or_else(|| "en-GB".into()),
+            value.request_id.unwrap_or_default(),
+        ),
         "refresh-mod" => match value.mod_id {
             Some(id) => Command::RefreshMod(id, value.request_id.unwrap_or_default()),
             None => return None,
@@ -203,6 +213,12 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
             ),
             _ => return None,
         },
+        "remote-admin-login" => match value.password {
+            Some(password) if !password.is_empty() && password.len() <= 1024 => {
+                Command::RemoteAdminLogin(password, value.request_id.unwrap_or_default())
+            }
+            _ => return None,
+        },
         "browse-path" => match value.key {
             Some(key) => Command::BrowsePath(key, value.request_id.unwrap_or_default()),
             None => return None,
@@ -226,6 +242,11 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
         "set-news-read" => Command::SetNewsRead(
             value.ids.unwrap_or_default(),
             value.read.unwrap_or(true),
+            match value.target.as_deref().unwrap_or("client") {
+                "client" => false,
+                "server" => true,
+                _ => return None,
+            },
             value.request_id.unwrap_or_default(),
         ),
         "ui-ready" => Command::UiReady,

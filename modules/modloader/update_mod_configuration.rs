@@ -6,14 +6,15 @@ use std::path::Path;
 pub(crate) fn update_mod_configuration(
     root: &Path,
     id: &str,
-    expected_revision: &str,
-    update: impl FnOnce(&mut serde_json::Value) -> Result<(), String>,
+    expected_revision: Option<&str>,
+    update: impl FnOnce(&mut serde_json::Value, &crate::ModManifest) -> Result<(), String>,
 ) -> Result<(), String> {
+    let _lock = shroudforge_loader_config::config::installation_lock(root)?;
     let package = find_mod_package(root, id).ok_or("mod package not found")?;
     let manifest = crate::config::read_manifest_path(root, &package)?;
     let current_state =
         serde_json::json!({"enabled":manifest.enabled,"settings":manifest.setting_values});
-    if config_revision(&current_state) != expected_revision {
+    if expected_revision.is_some_and(|expected| config_revision(&current_state) != expected) {
         return Err("Mod settings changed since they were displayed. Reload before saving".into());
     }
     let mut extension = match read_package_file(&package, "extended.mod.json") {
@@ -28,7 +29,7 @@ pub(crate) fn update_mod_configuration(
         }
         Err(error) => return Err(error),
     };
-    update(&mut extension)?;
+    update(&mut extension, &manifest)?;
     crate::parse_mod_manifest::validate_extended_mod_document(root, &extension)?;
     let wire_manifest = serde_json::from_slice(&read_package_file(&package, "mod.json")?)
         .map_err(|error| error.to_string())?;
@@ -98,7 +99,7 @@ mod tests {
         ));
         let revision = config_revision(&serde_json::json!({"enabled":false,"settings":{}}));
 
-        update_mod_configuration(&root, "example", &revision, |extension| {
+        update_mod_configuration(&root, "example", Some(&revision), |extension, _| {
             extension["enabled"] = true.into();
             Ok(())
         })
@@ -118,7 +119,7 @@ mod tests {
         let (root, package) = test_package(None);
         let revision = config_revision(&serde_json::json!({"enabled":false,"settings":{}}));
 
-        update_mod_configuration(&root, "example", &revision, |extension| {
+        update_mod_configuration(&root, "example", Some(&revision), |extension, _| {
             extension["enabled"] = true.into();
             Ok(())
         })
@@ -169,7 +170,7 @@ mod tests {
             br#"{"schemaVersion":1,"enabled":false,"launcher":"SF"}"#,
         ));
 
-        let result = update_mod_configuration(&root, "example", "stale", |extension| {
+        let result = update_mod_configuration(&root, "example", Some("stale"), |extension, _| {
             extension["enabled"] = true.into();
             Ok(())
         });
@@ -180,6 +181,58 @@ mod tests {
             saved,
             br#"{"schemaVersion":1,"enabled":false,"launcher":"SF"}"#
         );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn concurrent_writes_from_the_same_revision_serialize_and_reject_the_stale_write() {
+        let (root, package) = test_package(Some(
+            br#"{"schemaVersion":1,"enabled":false,"launcher":"SF"}"#,
+        ));
+        let revision = config_revision(&serde_json::json!({"enabled":false,"settings":{}}));
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+
+        let (first, second) = std::thread::scope(|scope| {
+            let first_barrier = barrier.clone();
+            let first_root = &root;
+            let first_revision = &revision;
+            let first = scope.spawn(move || {
+                first_barrier.wait();
+                update_mod_configuration(
+                    first_root,
+                    "example",
+                    Some(first_revision),
+                    |extension, _| {
+                        extension["enabled"] = true.into();
+                        Ok(())
+                    },
+                )
+            });
+            let second_barrier = barrier.clone();
+            let second_root = &root;
+            let second_revision = &revision;
+            let second = scope.spawn(move || {
+                second_barrier.wait();
+                update_mod_configuration(
+                    second_root,
+                    "example",
+                    Some(second_revision),
+                    |extension, _| {
+                        extension["enabled"] = true.into();
+                        Ok(())
+                    },
+                )
+            });
+            barrier.wait();
+            (first.join().unwrap(), second.join().unwrap())
+        });
+
+        assert_ne!(first.is_ok(), second.is_ok());
+        assert!(first.is_err() || second.is_err());
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(package.join("extended.mod.json")).unwrap())
+                .unwrap();
+        assert_eq!(saved["enabled"], true);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

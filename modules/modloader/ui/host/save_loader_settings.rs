@@ -44,12 +44,18 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                 ),
                 (
                     "modloaderUi",
-                    &["enabled", "startPage", "toggleKey", "refreshMilliseconds"][..],
+                    &[
+                        "enabled",
+                        "startPage",
+                        "toggleKey",
+                        "refreshMilliseconds",
+                    ][..],
                 ),
                 (
                     "wiki",
                     &[
                         "enabled",
+                        "itemsPerPage",
                         "pageSize",
                         "maxResultsPerQuery",
                         "refreshIntervalMinutes",
@@ -57,9 +63,16 @@ pub(crate) fn save_settings(root: &Path, settings: &UiSettings) -> Result<(), St
                 ),
                 (
                     "worldEditor",
-                    &["enabled", "toggleKey", "refreshMilliseconds"][..],
+                    &[
+                        "enabled",
+                        "toggleKey",
+                        "refreshMilliseconds",
+                    ][..],
                 ),
-                ("gameProfileDiscovery", &["enabled"][..]),
+                (
+                    "gameProfileDiscovery",
+                    &["enabled"][..],
+                ),
                 (
                     "runtimeDiagnostics",
                     &[

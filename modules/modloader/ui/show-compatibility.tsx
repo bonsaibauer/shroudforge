@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { Card } from '../../ui-resources/show-card'
 import { WikiHelp } from '../../wiki/ui/show-wiki-help'
+import { isTargetUiVisible } from '../../loader-config/ui/module-visibility'
 import type { WikiModuleSettings } from '../../wiki/mediawiki-api'
 import type { ModDependencyInfo, ModInfo } from './mod-types'
 import { Hotkeys, hasHotkeyConflicts } from '../../hotkeys/ui/show-hotkeys'
@@ -125,8 +126,23 @@ export function Compatibility({
   setTab(tab: CompatibilityTab): void
 }) {
   const { t } = useI18n()
+  const target = data.settings.modulePreferences?.modloaderUi?.remoteTarget === 'server'
+    ? 'server'
+    : 'client'
+  const moduleVisible = (module: string) =>
+    isTargetUiVisible('modules', module, target, data.settings.targetUi)
+  const allowedTabs: CompatibilityTab[] = []
+  if (moduleVisible('modDetection')) allowedTabs.push('mod-detection', 'dependencies')
+  if (moduleVisible('dllManager')) allowedTabs.push('dll-manager')
+  if (moduleVisible('modloaderUi')) allowedTabs.push('hotkeys')
+  if (moduleVisible('runtimeDiagnostics')) allowedTabs.push('engine')
+  const activeTab = allowedTabs.includes(tab) ? tab : allowedTabs[0] ?? null
+  const showWikiHelp = moduleVisible('wiki')
   const [showAllDependencies, setShowAllDependencies] = useState(false)
   const loggedTab = useRef<string | null>(null)
+  useEffect(() => {
+    if (allowedTabs.length && !allowedTabs.includes(tab)) setTab(allowedTabs[0])
+  }, [tab, allowedTabs.join('|'), setTab])
   useEffect(() => {
     if (loggedTab.current === tab) return
     loggedTab.current = tab
@@ -401,29 +417,16 @@ export function Compatibility({
           </>
         }
       />
-      <Segmented
-        value={tab}
+      {allowedTabs.length > 0 && <Segmented
+        value={activeTab!}
         onChange={(value) => setTab(value as CompatibilityTab)}
         items={[
+          ...(moduleVisible('modDetection') ? [
           [
             'mod-detection',
             <CompatibilityTabLabel
               label={t('compatibility.tab.modDetection')}
               status={modDetectionStatus(data)}
-            />,
-          ],
-          [
-            'dll-manager',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.dllManager')}
-              status={dllStatus}
-            />,
-          ],
-          [
-            'hotkeys',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.hotkeys')}
-              status={hasHotkeyConflicts(data) ? 'warning' : 'ok'}
             />,
           ],
           [
@@ -433,6 +436,26 @@ export function Compatibility({
               status={dependencyStatus(data)}
             />,
           ],
+          ] : []),
+          ...(moduleVisible('dllManager') ? [
+          [
+            'dll-manager',
+            <CompatibilityTabLabel
+              label={t('compatibility.tab.dllManager')}
+              status={dllStatus}
+            />,
+          ],
+          ] : []),
+          ...(moduleVisible('modloaderUi') ? [
+          [
+            'hotkeys',
+            <CompatibilityTabLabel
+              label={t('compatibility.tab.hotkeys')}
+              status={hasHotkeyConflicts(data) ? 'warning' : 'ok'}
+            />,
+          ],
+          ] : []),
+          ...(moduleVisible('runtimeDiagnostics') ? [
           [
             'engine',
             <CompatibilityTabLabel
@@ -440,11 +463,12 @@ export function Compatibility({
               status={engineStatus}
             />,
           ],
+          ] : []),
         ]}
-      />
-      {tab === 'mod-detection' && (
+      />}
+      {activeTab === 'mod-detection' && (
         <div className="settings-module-list compatibility-sections">
-          <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
+          {showWikiHelp && <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
           <Card title={t('compatibility.modDetection.title')}>
             <p className="hint settings-module-description">
               {t('compatibility.modDetection.description')}
@@ -497,11 +521,11 @@ export function Compatibility({
           </Card>
         </div>
       )}
-      {tab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} />}
-      {tab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} />}
-      {tab === 'dependencies' && (
+      {activeTab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} showWikiHelp={showWikiHelp} />}
+      {activeTab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} />}
+      {activeTab === 'dependencies' && (
         <div className="settings-module-list compatibility-sections">
-          <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
+          {showWikiHelp && <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
           <section className="settings-module compatibility-section">
             <header>
               <div>
@@ -553,9 +577,9 @@ export function Compatibility({
           </section>
         </div>
       )}
-      {tab === 'engine' && (
+      {activeTab === 'engine' && (
         <>
-          <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
+          {showWikiHelp && <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
           <section className={`compatibility-summary ${overall}`}>
             <span className={`compatibility-summary-icon ${overall}`}>
               <Icon
@@ -669,10 +693,11 @@ function normalizedDllNames(names: unknown): string[] {
     : []
 }
 
-function DllManagerPanel({ data, wikiModuleSettings, openWikiCategory }: {
+function DllManagerPanel({ data, wikiModuleSettings, openWikiCategory, showWikiHelp }: {
   data: Snapshot
   wikiModuleSettings?: WikiModuleSettings
   openWikiCategory(category: string): void
+  showWikiHelp: boolean
 }) {
   const { t } = useI18n()
   const manager = data.settings.modulePreferences?.dllManager || {}
@@ -733,7 +758,7 @@ function DllManagerPanel({ data, wikiModuleSettings, openWikiCategory }: {
 
   return (
     <div className="settings-module-list compatibility-sections dll-manager">
-      <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />
+      {showWikiHelp && <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
       <Card title={t('compatibility.dllManager.title')}>
         <p className="hint settings-module-description">{t('compatibility.dllManager.description')}</p>
         <ModuleEnabledRow label={t('settings.modules.field.active')} enabled={enabled} onChange={(value) => {

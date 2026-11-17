@@ -15,12 +15,28 @@ pub fn normalize_legacy_event_level(mut value: serde_json::Value) -> serde_json:
 }
 
 pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Notice> {
+    read_notifications_from(root, mods, true)
+}
+
+pub fn read_event_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Notice> {
+    read_notifications_from(root, mods, false)
+}
+
+fn read_notifications_from(
+    root: &Path,
+    mods: &[ModNotification<'_>],
+    include_bundled_messages: bool,
+) -> Vec<Notice> {
     let events =
         crate::config::read_document(root, crate::documents::EVENTS_STATE).unwrap_or_default();
-    let news = crate::read(root)
-        .ok()
-        .and_then(|value| value.get("messages").and_then(|v| v.as_array()).cloned())
-        .unwrap_or_default();
+    let bundled_messages = if include_bundled_messages {
+        crate::read(root)
+            .ok()
+            .and_then(|value| value.get("messages").and_then(|v| v.as_array()).cloned())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     let event_notices = events
         .as_object()
         .into_iter()
@@ -34,7 +50,7 @@ pub fn read_notifications(root: &Path, mods: &[ModNotification<'_>]) -> Vec<Noti
         .collect::<Vec<_>>();
     let mut notices = event_notices
         .into_iter()
-        .chain(news)
+        .chain(bundled_messages)
         .filter_map(|value| {
             let mod_id = value.get("modId").and_then(|value| value.as_str());
             Some(Notice {

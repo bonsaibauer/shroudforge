@@ -25,7 +25,7 @@ Create <code>mod.json</code> in the new folder. Change the ID, name, author, and
 
 <pre>
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/manifest.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
   "id": "yourname.first-mod",
   "name": "My First Mod",
   "version": "1.0.0",

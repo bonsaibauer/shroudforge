@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "SF Crafting Essentials",
     "description": "Regola i costi delle ricette e i tempi di produzione e impedisce il consumo degli articoli supportati quando utilizzati."

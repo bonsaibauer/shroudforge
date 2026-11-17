@@ -12,6 +12,13 @@ pub fn read_loader(root: &Path) -> Result<Value, String> {
     Ok(result)
 }
 
+pub fn read_loader_file(root: &Path, path: &Path) -> Result<Value, String> {
+    let bytes = fs::read(path).map_err(|error| error.to_string())?;
+    let value = serde_json::from_slice::<Value>(&bytes).map_err(|error| error.to_string())?;
+    validate_document(root, crate::documents::LOADER, &value)?;
+    Ok(value)
+}
+
 pub(crate) fn read_loader_unvalidated(root: &Path) -> Result<Value, String> {
     let path = document_path(root, crate::documents::LOADER);
     let mut result = read_loader_defaults()?;

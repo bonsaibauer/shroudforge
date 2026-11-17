@@ -28,6 +28,7 @@ PRIORITY_LANGUAGES = [
 PRIMARY_CATEGORY = "guide:Shroudforge"
 ARTICLE_CATEGORIES = {
     "mod-settings-search": "Modding:Shroudforge",
+    "dinput8-chain": "Modding:Shroudforge",
 }
 EXTRA_CATEGORIES = {
     "mod-settings-search": ["Mod-extended-json"],

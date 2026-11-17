@@ -3947,6 +3947,7 @@ dependencies = [
  "shroudforge-player-name",
  "shroudforge-release-feed",
  "shroudforge-runtime-diagnostics",
+ "shroudforge-steam-networking",
  "shroudforge-ui-resources",
  "shroudforge-window-management",
  "tao",
@@ -3983,6 +3984,9 @@ dependencies = [
  "shroudforge-game-assets",
  "shroudforge-hotkeys",
  "shroudforge-loader-config",
+ "shroudforge-news",
+ "shroudforge-runtime-diagnostics",
+ "tempfile",
  "thiserror 2.0.20",
  "tracing",
  "walkdir",
@@ -4035,11 +4039,16 @@ dependencies = [
 name = "shroudforge-steam-networking"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
  "mlua",
+ "semver",
  "serde_json",
+ "shroudforge-hotkeys",
  "shroudforge-loader-config",
+ "shroudforge-news",
  "shroudforge-package",
  "tracing",
+ "uuid",
  "windows-sys 0.61.2",
 ]
 

@@ -14,11 +14,11 @@ Les textes visibles dans le Modloader et les textes Lua utilisent les mêmes fic
 
 Ajoutez un fichier <code>locales/&lt;code&gt;.json</code> par langue. Les codes actuels du sélecteur du Modloader sont <code>de</code>, <code>de-AT</code>, <code>de-CH</code>, <code>en-GB</code>, <code>en-US</code>, <code>es</code>, <code>fr</code>, <code>hi</code>, <code>it</code>, <code>ja</code>, <code>nl</code>, <code>pl</code>, <code>sv</code> et <code>zh</code>. Le nom du fichier reprend exactement le code. Ces fichiers accompagnent <code>mod.json</code> et <code>extended.mod.json</code>.
 
-Le schéma est publié sous [https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json <code>mod-locale.schema.json</code>]. Le catalogue peut traduire <code>mod.name</code>, <code>mod.description</code>, les libellés des paramètres et des options, les groupes, les actions, les notes de version et les chaînes Lua sous <code>strings</code>. Les fichiers peuvent être incomplets. Le texte source est conservé pour les traductions manquantes.
+Le schéma est publié sous [https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json <code>mod-locale.schema.json</code>]. Le catalogue peut traduire <code>mod.name</code>, <code>mod.description</code>, les libellés des paramètres et des options, les groupes, les actions, les notes de version et les chaînes Lua sous <code>strings</code>. Les fichiers peuvent être incomplets. Le texte source est conservé pour les traductions manquantes.
 
 <pre>
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "settings": {
     "severity": {
       "label": "Niveau du journal",

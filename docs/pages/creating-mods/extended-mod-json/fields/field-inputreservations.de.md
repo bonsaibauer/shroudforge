@@ -73,4 +73,4 @@ Ein ShroudForge ohne Eingabereservierungen ignoriert dieses Feld der obersten Eb
 
 ## Quelle
 
-Schema: [extended.mod.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/manifest/extended.mod.schema.json). Der Paketleser prüft, dass jeder mit `when` genannte Kontext deklariert ist, dass `keys` `keybind`-Einstellungen und `wheels` boolesche Einstellungen nennt.
+Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft, dass jeder mit `when` genannte Kontext deklariert ist, dass `keys` `keybind`-Einstellungen und `wheels` boolesche Einstellungen nennt.

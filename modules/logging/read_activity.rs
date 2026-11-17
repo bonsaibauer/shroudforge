@@ -21,7 +21,11 @@ pub struct ActivityLogEntry {
 }
 
 pub fn read_activity(root: &Path) -> Result<Vec<ActivityLogEntry>, String> {
-    let mut file = File::open(shroudforge_loader_config::paths::current_log(root))
+    read_activity_from_path(&shroudforge_loader_config::paths::current_log(root))
+}
+
+pub fn read_activity_from_path(path: &Path) -> Result<Vec<ActivityLogEntry>, String> {
+    let mut file = File::open(path)
         .map_err(|error| error.to_string())?;
     let length = file.metadata().map_err(|error| error.to_string())?.len();
     let offset = length.saturating_sub(MAX_ACTIVITY_BYTES);

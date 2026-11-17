@@ -67,4 +67,4 @@ The settings page is the same in the desktop window and in the window opened fro
 
 ## Source
 
-Schema: [extended.mod.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/manifest/extended.mod.schema.json). The package reader checks the relationships described above.
+Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks the relationships described above.

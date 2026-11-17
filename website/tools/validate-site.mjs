@@ -44,7 +44,9 @@ async function validateLocalLinks(tags, siteUrl, sourceName) {
       const url = new URL(value, `${siteUrl}/`);
       assert(["http:", "https:"].includes(url.protocol), `Unsupported link protocol in ${sourceName}.`);
       if (url.origin !== siteUrl) continue;
-      const relative = decodeURIComponent(url.pathname).replace(/^\/+/, "") || "index.html";
+      const pathname = decodeURIComponent(url.pathname);
+      let relative = pathname.replace(/^\/+/, "") || "index.html";
+      if (pathname !== "/" && pathname.endsWith("/")) relative = path.join(relative, "index.html");
       const file = path.resolve(outputDirectory, relative);
       const boundary = path.relative(outputDirectory, file);
       assert(boundary && !boundary.startsWith("..") && !path.isAbsolute(boundary), `Local link escapes website output in ${sourceName}.`);
@@ -93,7 +95,7 @@ async function validate() {
   const navigation = html.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/i)?.[1];
   assert(navigation, "Website top navigation is missing.");
   const navLinks = [...navigation.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map(match => match[1].replace(/<[^>]*>/g, "").trim());
-  assert(navLinks.length === 5 && navLinks[0] === "Files" && navLinks[1] === "Wiki" && navLinks[2] === "GitHub" && navLinks[3] === "Discord" && navLinks[4] === "YouTube", "Website navigation must contain Files, Wiki, GitHub, Discord and YouTube in that order.");
+  assert(navLinks.length === 6 && navLinks[0] === "Files" && navLinks[1] === "Tools" && navLinks[2] === "Wiki" && navLinks[3] === "GitHub" && navLinks[4] === "Discord" && navLinks[5] === "YouTube", "Website navigation must contain Files, Tools, Wiki, GitHub, Discord and YouTube in that order.");
   const youtubeLink = tagsFrom(navigation).filter(tag => tag.name === "a").at(-1);
   assert(youtubeLink?.attributes.href === config.youtubeUrl, "The rightmost navigation link must point to the configured YouTube channel.");
   const repositoryUrl = `https://github.com/${config.repository}`;
@@ -106,6 +108,7 @@ async function validate() {
   assert(footerLinks.indexOf(repositoryUrl) >= 0 && footerLinks[footerLinks.indexOf(repositoryUrl) + 1] === config.statusUrl, "The footer must place the Status link next to Source code.");
   assert(tags.some(tag => tag.name === "a" && tag.attributes.href === config.discordUrl), "Website Discord link does not match the project configuration.");
   assert(tags.some(tag => tag.name === "link" && tag.attributes.rel === "stylesheet" && tag.attributes.href === "/assets/styles.css"), "Website stylesheet is missing.");
+  assert(tags.some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/mod-settings/" && tag.attributes["aria-current"] === undefined), "Website Tools navigation must open the Mod-Settings tool.");
   assert(tags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/filters.js"), "Website release filter script is missing.");
   assert(tags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/installation-guide.js"), "Website installation guide script is missing.");
   const themeScript = tags.findIndex(tag => tag.name === "script" && tag.attributes.src === "/assets/theme.js");
@@ -147,9 +150,51 @@ async function validate() {
   const recommended = feed.releases.find(release => !release.prerelease);
   if (recommended) assert(software.softwareVersion === recommended.version, "Software metadata must describe the latest stable version.");
 
-  for (const relative of ["assets/styles.css", "assets/filters.js", "assets/installation-guide.js", "assets/theme.js", "assets/hammer.png", "assets/favicon.ico", "assets/inter-latin.woff2", "licenses/Inter-OFL.txt"]) {
+  for (const relative of ["assets/styles.css", "assets/filters.js", "assets/installation-guide.js", "assets/mod-settings.css", "assets/mod-settings.js", "assets/schemas.css", "assets/schemas.js", "assets/theme.js", "assets/hammer.png", "assets/favicon.ico", "assets/inter-latin.woff2", "licenses/Inter-OFL.txt"]) {
     await readRequired(relative);
   }
+  const previewServer = await fs.readFile(path.resolve(import.meta.dirname, "preview-site.mjs"), "utf8");
+  assert(previewServer.includes('".svg": "image/svg+xml"'), "The local website preview must serve SVG badge and Modloader icons with the correct image MIME type.");
+  const toolScript = await readRequired("assets/mod-settings.js");
+  assert(toolScript.includes("settings-disclosure-arrow") && toolScript.includes("data-disclosure-label") && toolScript.includes("'Show'") && toolScript.includes("'Hide'"), "The settings list disclosure must show a clear expand affordance.");
+  const repositoryVersion = (await fs.readFile(path.resolve(import.meta.dirname, "../../VERSION"), "utf8")).trim();
+  const toolRelative = "tools/modding/mod-settings/index.html";
+  const toolHtml = await readRequired(toolRelative);
+  const toolTags = tagsFrom(toolHtml);
+  assert(/^<!doctype html>/i.test(toolHtml.trimStart()), "Mod-Settings must be an HTML5 document.");
+  assert((toolHtml.match(/<h1\b/gi) || []).length === 1 && /<h1[^>]*>Mod-Settings<\/h1>/i.test(toolHtml), "Mod-Settings needs one visible title.");
+  assert(/<div class="tools-nav-group">\s*<div class="tools-category-label">Modding<\/div>\s*<a[^>]*href="\/tools\/modding\/mod-settings\/"[^>]*>Mod-Settings<\/a>\s*<\/div>/.test(toolHtml), "Mod-Settings must appear under the Modding category in the Tools sidebar.");
+  assert(toolHtml.includes(`value="${repositoryVersion}">${repositoryVersion}</option>`), "The preview selector must display only the current repository Modloader version.");
+  assert(toolHtml.includes('data-json-editor="manifest"') && toolHtml.includes('data-json-editor="extended"'), "Mod-Settings must expose both manifest JSON editors.");
+  assert(["id", "name", "version", "description", "authors", "license", "icon"].every(field => toolHtml.includes(`data-manifest-field="${field}"`)) && !toolHtml.includes('data-manifest-field="$schema"') && toolHtml.includes("data-manifest-dependencies") && toolHtml.includes("data-manifest-capabilities"), "The Mod-Settings form must expose manifest metadata, dependencies and capabilities without a manual schema-path field.");
+  assert(toolHtml.includes(`href="${siteUrl}/schemas/${repositoryVersion}/manifest.schema.json"`) && toolHtml.includes(`href="${siteUrl}/schemas/${repositoryVersion}/extended.mod.schema.json"`), "Both JSON editors must link to their current versioned schemas.");
+  assert(toolHtml.includes('data-line-number-list="manifest"') && toolHtml.includes('data-line-number-list="extended"') && (toolHtml.match(/data-json-warning/g) || []).length === 2, "Both JSON editors must show line numbers and accessible warning indicators.");
+  assert((toolHtml.match(/data-reset-example/g) || []).length === 1 && toolHtml.indexOf("data-reset-example") < toolHtml.indexOf("LIVE MODLOADER UI"), "Reset example must appear once at the top of the tool.");
+  assert(toolTags.some(tag => tag.name === "iframe" && tag.attributes.src === "/tools/modding/mod-settings/preview.html"), "Mod-Settings must load its browser-rendered Modloader preview.");
+  assert(toolTags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/mod-settings.js"), "Mod-Settings browser controls are missing.");
+  const toolNavigation = toolHtml.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/i)?.[1] || "";
+  assert(tagsFrom(toolNavigation).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/mod-settings/"), "The Tools navigation must keep the Mod-Settings route reachable.");
+  const standardsNavGroup = toolHtml.match(/<div class="tools-nav-group">\s*<div class="tools-category-label">Standards<\/div>([\s\S]*?)<\/div>\s*<\/div>\s*<\/aside>/)?.[0] || "";
+  assert(standardsNavGroup.includes('href="/schemas/">Schemas</a>') && standardsNavGroup.includes('class="icon ') && standardsNavGroup.includes("DInput8 Standard") && tagsFrom(standardsNavGroup).some(tag => tag.name === "a" && tag.attributes.href === config.dinput8ChainStandardUrl), "The Standards category must link to Schemas and the DInput8 Wiki article with an external-link icon.");
+  const example = JSON.parse(toolHtml.match(/<template id="mod-settings-example">([\s\S]*?)<\/template>/i)?.[1]?.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") || "null");
+  const starterManifest = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/mod.json"), "utf8"));
+  const starterExtended = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/extended.mod.json"), "utf8"));
+  starterManifest.$schema = `${siteUrl}/schemas/${repositoryVersion}/manifest.schema.json`;
+  starterExtended.$schema = `${siteUrl}/schemas/${repositoryVersion}/extended.mod.schema.json`;
+  assert(example?.version === repositoryVersion && JSON.stringify(example.manifest) === JSON.stringify(starterManifest) && JSON.stringify(example.extended) === JSON.stringify(starterExtended) && example.schemaBaseUrl === `${siteUrl}/schemas/` && Array.isArray(example.links) && example.links.length > 0, "The tool must use the current starter-mod example, versioned schema URLs, badge catalog, and Modloader version.");
+  for (const link of example.links) {
+    const iconFile = `assets/mod-settings-links/${link.icon}.svg`;
+    await readRequired(iconFile);
+  }
+  const toolIcon = await readRequired("tools/modding/mod-settings/icon.svg");
+  const starterIcon = await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/icon.svg"));
+  assert(Buffer.from(toolIcon).equals(starterIcon), "The preview mod icon must match docs/examples/starter-mod/icon.svg.");
+  const previewHtml = await readRequired("tools/modding/mod-settings/preview.html");
+  assert(previewHtml.includes("SHROUDFORGE MODLOADER") || previewHtml.includes("ShroudForge Modloader preview"), "The current Modloader UI preview bundle is missing.");
+  assert(/<script[^>]+src="\.\/preview\.js"/i.test(previewHtml) && /<link[^>]+href="\.\/preview\.css"/i.test(previewHtml), "The browser preview must load its static frontend bundle and stylesheet.");
+  const previewScript = await readRequired("tools/modding/mod-settings/preview.js");
+  assert(!previewScript.includes("preview-version-chip"), "The Modloader version must not be repeated in the preview header.");
+  await readRequired("tools/modding/mod-settings/preview.css");
   const css = await readRequired("assets/styles.css");
   assert(!/https?:\/\//.test(css), "Website fonts and styles must be hosted locally.");
   const script = await readRequired("assets/filters.js");
@@ -168,8 +213,28 @@ async function validate() {
   const robots = await readRequired("robots.txt");
   assert(robots.includes("Allow: /") && robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`), "Website robots.txt does not expose the canonical sitemap.");
   const sitemap = await readRequired("sitemap.xml");
-  assert(sitemap.includes(`<loc>${siteUrl}/</loc>`), "Website sitemap does not contain the canonical homepage.");
-  console.log(`Validated download website: ${feed.releases.length} complete releases, ${securityCount} verified security reports, canonical downloads, local assets and SEO metadata.`);
+  assert(sitemap.includes(`<loc>${siteUrl}/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/mod-settings/</loc>`) && sitemap.includes(`<loc>${siteUrl}/schemas/</loc>`) && !sitemap.includes("/standards/dinput8-chain/"), "Website sitemap must contain the homepage, Mod-Settings tool and schema catalog, with external standards linked directly.");
+  await validateLocalLinks(toolTags, siteUrl, toolRelative);
+  const schemaHtml = await readRequired("schemas/index.html");
+  const schemaTags = tagsFrom(schemaHtml);
+  assert(/^<!doctype html>/i.test(schemaHtml.trimStart()) && schemaHtml.includes("<title>Schema |") && /<h1[^>]*>Schema<\/h1>/i.test(schemaHtml), "The schema catalog must render as an HTML page titled Schema.");
+  assert(!schemaHtml.includes('class="schema-standard-panel'), "The DInput8 standard card must be separate from the schema catalog page.");
+  assert(schemaHtml.includes('data-schema-version aria-label="Modloader version"') && schemaHtml.includes(`value="${repositoryVersion}"`) && schemaHtml.includes('selected>'), "The schema catalog must select the current Modloader version.");
+  assert(schemaTags.some(tag => tag.name === "link" && tag.attributes.rel === "canonical" && tag.attributes.href === `${siteUrl}/schemas/`), "The Schema page must declare its canonical URL.");
+  await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
+  const schemaNames = ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"];
+  const snapshotDirectory = path.resolve(import.meta.dirname, "../schema-snapshots");
+  const versions = (await fs.readdir(snapshotDirectory, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name);
+  assert(versions.includes(repositoryVersion), "The current versioned schema snapshot is missing.");
+  for (const version of versions) {
+    for (const name of schemaNames) {
+      const relative = `schemas/${version}/${name}`;
+      const schema = JSON.parse(await readRequired(relative));
+      assert(schema.$id === `${siteUrl}/${relative}`, `Published schema $id must use its permanent versioned URL: ${relative}`);
+      assert(typeof schema.$schema === "string", `Published schema must declare its JSON Schema dialect: ${relative}`);
+    }
+  }
+  console.log(`Validated download website: ${feed.releases.length} releases, ${securityCount} security reports, Mod-Settings v${repositoryVersion}, versioned schemas, static preview assets and SEO metadata.`);
 }
 
 validate().catch(error => {

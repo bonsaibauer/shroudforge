@@ -1,24 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
 import { PageHeader } from '../../ui-resources/show-page-header'
+import { postRequest } from '../../transport/ui/send-host-command'
 import type { CommandResult } from '../../notifications/ui/notification-types'
 import {
   DEFAULT_WIKI_CATEGORY,
   loadWikiArticle,
   getCachedWikiArticleRefreshDelay,
-  mergeWikiPages,
   readCachedWikiCategories,
   readCachedWikiArticle,
   readCachedWikiSearch,
   refreshWikiCategories,
-  refreshWikiPageSummaries,
-  searchWikiPages,
+  searchAllWikiPages,
   selectWikiLocalePages,
   writeCachedWikiSearch,
   resolveWikiApiSettings,
   WIKI_API_SETTINGS,
+  WIKI_PAGE_SIZE_OPTIONS,
   type MediaWikiArticle,
   type WikiModuleSettings,
   type WikiPageSummary,
@@ -49,16 +49,16 @@ export function WikiPage({
   const apiSettings = resolveWikiApiSettings(moduleSettings)
   const [query, setQuery] = useState('')
   const [languageFilter, setLanguageFilter] = useState('auto')
+  const [itemsPerPage, setItemsPerPage] = useState(apiSettings.itemsPerPage)
+  const [currentPage, setCurrentPage] = useState(1)
   const [categories, setCategories] = useState(() => readCachedWikiCategories()?.categories || [])
   const [listRetryAttempt, setListRetryAttempt] = useState(0)
   const [articleRetryAttempt, setArticleRetryAttempt] = useState(0)
   const [pages, setPages] = useState<WikiPageSummary[]>([])
-  const [continuation, setContinuation] = useState<Record<string, string> | undefined>(undefined)
   const [loadingPages, setLoadingPages] = useState(false)
   const [refreshingPages, setRefreshingPages] = useState(false)
   const [hasLoadedPages, setHasLoadedPages] = useState(false)
   const [listFailed, setListFailed] = useState(false)
-  const [loadMoreFailed, setLoadMoreFailed] = useState(false)
   const [article, setArticle] = useState<MediaWikiArticle | undefined>(undefined)
   const [articleReference, setArticleReference] = useState<string>()
   const [articleFailedReference, setArticleFailedReference] = useState<string>()
@@ -68,20 +68,29 @@ export function WikiPage({
   const selectedCategoryOption = categories.find(
     (item) => item.toLocaleLowerCase() === category.toLocaleLowerCase(),
   ) ?? category
+  const activeCategory = selectedCategoryOption
   const visiblePages = useMemo(
     () => selectWikiLocalePages(pages, locale, languageFilter),
     [pages, locale, languageFilter],
   )
-  const pagesRef = useRef<WikiPageSummary[]>([])
-  const continuationRef = useRef<Record<string, string> | undefined>(undefined)
-  const listController = useRef<AbortController | undefined>(undefined)
+  const pageCount = Math.max(1, Math.ceil(visiblePages.length / itemsPerPage))
+  const displayedPage = Math.min(currentPage, pageCount)
+  const pageStart = (displayedPage - 1) * itemsPerPage
+  const pageItems = visiblePages.slice(pageStart, pageStart + itemsPerPage)
   const manualRefresh = useRef<(() => Promise<void>) | undefined>(undefined)
   const handledListRetryAttempt = useRef(0)
   const handledArticleRetryAttempt = useRef(0)
   const opened = useRef(false)
-  const loadingMore = useRef(false)
   const refreshingList = useRef(false)
   const lastArticleFailure = useRef('')
+
+  useEffect(() => {
+    setItemsPerPage(apiSettings.itemsPerPage)
+  }, [apiSettings.itemsPerPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeCategory, filter, languageFilter, locale])
 
   useEffect(() => {
     if (!apiSettings.enabled) return
@@ -137,49 +146,33 @@ export function WikiPage({
     setRefreshingPages(false)
     let active = true
     const controller = new AbortController()
-    listController.current = controller
     const cached = readCachedWikiSearch(
-      filter, locale, apiSettings.maxResultsPerQuery, category, languageFilter,
+      filter, locale, activeCategory, languageFilter,
     )
     const cacheIsFresh = Boolean(cached && !forceRefresh &&
       Date.now() - cached.savedAt < apiSettings.refreshIntervalMs)
     if (cached) {
-      pagesRef.current = cached.pages
       setPages(cached.pages)
-      setContinuation(cached.continuation)
-      continuationRef.current = cached.continuation
       setHasLoadedPages(true)
     } else {
-      pagesRef.current = []
       setPages([])
-      setContinuation(undefined)
-      continuationRef.current = undefined
       setHasLoadedPages(false)
     }
     setListFailed(false)
-    setLoadMoreFailed(false)
     setLoadingPages(!cacheIsFresh)
-    const firstPageLimit = Math.min(
-      apiSettings.pageSize,
-      apiSettings.maxResultsPerQuery,
-    )
 
     const timer = cacheIsFresh ? undefined : window.setTimeout(() => {
-      void searchWikiPages(
-        { query: filter, category, language: languageFilter, locale },
-        undefined, controller.signal, firstPageLimit,
+      void searchAllWikiPages(
+        { query: filter, category: activeCategory, language: languageFilter, locale },
+        controller.signal,
       )
         .then((result) => {
           if (!active) return
-          pagesRef.current = result.pages
           setPages(result.pages)
-          setContinuation(result.continuation)
-          continuationRef.current = result.continuation
           setHasLoadedPages(true)
           setListFailed(false)
           writeCachedWikiSearch(
-            filter, locale, result.pages, result.continuation,
-            apiSettings.maxResultsPerQuery, category, languageFilter,
+            filter, locale, result.pages, activeCategory, languageFilter,
           )
         })
         .catch((error: unknown) => {
@@ -188,7 +181,7 @@ export function WikiPage({
           setListFailed(true)
           const hasCachedResults = Boolean(cached?.pages.length)
           logUiEvent({ level: hasCachedResults ? 'WARN' : 'ERROR', source: 'wiki', operation: 'Search MediaWiki',
-            subject: category || filter || 'all-pages', message: String(error), notify: !hasCachedResults,
+            subject: activeCategory || filter || 'all-pages', message: String(error), notify: !hasCachedResults,
             notifyMessage: hasCachedResults ? undefined : t('wiki.loadFailed') })
         })
         .finally(() => {
@@ -197,48 +190,28 @@ export function WikiPage({
     }, filter ? WIKI_API_SETTINGS.searchDebounceMs : 0)
 
     const refreshList = async (manual = false) => {
-      if (loadingMore.current || refreshingList.current || controller.signal.aborted) {
+      if (refreshingList.current || controller.signal.aborted) {
         if (manual) throw new Error(t('wiki.loadFailed'))
         return
       }
       refreshingList.current = true
       setRefreshingPages(true)
       try {
-        const result = await searchWikiPages(
-          { query: filter, category, language: languageFilter, locale },
-          undefined, controller.signal, firstPageLimit,
+        const result = await searchAllWikiPages(
+          { query: filter, category: activeCategory, language: languageFilter, locale },
+          controller.signal,
         )
         if (!active) return
-        const refreshedTitles = new Set(result.pages.map((page) => page.pageTitle.toLowerCase()))
-        const loadedTail = pagesRef.current.filter((page) =>
-          page.id.startsWith('mediawiki:') && !refreshedTitles.has(page.pageTitle.toLowerCase()),
-        )
-        const hasLoadedTail = loadedTail.length > 0
-        const refreshedTail = await refreshWikiPageSummaries(loadedTail, controller.signal)
-        if (!active) return
-        const eligibleTail = refreshedTail.filter((page) =>
-          (!category || page.categories?.some((item) => item.toLocaleLowerCase() === category.toLocaleLowerCase())) &&
-          selectWikiLocalePages([page], locale, languageFilter).length > 0,
-        )
-        const next = mergeWikiPages(result.pages, eligibleTail).slice(0, apiSettings.maxResultsPerQuery)
-        pagesRef.current = next
-        setPages(next)
-        const nextContinuation = next.length >= apiSettings.maxResultsPerQuery
-          ? undefined
-          : hasLoadedTail ? continuationRef.current : result.continuation
-        setContinuation(nextContinuation)
-        continuationRef.current = nextContinuation
+        setPages(result.pages)
+        setHasLoadedPages(true)
         setListFailed(false)
-        writeCachedWikiSearch(
-          filter, locale, next, nextContinuation,
-          apiSettings.maxResultsPerQuery, category, languageFilter,
-        )
+        writeCachedWikiSearch(filter, locale, result.pages, activeCategory, languageFilter)
       } catch (error) {
         if (!active || isAbort(error)) return
         setListFailed(true)
         if (manual) throw error
         logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Refresh MediaWiki pages',
-          subject: category || filter || 'all-pages', message: String(error) })
+          subject: activeCategory || filter || 'all-pages', message: String(error) })
       } finally {
         refreshingList.current = false
         if (active) setRefreshingPages(false)
@@ -262,56 +235,9 @@ export function WikiPage({
       controller.abort()
       refreshingList.current = false
       if (manualRefresh.current === refreshManually) manualRefresh.current = undefined
-      if (listController.current === controller) listController.current = undefined
       if (interval !== undefined) window.clearInterval(interval)
     }
-  }, [apiSettings.enabled, apiSettings.maxResultsPerQuery, apiSettings.pageSize, apiSettings.refreshIntervalMs, category, filter, languageFilter, listRetryAttempt, locale, selected, t])
-
-  const loadMore = useCallback(async () => {
-    const controller = listController.current
-    if (!apiSettings.enabled || !continuation || loadingMore.current || refreshingList.current || loadingPages || selected || !controller || controller.signal.aborted) return
-    const remaining = apiSettings.maxResultsPerQuery - pagesRef.current.length
-    if (remaining <= 0) {
-      setContinuation(undefined)
-      continuationRef.current = undefined
-      return
-    }
-    loadingMore.current = true
-    setLoadMoreFailed(false)
-    setLoadingPages(true)
-    logUiEvent({ level: 'DEBUG', source: 'wiki', operation: 'Load more MediaWiki pages',
-      subject: filter || 'all-pages', message: `Requested more results. Current count: ${pagesRef.current.length}.` })
-    try {
-      const result = await searchWikiPages(
-        { query: filter, category, language: languageFilter, locale },
-        continuation,
-        controller.signal,
-        Math.min(apiSettings.pageSize, remaining),
-      )
-      const next = mergeWikiPages(pagesRef.current, result.pages).slice(0, apiSettings.maxResultsPerQuery)
-      pagesRef.current = next
-      setPages(next)
-      const nextContinuation = next.length >= apiSettings.maxResultsPerQuery
-        ? undefined
-        : result.continuation
-      setContinuation(nextContinuation)
-      continuationRef.current = nextContinuation
-      writeCachedWikiSearch(
-        filter, locale, next, nextContinuation,
-        apiSettings.maxResultsPerQuery, category, languageFilter,
-      )
-    } catch (error) {
-      if (!isAbort(error)) {
-        setLoadMoreFailed(true)
-        logUiEvent({ level: 'WARN', source: 'wiki', operation: 'Load more MediaWiki pages',
-          subject: filter || 'all-pages', message: String(error), notify: true,
-          notifyMessage: t('wiki.loadFailed') })
-      }
-    } finally {
-      loadingMore.current = false
-      if (!controller.signal.aborted) setLoadingPages(false)
-    }
-  }, [apiSettings.enabled, apiSettings.maxResultsPerQuery, apiSettings.pageSize, category, continuation, filter, languageFilter, loadingPages, locale, selected, t])
+  }, [apiSettings.enabled, apiSettings.refreshIntervalMs, activeCategory, filter, languageFilter, listRetryAttempt, locale, selected, t])
 
   useEffect(() => {
     if (!selected || !apiSettings.enabled) {
@@ -415,7 +341,7 @@ export function WikiPage({
   }, [apiSettings.enabled, apiSettings.refreshIntervalMs, selected, locale, languageFilter, pages, articleRetryAttempt, t])
 
   const currentArticle = selected && articleReference === `${selected}:${locale}:${languageFilter}` ? article : undefined
-  const searchKey = `${locale}:${languageFilter}:${category}:${filter}:${visiblePages.length}`
+  const searchKey = `${locale}:${languageFilter}:${activeCategory}:${filter}:${visiblePages.length}`
   const lastSearch = useRef('')
   useEffect(() => {
     if (selected || lastSearch.current === searchKey) return
@@ -438,6 +364,19 @@ export function WikiPage({
   function selectArticleCategory(nextCategory: string) {
     onOpenCategory(nextCategory)
     setQuery('')
+  }
+
+  function changeItemsPerPage(value: string) {
+    const next = Number(value)
+    if (!WIKI_PAGE_SIZE_OPTIONS.some((option) => option === next)) return
+    setItemsPerPage(next)
+    setCurrentPage(1)
+    postRequest('save-setting', {
+      scope: 'module',
+      module: 'wiki',
+      key: 'itemsPerPage',
+      value: next,
+    })
   }
 
   function changeQuery(nextQuery: string) {
@@ -516,18 +455,31 @@ export function WikiPage({
       </div>
       <p className="wiki-result-count" aria-live="polite">{t('wiki.resultsCount', { count: visiblePages.length })}</p>
       <div className="wiki-article-list" aria-busy={loadingPages || refreshingPages}>
-        {visiblePages.map((item) => <button type="button" className="wiki-article-link" key={item.pageTitle}
+        {pageItems.map((item) => <button type="button" className="wiki-article-link" key={item.pageTitle}
           onClick={() => selectArticle(item.pageTitle)}>
           <WikiArtwork article={item} />
           <span><strong>{item.title}</strong>{item.summary && <small>{item.summary}</small>}</span>
           <Icon name="wiki" />
         </button>)}
       </div>
-      {continuation && <div className="wiki-load-more">
-        <button type="button" className="button ghost" disabled={loadingPages || refreshingPages}
-          onClick={() => void loadMore()}>{t('wiki.loadMore')}</button>
-      </div>}
-      {loadMoreFailed && <p className="hint" role="alert">{t('wiki.loadFailed')}</p>}
+      {hasLoadedPages && visiblePages.length > 0 && <nav className="wiki-pagination"
+        aria-label={t('wiki.pagination')}>
+        <label className="wiki-page-size">
+          <span>{t('wiki.itemsPerPage')}</span>
+          <select value={itemsPerPage} onChange={(event) => changeItemsPerPage(event.currentTarget.value)}>
+            {WIKI_PAGE_SIZE_OPTIONS.map((option) => <option value={option} key={option}>{option}</option>)}
+          </select>
+        </label>
+        <div className="wiki-page-controls">
+          <button type="button" className="button ghost" aria-label={t('wiki.previousPage')}
+            disabled={displayedPage <= 1 || loadingPages || refreshingPages}
+            onClick={() => setCurrentPage(displayedPage - 1)}>‹</button>
+          <span aria-live="polite">{t('wiki.pageIndicator', { current: displayedPage, total: pageCount })}</span>
+          <button type="button" className="button ghost" aria-label={t('wiki.nextPage')}
+            disabled={displayedPage >= pageCount || loadingPages || refreshingPages}
+            onClick={() => setCurrentPage(displayedPage + 1)}>›</button>
+        </div>
+      </nav>}
       {listFailed && <><p className="hint" role="alert">{t('wiki.loadFailed')}</p>
         <button type="button" className="button ghost" onClick={retryList}>{t('updater.retry')}</button></>}
       {!listFailed && hasLoadedPages && visiblePages.length === 0 && <p className="hint">{t('wiki.empty')}</p>}

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.module-target-visibility",
+  "revision": 1,
+  "name": "Migrate target visibility settings",
+  "description": "Moves saved server-target visibility into the Client and Server matrix and removes the former per-module fields.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "migrate-module-target-visibility"
+}

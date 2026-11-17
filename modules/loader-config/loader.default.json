@@ -5,7 +5,62 @@
     "showNativeModMenu": true,
     "zoomPercent": 100,
     "usernameMode": "auto",
-    "messageNameFallback": "Flameborn"
+    "messageNameFallback": "Flameborn",
+    "uiTargets": {
+      "visibility": {
+        "client": {
+          "pages": {
+            "activity": true,
+            "news": true,
+            "compatibility": true,
+            "settings": true,
+            "wiki": true,
+            "discover": true,
+            "installed": true,
+            "updates": true,
+            "recycle-bin": true
+          },
+          "modules": {
+            "modDetection": true,
+            "dllManager": true,
+            "debugConsole": true,
+            "worldEditor": true,
+            "modloaderUi": true,
+            "wiki": true,
+            "network": true,
+            "runtimeDiagnostics": true,
+            "gameProfileDiscovery": true,
+            "updates": true
+          }
+        },
+        "server": {
+          "pages": {
+            "activity": true,
+            "news": true,
+            "compatibility": true,
+            "settings": true,
+            "wiki": false,
+            "discover": false,
+            "installed": true,
+            "updates": false,
+            "recycle-bin": false
+          },
+          "modules": {
+            "modDetection": true,
+            "dllManager": true,
+            "debugConsole": true,
+            "worldEditor": true,
+            "modloaderUi": true,
+            "wiki": false,
+            "network": true,
+            "runtimeDiagnostics": true,
+            "gameProfileDiscovery": true,
+            "updates": true
+          }
+        }
+      },
+      "wikiLinkTarget": "client"
+    }
   },
   "logging": {
     "minimumLevel": "INFO"
@@ -269,6 +324,7 @@
     "modloaderUi": {
       "enabled": true,
       "startPage": "news",
+      "remoteTarget": "client",
       "toggleKey": "SDL:66",
       "refreshMilliseconds": 2000,
       "window": {
@@ -277,8 +333,7 @@
     },
     "wiki": {
       "enabled": true,
-      "pageSize": 30,
-      "maxResultsPerQuery": 120,
+      "itemsPerPage": 30,
       "refreshIntervalMinutes": 1440
     },
     "network": {

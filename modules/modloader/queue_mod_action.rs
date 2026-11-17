@@ -1,16 +1,17 @@
-use shroudforge_package::package_lookup::find_mod_package;
-use shroudforge_package::package_lookup::valid_identifier;
+use crate::package_lookup::find_mod_package;
+use crate::package_lookup::valid_identifier;
 use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-pub(crate) fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<(), String> {
+/// Queue a declared action for the runtime attached to this installation.
+pub fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<(), String> {
     if !valid_identifier(id) || !valid_identifier(action) {
         return Err("invalid mod action".into());
     }
     let package = find_mod_package(root, id).ok_or("mod package not found")?;
-    let manifest = shroudforge_package::config::read_manifest_path(root, &package)?;
+    let manifest = crate::config::read_manifest_path(root, &package)?;
     let declared = manifest
         .groups
         .iter()
@@ -18,12 +19,12 @@ pub(crate) fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<()
     if !declared {
         return Err("mod action is not declared by the package".into());
     }
-    let actions = shroudforge_loader_config::paths::ui_data_dir(root).join("actions");
+    let actions = crate::paths::ui_data_dir(root).join("actions");
     fs::create_dir_all(&actions).map_err(|error| error.to_string())?;
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
-    shroudforge_loader_config::config::write_json(
+    crate::config::write_json(
         &actions.join(format!(
             "{}-{}-{}.json",
             id,

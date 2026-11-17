@@ -16,7 +16,10 @@
             <small>DEBUG CONSOLE</small>
           </div>
         </div>
-        <div id="mode" class="mode-badge desktop" data-drag-region><i></i><span id="session">DESKTOP</span></div>
+        <div class="remote-target" role="group" aria-label="Modloader target">
+          <button id="target-client" class="active" aria-pressed="true">Client</button>
+          <button id="target-server" class="server-target" aria-pressed="false">Server</button>
+        </div>
         <div class="window-controls">
           <button id="minimize" class="window-control" aria-label="Minimize console" title="Minimize">−</button>
           <button id="maximize" class="window-control" aria-label="Maximize or restore console" title="Maximize or restore">□</button>

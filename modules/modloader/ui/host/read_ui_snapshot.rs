@@ -11,7 +11,7 @@ use super::ui_snapshot_types::Snapshot;
 use super::ui_snapshot_types::SnapshotSettings;
 use super::validate_message_name::default_message_name_fallback;
 use super::validate_message_name::normalize_message_name;
-use shroudforge_loader_config::runtime_status::runtime_is_active;
+use shroudforge_loader_config::runtime_status::runtime_pid;
 use shroudforge_package::config_revision;
 use std::path::Path;
 use std::sync::Arc;
@@ -68,6 +68,53 @@ pub(crate) fn read_ui_snapshot(
         root,
         &central["modules"]["runtimeDiagnostics"],
     );
+    let remote_target = central
+        .pointer("/modules/modloaderUi/remoteTarget")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("client");
+    let active_runtime_pid = (!desktop).then(|| runtime_pid(root)).flatten();
+    let diagnostics = shroudforge_runtime_diagnostics::status(root);
+    let runtime_status = shroudforge_loader_config::config::read_document(
+        root,
+        shroudforge_runtime_diagnostics::documents::MOD_STATUS,
+    )
+    .unwrap_or(serde_json::Value::Null);
+    let connected = active_runtime_pid.is_some();
+    let network_enabled = central
+        .pointer("/modules/network/enabled")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let runtime_status_fresh = runtime_status["running"] == true
+        && runtime_status["pid"].as_u64() == active_runtime_pid.map(u64::from)
+        && runtime_status["updatedAt"]
+            .as_u64()
+            .is_some_and(|updated_at| updated_at <= now && now - updated_at <= 5);
+    let remote_server_state = if network_enabled
+        && connected
+        && runtime_status_fresh
+    {
+        match runtime_status["network"]["remoteServerState"].as_str() {
+            Some("connected") => "connected",
+            Some("disconnected") => "disconnected",
+            _ => "connecting",
+        }
+    } else {
+        "disconnected"
+    };
+    let mut module_preferences = if remote_target == "server" {
+        let path = shroudforge_loader_config::paths::remote_server_config(root);
+        shroudforge_loader_config::config::read_loader_file(root, &path)
+            .ok()
+            .and_then(|config| config.get("modules").cloned())
+            .unwrap_or_else(|| central["modules"].clone())
+    } else {
+        central["modules"].clone()
+    };
+    module_preferences["modloaderUi"]["remoteTarget"] = remote_target.into();
     let notification_mods: Vec<_> = mods
         .iter()
         .map(|item| shroudforge_news::ModNotification {
@@ -80,17 +127,18 @@ pub(crate) fn read_ui_snapshot(
         .collect();
     let hotkey_conflicts = hotkey_conflicts(&central, &mods, server);
     let snapshot = Snapshot {
-        diagnostics: shroudforge_runtime_diagnostics::status(root),
+        diagnostics,
         dll_candidates: shroudforge_package::dll_manager::discover_dll_candidates(root),
         dll_chain_entries: shroudforge_package::dll_manager::chain_load_entries(root),
         windows: shroudforge_loader_config::config::window_state(root),
-        configuration: super::read_configuration_status::configuration(
+        configuration: shroudforge_package::compatibility_status::configuration(
             root,
             server,
             env!("CARGO_PKG_VERSION"),
             (!desktop).then_some(game_pid),
         ),
-        connected: !desktop && runtime_is_active(root),
+        connected,
+        remote_server_state,
         mode: if desktop {
             "DESKTOP"
         } else if !server {
@@ -103,12 +151,13 @@ pub(crate) fn read_ui_snapshot(
         notices: shroudforge_news::read_notifications(root, &notification_mods),
         mods,
         hotkey_conflicts,
-        activity: read_activity(root).unwrap_or_default(),
+        activity: read_activity(root, remote_target == "server").unwrap_or_default(),
         news_templates: shroudforge_news::read(root)
             .ok()
             .and_then(|value| value.get("templates").cloned())
             .unwrap_or_else(|| serde_json::json!({})),
         read_notice_ids: shroudforge_news::read_news_state(root),
+        read_notice_ids_server: shroudforge_news::read_server_ids(root).unwrap_or_default(),
         release: release_snapshot,
         release_announcement: release_announcement
             .lock()
@@ -121,7 +170,11 @@ pub(crate) fn read_ui_snapshot(
         ),
         settings: SnapshotSettings {
             config_revision: config_revision(&central),
-            module_preferences: central["modules"].clone(),
+            module_preferences,
+            target_ui: central
+                .pointer("/general/uiTargets")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
             protected_hotkeys: shroudforge_package::protected_hotkeys(&central),
             compact_mode: central
                 .pointer("/general/compactMode")

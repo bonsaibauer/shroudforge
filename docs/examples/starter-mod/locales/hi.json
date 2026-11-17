@@ -1,5 +1,5 @@
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/mod-locale.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/mod-locale.schema.json",
   "mod": {
     "name": "नमस्ते Ember",
     "description": "Modloader की सेटिंग, टैब, निर्भरताओं, प्रोफ़ाइल और कार्रवाइयों का हिंदी दृश्य उदाहरण।"

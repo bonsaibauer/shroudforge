@@ -6,6 +6,7 @@ import type {
   BackupManagement,
 } from '../../updater/ui/update-types'
 import type { Settings } from '../../loader-config/ui/loader-settings'
+import { DEFAULT_UI_TARGET_SETTINGS } from '../../loader-config/ui/module-visibility'
 import type { ModInfo } from './mod-types'
 import type { DiagnosticStatus } from '../../runtime-diagnostics/ui/diagnostic-status'
 import type { Notice } from '../../notifications/ui/notification-types'
@@ -49,6 +50,7 @@ export type Snapshot = {
     lastUpdate?: { version: string; build: string; installedAt: number }
   }
   connected: boolean
+  remoteServerState: 'connecting' | 'connected' | 'disconnected'
   mode: string
   gameVersion: string
   version: string
@@ -65,6 +67,7 @@ export type Snapshot = {
     { title: string; message: string; beta?: boolean; englishOnly?: boolean }
   >
   readNoticeIds: string[]
+  readNoticeIdsServer: string[]
   release: Release
   releaseAnnouncement?: {
     updateAvailable: boolean
@@ -78,6 +81,20 @@ export type Snapshot = {
   catalog?: Catalog
   locale: string
 }
+
+export type ServerView = {
+  mode: 'SERVER'
+  gameVersion: string
+  configuration?: Snapshot['configuration']
+  dllCandidates: DllCandidate[]
+  dllChainEntries: DllLoadEntry[]
+  hotkeyConflicts: Snapshot['hotkeyConflicts']
+  notices: Notice[]
+  newsTemplates?: Snapshot['newsTemplates']
+  mods: ModInfo[]
+}
+
+export type ServerViewDetails = Omit<ServerView, 'mods'>
 
 export type DllCandidate = {
   packageDirectory: string
@@ -154,6 +171,7 @@ export const empty: Snapshot = {
   dllCandidates: [],
   dllChainEntries: [],
   connected: false,
+  remoteServerState: 'connecting',
   mode: 'DESKTOP',
   gameVersion: '',
   version: '1.0.0',
@@ -162,6 +180,7 @@ export const empty: Snapshot = {
   activity: [],
   notices: [],
   readNoticeIds: [],
+  readNoticeIdsServer: [],
   locale: 'en-GB',
   release: {
     currentVersion: '1.0.0',
@@ -181,6 +200,7 @@ export const empty: Snapshot = {
     restore: { status: 'idle' },
   },
   settings: {
+    targetUi: DEFAULT_UI_TARGET_SETTINGS,
     compactMode: false,
     reducedMotion: false,
     showNativeModMenu: true,

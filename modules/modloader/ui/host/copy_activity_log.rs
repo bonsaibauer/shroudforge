@@ -1,11 +1,14 @@
 use super::read_host_arguments::Arguments;
+use super::read_activity_log::{activity_log_path, selected_server_target};
 use shroudforge_logging::write_activity;
 use std::fs;
 
 pub(crate) fn copy_activity_log(request_id: String, arguments: &Arguments, webview: &wry::WebView) {
-    let result = fs::read_to_string(shroudforge_loader_config::paths::current_log(
+    let log_path = activity_log_path(
         &arguments.root,
-    ));
+        selected_server_target(&arguments.root),
+    );
+    let result = fs::read_to_string(log_path);
     match &result {
         Ok(_) => write_activity(
             &arguments.root,

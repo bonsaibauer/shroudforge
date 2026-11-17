@@ -42,6 +42,47 @@
       ]
     },
     {
+      "id": "dinput8-chain",
+      "title": "DInput8 chain loading standard",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-DInput8 chain loading standard",
+      "wikitext": "docs/mediawiki-translate/dinput8-chain/en.wikitext",
+      "asset": "modules/wiki/articles/dinput8-chain/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-dinput8-chain.svg",
+      "po": "docs/mediawiki-translate/dinput8-chain/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/dinput8-chain/de-at.po",
+        "docs/mediawiki-translate/dinput8-chain/de-ch.po",
+        "docs/mediawiki-translate/dinput8-chain/de.po",
+        "docs/mediawiki-translate/dinput8-chain/es.po",
+        "docs/mediawiki-translate/dinput8-chain/fr.po",
+        "docs/mediawiki-translate/dinput8-chain/hi.po",
+        "docs/mediawiki-translate/dinput8-chain/it.po",
+        "docs/mediawiki-translate/dinput8-chain/ja.po",
+        "docs/mediawiki-translate/dinput8-chain/nl.po",
+        "docs/mediawiki-translate/dinput8-chain/pl.po",
+        "docs/mediawiki-translate/dinput8-chain/sv.po",
+        "docs/mediawiki-translate/dinput8-chain/zh.po"
+      ],
+      "categories": [
+        "Modding:Shroudforge"
+      ]
+    },
+    {
       "id": "dll-manager",
       "title": "DLL Manager",
       "sourceLanguage": "en-GB",
@@ -365,6 +406,47 @@
         "docs/mediawiki-translate/modding-locales/pl.po",
         "docs/mediawiki-translate/modding-locales/sv.po",
         "docs/mediawiki-translate/modding-locales/zh.po"
+      ],
+      "categories": [
+        "guide:Shroudforge"
+      ]
+    },
+    {
+      "id": "modloader-p2p-connection",
+      "title": "Modloader P2P connection",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Modloader P2P connection",
+      "wikitext": "docs/mediawiki-translate/modloader-p2p-connection/en.wikitext",
+      "asset": "modules/wiki/articles/modloader-p2p-connection/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-modloader-p2p-connection.svg",
+      "po": "docs/mediawiki-translate/modloader-p2p-connection/de.po",
+      "poFiles": [
+        "docs/mediawiki-translate/modloader-p2p-connection/de-at.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/de-ch.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/de.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/es.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/fr.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/hi.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/it.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/ja.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/nl.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/pl.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/sv.po",
+        "docs/mediawiki-translate/modloader-p2p-connection/zh.po"
       ],
       "categories": [
         "guide:Shroudforge"

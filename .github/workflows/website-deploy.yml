@@ -1,10 +1,10 @@
-name: Deploy ShroudForge download website
+name: Deploy shroudforge.net website
 
 on:
   workflow_dispatch:
     inputs:
       channel:
-        description: Website channel to rebuild from its published release
+        description: Website channel to deploy
         type: choice
         required: true
         default: stable
@@ -42,20 +42,31 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build approved website and deploy static assets
+    name: Build selected website source and deploy static assets
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       DEPLOYMENT_CHANNEL: ${{ inputs.channel || 'stable' }}
+      DEPLOYMENT_SOURCE: ${{ inputs.release_tag && 'release' || 'branch' }}
       WEBSITE_ORIGIN: ${{ inputs.channel == 'development' && 'https://dev.shroudforge.net' || 'https://shroudforge.net' }}
     steps:
-      - name: Select the current published release for this channel
-        id: release
+      - name: Select the website source
+        id: source
         shell: bash
         env:
           REQUESTED_TAG: ${{ inputs.release_tag }}
         run: |
+          if [[ -z "$REQUESTED_TAG" ]]; then
+            if [[ "$GITHUB_REF_TYPE" != 'branch' ]]; then
+              echo "Select a branch for the manual website deployment." >&2
+              exit 1
+            fi
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "label=branch $GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "selected=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "$DEPLOYMENT_CHANNEL" == 'development' ]]; then
             cat > "$RUNNER_TEMP/shroudforge-development-release.jq" <<'JQ'
           def uploaded_asset($name; $repository; $tag):
@@ -99,27 +110,29 @@ jobs:
             exit 0
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "ref=refs/tags/$tag" >> "$GITHUB_OUTPUT"
+          echo "label=release $tag" >> "$GITHUB_OUTPUT"
           echo "selected=true" >> "$GITHUB_OUTPUT"
 
-      - name: Check out the published release source
-        if: steps.release.outputs.selected == 'true'
+      - name: Check out the selected website source
+        if: steps.source.outputs.selected == 'true'
         uses: actions/checkout@v7
         with:
-          ref: refs/tags/${{ steps.release.outputs.tag }}
+          ref: ${{ steps.source.outputs.ref }}
           persist-credentials: false
 
-      - name: Verify the approved source commit
-        if: steps.release.outputs.selected == 'true'
+      - name: Verify the selected source commit
+        if: steps.source.outputs.selected == 'true'
         shell: bash
         env:
-          EXPECTED_SHA: ${{ inputs.source_sha }}
+          EXPECTED_SHA: ${{ inputs.source_sha || (!inputs.release_tag && github.sha) }}
         run: |
           if [[ -n "$EXPECTED_SHA" && "$(git rev-parse HEAD)" != "$EXPECTED_SHA" ]]; then
-            echo "The release tag does not match the published source commit." >&2
+            echo "The selected website source does not match the expected commit." >&2
             exit 1
           fi
           if [[ ! -f website/tools/build-site.mjs || ! -f website/wrangler.jsonc ]]; then
-            echo "Publish a $DEPLOYMENT_CHANNEL release containing the download website before rebuilding it." >&2
+            echo "The selected source must contain the $DEPLOYMENT_CHANNEL download website before deployment." >&2
             exit 1
           fi
           worker_name='shroudforge-net'
@@ -136,12 +149,12 @@ jobs:
               and .workers_dev == false
               and .preview_urls == false
           ' website/wrangler.jsonc > /dev/null; then
-            echo "The published source must declare the isolated $DEPLOYMENT_CHANNEL website target." >&2
+            echo "The selected source must declare the isolated $DEPLOYMENT_CHANNEL website target." >&2
             exit 1
           fi
 
       - name: Set up Node
-        if: steps.release.outputs.selected == 'true'
+        if: steps.source.outputs.selected == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: "24"
@@ -149,20 +162,28 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install website build dependencies
-        if: steps.release.outputs.selected == 'true'
+        if: steps.source.outputs.selected == 'true'
         run: npm ci
 
+      - name: Install Modloader UI preview dependencies
+        if: steps.source.outputs.selected == 'true'
+        run: npm ci --prefix modules/modloader/ui
+
       - name: Build and validate the download website
-        if: steps.release.outputs.selected == 'true'
+        if: steps.source.outputs.selected == 'true'
         run: npm run downloads:check
 
-      - name: Confirm the selected release is still current
-        if: steps.release.outputs.selected == 'true'
+      - name: Confirm the selected source for deployment
+        if: steps.source.outputs.selected == 'true'
         id: current
         shell: bash
         env:
-          SELECTED_TAG: ${{ steps.release.outputs.tag }}
+          SELECTED_TAG: ${{ steps.source.outputs.tag }}
         run: |
+          if [[ "$DEPLOYMENT_SOURCE" == 'branch' ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "$DEPLOYMENT_CHANNEL" == 'development' ]]; then
             latest_tag="$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
               | jq -er --arg repository "$GITHUB_REPOSITORY" -f "$RUNNER_TEMP/shroudforge-development-release.jq")"
@@ -189,7 +210,7 @@ jobs:
         if: steps.current.outputs.deploy == 'true'
         shell: bash
         env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          SOURCE_LABEL: ${{ steps.source.outputs.label }}
         run: |
-          printf 'Website: %s\n\nChannel: `%s`\n\nRelease source: `%s`\n\nCommit: `%s`\n' \
-            "$WEBSITE_ORIGIN" "$DEPLOYMENT_CHANNEL" "$RELEASE_TAG" "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Website: %s\n\nChannel: `%s`\n\nSource: `%s`\n\nCommit: `%s`\n' \
+            "$WEBSITE_ORIGIN" "$DEPLOYMENT_CHANNEL" "$SOURCE_LABEL" "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"

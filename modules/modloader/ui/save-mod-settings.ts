@@ -113,6 +113,22 @@ export function useModSettings(mod: ModInfo) {
     window.addEventListener('shroudforge-command-result', restoreFailedChange)
     return () => window.removeEventListener('shroudforge-command-result', restoreFailedChange)
   }, [])
+  useEffect(() => {
+    const updateFromServer = (event: Event) => {
+      const remote = (event as CustomEvent<{ mod?: ModInfo }>).detail?.mod
+      if (!remote || remote.id !== modIdRef.current) return
+      latestMod.current = remote
+      revisionRef.current = remote.revision
+      if (!pendingAutoSave.current) {
+        valuesRef.current = settingsValues(remote)
+        setValues(valuesRef.current)
+        setLocalEnabled(remote.enabled)
+      }
+    }
+    window.addEventListener('shroudforge-remote-mod-data', updateFromServer)
+    return () =>
+      window.removeEventListener('shroudforge-remote-mod-data', updateFromServer)
+  }, [])
   const save = () => {
     if (autoSaveTimer.current !== undefined) {
       window.clearTimeout(autoSaveTimer.current)

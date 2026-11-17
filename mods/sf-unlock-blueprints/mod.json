@@ -1,5 +1,5 @@
 {
-  "$schema": "../../packages/manifest/manifest.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
   "id": "sf-unlock-blueprints",
   "name": "SF Unlock Blueprints",
   "version": "1.0.2",

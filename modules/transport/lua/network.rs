@@ -46,9 +46,9 @@ fn channel(options: &Option<Table>) -> mlua::Result<i32> {
         Some(options) => options.raw_get::<Option<i32>>("channel")?.unwrap_or(0),
         None => 0,
     };
-    if !(0..=65_534).contains(&channel) {
+    if !(0..=65_533).contains(&channel) {
         return Err(mlua::Error::runtime(
-            "Channel must be between 0 and 65534. 65535 is reserved for Network health checks",
+            "Channel must be between 0 and 65533. 65534 is reserved for Modloader file mirroring and 65535 for Network health checks",
         ));
     }
     Ok(channel)
@@ -96,7 +96,7 @@ fn mod_channel(id: &str) -> i32 {
     let hash = id.bytes().fold(0x811c9dc5u32, |hash, byte| {
         (hash ^ u32::from(byte)).wrapping_mul(0x01000193)
     });
-    ((hash % 65_534) + 1) as i32
+    ((hash % 65_533) + 1) as i32
 }
 
 pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<Table> {

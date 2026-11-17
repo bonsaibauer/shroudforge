@@ -6,13 +6,14 @@ const emptyLog = () => ({ text: "", state: "missing", lines: 0 });
 const data = { game: emptyLog(), loader: emptyLog() };
 const paths = { game: "enshrouded.log", loader: "shroudforge/logs/shroudforge-client.log" };
 let activeSource = "game";
+let activeTarget = "client";
 let levelIndex = 0;
 let minimumLevel = "INFO";
 let alertReview = false;
 let paused = false;
 let follow = true;
 let frozen = "";
-const savePreferences = () => window.ipc.postMessage(JSON.stringify({defaultSource:activeSource,levelFilter:["ALL","TRACE","DEBUG","INFO","WARN","ERROR"][levelIndex],autoScroll:follow}));
+const savePreferences = () => window.ipc.postMessage(JSON.stringify({defaultSource:activeSource,levelFilter:["ALL","TRACE","DEBUG","INFO","WARN","ERROR"][levelIndex],autoScroll:follow,remoteTarget:activeTarget}));
 
 const byId = (id) => document.getElementById(id);
 const log = byId("log");
@@ -128,6 +129,12 @@ window.__shroudforgeUpdate = (next) => {
     levelIndex = Math.max(0,["ALL","TRACE","DEBUG","INFO","WARN","ERROR"].indexOf(next.preferences.levelFilter));
     follow = next.preferences.autoScroll;
   }
+  activeTarget = next.target === "server" ? "server" : "client";
+  for (const target of ["client", "server"]) {
+    const button = byId(`target-${target}`);
+    button.classList.toggle("active", activeTarget === target);
+    button.setAttribute("aria-pressed", String(activeTarget === target));
+  }
   if (next.autoOpen) {
     alertReview = true;
     activeSource = "loader";
@@ -150,9 +157,6 @@ window.__shroudforgeUpdate = (next) => {
   paths.loader = next.paths?.loader || paths.loader;
   document.querySelector('[data-tab="game"]').title = paths.game;
   document.querySelector('[data-tab="loader"]').title = paths.loader;
-  byId("session").textContent = next.connected ? "CLIENT" : "DESKTOP";
-  byId("mode").classList.toggle("online", Boolean(next.connected));
-  byId("mode").classList.toggle("desktop", !next.connected);
   if (paused) return showStats();
   if (viewKey() !== lastRender || added[activeSource] === null) render();
   else appendLines(added[activeSource]);
@@ -166,6 +170,22 @@ document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click",
   document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("active", item === tab));
   render();
 }));
+
+for (const target of ["client", "server"]) {
+  byId(`target-${target}`).addEventListener("click", () => {
+    if (activeTarget === target) return;
+    activeTarget = target;
+    data.game = emptyLog();
+    data.loader = emptyLog();
+    savePreferences();
+    for (const value of ["client", "server"]) {
+      const button = byId(`target-${value}`);
+      button.classList.toggle("active", value === activeTarget);
+      button.setAttribute("aria-pressed", String(value === activeTarget));
+    }
+    render();
+  });
+}
 
 search.addEventListener("input", render);
 byId("level").addEventListener("click", () => {

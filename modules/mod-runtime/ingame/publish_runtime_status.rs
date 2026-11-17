@@ -7,6 +7,11 @@ impl IngameRuntime {
         let mut provider = crate::env::runtime_provider_report();
         provider["resourceIndexes"] = state.loaded_resource_indexes().diagnostics();
         provider["apiMetrics"] = shroudforge_runtime_diagnostics::operation_timings::snapshot();
+        let remote_server_state = match shroudforge_steam_networking::remote_server_connection_state() {
+            shroudforge_steam_networking::RemoteServerConnectionState::Connecting => "connecting",
+            shroudforge_steam_networking::RemoteServerConnectionState::Connected => "connected",
+            shroudforge_steam_networking::RemoteServerConnectionState::Disconnected => "disconnected",
+        };
         let value = serde_json::json!({
             "schemaVersion":1,"pid":std::process::id(),"apiVersion":API_VERSION,
             "updatedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
@@ -14,6 +19,7 @@ impl IngameRuntime {
             "loaded":self.loaded,"errors":self.errors,
             "effects":state.runtime_effects(),
             "dllPlan":crate::native_dlls::applied_plan(),
+            "network":{"remoteServerState":remote_server_state},
             "runtimeProvider":provider
         });
         // Off the mods' loop while running; the final status at once.

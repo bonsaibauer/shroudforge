@@ -26,6 +26,7 @@ sha2 = "0.10"
 base64 = "0.22"
 shroudforge-package.workspace = true
 shroudforge-window-management.workspace = true
+shroudforge-steam-networking = { path = "../../transport" }
 
 [target.'cfg(windows)'.dependencies]
 tao = "0.37.0"

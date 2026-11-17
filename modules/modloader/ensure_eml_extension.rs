@@ -9,7 +9,7 @@ pub fn ensure_eml_extension(
         Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes)
             .map_err(|error| error.to_string())?,
         Err(_error) if !package_has_file(package, "extended.mod.json")? => {
-            serde_json::json!({"$schema":"https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json","schemaVersion":1,"enabled":manifest.enabled,"targets":["client","server"],"launcher":"EML","settings":{}})
+            serde_json::json!({"$schema":"https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json","schemaVersion":1,"enabled":manifest.enabled,"targets":["client","server"],"launcher":"EML","settings":{}})
         }
         Err(error) => return Err(error),
     };

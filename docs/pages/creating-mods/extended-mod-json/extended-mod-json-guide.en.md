@@ -32,7 +32,7 @@
 
 ```json
 {
-  "$schema": "https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json",
   "schemaVersion": 1,
   "enabled": false,
   "targets": ["client"],
@@ -50,6 +50,6 @@ The mod setting `greeting` is read in Lua by using that exact key. See [Settings
 
 ## Source of the rules
 
-[extended.mod.schema.json](https://bonsaibauer.github.io/shroudforge/schemas/extended.mod.schema.json) defines the structure and data types. The package reader also checks that groups point to existing settings and choice values are valid.
+[extended.mod.schema.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json) defines the structure and data types. The package reader also checks that groups point to existing settings and choice values are valid.
 
 [Try the live mod settings builder](#manifests).

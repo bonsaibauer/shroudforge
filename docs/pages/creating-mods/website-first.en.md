@@ -21,7 +21,7 @@
 └── src/
     └── mod.lua</code></pre><p><code>mod.json</code> is a small card with information about your mod. <code>mod.lua</code> contains the one instruction in this example.</p></div></div>
     <div class="lesson-step"><span class="step-num">02</span><div><h2>Fill in the mod information card</h2><p>Make a file called <code>mod.json</code> in your new folder and copy this example into it. You can change your name and the description:</p><pre><code>{
-  "$schema": "../../modules/modloader/manifest/manifest.schema.json",
+  "$schema": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
   "id": "yourname.first-mod",
   "name": "My First Mod",
   "version": "1.0.0",
