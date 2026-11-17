@@ -294,10 +294,16 @@ mod tests {
         );
     }
 
-    // One test: the reservations are process-wide.
+    // The reservations are process-wide: the tests take turns.
+    static PROCESS_WIDE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn take_turn() -> std::sync::MutexGuard<'static, ()> {
+        PROCESS_WIDE.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 
     #[test]
     fn a_reserved_key_follows_its_extra_modifiers() {
+        let _turn = take_turn();
         set_reserved_input(
             "extra",
             vec![ReservedKey {
@@ -318,6 +324,7 @@ mod tests {
     }
     #[test]
     fn keeps_reserved_input_while_its_context_is_leased() {
+        let _turn = take_turn();
         key("a", "SDL:30|Mouse:4", "hammer");
         let start = Instant::now();
         let mut raw = KeptPresses::default();
