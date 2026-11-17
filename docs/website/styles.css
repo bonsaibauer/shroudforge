@@ -69,6 +69,7 @@ pre{white-space:pre;overflow-x:auto;overscroll-behavior-inline:contain;max-width
 .mock-page-head .eyebrow{color:var(--gold);font:8px var(--mono);letter-spacing:.17em}
 .mock-page-head h3{margin:7px 0;font-size:22px}
 .mock-page-head p{max-width:820px;margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+.mock-page-head .mock-badges{margin:4px 0 9px}
 .mock-page-actions{display:flex;gap:7px;flex:0 0 auto}
 .mock-page-actions button{padding:8px 10px;border:1px solid var(--line);border-radius:6px;color:#bac9c5;background:#142428;font-size:9px}
 .mock-status-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px}

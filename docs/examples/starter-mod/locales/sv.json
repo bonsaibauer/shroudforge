@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Första visuella demonstrationen. Information visar paketmärken, exempellänkar och den här ändringsloggen.",
+    "Första visuella demonstrationen. Sidhuvudet visar exempellänkar, Information visar paketmärken och den här ändringsloggen.",
     "Valfria beroenden visar status för installerade och saknade beroenden.",
     "Inställningar och anpassade flikar visar alla reglage, sökning, kategorier, villkor, profiler, kortkommandon och åtgärder."
   ],

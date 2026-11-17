@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Prima dimostrazione visiva. Informazioni mostra i badge del pacchetto, i collegamenti di esempio e questo registro delle modifiche.",
+    "Prima dimostrazione visiva. L’intestazione della pagina mostra i collegamenti di esempio, Informazioni mostra i badge del pacchetto e questo registro delle modifiche.",
     "Le dipendenze facoltative mostrano gli stati delle dipendenze installate e mancanti.",
     "Impostazioni e schede personalizzate mostrano tutti i controlli, ricerca, categorie, condizioni, profili, scorciatoie e azioni."
   ],

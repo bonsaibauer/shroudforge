@@ -149,6 +149,22 @@ export function ModPage({
         eyebrow="MOD"
         title={title}
         subtitle={mod.description || mod.id}
+        links={
+          visibleLinks.length > 0 && (
+            <nav className="mod-links" aria-label={t('mod.links')}>
+              {visibleLinks.map((link) => (
+                <HeaderLink
+                  key={link.key}
+                  label={link.label}
+                  icon={link.icon}
+                  tone={link.tone}
+                  title={link.description}
+                  onClick={() => postRequest('open-url', { url: link.url })}
+                />
+              ))}
+            </nav>
+          )
+        }
         actions={
           <>
             {remoteTarget === 'client' && mod.source === 'shroudedit' && (
@@ -250,20 +266,6 @@ export function ModPage({
               <span className="mod-info-badge license">{mod.license}</span>
             )}
           </div>
-          {visibleLinks.length > 0 && (
-            <nav className="mod-links" aria-label={t('mod.links')}>
-              {visibleLinks.map((link) => (
-                <HeaderLink
-                  key={link.key}
-                  label={link.label}
-                  icon={link.icon}
-                  tone={link.tone}
-                  title={link.description}
-                  onClick={() => postRequest('open-url', { url: link.url })}
-                />
-              ))}
-            </nav>
-          )}
           {mod.changelog.length > 0 && (
             <div className="mod-changelog">
               <h4>{t('mod.versions')}</h4>

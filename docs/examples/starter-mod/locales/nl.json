@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Eerste visuele demo. Informatie toont de pakketbadges, voorbeeldlinks en dit wijzigingslogboek.",
+    "Eerste visuele demo. De paginakop toont de voorbeeldlinks, Informatie toont de pakketbadges en dit wijzigingslogboek.",
     "Optionele afhankelijkheden tonen de status van geïnstalleerde en ontbrekende afhankelijkheden.",
     "Instellingen en aangepaste tabbladen tonen alle bedieningselementen, zoeken, categorieën, voorwaarden, presets, sneltoetsen en acties."
   ],
