@@ -222,6 +222,7 @@ runtime.network = {}
 ---@field local_steam_id string? Decimal Steam ID of this process, when Steam exposes it.
 ---@field local_dedicated_server_steam_id string? Current Steam ID of a ShroudForge Dedicated Server running in this Windows session, if one publishes it.
 ---@field remote_dedicated_server_steam_id string? Dedicated Server SteamID64 learned from its automatic Network health probe.
+---@field session_host_steam_id string? SteamID64 of the game this client joined, a player's game or a Dedicated Server, read from the game's own session log (machine 0). Nil while this client hosts, plays alone or is in the menu, and on a Dedicated Server.
 ---@field configured_server_steam_id string? Remote Dedicated Server fallback from Settings > Modules > Network.
 ---@field allowed_client_steam_ids string[]? Optional server-side client allowlist; empty means authenticated Enshrouded players.
 ---@field service_ready boolean Whether the built-in Steam session callback is registered for automatic session acceptance.
@@ -252,7 +253,7 @@ function runtime.network.send_mod(peer_steam_id, target_mod_id, payload, options
 ---@return boolean accepted
 ---@return string? reason
 function runtime.network.accept(peer_steam_id) end
---- Return SteamID64 strings for clients Enshrouded has authenticated and that remain connected to this Dedicated Server, filtered by the Network module's optional allowlist.
+--- Return SteamID64 strings for the players connected to this process's game, filtered by the Network module's optional allowlist. On a Dedicated Server, the clients Enshrouded has authenticated and that remain connected. In a player's game that hosts, the players of its session, read from the game's own session log. Nil and a reason in a game that does not host.
 ---@return string[]|nil peers
 ---@return string|nil reason
 function runtime.network.connected_peers() end

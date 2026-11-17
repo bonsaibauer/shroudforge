@@ -361,8 +361,10 @@ mod local_bridge;
 pub use local_bridge::submit as request_remote_ui;
 
 mod read_network_allowlist;
+mod read_session_peers;
 mod report_network_health;
 pub use read_network_allowlist::read_network_allowlist;
+pub use read_session_peers::{SessionPeers, SessionRole, read_session_peers};
 pub use report_network_health::{
     RemoteServerConnectionState, remote_server_connection_state, report_network_health,
 };

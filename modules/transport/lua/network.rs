@@ -138,6 +138,14 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
                 "remote_dedicated_server_steam_id",
                 native.remote_dedicated_server_steam_id,
             )?;
+            // The game this client joined, from the game's own session log.
+            result.raw_set(
+                "session_host_steam_id",
+                (reason.is_none() && !(context.is_server)(lua))
+                    .then(|| steam_network::read_session_peers(&(context.root)(lua)).host())
+                    .flatten()
+                    .map(|id| id.to_string()),
+            )?;
             result.raw_set("service_ready", native.service_ready)?;
             let root = (context.root)(lua);
             if let Ok(config) = shroudforge_loader_config::config::read_loader(&root) {
@@ -268,17 +276,22 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
             ) {
                 return Ok((None::<Table>, Some(reason)));
             }
-            if !(context.is_server)(lua) {
-                return Ok((
-                    None,
-                    Some(
-                        "connected_peers is available only in the Dedicated Server runtime".into(),
-                    ),
-                ));
-            }
-            let peers = match steam_network::connected_peers() {
-                Ok(peers) => peers,
-                Err(reason) => return Ok((None, Some(reason))),
+            let peers = if (context.is_server)(lua) {
+                match steam_network::connected_peers() {
+                    Ok(peers) => peers,
+                    Err(reason) => return Ok((None, Some(reason))),
+                }
+            } else {
+                // A player's game that hosts: the players of its session.
+                match steam_network::read_session_peers(&(context.root)(lua)).players() {
+                    Some(players) => players.iter().map(u64::to_string).collect(),
+                    None => {
+                        return Ok((
+                            None,
+                            Some("this game does not host a multiplayer session".into()),
+                        ));
+                    }
+                }
             };
             let allowed = match authorized_client_ids(&(context.root)(lua)) {
                 Ok(allowed) => allowed,

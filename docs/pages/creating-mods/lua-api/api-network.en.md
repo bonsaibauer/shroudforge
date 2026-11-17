@@ -37,6 +37,10 @@
 
 The Dedicated Server accepts only players Enshrouded has currently authenticated and connected. An optional allowlist under Modloader Settings → Network can further restrict this set. An empty list means all currently authenticated players. The client learns the server SteamID64 from live world context and the health probe. `serverSteamId` is a fallback for remote servers.
 
+## Games hosted by a player
+
+A game hosted by a player sends no health probe. A client reads the game's own session from `enshrouded.log` instead. `status().session_host_steam_id` is the SteamID64 of the game this client joined, a player's game or a Dedicated Server. It is `nil` while the client hosts, plays alone or is in the menu. In the game that hosts, `connected_peers()` returns the players of its session, filtered by the same optional allowlist. The game has already admitted these players, so a mod can check that a message comes from the host or from one of them without a SteamID64 typed in by the player.
+
 ## Check the result
 
 A successful `send` call means Steam accepted the send request. It does not confirm that the other process received or handled the message. Validate the protocol, sender, mod ID, and permissions on the receiving side. The API index documents payload limits and return values.

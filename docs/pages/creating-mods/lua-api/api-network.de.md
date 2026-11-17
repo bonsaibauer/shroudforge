@@ -37,6 +37,10 @@
 
 Der Dedicated Server akzeptiert nur aktuell von Enshrouded authentifizierte, verbundene Spieler. Eine optionale Freigabeliste unter Modloader-Einstellungen → Netzwerk kann diesen Kreis weiter einschränken. Eine leere Liste bedeutet alle aktuell authentifizierten Spieler. Der Client erkennt die Server-SteamID64 aus dem Live-Kontext und der Health-Prüfung. Die Einstellung `serverSteamId` ist ein Fallback für entfernte Server.
 
+## Von Spielern gehostete Spiele
+
+Ein von einem Spieler gehostetes Spiel sendet keine Health-Prüfung. Ein Client liest stattdessen die eigene Sitzung des Spiels aus `enshrouded.log`. `status().session_host_steam_id` ist die SteamID64 des Spiels, dem dieser Client beigetreten ist, also das Spiel eines Spielers oder ein Dedicated Server. Solange der Client selbst hostet, allein spielt oder im Menü ist, ist der Wert `nil`. Im hostenden Spiel liefert `connected_peers()` die Spieler seiner Sitzung, gefiltert durch dieselbe optionale Freigabeliste. Das Spiel hat diese Spieler bereits zugelassen. Ein Mod kann daher prüfen, ob eine Nachricht vom Host oder von einem dieser Spieler stammt, ohne dass der Spieler eine SteamID64 eintippen muss.
+
 ## Ergebnis prüfen
 
 Ein erfolgreicher `send`-Aufruf bedeutet, dass Steam den Sendeauftrag angenommen hat. Er bestätigt nicht, dass der andere Prozess die Nachricht empfangen oder verarbeitet hat. Prüfe Protokoll, Sender, Mod-ID und Berechtigung im Empfänger. Das API-Verzeichnis dokumentiert Payload-Grenzen und Rückgabewerte.
