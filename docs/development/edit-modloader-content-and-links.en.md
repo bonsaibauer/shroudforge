@@ -41,7 +41,7 @@ The Modloader also summarizes warning and error messages from the most recent 51
 
 ## Link buttons on a mod page
 
-The Modloader can show buttons for a mod's project page, help page, or other links. Each button has a short name, an icon, and translated help text.
+The Modloader can show buttons for a mod's project page, help page, or other links, under the mod's name at the top of its page. Each button has a short name, an icon, and translated help text.
 
 To add a button:
 

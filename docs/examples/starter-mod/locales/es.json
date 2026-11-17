@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Primera demostración visual. Información muestra las insignias del paquete, los enlaces de ejemplo y este registro de cambios.",
+    "Primera demostración visual. La cabecera de la página muestra los enlaces de ejemplo; Información muestra las insignias del paquete y este registro de cambios.",
     "Las dependencias opcionales muestran los estados de dependencias instaladas y ausentes.",
     "Ajustes y pestañas personalizadas muestran todos los controles, búsqueda, categorías, condiciones, perfiles, atajos y acciones."
   ],

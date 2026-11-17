@@ -149,6 +149,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .page-header { min-width: 0; flex-wrap: wrap; align-items: flex-start; }
 .page-header > div { min-width: 0; flex: 1 1 260px; }
 .page-header h1, .page-header p, .card h2, .card-body p, .hint, .muted { overflow-wrap: anywhere; }
+.page-header .mod-links{flex-wrap:wrap;overflow-x:visible;margin-top:12px;padding:0;border-top:0}
 .page-actions { min-width: 0; flex-wrap: wrap; }
 .card > header { height: auto; min-height: 51px; min-width: 0; gap: 12px; padding-block: 11px; }
 .card > header > * { min-width: 0; }

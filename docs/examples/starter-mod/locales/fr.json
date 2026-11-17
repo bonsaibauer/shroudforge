@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Première démonstration visuelle. Informations affiche les badges du paquet, les liens d’exemple et ce journal des modifications.",
+    "Première démonstration visuelle. L’en-tête de la page affiche les liens d’exemple, Informations affiche les badges du paquet et ce journal des modifications.",
     "Les dépendances facultatives illustrent les états des dépendances installées et manquantes.",
     "Les réglages et onglets personnalisés présentent les contrôles, la recherche, les catégories, les conditions, les profils, les raccourcis et les actions."
   ],

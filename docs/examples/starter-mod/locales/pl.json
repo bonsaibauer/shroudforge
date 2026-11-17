@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Pierwszy przykład wizualny. Informacje pokazują oznaczenia pakietu, przykładowe odnośniki i ten dziennik zmian.",
+    "Pierwszy przykład wizualny. Nagłówek strony pokazuje przykładowe odnośniki, Informacje pokazują oznaczenia pakietu i ten dziennik zmian.",
     "Opcjonalne zależności pokazują stany zainstalowanych i brakujących zależności.",
     "Ustawienia i karty niestandardowe pokazują wszystkie kontrolki, wyszukiwanie, kategorie, warunki, profile, skróty i akcje."
   ],

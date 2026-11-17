@@ -53,11 +53,13 @@ export function PageHeader({
   eyebrow,
   title,
   subtitle,
+  links,
   actions,
 }: {
   eyebrow: string
   title: React.ReactNode
   subtitle: string
+  links?: React.ReactNode
   actions?: React.ReactNode
 }) {
   const { t } = useI18n()
@@ -78,6 +80,7 @@ export function PageHeader({
       <div>
         <small>{eyebrow}</small>
         <h1>{title}</h1>
+        {links}
         <p>{subtitle}</p>
       </div>
       <div className="page-actions">

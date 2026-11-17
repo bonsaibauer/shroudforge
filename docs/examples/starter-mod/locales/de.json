@@ -207,7 +207,7 @@
     }
   ],
   "changelog": [
-    "Erstes visuelles Beispiel. Informationen zeigt Mod-Badges, Beispiel-Links und dieses Änderungsprotokoll.",
+    "Erstes visuelles Beispiel. Der Seitenkopf zeigt Beispiel-Links, Informationen zeigt Mod-Badges und dieses Änderungsprotokoll.",
     "Optionale Abhängigkeiten zeigen installierte und fehlende Abhängigkeitszustände.",
     "Einstellungen und eigene Tabs zeigen alle Steuerelemente, Suche, Kategorien, Bedingungen, Presets, Tastenkürzel und Aktionen."
   ],

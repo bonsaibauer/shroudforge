@@ -24,7 +24,7 @@
     "support-other": "https://shroudforge.net"
   },
   "changelog": [
-    "Initial visual demo. Information shows the package badges, example links, and this changelog.",
+    "Initial visual demo. The page header shows the example links; Information shows the package badges and this changelog.",
     "Optional dependencies demonstrate installed and missing dependency states.",
     "Settings and custom tabs demonstrate all supported controls, long-list search, option categories, conditions, presets, keybinds, and actions."
   ],
