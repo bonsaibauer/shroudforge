@@ -7,8 +7,16 @@
 //! back in the lobby. The host of a session is machine 0, a player's game or a
 //! Dedicated Server. Only what the game appended since the previous call is
 //! read, at most `MAX_READ_BYTES` per call.
+//!
+//! The game that hosts, a player's game or a Dedicated Server (whose log is
+//! `logs/enshrouded_server.log`), also writes each player's permissions when
+//! the player logs in: `[server] Player '<name>' logged in with Permissions:`
+//! followed by one `- <Permission>` line each. The login follows the player's
+//! `Added peer` line, so the permissions go to the oldest added peer whose
+//! permissions are not known yet. The hosting game's own login comes before
+//! any peer and is left aside.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
@@ -28,9 +36,21 @@ pub struct SessionPeers {
     pub role: SessionRole,
     /// The other machines' SteamID64 by machine index.
     pub peers: BTreeMap<u32, u64>,
+    /// The permissions each player logged in with, by SteamID64.
+    pub permissions: BTreeMap<u64, Vec<String>>,
+    awaiting_login: VecDeque<u64>,
+    reading_permissions: Option<(u64, Vec<String>)>,
 }
 
 impl SessionPeers {
+    /// The permissions a player of the game this process hosts logged in with.
+    pub fn player_permissions(&self, steam_id: u64) -> Option<&[String]> {
+        if self.role != SessionRole::Hosting || !self.peers.values().any(|id| *id == steam_id) {
+            return None;
+        }
+        self.permissions.get(&steam_id).map(Vec::as_slice)
+    }
+
     /// The machine that hosts the game this client joined.
     pub fn host(&self) -> Option<u64> {
         (self.role == SessionRole::Joined)
@@ -44,14 +64,30 @@ impl SessionPeers {
     }
 
     fn apply(&mut self, line: &str) {
+        if let Some((steam_id, mut names)) = self.reading_permissions.take() {
+            if let Some(name) = permission_name(line) {
+                names.push(name.to_owned());
+                self.reading_permissions = Some((steam_id, names));
+                return;
+            }
+            if steam_id != 0 {
+                self.permissions.insert(steam_id, names);
+            }
+        }
         if let Some(rest) = after(line, "[online] Added peer ") {
             if let (Some(machine), Some(id)) = (machine_index(rest), peer_steam_id(rest)) {
                 self.peers.insert(machine, id);
+                self.awaiting_login.push_back(id);
             }
         } else if let Some(rest) = after(line, "[online] Removed peer ") {
-            if let Some(machine) = machine_index(rest) {
-                self.peers.remove(&machine);
+            if let Some(id) = machine_index(rest).and_then(|machine| self.peers.remove(&machine)) {
+                self.permissions.remove(&id);
+                self.awaiting_login.retain(|waiting| *waiting != id);
             }
+        } else if line.contains("[server] Player '") && line.contains("' logged in with Permissions:") {
+            // 0: a login without a peer waiting, the hosting game's own.
+            let steam_id = self.awaiting_login.pop_front().unwrap_or(0);
+            self.reading_permissions = Some((steam_id, Vec::new()));
         } else if let Some(rest) = after(line, "[Session] finished transition from '") {
             match rest.split("' to '").nth(1).and_then(|to| to.split('\'').next()) {
                 Some("Host_Online") => self.role = SessionRole::Hosting,
@@ -65,6 +101,13 @@ impl SessionPeers {
 
 fn after<'a>(line: &'a str, marker: &str) -> Option<&'a str> {
     line.find(marker).map(|index| &line[index + marker.len()..])
+}
+
+/// `CanEditBase` from a `[I 00:01:01,586] \t - CanEditBase` line.
+fn permission_name(line: &str) -> Option<&str> {
+    let (_, rest) = line.split_once("] ")?;
+    let name = rest.trim_start().strip_prefix("- ")?.trim();
+    (!name.is_empty() && name.bytes().all(|byte| byte.is_ascii_alphanumeric())).then_some(name)
 }
 
 fn machine_index(rest: &str) -> Option<u32> {
@@ -88,8 +131,14 @@ struct LogCursor {
 
 static CURSOR: Mutex<Option<LogCursor>> = Mutex::new(None);
 
-pub fn read_session_peers(root: &Path) -> SessionPeers {
-    let path = root.join("enshrouded.log");
+/// The session of this process: a client's `enshrouded.log`, or the
+/// Dedicated Server's `logs/enshrouded_server.log` when `server` is true.
+pub fn read_session_peers(root: &Path, server: bool) -> SessionPeers {
+    let path = if server {
+        root.join("logs").join("enshrouded_server.log")
+    } else {
+        root.join("enshrouded.log")
+    };
     let mut guard = CURSOR.lock().unwrap_or_else(PoisonError::into_inner);
     if guard.as_ref().is_none_or(|cursor| cursor.path != path) {
         *guard = Some(LogCursor {
@@ -195,9 +244,69 @@ mod tests {
              [I 00:00:02,000] [Session] finished transition from 'Lobby' to 'Client_Online' (current='Client_Online')!\n",
         )
         .unwrap();
-        assert_eq!(super::read_session_peers(&root).host(), Some(76561199229658277));
+        assert_eq!(super::read_session_peers(&root, false).host(), Some(76561199229658277));
         std::fs::write(&log, "[I 00:00:01,000] new log\n").unwrap();
-        assert_eq!(super::read_session_peers(&root), SessionPeers::default());
+        assert_eq!(super::read_session_peers(&root, false), SessionPeers::default());
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn a_dedicated_server_knows_each_player_permissions() {
+        let session = session(&[
+            "[I 00:00:01,410] [Session] finished transition from 'Lobby' to 'Host_Online' (current='Host_Online')!",
+            "[I 00:00:53,596] [online] Added peer 0(1) (steamid:76561197992902915)",
+            "[I 00:00:55,221] [online] Client '76561197992902915' authenticated by steam",
+            "[I 00:00:55,580] [session] Remote player added. Player handle: 0(0)",
+            "[I 00:01:01,584] [server] Machine '1': Player '0(0)' logged in",
+            "[I 00:01:01,586] [server] Player 'Duke' logged in with Permissions:",
+            "[I 00:01:01,586] \t - CanKickBan",
+            "[I 00:01:01,586] \t - CanEditBase",
+            "[I 00:01:01,586] \t - CanEditWorld",
+            "[I 00:01:01,586] ",
+            "[I 00:12:23,424] [online] Added peer 1(1) (steamid:76561199229658277)",
+            "[I 00:12:28,588] [server] Player 'Guest' logged in with Permissions:",
+            "[I 00:12:28,588] \t - CanReceiveEXP",
+            "[I 00:12:28,619] [ecss] Replication Checkpoint 1 Set for Player 1 in Tick 44,869",
+        ]);
+        assert_eq!(
+            session.player_permissions(76561197992902915),
+            Some(&["CanKickBan".to_owned(), "CanEditBase".to_owned(), "CanEditWorld".to_owned()][..])
+        );
+        assert_eq!(
+            session.player_permissions(76561199229658277),
+            Some(&["CanReceiveEXP".to_owned()][..])
+        );
+        assert_eq!(session.player_permissions(76561198000000099), None);
+    }
+
+    #[test]
+    fn a_hosting_player_leaves_its_own_login_aside_and_forgets_who_left() {
+        let mut session = session(&[
+            "[I 00:08:15,000] [Session] finished transition from 'Lobby' to 'Host_Online' (current='Host_Online')!",
+            "[I 00:08:15,771] [server] Player 'laufeyson.' logged in with Permissions:",
+            "[I 00:08:15,771] \t - CanKickBan",
+            "[I 00:08:15,771] ",
+            "[I 00:08:34,858] [online] Added peer 0(2) (steamid:76561197992902915)",
+            "[I 00:08:42,296] [server] Player 'Duke' logged in with Permissions:",
+            "[I 00:08:42,296] \t - CanEditWorld",
+            "[I 00:08:42,296] ",
+        ]);
+        assert_eq!(
+            session.player_permissions(76561197992902915),
+            Some(&["CanEditWorld".to_owned()][..])
+        );
+        session.apply("[I 00:13:10,208] [online] Removed peer 0(2)");
+        assert_eq!(session.player_permissions(76561197992902915), None);
+        assert_eq!(session.players(), Some(Vec::new()));
+    }
+
+    #[test]
+    fn a_player_who_has_not_logged_in_yet_has_no_permissions() {
+        let session = session(&[
+            "[I 00:00:01,410] [Session] finished transition from 'Lobby' to 'Host_Online' (current='Host_Online')!",
+            "[I 00:00:53,596] [online] Added peer 0(1) (steamid:76561197992902915)",
+        ]);
+        assert_eq!(session.players(), Some(vec![76561197992902915]));
+        assert_eq!(session.player_permissions(76561197992902915), None);
     }
 }

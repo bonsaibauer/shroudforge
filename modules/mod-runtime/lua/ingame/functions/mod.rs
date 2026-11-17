@@ -31,6 +31,7 @@ pub(super) fn create_functions(
             "runtime.network.receive_mod" => "runtime.network.receive_mod",
             "runtime.network.accept" => "runtime.network.accept",
             "runtime.network.connected_peers" => "runtime.network.connected_peers",
+            "runtime.network.player_permissions" => "runtime.network.player_permissions",
             "runtime.lifecycle" | "runtime.gameplay.patch" => continue,
             id => id,
         };

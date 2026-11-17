@@ -41,6 +41,10 @@ The Dedicated Server accepts only players Enshrouded has currently authenticated
 
 A game hosted by a player sends no health probe. A client reads the game's own session from `enshrouded.log` instead. `status().session_host_steam_id` is the SteamID64 of the game this client joined, a player's game or a Dedicated Server. It is `nil` while the client hosts, plays alone or is in the menu. In the game that hosts, `connected_peers()` returns the players of its session, filtered by the same optional allowlist. The game has already admitted these players, so a mod can check that a message comes from the host or from one of them without a SteamID64 typed in by the player.
 
+## Player permissions
+
+In the game that hosts, a Dedicated Server or a player's game, `player_permissions(peer)` returns the permissions the player logged in with, as Enshrouded wrote them in that game's log: for example `CanEditBase`, `CanEditWorld` or `CanKickBan`. A mod that changes the world for other players can refuse a player whose group does not allow it. It returns `nil` and a reason in a game that does not host, or for a player who is not in it or has not logged in yet.
+
 ## Check the result
 
 A successful `send` call means Steam accepted the send request. It does not confirm that the other process received or handled the message. Validate the protocol, sender, mod ID, and permissions on the receiving side. The API index documents payload limits and return values.

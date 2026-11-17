@@ -41,6 +41,10 @@ Der Dedicated Server akzeptiert nur aktuell von Enshrouded authentifizierte, ver
 
 Ein von einem Spieler gehostetes Spiel sendet keine Health-Prüfung. Ein Client liest stattdessen die eigene Sitzung des Spiels aus `enshrouded.log`. `status().session_host_steam_id` ist die SteamID64 des Spiels, dem dieser Client beigetreten ist, also das Spiel eines Spielers oder ein Dedicated Server. Solange der Client selbst hostet, allein spielt oder im Menü ist, ist der Wert `nil`. Im hostenden Spiel liefert `connected_peers()` die Spieler seiner Sitzung, gefiltert durch dieselbe optionale Freigabeliste. Das Spiel hat diese Spieler bereits zugelassen. Ein Mod kann daher prüfen, ob eine Nachricht vom Host oder von einem dieser Spieler stammt, ohne dass der Spieler eine SteamID64 eintippen muss.
 
+## Berechtigungen der Spieler
+
+Im hostenden Spiel, also einem Dedicated Server oder dem Spiel eines Spielers, liefert `player_permissions(peer)` die Berechtigungen, mit denen sich der Spieler angemeldet hat, so wie Enshrouded sie in das Protokoll dieses Spiels schreibt. Beispiele sind `CanEditBase`, `CanEditWorld` oder `CanKickBan`. Ein Mod, der die Welt für andere Spieler verändert, kann so einen Spieler ablehnen, dessen Gruppe das nicht erlaubt. In einem Spiel, das nicht hostet, oder für einen Spieler, der nicht dabei ist oder sich noch nicht angemeldet hat, liefert die Funktion `nil` und einen Grund.
+
 ## Ergebnis prüfen
 
 Ein erfolgreicher `send`-Aufruf bedeutet, dass Steam den Sendeauftrag angenommen hat. Er bestätigt nicht, dass der andere Prozess die Nachricht empfangen oder verarbeitet hat. Prüfe Protokoll, Sender, Mod-ID und Berechtigung im Empfänger. Das API-Verzeichnis dokumentiert Payload-Grenzen und Rückgabewerte.

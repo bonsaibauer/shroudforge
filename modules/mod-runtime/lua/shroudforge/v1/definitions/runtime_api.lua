@@ -257,6 +257,11 @@ function runtime.network.accept(peer_steam_id) end
 ---@return string[]|nil peers
 ---@return string|nil reason
 function runtime.network.connected_peers() end
+--- Return the permissions a player of this process's game logged in with, as Enshrouded wrote them in the hosting game's own log (a Dedicated Server or a player's game that hosts): a set keyed by the game's names, such as `CanEditBase`, `CanEditWorld`, `CanExtendBase`, `CanKickBan`, `CanAccessInventories` and `CanReceiveEXP`. Nil and a reason in a game that does not host, or for a player who is not in it or has not logged in yet.
+---@param peer_steam_id string Decimal SteamID64 of a player of this game.
+---@return table<string, boolean>|nil permissions
+---@return string|nil reason
+function runtime.network.player_permissions(peer_steam_id) end
 ---@class RuntimeNetworkReceiveOptions
 ---@field channel integer? Local channel to read, default 0.
 ---@field limit integer? Maximum messages to return in one call, 1..32, default 16.
