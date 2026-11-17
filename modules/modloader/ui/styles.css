@@ -20,20 +20,22 @@
 .topbar{position:relative;z-index:1}
 .remote-target{display:flex;align-items:center;gap:3px;padding:3px;border:1px solid var(--sf-line);border-radius:10px;background:var(--sf-glass)}.remote-target button{height:28px;padding:0 10px;border:0;border-radius:7px;color:var(--sf-muted);background:transparent;font:600 11px var(--sf-font);cursor:pointer}.remote-target button:hover{color:var(--sf-text);background:var(--sf-glass-hover)}.remote-target button.active{color:var(--sf-gold-bright);background:var(--sf-gold-soft)}.sidebar-target{margin:0 0 16px}.sidebar-target .remote-target{box-sizing:border-box;width:100%}.sidebar-target .remote-target button{flex:1}
 .shell.server-target-active{
-  --sf-glass:rgba(17,31,39,.78);
-  --sf-glass-strong:rgba(21,36,45,.9);
-  --sf-glass-soft:rgba(23,40,46,.6);
-  --sf-glass-hover:rgba(94,153,170,.13);
-  box-shadow:inset 0 0 0 1px rgba(202,170,103,.34);
-  background:radial-gradient(ellipse at 12% 8%,rgba(83,199,234,.11),transparent 34%),radial-gradient(ellipse at 92% 88%,rgba(202,170,103,.09),transparent 38%),var(--sf-bg);
+  --sf-bg:#0a1423;
+  --sf-bg-deep:#07101b;
+  --sf-glass:rgba(27,46,72,.88);
+  --sf-glass-strong:rgba(31,51,78,.96);
+  --sf-glass-soft:rgba(36,58,86,.8);
+  --sf-glass-hover:rgba(69,105,157,.24);
+  box-shadow:inset 0 0 0 1px rgba(117,151,199,.34);
+  background:radial-gradient(ellipse at 78% 0%,rgba(68,104,164,.2),transparent 44%),linear-gradient(135deg,#101d31,#091321);
 }
-.shell.server-target-active .topbar{background:linear-gradient(90deg,rgba(16,33,42,.94),rgba(12,19,22,.94) 52%,rgba(28,22,13,.94));border-bottom-color:rgba(202,170,103,.22)}
-.shell.server-target-active .sidebar{background:radial-gradient(ellipse at 0 0,rgba(83,199,234,.085),transparent 54%),radial-gradient(ellipse at 100% 100%,rgba(202,170,103,.075),transparent 50%),linear-gradient(180deg,rgba(10,20,25,.94),rgba(9,15,17,.94));box-shadow:inset 0 1px 0 rgba(114,197,220,.1)}
-.shell.server-target-active .content{background:radial-gradient(ellipse at 0 0,rgba(83,199,234,.055),transparent 40%),radial-gradient(ellipse at 100% 100%,rgba(202,170,103,.045),transparent 42%)}
-.shell.server-target-active .card:not(.update){background:linear-gradient(110deg,rgba(83,199,234,.045),transparent 48%,rgba(202,170,103,.04)),linear-gradient(145deg,rgba(22,36,41,.78),rgba(12,22,26,.76))}
-.shell.server-target-active .feature-banner:not(.feature-banner--promo):not(.feature-banner--error){background:linear-gradient(110deg,rgba(83,199,234,.045),transparent 48%,rgba(202,170,103,.04)),linear-gradient(145deg,rgba(22,36,41,.78),rgba(12,22,26,.76))}
-.shell.server-target-active .modal{background:linear-gradient(110deg,rgba(83,199,234,.045),transparent 52%,rgba(202,170,103,.04)),linear-gradient(145deg,#152429,#0b1418)}
-.shell.server-target-active .segments{background:linear-gradient(90deg,rgba(83,199,234,.045),rgba(202,170,103,.04)),rgba(7,14,17,.54)}
+.shell.server-target-active .topbar{background:linear-gradient(90deg,#1a2e4a,#14243b 52%,#1b304d);border-bottom-color:rgba(117,151,199,.3)}
+.shell.server-target-active .sidebar{background:linear-gradient(180deg,#1b2f4c,#111e33);border-right-color:rgba(117,151,199,.26);box-shadow:inset 0 1px 0 rgba(151,181,225,.12)}
+.shell.server-target-active .content{background:radial-gradient(ellipse at 30% 8%,rgba(42,68,106,.28),transparent 42%),linear-gradient(145deg,#0e1a2d,#091421)}
+.shell.server-target-active .card{background:linear-gradient(145deg,#203652,#162943)}
+.shell.server-target-active .feature-banner{background:linear-gradient(145deg,#203652,#162943)}
+.shell.server-target-active .modal{background:linear-gradient(145deg,#223956,#172a44)}
+.shell.server-target-active .segments{background:linear-gradient(135deg,#1c304d,#14243b)}
 .language-select{display:flex;align-items:center;gap:10px}.language-select select{flex:1}
 
 html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(--sf-text);background:var(--sf-bg);font-family:var(--sf-font);font-size:14px}.shell{height:100%;display:grid;grid-template-rows:66px minmax(0,1fr);background:radial-gradient(circle at 78% -12%,rgba(65,149,182,.13),transparent 35%),radial-gradient(circle at 6% 100%,rgba(202,170,103,.08),transparent 30%),var(--sf-bg)}
