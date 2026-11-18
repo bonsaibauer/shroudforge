@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# The `segmented` control
-
-Shows choices as a row of buttons. Set it as `control` on a setting.
-
-```json
-{
-  "settings": {
-    "example": {"value": "easy", "label": "Segmented choices", "control": "segmented", "options": {"easy": "Easy", "hard": "Hard"}}
-  }
-}
-```
-
-Option keys are the stored values. For `multiselect`, `value` must be a list. See [settings.<key>.control](#doc-field-settings-key-control) for the schema rules.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>segmented</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_controls">Extended.mod.json: segmented</a>.</span></div>

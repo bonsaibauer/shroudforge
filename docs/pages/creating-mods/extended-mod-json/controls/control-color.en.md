@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# The `color` control
-
-For a color value edited through a color input in Modloader. Set it as `control` on a setting.
-
-```json
-{
-  "settings": {
-    "example": {"value": "#d0ae6d", "label": "Color picker", "control": "color"}
-  }
-}
-```
-
-The value in `value` should match the selected control. See [settings.<key>.control](#doc-field-settings-key-control) for the schema rules.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>color</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_controls">Extended.mod.json: color</a>.</span></div>

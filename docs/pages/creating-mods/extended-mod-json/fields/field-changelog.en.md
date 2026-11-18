@@ -12,29 +12,4 @@
   }
 }
 ---
-
-# The `changelog` field
-
-Short version notes on the mod page.
-
-## Type and requirement
-
-`array` · optional
-
-## Allowed values and limits
-
-- maximum items: `50`
-
-## Example
-
-```json
-{
-  "changelog": [
-    "example"
-  ]
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>changelog</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Changelog">Extended.mod.json: changelog</a>.</span></div>

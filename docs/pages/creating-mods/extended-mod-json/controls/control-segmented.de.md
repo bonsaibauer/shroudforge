@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# Steuerelement `segmented`
-
-Zeigt Auswahlwerte als eine Reihe von Schaltflächen. Lege es bei einer Einstellung als `control` fest.
-
-```json
-{
-  "settings": {
-    "example": {"value": "easy", "label": "Segmentierte Auswahl", "control": "segmented", "options": {"easy": "Einfach", "hard": "Schwer"}}
-  }
-}
-```
-
-Die Optionsschlüssel sind gespeicherte Werte. Bei `multiselect` muss `value` eine Liste sein. Weitere Regeln stehen unter [settings.<key>.control](#doc-field-settings-key-control).
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>segmented</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_controls">Extended.mod.json: segmented</a>.</span></div>

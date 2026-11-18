@@ -13,11 +13,4 @@
   }
 }
 ---
-
-# The `settings.<key>` key
-
-The placeholder `<key>` is replaced by a name chosen by the mod author. For example, `settings.flightSpeed` names a setting `flightSpeed`.
-
-The key accepts 1 to 80 letters, numbers, dots, hyphens, and underscores. Letter case matters. Lua uses the exact same name: `shroudforge.settings.get("flightSpeed", 1.0)`.
-
-This is not a global ShroudForge setting. Each mod has its own setting values.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>setting keys</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_keys_and_values">Extended.mod.json: setting keys</a>.</span></div>

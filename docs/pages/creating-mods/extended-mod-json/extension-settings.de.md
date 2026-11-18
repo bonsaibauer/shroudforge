@@ -14,10 +14,4 @@
   }
 }
 ---
-
-# Feld `settings`
-
-Dynamische Schlüssel und Werte, die der Modloader als Mod-Einstellungen darstellt und Lua lesen kann.
-
-
-Jeder Schlüssel ist mod-eigen und muss dem Schlüssel entsprechen, den Lua an `shroudforge.settings.get(key, fallback)` übergibt. Siehe [Einstellungen und Steuerelemente](#doc-setting-controls), [settings.<key>](#doc-extension-setting-key) und [alle Metadatenfelder](#doc-field-setting-key-value).
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>settings</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Settings_and_controls">Extended.mod.json: settings</a>.</span></div>

@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# The `text` control
-
-For short text and names. Set it as `control` on a setting.
-
-```json
-{
-  "settings": {
-    "example": {"value": "text", "label": "Single-line text field", "control": "text"}
-  }
-}
-```
-
-The value in `value` should match the selected control. See [settings.<key>.control](#doc-field-settings-key-control) for the schema rules.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>text</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_controls">Extended.mod.json: text</a>.</span></div>

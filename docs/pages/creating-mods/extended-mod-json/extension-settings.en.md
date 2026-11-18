@@ -14,10 +14,4 @@
   }
 }
 ---
-
-# The `settings` field
-
-Dynamic keys and values that Modloader presents as mod settings and Lua can read.
-
-
-Every key is specific to the mod and must match the key passed to `shroudforge.settings.get(key, fallback)` in Lua. See [Settings and controls](#doc-setting-controls), [settings.<key>](#doc-extension-setting-key), and [all metadata fields](#doc-field-setting-key-value).
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>settings</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Settings_and_controls">Extended.mod.json: settings</a>.</span></div>

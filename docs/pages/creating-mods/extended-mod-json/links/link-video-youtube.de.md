@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# Link-ID `video-youtube`
-
-Diese ID wird in `extended.mod.json → links.video-youtube` verwendet. Trage darunter eine HTTPS-Adresse ein. Der Modloader zeigt den Link mit dem zugehörigen Symbol und übersetzten Namen.
-
-```json
-{
-  "links": {
-    "video-youtube": "https://www.youtube.com/@example"
-  }
-}
-```
-
-Die IDs und ihre Reihenfolge sind in [order.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/mod_link_order.json) definiert.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>video-youtube</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Links">Extended.mod.json: video-youtube</a>.</span></div>

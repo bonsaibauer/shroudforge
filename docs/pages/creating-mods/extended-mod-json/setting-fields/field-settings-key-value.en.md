@@ -13,31 +13,4 @@
   }
 }
 ---
-
-# The `settings.<key>.value` field
-
-Starting value and expected Lua data type of the setting.
-
-## Type and requirement
-
-`boolean | string | number | array` · required
-
-## Allowed values and limits
-
-No additional values or limits are declared by the schema.
-
-## Example
-
-```json
-{
-  "settings": {
-    "example": {
-      "value": true
-    }
-  }
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>value</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_keys_and_values">Extended.mod.json: value</a>.</span></div>

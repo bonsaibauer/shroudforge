@@ -12,10 +12,4 @@
   }
 }
 ---
-
-# The `groups` field
-
-Optional groups for setting fields and Lua actions.
-
-
-A group has `label` and may include `description`, `settings`, and `actions`. Ungrouped settings appear in the default group. See [Groups and action buttons](#doc-setting-groups-actions).
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>groups</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Groups_and_actions">Extended.mod.json: groups</a>.</span></div>

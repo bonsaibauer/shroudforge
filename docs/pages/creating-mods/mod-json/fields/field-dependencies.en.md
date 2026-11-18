@@ -14,32 +14,4 @@
   }
 }
 ---
-
-# The `dependencies` field
-
-Other mods whose availability or version the loader checks before startup.
-
-## Type and requirement
-
-`array` · optional
-
-## Allowed values and limits
-
-- Mods that must be available before this mod starts. Each id is another mod's manifest id. Version is a SemVer version requirement. If optional is true, the dependency does not block startup when missing, disabled, or outside the version range.
-
-## Example
-
-```json
-{
-  "dependencies": [
-    {
-      "id": "example",
-      "version": "example"
-    }
-  ]
-}
-```
-
-## Source
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>dependencies</code> here: <a href="https://wiki.shroudforge.net/index.php/Mod.json#Dependencies">Mod.json: dependencies</a>.</span></div>

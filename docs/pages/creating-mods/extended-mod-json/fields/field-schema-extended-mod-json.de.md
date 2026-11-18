@@ -12,27 +12,4 @@
   }
 }
 ---
-
-# Feld `$schema`
-
-Dieses Feld konfiguriert `$schema`. Der genaue technische Vertrag steht im Schema.
-
-## Datentyp und Pflicht
-
-`string` · optional
-
-## Erlaubte Werte und Grenzen
-
-Keine zusätzlichen Werte oder Grenzen im Schema angegeben.
-
-## Beispiel
-
-```json
-{
-  "$schema": "example"
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>$schema</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Root_fields">Extended.mod.json: $schema</a>.</span></div>
