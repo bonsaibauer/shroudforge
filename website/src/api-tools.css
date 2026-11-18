@@ -4,7 +4,9 @@
 .api-version-facts span:empty{display:none}
 .api-load-error{align-items:center;gap:10px;padding:9px 0}
 .api-load-error[hidden]{display:none}
-.api-load-error [data-api-load-error-message]{flex:1}
+.api-load-error-copy{display:grid;flex:1;gap:4px;min-width:0}
+.api-load-error [data-api-load-error-message]{font-weight:650}
+.api-load-error [data-api-load-error-detail]{color:var(--text-secondary);font-size:11px;line-height:1.55;overflow-wrap:anywhere}
 .api-load-state:empty{display:none}
 .api-task-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .api-task-card{display:flex;align-items:flex-start;gap:11px;min-width:0;padding:14px;border:1px solid var(--surface-5);border-radius:11px;color:var(--text-primary);background:var(--surface-2);transition:border-color .15s ease,background .15s ease}
@@ -91,8 +93,18 @@
 .api-reference-link{display:inline-flex;margin-top:12px;color:var(--brand);font-size:13px;font-weight:650}
 .api-sample-badge{align-self:flex-start;padding:5px 9px;border:1px solid rgb(196 167 244 / 30%);border-radius:8px;color:#c4a7f4;background:rgb(196 167 244 / 8%);font-size:12px;font-weight:650;white-space:nowrap}
 .api-reference-notes{margin-bottom:15px}
+.api-tool-main .api-reference-notes>summary{color:var(--text-contrast)}
+.api-tool-main .api-reference-notes>summary>small{color:#9bd6b2}
+.api-tool-main .api-reference-notes>summary .settings-disclosure-arrow{color:#9bd6b2;border-color:rgb(131 201 162 / 35%);background:rgb(131 201 162 / 8%)}
 .api-reference-notes-content{display:grid;gap:9px;padding:11px 12px 3px;color:var(--text-secondary);font-size:13px;line-height:1.6}
 .api-reference-notes-content p{margin:0}
+.api-tool-main .api-task-section>.tool-section-heading .eyebrow{color:#c4a7f4}
+.api-tool-main .api-reference-panel>.tool-section-heading .eyebrow{color:#83c9f4}
+.api-tool-main .api-playground-panel>.tool-section-heading .eyebrow{color:#e9ae69}
+.api-tool-main .api-response-section>.tool-section-heading .eyebrow{color:#83c9a2}
+.api-tool-main .text-button,.api-tool-main .api-reference-link{color:#83c9f4}
+.api-tool-main .text-button:hover,.api-tool-main .api-reference-link:hover{color:#b4e6fb}
+html[data-theme='light'] .api-tool-main .api-reference-notes-content{color:var(--page-text-secondary)}
 @media(max-width:1100px){.api-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.api-request-fields{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:650px){.api-version-controls{flex-basis:auto;width:100%}.api-version-facts{display:grid}.api-task-grid,.api-entry-columns{grid-template-columns:minmax(0,1fr)}.api-reference-panel>.tool-section-heading{display:grid}.api-search-row{align-items:stretch;flex-direction:column}.api-clear-button{align-self:flex-end}.api-filter-row .api-filter{flex:1 1 auto}.api-field-list>div{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.api-field-list>div span{grid-column:1/-1}}

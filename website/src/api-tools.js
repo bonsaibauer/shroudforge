@@ -15,7 +15,7 @@
 		exampleEditor: 'API CALL EDITOR', editRunExample: 'Build a Lua API call', playgroundLead: 'Choose a task, edit its inputs, and preview sample output. Lua never runs in this browser.', chooseExample: 'Choose a task', loadingExamplesOption: 'Loading examples…', generatedLua: 'Lua code for your mod', copyCode: 'Copy code', runExample: 'Show sample response', exampleResponse: 'SAMPLE RESPONSE', responseHeading: 'What the call may return', sampleOnly: 'Browser sample', runToSeeResponse: 'Choose a task and show its sample response.', noResponseYet: 'No response yet.', responseSource: 'Sample source', sourceChanges: 'The sample source will appear here after you request a response.', viewApiEntry: 'View API entry →', simulationHeading: 'How sample responses work', simulationBody: 'The browser generates a Lua example and reads bundled sample data. It does not execute Lua, query a server, or connect to your running game.', playgroundFooter: 'Copy the generated Lua into your mod. Check live runtime availability in game with runtime.has or runtime.status.',
 			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSetting: 'Read a mod setting', scenarioRuntimeStatus: 'Check a runtime requirement', scenarioGameType: 'Look up a game type',
 			settingSource: 'Starter Mod example: extended.mod.json settings', runtimeSource: 'Simulated status fixture. The browser cannot inspect the current game process.', typeSource: 'Captured Enshrouded game-data snapshot', responseSetting: 'This value is read from the example mod settings included with ShroudForge.', responseRuntime: 'This is a sample response shape only. The website did not query a running game.', responseType: 'This result is a view of captured game metadata, not a live object from the game.', settingNotFound: 'The example settings do not contain this key, so the fallback value is returned.', typeNotFound: 'This type name does not exist in the captured snapshot.', runtimeReason: 'This website has no connection to the current game process.', inputError: 'Enter a valid value for each input.',
-			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The API data could not be loaded. Check your connection and try again.', retryLoading: 'Retry', versionIndexUnavailable: 'Published API versions could not be loaded.', oneApiVersion: 'One API version is published so far.', chooseApiVersion: 'Choose the API version your mod targets.', gameBuildUnavailable: 'Captured game build information is unavailable.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
+			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The published API files could not be loaded.', loadFailureHelp: 'Check the request details below. If you opened this page as a local file, use the website or its local preview server.', retryLoading: 'Retry', versionIndexUnavailable: 'Published API versions could not be loaded.', versionsUnavailableOption: 'API versions unavailable', examplesUnavailableOption: 'Examples unavailable', oneApiVersion: 'One API version is published so far.', chooseApiVersion: 'Choose the API version your mod targets.', gameBuildUnavailable: 'Captured game build information is unavailable.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
 		},
 	}
 
@@ -50,14 +50,23 @@
 	}
 
 	async function fetchJson(url) {
-		const response = await fetch(url, { headers: { Accept: 'application/json' } })
-		if (!response.ok) throw new Error(`${response.status} ${url}`)
+		const requestUrl = new URL(url, document.baseURI)
+		if (requestUrl.protocol === 'file:') throw new Error(`Cannot load published API data from a file URL. Open this page through the website or its local preview server: ${requestUrl.href}`)
+		let response
+		try { response = await fetch(requestUrl, { headers: { Accept: 'application/json' } }) }
+		catch (error) { throw new Error(`Network request failed for ${requestUrl.href}${error?.message ? ` (${error.message})` : ''}`, { cause: error }) }
+		if (!response.ok) throw new Error(`HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''} while loading ${requestUrl.href}`)
+		const contentType = response.headers.get('content-type') || 'unknown content type'
 		try { return await response.json() }
-		catch (error) { throw new Error(`Invalid JSON in ${url}`, { cause: error }) }
+		catch (error) { throw new Error(`Invalid JSON from ${requestUrl.href} (${contentType})`, { cause: error }) }
 	}
 
 	function clearApiLoadError() {
-		for (const container of $$('[data-api-load-error]')) container.hidden = true
+		for (const container of $$('[data-api-load-error]')) {
+			container.hidden = true
+			const detail = container.querySelector('[data-api-load-error-detail]')
+			if (detail) detail.textContent = ''
+		}
 	}
 
 	function showApiLoadError(error) {
@@ -65,6 +74,8 @@
 		for (const container of $$('[data-api-load-error]')) {
 			const message = container.querySelector('[data-api-load-error-message]')
 			if (message) message.textContent = translate('loadFailure')
+			const detail = container.querySelector('[data-api-load-error-detail]')
+			if (detail) detail.textContent = `${translate('loadFailureHelp')} ${error?.message || 'Unknown loading error.'}`
 			container.hidden = false
 		}
 		if (!state.catalog) {
@@ -535,6 +546,18 @@
 			else {
 				const versionNote = $('[data-api-version-note]')
 				if (versionNote) versionNote.textContent = translate('versionIndexUnavailable')
+				const versionPicker = $('[data-api-version]')
+				if (versionPicker) {
+					versionPicker.innerHTML = `<option>${escapeHtml(translate('versionsUnavailableOption'))}</option>`
+					versionPicker.disabled = true
+				}
+			}
+			if (!state.examples) {
+				const examplePicker = $('[data-api-scenario]')
+				if (examplePicker) {
+					examplePicker.innerHTML = `<option>${escapeHtml(translate('examplesUnavailableOption'))}</option>`
+					examplePicker.disabled = true
+				}
 			}
 			showApiLoadError(error)
 		}

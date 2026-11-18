@@ -45,7 +45,7 @@ function apiVersionControls() {
 }
 
 function apiLoadError() {
-	return `<div class="api-load-error editor-status has-error" data-api-load-error role="alert" hidden><span data-api-load-error-message></span><button class="button button-secondary" type="button" data-api-retry data-i18n="retryLoading">Retry</button></div>`
+	return `<div class="api-load-error editor-status has-error" data-api-load-error role="alert" hidden><div class="api-load-error-copy"><span data-api-load-error-message></span><small data-api-load-error-detail></small></div><button class="button button-secondary" type="button" data-api-retry data-i18n="retryLoading">Retry</button></div>`
 }
 
 function referenceNotes() {

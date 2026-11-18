@@ -57,6 +57,21 @@ async function validateLocalLinks(tags, siteUrl, sourceName) {
 }
 
 async function validate() {
+  const headers = await readRequired("_headers");
+  assert(/Content-Security-Policy:[^\r\n]*connect-src 'self'(?:;|$)/.test(headers), "The website Content Security Policy must allow same-origin fetch requests used by the static API tools.");
+  const apiVersionIndex = JSON.parse(await readRequired("data/api/versions.json"));
+  assert(Array.isArray(apiVersionIndex.versions) && apiVersionIndex.versions.length > 0, "The published API version index must contain at least one API version.");
+  assert(apiVersionIndex.versions.some(entry => entry.version === apiVersionIndex.current), "The published API version index must include its current version.");
+  for (const entry of apiVersionIndex.versions) {
+    assert(typeof entry.version === "string" && /^[0-9]+(?:\.[0-9A-Za-z-]+)+$/.test(entry.version), "Published API versions must be safe version identifiers.");
+    const versionBase = `data/api/${entry.version}`;
+    const catalog = JSON.parse(await readRequired(`${versionBase}/catalog.json`));
+    const examples = JSON.parse(await readRequired(`${versionBase}/examples.json`));
+    const operations = JSON.parse(await readRequired(`${versionBase}/runtime-operations.json`));
+    assert(catalog.version === entry.version && Array.isArray(catalog.symbols), `The API catalogue is missing or invalid for version ${entry.version}.`);
+    assert(Array.isArray(examples.scenarios), `API example scenarios are missing or invalid for version ${entry.version}.`);
+    assert(Array.isArray(operations.runtimeOperations), `Runtime operation declarations are missing or invalid for version ${entry.version}.`);
+  }
   const html = await readRequired("index.html");
   const tags = tagsFrom(html);
   assert(/^<!doctype html>/i.test(html.trimStart()), "Website must have an HTML5 doctype.");
