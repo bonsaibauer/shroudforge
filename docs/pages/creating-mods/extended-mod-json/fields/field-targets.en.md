@@ -12,32 +12,4 @@
   }
 }
 ---
-
-# The `targets` field
-
-Selects the client process, the Dedicated Server, or both as mod execution targets.
-
-## Type and requirement
-
-`array` · optional
-
-## Allowed values and limits
-
-- list items: `"client"`, `"server"`
-- minimum items: `1`
-- Items must be unique.
-- Processes this mod runs in. Legacy EML packages without targets default to client and server. ShroudForge packages default to client.
-
-## Example
-
-```json
-{
-  "targets": [
-    "client"
-  ]
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>targets</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Targets_and_launcher">Extended.mod.json: targets</a>.</span></div>

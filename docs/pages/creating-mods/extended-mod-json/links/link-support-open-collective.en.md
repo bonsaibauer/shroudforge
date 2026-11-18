@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# Link ID `support-open-collective`
-
-Use this ID in `extended.mod.json → links.support-open-collective` and provide an HTTPS address. The Modloader displays the link with its registered icon and translated label.
-
-```json
-{
-  "links": {
-    "support-open-collective": "https://example.com/project"
-  }
-}
-```
-
-The IDs and their order are defined in [order.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/mod_link_order.json).
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>support-open-collective</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Links">Extended.mod.json: support-open-collective</a>.</span></div>

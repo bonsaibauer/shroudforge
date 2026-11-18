@@ -12,27 +12,4 @@
   }
 }
 ---
-
-# Feld `schemaVersion`
-
-Version der extended.mod.json-Struktur.
-
-## Datentyp und Pflicht
-
-`object` · erforderlich
-
-## Erlaubte Werte und Grenzen
-
-- fester Wert: `1`
-
-## Beispiel
-
-```json
-{
-  "schemaVersion": 1
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>schemaVersion</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Root_fields">Extended.mod.json: schemaVersion</a>.</span></div>

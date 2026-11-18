@@ -12,10 +12,4 @@
   }
 }
 ---
-
-# Feld `groups`
-
-Optionale Gruppen für Einstellungsfelder und Lua-Aktionen.
-
-
-Eine Gruppe hat `label` und kann `description`, `settings` sowie `actions` enthalten. Nicht gruppierte Einstellungen erscheinen in der Standardgruppe. Siehe [Gruppen und Aktionsknöpfe](#doc-setting-groups-actions).
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>groups</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Groups_and_actions">Extended.mod.json: groups</a>.</span></div>

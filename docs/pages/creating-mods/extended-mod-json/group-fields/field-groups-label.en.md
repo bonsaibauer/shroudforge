@@ -13,33 +13,4 @@
   }
 }
 ---
-
-# The `groups[].label` field
-
-Player-facing name displayed in the Modloader.
-
-## Type and requirement
-
-`string` · required
-
-## Allowed values and limits
-
-- minimum length: `1`
-- maximum length: `120`
-
-## Example
-
-```json
-{
-  "groups": [
-    {
-      "label": "Gameplay",
-      "settings": []
-    }
-  ]
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>groups.label</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Group_fields">Extended.mod.json: groups.label</a>.</span></div>

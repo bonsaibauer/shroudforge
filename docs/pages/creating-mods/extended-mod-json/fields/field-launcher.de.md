@@ -12,28 +12,4 @@
   }
 }
 ---
-
-# Feld `launcher`
-
-Herkunft des Mod-Pakets für die Modloader-Anzeige.
-
-## Datentyp und Pflicht
-
-`string` · optional
-
-## Erlaubte Werte und Grenzen
-
-- Werte: `"EML"`, `"SF"`
-- Herkunft des Mods. Für ShroudForge-Mods weglassen. EML eintragen, um die Herkunft eines migrierten EML-Mods zu erhalten.
-
-## Beispiel
-
-```json
-{
-  "launcher": "EML"
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>launcher</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Targets_and_launcher">Extended.mod.json: launcher</a>.</span></div>

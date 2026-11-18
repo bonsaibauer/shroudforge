@@ -13,32 +13,4 @@
   }
 }
 ---
-
-# Feld `dependencies[].version`
-
-SemVer-Bereich, der für die Version des benötigten Mods akzeptiert wird.
-
-## Datentyp und Pflicht
-
-`string` · erforderlich
-
-## Erlaubte Werte und Grenzen
-
-- SemVer-Versionsbereich, zum Beispiel ^1.2.0 oder >=1.2.0, <2.0.0.
-
-## Beispiel
-
-```json
-{
-  "dependencies": [
-    {
-      "id": "helper.mod",
-      "version": "^1.2.0"
-    }
-  ]
-}
-```
-
-## Quelle
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>dependencies.version</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Mod.json#Dependency_fields">Mod.json: dependencies.version</a>.</span></div>

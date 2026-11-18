@@ -13,38 +13,4 @@
   }
 }
 ---
-
-# Feld `groups[].actions`
-
-Aktionsknöpfe, deren IDs Lua-Callbacks aufrufen.
-
-## Datentyp und Pflicht
-
-`array` · optional
-
-## Erlaubte Werte und Grenzen
-
-Keine zusätzlichen Werte oder Grenzen im Schema angegeben.
-
-## Beispiel
-
-```json
-{
-  "groups": [
-    {
-      "label": "Example",
-      "settings": [],
-      "actions": [
-        {
-          "id": "reset",
-          "label": "Reset"
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>groups.actions</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Groups_and_actions">Extended.mod.json: groups.actions</a>.</span></div>

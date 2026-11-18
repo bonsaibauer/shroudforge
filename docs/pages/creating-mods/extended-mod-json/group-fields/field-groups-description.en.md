@@ -13,33 +13,4 @@
   }
 }
 ---
-
-# The `groups[].description` field
-
-Short text shown on the mod page.
-
-## Type and requirement
-
-`string` · optional
-
-## Allowed values and limits
-
-- maximum length: `500`
-
-## Example
-
-```json
-{
-  "groups": [
-    {
-      "label": "Example",
-      "settings": [],
-      "description": "example"
-    }
-  ]
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>groups.description</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Group_fields">Extended.mod.json: groups.description</a>.</span></div>

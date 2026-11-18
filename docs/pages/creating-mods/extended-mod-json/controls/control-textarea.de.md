@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# Steuerelement `textarea`
-
-Für längere Texte, die über mehrere Zeilen bearbeitet werden. Lege es bei einer Einstellung als `control` fest.
-
-```json
-{
-  "settings": {
-    "example": {"value": "Longer text", "label": "Mehrzeiliges Textfeld", "control": "textarea"}
-  }
-}
-```
-
-Der Wert in `value` sollte zum Steuerelement passen. Weitere Regeln stehen unter [settings.<key>.control](#doc-field-settings-key-control).
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>textarea</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Setting_controls">Extended.mod.json: textarea</a>.</span></div>

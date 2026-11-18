@@ -13,17 +13,4 @@
   }
 }
 ---
-
-# Link-ID `source-github`
-
-Diese ID wird in `extended.mod.json → links.source-github` verwendet. Trage darunter eine HTTPS-Adresse ein. Der Modloader zeigt den Link mit dem zugehörigen Symbol und übersetzten Namen.
-
-```json
-{
-  "links": {
-    "source-github": "https://example.com/project"
-  }
-}
-```
-
-Die IDs und ihre Reihenfolge sind in [order.json](https://github.com/bonsaibauer/shroudforge/blob/HEAD/modules/modloader/mod_link_order.json) definiert.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>source-github</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Links">Extended.mod.json: source-github</a>.</span></div>

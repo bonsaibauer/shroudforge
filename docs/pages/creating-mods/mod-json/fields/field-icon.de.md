@@ -12,28 +12,4 @@
   }
 }
 ---
-
-# Feld `icon`
-
-Icon-Datei im Paketstamm oder unter assets/.
-
-## Datentyp und Pflicht
-
-`string | null` · optional
-
-## Erlaubte Werte und Grenzen
-
-- Muster: `^(?:assets/[A-Za-z0-9._/-]+|[A-Za-z0-9_-][A-Za-z0-9._-]*)$`
-- Optionaler Dateiname des Mod-Icons im Paketordner oder ein Pfad unter assets/. Verwende null, wenn der Mod kein Icon hat.
-
-## Beispiel
-
-```json
-{
-  "icon": "example"
-}
-```
-
-## Quelle
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>icon and supported image formats</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Mod.json#Icon_files">Mod.json: icon and supported image formats</a>.</span></div>

@@ -13,33 +13,4 @@
   }
 }
 ---
-
-# The `dependencies[].optional` field
-
-Whether a missing or incompatible dependency blocks startup.
-
-## Type and requirement
-
-`boolean` · optional
-
-## Allowed values and limits
-
-- When true, this mod may start if the dependency is unavailable. Defaults to false.
-
-## Example
-
-```json
-{
-  "dependencies": [
-    {
-      "id": "helper.mod",
-      "version": "^1.0.0",
-      "optional": true
-    }
-  ]
-}
-```
-
-## Source
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>dependencies.optional</code> here: <a href="https://wiki.shroudforge.net/index.php/Mod.json#Dependency_fields">Mod.json: dependencies.optional</a>.</span></div>
