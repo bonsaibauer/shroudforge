@@ -378,3 +378,39 @@ body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-g
 @keyframes remote-server-glint{to{--remote-server-glint-angle:360deg}}
 @media(prefers-reduced-motion:reduce){.remote-target button.server-target::after{animation:none;--remote-server-glint-angle:35deg}.remote-target.server-selected button.server-target[aria-pressed="true"]{box-shadow:0 0 0 1px rgba(255,225,157,.58),0 0 8px 2px rgba(235,185,76,.42)}}
 .mod-links .header-link.discord{--header-color:#b4baff;--header-border:rgba(88,101,242,.48);--header-bg:rgba(55,63,145,.3)}.mod-links .header-link.youtube{--header-color:#ff9c9c;--header-border:rgba(255,72,72,.42);--header-bg:rgba(112,28,28,.28)}
+
+/* Keep the top actions aligned with the centered content heading on every page. */
+.shell {
+  --sf-sidebar-width: 228px;
+  --sf-content-gutter: 38px;
+  --sf-header-left-inset: 19px;
+  --sf-header-gap: 12px;
+  --sf-page-content-start: max(
+    calc(var(--sf-sidebar-width) + var(--sf-content-gutter)),
+    calc((100vw + var(--sf-sidebar-width) - 1180px) / 2)
+  );
+}
+.topbar {
+  gap: var(--sf-header-gap);
+  padding-left: var(--sf-header-left-inset);
+}
+.topbar .brand {
+  flex: 0 0 calc(var(--sf-page-content-start) - var(--sf-header-left-inset) - var(--sf-header-gap));
+  min-width: 0;
+}
+.workspace {
+  grid-template-columns: var(--sf-sidebar-width) minmax(0, 1fr);
+}
+.content {
+  padding-inline: var(--sf-content-gutter);
+}
+@media (max-width: 980px) {
+  .shell { --sf-content-gutter: 25px; }
+}
+@media (max-width: 760px) {
+  .shell {
+    --sf-sidebar-width: 190px;
+    --sf-content-gutter: 18px;
+    --sf-header-gap: 6px;
+  }
+}
