@@ -175,7 +175,7 @@ async function validate() {
   assert(toolTags.some(tag => tag.name === "script" && tag.attributes.src === "/assets/mod-settings.js"), "Mod-Settings browser controls are missing.");
   const toolNavigation = toolHtml.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/i)?.[1] || "";
   assert(tagsFrom(toolNavigation).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/mod-settings/"), "The Tools navigation must keep the Mod-Settings route reachable.");
-  const standardsNavGroup = toolHtml.match(/<div class="tools-nav-group">\s*<div class="tools-category-label">Standards<\/div>([\s\S]*?)<\/div>\s*<\/div>\s*<\/aside>/)?.[0] || "";
+  const standardsNavGroup = toolHtml.match(/<div class="tools-nav-group">\s*<div class="tools-category-label"[^>]*>Standards<\/div>([\s\S]*?)<\/div>\s*<\/div>\s*<\/aside>/)?.[0] || "";
   assert(standardsNavGroup.includes('href="/schemas/">Schemas</a>') && standardsNavGroup.includes('class="icon ') && standardsNavGroup.includes("DInput8 Standard") && tagsFrom(standardsNavGroup).some(tag => tag.name === "a" && tag.attributes.href === config.dinput8ChainStandardUrl), "The Standards category must link to Schemas and the DInput8 Wiki article with an external-link icon.");
   const example = JSON.parse(toolHtml.match(/<template id="mod-settings-example">([\s\S]*?)<\/template>/i)?.[1]?.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") || "null");
   const starterManifest = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/mod.json"), "utf8"));
