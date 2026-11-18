@@ -14,3 +14,8 @@ pub use unsupported_platform::*;
 
 #[path = "building_input.rs"]
 pub mod player_input;
+
+mod map_views;
+pub use map_views::{map_fog, map_markers, map_overlay_status, map_summary};
+mod notifications;
+pub use notifications::publish_notification;
