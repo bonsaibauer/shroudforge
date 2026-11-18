@@ -1,0 +1,161 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Modding: Capabilities
+description: A practical guide to the mod.json capabilities field, what each capability allows, and how ShroudForge schedules and checks mod code.
+language: en-GB
+creator: Bonsaibauer
+-->
+
+<translate>
+
+Capabilities are the permissions a mod declares in its <code>mod.json</code> when it needs a specific ShroudForge or EML feature. They tell the loader what the package intends to do. A capability does not enable a disabled mod, choose whether it runs on the client or server, or guarantee that every operation is supported by the current game process.
+
+== The four capabilities at a glance ==
+
+{| class="wikitable"
+! Value in <code>mod.json</code>
+! What the mod is asking to do
+! When the loader uses it
+|-
+| <code>patch</code>
+| Change supported Enshrouded game assets through the asset-writing API.
+| During ShroudForge's preparation step before the game starts.
+|-
+| <code>export</code>
+| Read, create, and manage files inside the configured ShroudForge export directory.
+| In the preparation step for an export-only mod, or in the live runtime when the mod also runs there.
+|-
+| <code>runtime</code>
+| Run Lua in the live game process and use ShroudForge runtime features, such as lifecycle callbacks and supported runtime operations.
+| While the client or Dedicated Server process is running.
+|-
+| <code>runtime-register-dll</code>
+| Register and load a native DLL from the mod package with <code>loader.runtime.register_dll</code>.
+| In the live game process. This capability also schedules the package for the runtime phase.
+|}
+
+== Declare only the capabilities the mod uses ==
+
+The optional <code>capabilities</code> field is an array in the root of <code>mod.json</code>. The accepted values are <code>patch</code>, <code>export</code>, <code>runtime</code>, and <code>runtime-register-dll</code>. Each value may appear only once. An unrecognized value or a duplicate makes the manifest invalid.
+
+For example, a mod that edits supported game assets before launch and also runs Lua callbacks during play requests both <code>patch</code> and <code>runtime</code>:
+
+<pre>
+{
+  "id": "example.asset-and-runtime-mod",
+  "name": "Asset and Runtime Mod",
+  "version": "1.0.0",
+  "capabilities": [
+    "patch",
+    "runtime"
+  ]
+}
+</pre>
+
+If the mod does not use any of these features, omit <code>capabilities</code> or provide an empty array. Do not add all four values as a precaution. Requesting a capability does not make an unsupported feature available.
+
+Capabilities are read from <code>mod.json</code>, not <code>extended.mod.json</code>. They belong to the package that declares them. A dependency does not pass its capabilities to another mod. The separate <code>target</code> field selects the process in which the package runs. It does not grant capabilities, and capabilities do not synchronize a client mod with a server.
+
+== How ShroudForge applies a capability ==
+
+The loader reads and validates each package's manifest, then uses its capability values to build the correct startup and runtime plans. When Lua calls a protected API, ShroudForge checks the owning mod's declaration as well as the current phase and the feature availability of that client or server process.
+
+This means a capability is a request and an access gate, not a success result. For example, <code>runtime</code> makes a package eligible for the live Lua runtime, but a particular native operation can still be unavailable for the current Enshrouded build, process type, or runtime profile. Use the feature checks supplied by the API, such as <code>runtime.has(feature)</code>, and handle an unavailable result.
+
+The loader uses two broad phases:
+
+* <b>Preparation before launch:</b> enabled mods that need <code>patch</code> run through ShroudForge's supported asset-preparation path. A mod that only requests <code>export</code> can also run here to produce files before the game starts, if exporting is enabled.
+* <b>Live runtime:</b> mods that request <code>runtime</code> or <code>runtime-register-dll</code> are scheduled while the game process is running. Runtime access is still checked for each feature and operation.
+
+A mod that requests both <code>patch</code> and <code>runtime</code> can be loaded for both phases. Keep preparation work separate from gameplay callbacks and make top-level code safe for the phase in which it runs. Use the runtime phase information when a behaviour must happen only in one phase.
+
+== <code>patch</code>: prepare game assets before launch ==
+
+<code>patch</code> grants access to <code>game.assets.write</code> in the pre-game preparation phase. A mod uses it when it must change supported Enshrouded asset data before the game loads that data. Examples include changing recipe or other supported asset values that need to be present at startup.
+
+ShroudForge runs the preparation pass before normal gameplay and publishes the resulting asset changes through its managed game-file preparation process. This is for supported game assets. It is not general permission to write arbitrary files, and it is not a way to change live ECS values after a world has loaded.
+
+Use <code>patch</code> when the mod's effect must already be present as the game starts. If the same mod also needs callbacks or live runtime operations, declare <code>runtime</code> separately. These are different jobs: <code>game.assets.write</code> changes prepared asset data, while live operations such as <code>runtime.ecs.write</code> are checked through the runtime API.
+
+Mods that change game files need their preparation step before launch. Follow the mod's instructions. When instructed to prepare manually, close Enshrouded and run this command from the game folder:
+
+<pre>
+./shroudforge/shroudforge.exe launch "."
+</pre>
+
+The <code>patch</code> capability alone does not make the mod run. The mod must also be enabled for the selected client or server installation, and the preparation result must match the installed package set before ShroudForge can use it.
+
+== <code>export</code>: write files into the user's export folder ==
+
+<code>export</code> grants access to the EML file functions such as <code>io.export</code>, <code>io.export_exists</code>, <code>io.read_export_to_string</code>, <code>io.export_list</code>, <code>io.export_copy</code>, <code>io.export_rename</code>, and <code>io.export_delete</code>. A mod can use them for output that the player can keep or inspect, such as generated reports, saved tool output, or files produced by a mod action. <code>io.read_export_to_string</code> reads UTF-8 text from a file in the export folder.
+
+Paths passed to these functions are relative to ShroudForge's configured export directory. By default this is the <code>exports</code> folder in the game installation. The loader can use a different configured folder. Export functions reject paths that escape this directory, so a mod cannot use them to choose an arbitrary system path.
+
+For example:
+
+<pre>
+if loader.features.export then
+  io.export("reports/summary.txt", "The report is ready.")
+end
+</pre>
+
+If the destination file already exists, <code>io.export</code> replaces it. Choose filenames deliberately, and check before writing when existing player output must be preserved.
+
+Exporting also depends on the loader-wide <code>exports.enabled</code> setting. It is enabled by default. If it is disabled, <code>io.export</code> and the other export functions are unavailable even when the package declares <code>export</code>. The setting is stored at <code>shroudforge/config/modloader-config.json</code>, under <code>/exports/enabled</code>.
+
+An export-only mod can run during pre-game preparation to create files without using the live runtime. If it also declares <code>runtime</code> or <code>runtime-register-dll</code>, ShroudForge schedules it in the live runtime instead, where it can export while the game is running. Add <code>patch</code> as well only if the mod also changes game assets.
+
+== <code>runtime</code>: run Lua while the game is running ==
+
+<code>runtime</code> schedules the mod's Lua entry point for the live client or Dedicated Server process selected by the package target. It allows the mod to use supported ShroudForge runtime features and lifecycle callbacks while the game is running.
+
+Use it for behaviour that needs to react to the current game process, player, world, or supported live game data. Examples include reacting to a lifecycle callback, reading the selected player name, or using a supported runtime operation to change a live value. The standalone [[Mod: Unlimited Flight|Unlimited Flight]] mod is an example of a runtime mod. [[Mod: Crafting Essentials|Crafting Essentials]] combines <code>runtime</code> with <code>patch</code> because it needs both live behaviour and prepared asset changes.
+
+The capability does not promise that every runtime function is usable. The API checks the current phase, the mod's lifecycle state, the selected process, the game build, and the operation's supported runtime profile. Check the exact feature before relying on it. For example, <code>runtime.has("runtime.ecs.read")</code> reports whether that operation is available now. Handle <code>false</code> or the reason returned by the corresponding status call instead of assuming that a loaded mod can use every operation.
+
+<code>runtime</code> is not the same as <code>patch</code>. Use <code>patch</code> for supported asset changes before launch. Use <code>runtime</code> for functions that execute in the live game process. If a mod needs both, declare both and keep the two phases' work separate.
+
+== <code>runtime-register-dll</code>: load a package DLL ==
+
+<code>runtime-register-dll</code> is for mods that need native code in addition to Lua. It makes the package eligible for the live runtime so its Lua code can call <code>loader.runtime.register_dll(path)</code>. Listing the capability does not load a DLL by itself. The mod must call the function with a path relative to its package root.
+
+<pre>
+if loader.features.runtime.dll then
+  loader.runtime.register_dll("bin/example.dll")
+end
+</pre>
+
+Keep the DLL inside the mod package and include any files that it needs beside it. The function loads that DLL into the current game process for the process lifetime. ShroudForge may call the DLL's optional <code>ShroudforgeModNativeInit</code> export after loading. When present, that export lets the DLL register functions for the same mod's Lua code through <code>shroudforge.native</code>.
+
+Native DLL loading is available in the Windows game runtime only. A DLL runs as native code inside the Enshrouded process and is not sandboxed like Lua. Request this capability only when the mod genuinely needs native code, and only use DLLs whose source you trust. A regular Lua mod does not need it.
+
+Declare <code>runtime-register-dll</code> for a package that calls <code>loader.runtime.register_dll</code>. This capability schedules a DLL-only package for the live phase. If the mod also uses ordinary ShroudForge runtime features such as <code>runtime.lifecycle</code> or ECS operations, declare <code>runtime</code> as well because it describes a separate need.
+
+== Choose the smallest matching set ==
+
+{| class="wikitable"
+! What the mod does
+! Capabilities to declare
+|-
+| Changes supported asset data before the game starts
+| <code>patch</code>
+| Writes files into the configured ShroudForge export folder
+| <code>export</code>
+| Runs Lua callbacks or supported ShroudForge runtime operations during play
+| <code>runtime</code>
+| Loads a DLL from the mod package with <code>loader.runtime.register_dll</code>
+| <code>runtime-register-dll</code>
+| Changes startup assets and also has in-game behaviour
+| <code>patch</code> and <code>runtime</code>
+| Runs in-game and writes player-facing files
+| <code>runtime</code> and <code>export</code>
+| Runs in-game, uses runtime APIs, and loads its own native DLL
+| <code>runtime</code> and <code>runtime-register-dll</code>
+|}
+
+For setup and the other package fields, see [[Mod.json|the Mod.json guide]]. For how to write the Lua entry point, see [[Modding with Lua]]. The standalone [[Mod: Unlock Blueprints|Unlock Blueprints]] mod is an example of a mod that requests <code>patch</code> for prepared asset changes.
+
+</translate>
+
+[[Category:Modding:Shroudforge]]

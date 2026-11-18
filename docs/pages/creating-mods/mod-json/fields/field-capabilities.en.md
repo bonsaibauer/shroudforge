@@ -15,29 +15,4 @@
 }
 ---
 
-# The `capabilities` field
-
-Access categories requested by the mod.
-
-## Type and requirement
-
-`array` · optional
-
-## Allowed values and limits
-
-- list items: `"patch"`, `"export"`, `"runtime"`, `"runtime-register-dll"`
-- Items must be unique.
-
-## Example
-
-```json
-{
-  "capabilities": [
-    "runtime"
-  ]
-}
-```
-
-## Source
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This modding guide is now on the ShroudForge Wiki.</b><span>The field overview and all four capability explanations are in one article: <a href="https://wiki.shroudforge.net/index.php/Modding:_Capabilities">Modding: Capabilities</a>.</span></div>

@@ -22,6 +22,8 @@ The <code>id</code> is the unique package identifier. The <code>name</code> is s
 
 The [https://shroudforge.net/schemas/1.8.0/manifest.schema.json canonical manifest schema] defines the accepted fields and data types.
 
+For detailed explanations of the available capability values and when to request them, see [[Modding: Capabilities|Mod capabilities and permissions]].
+
 == Related pages ==
 
 * [[Build your first mod]]

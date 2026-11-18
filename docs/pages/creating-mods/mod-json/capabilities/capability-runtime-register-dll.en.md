@@ -14,14 +14,4 @@
 }
 ---
 
-# The `runtime-register-dll` capability
-
-Register a package-local DLL during the runtime phase. Add the value to `capabilities` in `mod.json` only when the mod uses that feature.
-
-```json
-{
-  "capabilities": ["runtime-register-dll"]
-}
-```
-
-Declaring a capability does not report success. The loader checks the mod and the feature separately. See [the mod.json capabilities field](#doc-field-capabilities).
+<div class="callout info" role="note"><b>This modding guide is now on the ShroudForge Wiki.</b><span>The field overview and all four capability explanations are in one article: <a href="https://wiki.shroudforge.net/index.php/Modding:_Capabilities">Modding: Capabilities</a>.</span></div>

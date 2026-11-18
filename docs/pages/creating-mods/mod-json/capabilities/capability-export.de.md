@@ -14,14 +14,4 @@
 }
 ---
 
-# Berechtigung `export`
-
-Exportfunktionen für Mod-Ausgaben. Trage den Wert in das Feld `capabilities` in `mod.json` ein, wenn der Mod die Funktion wirklich nutzt.
-
-```json
-{
-  "capabilities": ["export"]
-}
-```
-
-Die Deklaration ist keine Erfolgsmeldung. Der Loader prüft den Mod und die jeweilige Funktion zusätzlich. Siehe [Berechtigungen in mod.json](#doc-field-capabilities).
+<div class="callout info" role="note"><b>Diese Modding-Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Feldübersicht und alle vier Capability-Erklärungen stehen in einem Artikel: <a href="https://wiki.shroudforge.net/index.php/Modding:_Capabilities">Modding: Capabilities</a>.</span></div>
