@@ -26,7 +26,7 @@ end
 local function fixture()
     local f = {
         settings={}, session=41, writes=0, players={11}, active_item=0,
-        pitch_mode="YawSpeedPitchTargetAngle", pitch_input=0, pitch_degrees=0, delta_seconds=1/60,
+        patch_available=true, pitch_patch_enabled=false, patch_calls=0,
         action_sets_gliding=false, action_unsets_gliding=false,
         attributes={[11]={StaminaDepletionMod_Glider=0.35}},
         trackers={},
@@ -76,6 +76,19 @@ local function fixture()
     end}}
     runtime = {
         overrides=overrides,
+        patch={
+            available=function(name)
+                equal(name, "runtime.patch.glider_pitch")
+                return f.patch_available
+            end,
+            set_enabled=function(name, enabled)
+                equal(name, "runtime.patch.glider_pitch")
+                f.patch_calls = f.patch_calls + 1
+                if not f.patch_available then return false, "native patch is unavailable" end
+                f.pitch_patch_enabled = enabled
+                return true
+            end,
+        },
         has=function() return true end,
         report_effect=function(state, detail) f.state, f.detail = state, detail end,
         world={session_id=function() return f.session end},
@@ -119,15 +132,6 @@ local function fixture()
                         ["currentAction.playbackContext.state"]=f.active_item > 0 and {"IsActive"} or {},
                         ["currentAction.playbackContext.setStateMask"]=f.action_sets_gliding and {"HangGliding"} or {},
                         ["currentAction.playbackContext.unsetStateMask"]=f.action_unsets_gliding and {"HangGliding"} or {}}
-                elseif type_name == "keen::ecs::PlayerInput" then
-                    return {[paths[1]]=f.pitch_mode}
-                elseif type_name == "keen::ecs::ActorInput" then
-                    return {[paths[1]]=f.pitch_input}
-                elseif type_name == "keen::ecs::CurrentTransform" then
-                    local angle = math.rad(f.pitch_degrees) / 2
-                    return {[paths[1]]=math.sin(angle), [paths[2]]=0, [paths[3]]=0, [paths[4]]=math.cos(angle)}
-                elseif type_name == "keen::ecs::Gravity" then
-                    return {[paths[1]]=0, [paths[2]]=-1, [paths[3]]=0}
                 end
                 error("unexpected component " .. type_name)
             end,
@@ -230,111 +234,63 @@ end
 do
     local f = fixture()
     f.settings.unlimitedFlying, f.settings.turnSpeed = true, 200
-    f.active_item, f.pitch_mode, f.pitch_input = f.item_id, "YawSpeedPitchSpeed", -1
+    f.active_item = f.item_id
     f.action_sets_gliding = true
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, -70, "active action can supply the effective HangGliding state")
+    equal(f.pitch_patch_enabled, true, "upward gliding enables the native pitch patch")
     equal(f.glider.equipment.gliderConfig.yawAngleSpeed, 110, "effective action state enables original glider controls")
     f.action_unsets_gliding = true
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "unset mask takes precedence and restores native pitch")
+    equal(f.pitch_patch_enabled, true, "native pitch control does not depend on one actor's action state")
+    f.settings.turnSpeed = 100
+    f:tick()
+    equal(f.glider.equipment.gliderConfig.yawAngleSpeed, 55, "returning the glider slider restores its original value")
+    equal(f.pitch_patch_enabled, true, "the native patch remains enabled while its setting is on")
+    f.settings.unlimitedFlying = false
+    f:tick()
+    equal(f.pitch_patch_enabled, false, "disabling upward gliding restores the native patch")
     f:unload()
 end
 
 do
     local f = fixture()
     f.settings.unlimitedFlying = true
-    f.active_item, f.pitch_mode, f.pitch_input = f.item_id, "YawSpeedPitchSpeed", -1
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, -70, "upward command uses the native negative rate")
-    f.pitch_input = 0
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 0, "neutral input holds the native pitch")
-    f.pitch_input = 1
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "downward input restores the native positive rate")
-    f.pitch_input, f.pitch_degrees = -1, -84
-    f:tick()
-    assert(f.glider.equipment.gliderConfig.pitchAngleSpeed > -4.01
-        and f.glider.equipment.gliderConfig.pitchAngleSpeed < -3.99, "sampled tilt limit reduces the native rate")
-    f.pitch_degrees = -86
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 0, "sampled limit stops further upward steering")
     f.active_item = 0
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "landing automatically restores the native rate")
-    f.active_item, f.pitch_input, f.pitch_degrees = f.item_id, -1, 0
+    equal(f.pitch_patch_enabled, true, "native pitch control does not require an active glider item")
+    equal(f.writes, 0, "native pitch control leaves shared glider resource fields unchanged")
+    f.session = 0
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, -70)
-    f.pitch_mode = "YawSpeedPitchTargetAngle"
+    equal(f.pitch_patch_enabled, true, "a temporarily unavailable world does not disable the patch")
+    f.settings.unlimitedFlying = false
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "unsupported controls restore instead of leaving a negative rate")
-    f.pitch_mode = "YawSpeedPitchSpeed"
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, -70)
-    f.players = {11,12}
-    f.attributes[12] = {StaminaDepletionMod_Glider=0.35}
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "shared rate steering stops when another player appears")
-    f:unload()
-end
-
-do
-    -- This is the old controller's arithmetic counterexample, not a model of
-    -- the engine's complete glider physics. asin hides crossing the pole.
-    local pitch, delta = -80, 0.65
-    local old_rate = -(pitch + 85) / 0.25
-    local next_pitch = pitch + old_rate * delta
-    assert(next_pitch < -90, "a 650 ms interval exceeds the old fixed 250 ms horizon")
-    local angle = math.rad(next_pitch)
-    local folded = math.deg(math.asin(math.sin(angle)))
-    assert(math.cos(angle) < 0 and folded > -90,
-        "after crossing vertical the folded pitch conceals the reversed horizontal heading")
-
-    local f = fixture()
-    f.settings.unlimitedFlying = true
-    f.active_item, f.pitch_mode, f.pitch_input = f.item_id, "YawSpeedPitchSpeed", -1
-    f.pitch_degrees, f.delta_seconds = pitch, delta
-    f:tick()
-    local rate = f.glider.equipment.gliderConfig.pitchAngleSpeed
-    assert(math.abs(rate + 5 / 1.3) < 0.00001, "measured interval sets a two-interval steering margin")
-    assert(pitch + rate * delta > -85, "the observed 650 ms interval cannot cross the 85 degree margin")
-    f.delta_seconds = 1/60
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, rate, "a shorter next interval retains the active flight's peak")
-    f.active_item = 0
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "landing restores the original rate after a slow interval")
-    f.active_item = f.item_id
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, -20, "the next flight starts with a fresh interval history")
+    equal(f.pitch_patch_enabled, false, "disabling the setting restores the patch without a world")
     f:unload()
 end
 
 do
     local f = fixture()
     f.settings.unlimitedFlying = true
-    f.active_item, f.pitch_mode, f.pitch_input = f.item_id, "YawSpeedPitchSpeed", -1
-    f.pitch_degrees = -100
+    f.patch_available = false
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "inverted up vector restores the native positive rate instead of using folded pitch")
-    assert(f.detail:find("inverted recovery", 1, true), "recovery is reported")
-    f.pitch_degrees = -80
+    equal(f.pitch_patch_enabled, false, "an unavailable native patch is never reported as enabled")
+    equal(f.state, "waiting", "unavailable native pitch control is reported as waiting")
+    local attempts = f.patch_calls
+    f.patch_available = true
     f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "holding climb cannot immediately restart the negative rate after inversion")
-    f.pitch_input = 0
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 0, "releasing climb while upright clears the recovery latch")
-    f.pitch_input = -1
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, -20, "a new climb command uses the bounded rate again")
-    f.delta_seconds = 0
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "an invalid measured interval restores rather than retaining a negative rate")
-    f.delta_seconds = 0/0
-    f:tick()
-    equal(f.glider.equipment.gliderConfig.pitchAngleSpeed, 70, "a nonfinite interval cannot authorize steering")
+    equal(f.pitch_patch_enabled, true, "native patch activation is retried when the runtime becomes ready")
+    equal(f.patch_calls, attempts + 1, "runtime readiness causes one fresh activation attempt")
+    f.settings.unlimitedFlying = false
     f:unload()
+end
+
+do
+    local f = fixture()
+    f.settings.unlimitedFlying = true
+    f:tick()
+    equal(f.pitch_patch_enabled, true, "native patch activation succeeds")
+    f:unload()
+    equal(f.pitch_patch_enabled, false, "unloading the mod restores the original game code")
 end
 
 do
