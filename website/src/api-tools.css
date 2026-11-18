@@ -1,7 +1,5 @@
-.api-version-controls{display:grid;flex:0 1 350px;min-width:0;gap:6px}
+.api-version-controls{display:grid;flex:0 1 350px;min-width:0;gap:10px}
 .api-version-controls .preview-version-picker{flex:initial;min-width:0}
-.api-version-facts{display:flex;flex-wrap:wrap;gap:3px 12px;color:var(--text-secondary);font-size:10px;line-height:1.45}
-.api-version-facts span:empty{display:none}
 .api-load-error{align-items:center;gap:10px;padding:9px 0}
 .api-load-error[hidden]{display:none}
 .api-load-error-copy{display:grid;flex:1;gap:4px;min-width:0}
@@ -107,4 +105,4 @@
 html[data-theme='light'] .api-tool-main .api-reference-notes-content{color:var(--page-text-secondary)}
 @media(max-width:1100px){.api-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.api-request-fields{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:650px){.api-version-controls{flex-basis:auto;width:100%}.api-version-facts{display:grid}.api-task-grid,.api-entry-columns{grid-template-columns:minmax(0,1fr)}.api-reference-panel>.tool-section-heading{display:grid}.api-search-row{align-items:stretch;flex-direction:column}.api-clear-button{align-self:flex-end}.api-filter-row .api-filter{flex:1 1 auto}.api-field-list>div{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.api-field-list>div span{grid-column:1/-1}}
+@media(max-width:650px){.api-version-controls{flex-basis:auto;width:100%}.api-task-grid,.api-entry-columns{grid-template-columns:minmax(0,1fr)}.api-reference-panel>.tool-section-heading{display:grid}.api-search-row{align-items:stretch;flex-direction:column}.api-clear-button{align-self:flex-end}.api-filter-row .api-filter{flex:1 1 auto}.api-field-list>div{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.api-field-list>div span{grid-column:1/-1}}

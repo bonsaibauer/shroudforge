@@ -14,7 +14,6 @@
 --- @field impact RuntimeImpactApi Checked semantic calls to original named Impact operations.
 --- @field overrides RuntimeOverridesApi Typed reversible changes with shared storage claims and automatic mod-scope cleanup.
 --- @field patch RuntimePatchApi Checked process-wide runtime interventions.
---- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string? Report an observed ECS action state. A confirmed write means typed memory was written, not that the gameplay effect was independently verified.
 
 --- @class RuntimeLifecycle
 --- @field on_load fun()? Called when the runtime mod starts.

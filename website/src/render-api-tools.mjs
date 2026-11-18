@@ -38,9 +38,9 @@ function pageShell({ config, siteUrl, route, active, title, description, body })
 }
 
 function apiVersionControls() {
-	return `<div class="preview-version-controls api-version-controls">
-		<label class="preview-version-picker"><span data-i18n="apiVersion">ShroudForge API version</span><select data-api-version aria-label="ShroudForge API version" data-i18n-aria-label="apiVersion" disabled><option>Loading…</option></select><small data-api-version-note role="status">Loading available versions…</small></label>
-		<div class="api-version-facts"><span data-api-release></span><span data-game-build></span></div>
+	return `<div class="api-version-controls">
+		<label class="preview-version-picker"><span data-i18n="apiVersion">ShroudForge API version</span><select data-api-version aria-label="ShroudForge API version" data-i18n-aria-label="apiVersion" disabled><option>Loading…</option></select></label>
+		<label class="preview-version-picker"><span data-i18n="gameBuildLabel">Game Build</span><select data-game-build aria-label="Game Build" data-i18n-aria-label="gameBuildLabel" disabled><option>Loading…</option></select></label>
 	</div>`
 }
 
@@ -62,7 +62,7 @@ function referenceNotes() {
 function apiIntro({ titleKey, titleText, leadKey, leadText, actionLabel, actionHref }) {
 	return `<section class="page-intro tool-intro" aria-labelledby="page-title">
 		<div class="eyebrow" data-i18n="toolsEyebrow">SHROUDFORGE TOOLS · MODDING</div>
-		<div class="tool-intro-row"><div><h1 id="page-title" data-i18n="${titleKey}">${titleText}</h1><p data-i18n="${leadKey}">${leadText}</p></div><div class="tool-intro-actions" role="group" aria-label="API tool navigation"><a class="button button-primary" href="${actionHref}" data-i18n="${actionLabel.key}">${actionLabel.text}</a></div></div>
+		<div class="tool-intro-row"><div><h1 id="page-title" data-i18n="${titleKey}">${titleText}</h1><p data-i18n="${leadKey}">${leadText}</p></div><div class="tool-intro-actions" role="group" aria-label="API tool navigation"><a class="button button-primary" href="${actionHref}" data-api-route="${actionHref}" data-i18n="${actionLabel.key}">${actionLabel.text}</a></div></div>
 	</section>`
 }
 

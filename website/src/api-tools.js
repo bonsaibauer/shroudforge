@@ -5,8 +5,7 @@
 	const text = {
 		en: {
 			skip: 'Skip to API tools', toolsNavLabel: 'Tools', moddingNavLabel: 'Modding', modSettingsNav: 'Mod-Settings', apiCallsNav: 'API calls', browseApiNav: 'Browse API', standardsNavLabel: 'Standards',
-			toolsEyebrow: 'SHROUDFORGE TOOLS · MODDING', apiReferenceTitle: 'Browse the API', apiReferenceLead: 'Start with a task or search the published API, game types, and resource IDs.', apiPlaygroundTitle: 'Try API calls', apiPlaygroundLead: 'Choose a task, edit its inputs, and preview sample output. The browser never calls your game.', tryCallsAction: 'Try API calls', browseApiAction: 'Browse API', apiVersion: 'ShroudForge API version', apiCategories: 'API categories', apiReferenceSections: 'API reference sections',
-			apiRelease: 'API {api} · ShroudForge {release}', gameBuild: 'Captured game build {build}',
+			toolsEyebrow: 'SHROUDFORGE TOOLS · MODDING', apiReferenceTitle: 'Browse the API', apiReferenceLead: 'Start with a task or search the published API, game types, and resource IDs.', apiPlaygroundTitle: 'Try API calls', apiPlaygroundLead: 'Choose a task, edit its inputs, and preview sample output. The browser never calls your game.', tryCallsAction: 'Try API calls', browseApiAction: 'Browse API', apiVersion: 'ShroudForge API version', gameBuildLabel: 'Game Build', apiCategories: 'API categories', apiReferenceSections: 'API reference sections',
 			referenceNotesTitle: 'Status and evidence', referenceNotesAction: 'Show details', referenceNotesLua: 'Lua API means the entry is part of the shared Lua interface used by mods. It is generated from the published API declarations. This badge does not confirm availability in the current game process.', referenceNotesGame: 'Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.', referenceNotesRuntime: 'Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.',
 			startWithTask: 'START WITH A TASK', commonTasks: 'What do you want your mod to do?', taskLead: 'Choose an example to see its Lua call and what the response means.', loadingExamples: 'Loading examples…',
 		referenceEyebrow: 'SEARCHABLE REFERENCE', allApiEntries: 'Find an API entry', searchLead: 'Search by task, function, or parameter. Badges describe published evidence, not live availability.', searchLabel: 'Search the API', searchPlaceholder: 'Try “read a setting” or shroudforge.settings.get', clearSearch: 'Clear', filterAll: 'Everything', filterRuntime: 'Runtime', filterGame: 'Game data', functionsTab: 'Lua functions', typesTab: 'Game types', resourcesTab: 'Game resources', loadingCatalog: 'Loading the API catalogue…', typeDataNote: 'These details come from a captured Enshrouded build. They do not describe a live game process.', searchTypes: 'Search game types', typeSearchPlaceholder: 'Type name or field', resourceDataNote: 'Resource names and IDs come from the same captured game snapshot.', searchResources: 'Search game resources', resourceSearchPlaceholder: 'Resource name or ID', referenceFooter: 'The catalogue documents the Lua interface. Check runtime.has or runtime.status inside your mod to learn what is available in the current game process.',
@@ -15,13 +14,16 @@
 		exampleEditor: 'API CALL EDITOR', editRunExample: 'Build a Lua API call', playgroundLead: 'Choose a task, edit its inputs, and preview sample output. Lua never runs in this browser.', chooseExample: 'Choose a task', loadingExamplesOption: 'Loading examples…', generatedLua: 'Lua code for your mod', copyCode: 'Copy code', runExample: 'Show sample response', exampleResponse: 'SAMPLE RESPONSE', responseHeading: 'What the call may return', sampleOnly: 'Browser sample', runToSeeResponse: 'Choose a task and show its sample response.', noResponseYet: 'No response yet.', responseSource: 'Sample source', sourceChanges: 'The sample source will appear here after you request a response.', viewApiEntry: 'View API entry →', simulationHeading: 'How sample responses work', simulationBody: 'The browser generates a Lua example and reads bundled sample data. It does not execute Lua, query a server, or connect to your running game.', playgroundFooter: 'Copy the generated Lua into your mod. Check live runtime availability in game with runtime.has or runtime.status.',
 			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldCapability: 'Capability', fieldComponent: 'Component', fieldField: 'Player field', fieldSetting: 'Setting key', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSurvivalSetting: 'Read an SF Survival setting',
 			settingSource: 'Starter Mod example: extended.mod.json settings', runtimeSource: 'Simulated status fixture. The browser cannot inspect the current game process.', typeSource: 'Captured Enshrouded game-data snapshot', responseSetting: 'This value is read from the example mod settings included with ShroudForge.', responseRuntime: 'This is a sample response shape only. The website did not query a running game.', responseType: 'This result is a view of captured game metadata, not a live object from the game.', settingNotFound: 'The example settings do not contain this key, so the fallback value is returned.', typeNotFound: 'This type name does not exist in the captured snapshot.', runtimeReason: 'This website has no connection to the current game process.', inputError: 'Enter a valid value for each input.',
-			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The published API files could not be loaded.', loadFailureHelp: 'Check the request details below. If you opened this page as a local file, use the website or its local preview server.', retryLoading: 'Retry', versionIndexUnavailable: 'Published API versions could not be loaded.', versionsUnavailableOption: 'API versions unavailable', examplesUnavailableOption: 'Examples unavailable', oneApiVersion: 'One API version is published so far.', chooseApiVersion: 'Choose the API version your mod targets.', gameBuildUnavailable: 'Captured game build information is unavailable.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
+			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The published API files could not be loaded.', loadFailureHelp: 'Check the request details below. If you opened this page as a local file, use the website or its local preview server.', retryLoading: 'Retry', versionsUnavailableOption: 'API versions unavailable', examplesUnavailableOption: 'Examples unavailable', gameBuildUnavailable: 'Game build information is unavailable.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
 		},
 	}
 
 	const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
 	const locale = 'en'
-	const state = { index: null, catalog: null, examples: null, operations: null, gameProfile: null, types: null, resources: null, filter: 'all', typeLoading: false, resourceLoading: false, versionRequest: 0 }
+	const state = { index: null, catalog: null, examples: null, operations: null, gameBuildIndex: null, selectedGameBuild: null, types: null, resources: null, filter: 'all', versionRequest: 0 }
+	const gameDataCache = { types: new Map(), resources: new Map() }
+	const gameDataLoads = { types: new Map(), resources: new Map() }
+	let gameBuildLoadPromise
 	const translate = (key, values = {}) => {
 		if (!key) return ''
 		let value = text.en[key] ?? key
@@ -88,32 +90,29 @@
 
 	function versionRoute(route, extra = {}) {
 		const params = new URLSearchParams({ apiVersion: state.catalog?.version || state.index?.current || '' })
+		if (state.selectedGameBuild?.gameBuild) params.set('gameBuild', state.selectedGameBuild.gameBuild)
 		for (const [key, value] of Object.entries(extra)) if (value) params.set(key, value)
 		return `${route}?${params}`
 	}
 
-	function setVersionFacts() {
-		const release = $('[data-api-release]')
-		if (release && state.catalog) release.textContent = translate('apiRelease', { api: state.catalog.version, release: state.catalog.shroudforge_version || '—' })
-		const build = $('[data-game-build]')
-		const gameVersion = state.gameProfile?.game_version || ''
-		const gameBuild = gameVersion.split('|')[0] || '—'
-		if (build) build.textContent = gameBuild === '—' ? translate('gameBuildUnavailable') : translate('gameBuild', { build: gameBuild })
+	function updateNavigationRoutes() {
+		for (const link of $$('[data-api-route]')) link.href = versionRoute(link.dataset.apiRoute)
+	}
+
+	function updatePlaygroundReferenceLink() {
+		const scenario = state.examples?.scenarios.find(item => item.id === getScenarioFromQuery())
+		const reference = $('[data-reference-link]')
+		if (scenario && reference) reference.href = versionRoute('/tools/modding/api-reference/', { q: scenario.method })
 	}
 
 	function renderVersionPicker() {
 		const picker = $('[data-api-version]')
 		if (!picker || !state.index) return
 		picker.innerHTML = state.index.versions.map(entry => {
-			const label = `API ${entry.version}${entry.shroudforgeVersion ? ` · ShroudForge ${entry.shroudforgeVersion}` : ''}${entry.current ? ' · current' : ''}`
-			return `<option value="${escapeHtml(entry.version)}">${escapeHtml(label)}</option>`
+			return `<option value="${escapeHtml(entry.version)}">${escapeHtml(entry.version)}</option>`
 		}).join('')
 		picker.disabled = false
 		picker.value = state.catalog?.version || state.index.current
-		const versionNote = $('[data-api-version-note]')
-		if (versionNote) versionNote.textContent = state.index.versions.length < 2
-			? translate('oneApiVersion')
-			: translate('chooseApiVersion')
 	}
 
 	async function selectVersion(version) {
@@ -138,18 +137,62 @@
 		state.operations = new Set(operations.runtimeOperations)
 		updateQuery({ apiVersion: selected.version })
 		renderVersionPicker()
-		setVersionFacts()
+		updateNavigationRoutes()
 		renderTasks()
 		renderApiResults()
 		if (mainRoute === 'playground') renderPlayground(getScenarioFromQuery())
 		clearApiLoadError()
 	}
 
-	async function loadGameProfile() {
-		const current = await fetchJson('/data/game/current.json')
-		const profile = await fetchJson(`/data/game/${encodeURIComponent(current.snapshot)}/profile.json`)
-		state.gameProfile = { ...profile, snapshot: current.snapshot }
-		setVersionFacts()
+	function renderGameBuildPicker() {
+		const picker = $('[data-game-build]')
+		if (!picker || !state.gameBuildIndex) return
+		picker.innerHTML = state.gameBuildIndex.builds.map(entry => `<option value="${escapeHtml(entry.gameBuild)}">${escapeHtml(entry.gameBuild)}</option>`).join('')
+		picker.disabled = false
+		picker.value = state.selectedGameBuild?.gameBuild || ''
+	}
+
+	function selectGameBuild(gameBuild) {
+		const selected = state.gameBuildIndex.builds.find(entry => entry.gameBuild === gameBuild)
+			|| state.gameBuildIndex.builds.find(entry => entry.snapshot === state.gameBuildIndex.current)
+			|| state.gameBuildIndex.builds[0]
+		if (!selected) throw new Error('Game build index is empty')
+		state.selectedGameBuild = selected
+		state.types = gameDataCache.types.get(selected.snapshot) || null
+		state.resources = gameDataCache.resources.get(selected.snapshot) || null
+		renderGameBuildPicker()
+		updateQuery({ gameBuild: selected.gameBuild })
+		updateNavigationRoutes()
+		renderTasks()
+		updatePlaygroundReferenceLink()
+		const scenario = state.examples?.scenarios.find(item => item.id === getScenarioFromQuery())
+		if (mainRoute === 'playground' && scenario?.handler === 'game-type') {
+			setResponse(translate('noResponseYet'), translate('sourceChanges'), translate('runToSeeResponse'))
+		}
+		for (const name of ['types', 'resources']) {
+			const panel = $(`[data-api-panel="${name}"]`)
+			const target = $(`[data-${name === 'types' ? 'type' : 'resource'}-results]`)
+			if (!panel || panel.hidden || !target) continue
+			if (state[name]) {
+				if (name === 'types') renderTypes()
+				else renderResources()
+			} else {
+				target.innerHTML = `<p class="api-loading" role="status">${escapeHtml(translate(name === 'types' ? 'typesLoading' : 'resourcesLoading'))}</p>`
+				loadGameData(name)
+			}
+		}
+	}
+
+	async function loadGameBuilds() {
+		const index = await fetchJson('/data/game/builds.json')
+		if (!Array.isArray(index.builds) || !index.builds.length || !index.builds.every(entry => typeof entry.snapshot === 'string' && typeof entry.gameBuild === 'string')) {
+			throw new Error('Invalid game build index')
+		}
+		if (!index.builds.some(entry => entry.snapshot === index.current)) throw new Error('Game build index does not contain its current snapshot')
+		state.gameBuildIndex = index
+		const requested = new URLSearchParams(location.search).get('gameBuild')
+		const selected = index.builds.find(entry => entry.gameBuild === requested)
+		selectGameBuild(selected?.gameBuild || index.builds.find(entry => entry.snapshot === index.current).gameBuild)
 	}
 
 	function scenarioTitle(scenario) {
@@ -244,35 +287,42 @@
 		target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('resultLimit', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(renderSymbol).join('')}`
 	}
 
-	async function gameDataBase() {
-		const current = await fetchJson('/data/game/current.json')
-		return `/data/game/${encodeURIComponent(current.snapshot)}`
+	async function loadGameData(name) {
+		if (!state.selectedGameBuild && gameBuildLoadPromise) await gameBuildLoadPromise
+		const snapshot = state.selectedGameBuild?.snapshot
+		if (!snapshot) return
+		const target = $(`[data-${name === 'types' ? 'type' : 'resource'}-results]`)
+		if (gameDataCache[name].has(snapshot)) {
+			state[name] = gameDataCache[name].get(snapshot)
+			if (name === 'types') renderTypes()
+			else renderResources()
+			return
+		}
+		let load = gameDataLoads[name].get(snapshot)
+		if (!load) {
+			load = fetchJson(`/data/game/${encodeURIComponent(snapshot)}/${name}.json`)
+				.then(data => { gameDataCache[name].set(snapshot, data); return data })
+				.finally(() => gameDataLoads[name].delete(snapshot))
+			gameDataLoads[name].set(snapshot, load)
+		}
+		try {
+			const data = await load
+			if (state.selectedGameBuild?.snapshot !== snapshot) return loadGameData(name)
+			state[name] = data
+			if (name === 'types') renderTypes()
+			else renderResources()
+		} catch {
+			if (state.selectedGameBuild?.snapshot !== snapshot) return loadGameData(name)
+			if (state.selectedGameBuild?.snapshot === snapshot && target) target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
+		}
 	}
 
-	async function loadTypes() {
-		if (state.types || state.typeLoading) return
-		state.typeLoading = true
-		try {
-			const base = await gameDataBase()
-			state.types = await fetchJson(`${base}/types.json`)
-			renderTypes()
-		} catch {
-			const target = $('[data-type-results]')
-			if (target) target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
-		} finally { state.typeLoading = false }
+	function loadTypes() {
+		return loadGameData('types')
 	}
 
-	async function loadResources() {
-		if (state.resources || state.resourceLoading) return
-		state.resourceLoading = true
-		try {
-			const base = await gameDataBase()
-			state.resources = await fetchJson(`${base}/resources.json`)
-			renderResources()
-		} catch {
-			const target = $('[data-resource-results]')
-			if (target) target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
-		} finally { state.resourceLoading = false }
+	function loadResources() {
+		return loadGameData('resources')
 	}
 
 	function renderTypes() {
@@ -517,6 +567,7 @@
 				showApiLoadError(error)
 			}
 		}
+		if (event.target.matches('[data-game-build]')) selectGameBuild(event.target.value)
 		if (event.target.matches('[data-api-scenario]')) renderPlayground(event.target.value)
 		if (event.target.closest('[data-request-fields]')) {
 			const scenario = state.examples?.scenarios.find(item => item.id === getScenarioFromQuery())
@@ -561,10 +612,13 @@
 		clearApiLoadError()
 		const search = $('[data-api-search]')
 		if (search) search.value = new URLSearchParams(location.search).get('q') || ''
-		loadGameProfile().catch(error => {
-			console.warn('[ShroudForge API tools] Captured game build information is unavailable.', error)
-			state.gameProfile = null
-			setVersionFacts()
+		gameBuildLoadPromise = loadGameBuilds().catch(error => {
+			console.warn('[ShroudForge API tools] Game build information is unavailable.', error)
+			const picker = $('[data-game-build]')
+			if (picker) {
+				picker.innerHTML = `<option>${escapeHtml(translate('gameBuildUnavailable'))}</option>`
+				picker.disabled = true
+			}
 		})
 		try {
 			state.index = await fetchJson('/data/api/versions.json')
@@ -573,8 +627,6 @@
 		} catch (error) {
 			if (state.index) renderVersionPicker()
 			else {
-				const versionNote = $('[data-api-version-note]')
-				if (versionNote) versionNote.textContent = translate('versionIndexUnavailable')
 				const versionPicker = $('[data-api-version]')
 				if (versionPicker) {
 					versionPicker.innerHTML = `<option>${escapeHtml(translate('versionsUnavailableOption'))}</option>`

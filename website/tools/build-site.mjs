@@ -142,6 +142,36 @@ async function readApiCatalogs(currentCatalog, currentExamples, currentOperation
 	return snapshots
 }
 
+async function readGameSnapshots(dataDirectory, currentSnapshot) {
+	const entries = await fs.readdir(dataDirectory, { withFileTypes: true })
+	const snapshots = []
+	for (const entry of entries) {
+		if (!entry.isDirectory()) continue
+		const directory = path.join(dataDirectory, entry.name)
+		const files = await Promise.all(["profile.json", "types.json", "resources.json"].map(async name => {
+			const file = path.join(directory, name)
+			const stat = await fs.lstat(file).catch(error => error.code === "ENOENT" ? null : Promise.reject(error))
+			if (!stat || !stat.isFile() || stat.isSymbolicLink()) throw new Error(`Game snapshot ${entry.name} is missing a regular ${name} file.`)
+			return file
+		}))
+		const profile = JSON.parse(await fs.readFile(files[0], "utf8"))
+		const gameVersion = typeof profile.game_version === "string" ? profile.game_version : ""
+		const gameBuild = gameVersion.split("|")[0]
+		if (!/^\d+$/.test(gameBuild)) throw new Error(`Game snapshot ${entry.name} has an invalid game build: ${gameVersion}`)
+		const capturedAt = Date.parse(gameVersion.split("|").at(-1)) || 0
+		snapshots.push({ snapshot: entry.name, gameBuild, capturedAt })
+	}
+	if (!snapshots.length) throw new Error("The generated website data has no complete game snapshots.")
+	if (!snapshots.some(snapshot => snapshot.snapshot === currentSnapshot)) throw new Error(`Current game snapshot is not published: ${currentSnapshot}`)
+	snapshots.sort((left, right) => Number(right.snapshot === currentSnapshot) - Number(left.snapshot === currentSnapshot) || right.capturedAt - left.capturedAt || Number(right.gameBuild) - Number(left.gameBuild))
+	const uniqueBuilds = new Set()
+	return snapshots.filter(snapshot => {
+		if (uniqueBuilds.has(snapshot.gameBuild)) return false
+		uniqueBuilds.add(snapshot.gameBuild)
+		return true
+	})
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
@@ -215,6 +245,7 @@ async function build() {
   const gameSnapshotDirectory = path.join(generatedWebsiteData, currentGame.snapshot);
   const gameProfile = JSON.parse(await fs.readFile(path.join(gameSnapshotDirectory, "profile.json"), "utf8"));
   const gameSnapshot = { id: currentGame.snapshot, gameVersion: gameProfile.game_version, profile: gameProfile };
+  const gameSnapshots = await readGameSnapshots(generatedWebsiteData, currentGame.snapshot);
   const apiExamplesDocument = {
     version: apiCatalog.version,
     shroudforgeVersion: apiCatalog.shroudforge_version,
@@ -317,11 +348,19 @@ async function build() {
 	await fs.writeFile(path.join(directory, "runtime-operations.json"), `${JSON.stringify(snapshot.operations)}\n`, "utf8")
   }
   const gameDataDirectory = path.join(outputDirectory, "data", "game")
-  const gameOutputSnapshot = path.join(gameDataDirectory, currentGame.snapshot)
-  await fs.mkdir(gameOutputSnapshot, { recursive: true })
+  await fs.mkdir(gameDataDirectory, { recursive: true })
   await fs.writeFile(path.join(gameDataDirectory, "current.json"), `${JSON.stringify({ snapshot: currentGame.snapshot })}\n`, "utf8")
-  for (const name of ["profile.json", "types.json", "resources.json"]) {
-	await fs.copyFile(path.join(gameSnapshotDirectory, name), path.join(gameOutputSnapshot, name))
+  await fs.writeFile(path.join(gameDataDirectory, "builds.json"), `${JSON.stringify({
+	current: currentGame.snapshot,
+	builds: gameSnapshots.map(({ snapshot, gameBuild }) => ({ snapshot, gameBuild })),
+  }, null, 2)}\n`, "utf8")
+  for (const { snapshot } of gameSnapshots) {
+	const sourceSnapshot = path.join(generatedWebsiteData, snapshot)
+	const outputSnapshot = path.join(gameDataDirectory, snapshot)
+	await fs.mkdir(outputSnapshot, { recursive: true })
+	for (const name of ["profile.json", "types.json", "resources.json"]) {
+		await fs.copyFile(path.join(sourceSnapshot, name), path.join(outputSnapshot, name))
+	}
   }
   const badgeIconDirectory = path.join(outputDirectory, "assets", "mod-settings-links");
   await fs.mkdir(badgeIconDirectory, { recursive: true });
