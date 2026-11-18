@@ -48,17 +48,6 @@ function apiLoadError() {
 	return `<div class="api-load-error editor-status has-error" data-api-load-error role="alert" hidden><div class="api-load-error-copy"><span data-api-load-error-message></span><small data-api-load-error-detail></small></div><button class="button button-secondary" type="button" data-api-retry data-i18n="retryLoading">Retry</button></div>`
 }
 
-function referenceNotes() {
-	return `<details class="builder-existing-settings api-reference-notes">
-		<summary><span data-i18n="referenceNotesTitle">Status and evidence</span><span class="settings-disclosure-arrow" aria-hidden="true">›</span><small data-i18n="referenceNotesAction">Show status definitions</small></summary>
-		<div class="api-reference-notes-content">
-			<p data-i18n="referenceNotesLua">Documented means the entry appears in the generated Lua API catalogue. It does not prove that the current game process exposes it.</p>
-			<p data-i18n="referenceNotesGame">Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.</p>
-			<p data-i18n="referenceNotesRuntime">Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.</p>
-		</div>
-	</details>`
-}
-
 function apiIntro({ titleKey, titleText, leadKey, leadText, actionLabel, actionHref }) {
 	return `<section class="page-intro tool-intro" aria-labelledby="page-title">
 		<div class="eyebrow" data-i18n="toolsEyebrow">SHROUDFORGE TOOLS · MODDING</div>
@@ -91,9 +80,7 @@ export function renderApiReferencePage({ config, siteUrl }) {
 			<section class="api-tab-panel" data-api-panel="functions" role="tabpanel"><div class="api-results" data-api-results><div class="api-loading" role="status" data-i18n="loadingCatalog">Loading the API catalogue…</div></div></section>
 			<section class="api-tab-panel" data-api-panel="types" role="tabpanel" hidden><p class="api-data-note" data-i18n="typeDataNote">These details come from the captured Enshrouded build shown above.</p><label class="api-search-box api-data-search"><span class="visually-hidden" data-i18n="searchTypes">Search game types</span><input type="search" data-type-search placeholder="Type name or field" data-i18n-placeholder="typeSearchPlaceholder"></label><div class="api-results" data-type-results></div></section>
 			<section class="api-tab-panel" data-api-panel="resources" role="tabpanel" hidden><p class="api-data-note" data-i18n="resourceDataNote">Resource names and IDs come from the same captured game build.</p><label class="api-search-box api-data-search"><span class="visually-hidden" data-i18n="searchResources">Search game resources</span><input type="search" data-resource-search placeholder="Resource name or ID" data-i18n-placeholder="resourceSearchPlaceholder"></label><div class="api-results" data-resource-results></div></section>
-		</section>
-		${referenceNotes()}
-		<footer class="tool-footer-note"><span data-i18n="referenceFooter">The catalogue is a static reference. Check runtime availability inside your mod with runtime.has or runtime.status.</span></footer>`
+		</section>`
 	return pageShell({
 		config,
 		siteUrl,
