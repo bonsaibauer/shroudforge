@@ -22,6 +22,17 @@
 --- @field update_interval_ms integer? Minimum 8, maximum 1000, default 50. Missed intervals are not replayed.
 runtime = {}
 
+---Report an observed runtime effect state. A confirmed write means typed memory was written, not that the gameplay effect was independently verified.
+---@param state 'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed'
+---@param detail string? Additional mod-owned context for this status.
+---@return boolean accepted
+---@return string? reason
+--- ### Example
+--- ```lua
+--- local accepted, reason = runtime.report_effect("no-change", "All Survival settings are off")
+--- ```
+function runtime.report_effect(state, detail) end
+
 --- Return the cached original client GameFlow state, using the same source as the Modloader UI.
 --- True means PreGame, including its selection/browser screens. False means a validated other state.
 --- Returns nil and a reason during transitions, before detection, or when the provider is unavailable.
@@ -57,6 +68,10 @@ runtime.overrides = {}
 local RuntimeOverrides = {}
 ---Create an independent ownership tracker for this mod instance.
 ---@return RuntimeOverrides
+--- ### Example
+--- ```lua
+--- local overrides = runtime.overrides.new()
+--- ```
 function runtime.overrides.new() end
 ---@class RuntimeWriteClaim
 local RuntimeWriteClaim = {}
@@ -85,6 +100,10 @@ function RuntimeWriteClaim:release() end
 ---@param snapshot_context RuntimeAttributeSnapshotContext? Optional per-update context shared by attributes of the same entity and root.
 ---@return RuntimeOverrideTarget? target
 ---@return string? reason
+--- ### Example
+--- ```lua
+--- local target, reason = runtime.overrides.attribute(entity, "Stamina_Min", context)
+--- ```
 function runtime.overrides.attribute(entity, selector, snapshot_context) end
 ---Bind one inline scalar. The original component/root calculator remains authoritative.
 ---@param entity integer
@@ -104,12 +123,20 @@ function runtime.overrides.resource(resource, path) end
 ---@param expected_paths string[]?
 ---@return RuntimeOverrideTarget? target
 ---@return string? reason
+--- ### Example
+--- ```lua
+--- local target, reason = runtime.overrides.template(view, "fallDamageStartDistance", {"fallDamageLethalDistance"})
+--- ```
 function runtime.overrides.template(view, path, expected_paths) end
 ---@param view RuntimeService
 ---@param path string
 ---@param expected_paths string[]?
 ---@return RuntimeOverrideTarget? target
 ---@return string? reason
+--- ### Example
+--- ```lua
+--- local target, reason = runtime.overrides.service(service, "enableDurability")
+--- ```
 function runtime.overrides.service(view, path, expected_paths) end
 ---Advanced custom targets must obtain a claim from these same canonical factories.
 ---@return RuntimeWriteClaim? claim
@@ -126,9 +153,17 @@ function runtime.overrides.get_template_claim(view) end
 function runtime.overrides.get_service_claim(view) end
 ---Reset per-update counters and selections. Validated world changes discard old
 ---entity state. Unrestored shared inputs retain their claims and fault until restart.
+--- ### Example
+--- ```lua
+--- overrides:begin_update()
+--- ```
 function RuntimeOverrides:begin_update() end
 ---Record an unavailable or conflicting operation without treating it as a write.
 ---@param reason string
+--- ### Example
+--- ```lua
+--- overrides:waiting("No live player entity is available")
+--- ```
 function RuntimeOverrides:waiting(reason) end
 ---Apply one owned reversible setting. adapter.read returns {value=..., values=...}; adapter.write must compare its observed snapshot and return applied, actual, reason, canonical.
 ---The helper preserves the first baseline, detects external edits, and reports uncertain writes without blindly retrying them.
@@ -137,15 +172,34 @@ function RuntimeOverrides:waiting(reason) end
 ---@param adapter RuntimeOverrideTarget Typed reader/writer with an API ownership claim.
 ---@param desired fun(snapshot:table, baseline:unknown):unknown?,string? Calculate the target from the current snapshot and preserved baseline.
 ---@param shared boolean? True when all world participants share this stored value.
+---@return boolean applied
+---@return string? reason
+---@return boolean? fresh_attempt
+--- ### Example
+--- ```lua
+--- applied, failure, fresh_attempt = overrides:apply(target.key, feature.setting, target, function(snapshot, baseline)
+---     return attribute_target(feature, snapshot, baseline)
+--- end)
+--- ```
 function RuntimeOverrides:apply(key, setting, adapter, desired, shared) end
 ---Restore values whose settings are disabled, preserving conflicts and retryable busy states.
 ---@param enabled fun(setting:string):boolean
+--- ### Example
+--- ```lua
+--- overrides:restore_disabled(function(setting)
+---     return shroudforge.settings.get(setting, false) == true
+--- end)
+--- ```
 function RuntimeOverrides:restore_disabled(enabled) end
 ---Restore every still-owned value through its original adapter.
 function RuntimeOverrides:restore_all() end
 ---Restore dynamic targets not selected by apply since begin_update, such as a glider no longer used.
 function RuntimeOverrides:restore_unused() end
 ---@return boolean
+--- ### Example
+--- ```lua
+--- local has_owned_values = overrides:has_ownership()
+--- ```
 function RuntimeOverrides:has_ownership() end
 ---@return boolean
 function RuntimeOverrides:has_shared_ownership() end
@@ -155,6 +209,10 @@ function RuntimeOverrides:has_shared_ownership() end
 function RuntimeOverrides:reset() end
 ---@param message string
 ---@return string
+--- ### Example
+--- ```lua
+--- local detail = overrides:summary("Original Survival inputs are active")
+--- ```
 function RuntimeOverrides:summary(message) end
 
 ---@class RuntimeServicesApi
@@ -174,6 +232,10 @@ local RuntimeService = {}
 ---@param key string Original DI name without the keen:: prefix.
 ---@return RuntimeService? service
 ---@return string? reason
+--- ### Example
+--- ```lua
+--- local service, reason = runtime.services.get("ecs::GameSettings")
+--- ```
 function runtime.services.get(key) end
 ---Read a fresh original service snapshot under the authoritative world's Scene and lifetime guards.
 ---Uses reflected inline field paths, including nesting and one-based static array indices.
@@ -429,6 +491,12 @@ function runtime.functions.bind_modifier(id) end
 --- and build-verified `runtime.world.*` operations.
 --- @param feature string
 --- @return boolean
+--- ### Example
+--- ```lua
+--- if runtime.has("runtime.ecs.read") and runtime.has("runtime.ecs.write") then
+---     -- Continue with the ECS read and write calls.
+--- end
+--- ```
 function runtime.has(feature) end
 
 --- Raises a Lua error when the named feature is not available to this mod in the current process.
@@ -609,8 +677,14 @@ function runtime.ecs.get_catalog() end
 --- Returns `nil, reason` while unavailable or the first incremental scan is pending. Retry from a later update.
 --- Later calls revalidate the last complete snapshot while advancing discovery. Deleted entities, changed generations and missing components are filtered on every call. Newly matching entities appear after the refresh completes. Every read/write independently validates its handle again.
 --- @param ... string|Type Qualified type name or Type from the current registry.
---- @return integer[]? entities Opaque, generation-checked ShroudForge entity handles.
+--- On success, returns opaque, generation-checked ShroudForge entity handles.
+---@return integer[]? entities
 --- @return string? reason
+--- ### Example
+--- ```lua
+--- local players, reason = runtime.ecs.query("keen::ecs::PlayerInput")
+--- if not players then return end
+--- ```
 function runtime.ecs.query(...) end
 --- Query live entities whose CurrentTransform pivots overlap bounds expanded by padding * max(abs(scale)).
 function runtime.ecs.query_bounds(bounds, padding, ...) end
@@ -698,6 +772,10 @@ function RuntimeTemplateComponent:write_field(path, value, expected, expected_fi
 ---@param component TypeSelector Original engine registration or its concrete template configuration type.
 ---@return RuntimeTemplateComponent? component_view
 ---@return string? reason
+--- ### Example
+--- ```lua
+--- local view, reason = runtime.ecs.get_template_component(entity, "keen::ecs::FallDamage")
+--- ```
 function runtime.ecs.get_template_component(entity, component) end
 
 --- Validate and write selected inline field values. Complete-component codec support is not required.
@@ -844,6 +922,11 @@ function runtime.world.context_kind() end
 --- Conservative process-local world/ECS lifetime marker; zero when unavailable.
 --- Not a persistent world ID or a singleplayer/multiplayer indicator.
 ---@return integer
+--- ### Example
+--- ```lua
+--- local session = runtime.world.session_id()
+--- if session == 0 then return end
+--- ```
 function runtime.world.session_id() end
 
 --- @class RuntimeWorldEntityApi

@@ -4,48 +4,360 @@
     "method": "shroudforge.settings.get",
     "category": "mod-settings",
     "title": {
-      "en": "Read a mod setting"
+      "en": "Read an SF Survival setting",
+      "de": "SF-Survival-Einstellung lesen"
     },
     "summary": {
-      "en": "Use the same value the player selected in Modloader."
+      "en": "Choose one of SF Survival's eight Boolean settings and inspect the exact Lua return captured from the live client.",
+      "de": "Wähle eine der acht booleschen SF-Survival-Einstellungen und sieh dir die exakte Lua-Rückgabe aus dem laufenden Client an."
     },
     "inputs": [
-      { "name": "key", "type": "string", "value": "showOnLoad" },
-      { "name": "fallback", "type": "boolean", "value": false }
+      {
+        "name": "key",
+        "type": "select",
+        "value": "infiniteStamina",
+        "options": [
+          "noFallDamage",
+          "fastHealthRegen",
+          "fastManaRegen",
+          "infiniteStamina",
+          "infiniteUnderwaterBreath",
+          "infiniteWeaponDurability",
+          "infiniteFrostTimer",
+          "infiniteMana"
+        ]
+      },
+      {
+        "name": "fallback",
+        "type": "boolean",
+        "value": false
+      }
     ],
-    "handler": "mod-setting",
-    "source": "Starter Mod example: extended.mod.json settings"
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureInput": "key",
+    "captureCallsByInput": {
+      "noFallDamage": ["shroudforge.settings.get(\"noFallDamage\", false)"],
+      "fastHealthRegen": ["shroudforge.settings.get(\"fastHealthRegen\", false)"],
+      "fastManaRegen": ["shroudforge.settings.get(\"fastManaRegen\", false)"],
+      "infiniteStamina": ["shroudforge.settings.get(\"infiniteStamina\", false)"],
+      "infiniteUnderwaterBreath": ["shroudforge.settings.get(\"infiniteUnderwaterBreath\", false)"],
+      "infiniteWeaponDurability": ["shroudforge.settings.get(\"infiniteWeaponDurability\", false)"],
+      "infiniteFrostTimer": ["shroudforge.settings.get(\"infiniteFrostTimer\", false)"],
+      "infiniteMana": ["shroudforge.settings.get(\"infiniteMana\", false)"]
+    },
+    "source": {
+      "en": "Captured in SF Survival on Enshrouded client build 26430625, API 1.0.0, live world session 5.",
+      "de": "Mit SF Survival in Enshrouded-Clientbuild 26430625, API 1.0.0, Welt-Session 5 erfasst."
+    },
+    "responseNote": {
+      "en": "The capture records one direct Boolean return. All eight saved settings were true in this session. The fallback is used only when a key has no saved value.",
+      "de": "Die Aufzeichnung enthält genau einen direkten Boolean-Rückgabewert. In dieser Session waren alle acht gespeicherten Einstellungen true. Der Fallback greift nur, wenn kein gespeicherter Wert existiert."
+    }
   },
   {
-    "id": "check-runtime-availability",
-    "method": "runtime.status",
+    "id": "check-survival-capability",
+    "method": "runtime.has",
     "category": "runtime",
     "title": {
-      "en": "Check a runtime requirement"
+      "en": "Check an SF Survival runtime capability",
+      "de": "SF-Survival-Runtime-Fähigkeit prüfen"
     },
     "summary": {
-      "en": "See how a mod can handle an available or unavailable operation."
+      "en": "Select the ECS permission SF Survival checks before reading and changing game values.",
+      "de": "Wähle die ECS-Berechtigung, die SF Survival vor dem Lesen oder Ändern von Spielwerten prüft."
     },
     "inputs": [
-      { "name": "feature", "type": "select", "value": "runtime.lifecycle", "options": ["runtime.lifecycle", "runtime.world.cursor.get"] }
+      {
+        "name": "capability",
+        "type": "select",
+        "value": "runtime.ecs.read",
+        "options": ["runtime.ecs.read", "runtime.ecs.write"]
+      }
     ],
-    "handler": "runtime-status",
-    "source": "A documented example scenario. This does not inspect a running game."
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureInput": "capability",
+    "captureCallsByInput": {
+      "runtime.ecs.read": ["runtime.has(\"runtime.ecs.read\")"],
+      "runtime.ecs.write": ["runtime.has(\"runtime.ecs.write\")"]
+    },
+    "source": {
+      "en": "Captured from the active SF Survival client session on build 26430625.",
+      "de": "Aus der aktiven SF-Survival-Client-Session auf Build 26430625 aufgezeichnet."
+    },
+    "responseNote": {
+      "en": "Both capabilities returned true in this live session. This reports the mod's granted permission, not whether a particular entity or operation is ready.",
+      "de": "Beide Fähigkeiten lieferten in dieser Live-Session true. Das zeigt die erteilte Mod-Berechtigung, nicht die Bereitschaft einer bestimmten Entity oder Operation."
+    }
   },
   {
-    "id": "look-up-game-type",
-    "method": "game.types.get",
-    "category": "game-data",
+    "id": "read-survival-world-session",
+    "method": "runtime.world.session_id",
+    "category": "runtime",
     "title": {
-      "en": "Look up a game type"
+      "en": "Read the SF Survival world session",
+      "de": "Welt-Session von SF Survival lesen"
     },
     "summary": {
-      "en": "Query the captured Enshrouded type catalogue and inspect its fields."
+      "en": "Read the session identifier SF Survival uses to scope its player attribute snapshots.",
+      "de": "Lies die Session-ID, mit der SF Survival seine Attribut-Snapshots auf die aktuelle Welt begrenzt."
+    },
+    "inputs": [],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureCalls": ["runtime.world.session_id()", "runtime.world.context_kind()"],
+    "codeTemplate": "local session = runtime.world.session_id()\nlocal kind = runtime.world.context_kind()\nreturn session, kind",
+    "source": {
+      "en": "Captured from SF Survival on client build 26430625 in live world session 5.",
+      "de": "Mit SF Survival in Clientbuild 26430625 in Welt-Session 5 erfasst."
+    },
+    "responseNote": {
+      "en": "The calls returned 5 and \"direct\". A menu or unloaded world returns session ID 0.",
+      "de": "Die Aufrufe lieferten 5 und \"direct\". Im Menü oder ohne geladene Welt ist die Session-ID 0."
+    }
+  },
+  {
+    "id": "query-survival-player",
+    "method": "runtime.ecs.query",
+    "category": "runtime",
+    "title": {
+      "en": "Find SF Survival's player entity",
+      "de": "Spieler-Entity für SF Survival finden"
+    },
+    "summary": {
+      "en": "Query the player component SF Survival uses before creating attribute targets.",
+      "de": "Frage die Spieler-Komponente ab, die SF Survival vor dem Erstellen von Attributzielen verwendet."
     },
     "inputs": [
-      { "name": "qualified_name", "type": "string", "value": "keen::Achievement" }
+      {
+        "name": "component",
+        "type": "select",
+        "value": "keen::ecs::PlayerInput",
+        "options": ["keen::ecs::PlayerInput"]
+      }
     ],
-    "handler": "game-type",
-    "source": "Captured Enshrouded game data snapshot"
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureInput": "component",
+    "captureCallsByInput": {
+      "keen::ecs::PlayerInput": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")"]
+    },
+    "source": {
+      "en": "Captured on client build 26430625 in world session 5.",
+      "de": "In Clientbuild 26430625 in Welt-Session 5 aufgezeichnet."
+    },
+    "responseNote": {
+      "en": "The call returned two values. The first was the entity list [1]. The second was nil, preserved in return position 2.",
+      "de": "Der Aufruf lieferte zwei Werte. Der erste war die Entity-Liste [1]. Der zweite war nil und bleibt an Rückgabeposition 2 erhalten."
+    }
+  },
+  {
+    "id": "read-survival-player-attribute",
+    "method": "runtime.overrides.attribute",
+    "category": "runtime",
+    "title": {
+      "en": "Read an SF Survival player attribute",
+      "de": "Spielerattribut für SF Survival lesen"
+    },
+    "summary": {
+      "en": "Choose the player field for one of SF Survival's six attribute-based settings.",
+      "de": "Wähle das Spielerfeld für eine der sechs attributbasierten SF-Survival-Einstellungen."
+    },
+    "inputs": [
+      {
+        "name": "field",
+        "type": "select",
+        "value": "Stamina_Min",
+        "options": ["Stamina_Min", "Mana_Min", "Oxygen_Min", "BodyHeat_Min", "Health_Recharge", "Mana_Recharge"]
+      }
+    ],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureInput": "field",
+    "captureCallsByInput": {
+      "Stamina_Min": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")", "runtime.overrides.attribute(1, Stamina_Min)", "infiniteStamina RuntimeOverrideTarget:read()"],
+      "Mana_Min": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")", "runtime.overrides.attribute(1, Mana_Min)", "infiniteMana RuntimeOverrideTarget:read()"],
+      "Oxygen_Min": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")", "runtime.overrides.attribute(1, Oxygen_Min)", "infiniteUnderwaterBreath RuntimeOverrideTarget:read()"],
+      "BodyHeat_Min": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")", "runtime.overrides.attribute(1, BodyHeat_Min)", "infiniteFrostTimer RuntimeOverrideTarget:read()"],
+      "Health_Recharge": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")", "runtime.overrides.attribute(1, Health_Recharge)", "fastHealthRegen RuntimeOverrideTarget:read()"],
+      "Mana_Recharge": ["runtime.ecs.query(\"keen::ecs::PlayerInput\")", "runtime.overrides.attribute(1, Mana_Recharge)", "fastManaRegen RuntimeOverrideTarget:read()"]
+    },
+    "codeTemplate": "local players, queryReason = runtime.ecs.query(\"keen::ecs::PlayerInput\")\nif not players then return nil, queryReason end\nlocal entity = players[1]\nif not entity then return nil, \"No player entity\" end\nlocal session = runtime.world.session_id()\nlocal context = { active = true, session = session, entity = entity }\nlocal target, reason = runtime.overrides.attribute(entity, {{field}}, context)\nif not target then return nil, reason end\nreturn target.read()",
+    "source": {
+      "en": "Captured from the live player entity on client build 26430625, world session 5. The returns include the target and its fresh value snapshot.",
+      "de": "Vom Spieler in Clientbuild 26430625, Welt-Session 5 aufgezeichnet. Die Rückgaben enthalten das Ziel und seinen frischen Wertesnapshot."
+    },
+    "responseNote": {
+      "en": "The target read returns the selected value and the component snapshot. The capture's entity was 1. In your mod, use the current entity and session values.",
+      "de": "Das Ziel liefert den gewählten Wert und den Komponenten-Snapshot. Die Entity der Aufzeichnung war 1. Verwende in deinem Mod die aktuelle Entity und Session."
+    }
+  },
+  {
+    "id": "read-survival-fall-damage",
+    "method": "runtime.ecs.get_template_component",
+    "category": "runtime",
+    "title": {
+      "en": "Read SF Survival's fall damage template",
+      "de": "FallDamage-Template für SF Survival lesen"
+    },
+    "summary": {
+      "en": "Follow the same template read SF Survival uses for noFallDamage.",
+      "de": "Führe denselben Template-Leseweg aus, den SF Survival für noFallDamage verwendet."
+    },
+    "inputs": [],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureCalls": [
+      "runtime.ecs.query(\"keen::ecs::PlayerInput\")",
+      "runtime.ecs.get_template_component(1, keen::ecs::FallDamage)",
+      "runtime.overrides.template(fallDamageStartDistance)",
+      "noFallDamage RuntimeOverrideTarget:read()"
+    ],
+    "codeTemplate": "local players, queryReason = runtime.ecs.query(\"keen::ecs::PlayerInput\")\nif not players then return nil, queryReason end\nlocal entity = players[1]\nif not entity then return nil, \"No player entity\" end\nlocal view, reason = runtime.ecs.get_template_component(entity, \"keen::ecs::FallDamage\")\nif not view then return nil, reason end\nlocal target, targetReason = runtime.overrides.template(view, \"fallDamageStartDistance\", {\"fallDamageLethalDistance\"})\nif not target then return nil, targetReason end\nreturn target.read()",
+    "source": {
+      "en": "Captured from SF Survival in live world session 5.",
+      "de": "Mit SF Survival in der laufenden Welt-Session 5 erfasst."
+    },
+    "responseNote": {
+      "en": "The first call returned a shared FallDamage view and nil reason. The target read captured both start and lethal distances.",
+      "de": "Der erste Aufruf lieferte eine gemeinsame FallDamage-View und nil als Grund. Der Ziel-Snapshot enthält Start- und tödliche Distanz."
+    }
+  },
+  {
+    "id": "read-survival-durability-service",
+    "method": "runtime.services.get",
+    "category": "runtime",
+    "title": {
+      "en": "Read SF Survival's durability service",
+      "de": "Haltbarkeitsdienst für SF Survival lesen"
+    },
+    "summary": {
+      "en": "Read the GameSettings service and the enableDurability field used by infiniteWeaponDurability.",
+      "de": "Lies den GameSettings-Dienst und das Feld enableDurability, das infiniteWeaponDurability verwendet."
+    },
+    "inputs": [],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureCalls": [
+      "runtime.services.get(\"ecs::GameSettings\")",
+      "runtime.overrides.service(enableDurability)",
+      "infiniteWeaponDurability RuntimeOverrideTarget:read()"
+    ],
+    "codeTemplate": "local service, reason = runtime.services.get(\"ecs::GameSettings\")\nif not service then return nil, reason end\nlocal target, targetReason = runtime.overrides.service(service, \"enableDurability\")\nif not target then return nil, targetReason end\nreturn target.read()",
+    "source": {
+      "en": "Captured from the active client world in session 5.",
+      "de": "Aus der aktiven Client-Welt in Session 5 aufgezeichnet."
+    },
+    "responseNote": {
+      "en": "The service and override target were available. The captured enableDurability value was false.",
+      "de": "Dienst und Override-Ziel waren verfügbar. Der erfasste Wert von enableDurability war false."
+    }
+  },
+  {
+    "id": "probe-survival-override",
+    "method": "RuntimeOverrides:apply",
+    "category": "runtime",
+    "title": {
+      "en": "Inspect an SF Survival override return",
+      "de": "SF-Survival-Override-Rückgabe prüfen"
+    },
+    "summary": {
+      "en": "Choose a setting and inspect the exact no-op apply tuple from a separate diagnostic tracker.",
+      "de": "Wähle eine Einstellung und prüfe das exakte No-op-Apply-Tupel eines separaten Diagnose-Trackers."
+    },
+    "inputs": [
+      {
+        "name": "setting",
+        "type": "select",
+        "value": "infiniteStamina",
+        "options": ["noFallDamage", "fastHealthRegen", "fastManaRegen", "infiniteStamina", "infiniteUnderwaterBreath", "infiniteWeaponDurability", "infiniteFrostTimer", "infiniteMana"]
+      }
+    ],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureInput": "setting",
+    "captureCallsByInput": {
+      "noFallDamage": ["noFallDamage RuntimeOverrides:apply no-op"],
+      "fastHealthRegen": ["fastHealthRegen RuntimeOverrides:apply no-op"],
+      "fastManaRegen": ["fastManaRegen RuntimeOverrides:apply no-op"],
+      "infiniteStamina": ["infiniteStamina RuntimeOverrides:apply no-op"],
+      "infiniteUnderwaterBreath": ["infiniteUnderwaterBreath RuntimeOverrides:apply no-op"],
+      "infiniteWeaponDurability": ["infiniteWeaponDurability RuntimeOverrides:apply no-op"],
+      "infiniteFrostTimer": ["infiniteFrostTimer RuntimeOverrides:apply no-op"],
+      "infiniteMana": ["infiniteMana RuntimeOverrides:apply no-op"]
+    },
+    "codeTemplate": "local applied, reason, freshAttempt = tracker:apply(target.key, {{setting}}, target, function(_, baseline)\n    return baseline\nend)\nreturn applied, reason, freshAttempt",
+    "source": {
+      "en": "Live no-op probe. It returned the just-read baseline and made zero writes.",
+      "de": "Live-No-op-Probe. Sie gab den gerade gelesenen Basiswert zurück und führte null Schreibvorgänge aus."
+    },
+    "responseNote": {
+      "en": "The diagnostic used a second tracker while SF Survival already owned most fields. The false results report that ownership conflict. The captured BodyHeat_Min call returned true, nil, true. No game value changed.",
+      "de": "Die Diagnose nutzte einen zweiten Tracker, während SF Survival die meisten Felder bereits besaß. Die false-Rückgaben zeigen diesen Ownership-Konflikt. Der aufgezeichnete Aufruf für BodyHeat_Min lieferte true, nil, true. Kein Spielwert wurde geändert."
+    }
+  },
+  {
+    "id": "inspect-survival-override-tracker",
+    "method": "runtime.overrides.new",
+    "category": "runtime",
+    "title": {
+      "en": "Inspect SF Survival's override tracker setup",
+      "de": "Override-Tracker von SF Survival prüfen"
+    },
+    "summary": {
+      "en": "See the exact returns for creating and preparing the tracker used by SF Survival.",
+      "de": "Sieh dir die exakten Rückgaben zum Erstellen und Vorbereiten des SF-Survival-Trackers an."
+    },
+    "inputs": [],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureCalls": [
+      "runtime.overrides.new()",
+      "RuntimeOverrides:begin_update()",
+      "RuntimeOverrides:waiting(\"API probe capture\")",
+      "RuntimeOverrides:restore_disabled(empty ownership)"
+    ],
+    "codeTemplate": "local tracker = runtime.overrides.new()\ntracker:begin_update()\ntracker:waiting(\"API probe capture\")\ntracker:restore_disabled(function() return false end)",
+    "source": {
+      "en": "Captured from the live SF Survival runtime.",
+      "de": "Aus der laufenden SF-Survival-Runtime aufgezeichnet."
+    },
+    "responseNote": {
+      "en": "The tracker constructor returned one table. The three lifecycle methods returned no Lua values, recorded as return_count 0.",
+      "de": "Der Tracker-Konstruktor lieferte eine Tabelle. Die drei Lifecycle-Methoden lieferten keine Lua-Werte und sind mit return_count 0 aufgezeichnet."
+    }
+  },
+  {
+    "id": "inspect-survival-override-state",
+    "method": "RuntimeOverrides:summary",
+    "category": "runtime",
+    "title": {
+      "en": "Inspect the SF Survival override state",
+      "de": "Override-Status von SF Survival prüfen"
+    },
+    "summary": {
+      "en": "Read the tracker fault, write count, waiting count, ownership and summary returned by the capture probe.",
+      "de": "Lies Fehlerstatus, Schreibanzahl, Warteanzahl, Ownership und Summary des Erfassungs-Trackers."
+    },
+    "inputs": [],
+    "handler": "captured-calls",
+    "fixture": "sfSurvivalLive",
+    "captureCalls": [
+      "RuntimeOverrides.fault",
+      "RuntimeOverrides.writes",
+      "RuntimeOverrides.waiting_count",
+      "RuntimeOverrides:has_ownership()",
+      "RuntimeOverrides:summary(\"API probe capture\")"
+    ],
+    "codeTemplate": "return tracker.fault, tracker.writes, tracker.waiting_count, tracker:has_ownership(), tracker:summary(\"API probe capture\")",
+    "source": {
+      "en": "Captured after eight no-op apply attempts from the separate diagnostic tracker.",
+      "de": "Nach acht No-op-Apply-Aufrufen des separaten Diagnose-Trackers aufgezeichnet."
+    },
+    "responseNote": {
+      "en": "The tracker reported no fault, zero writes, eight waiting fields and no ownership. The summary lists the fields already owned by SF Survival's active tracker.",
+      "de": "Der Tracker meldete keinen Fehler, null Schreibvorgänge, acht wartende Felder und keine Ownership. Die Summary nennt Felder, die bereits dem aktiven SF-Survival-Tracker gehören."
+    }
   }
 ]

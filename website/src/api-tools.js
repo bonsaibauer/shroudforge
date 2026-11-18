@@ -13,7 +13,7 @@
 			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', resultLimit: 'Showing {shown} of {total} matches. Add a search term to narrow the list.', apiBadge: 'Lua API', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
 		typesLoading: 'Loading captured game types…', resourcesLoading: 'Loading captured game resources…', typeSearchPrompt: 'Enter a type name or field to search the captured catalogue.', resourceSearchPrompt: 'Enter a resource type, GUID, or part number to search.', noTypeResults: 'No captured types match that search.', noResourceResults: 'No captured resources match that search.', showFirst: 'Showing the first {shown} of {total} matches. Add more detail to the search.', typeCount: '{count} game types', resourceCount: '{count} resource types', fieldsCount: '{count} fields', primitiveLabel: 'Kind', sizeLabel: 'Size', alignmentLabel: 'Alignment', fieldsLabel: 'Fields', moreFields: '{count} more fields', enumValues: 'Enum values', resourceEntries: '{count} captured entries', partLabel: 'Part', snapshotLabel: 'Captured snapshot',
 		exampleEditor: 'API CALL EDITOR', editRunExample: 'Build a Lua API call', playgroundLead: 'Choose a task, edit its inputs, and preview sample output. Lua never runs in this browser.', chooseExample: 'Choose a task', loadingExamplesOption: 'Loading examples…', generatedLua: 'Lua code for your mod', copyCode: 'Copy code', runExample: 'Show sample response', exampleResponse: 'SAMPLE RESPONSE', responseHeading: 'What the call may return', sampleOnly: 'Browser sample', runToSeeResponse: 'Choose a task and show its sample response.', noResponseYet: 'No response yet.', responseSource: 'Sample source', sourceChanges: 'The sample source will appear here after you request a response.', viewApiEntry: 'View API entry →', simulationHeading: 'How sample responses work', simulationBody: 'The browser generates a Lua example and reads bundled sample data. It does not execute Lua, query a server, or connect to your running game.', playgroundFooter: 'Copy the generated Lua into your mod. Check live runtime availability in game with runtime.has or runtime.status.',
-			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSetting: 'Read a mod setting', scenarioRuntimeStatus: 'Check a runtime requirement', scenarioGameType: 'Look up a game type',
+			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldCapability: 'Capability', fieldComponent: 'Component', fieldField: 'Player field', fieldSetting: 'Setting key', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSurvivalSetting: 'Read an SF Survival setting',
 			settingSource: 'Starter Mod example: extended.mod.json settings', runtimeSource: 'Simulated status fixture. The browser cannot inspect the current game process.', typeSource: 'Captured Enshrouded game-data snapshot', responseSetting: 'This value is read from the example mod settings included with ShroudForge.', responseRuntime: 'This is a sample response shape only. The website did not query a running game.', responseType: 'This result is a view of captured game metadata, not a live object from the game.', settingNotFound: 'The example settings do not contain this key, so the fallback value is returned.', typeNotFound: 'This type name does not exist in the captured snapshot.', runtimeReason: 'This website has no connection to the current game process.', inputError: 'Enter a valid value for each input.',
 			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The published API files could not be loaded.', loadFailureHelp: 'Check the request details below. If you opened this page as a local file, use the website or its local preview server.', retryLoading: 'Retry', versionIndexUnavailable: 'Published API versions could not be loaded.', versionsUnavailableOption: 'API versions unavailable', examplesUnavailableOption: 'Examples unavailable', oneApiVersion: 'One API version is published so far.', chooseApiVersion: 'Choose the API version your mod targets.', gameBuildUnavailable: 'Captured game build information is unavailable.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
 		},
@@ -153,7 +153,7 @@
 	}
 
 	function scenarioTitle(scenario) {
-		const names = { 'read-mod-setting': 'scenarioReadSetting', 'check-runtime-availability': 'scenarioRuntimeStatus', 'look-up-game-type': 'scenarioGameType' }
+		const names = { 'read-mod-setting': 'scenarioReadSurvivalSetting' }
 		return names[scenario.id] ? translate(names[scenario.id]) : (scenario.title?.[locale] || scenario.title?.en || scenario.method)
 	}
 
@@ -333,7 +333,7 @@
 		if (summary) summary.textContent = chosen.summary?.[locale] || chosen.summary?.en || ''
 		const fields = $('[data-request-fields]')
 		if (fields) fields.innerHTML = chosen.inputs.map(input => {
-			const nameLabel = input.name === 'key' ? translate('fieldKey') : input.name === 'fallback' ? translate('fieldFallback') : input.name === 'feature' ? translate('fieldFeature') : input.name === 'qualified_name' ? translate('fieldTypeName') : input.name
+			const nameLabel = input.name === 'key' ? translate('fieldKey') : input.name === 'fallback' ? translate('fieldFallback') : input.name === 'feature' ? translate('fieldFeature') : input.name === 'capability' ? translate('fieldCapability') : input.name === 'component' ? translate('fieldComponent') : input.name === 'field' ? translate('fieldField') : input.name === 'setting' ? translate('fieldSetting') : input.name === 'qualified_name' ? translate('fieldTypeName') : input.name
 			if (input.type === 'select' && Array.isArray(input.options)) return `<label class="api-field-label">${escapeHtml(nameLabel)}<select name="${escapeHtml(input.name)}" data-input-type="string">${input.options.map(option => `<option value="${escapeHtml(option)}" ${option === input.value ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select></label>`
 			if (input.type === 'boolean') return `<label class="api-field-label">${escapeHtml(nameLabel)}<select name="${escapeHtml(input.name)}" data-input-type="boolean"><option value="true" ${input.value === true ? 'selected' : ''}>${escapeHtml(translate('booleanTrue'))}</option><option value="false" ${input.value === false ? 'selected' : ''}>${escapeHtml(translate('booleanFalse'))}</option></select></label>`
 			return `<label class="api-field-label">${escapeHtml(nameLabel)}<input name="${escapeHtml(input.name)}" data-input-type="${input.type === 'number' ? 'number' : 'string'}" value="${escapeHtml(input.value)}" autocomplete="off"></label>`
@@ -373,14 +373,20 @@
 
 	function updateGeneratedCall(scenario) {
 		const fields = $('[data-request-fields]')
-		const args = scenario.inputs.map(input => {
+		const values = Object.fromEntries(scenario.inputs.map(input => {
 			const value = fields?.querySelector(`[name="${CSS.escape(input.name)}"]`)?.value ?? input.value
-			if (input.type === 'boolean') return value === 'true' ? 'true' : 'false'
-			if (input.type === 'number') return Number.isFinite(Number(value)) ? String(Number(value)) : '0'
-			return luaArgument(value)
-		})
+			if (input.type === 'boolean') return [input.name, value === 'true' ? 'true' : 'false']
+			if (input.type === 'number') return [input.name, Number.isFinite(Number(value)) ? String(Number(value)) : '0']
+			return [input.name, luaArgument(value)]
+		}))
 		const output = $('[data-generated-call]')
-		if (output) output.textContent = `${scenario.method}(${args.join(', ')})`
+		if (!output) return
+		if (scenario.codeTemplate) {
+			output.textContent = scenario.codeTemplate.replace(/\{\{([A-Za-z0-9_]+)\}\}/g, (match, name) => values[name] ?? match)
+			return
+		}
+		const args = scenario.inputs.map(input => values[input.name] ?? luaArgument(input.value))
+		output.textContent = `${scenario.method}(${args.join(', ')})`
 	}
 
 	function getScenarioFromQuery() {
@@ -388,10 +394,33 @@
 	}
 
 	function simulate(scenario, values) {
+		const localized = (value, fallback) => typeof value === 'string' ? value : value?.[locale] || value?.en || fallback
+		if (scenario.handler === 'captured-calls') {
+			const fixture = state.examples.fixtures?.[scenario.fixture]
+			const inputName = scenario.captureInput || scenario.inputs?.[0]?.name
+			const callNames = scenario.captureCallsByInput
+				? scenario.captureCallsByInput[values[inputName]]
+				: scenario.captureCalls
+			const calls = Array.isArray(callNames) && Array.isArray(fixture?.calls)
+				? callNames.map(name => fixture.calls.find(call => call.call === name))
+				: []
+			if (!calls.length || calls.some(call => !call)) {
+				return { result: null, note: translate('loadFailure'), source: localized(scenario.source, '') }
+			}
+			return {
+				result: calls.length === 1 ? calls[0] : calls,
+				note: localized(scenario.responseNote, translate('responseRuntime')),
+				source: localized(scenario.source, translate('runtimeSource')),
+			}
+		}
 		if (scenario.handler === 'mod-setting') {
-			const settings = state.examples.fixtures?.settings || {}
+			const settings = state.examples.fixtures?.[scenario.fixture || 'settings'] || {}
 			const exists = Object.hasOwn(settings, values.key)
-			return { result: exists ? settings[values.key] : values.fallback, note: exists ? translate('responseSetting') : translate('settingNotFound'), source: translate('settingSource') }
+			return {
+				result: exists ? settings[values.key] : values.fallback,
+				note: exists ? localized(scenario.responseNote, translate('responseSetting')) : translate('settingNotFound'),
+				source: localized(scenario.source, translate('settingSource')),
+			}
 		}
 		if (scenario.handler === 'runtime-status') {
 			return { result: { feature: values.feature, available: false, reason: translate('runtimeReason') }, note: translate('responseRuntime'), source: translate('runtimeSource') }

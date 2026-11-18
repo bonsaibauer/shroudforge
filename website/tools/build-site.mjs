@@ -170,7 +170,47 @@ async function build() {
     throw new Error(`Generated API catalogue release ${apiCatalog.shroudforge_version} does not match ShroudForge ${version}.`);
   }
   const apiExamples = await readJson(path.join("website", "api-examples.json"));
-  const exampleSettings = Object.fromEntries(Object.entries((await readJson(path.join("docs", "examples", "starter-mod", "extended.mod.json"))).settings || {}).map(([key, setting]) => [key, setting && typeof setting === "object" && Object.hasOwn(setting, "value") ? setting.value : setting]));
+  const sfSurvivalCapture = await readJson(path.join("website", "api-example-captures", "sf-survival-live.json"));
+  const settingValues = extended => Object.fromEntries(Object.entries(extended.settings || {}).map(([key, setting]) => [key, setting && typeof setting === "object" && Object.hasOwn(setting, "value") ? setting.value : setting]));
+  const sfSurvivalDefaults = settingValues(await readJson(path.join("mods", "sf-survival", "extended.mod.json")));
+  const capturedSettingEntries = (sfSurvivalCapture.calls || []).flatMap(call => {
+    const match = /^shroudforge\.settings\.get\("([^"]+)", false\)$/.exec(call.call || "");
+    const result = call.returns?.[0]?.value;
+    return match && call.ok === true && call.return_count === 1 && result?.lua_type === "boolean"
+      ? [[match[1], result.value]]
+      : [];
+  });
+  const sfSurvivalSettings = Object.fromEntries(capturedSettingEntries);
+  const survivalScenario = apiExamples.find(scenario => scenario.id === "read-mod-setting");
+  const survivalKeyInput = survivalScenario?.inputs?.find(input => input.name === "key");
+  if (survivalScenario?.fixture !== "sfSurvivalLive" || survivalKeyInput?.type !== "select" ||
+      !Array.isArray(survivalKeyInput.options) ||
+      JSON.stringify([...survivalKeyInput.options].sort()) !== JSON.stringify(Object.keys(sfSurvivalSettings).sort()) ||
+      JSON.stringify(Object.keys(sfSurvivalSettings).sort()) !== JSON.stringify(Object.keys(sfSurvivalDefaults).sort()) ||
+      Object.values(sfSurvivalSettings).some(value => typeof value !== "boolean") ||
+      sfSurvivalCapture.status !== "complete" || sfSurvivalCapture.mod_id !== "sf-survival" ||
+      sfSurvivalCapture.process_target !== "client" || typeof sfSurvivalCapture.world_session?.value !== "number" || sfSurvivalCapture.world_session.value === 0 ||
+      sfSurvivalCapture.safety?.world_values_changed !== false) {
+    throw new Error("The SF Survival API example must match every Boolean setting captured from the live client and its declared package setting keys.");
+  }
+  const capturedCallNames = new Set((sfSurvivalCapture.calls || []).map(call => call.call));
+  const referencedCallNames = new Set();
+  for (const scenario of apiExamples.filter(item => item.fixture === "sfSurvivalLive")) {
+    const inputName = scenario.captureInput || scenario.inputs?.[0]?.name;
+    const selectedCalls = scenario.captureCalls || Object.values(scenario.captureCallsByInput || {}).flat();
+    if (!selectedCalls.length || selectedCalls.some(callName => !capturedCallNames.has(callName))) {
+      throw new Error(`SF Survival API scenario ${scenario.id} must reference calls present in the live capture.`);
+    }
+    if (scenario.captureCallsByInput && (!inputName || Object.keys(scenario.captureCallsByInput).some(value =>
+      !scenario.inputs?.find(input => input.name === inputName)?.options?.includes(value)))) {
+      throw new Error(`SF Survival API scenario ${scenario.id} must map every capture selector to an input option.`);
+    }
+    for (const callName of selectedCalls) referencedCallNames.add(callName);
+  }
+  const unreferencedCapturedCalls = [...capturedCallNames].filter(callName => !referencedCallNames.has(callName));
+  if (unreferencedCapturedCalls.length) {
+    throw new Error(`SF Survival API scenarios must expose every captured call. Unused: ${unreferencedCapturedCalls.join(", ")}`);
+  }
   const currentGame = JSON.parse(await fs.readFile(path.join(generatedWebsiteData, "current.json"), "utf8"));
   const gameSnapshotDirectory = path.join(generatedWebsiteData, currentGame.snapshot);
   const gameProfile = JSON.parse(await fs.readFile(path.join(gameSnapshotDirectory, "profile.json"), "utf8"));
@@ -179,7 +219,7 @@ async function build() {
     version: apiCatalog.version,
     shroudforgeVersion: apiCatalog.shroudforge_version,
     gameSnapshot,
-    fixtures: { settings: exampleSettings },
+    fixtures: { sfSurvivalLive: sfSurvivalCapture },
     scenarios: apiExamples,
   };
   const runtimeOperations = await readJson(path.join("modules", "mod-runtime", "lua", "shroudforge", "v1", "runtime-operations.json"));

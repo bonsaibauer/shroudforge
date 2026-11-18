@@ -10,6 +10,10 @@ shroudforge_settings = {}
 --- @param key string Setting key declared by the mod.
 --- @param fallback? boolean|string|number|any[] Value to use when the key has no saved value.
 --- @return boolean|string|number|any[]|nil
+--- ### Example
+--- ```lua
+--- local infiniteStamina = shroudforge.settings.get("infiniteStamina", false)
+--- ```
 function shroudforge_settings.get(key, fallback) end
 
 --- @class ShroudForgeUi
