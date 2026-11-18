@@ -29,7 +29,7 @@ function pageShell({ config, siteUrl, route, active, title, description, body })
 	${renderSiteHeader(config, 'tools')}
 	<div class="page-shell tool-shell">
 		${renderToolsSidebar(active, config)}
-		<main id="main-content" class="main-content api-tool-main" data-api-tool="${active}">
+		<main id="main-content" class="main-content mod-settings-main api-tool-main" data-api-tool="${active}">
 			${body}
 		</main>
 	</div>
@@ -37,36 +37,39 @@ function pageShell({ config, siteUrl, route, active, title, description, body })
 </html>\n`
 }
 
-function versionControls() {
-	return `<div class="api-version-controls">
-		<label class="preview-version-picker"><span data-i18n="apiVersion">ShroudForge API version</span><select data-api-version aria-label="ShroudForge API version" data-i18n-aria-label="apiVersion" disabled><option>Loading…</option></select><small data-api-version-note></small></label>
+function apiVersionControls() {
+	return `<div class="preview-version-controls api-version-controls">
+		<label class="preview-version-picker"><span data-i18n="apiVersion">ShroudForge API version</span><select data-api-version aria-label="ShroudForge API version" data-i18n-aria-label="apiVersion" disabled><option>Loading…</option></select><small data-api-version-note role="status">Loading available versions…</small></label>
+		<div class="api-version-facts"><span data-api-release></span><span data-game-build></span></div>
 	</div>`
 }
 
-function statusPanel() {
-	return `<section class="api-status-panel panel" aria-label="API catalogue status" data-i18n-aria-label="catalogStatusTitle">
-		<div class="api-status-heading"><span class="api-status-icon" aria-hidden="true">i</span><div><strong data-i18n="catalogStatusTitle">Static API catalogue</strong><p data-i18n="catalogStatusBody">This page shows the published API contract and captured game data. It cannot see or run inside your current game.</p></div></div>
-		<div class="api-status-facts"><span data-api-release></span><span data-game-build></span><span class="api-live-state" data-i18n="noLiveConnection">No live game connection</span></div>
-		<details class="api-status-guide" open><summary data-i18n="statusGuideTitle">What do these API status badges mean?</summary><div class="api-status-guide-grid">
-			<div><span class="api-status-mark is-documented" data-i18n="statusDocumented">Documented</span><p data-i18n="statusDocumentedBody">The API catalogue contains this entry and its published contract.</p></div>
-			<div><span class="api-status-mark is-capability" data-i18n="statusCapability">Mod permission</span><p data-i18n="statusCapabilityBody">Runtime permission is derived from the capability checks already used by the Modloader.</p></div>
-			<div><span class="api-status-mark is-declared" data-i18n="statusDeclared">Runtime declared</span><p data-i18n="statusDeclaredBody">The operation identifier is in the runtime operation catalogue. This does not mean it is available in every game process.</p></div>
-			<div><span class="api-status-mark is-live" data-i18n="statusLive">Live availability</span><p data-i18n="statusLiveBody">Only runtime.status or runtime.has inside the running game can report current availability.</p></div>
-			<div><span class="api-status-mark is-effect" data-i18n="statusEffect">Gameplay effect verification</span><p data-i18n="statusEffectBody">No central per-feature gameplay verification result is published here. Do not infer an in-game effect from an API declaration or live availability.</p></div>
-		</div></details>
-	</section>`
+function apiLoadError() {
+	return `<div class="api-load-error editor-status has-error" data-api-load-error role="alert" hidden><span data-api-load-error-message></span><button class="button button-secondary" type="button" data-api-retry data-i18n="retryLoading">Retry</button></div>`
+}
+
+function referenceNotes() {
+	return `<details class="builder-existing-settings api-reference-notes">
+		<summary><span data-i18n="referenceNotesTitle">Status and evidence</span><span class="settings-disclosure-arrow" aria-hidden="true">›</span><small data-i18n="referenceNotesAction">Show status definitions</small></summary>
+		<div class="api-reference-notes-content">
+			<p data-i18n="referenceNotesLua">Documented means the entry appears in the generated Lua API catalogue. It does not prove that the current game process exposes it.</p>
+			<p data-i18n="referenceNotesGame">Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.</p>
+			<p data-i18n="referenceNotesRuntime">Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.</p>
+		</div>
+	</details>`
 }
 
 function apiIntro({ titleKey, titleText, leadKey, leadText, actionLabel, actionHref }) {
-	return `<section class="page-intro tool-intro api-tool-intro" aria-labelledby="page-title">
+	return `<section class="page-intro tool-intro" aria-labelledby="page-title">
 		<div class="eyebrow" data-i18n="toolsEyebrow">SHROUDFORGE TOOLS · MODDING</div>
-		<div class="api-tool-intro-row"><div><h1 id="page-title" data-i18n="${titleKey}">${titleText}</h1><p data-i18n="${leadKey}">${leadText}</p></div><div class="api-tool-intro-actions"><a class="button button-primary" href="${actionHref}" data-i18n="${actionLabel.key}">${actionLabel.text}</a>${versionControls()}</div></div>
+		<div class="tool-intro-row"><div><h1 id="page-title" data-i18n="${titleKey}">${titleText}</h1><p data-i18n="${leadKey}">${leadText}</p></div><div class="tool-intro-actions" role="group" aria-label="API tool navigation"><a class="button button-primary" href="${actionHref}" data-i18n="${actionLabel.key}">${actionLabel.text}</a></div></div>
 	</section>`
 }
 
 function taskCards() {
-	return `<section class="api-task-section panel" aria-labelledby="task-heading">
-		<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="startWithTask">START WITH A TASK</span><h2 id="task-heading" data-i18n="commonTasks">What do you want your mod to do?</h2><p data-i18n="taskLead">Choose an example to see a working Lua call and what its response means.</p></div></header>
+	return `<section class="mod-preview-section panel api-task-section" aria-labelledby="task-heading">
+		<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="startWithTask">START WITH A TASK</span><h2 id="task-heading" data-i18n="commonTasks">What do you want your mod to do?</h2><p data-i18n="taskLead">Choose a sample to build a Lua call and preview its response.</p></div>${apiVersionControls()}</header>
+		<div class="api-load-state">${apiLoadError()}</div>
 		<div class="api-task-grid" data-api-tasks><div class="api-loading" role="status" data-i18n="loadingExamples">Loading examples…</div></div>
 	</section>`
 }
@@ -76,29 +79,29 @@ export function renderApiReferencePage({ config, siteUrl }) {
 		titleKey: 'apiReferenceTitle',
 		titleText: 'Browse the API',
 		leadKey: 'apiReferenceLead',
-		leadText: 'Find an example by task or search every documented function, type, and game resource.',
-		actionLabel: { key: 'tryCallsAction', text: 'Try API calls' },
+		leadText: 'Start with a modding task or search the Lua functions, game types, and resource IDs.',
+		actionLabel: { key: 'tryCallsAction', text: 'API calls' },
 		actionHref: playgroundRoute,
 	})}
-		${statusPanel()}
 		${taskCards()}
-		<section class="api-reference-panel panel" aria-labelledby="api-reference-heading">
-			<header class="tool-section-heading api-reference-heading"><div><span class="eyebrow" data-i18n="referenceEyebrow">SEARCHABLE REFERENCE</span><h2 id="api-reference-heading" data-i18n="allApiEntries">Find an API entry</h2><p data-i18n="searchLead">Search by the task you have in mind, a function name, or a parameter.</p></div><span class="api-result-count" data-api-result-count role="status" aria-live="polite"></span></header>
-			<div class="api-search-row"><label class="api-search-box"><span class="visually-hidden" data-i18n="searchLabel">Search the API</span><span class="api-search-icon" aria-hidden="true">⌕</span><input type="search" data-api-search autocomplete="off" placeholder="Try “read a setting” or shroudforge.settings.get" data-i18n-placeholder="searchPlaceholder"></label><button class="button button-secondary api-clear-button" type="button" data-api-clear data-i18n="clearSearch">Clear</button></div>
-			<div class="api-filter-row" role="group" aria-label="API categories" data-i18n-aria-label="apiCategories"><button type="button" class="api-filter is-active" data-api-filter="all" aria-pressed="true" data-i18n="filterAll">Everything</button><button type="button" class="api-filter" data-api-filter="eml" aria-pressed="false">EML</button><button type="button" class="api-filter" data-api-filter="shroudforge" aria-pressed="false">ShroudForge</button><button type="button" class="api-filter" data-api-filter="runtime" aria-pressed="false" data-i18n="filterRuntime">Runtime</button><button type="button" class="api-filter" data-api-filter="game" aria-pressed="false" data-i18n="filterGame">Game data</button></div>
-			<div class="api-catalog-tabs" role="tablist" aria-label="API reference sections" data-i18n-aria-label="apiReferenceSections"><button type="button" role="tab" class="is-active" aria-selected="true" data-api-tab="functions" data-i18n="functionsTab">Lua functions</button><button type="button" role="tab" aria-selected="false" data-api-tab="types" data-i18n="typesTab">Game types</button><button type="button" role="tab" aria-selected="false" data-api-tab="resources" data-i18n="resourcesTab">Game resources</button></div>
+		<section class="editor-stage panel api-reference-panel" aria-labelledby="api-reference-heading">
+			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="referenceEyebrow">API REFERENCE</span><h2 id="api-reference-heading" data-i18n="allApiEntries">Find an API entry</h2><p data-i18n="searchLead">Search by what you want to do, a function name, or a parameter.</p></div><span class="api-result-count" data-api-result-count role="status" aria-live="polite"></span></header>
+			<div class="api-search-row"><label class="api-search-box"><span class="visually-hidden" data-i18n="searchLabel">Search the API</span><input type="search" data-api-search autocomplete="off" placeholder="Try “read a setting” or shroudforge.settings.get" data-i18n-placeholder="searchPlaceholder"></label><button class="button button-secondary api-clear-button" type="button" data-api-clear data-i18n="clearSearch">Clear</button></div>
+			<div class="api-filter-row" role="group" aria-label="API categories" data-i18n-aria-label="apiCategories"><button type="button" class="button button-secondary api-filter is-active" data-api-filter="all" aria-pressed="true" data-i18n="filterAll">Everything</button><button type="button" class="button button-secondary api-filter" data-api-filter="eml" aria-pressed="false">EML</button><button type="button" class="button button-secondary api-filter" data-api-filter="shroudforge" aria-pressed="false">ShroudForge</button><button type="button" class="button button-secondary api-filter" data-api-filter="runtime" aria-pressed="false" data-i18n="filterRuntime">Runtime</button><button type="button" class="button button-secondary api-filter" data-api-filter="game" aria-pressed="false" data-i18n="filterGame">Game API</button></div>
+			<div class="api-catalog-tabs" role="tablist" aria-label="API reference sections" data-i18n-aria-label="apiReferenceSections"><button type="button" role="tab" class="api-tab is-active" aria-selected="true" data-api-tab="functions" data-i18n="functionsTab">Lua functions</button><button type="button" role="tab" class="api-tab" aria-selected="false" data-api-tab="types" data-i18n="typesTab">Game types</button><button type="button" role="tab" class="api-tab" aria-selected="false" data-api-tab="resources" data-i18n="resourcesTab">Game resources</button></div>
 			<section class="api-tab-panel" data-api-panel="functions" role="tabpanel"><div class="api-results" data-api-results><div class="api-loading" role="status" data-i18n="loadingCatalog">Loading the API catalogue…</div></div></section>
-			<section class="api-tab-panel" data-api-panel="types" role="tabpanel" hidden><p class="api-data-note" data-i18n="typeDataNote">These details come from a captured Enshrouded build. They do not reflect a live game process.</p><label class="api-search-box api-data-search"><span class="visually-hidden" data-i18n="searchTypes">Search game types</span><span class="api-search-icon" aria-hidden="true">⌕</span><input type="search" data-type-search placeholder="Type name or field" data-i18n-placeholder="typeSearchPlaceholder"></label><div class="api-results" data-type-results></div></section>
-			<section class="api-tab-panel" data-api-panel="resources" role="tabpanel" hidden><p class="api-data-note" data-i18n="resourceDataNote">Resource names and IDs come from the same captured game data snapshot.</p><label class="api-search-box api-data-search"><span class="visually-hidden" data-i18n="searchResources">Search game resources</span><span class="api-search-icon" aria-hidden="true">⌕</span><input type="search" data-resource-search placeholder="Resource name or ID" data-i18n-placeholder="resourceSearchPlaceholder"></label><div class="api-results" data-resource-results></div></section>
+			<section class="api-tab-panel" data-api-panel="types" role="tabpanel" hidden><p class="api-data-note" data-i18n="typeDataNote">These details come from the captured Enshrouded build shown above.</p><label class="api-search-box api-data-search"><span class="visually-hidden" data-i18n="searchTypes">Search game types</span><input type="search" data-type-search placeholder="Type name or field" data-i18n-placeholder="typeSearchPlaceholder"></label><div class="api-results" data-type-results></div></section>
+			<section class="api-tab-panel" data-api-panel="resources" role="tabpanel" hidden><p class="api-data-note" data-i18n="resourceDataNote">Resource names and IDs come from the same captured game build.</p><label class="api-search-box api-data-search"><span class="visually-hidden" data-i18n="searchResources">Search game resources</span><input type="search" data-resource-search placeholder="Resource name or ID" data-i18n-placeholder="resourceSearchPlaceholder"></label><div class="api-results" data-resource-results></div></section>
 		</section>
-		<footer class="api-tool-footer"><span data-i18n="referenceFooter">The catalogue documents the Lua interface. In-game availability depends on runtime conditions and is checked from a mod with runtime.has or runtime.status.</span></footer>`
+		${referenceNotes()}
+		<footer class="tool-footer-note"><span data-i18n="referenceFooter">The catalogue is a static reference. Check runtime availability inside your mod with runtime.has or runtime.status.</span></footer>`
 	return pageShell({
 		config,
 		siteUrl,
 		route: referenceRoute,
 		active: 'api-reference',
 		title: 'Browse the ShroudForge Lua API',
-		description: 'Search ShroudForge and EML Lua functions, captured Enshrouded game types, and resource IDs. Inspect examples and runtime requirements.',
+		description: 'Search ShroudForge and EML Lua functions, captured Enshrouded game types, and resource IDs.',
 		body,
 	})
 }
@@ -106,45 +109,45 @@ export function renderApiReferencePage({ config, siteUrl }) {
 export function renderApiPlaygroundPage({ config, siteUrl }) {
 	const body = `${apiIntro({
 		titleKey: 'apiPlaygroundTitle',
-		titleText: 'Try API calls',
+		titleText: 'API calls',
 		leadKey: 'apiPlaygroundLead',
-		leadText: 'Choose a real modding task, edit its inputs, and see the Lua call and a sample response.',
+		leadText: 'Build a Lua call from a modding example and preview a sample response.',
 		actionLabel: { key: 'browseApiAction', text: 'Browse API' },
 		actionHref: referenceRoute,
 	})}
-		${statusPanel()}
-		<section class="api-playground-panel panel" aria-labelledby="playground-heading">
-			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="exampleEditor">EXAMPLE CALL EDITOR</span><h2 id="playground-heading" data-i18n="editRunExample">Edit and run an example</h2><p data-i18n="playgroundLead">Change the inputs below. The browser answers from the selected example data or a clearly marked runtime fixture.</p></div></header>
-			<div class="api-playground-grid">
-				<div class="api-request-column">
-					<label class="api-field-label"><span data-i18n="chooseExample">Choose an example</span><select data-api-scenario aria-label="Choose an API example"><option data-i18n="loadingExamplesOption">Loading examples…</option></select></label>
-					<p class="api-scenario-summary" data-scenario-summary></p>
-					<form data-api-request-form>
-						<div class="api-request-fields" data-request-fields></div>
-					<div class="api-code-heading"><strong data-i18n="generatedLua">Generated Lua call</strong><button class="text-link" type="button" data-copy-call data-i18n="copyCode">Copy code</button></div>
-						<pre class="api-code-panel"><code data-generated-call></code></pre>
+		<section class="editor-stage panel api-playground-panel" aria-labelledby="playground-heading">
+			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="exampleEditor">API CALL EDITOR</span><h2 id="playground-heading" data-i18n="editRunExample">Build an API call</h2><p data-i18n="playgroundLead">Choose a task, edit its inputs, and preview an example response. This does not run Lua in the game.</p></div>${apiVersionControls()}</header>
+			${apiLoadError()}
+			<div class="api-request-column">
+				<label class="api-field-label"><span data-i18n="chooseExample">Choose a task</span><select data-api-scenario aria-label="Choose an API example"><option data-i18n="loadingExamplesOption">Loading examples…</option></select></label>
+				<p class="api-scenario-summary" data-scenario-summary></p>
+				<form data-api-request-form>
+					<div class="api-request-fields" data-request-fields></div>
+					<div class="api-code-heading"><strong data-i18n="generatedLua">Lua code for your mod</strong><button class="text-button" type="button" data-copy-call data-i18n="copyCode">Copy code</button></div>
+					<pre class="api-code-panel"><code data-generated-call></code></pre>
 					<p class="api-copy-status" data-copy-status role="status" aria-live="polite"></p>
-						<button class="button button-primary api-run-button" type="submit" data-i18n="runExample">Run example</button>
-					</form>
-				</div>
-				<div class="api-response-column">
-					<div class="api-response-heading"><div><span class="eyebrow" data-i18n="exampleResponse">EXAMPLE RESPONSE</span><h3 data-i18n="responseHeading">What the call returns</h3></div><span class="api-sample-badge" data-i18n="sampleOnly">Sample only</span></div>
-					<p class="api-response-note" data-response-note data-i18n="runToSeeResponse">Run the example to see a response.</p>
-					<pre class="api-response-output" data-response-output aria-live="polite"><code data-i18n="noResponseYet">No response yet.</code></pre>
-					<div class="api-data-source"><strong data-i18n="responseSource">Response source</strong><p data-response-source data-i18n="sourceChanges">The source is shown after you run an example.</p></div>
-					<a class="api-reference-link" data-reference-link href="${referenceRoute}" data-i18n="viewApiEntry">View API entry →</a>
-				</div>
+					<button class="button button-primary api-run-button" type="submit" data-i18n="runExample">Show sample response</button>
+				</form>
 			</div>
 		</section>
-		<section class="api-meaning-panel panel" aria-labelledby="meaning-heading"><div class="api-meaning-mark" aria-hidden="true">!</div><div><h2 id="meaning-heading" data-i18n="simulationHeading">What does “Run example” do?</h2><p data-i18n="simulationBody">It runs a small, allowlisted browser simulation. Settings and game-type examples read the included sample files. Runtime examples show a fixture. No Lua script is sent to a server or to your game.</p></div></section>
-		<footer class="api-tool-footer"><span data-i18n="playgroundFooter">Use the generated Lua in your mod, then check live availability with runtime.has or runtime.status in game.</span></footer>`
+		<section class="editor-stage panel api-response-section" aria-labelledby="response-heading">
+			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="exampleResponse">SAMPLE RESPONSE</span><h2 id="response-heading" data-i18n="responseHeading">What the call may return</h2><p data-response-note data-i18n="runToSeeResponse">Choose a task and show its sample response.</p></div><span class="api-sample-badge" data-i18n="sampleOnly">Browser sample</span></header>
+			<pre class="api-response-output" data-response-output aria-live="polite"><code data-i18n="noResponseYet">No response yet.</code></pre>
+			<div class="api-data-source"><strong data-i18n="responseSource">Sample source</strong><p data-response-source data-i18n="sourceChanges">The source is shown after you preview a response.</p></div>
+			<a class="api-reference-link" data-reference-link href="${referenceRoute}" data-i18n="viewApiEntry">View API entry →</a>
+		</section>
+		<details class="builder-existing-settings api-reference-notes">
+			<summary><span data-i18n="simulationHeading">What does this preview do?</span><span class="settings-disclosure-arrow" aria-hidden="true">›</span><small data-i18n="referenceNotesAction">Show details</small></summary>
+			<div class="api-reference-notes-content"><p data-i18n="simulationBody">The page creates a Lua example and previews data from bundled samples. It never executes Lua or connects to your running game.</p></div>
+		</details>
+		<footer class="tool-footer-note"><span data-i18n="playgroundFooter">Copy the Lua call into your mod. Check live availability with runtime.has or runtime.status in game.</span></footer>`
 	return pageShell({
 		config,
 		siteUrl,
 		route: playgroundRoute,
 		active: 'api-playground',
-		title: 'Try ShroudForge API calls',
-		description: 'Build a Lua API example, edit its inputs, and see a sample response from bundled ShroudForge or Enshrouded data.',
+		title: 'ShroudForge API calls',
+		description: 'Build a Lua API example, edit its inputs, and preview a sample response from bundled ShroudForge or Enshrouded data.',
 		body,
 	})
 }

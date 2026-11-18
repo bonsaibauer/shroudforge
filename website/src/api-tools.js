@@ -5,22 +5,23 @@
 	const text = {
 		en: {
 			skip: 'Skip to API tools', toolsNavLabel: 'Tools', moddingNavLabel: 'Modding', modSettingsNav: 'Mod-Settings', apiCallsNav: 'API calls', browseApiNav: 'Browse API', standardsNavLabel: 'Standards',
-			toolsEyebrow: 'SHROUDFORGE TOOLS · MODDING', apiReferenceTitle: 'Browse the API', apiReferenceLead: 'Find an example by task or search every documented function, type, and game resource.', apiPlaygroundTitle: 'Try API calls', apiPlaygroundLead: 'Choose a real modding task, edit its inputs, and see the Lua call and a sample response.', tryCallsAction: 'Try API calls', browseApiAction: 'Browse API', apiVersion: 'ShroudForge API version', apiCategories: 'API categories', apiReferenceSections: 'API reference sections',
-			catalogStatusTitle: 'Published API and game-data snapshot', catalogStatusBody: 'This page reads published files. It cannot inspect or run inside your current game.', noLiveConnection: 'No live game connection', statusGuideTitle: 'What do these API status badges mean?', statusDocumented: 'Documented', statusDocumentedBody: 'This entry is in the published API catalogue. The catalogue is generated from the Lua API declarations.', statusCapability: 'Mod permission', statusCapabilityBody: 'For runtime entries, the required capability is derived from the Modloader checks already used by the runtime.', statusDeclared: 'Runtime declared', statusDeclaredBody: 'The operation identifier is listed in runtime-operations.json. That does not mean it is available in every game process.', statusLive: 'Live availability', statusLiveBody: 'Only runtime.status or runtime.has inside the running game can report current availability for this mod.', liveUnknownBadge: 'Not checked live', statusEffect: 'Gameplay effect verification', statusEffectBody: 'No central per-feature gameplay verification result is published here. Do not infer an in-game effect from an API declaration or live availability.', effectUnknownBadge: 'No published effect result', apiRelease: 'API {api} · ShroudForge {release}', gameBuild: 'Captured game build {build}',
+			toolsEyebrow: 'SHROUDFORGE TOOLS · MODDING', apiReferenceTitle: 'Browse the API', apiReferenceLead: 'Start with a task or search the published API, game types, and resource IDs.', apiPlaygroundTitle: 'Try API calls', apiPlaygroundLead: 'Choose a task, edit its inputs, and preview sample output. The browser never calls your game.', tryCallsAction: 'Try API calls', browseApiAction: 'Browse API', apiVersion: 'ShroudForge API version', apiCategories: 'API categories', apiReferenceSections: 'API reference sections',
+			apiRelease: 'API {api} · ShroudForge {release}', gameBuild: 'Captured game build {build}',
+		referenceNotesTitle: 'Status and evidence', referenceNotesAction: 'Show details', referenceNotesLua: 'Documented means the entry appears in the generated Lua API catalogue. It does not prove that the current game process exposes it.', referenceNotesGame: 'Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.', referenceNotesRuntime: 'Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.',
 			startWithTask: 'START WITH A TASK', commonTasks: 'What do you want your mod to do?', taskLead: 'Choose an example to see its Lua call and what the response means.', loadingExamples: 'Loading examples…',
-		referenceEyebrow: 'SEARCHABLE REFERENCE', allApiEntries: 'Find an API entry', searchLead: 'Search by the task you have in mind, a function name, or a parameter.', searchLabel: 'Search the API', searchPlaceholder: 'Try “read a setting” or shroudforge.settings.get', clearSearch: 'Clear', filterAll: 'Everything', filterRuntime: 'Runtime', filterGame: 'Game data', functionsTab: 'Lua functions', typesTab: 'Game types', resourcesTab: 'Game resources', loadingCatalog: 'Loading the API catalogue…', typeDataNote: 'These details come from a captured Enshrouded build. They do not describe a live game process.', searchTypes: 'Search game types', typeSearchPlaceholder: 'Type name or field', resourceDataNote: 'Resource names and IDs come from the same captured game snapshot.', searchResources: 'Search game resources', resourceSearchPlaceholder: 'Resource name or ID', referenceFooter: 'The catalogue documents the Lua interface. Check runtime.has or runtime.status inside your mod to learn what is available in the current game process.',
-			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', resultLimit: 'Showing {shown} of {total} matches. Add a search term to narrow the list.', documentedBadge: 'Documented', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', runtimeApiBadge: 'Runtime API', gameApiBadge: 'Game API', staticAvailability: 'Live availability is checked only inside the game with runtime.has or runtime.status.', effectNotProven: 'This API entry does not by itself prove that a gameplay effect was tested.', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
+		referenceEyebrow: 'SEARCHABLE REFERENCE', allApiEntries: 'Find an API entry', searchLead: 'Search by task, function, or parameter. Badges describe published evidence, not live availability.', searchLabel: 'Search the API', searchPlaceholder: 'Try “read a setting” or shroudforge.settings.get', clearSearch: 'Clear', filterAll: 'Everything', filterRuntime: 'Runtime', filterGame: 'Game data', functionsTab: 'Lua functions', typesTab: 'Game types', resourcesTab: 'Game resources', loadingCatalog: 'Loading the API catalogue…', typeDataNote: 'These details come from a captured Enshrouded build. They do not describe a live game process.', searchTypes: 'Search game types', typeSearchPlaceholder: 'Type name or field', resourceDataNote: 'Resource names and IDs come from the same captured game snapshot.', searchResources: 'Search game resources', resourceSearchPlaceholder: 'Resource name or ID', referenceFooter: 'The catalogue documents the Lua interface. Check runtime.has or runtime.status inside your mod to learn what is available in the current game process.',
+			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', resultLimit: 'Showing {shown} of {total} matches. Add a search term to narrow the list.', documentedBadge: 'Documented', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
 		typesLoading: 'Loading captured game types…', resourcesLoading: 'Loading captured game resources…', typeSearchPrompt: 'Enter a type name or field to search the captured catalogue.', resourceSearchPrompt: 'Enter a resource type, GUID, or part number to search.', noTypeResults: 'No captured types match that search.', noResourceResults: 'No captured resources match that search.', showFirst: 'Showing the first {shown} of {total} matches. Add more detail to the search.', typeCount: '{count} game types', resourceCount: '{count} resource types', fieldsCount: '{count} fields', primitiveLabel: 'Kind', sizeLabel: 'Size', alignmentLabel: 'Alignment', fieldsLabel: 'Fields', moreFields: '{count} more fields', enumValues: 'Enum values', resourceEntries: '{count} captured entries', partLabel: 'Part', snapshotLabel: 'Captured snapshot',
-		exampleEditor: 'EXAMPLE CALL EDITOR', editRunExample: 'Edit and run an example', playgroundLead: 'Change the inputs below. The browser answers from included sample data or a clearly marked runtime fixture.', chooseExample: 'Choose an example', loadingExamplesOption: 'Loading examples…', generatedLua: 'Generated Lua call', copyCode: 'Copy code', runExample: 'Run example', exampleResponse: 'EXAMPLE RESPONSE', responseHeading: 'What the call returns', sampleOnly: 'Sample only', runToSeeResponse: 'Run the example to see a response.', noResponseYet: 'No response yet.', responseSource: 'Response source', sourceChanges: 'The source is shown after you run an example.', viewApiEntry: 'View API entry →', simulationHeading: 'What does “Run example” do?', simulationBody: 'It runs a small, allowlisted browser simulation. Settings and game-type examples read the included sample files. Runtime examples show a fixture. No Lua script is sent to a server or to your game.', playgroundFooter: 'Use the generated Lua in your mod, then check live availability with runtime.has or runtime.status in game.',
+		exampleEditor: 'API CALL EDITOR', editRunExample: 'Build a Lua API call', playgroundLead: 'Choose a task, edit its inputs, and preview sample output. Lua never runs in this browser.', chooseExample: 'Choose a task', loadingExamplesOption: 'Loading examples…', generatedLua: 'Lua code for your mod', copyCode: 'Copy code', runExample: 'Show sample response', exampleResponse: 'SAMPLE RESPONSE', responseHeading: 'What the call may return', sampleOnly: 'Browser sample', runToSeeResponse: 'Choose a task and show its sample response.', noResponseYet: 'No response yet.', responseSource: 'Sample source', sourceChanges: 'The sample source will appear here after you request a response.', viewApiEntry: 'View API entry →', simulationHeading: 'How sample responses work', simulationBody: 'The browser generates a Lua example and reads bundled sample data. It does not execute Lua, query a server, or connect to your running game.', playgroundFooter: 'Copy the generated Lua into your mod. Check live runtime availability in game with runtime.has or runtime.status.',
 			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSetting: 'Read a mod setting', scenarioRuntimeStatus: 'Check a runtime requirement', scenarioGameType: 'Look up a game type',
 			settingSource: 'Starter Mod example: extended.mod.json settings', runtimeSource: 'Simulated status fixture. The browser cannot inspect the current game process.', typeSource: 'Captured Enshrouded game-data snapshot', responseSetting: 'This value is read from the example mod settings included with ShroudForge.', responseRuntime: 'This is a sample response shape only. The website did not query a running game.', responseType: 'This result is a view of captured game metadata, not a live object from the game.', settingNotFound: 'The example settings do not contain this key, so the fallback value is returned.', typeNotFound: 'This type name does not exist in the captured snapshot.', runtimeReason: 'This website has no connection to the current game process.', inputError: 'Enter a valid value for each input.',
-			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The API data could not be loaded. Reload the page or choose another API version.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
+			copySuccess: 'Lua call copied.', copyFailure: 'Copy is unavailable in this browser.', loadFailure: 'The API data could not be loaded. Check your connection and try again.', retryLoading: 'Retry', versionIndexUnavailable: 'Published API versions could not be loaded.', oneApiVersion: 'One API version is published so far.', chooseApiVersion: 'Choose the API version your mod targets.', gameBuildUnavailable: 'Captured game build information is unavailable.', runtimeCapability: 'runtime', patchCapability: 'patch', exportCapability: 'export',
 		},
 	}
 
 	const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
 	const locale = 'en'
-	const state = { index: null, catalog: null, examples: null, operations: null, gameProfile: null, types: null, resources: null, filter: 'all', typeLoading: false, resourceLoading: false }
+	const state = { index: null, catalog: null, examples: null, operations: null, gameProfile: null, types: null, resources: null, filter: 'all', typeLoading: false, resourceLoading: false, versionRequest: 0 }
 	const translate = (key, values = {}) => {
 		if (!key) return ''
 		let value = text.en[key] ?? key
@@ -51,7 +52,27 @@
 	async function fetchJson(url) {
 		const response = await fetch(url, { headers: { Accept: 'application/json' } })
 		if (!response.ok) throw new Error(`${response.status} ${url}`)
-		return response.json()
+		try { return await response.json() }
+		catch (error) { throw new Error(`Invalid JSON in ${url}`, { cause: error }) }
+	}
+
+	function clearApiLoadError() {
+		for (const container of $$('[data-api-load-error]')) container.hidden = true
+	}
+
+	function showApiLoadError(error) {
+		console.error('[ShroudForge API tools] Could not load the published API data.', error)
+		for (const container of $$('[data-api-load-error]')) {
+			const message = container.querySelector('[data-api-load-error-message]')
+			if (message) message.textContent = translate('loadFailure')
+			container.hidden = false
+		}
+		if (!state.catalog) {
+			const results = $('[data-api-results]')
+			if (results) results.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
+			const tasks = $('[data-api-tasks]')
+			if (tasks) tasks.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
+		}
 	}
 
 	function versionRoute(route, extra = {}) {
@@ -66,7 +87,7 @@
 		const build = $('[data-game-build]')
 		const gameVersion = state.gameProfile?.game_version || ''
 		const gameBuild = gameVersion.split('|')[0] || '—'
-		if (build) build.textContent = translate('gameBuild', { build: gameBuild })
+		if (build) build.textContent = gameBuild === '—' ? translate('gameBuildUnavailable') : translate('gameBuild', { build: gameBuild })
 	}
 
 	function renderVersionPicker() {
@@ -80,17 +101,25 @@
 		picker.value = state.catalog?.version || state.index.current
 		const versionNote = $('[data-api-version-note]')
 		if (versionNote) versionNote.textContent = state.index.versions.length < 2
-			? 'One API version has been published so far.'
-			: 'Choose the version you are developing for.'
+			? translate('oneApiVersion')
+			: translate('chooseApiVersion')
 	}
 
 	async function selectVersion(version) {
+		const request = ++state.versionRequest
 		const selected = state.index.versions.find(item => item.version === version) || state.index.versions.find(item => item.version === state.index.current) || state.index.versions[0]
 		if (!selected) throw new Error('API version index is empty')
 		const base = `/data/api/${encodeURIComponent(selected.version)}`
-		const [catalog, examples, operations] = await Promise.all([
-			fetchJson(`${base}/catalog.json`), fetchJson(`${base}/examples.json`), fetchJson(`${base}/runtime-operations.json`),
-		])
+		let catalog, examples, operations
+		try {
+			[catalog, examples, operations] = await Promise.all([
+				fetchJson(`${base}/catalog.json`), fetchJson(`${base}/examples.json`), fetchJson(`${base}/runtime-operations.json`),
+			])
+		} catch (error) {
+			if (request !== state.versionRequest) return
+			throw error
+		}
+		if (request !== state.versionRequest) return
 		if (catalog.version !== selected.version || !Array.isArray(catalog.symbols)) throw new Error('Invalid API catalogue')
 		if (!Array.isArray(examples.scenarios) || !Array.isArray(operations.runtimeOperations)) throw new Error('Invalid API example data')
 		state.catalog = catalog
@@ -102,6 +131,7 @@
 		renderTasks()
 		renderApiResults()
 		if (mainRoute === 'playground') renderPlayground(getScenarioFromQuery())
+		clearApiLoadError()
 	}
 
 	async function loadGameProfile() {
@@ -148,7 +178,6 @@
 		const capability = capabilityFor(symbol)
 		if (capability) badges.push(`<span class="api-entry-badge is-capability">${escapeHtml(translate('capabilityBadge', { capability: translate(`${capability}Capability`) }))}</span>`)
 		if (state.operations?.has(symbol.name)) badges.push(`<span class="api-entry-badge is-declared">${escapeHtml(translate('operationBadge'))}</span>`)
-		if (apiKind(symbol) === 'runtime') badges.push(`<span class="api-entry-badge is-live">${escapeHtml(translate('liveUnknownBadge'))}</span><span class="api-entry-badge is-effect">${escapeHtml(translate('effectUnknownBadge'))}</span>`)
 		return badges.join('')
 	}
 
@@ -160,24 +189,19 @@
 	function renderSymbol(symbol) {
 		const signature = symbol.signature || symbol.name
 		const category = sourceCategory(symbol)
-		const kind = apiKind(symbol)
 		const tryLink = state.examples?.scenarios.find(scenario => scenario.method === symbol.name)
 		const returns = Array.isArray(symbol.returnDetails) && symbol.returnDetails.length
 			? renderParamList(symbol.returnDetails.map(item => ({ ...item, name: item.name || 'value' })), 'returns', 'noReturn')
 			: `<p class="api-return-items">${(symbol.returns || []).map(item => `<code>${escapeHtml(item)}</code>`).join(', ') || escapeHtml(translate('noReturn'))}</p>`
-		const declared = state.operations?.has(symbol.name)
 		return `<details class="api-entry-card" data-api-entry data-category="${category}">
 			<summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(signature)}</code><span class="api-entry-summary-description">${htmlInline(symbol.description || '')}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary>
 			<div class="api-entry-detail">
-			<div class="api-entry-badges">${statusBadges(symbol)}<span class="api-entry-badge is-source">${category === 'shroudforge' ? 'ShroudForge' : 'EML'}</span>${kind === 'runtime' ? `<span class="api-entry-badge is-source">${escapeHtml(translate('runtimeApiBadge'))}</span>` : kind === 'game' ? `<span class="api-entry-badge is-source">${escapeHtml(translate('gameApiBadge'))}</span>` : ''}</div>
+			<div class="api-entry-badges">${statusBadges(symbol)}<span class="api-entry-badge is-source">${category === 'shroudforge' ? 'ShroudForge' : 'EML'}</span></div>
 				<div class="api-entry-block"><h3>${escapeHtml(translate('descriptionLabel'))}</h3><p>${htmlInline(symbol.description || '')}</p></div>
 				<div class="api-entry-block"><h3>${escapeHtml(translate('signatureLabel'))}</h3><pre class="api-code-panel"><code>${escapeHtml(signature)}</code></pre></div>
 				<div class="api-entry-columns"><section class="api-entry-block"><h3>${escapeHtml(translate('parametersLabel'))}</h3>${renderParamList(symbol.params, 'params', 'noParameters')}</section><section class="api-entry-block"><h3>${escapeHtml(translate('returnsLabel'))}</h3>${returns}</section></div>
 				${symbol.errors ? `<div class="api-entry-block"><h3>${escapeHtml(translate('errorsLabel'))}</h3><p>${htmlInline(symbol.errors)}</p></div>` : ''}
 				${symbol.example ? `<div class="api-entry-block"><h3>${escapeHtml(translate('exampleLabel'))}</h3><pre class="api-code-panel"><code>${escapeHtml(symbol.example)}</code></pre></div>` : `<p class="api-detail-muted">${escapeHtml(translate('noExample'))}</p>`}
-				${declared ? `<p class="api-evidence-note">${escapeHtml(translate('statusDeclaredBody'))}</p>` : ''}
-				${kind === 'runtime' ? `<p class="api-evidence-note">${escapeHtml(translate('staticAvailability'))}</p>` : ''}
-				${kind === 'runtime' ? '' : `<p class="api-evidence-note">${escapeHtml(translate('effectNotProven'))}</p>`}
 				<p class="api-source-path"><span>${escapeHtml(translate('sourceLabel'))}:</span> <code>${escapeHtml(symbol.source || '—')}</code></p>
 				${tryLink ? `<a class="api-reference-link" href="${escapeHtml(versionRoute('/tools/modding/api-playground/', { scenario: tryLink.id }))}">${escapeHtml(translate('tryExample'))} →</a>` : ''}
 			</div>
@@ -220,8 +244,6 @@
 		try {
 			const base = await gameDataBase()
 			state.types = await fetchJson(`${base}/types.json`)
-			state.gameProfile ||= await fetchJson(`${base}/profile.json`)
-			setVersionFacts()
 			renderTypes()
 		} catch {
 			const target = $('[data-type-results]')
@@ -235,7 +257,6 @@
 		try {
 			const base = await gameDataBase()
 			state.resources = await fetchJson(`${base}/resources.json`)
-			state.gameProfile ||= await fetchJson(`${base}/profile.json`)
 			renderResources()
 		} catch {
 			const target = $('[data-resource-results]')
@@ -362,7 +383,7 @@
 			return { result: exists ? settings[values.key] : values.fallback, note: exists ? translate('responseSetting') : translate('settingNotFound'), source: translate('settingSource') }
 		}
 		if (scenario.handler === 'runtime-status') {
-			return { result: { available: false, reason: translate('runtimeReason') }, note: translate('responseRuntime'), source: translate('runtimeSource') }
+			return { result: { feature: values.feature, available: false, reason: translate('runtimeReason') }, note: translate('responseRuntime'), source: translate('runtimeSource') }
 		}
 		if (scenario.handler === 'game-type') {
 			const type = state.types?.[values.qualified_name]
@@ -399,6 +420,13 @@
 	}
 
 	root.addEventListener('click', async event => {
+		const retry = event.target.closest('[data-api-retry]')
+		if (retry) {
+			retry.disabled = true
+			try { await initialize() }
+			finally { retry.disabled = false }
+			return
+		}
 		const filterButton = event.target.closest('[data-api-filter]')
 		if (filterButton) {
 			state.filter = filterButton.dataset.apiFilter
@@ -444,7 +472,10 @@
 	root.addEventListener('change', async event => {
 		if (event.target.matches('[data-api-version]')) {
 			try { await selectVersion(event.target.value) }
-			catch { const target = $('[data-api-results]'); if (target) target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>` }
+			catch (error) {
+				renderVersionPicker()
+				showApiLoadError(error)
+			}
 		}
 		if (event.target.matches('[data-api-scenario]')) renderPlayground(event.target.value)
 		if (event.target.closest('[data-request-fields]')) {
@@ -487,20 +518,25 @@
 	async function initialize() {
 		applyLocale()
 		setTab('functions')
+		clearApiLoadError()
 		const search = $('[data-api-search]')
 		if (search) search.value = new URLSearchParams(location.search).get('q') || ''
+		loadGameProfile().catch(error => {
+			console.warn('[ShroudForge API tools] Captured game build information is unavailable.', error)
+			state.gameProfile = null
+			setVersionFacts()
+		})
 		try {
 			state.index = await fetchJson('/data/api/versions.json')
 			if (!Array.isArray(state.index.versions) || !state.index.versions.length) throw new Error('No API versions')
-			await Promise.all([selectVersion(new URLSearchParams(location.search).get('apiVersion') || state.index.current), loadGameProfile()])
-			renderVersionPicker()
-			if (mainRoute === 'playground') renderPlayground(getScenarioFromQuery())
-			else renderApiResults()
-		} catch {
-			const catalog = $('[data-api-results]')
-			if (catalog) catalog.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
-			const tasks = $('[data-api-tasks]')
-			if (tasks) tasks.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('loadFailure'))}</p>`
+			await selectVersion(new URLSearchParams(location.search).get('apiVersion') || state.index.current)
+		} catch (error) {
+			if (state.index) renderVersionPicker()
+			else {
+				const versionNote = $('[data-api-version-note]')
+				if (versionNote) versionNote.textContent = translate('versionIndexUnavailable')
+			}
+			showApiLoadError(error)
 		}
 	}
 
