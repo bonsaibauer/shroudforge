@@ -203,7 +203,7 @@
 	function renderTasks() {
 		const target = $('[data-api-tasks]')
 		if (!target || !state.examples) return
-		target.innerHTML = state.examples.scenarios.map(scenario => `<a class="api-task-card" href="${escapeHtml(versionRoute('/tools/modding/api-playground/', { scenario: scenario.id }))}"><span class="api-task-mark" aria-hidden="true">↗</span><span class="api-task-copy"><strong>${escapeHtml(scenarioTitle(scenario))}</strong><small>${escapeHtml(scenario.summary?.[locale] || scenario.summary?.en || '')}</small><code>${escapeHtml(scenario.method)}</code></span></a>`).join('')
+		target.innerHTML = state.examples.scenarios.map(scenario => `<a class="api-task-card" href="${escapeHtml(`${versionRoute('/tools/modding/api-playground/', { scenario: scenario.id })}#playground-heading`)}"><span class="api-task-mark" aria-hidden="true">↗</span><span class="api-task-copy"><strong>${escapeHtml(scenarioTitle(scenario))}</strong><small>${escapeHtml(scenario.summary?.[locale] || scenario.summary?.en || '')}</small><code>${escapeHtml(scenario.method)}</code></span></a>`).join('')
 	}
 
 	function htmlInline(value) {
