@@ -148,7 +148,6 @@ h1 {
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 0 8px rgb(99 201 245 / 58%));
-  animation: hammer-spin-loop 3s infinite;
 }
 
 .arrow-track {
@@ -185,8 +184,9 @@ h1 {
   transform: translateX(-35%);
 }
 
-.arrow-in::after { animation: arrow-travel 850ms ease-out 80ms 2 both; }
-.arrow-out::after { animation: arrow-travel 850ms ease-out 1550ms 2 both; }
+.route-flow.is-animating .hammer-ring img { animation: hammer-spin-down 2.3s cubic-bezier(.2, .75, .25, 1) both; }
+.route-flow.is-animating .arrow-in::after { animation: arrow-travel 850ms ease-out 80ms 2 both; }
+.route-flow.is-animating .arrow-out::after { animation: arrow-travel 850ms ease-out 1550ms 2 both; }
 
 .site-signature {
   margin: 24px 0 0;
@@ -198,7 +198,7 @@ h1 {
 
 .site-signature span { padding: 0 7px; color: var(--blue); }
 
-@keyframes hammer-spin-loop {
+@keyframes hammer-spin-down {
   0% { transform: rotate(0); animation-timing-function: cubic-bezier(.12, .88, .26, 1); }
   20% { transform: rotate(1080deg); animation-timing-function: cubic-bezier(.36, .05, .88, .28); }
   60% { transform: rotate(1370deg); animation-timing-function: cubic-bezier(.4, 0, .8, .25); }
@@ -228,7 +228,8 @@ h1 {
   .arrow-track { width: 2px; height: 22px; margin: 0 auto; background: linear-gradient(180deg, transparent, rgb(99 201 245 / 45%)); }
   .arrow-track::before { top: auto; right: -4px; bottom: 0; transform: rotate(135deg); }
   .arrow-track::after { top: 0; left: -2px; width: 6px; height: 30%; transform: translateY(-35%); }
-  .arrow-in::after, .arrow-out::after { animation-name: arrow-travel-down; }
+  .route-flow.is-animating .arrow-in::after,
+  .route-flow.is-animating .arrow-out::after { animation-name: arrow-travel-down; }
 }
 
 @keyframes arrow-travel-down {

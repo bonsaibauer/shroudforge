@@ -7,6 +7,18 @@ const currentUrl = document.querySelector("#old-url");
 const destinationLink = document.querySelector("#destination");
 const destinationUrl = document.querySelector("#destination-url");
 const destinationTitle = document.querySelector("#destination-title");
+const routeFlow = document.querySelector(".route-flow");
+
+if (routeFlow) {
+  const restartAnimationSequence = () => {
+    routeFlow.classList.remove("is-animating");
+    void routeFlow.offsetWidth;
+    routeFlow.classList.add("is-animating");
+  };
+
+  restartAnimationSequence();
+  window.setInterval(restartAnimationSequence, 4000);
+}
 
 currentUrl.textContent = location.href;
 destinationLink.href = destination;
