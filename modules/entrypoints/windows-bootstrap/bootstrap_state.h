@@ -43,6 +43,7 @@ std::filesystem::path module_directory();
 bool is_dedicated_server_process();
 std::filesystem::path shroudforge_directory(const std::filesystem::path& root);
 void begin_log_session(const std::filesystem::path& root);
+void log_shroudforge_build_identity(const std::filesystem::path& root);
 void log(char level, const std::string& message);
 void log(const std::string& message);
 void log_shroudforge_banner(bool dedicated_server);

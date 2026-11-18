@@ -350,7 +350,7 @@ jobs:
 
       - name: Package verified build outputs
         shell: pwsh
-        run: .\dev\build\package_release.ps1 -BuildNumber "${{ github.run_id }}" -Version "${{ steps.version.outputs.value }}"
+        run: .\dev\build\package_release.ps1 -BuildNumber "${{ github.run_id }}" -Version "${{ steps.version.outputs.value }}" -BuildType dev
 
       - name: Upload release packages for malware scan
         uses: actions/upload-artifact@v7

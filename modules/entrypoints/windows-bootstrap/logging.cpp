@@ -128,6 +128,37 @@ void log(const std::string& message) {
     log('I', message);
 }
 
+void log_shroudforge_build_identity(const std::filesystem::path& root) {
+    std::string version = "unknown";
+    std::string build_type = "unknown";
+    std::string build_number = "unknown";
+    try {
+        std::ifstream input(root / L"shroudforge" / L"version.json", std::ios::binary);
+        if (input) {
+            const auto manifest = nlohmann::json::parse(input);
+            if (manifest.is_object()) {
+                const auto text_value = [&manifest](const char* key) {
+                    const auto value = manifest.find(key);
+                    if (value == manifest.end()) return std::string("unknown");
+                    if (value->is_string()) return value->get<std::string>();
+                    if (value->is_number()) return value->dump();
+                    return std::string("unknown");
+                };
+                version = text_value("version");
+                const auto candidate_type = text_value("buildType");
+                if (candidate_type == "dev" || candidate_type == "release") {
+                    build_type = candidate_type;
+                }
+                build_number = text_value("build");
+            }
+        }
+    } catch (...) {
+        // Keep the session header useful even when an older or damaged manifest is present.
+    }
+    log("ShroudForge version=" + version + " build=" + build_type +
+        " buildNumber=" + build_number);
+}
+
 void log_shroudforge_banner(bool dedicated_server) {
     log(R"(   _____ __  ______  ____  __  ______  __________  ____  ____________)");
     log(R"(  / ___// / / / __ \/ __ \/ / / / __ \/ ____/ __ \/ __ \/ ____/ ____/)");

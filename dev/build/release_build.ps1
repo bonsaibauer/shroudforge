@@ -18,4 +18,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-& (Join-Path $PSScriptRoot 'dev_build.ps1') @PSBoundParameters
+$buildParameters = @{}
+foreach ($name in $PSBoundParameters.Keys) {
+    $buildParameters[$name] = $PSBoundParameters[$name]
+}
+$buildParameters['BuildType'] = 'release'
+& (Join-Path $PSScriptRoot 'dev_build.ps1') @buildParameters

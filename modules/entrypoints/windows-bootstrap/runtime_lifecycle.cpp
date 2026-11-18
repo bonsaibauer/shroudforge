@@ -49,6 +49,7 @@ DWORD WINAPI run(void*) {
     }
     begin_log_session(root);
     session_started = std::chrono::steady_clock::now();
+    log_shroudforge_build_identity(root);
     clear_runtime_heartbeat(root);
     startup_stage(root, "bootstrap-thread-started");
     log("Log session started for game PID " + std::to_string(GetCurrentProcessId()) +

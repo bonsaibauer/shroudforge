@@ -11,6 +11,8 @@ With RustOnly, leave diagnostics tests to the separate required diagnostics CI j
 #>
 param(
     [string]$BuildNumber = $(if ($env:SHROUDFORGE_BUILD_NUMBER) { $env:SHROUDFORGE_BUILD_NUMBER } else { 'dev' }),
+    [ValidateSet('dev', 'release')]
+    [string]$BuildType = 'dev',
     [switch]$SkipTests,
     [switch]$UseInstalledDependencies,
     [switch]$SkipUiBuild,
@@ -130,6 +132,6 @@ Invoke-BuildPhase -Name 'modloader-workspace-build' -Action {
 }
 if (-not $RustOnly) {
     Invoke-BuildPhase -Name 'package-release' -Action {
-        & (Join-Path $actions 'package_release.ps1') -BuildNumber $BuildNumber -Version $version -WithoutUpdater:$WithoutUpdater
+        & (Join-Path $actions 'package_release.ps1') -BuildNumber $BuildNumber -Version $version -BuildType $BuildType -WithoutUpdater:$WithoutUpdater
     }
 }

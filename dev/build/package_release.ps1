@@ -1,6 +1,8 @@
 param(
     [string]$BuildNumber = $(if ($env:SHROUDFORGE_BUILD_NUMBER) { $env:SHROUDFORGE_BUILD_NUMBER } else { 'dev' }),
     [string]$Version,
+    [ValidateSet('dev', 'release')]
+    [string]$BuildType = 'dev',
     [switch]$WithoutUpdater
 )
 $ErrorActionPreference = 'Stop'
@@ -91,6 +93,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $configPackage 'modloader-config.jso
 $versionManifest = [ordered]@{
     version = $version
     build = $BuildNumber
+    buildType = $BuildType
     builtAt = [DateTime]::UtcNow.ToString('o')
     updateKind = 'system'
     updaterIncluded = -not $WithoutUpdater
