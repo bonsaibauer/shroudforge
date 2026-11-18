@@ -148,7 +148,7 @@ h1 {
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 0 8px rgb(99 201 245 / 58%));
-  animation: hammer-spin-down 2.3s cubic-bezier(.2, .75, .25, 1) both;
+  animation: hammer-spin-loop 3s infinite;
 }
 
 .arrow-track {
@@ -198,7 +198,7 @@ h1 {
 
 .site-signature span { padding: 0 7px; color: var(--blue); }
 
-@keyframes hammer-spin-down {
+@keyframes hammer-spin-loop {
   0% { transform: rotate(0); animation-timing-function: cubic-bezier(.12, .88, .26, 1); }
   20% { transform: rotate(1080deg); animation-timing-function: cubic-bezier(.36, .05, .88, .28); }
   60% { transform: rotate(1370deg); animation-timing-function: cubic-bezier(.4, 0, .8, .25); }
