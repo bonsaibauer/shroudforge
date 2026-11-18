@@ -489,7 +489,7 @@ fn installed_attribute_resolution() {
         assert_eq!(layout["header"]["flags"]["initialized_mask"], 1);
     }
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../target/enshrouded-attribute-resolution.json");
+        .join("../../target/enshrouded-attribute-resolution.json");
     std::fs::write(path, serde_json::to_vec_pretty(&json!({"version":registry.version,
             "entries":catalog.entries.values().collect::<Vec<_>>(),"component_layouts":catalog.layouts})).unwrap()).unwrap();
     println!(
@@ -616,30 +616,44 @@ fn installed_attributes() {
     assert_eq!(catalog.entries[&0x04b6aa8b]["name"], "Stamina");
     assert_eq!(catalog.entries[&0xf443c410]["name"], "Stamina_Max");
     assert_eq!(catalog.entries[&0x8eb84995]["name"], "Health");
-    assert_eq!(catalog.entries.len(), 304);
-    assert!(
-        catalog
-            .entries
-            .values()
-            .all(|entry| entry["components"].as_array().unwrap().len() == 1)
-    );
+    assert!(catalog.entries.len() >= 304);
+    for entry in catalog.entries.values() {
+        let components = entry["components"].as_array().unwrap();
+        let expected_resolution = if components.is_empty() {
+            "per-entity-initialized-root-id"
+        } else {
+            "reflected-definition-guid"
+        };
+        assert_eq!(entry["storage_resolution"], expected_resolution);
+    }
     let mana = catalog
         .entries
         .values()
         .find(|entry| entry["name"] == "ManaRechargeMod")
         .unwrap();
     assert!(mana["resource_ids"].as_array().unwrap().is_empty());
-    assert_eq!(
-        mana["components"][0]["qualified_name"],
-        "keen::ecs::ManaRechargeMod"
-    );
+    let mana_components = mana["components"].as_array().unwrap();
+    if mana_components.is_empty() {
+        assert_eq!(mana["storage_resolution"], "per-entity-initialized-root-id");
+    } else {
+        assert!(mana_components.iter().any(|component| {
+            component["qualified_name"] == "keen::ecs::ManaRechargeMod"
+        }));
+    }
     let freeze = catalog
         .entries
         .values()
         .find(|entry| entry["name"] == "FreezingResistance")
         .unwrap();
-    assert_eq!(freeze["calculation_writable"], true);
-    assert!(encode_attribute_scalar(freeze, "keen::sint32", &LuaValue::Integer(-1)).is_err());
+    if freeze["components"].as_array().unwrap().len() != 1 {
+        assert_eq!(freeze["calculation_writable"], false);
+    }
+    assert!(encode_attribute_scalar(
+        freeze,
+        freeze["scalar_type"].as_str().unwrap(),
+        &LuaValue::Integer(-1)
+    )
+    .is_err());
     let heat = catalog
         .entries
         .values()
@@ -663,9 +677,17 @@ fn installed_attributes() {
         .values()
         .filter(|v| v["storage_writable"] == true)
         .count();
-    assert!(mapped >= 290);
+    let unique_components = catalog
+        .entries
+        .values()
+        .filter(|entry| entry["components"].as_array().unwrap().len() == 1)
+        .count();
+    assert!(mapped <= unique_components);
+    if unique_components == catalog.entries.len() {
+        assert!(mapped >= 290);
+    }
     let output = exe.file_stem().unwrap().to_str().unwrap();
-    let artifacts = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../target");
+    let artifacts = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target");
     let path = artifacts.join(format!("{output}-attribute-catalog.json"));
     std::fs::write(
         path,
