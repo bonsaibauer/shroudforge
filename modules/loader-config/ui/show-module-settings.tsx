@@ -93,10 +93,10 @@ export function AdvancedSettingsEditor({
     news: 'nav.news',
     compatibility: 'nav.compatibility',
     settings: 'nav.settings',
-    wiki: 'nav.wiki',
+    wiki: 'settings.modules.serverTargetVisibility.pageWiki',
     discover: 'nav.discover',
     installed: 'nav.installed',
-    updates: 'nav.updates',
+    updates: 'settings.modules.serverTargetVisibility.pageUpdates',
     'recycle-bin': 'nav.recycleBin',
   }
   const moduleLabels: Record<TargetUiModule, TranslationKey> = {
@@ -105,11 +105,11 @@ export function AdvancedSettingsEditor({
     debugConsole: 'settings.modules.debugConsole.title',
     worldEditor: 'settings.modules.worldEditor.title',
     modloaderUi: 'settings.modules.modloaderUi.title',
-    wiki: 'settings.modules.wiki.title',
+    wiki: 'settings.modules.serverTargetVisibility.moduleWiki',
     network: 'settings.modules.network.title',
     runtimeDiagnostics: 'settings.modules.runtimeDiagnostics.title',
     gameProfileDiscovery: 'settings.modules.gameProfileDiscovery.title',
-    updates: 'settings.modules.updates.title',
+    updates: 'settings.modules.serverTargetVisibility.moduleUpdates',
   }
   const changeTargetVisibility = (
     group: 'pages' | 'modules',
