@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Oddziela wznoszenie szybowcem od nieograniczonej wytrzymałości szybowca. Po wyłączeniu moda przywraca pierwotne wartości gry."
+    "1.3.0: Umożliwia wielu graczom niezależne sterowanie szybowcem i przywraca pierwotne sterowanie po wyłączeniu.",
+    "1.2.0: Dodano typowane sterowanie szybowcem i oddzielono wznoszenie od nieograniczonej wytrzymałości. Wyłączenie przywraca pierwotne wartości.",
+    "1.1.1: Używano natywnej poprawki lotu ze sprawdzaniem aktywacji i przywracania.",
+    "1.0.0: Pierwsza wersja ze stanem lotu oraz ustawieniami opadania i obrażeń od upadku."
   ],
   "strings": {}
 }

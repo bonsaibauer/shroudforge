@@ -351,7 +351,8 @@ KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityDestroyHandle(
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeWorldEntityFinishBuilding(
     bool complete, uint32_t* outcome);
 
-/* Only patches registered in the approved build profile can be toggled. */
+/* Named patches are resolved by their checked runtime implementation or an
+   admitted build profile. They change process-wide engine behavior. */
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimePatchAvailable(const char* name);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimePatchSetEnabled(
     const char* name, bool enabled, uint32_t* outcome);

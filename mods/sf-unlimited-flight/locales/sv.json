@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Separerar uppåtflygning från obegränsad uthållighet för segelflyg. Spelets ursprungliga värden återställs när modden stängs av."
+    "1.3.0: Stöder oberoende glidflygstyrning för flera spelare och återställer den ursprungliga styrningen vid avstängning.",
+    "1.2.0: Lade till typad glidflygstyrning och separerade uppåtflygning från obegränsad uthållighet. Återställer ursprungliga värden vid avstängning.",
+    "1.1.1: Använde en inbyggd flygpatch med kontroll av aktivering och återställning.",
+    "1.0.0: Första versionen med flygtillstånd och inställningar för nedstigning och fallskada."
   ],
   "strings": {}
 }

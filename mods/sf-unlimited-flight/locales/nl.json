@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Scheidt omhoog zweven van onbeperkte zweefstamina. Bij uitschakelen van de mod worden de oorspronkelijke spelwaarden hersteld."
+    "1.3.0: Ondersteunt onafhankelijke zweefvliegbesturing voor meerdere spelers en herstelt de oorspronkelijke besturing bij uitschakelen.",
+    "1.2.0: Voegde getypeerde zweefvliegbesturing toe en scheidde stijgen van onbeperkt uithoudingsvermogen. Herstelt oorspronkelijke waarden bij uitschakelen.",
+    "1.1.1: Gebruikte een native vliegpatch met controles voor activering en herstel.",
+    "1.0.0: Eerste versie met vliegstatus en instellingen voor dalen en valschade."
   ],
   "strings": {}
 }

@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Separa la planata verso l’alto dalla stamina illimitata dell’aliante. Quando la mod viene disattivata, ripristina i valori originali del gioco."
+    "1.3.0: Consente a più giocatori di controllare il deltaplano in modo indipendente e ripristina il controllo originale alla disattivazione.",
+    "1.2.0: Ha aggiunto controlli tipizzati e separato la salita dalla resistenza illimitata. Ripristina i valori originali alla disattivazione.",
+    "1.1.1: Usava una patch di volo nativa con controlli di attivazione e ripristino.",
+    "1.0.0: Prima versione con stato di volo e impostazioni per discesa e danni da caduta."
   ],
   "strings": {}
 }

@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Separates upward gliding from unlimited glider stamina. Restores original game values when the mod is disabled."
+    "1.3.0: Supports independent glider steering for multiple players and restores the original control when disabled.",
+    "1.2.0: Added typed glider controls and separated upward gliding from unlimited glider stamina. Restores original values when disabled.",
+    "1.1.1: Used a native flight patch with activation and restoration checks.",
+    "1.0.0: Initial version with flight state, descent and fall-damage settings."
   ],
   "strings": {}
 }

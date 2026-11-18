@@ -1,13 +1,11 @@
 local overrides = runtime.overrides.new()
-local pitch_overrides = runtime.overrides.new()
 local active_session
 local last_state, last_detail
 local gliders = {}
-local peak_flight_delta = 0
-local upward_recovery = false
+local pitch_patch = "runtime.patch.glider_pitch"
+local pitch_enabled = false
 
 local item_id_path = "currentAction.triggerContext.usedItem.itemId"
-local pitch_path = "equipment.gliderConfig.pitchAngleSpeed"
 local glider_fields = {
     {setting="turnSpeed", path="equipment.gliderConfig.yawAngleSpeed"},
     {setting="moveSpeed", path="equipment.gliderConfig.accelerationForward"},
@@ -41,7 +39,7 @@ local function multiplier(key)
 end
 
 local function has_effect()
-    if setting_enabled("unlimitedFlying") or setting_enabled("unlimitedGliderStamina") then return true end
+    if setting_enabled("unlimitedGliderStamina") then return true end
     for _, field in ipairs(glider_fields) do
         if setting_enabled(field.setting) then return true end
     end
@@ -141,80 +139,39 @@ local function active_item(entity)
     return item_id
 end
 
-local function pitch_command(entity, delta_seconds)
-    if not finite(delta_seconds) or delta_seconds <= 0 then
-        return nil, "Glider steering requires a positive measured update interval"
+local function set_pitch_patch(enabled)
+    if not enabled and not pitch_enabled then return true end
+    if not runtime.patch or not runtime.patch.available(pitch_patch) then
+        return false, "Native glider pitch control is unavailable for this game build"
     end
-    local mode, reason = runtime.ecs.read_fields(entity, "keen::ecs::PlayerInput",
-        {"fromClient.movementStickInputMode"})
-    if not mode then return nil, reason end
-    local value = mode["fromClient.movementStickInputMode"]
-    if value ~= "YawSpeedPitchSpeed" and value ~= 0 then
-        return nil, "Upward tilt requires pitch-speed input controls. Target-angle controls are not supported"
-    end
-    local input, why = runtime.ecs.read_fields(entity, "keen::ecs::ActorInput", {"desiredLocalMoveInput.z"})
-    if not input then return nil, why end
-    local command = input["desiredLocalMoveInput.z"]
-    if not finite(command) or math.abs(command) > 1.001 then return nil, "Glider pitch input is unavailable" end
-    command = math.max(-1, math.min(1, command))
-    local prefix = "transform.orientation."
-    local rotation, failure = runtime.ecs.read_fields(entity, "keen::ecs::CurrentTransform",
-        {prefix .. "x", prefix .. "y", prefix .. "z", prefix .. "w"})
-    if not rotation then return nil, failure end
-    local gravity, error = runtime.ecs.read_fields(entity, "keen::ecs::Gravity",
-        {"direction.x", "direction.y", "direction.z"})
-    if not gravity then return nil, error end
-    local x, y, z, w = rotation[prefix .. "x"], rotation[prefix .. "y"], rotation[prefix .. "z"], rotation[prefix .. "w"]
-    local gx, gy, gz = gravity["direction.x"], gravity["direction.y"], gravity["direction.z"]
-    if not (finite(x) and finite(y) and finite(z) and finite(w)
-        and finite(gx) and finite(gy) and finite(gz)) then return nil, "Glider orientation or gravity is invalid" end
-    local norm, length = x*x + y*y + z*z + w*w, math.sqrt(gx*gx + gy*gy + gz*gz)
-    if norm < 0.99 or norm > 1.01 or length < 0.001 then return nil, "Glider orientation or gravity is not normalized" end
-    local forward_x = 2 * (x*z + w*y) / norm
-    local forward_y = 2 * (y*z - w*x) / norm
-    local forward_z = 1 - 2 * (x*x + y*y) / norm
-    local pitch = math.deg(math.asin(math.max(-1, math.min(1,
-        (forward_x*gx + forward_y*gy + forward_z*gz) / length))))
-    local up_x = 2 * (x*y - w*z) / norm
-    local up_y = 1 - 2 * (x*x + z*z) / norm
-    local up_z = 2 * (y*z + w*x) / norm
-    local upright = -(up_x*gx + up_y*gy + up_z*gz) / length
-    -- asin folds back into [-90,90] after crossing the vertical. Keep that
-    -- folded angle from restarting a negative rate while climb stays held.
-    if upright <= 0 then upward_recovery = true end
-    if upright > 0 and command >= 0 then upward_recovery = false end
-    peak_flight_delta = math.max(peak_flight_delta, delta_seconds)
-    local horizon = math.max(0.25, 2 * peak_flight_delta)
-    -- This margin uses measured runtime intervals. A resource rate has no
-    -- expiry, so an arbitrarily longer future Lua pause is still unbounded.
-    return {input=command, recovery=upward_recovery,
-        upward_rate_limit=math.max(0, (pitch + 85) / horizon)}
+    local ok, reason = runtime.patch.set_enabled(pitch_patch, enabled)
+    if not ok then return false, tostring(reason or "Native glider pitch control was rejected") end
+    pitch_enabled = enabled
+    return true
 end
 
-local function update(delta_seconds)
+local function update()
     local session = runtime.world.session_id()
+    local want_pitch = setting_enabled("unlimitedFlying") and (session ~= 0 or pitch_enabled)
+    local pitch_ok, pitch_reason = set_pitch_patch(want_pitch)
+    if not pitch_ok and pitch_enabled then
+        report("waiting", pitch_reason)
+        return
+    end
     if session == 0 then
-        peak_flight_delta, upward_recovery = 0, false
-        report("waiting", "Waiting for an authoritative world") return
+        report("waiting", "Waiting for a world")
+        return
     end
-    if active_session and session ~= active_session then
-        gliders = {}
-        peak_flight_delta, upward_recovery = 0, false
-    end
+    if active_session and session ~= active_session then gliders = {} end
     active_session = session
     overrides:begin_update()
-    pitch_overrides:begin_update()
-
     overrides:restore_disabled(setting_enabled)
-    pitch_overrides:restore_disabled(setting_enabled)
-    if not setting_enabled("unlimitedFlying") then
-        peak_flight_delta, upward_recovery = 0, false
-    end
     if overrides.fault then report("write-failed", overrides.fault) return end
-    if pitch_overrides.fault then report("write-failed", pitch_overrides.fault) return end
     if not has_effect() then
-        report(overrides:has_ownership() and "waiting" or "no-change",
-            overrides:summary("Unlimited Flying and all speed multipliers are at their defaults"))
+        if not pitch_ok then report("waiting", pitch_reason) return end
+        report((overrides.waiting_count > 0 or overrides:has_ownership()) and "waiting" or
+            (pitch_enabled and "write-confirmed" or "no-change"),
+            overrides:summary(pitch_enabled and "Native glider pitch control enabled" or "Glider controls are disabled"))
         return
     end
     if not runtime.has("runtime.ecs.read") or not runtime.has("runtime.ecs.write") then
@@ -224,16 +181,16 @@ local function update(delta_seconds)
 
     local players, reason = runtime.ecs.query("keen::ecs::PlayerInput")
     if not players then
-        pitch_overrides:restore_all()
         report("waiting", tostring(reason or "Player query is pending")) return
     end
     if #players == 0 then
-        peak_flight_delta, upward_recovery = 0, false
-        pitch_overrides:restore_all()
-        report("no-target", "No live player entity is available") return
+        overrides:restore_unused()
+        if overrides.fault then report("write-failed", overrides.fault) return end
+        report(overrides.waiting_count > 0 and "waiting" or "no-target",
+            overrides:summary("No live player entity is available"))
+        return
     end
 
-    local pitch_detail = ""
     for _, entity in ipairs(players) do
         if setting_enabled("unlimitedGliderStamina") then
             local target, failure = runtime.overrides.attribute(entity, "StaminaDepletionMod_Glider")
@@ -246,28 +203,6 @@ local function update(delta_seconds)
         if item_id then
             local resource, resource_reason = current_glider(item_id)
             if resource then
-                if setting_enabled("unlimitedFlying") then
-                    if #players == 1 then
-                        local command, failure = pitch_command(entity, delta_seconds)
-                        if command then
-                            if command.recovery then
-                                pitch_detail = " | inverted recovery: release climb to resume"
-                            end
-                            local target, why = runtime.overrides.resource(resource, pitch_path)
-                            if target then
-                                pitch_overrides:apply(target.key, "unlimitedFlying", target, function(_, baseline)
-                                    if not finite(baseline) or baseline <= 0 then return nil, "A positive original pitch rate is required" end
-                                    -- A positive original rate steers back toward
-                                    -- the engine's bounded native target.
-                                    if command.recovery then return baseline end
-                                    if command.input < 0 then return -math.min(baseline * -command.input, command.upward_rate_limit) end
-                                    if command.input == 0 then return 0 end
-                                    return baseline
-                                end)
-                            else pitch_overrides:waiting(tostring(why)) end
-                        else pitch_overrides:waiting(tostring(failure)) end
-                    else pitch_overrides:waiting("Upward tilt requires one authoritative player because glider ItemInfo is shared") end
-                end
                 for _, field in ipairs(glider_fields) do
                     if setting_enabled(field.setting) then
                         local factor, why = multiplier(field.setting)
@@ -285,23 +220,20 @@ local function update(delta_seconds)
                         end
                     end
                 end
-            elseif setting_enabled("unlimitedFlying") or setting_enabled("turnSpeed") or setting_enabled("moveSpeed")
+            elseif setting_enabled("turnSpeed") or setting_enabled("moveSpeed")
                 or setting_enabled("liftSpeed") or setting_enabled("descendSpeed") then
                 overrides:waiting("Glider settings: " .. tostring(resource_reason))
             end
-        elseif setting_enabled("unlimitedFlying") or setting_enabled("turnSpeed") or setting_enabled("moveSpeed")
+        elseif setting_enabled("turnSpeed") or setting_enabled("moveSpeed")
             or setting_enabled("liftSpeed") or setting_enabled("descendSpeed") then
-            peak_flight_delta, upward_recovery = 0, false
             overrides:waiting("Glider settings: " .. tostring(item_reason))
         end
     end
 
-    pitch_overrides:restore_unused()
-
-    local state = (overrides.fault or pitch_overrides.fault) and "write-failed" or
-        (overrides.waiting_count + pitch_overrides.waiting_count > 0 and "waiting" or
-        (overrides.writes + pitch_overrides.writes > 0 and "write-confirmed" or "no-change"))
-    report(state, pitch_overrides:summary(overrides:summary("Native glider controls")) .. pitch_detail)
+    local state = overrides.fault and "write-failed" or
+        ((not pitch_ok or overrides.waiting_count > 0) and "waiting" or
+        ((overrides.writes > 0 or pitch_enabled) and "write-confirmed" or "no-change"))
+    report(state, overrides:summary("Native glider controls") .. (pitch_ok and "" or " | " .. pitch_reason))
 end
 
 return {
@@ -313,4 +245,8 @@ return {
         report("waiting", "SF Unlimited Flight loaded. Waiting for typed engine access")
     end,
     on_update = update,
+    on_unload = function()
+        local ok, reason = set_pitch_patch(false)
+        if not ok then error(reason) end
+    end,
 }

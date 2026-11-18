@@ -13,6 +13,7 @@
 --- @field services RuntimeServicesApi Reflected views of original named engine DI services with independently validated plain-data storage contracts.
 --- @field impact RuntimeImpactApi Checked semantic calls to original named Impact operations.
 --- @field overrides RuntimeOverridesApi Typed reversible changes with shared storage claims and automatic mod-scope cleanup.
+--- @field patch RuntimePatchApi Checked process-wide runtime interventions.
 --- @field report_effect fun(state:'waiting'|'no-target'|'no-change'|'write-confirmed'|'write-failed', detail:string?):boolean,string? Report an observed ECS action state. A confirmed write means typed memory was written, not that the gameplay effect was independently verified.
 
 --- @class RuntimeLifecycle
@@ -1027,12 +1028,14 @@ function runtime.world.entity.finish_building(complete) end
 
 --- @class RuntimePatchApi
 runtime.patch = {}
---- Report whether the active build profile validated a named runtime patch.
---- @param name string Profile operation name such as runtime.patch.no_fall_damage.
+--- Report whether a named runtime patch is available in this process.
+--- `runtime.patch.glider_pitch` resolves the original glider pitch calculation.
+--- @param name string Runtime patch operation name.
 --- @return boolean available
 function runtime.patch.available(name) end
---- Safely enable or restore a profile-defined runtime patch.
---- @param name string Profile operation name such as runtime.patch.no_fall_damage.
+--- Enable or restore a checked runtime patch. The caller must restore it on unload.
+--- Patches change process-wide behavior. Callers must coordinate shared use.
+--- @param name string Runtime patch operation name.
 --- @param enabled boolean
 --- @return boolean ok
 --- @return string? reason

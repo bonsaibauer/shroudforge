@@ -1,44 +1,31 @@
 # SF Unlimited Flight
 
-Independent runtime mod using the public ShroudForge API. It has no dependency
-on SF Survival or another mod. The mod itself is disabled by default. When
-enabled, upward gliding starts on, unlimited glider stamina starts off, and the
-speed multipliers start at 100 percent.
-Runtime updates run every 100 ms to reduce repeated ECS and resource access.
-Steering inputs and landing are sampled at that interval. The pitch guard still
-uses the measured elapsed time, and restoration uses the same checked writers.
+This independent Lua mod uses the public ShroudForge runtime API. It is disabled
+by default. When enabled, upward gliding and unlimited glider stamina default to
+on and the speed multipliers default to 100 percent.
 
-`Upward Gliding` controls the original glider pitch-rate input. The separate
-`Unlimited Glider Stamina` setting sets the glider-specific stamina depletion
-modifier to zero. The active actor action selects its actual loaded `ItemInfo`.
-Rotation and movement remain in the original game systems. The four percentage
-sliders multiply the glider's original yaw rate, forward acceleration and air
-resistance coefficients. Higher lift or descend resistance increases drag.
+`Upward Gliding` uses `runtime.patch.available` and `runtime.patch.set_enabled`
+to request `runtime.patch.glider_pitch`. The runtime resolves the original
+`actor_rotation` system and its glider pitch clamp in each process. While the
+intervention is active, the game continues to calculate each actor's movement
+from that actor's own input. The intervention changes the pitch limit for all
+gliding actors in the process, not for an individual player. Its activation is
+independent of the shared glider item and of the number of players.
 
-Upward steering currently supports `YawSpeedPitchSpeed` controls with one player
-in the authoritative world. Negative input uses a signed native pitch rate,
-neutral input holds and positive input descends. The sampled controller reduces
-its rate near 85 degrees upward using twice the largest update interval observed
-during the current flight, with a minimum horizon of 250 ms. An inverted basis
-starts recovery through the original positive rate and blocks further upward
-acceleration until the input is released and orientation is upright again.
-This is not a hard engine limit. A stalled Lua
-callback can leave the last stored rate active longer than its sampling horizon.
-Target-angle controls and steering several players through one shared ItemInfo
-are unsupported. The original rate is restored on landing or unsupported input.
+The mod requests restoration when the setting is disabled or the mod unloads.
+A temporarily unavailable world does not by itself prove that the session ended.
+A failed restore keeps unload pending through
+the existing lifecycle. The native runtime also attempts restoration on shutdown.
+Other mods can use the same public patch calls. As with other existing runtime
+patches, the switch is process-wide and callers must coordinate its ownership.
 
-ItemInfo values are shared by every user of that glider resource. The public API
-owns normalization, expected values, claims, original baselines and restoration.
-Other mods use the same `runtime.overrides` target factories. Disable shared
-settings before leaving the world and wait for restoration. The loader performs
-cleanup automatically when this mod is disabled, unloaded or its callback fails.
+For a dedicated server, the server and participating clients each need the
+matching runtime and mod settings. The engine's replication and client
+prediction behavior with this intervention has not yet been verified in a live
+multiplayer session.
 
-The native data path has been executed privately through the original game
-instructions. That includes 108 parameter cases, 120 rotation steps, 12
-interpolation cases and 177 frames with the captured player's actual rotation
-template. The user confirmed immediate upward flight in the first performance
-build. Its vertical flip was subsequently captured and the sampled guard was
-corrected. The user confirmed the installed R2 build working without problems.
-Its 120-second API measurement had no mod errors. A separate quantitative R2
-near-vertical angle capture was not obtained. These observations predate the
-100 ms update interval, which has not yet been validated in game.
+`Unlimited Glider Stamina` uses the per-entity stamina attribute. The four speed
+sliders use loaded `ItemInfo` fields. These values are shared by all players using
+the same glider type and are restored by the existing runtime override scope.
+The mod uses a 100 ms update interval for its settings and data overrides. The
+game performs the actual pitch calculation in its original execution path.

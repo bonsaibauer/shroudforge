@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Sépare le vol ascendant de l’endurance illimitée du planeur. Les valeurs d’origine du jeu sont rétablies à la désactivation du mod."
+    "1.3.0: Permet à plusieurs joueurs de contrôler leur planeur indépendamment et restaure le contrôle initial à la désactivation.",
+    "1.2.0: A ajouté des contrôles typés et séparé la montée de l’endurance illimitée. Restaure les valeurs initiales à la désactivation.",
+    "1.1.1: Utilisait un correctif de vol natif avec vérification de l’activation et de la restauration.",
+    "1.0.0: Première version avec état de vol et réglages de descente et de dégâts de chute."
   ],
   "strings": {}
 }

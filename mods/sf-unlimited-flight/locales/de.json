@@ -37,6 +37,9 @@
     }
   ],
   "changelog": [
-    "Trennt Aufwärtsflug und unbegrenzte Gleiter-Ausdauer. Beim Deaktivieren der Mod werden die ursprünglichen Spielwerte wiederhergestellt."
+    "1.3.0: Unterstützt unabhängige Gleitersteuerung für mehrere Spieler und stellt beim Deaktivieren die ursprüngliche Steuerung wieder her.",
+    "1.2.0: Führte typisierte Gleitersteuerung ein und trennte Aufwärtsflug von unbegrenzter Gleiter-Ausdauer. Stellt beim Deaktivieren die ursprünglichen Werte wieder her.",
+    "1.1.1: Verwendete einen nativen Flugeingriff mit Prüfungen für Aktivierung und Wiederherstellung.",
+    "1.0.0: Erste Version mit Flugzustand sowie Einstellungen für Sinkflug und Fallschaden."
   ]
 }

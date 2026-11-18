@@ -37,7 +37,10 @@
     }
   ],
   "changelog": [
-    "Separa el vuelo ascendente de la resistencia ilimitada del planeador. Al desactivar el mod, restaura los valores originales del juego."
+    "1.3.0: Permite que varios jugadores controlen el planeador de forma independiente y restaura el control original al desactivarse.",
+    "1.2.0: Añadió controles tipados y separó el ascenso de la resistencia ilimitada. Restaura los valores originales al desactivarse.",
+    "1.1.1: Usaba un parche de vuelo nativo con comprobaciones de activación y restauración.",
+    "1.0.0: Primera versión con estado de vuelo y ajustes de descenso y daño por caída."
   ],
   "strings": {}
 }

@@ -651,11 +651,22 @@ An absent or ambiguous owner returns a reason stating that a guarded profile
 patch is required. Resolving its owner or attribute names does not convert an
 existing patch mod into a generic ECS or native-call mod.
 
+`runtime.patch.glider_pitch` is also available through the existing
+`runtime.patch.available(name)` and `runtime.patch.set_enabled(name, enabled)`
+calls. It requires an exact-image read profile. Its native resolver starts from
+the original `actor_rotation` system and checks the decoded clamp instructions
+and angle constants. An uncertain code write faults the operation for the current
+process and is not automatically retried. This operation is
+process-wide. The caller must disable it when its effect ends and coordinate
+ownership with any other mod requesting the same patch. The resolver establishes
+the selected machine-code contract, not a confirmed multiplayer gameplay effect.
+Client and dedicated-server processes resolve and toggle their own intervention.
+
 | Mod or historical package | Proven origin and resulting intervention |
 | --- | --- |
 | `sf-auto-stamina-refill` | `network_player_attributes`: `Stamina` (`0x04b6aa8b`) is assigned `Stamina_Max` (`0xf443c410`) before the network snapshot. This is replenishment, not proof that depletion calculations are skipped. Modifier `refill_stamina`. |
 | `sf-no-fall-damage` | `fall_damage_infliction`: preserve `Health` (`0x8eb84995`) by suppressing its store and retaining the subsequent recalculation. The previous payload added the calculated value to Health. Modifier `preserve_health_on_fall`. |
-| `sf-unlimited-flight` | Current package uses the shared runtime API to set `StaminaDepletionMod_Glider` and update the four reflected `ItemInfo.equipment.gliderConfig` inputs. It no longer binds `override_rotation_constant`. The original fixed upward pitch boundary remains unresolved as a data-only control. |
+| `sf-unlimited-flight` | Uses `runtime.patch.glider_pitch` to relax the original pitch boundary and the shared runtime API for `StaminaDepletionMod_Glider` and the four reflected `ItemInfo.equipment.gliderConfig` inputs. The pitch change applies to all gliding actors in the process. Live multiplayer behavior remains unverified. |
 | Historical `sf-no-resource-cost` | Shared helper: force its sixth integer argument to zero. Proven callers include `actor_apply_buff`, `player_crafting`, `inventory_actions` and building systems. It affects every execution of the shared site. Modifier `zero_resource_argument`. |
 | Historical `sf-infinite-item-use` | Forward false in place of a sixth boolean argument. Current operand tracing associates its counterpart with inventory insertion and actionbar selection, rather than proving an item-consumption switch. Historical modifier `clear_item_use_argument`. |
 | Historical `sf-infinite-item-split` | Shared helper: suppress only the partial source-stack subtraction at `[rsi+4]`. The separate full-removal path still clears the stack. Modifier `preserve_split_source`. |
