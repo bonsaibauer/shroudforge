@@ -9,8 +9,8 @@
 			referenceNotesTitle: 'Status and evidence', referenceNotesAction: 'Show details', referenceNotesLua: 'Lua API means the entry is part of the shared Lua interface used by mods. It is generated from the published API declarations. This badge does not confirm availability in the current game process.', referenceNotesGame: 'Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.', referenceNotesRuntime: 'Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.',
 			startWithTask: 'START WITH A TASK', commonTasks: 'What do you want your mod to do?', taskLead: 'Choose an example to see its Lua call and what the response means.', loadingExamples: 'Loading examples…',
 		referenceEyebrow: 'SEARCHABLE REFERENCE', allApiEntries: 'Find an API entry', searchLead: 'Search by task, function, or parameter. Badges describe published evidence, not live availability.', searchLabel: 'Search the API', searchPlaceholder: 'Try “read a setting” or shroudforge.settings.get', clearSearch: 'Clear', filterAll: 'Everything', filterRuntime: 'Runtime', filterGame: 'Game data', functionsTab: 'Lua functions', typesTab: 'Game types', resourcesTab: 'Game resources', loadingCatalog: 'Loading the API catalogue…', typeDataNote: 'These details come from a captured Enshrouded build. They do not describe a live game process.', searchTypes: 'Search game types', typeSearchPlaceholder: 'Type name or field', resourceDataNote: 'Resource names and IDs come from the same captured game snapshot.', searchResources: 'Search game resources', resourceSearchPlaceholder: 'Resource name or ID', referenceFooter: 'The catalogue documents the Lua interface. Check runtime.has or runtime.status inside your mod to learn what is available in the current game process.',
-			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', resultLimit: 'Showing {shown} of {total} matches. Add a search term to narrow the list.', apiBadge: 'Lua API', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
-		typesLoading: 'Loading captured game types…', resourcesLoading: 'Loading captured game resources…', typeSearchPrompt: 'Enter a type name or field to search the captured catalogue.', resourceSearchPrompt: 'Enter a resource type, GUID, or part number to search.', noTypeResults: 'No captured types match that search.', noResourceResults: 'No captured resources match that search.', showFirst: 'Showing the first {shown} of {total} matches. Add more detail to the search.', typeCount: '{count} game types', resourceCount: '{count} resource types', fieldsCount: '{count} fields', primitiveLabel: 'Kind', sizeLabel: 'Size', alignmentLabel: 'Alignment', fieldsLabel: 'Fields', moreFields: '{count} more fields', enumValues: 'Enum values', resourceEntries: '{count} captured entries', partLabel: 'Part', snapshotLabel: 'Captured snapshot',
+			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', itemsPerPage: 'Items per page', previousPage: 'Previous page', nextPage: 'Next page', pageIndicator: 'Page {current} of {total}', paginationLabel: 'Search result pages', apiBadge: 'Lua API', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
+		typesLoading: 'Loading captured game types…', resourcesLoading: 'Loading captured game resources…', typeSearchPrompt: 'Enter a type name or field to search the captured catalogue.', resourceSearchPrompt: 'Enter a resource type, GUID, or part number to search.', noTypeResults: 'No captured types match that search.', noResourceResults: 'No captured resources match that search.', typeCount: '{count} game types', resourceCount: '{count} resource types', fieldsCount: '{count} fields', primitiveLabel: 'Kind', sizeLabel: 'Size', alignmentLabel: 'Alignment', fieldsLabel: 'Fields', moreFields: '{count} more fields', enumValues: 'Enum values', resourceEntries: '{count} captured entries', partLabel: 'Part', snapshotLabel: 'Captured snapshot',
 		exampleEditor: 'API CALL EDITOR', editRunExample: 'Build a Lua API call', playgroundLead: 'Choose a task, edit its inputs, and preview sample output. Lua never runs in this browser.', chooseExample: 'Choose a task', loadingExamplesOption: 'Loading examples…', generatedLua: 'Lua code for your mod', copyCode: 'Copy', runExample: 'Show sample response', exampleResponse: 'SAMPLE RESPONSE', responseHeading: 'What the call may return', sampleOnly: 'Browser sample', runToSeeResponse: 'Choose a task and show its sample response.', noResponseYet: 'No response yet.', responseSource: 'Sample source', sourceChanges: 'The sample source will appear here after you request a response.', viewApiEntry: 'View API entry →', simulationHeading: 'How sample responses work', simulationBody: 'The browser generates a Lua example and reads bundled sample data. It does not execute Lua, query a server, or connect to your running game.', playgroundFooter: 'Copy the generated Lua into your mod. Check live runtime availability in game with runtime.has or runtime.status.',
 			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldCapability: 'Capability', fieldComponent: 'Component', fieldField: 'Player field', fieldSetting: 'Setting key', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSurvivalSetting: 'Read an SF Survival setting',
 			settingSource: 'Starter Mod example: extended.mod.json settings', runtimeSource: 'Simulated status fixture. The browser cannot inspect the current game process.', typeSource: 'Captured Enshrouded game-data snapshot', responseSetting: 'This value is read from the example mod settings included with ShroudForge.', responseRuntime: 'This is a sample response shape only. The website did not query a running game.', responseType: 'This result is a view of captured game metadata, not a live object from the game.', settingNotFound: 'The example settings do not contain this key, so the fallback value is returned.', typeNotFound: 'This type name does not exist in the captured snapshot.', runtimeReason: 'This website has no connection to the current game process.', inputError: 'Enter a valid value for each input.',
@@ -20,7 +20,8 @@
 
 	const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
 	const locale = 'en'
-	const state = { index: null, catalog: null, examples: null, operations: null, gameBuildIndex: null, selectedGameBuild: null, types: null, resources: null, filter: 'all', versionRequest: 0 }
+	const state = { index: null, catalog: null, examples: null, operations: null, gameBuildIndex: null, selectedGameBuild: null, types: null, resources: null, filter: 'all', pageSize: 30, pages: { functions: 1, types: 1, resources: 1 }, versionRequest: 0 }
+	const apiPageSizeOptions = [10, 20, 30, 50]
 	const gameDataCache = { types: new Map(), resources: new Map() }
 	const gameDataLoads = { types: new Map(), resources: new Map() }
 	let gameBuildLoadPromise
@@ -135,6 +136,7 @@
 		state.catalog = catalog
 		state.examples = examples
 		state.operations = new Set(operations.runtimeOperations)
+		state.pages.functions = 1
 		updateQuery({ apiVersion: selected.version })
 		renderVersionPicker()
 		updateNavigationRoutes()
@@ -160,6 +162,10 @@
 		state.selectedGameBuild = selected
 		state.types = gameDataCache.types.get(selected.snapshot) || null
 		state.resources = gameDataCache.resources.get(selected.snapshot) || null
+		state.pages.types = 1
+		state.pages.resources = 1
+		renderPagination('types', 0)
+		renderPagination('resources', 0)
 		renderGameBuildPicker()
 		updateQuery({ gameBuild: selected.gameBuild })
 		updateNavigationRoutes()
@@ -262,6 +268,29 @@
 		</details>`
 	}
 
+	function renderPagination(name, total) {
+		const target = $(`[data-api-pagination="${name}"]`)
+		if (!target) return
+		if (!total) {
+			target.hidden = true
+			target.innerHTML = ''
+			state.pages[name] = 1
+			return
+		}
+		const totalPages = Math.max(1, Math.ceil(total / state.pageSize))
+		const currentPage = Math.min(state.pages[name], totalPages)
+		state.pages[name] = currentPage
+		target.hidden = false
+		target.dataset.totalPages = String(totalPages)
+		target.innerHTML = `<label class="api-page-size"><span>${escapeHtml(translate('itemsPerPage'))}</span><select data-api-page-size aria-label="${escapeHtml(translate('itemsPerPage'))}">${apiPageSizeOptions.map(option => `<option value="${option}" ${option === state.pageSize ? 'selected' : ''}>${option}</option>`).join('')}</select></label><div class="api-page-controls"><button type="button" class="button button-secondary" data-api-page-list="${name}" data-api-page-step="-1" aria-label="${escapeHtml(translate('previousPage'))}"${currentPage <= 1 ? ' disabled' : ''}>‹</button><span aria-live="polite">${escapeHtml(translate('pageIndicator', { current: currentPage, total: totalPages }))}</span><button type="button" class="button button-secondary" data-api-page-list="${name}" data-api-page-step="1" aria-label="${escapeHtml(translate('nextPage'))}"${currentPage >= totalPages ? ' disabled' : ''}>›</button></div>`
+	}
+
+	function pageResults(name, matches) {
+		renderPagination(name, matches.length)
+		const start = (state.pages[name] - 1) * state.pageSize
+		return matches.slice(start, start + state.pageSize)
+	}
+
 	function renderApiResults() {
 		const target = $('[data-api-results]')
 		if (!target || !state.catalog) return
@@ -279,12 +308,12 @@
 		})
 		const count = $('[data-api-result-count]')
 		if (count) count.textContent = translate(needle || filter !== 'all' ? 'apiCountFiltered' : 'apiCount', { count: matches.length })
+		const shown = pageResults('functions', matches)
 		if (!matches.length) {
 			target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('noApiResults'))}</p>`
 			return
 		}
-		const shown = matches.slice(0, 60)
-		target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('resultLimit', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(renderSymbol).join('')}`
+		target.innerHTML = shown.map(renderSymbol).join('')
 	}
 
 	async function loadGameData(name) {
@@ -330,6 +359,7 @@
 		if (!target || !state.types) return
 		const queryText = ($('[data-type-search]')?.value || '').trim().toLocaleLowerCase(locale)
 		if (!queryText) {
+			renderPagination('types', 0)
 			target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('typeSearchPrompt'))}</p>`
 			return
 		}
@@ -339,18 +369,18 @@
 			const fields = Object.values(item.fields || {}).map(field => `${field.name} ${field.type_name}`)
 			return `${key} ${item.primitive || ''} ${item.name || ''} ${fields.join(' ')}`.toLocaleLowerCase(locale).includes(queryText)
 		}).sort((a, b) => (a.toLocaleLowerCase().startsWith(queryText) ? -1 : 0) - (b.toLocaleLowerCase().startsWith(queryText) ? -1 : 0) || a.localeCompare(b))
+		const shown = pageResults('types', matches)
 		if (!matches.length) {
 			target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('noTypeResults'))}</p>`
 			return
 		}
-		const shown = matches.slice(0, 40)
-			target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('showFirst', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(key => {
+		target.innerHTML = shown.map(key => {
 			const item = state.types[key]
 			const fields = Object.values(item.fields || {}).sort((a, b) => a.name.localeCompare(b.name))
 			const visibleFields = fields.slice(0, 35)
 			const enumValues = Object.entries(item.enum_values || {})
 			return `<details class="api-entry-card api-type-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(key)}</code><span class="api-entry-summary-description">${escapeHtml(item.primitive || 'Type')} · ${escapeHtml(translate('fieldsCount', { count: item.field_count ?? fields.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-snapshot">${escapeHtml(translate('snapshotLabel'))}</span><span class="api-entry-badge is-source">${escapeHtml(item.primitive || 'Type')}</span></div><dl class="api-type-meta"><div><dt>${escapeHtml(translate('primitiveLabel'))}</dt><dd>${escapeHtml(item.primitive || '—')}</dd></div><div><dt>${escapeHtml(translate('sizeLabel'))}</dt><dd>${escapeHtml(item.size ?? '—')} bytes</dd></div><div><dt>${escapeHtml(translate('alignmentLabel'))}</dt><dd>${escapeHtml(item.alignment ?? '—')}</dd></div></dl>${fields.length ? `<h3>${escapeHtml(translate('fieldsLabel'))}</h3><div class="api-field-list">${visibleFields.map(field => `<div><code>${escapeHtml(field.name)}</code><code>${escapeHtml(field.type_name)}</code><span>${escapeHtml(field.data_offset ?? '—')}</span></div>`).join('')}</div>${fields.length > visibleFields.length ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: fields.length - visibleFields.length }))}</p>` : ''}` : ''}${enumValues.length ? `<h3>${escapeHtml(translate('enumValues'))}</h3><div class="api-field-list">${enumValues.slice(0, 40).map(([name, value]) => `<div><code>${escapeHtml(name)}</code><code>${escapeHtml(value)}</code></div>`).join('')}</div>` : ''}</div></details>`
-		}).join('')}`
+		}).join('')
 	}
 
 	function renderResources() {
@@ -358,16 +388,17 @@
 		if (!target || !state.resources) return
 		const queryText = ($('[data-resource-search]')?.value || '').trim().toLocaleLowerCase(locale)
 		if (!queryText) {
+			renderPagination('resources', 0)
 			target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('resourceSearchPrompt'))}</p>`
 			return
 		}
 		const matches = Object.entries(state.resources).filter(([name, entries]) => `${name} ${entries.map(entry => `${entry.guid} ${entry.part}`).join(' ')}`.toLocaleLowerCase(locale).includes(queryText)).sort((a, b) => a[0].localeCompare(b[0]))
+		const shown = pageResults('resources', matches)
 		if (!matches.length) {
 			target.innerHTML = `<p class="api-empty-state">${escapeHtml(translate('noResourceResults'))}</p>`
 			return
 		}
-		const shown = matches.slice(0, 40)
-		target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('showFirst', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(([name, entries]) => `<details class="api-entry-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(name)}</code><span class="api-entry-summary-description">${escapeHtml(translate('resourceEntries', { count: entries.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-snapshot">${escapeHtml(translate('snapshotLabel'))}</span></div><div class="api-resource-list">${entries.slice(0, 25).map(entry => `<div><code>${escapeHtml(entry.guid)}</code><span>${escapeHtml(translate('partLabel'))} ${escapeHtml(entry.part ?? 0)}</span></div>`).join('')}</div>${entries.length > 25 ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: entries.length - 25 }))}</p>` : ''}</div></details>`).join('')}`
+		target.innerHTML = shown.map(([name, entries]) => `<details class="api-entry-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(name)}</code><span class="api-entry-summary-description">${escapeHtml(translate('resourceEntries', { count: entries.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-snapshot">${escapeHtml(translate('snapshotLabel'))}</span></div><div class="api-resource-list">${entries.slice(0, 25).map(entry => `<div><code>${escapeHtml(entry.guid)}</code><span>${escapeHtml(translate('partLabel'))} ${escapeHtml(entry.part ?? 0)}</span></div>`).join('')}</div>${entries.length > 25 ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: entries.length - 25 }))}</p>` : ''}</div></details>`).join('')
 	}
 
 	function renderPlayground(scenarioId) {
@@ -517,9 +548,22 @@
 			finally { retry.disabled = false }
 			return
 		}
+		const pageButton = event.target.closest('[data-api-page-step]')
+		if (pageButton) {
+			const name = pageButton.dataset.apiPageList
+			if (!Object.hasOwn(state.pages, name)) return
+			const pagination = $(`[data-api-pagination="${name}"]`)
+			const totalPages = Number(pagination?.dataset.totalPages) || 1
+			state.pages[name] = Math.max(1, Math.min(totalPages, state.pages[name] + Number(pageButton.dataset.apiPageStep)))
+			if (name === 'functions') renderApiResults()
+			else if (name === 'types') renderTypes()
+			else renderResources()
+			return
+		}
 		const filterButton = event.target.closest('[data-api-filter]')
 		if (filterButton) {
 			state.filter = filterButton.dataset.apiFilter
+			state.pages.functions = 1
 			for (const button of $$('[data-api-filter]')) {
 				const active = button === filterButton
 				button.classList.toggle('is-active', active)
@@ -532,6 +576,7 @@
 		if (event.target.closest('[data-api-clear]')) {
 			const search = $('[data-api-search]')
 			if (search) search.value = ''
+			state.pages.functions = 1
 			updateQuery({ q: null })
 			renderApiResults()
 			search?.focus()
@@ -548,11 +593,18 @@
 
 	root.addEventListener('input', event => {
 		if (event.target.matches('[data-api-search]')) {
+			state.pages.functions = 1
 			updateQuery({ q: event.target.value.trim() || null })
 			renderApiResults()
 		}
-		if (event.target.matches('[data-type-search]')) renderTypes()
-		if (event.target.matches('[data-resource-search]')) renderResources()
+		if (event.target.matches('[data-type-search]')) {
+			state.pages.types = 1
+			renderTypes()
+		}
+		if (event.target.matches('[data-resource-search]')) {
+			state.pages.resources = 1
+			renderResources()
+		}
 		if (event.target.closest('[data-request-fields]')) {
 			const scenario = state.examples?.scenarios.find(item => item.id === getScenarioFromQuery())
 			if (scenario) updateGeneratedCall(scenario)
@@ -569,6 +621,15 @@
 		}
 		if (event.target.matches('[data-game-build]')) selectGameBuild(event.target.value)
 		if (event.target.matches('[data-api-scenario]')) renderPlayground(event.target.value)
+		if (event.target.matches('[data-api-page-size]')) {
+			const pageSize = Number(event.target.value)
+			if (!apiPageSizeOptions.includes(pageSize)) return
+			state.pageSize = pageSize
+			state.pages = { functions: 1, types: 1, resources: 1 }
+			renderApiResults()
+			renderTypes()
+			renderResources()
+		}
 		if (event.target.closest('[data-request-fields]')) {
 			const scenario = state.examples?.scenarios.find(item => item.id === getScenarioFromQuery())
 			if (scenario) updateGeneratedCall(scenario)
