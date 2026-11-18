@@ -15,7 +15,7 @@ import multiplayerSupportBanner from './assets/multiplayer-support.svg'
 import creativeModeBanner from './assets/creative-mode-banner.png'
 import wikiCommunityBanner from './assets/wiki-community-banner.svg'
 import nexusModsBanner from '../../../assets/nexusmods-enshrouded-banner.jpg'
-import translationsBanner from '../../wiki/articles/translations/illustration.svg'
+import translationsBanner from './assets/translations-fink.svg'
 
 const modSupportFeedbackBanners: Record<string, string> = {
   de: modSupportFeedbackDe,
