@@ -228,12 +228,17 @@ Each setting needs at least one option. Option labels must contain 1–120 chara
 <!--T:40-->
 Option keys are converted to the setting's value type. For a string setting, the option key remains a string. For a boolean setting, use keys <code>"true"</code> and <code>"false"</code>. For a numeric setting, use numeric text such as <code>"1"</code> and <code>"2"</code>. The initial value must match one of the available choices.
 
-=== Conditional settings === <!--T:41-->
+=== Large multi-select lists === <!--T:41-->
 
 <!--T:42-->
+Use <code>multiselect</code> when players can choose several entries from one setting. Its <code>value</code> remains an array and <code>options</code> defines the available choices. When there are more than 12 choices, the Modloader adds search controls automatically. You can group choices with each option's <code>group</code> and put the setting group on its own tab with <code>"tab": true</code>. For a complete example, localization details, and compatibility notes, see [[Search and organize large mod settings]].
+
+=== Conditional settings === <!--T:43-->
+
+<!--T:44-->
 Use <code>enabledWhen</code> to disable or enable a control based on another setting. Its <code>setting</code> is the other setting's key and <code>equals</code> is the value that turns this setting on. The comparison value must have the same type as the other setting. If the other setting has options, the value must be one of them.
 
-<!--T:43-->
+<!--T:45-->
 <pre>
 "settings": {
   "showHints": {
@@ -255,17 +260,17 @@ Use <code>enabledWhen</code> to disable or enable a control based on another set
 }
 </pre>
 
-<!--T:44-->
+<!--T:46-->
 The referenced setting must exist. A setting cannot depend on itself, and conditional settings cannot form a cycle. An array cannot be used as the value in <code>equals</code>.
 
-== Groups and actions == <!--T:45-->
-
-<!--T:46-->
-Use <code>groups</code> to make a long settings page easier to scan. Each group can contain settings, action buttons, or both. A setting can appear in at most one group. Any setting you do not list still appears in the Modloader's default group.
-
-=== Group fields === <!--T:47-->
+== Groups and actions == <!--T:47-->
 
 <!--T:48-->
+Use <code>groups</code> to make a long settings page easier to scan. Each group can contain settings, action buttons, or both. A setting can appear in at most one group. Any setting you do not list still appears in the Modloader's default group.
+
+=== Group fields === <!--T:49-->
+
+<!--T:50-->
 {| class="wikitable"
 ! Field !! Accepted value !! What it changes
 |-
@@ -280,9 +285,9 @@ Use <code>groups</code> to make a long settings page easier to scan. Each group 
 | <code>tab</code> || Optional boolean || Requests that this group be shown as its own tab. Omit it when ordinary grouping is enough.
 |}
 
-=== Action fields === <!--T:49-->
+=== Action fields === <!--T:51-->
 
-<!--T:50-->
+<!--T:52-->
 {| class="wikitable"
 ! Field !! Accepted value !! What it changes
 |-
@@ -295,17 +300,17 @@ Use <code>groups</code> to make a long settings page easier to scan. Each group 
 | <code>confirm</code> || Optional confirmation text, up to 500 characters || Asks the player to confirm before the action runs. Explain the consequence, especially for destructive actions.
 |}
 
-=== Connect a button to Lua === <!--T:51-->
-
-<!--T:52-->
-An action declaration only creates the button. Your mod's Lua code must register a handler for the same action ID. UI actions use the ShroudForge runtime, so a mod that uses them must request the <code>runtime</code> capability in its <code>mod.json</code>. See [[Modding: Capabilities|Modding: Capabilities]] for the capability rules.
-
-== Links == <!--T:53-->
+=== Connect a button to Lua === <!--T:53-->
 
 <!--T:54-->
+An action declaration only creates the button. Your mod's Lua code must register a handler for the same action ID. UI actions use the ShroudForge runtime, so a mod that uses them must request the <code>runtime</code> capability in its <code>mod.json</code>. See [[Modding: Capabilities|Modding: Capabilities]] for the capability rules.
+
+== Links == <!--T:55-->
+
+<!--T:56-->
 Use <code>links</code> to add useful destinations to the mod's details. The key must be one of the exact supported IDs below, and its value must be an HTTPS URL no longer than 2,048 characters. An ID that looks reasonable but is not registered is rejected by the Modloader.
 
-<!--T:55-->
+<!--T:57-->
 {| class="wikitable"
 ! ID !! Destination
 |-
@@ -344,32 +349,32 @@ Use <code>links</code> to add useful destinations to the mod's details. The key 
 | <code>support-other</code> || Another support destination.
 |}
 
-<!--T:56-->
+<!--T:58-->
 For example, use <code>"source-github": "https://github.com/example/ember-tools"</code>. Do not use <code>http://</code>, a bare domain, or an invented link key.
 
-== Input reservations == <!--T:57-->
-
-<!--T:58-->
-An input reservation tells the game when one of your mod's controls is using a key or mouse input, so the game can avoid handling the same input at the same time. It does not assign a shortcut by itself. Declare the setting as a <code>keybind</code>, define a named context, then refer to that context from <code>inputReservations</code>.
-
-<!--T:59-->
-The main parts are:
+== Input reservations == <!--T:59-->
 
 <!--T:60-->
+An input reservation tells the game when one of your mod's controls is using a key or mouse input, so the game can avoid handling the same input at the same time. It does not assign a shortcut by itself. Declare the setting as a <code>keybind</code>, define a named context, then refer to that context from <code>inputReservations</code>.
+
+<!--T:61-->
+The main parts are:
+
+<!--T:62-->
 * <code>contexts</code> maps a stable context key to a player-readable label. Context keys use 1–80 letters, digits, dots, underscores, or hyphens. Labels contain 1–120 characters.
 * <code>keys</code> maps a keybind setting to the context in which the game may need to ignore it. Each entry needs <code>when</code>, which names a declared context. Optional <code>keyboard</code> and <code>mouse</code> booleans say which input sources are involved.
 * <code>wheels</code> maps a boolean setting to a declared context when a mod needs the mouse wheel reserved.
 * <code>choices</code> stores the player's keyboard and mouse padlock choices. The Modloader writes this data. Do not include player-specific choices as package defaults.
 
-<!--T:61-->
+<!--T:63-->
 For this feature to have an effect, the mod must report when one of its contexts is active through the ShroudForge input-reservation API. A ShroudForge version without input-reservation support ignores this block. Check that the exact setting keys and context IDs match throughout the file.
 
-== Presets == <!--T:62-->
+== Presets == <!--T:64-->
 
-<!--T:63-->
+<!--T:65-->
 Presets let one choice control a coordinated set of settings. For example, a player can choose a quality preset and have the mod update range and detail together. The preset object is keyed by its controller setting. The controller must be a string choice using <code>select</code>, <code>radio</code>, or <code>segmented</code>.
 
-<!--T:64-->
+<!--T:66-->
 <pre>
 "settings": {
   "quality": {
@@ -404,18 +409,18 @@ Presets let one choice control a coordinated set of settings. For example, a pla
 }
 </pre>
 
-<!--T:65-->
+<!--T:67-->
 The <code>custom</code> option defaults to the string <code>"custom"</code> and must exist among the controller's options. Every other controller option needs a value map for every setting named by <code>settings</code>. Values must match the declared setting types and limits. Do not list the controller itself, a keybind setting, or another preset controller in the preset's settings. A setting can belong to only one preset.
 
-<!--T:66-->
+<!--T:68-->
 When a player selects a preset, the Modloader applies its values to the listed settings. When the player edits one of those settings manually, the controller changes to the custom choice. This keeps the displayed preset from claiming a configuration that the player has already adjusted.
 
-== Changelog == <!--T:67-->
+== Changelog == <!--T:69-->
 
-<!--T:68-->
+<!--T:70-->
 The optional <code>changelog</code> is a list of short version notes shown with the mod's details. It accepts at most 50 strings. Each note must contain 1–500 characters. Keep entries concise and use one string per change or release note.
 
-<!--T:69-->
+<!--T:71-->
 <pre>
 "changelog": [
   "1.2.0: Added a configurable hint delay.",
@@ -423,15 +428,15 @@ The optional <code>changelog</code> is a list of short version notes shown with 
 ]
 </pre>
 
-== Validate the file == <!--T:70-->
-
-<!--T:71-->
-The [https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json canonical extension schema] defines accepted field names, JSON types, and basic limits. The Modloader also checks relationships that a JSON schema cannot fully describe, such as whether a group refers to an existing setting, whether a link ID is supported, whether a preset is complete, and whether input-reservation contexts exist.
-
-<!--T:72-->
-Use the [https://shroudforge.net/tools/modding/mod-settings/ Mod Settings editor] to build a sample and preview its controls. Before packaging, check that:
+== Validate the file == <!--T:72-->
 
 <!--T:73-->
+The [https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json canonical extension schema] defines accepted field names, JSON types, and basic limits. The Modloader also checks relationships that a JSON schema cannot fully describe, such as whether a group refers to an existing setting, whether a link ID is supported, whether a preset is complete, and whether input-reservation contexts exist.
+
+<!--T:74-->
+Use the [https://shroudforge.net/tools/modding/mod-settings/ Mod Settings editor] to build a sample and preview its controls. Before packaging, check that:
+
+<!--T:75-->
 * The JSON is valid and includes <code>"schemaVersion": 1</code> and a boolean <code>enabled</code>.
 * Every setting has a value of the right type. Array settings have options.
 * Choice controls have options, and their starting value is one of those options.
@@ -439,9 +444,9 @@ Use the [https://shroudforge.net/tools/modding/mod-settings/ Mod Settings editor
 * Link IDs come from the supported list and every URL uses HTTPS.
 * <code>applyAt</code> and <code>restartRequired</code> agree if both are present.
 
-== Related pages == <!--T:74-->
+== Related pages == <!--T:76-->
 
-<!--T:75-->
+<!--T:77-->
 * [[Mod.json]] describes package identity, dependencies, icon metadata, and requested capabilities.
 * [[Build your first mod]] walks through a complete small package.
 * [[Modding: Capabilities|Modding: Capabilities]] explains the capabilities needed by runtime actions.
