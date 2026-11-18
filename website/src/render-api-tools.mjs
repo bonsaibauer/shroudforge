@@ -123,10 +123,6 @@ export function renderApiPlaygroundPage({ config, siteUrl }) {
 			<div class="api-data-source"><strong data-i18n="responseSource">Sample source</strong><p data-response-source data-i18n="sourceChanges">The source is shown after you preview a response.</p></div>
 			<a class="api-reference-link" data-reference-link href="${referenceRoute}" data-i18n="viewApiEntry">View API entry →</a>
 		</section>
-		<details class="builder-existing-settings api-reference-notes">
-			<summary><span data-i18n="simulationHeading">What does this preview do?</span><span class="settings-disclosure-arrow" aria-hidden="true">›</span><small data-i18n="referenceNotesAction">Show details</small></summary>
-			<div class="api-reference-notes-content"><p data-i18n="simulationBody">The page creates a Lua example and previews data from bundled samples. It never executes Lua or connects to your running game.</p></div>
-		</details>
 		<footer class="tool-footer-note"><span data-i18n="playgroundFooter">Copy the Lua call into your mod. Check live availability with runtime.has or runtime.status in game.</span></footer>`
 	return pageShell({
 		config,
