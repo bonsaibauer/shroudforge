@@ -77,13 +77,14 @@ export function TopBar({
         <HeaderLink
           label={t('header.github')}
           icon="github"
-          iconOnly
+          collapseOnHover
           tone="github"
           onClick={() => external('https://github.com/bonsaibauer/shroudforge')}
         />
         <HeaderLink
           label={t('header.reportIssue')}
           icon="issue"
+          collapseOnHover
           tone="danger"
           onClick={() =>
             external(
@@ -94,12 +95,21 @@ export function TopBar({
         <HeaderLink
           label={t('header.discord')}
           icon="discord"
+          collapseOnHover
           tone="discord"
           onClick={() => external('https://discord.com/invite/jH2gNJYnt2')}
         />
         <HeaderLink
+          label={t('header.youtube')}
+          icon="video-youtube"
+          collapseOnHover
+          tone="youtube"
+          onClick={() => external('https://www.youtube.com/@shroudforge')}
+        />
+        <HeaderLink
           label={t('header.support')}
           icon="coffee"
+          collapseOnHover
           tone="support"
           onClick={() => external('https://buymeacoffee.com/bonsaibauer')}
         />

@@ -90,6 +90,18 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .header-link:active { transform: translateY(0); }
 .header-link:focus-visible { outline-color: var(--header-color, var(--sf-blue)); }
 .header-link b { color: #061318; background: #8be1f7; box-shadow: 0 0 0 2px rgba(7, 16, 19, 0.72); }
+.top-actions .header-link.expand-on-hover { gap: 0; }
+.top-actions .header-link.expand-on-hover > span { display: inline-block !important; max-width: 0; overflow: hidden; opacity: 0; white-space: nowrap; transition: max-width .22s ease, opacity .16s ease; }
+.top-actions .header-link.expand-on-hover:hover,
+.top-actions .header-link.expand-on-hover:focus-visible { gap: 7px; }
+.top-actions .header-link.expand-on-hover:hover > span,
+.top-actions .header-link.expand-on-hover:focus-visible > span { max-width: 160px; opacity: 1; }
+.header-link.youtube { --header-color: #ff8e94; --header-border: rgba(255, 72, 82, 0.38); --header-bg: rgba(112, 28, 36, 0.28); }
+.header-link.youtube:hover { border-color: rgba(255, 113, 121, 0.65); background: rgba(136, 39, 47, 0.45); box-shadow: 0 5px 17px rgba(255, 72, 82, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.055); }
+@media (prefers-reduced-motion: reduce) {
+  .top-actions .header-link.expand-on-hover,
+  .top-actions .header-link.expand-on-hover > span { transition: none; }
+}
 
 /* Keep the top actions labelled until the window is genuinely narrow. */
 @media (min-width: 761px) {

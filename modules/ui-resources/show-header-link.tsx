@@ -4,6 +4,7 @@ export function HeaderLink({
   label,
   icon,
   iconOnly = false,
+  collapseOnHover = false,
   tone = '',
   badge,
   severity,
@@ -14,6 +15,7 @@ export function HeaderLink({
   label: string
   icon: string
   iconOnly?: boolean
+  collapseOnHover?: boolean
   tone?: string
   badge?: number
   severity?: string
@@ -36,8 +38,8 @@ export function HeaderLink({
               : ''
   return (
     <button
-      className={`header-link ${tone}${iconOnly ? ' icon-only' : ''}${severity ? ` chirper--${severity}` : ''}${crowded ? ' chirper-crowded' : ''}`}
-      aria-label={iconOnly ? label : undefined}
+      className={`header-link ${tone}${iconOnly ? ' icon-only' : ''}${collapseOnHover ? ' expand-on-hover' : ''}${severity ? ` chirper--${severity}` : ''}${crowded ? ' chirper-crowded' : ''}`}
+      aria-label={iconOnly || collapseOnHover ? label : undefined}
       title={title ?? (iconOnly ? label : undefined)}
       onClick={onClick}
     >
@@ -46,7 +48,7 @@ export function HeaderLink({
       ) : (
         <Icon name={icon} />
       )}
-      {!iconOnly && <span>{label}</span>}
+      {(!iconOnly || collapseOnHover) && <span>{label}</span>}
       {marker && (
         <i className="chirper-severity-mark" aria-hidden="true">
           {marker}
