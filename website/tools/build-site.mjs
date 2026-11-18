@@ -142,6 +142,49 @@ async function readApiCatalogs(currentCatalog, currentExamples, currentOperation
 	return snapshots
 }
 
+async function readWorldEditorApiReferences(catalog) {
+	const modDirectory = path.join(repositoryDirectory, "mods", "world-editor")
+	const sourceDirectory = path.join(modDirectory, "src")
+	await assertRegularTree(sourceDirectory)
+	const manifest = JSON.parse(await fs.readFile(path.join(modDirectory, "mod.json"), "utf8"))
+	const files = []
+	async function collectLuaFiles(directory) {
+		for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+			const file = path.join(directory, entry.name)
+			if (entry.isSymbolicLink()) throw new Error(`World Editor source references cannot include symbolic links: ${file}`)
+			if (entry.isDirectory()) await collectLuaFiles(file)
+			else if (entry.isFile() && entry.name.endsWith(".lua")) files.push(file)
+		}
+	}
+	await collectLuaFiles(sourceDirectory)
+	files.sort((left, right) => left.localeCompare(right))
+	const catalogNames = new Set(catalog.symbols.map(symbol => symbol.name))
+	const references = new Map()
+	for (const file of files) {
+		const source = (await fs.readFile(file, "utf8"))
+			.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, "")
+			.replace(/--[^\n]*/g, "")
+		const names = new Set([
+			...[...source.matchAll(/\bruntime(?:\.[A-Za-z_][A-Za-z0-9_]*)+\s*\(/g)].map(match => match[0].replace(/\s*\($/, "")),
+			...[...source.matchAll(/["'](runtime(?:\.[A-Za-z_][A-Za-z0-9_]*)+)["']/g)].map(match => match[1]),
+		])
+		const relative = path.relative(repositoryDirectory, file).split(path.sep).join("/")
+		for (const name of names) {
+			if (!catalogNames.has(name)) continue
+			if (!references.has(name)) references.set(name, [])
+			references.get(name).push({
+				path: relative,
+				url: `https://github.com/${config.repository}/blob/${catalog.shroudforge_version}/${relative}`,
+			})
+		}
+	}
+	return {
+		apiVersion: catalog.version,
+		mod: { id: manifest.id, name: manifest.name, version: manifest.version },
+		references: Object.fromEntries([...references.entries()].sort(([left], [right]) => left.localeCompare(right))),
+	}
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
@@ -184,6 +227,7 @@ async function build() {
   };
   const runtimeOperations = await readJson(path.join("modules", "mod-runtime", "lua", "shroudforge", "v1", "runtime-operations.json"));
   const apiCatalogs = await readApiCatalogs(apiCatalog, apiExamplesDocument, runtimeOperations);
+  const worldEditorReferences = await readWorldEditorApiReferences(apiCatalog);
   const exampleManifest = await readJson(path.join("docs", "examples", "starter-mod", "mod.json"));
   const exampleExtended = await readJson(path.join("docs", "examples", "starter-mod", "extended.mod.json"));
   const websiteManifest = { ...exampleManifest, $schema: new URL(`/schemas/${version}/manifest.schema.json`, siteUrl).href };
@@ -275,6 +319,10 @@ async function build() {
 	await fs.writeFile(path.join(directory, "catalog.json"), `${JSON.stringify(snapshot.catalog)}\n`, "utf8")
 	await fs.writeFile(path.join(directory, "examples.json"), `${JSON.stringify(snapshot.examples)}\n`, "utf8")
 	await fs.writeFile(path.join(directory, "runtime-operations.json"), `${JSON.stringify(snapshot.operations)}\n`, "utf8")
+	const evidence = snapshot.current
+		? worldEditorReferences
+		: { apiVersion: snapshot.catalog.version, mod: null, references: {} }
+	await fs.writeFile(path.join(directory, "world-editor-references.json"), `${JSON.stringify(evidence)}\n`, "utf8")
   }
   const gameDataDirectory = path.join(outputDirectory, "data", "game")
   const gameOutputSnapshot = path.join(gameDataDirectory, currentGame.snapshot)

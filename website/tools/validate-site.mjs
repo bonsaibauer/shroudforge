@@ -177,6 +177,28 @@ async function validate() {
   assert(tagsFrom(toolNavigation).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/mod-settings/"), "The Tools navigation must keep the Mod-Settings route reachable.");
   const standardsNavGroup = toolHtml.match(/<div class="tools-nav-group">\s*<div class="tools-category-label"[^>]*>Standards<\/div>([\s\S]*?)<\/div>\s*<\/div>\s*<\/aside>/)?.[0] || "";
   assert(standardsNavGroup.includes('href="/schemas/">Schemas</a>') && standardsNavGroup.includes('class="icon ') && standardsNavGroup.includes("DInput8 Standard") && tagsFrom(standardsNavGroup).some(tag => tag.name === "a" && tag.attributes.href === config.dinput8ChainStandardUrl), "The Standards category must link to Schemas and the DInput8 Wiki article with an external-link icon.");
+  const apiVersionIndex = JSON.parse(await readRequired("data/api/versions.json"));
+  assert(Array.isArray(apiVersionIndex.versions) && apiVersionIndex.versions.length > 0, "Published API versions must be available to the API tools.");
+  for (const apiVersion of apiVersionIndex.versions) {
+    const apiBase = `data/api/${apiVersion.version}`;
+    const catalog = JSON.parse(await readRequired(`${apiBase}/catalog.json`));
+    const evidence = JSON.parse(await readRequired(`${apiBase}/world-editor-references.json`));
+    assert(catalog.version === apiVersion.version && evidence.apiVersion === apiVersion.version && evidence.references && typeof evidence.references === "object", `API snapshot ${apiVersion.version} needs a matching World Editor source-reference file.`);
+    const names = new Set(catalog.symbols.map(symbol => symbol.name));
+    for (const [name, sources] of Object.entries(evidence.references)) {
+      assert(names.has(name) && Array.isArray(sources) && sources.length > 0, `World Editor source references must point to a documented API entry: ${name}`);
+      for (const source of sources) {
+        assert(typeof source.path === "string" && source.path.startsWith("mods/world-editor/src/") && typeof source.url === "string", `Invalid World Editor source reference for ${name}.`);
+        const sourcePath = path.resolve(import.meta.dirname, "../../", source.path);
+        assert(path.relative(path.resolve(import.meta.dirname, "../../"), sourcePath).startsWith(`mods${path.sep}world-editor${path.sep}src${path.sep}`), `World Editor source reference escapes the repository: ${source.path}`);
+        const sourceStat = await fs.lstat(sourcePath);
+        assert(sourceStat.isFile() && !sourceStat.isSymbolicLink(), `World Editor source reference must resolve to a regular file: ${source.path}`);
+        assert(source.url === `https://github.com/${config.repository}/blob/${catalog.shroudforge_version}/${source.path}`, `World Editor source URL does not match the published ShroudForge version: ${source.path}`);
+      }
+    }
+    if (apiVersion.current) assert(evidence.mod?.id === "world-editor" && Object.keys(evidence.references).length > 0, "The current API snapshot must publish automatically discovered World Editor API references.");
+    else assert(Object.keys(evidence.references).length === 0, "Archived API versions must not inherit references from the current World Editor source.");
+  }
   const example = JSON.parse(toolHtml.match(/<template id="mod-settings-example">([\s\S]*?)<\/template>/i)?.[1]?.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") || "null");
   const starterManifest = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/mod.json"), "utf8"));
   const starterExtended = JSON.parse(await fs.readFile(path.resolve(import.meta.dirname, "../../docs/examples/starter-mod/extended.mod.json"), "utf8"));
