@@ -104,6 +104,8 @@ pub(super) fn run_inner(
                 shroudforge_api::RunArgs {
                     file_name: file_name.into(),
                     options: shroudforge_api::RunOptions {
+                        current_asset_mods: None,
+                        defer_current_commit: false,
                         skip_cache: true,
                         force_patch: true,
                         patch: true,

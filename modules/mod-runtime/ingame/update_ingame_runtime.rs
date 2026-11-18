@@ -55,6 +55,7 @@ impl IngameRuntime {
         crate::env::shroudforge::dispatch_ui_actions(&self.runner.lua, &self.active_mod_ids());
         self.update_mod_callbacks(delta_seconds);
         let state = self.runner.lua.app_data_ref::<AppState>().unwrap();
+        state.update_native_plugins(delta_seconds);
         state.advance_loaded_resource_indexes();
     }
 }

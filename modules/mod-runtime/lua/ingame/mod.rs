@@ -27,6 +27,7 @@ pub(crate) mod access_named_service;
 pub(crate) mod ecs;
 pub(crate) mod functions;
 mod impact;
+mod map_overlay;
 pub(crate) mod overrides;
 pub(crate) mod player_input;
 pub(crate) mod prove_buffer_transform;
@@ -60,6 +61,7 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
     let player = lua.create_table()?;
     add_function_with_mod(lua, &player, "name", &r#mod, lua_player_name)?;
     table.raw_set("player", player)?;
+    table.raw_set("map", map_overlay::create(lua, &r#mod)?)?;
     table.raw_set("ecs", create_ecs(lua, &r#mod)?)?;
     table.raw_set("impact", impact::create(lua, &r#mod)?)?;
     table.raw_set(

@@ -164,6 +164,7 @@ bool invoke_write_operation(const std::shared_ptr<WriteOperation>& operation){
 using namespace EcsImplementation;
 
 extern "C" bool __cdecl KfcRuntimeEcsCanWrite() {
+    if (!EcsRuntime::GenericWritesAllowed()) return false;
     std::scoped_lock lock(state_mutex);
     if (!layout_ready || types.empty() || write_fault_active_locked()) return false;
     if (!read_only_binding) return GameThreadDispatcher::Ready() &&
