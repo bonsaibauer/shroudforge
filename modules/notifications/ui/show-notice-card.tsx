@@ -15,6 +15,7 @@ import multiplayerSupportBanner from './assets/multiplayer-support.svg'
 import creativeModeBanner from './assets/creative-mode-banner.png'
 import wikiCommunityBanner from './assets/wiki-community-banner.svg'
 import nexusModsBanner from '../../../assets/nexusmods-enshrouded-banner.jpg'
+import translationsBanner from '../../wiki/articles/translations/illustration.svg'
 
 const modSupportFeedbackBanners: Record<string, string> = {
   de: modSupportFeedbackDe,
@@ -88,6 +89,10 @@ export function NoticeCard({
   const modSupportLink = links.find(
     (link) => link.labelKey === 'news.link.modCompatibility',
   )
+  const localizationLink =
+    item.kind === 'notice.localization'
+      ? links.find((link) => link.labelKey === 'news.localization.contribute')
+      : undefined
   const creativeModeDownloadLink =
     item.kind === 'notice.creativeMode'
       ? links.find((link) => link.labelKey === 'news.link.creativeModeDownload')
@@ -135,6 +140,20 @@ export function NoticeCard({
             }
           >
             <img src={item.banner.imageUrl} alt="" loading="lazy" />
+          </button>
+        )}
+        {!compact && localizationLink?.url && (
+          <button
+            className="notice-banner"
+            type="button"
+            aria-label={cardT('news.localization.contribute')}
+            onClick={() =>
+              postRequest('open-url', {
+                url: localizedUrl(localizationLink.url!),
+              })
+            }
+          >
+            <img src={translationsBanner} alt="" loading="lazy" />
           </button>
         )}
         {!compact &&
