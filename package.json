@@ -2,16 +2,15 @@
   "name": "shroudforge-website",
   "private": true,
   "scripts": {
-    "downloads:build": "npm run site:build && node website/tools/build-site.mjs && npm --prefix modules/modloader/ui run website-preview",
+    "downloads:build": "npm run website:api-check && node website/tools/build-site.mjs && npm --prefix modules/modloader/ui run website-preview",
     "downloads:validate": "node website/tools/validate-site.mjs",
     "downloads:test": "node --test website/tests/*.test.mjs",
     "downloads:check": "npm run downloads:test && npm run downloads:build && npm run downloads:validate",
     "downloads:preview": "node website/tools/preview-site.mjs",
-    "site:build": "node docs/website/tools/build-website-output.mjs && node docs/website/tools/build-website-pages.mjs && npm run site:sanitize && npm run runtime:types",
-    "site:sanitize": "node docs/website/tools/sanitize-snapshots.mjs",
-    "runtime:types": "node docs/website/tools/build-runtime-ecs-reference.mjs",
-    "site:validate": "node docs/website/tools/validate-website-output.mjs",
-    "site:check": "npm run site:build && npm run site:validate"
+    "website:api-build": "node website/tools/build-api-data.mjs && node website/tools/sanitize-game-snapshots.mjs",
+    "website:api-validate": "node website/tools/validate-api-data.mjs",
+    "website:api-check": "npm run website:api-build && npm run website:api-validate",
+    "githubpages:build": "node githubpages/build.mjs"
   },
   "devDependencies": {
     "fflate": "0.8.3"

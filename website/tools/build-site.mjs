@@ -191,7 +191,7 @@ async function build() {
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`VERSION must use MAJOR.MINOR.PATCH: ${version}`);
   const schemaCatalog = await readSchemaSnapshots(siteUrl, version);
   const readJson = async relative => JSON.parse(await fs.readFile(path.join(repositoryDirectory, relative), "utf8"));
-  const generatedWebsiteData = path.join(buildDirectory, "website", "data");
+  const generatedWebsiteData = path.join(buildDirectory, "website-data");
   const apiCatalog = JSON.parse(await fs.readFile(path.join(generatedWebsiteData, "api.json"), "utf8"));
   if (!/^\d+\.\d+\.\d+$/.test(apiCatalog.version) || !Array.isArray(apiCatalog.symbols)) {
     throw new Error("Generated API catalogue must contain an API SemVer and symbols array.");

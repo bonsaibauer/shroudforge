@@ -1,6 +1,8 @@
 # ShroudForge Downloadwebsite
 
-`website/` enthält die statische Downloadwebsite für `https://shroudforge.net` und die öffentliche Devseite `https://dev.shroudforge.net`. Die vorhandene API-Dokumentation unter `docs/website/` und ihr GitHub-Pages-Workflow bleiben eigenständig. Die Downloadwebsite wird nach `build/download-website/` erzeugt und mit Cloudflare Workers Static Assets ausgeliefert. Ein eigener Worker-Entrypoint und ein Anwendungsserver sind nicht erforderlich.
+`website/` enthält die statische Downloadwebsite für `https://shroudforge.net` und die öffentliche Devseite `https://dev.shroudforge.net`. Die alte GitHub-Pages-Dokumentation wurde entfernt. Ihre weiterhin gültigen URLs zeigen jetzt die schlanke Weiterleitungsseite aus dem Stammordner `githubpages/`. Die Downloadwebsite wird nach `build/download-website/` erzeugt und mit Cloudflare Workers Static Assets ausgeliefert. Ein eigener Worker-Entrypoint und ein Anwendungsserver sind nicht erforderlich.
+
+Der API-Katalog und die Spieldaten für die Hauptwebsite werden aus `modules/mod-runtime/lua/` und `website/data/` unter `build/website-data/` erzeugt. Verwende `npm run website:api-check`, um diese Daten zu erstellen und zu prüfen.
 
 ## Releasequelle und lokaler Build
 

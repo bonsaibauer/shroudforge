@@ -1,6 +1,6 @@
 # GitHub Pages to MediaWiki migration map
 
-This map is based on the current paired English and German source pages under `docs/pages/`. The website build discovers 177 article IDs: 151 under `creating-mods`, 24 under `using-shroudforge`, and 2 under `platform`. The earlier draft count of 172 is out of date.
+This archived map was based on the 177 paired English and German pages that used to live under `docs/pages/`: 151 under `creating-mods`, 24 under `using-shroudforge`, and 2 under `platform`. The old page text and renderer have since been removed. The preserved article IDs and their destinations are in [`githubpages/redirect-routes.json`](../../githubpages/redirect-routes.json).
 
 ## Destination model
 
@@ -74,6 +74,6 @@ Homepage summaries and category descriptions are short navigation aids. They are
 
 ## Source of truth and publication
 
-The bilingual website source is the paired Markdown under `docs/pages/`. The current Wiki sources live under `modules/wiki/articles/`, and the established publishing/translation workflow is documented in `docs/mediawiki-translate/README.md`. Do not edit the generated website output or hand-create Translate language subpages.
+The legacy Markdown page source has been removed. The current Wiki sources live under `modules/wiki/articles/`, and the established publishing/translation workflow is documented in `docs/mediawiki-translate/README.md`. The root `githubpages/` folder preserves old URLs and links them to their current destinations.
 
 Before publication, generate and inspect the Wiki sources and links. Publish in small related batches so each category and homepage link points to real pages. For each translated article, keep its English source and translations in the same MediaWiki Translate group.

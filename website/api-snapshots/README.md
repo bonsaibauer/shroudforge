@@ -1,6 +1,6 @@
 # API catalogue snapshots
 
-The current API catalogue is generated from `modules/mod-runtime/lua/**/definitions` during `npm run site:build`.
+The current API catalogue is generated from `modules/mod-runtime/lua/**/definitions` during `npm run website:api-build`.
 
 When the `shroudforge-api` SemVer changes, preserve the previous published catalogue here before removing its source revision:
 
