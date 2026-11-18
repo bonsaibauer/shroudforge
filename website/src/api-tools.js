@@ -213,7 +213,14 @@
 	}
 
 	function htmlInline(value) {
-		return escapeHtml(value).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\n/g, '<br>')
+		const codeParts = []
+		let html = escapeHtml(value).replace(/`([^`]+)`/g, (_, content) => {
+			const token = `\u0000INLINE_CODE_${codeParts.length}\u0000`
+			codeParts.push(`<code>${content}</code>`)
+			return token
+		})
+		html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+		return html.replace(/\u0000INLINE_CODE_(\d+)\u0000/g, (_, index) => codeParts[Number(index)])
 	}
 
 	function sourceCategory(symbol) {
