@@ -1,0 +1,220 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Modloader settings
+description: Configure ShroudForge itself, understand every documented loader preference, and safely customize its storage paths.
+language: en-GB
+creator: Bonsaibauer
+-->
+
+<translate>
+
+This guide covers settings for ShroudForge itself. It is separate from the player-facing settings that a mod declares in [[Extended.mod.json]]. The documented preferences are stored in <code>shroudforge/config/modloader-config.json</code> beside the game installation. The Modloader's Settings page is the easiest way to change them because it validates and saves each value for you.
+
+== Find and edit the configuration ==
+
+The file is inside the <code>shroudforge/config</code> folder beside the Enshrouded executable. For example, if the game is installed in <code>D:\Games\Enshrouded</code>, the file is <code>D:\Games\Enshrouded\shroudforge\config\modloader-config.json</code>.
+
+Prefer the Modloader's Settings page for ordinary changes. If you edit the JSON file yourself, close the game and Modloader first, make a backup, preserve the rest of the file, and keep the JSON valid. JSON does not allow comments or a comma after the final item. The configuration contains internal state as well as user preferences, so do not replace the entire file with a short example.
+
+Settings use JSON values. A boolean is <code>true</code> or <code>false</code>. A string is in double quotes. A path can be a string or <code>null</code>. Use <code>null</code> to restore the automatic path for a storage location.
+
+== General settings ==
+
+<span id="general-compactmode"></span>
+=== Compact Modloader layout: <code>general.compactMode</code> ===
+
+This boolean controls whether the Modloader uses a denser layout. The shipped defaults leave it unset, which keeps the standard layout. Set it to <code>true</code> to use the compact layout or <code>false</code> to keep the standard layout.
+
+<pre>
+{
+  "general": {
+    "compactMode": true
+  }
+}
+</pre>
+
+<span id="general-locale"></span>
+=== Interface language: <code>general.locale</code> ===
+
+This string selects the language used by the Modloader interface. The shipped default is <code>en-GB</code>. Choose a language in the Settings page when possible. The schema accepts language-tag-shaped values matching <code>^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$</code>, but a value that matches the pattern is not necessarily a language supplied by the installed Modloader.
+
+<pre>
+{
+  "general": {
+    "locale": "de"
+  }
+}
+</pre>
+
+<span id="general-messagenamefallback"></span>
+=== Fallback name for notices: <code>general.messageNameFallback</code> ===
+
+This string is the name used in a notice when automatic character-name detection cannot supply one. It is also the name used when <code>general.usernameMode</code> is set to <code>manual</code>. The shipped default is <code>Flameborn</code>. The value must contain 1–40 characters. The Settings page trims surrounding whitespace and uses <code>Flameborn</code> if the field is left empty.
+
+<pre>
+{
+  "general": {
+    "messageNameFallback": "Flameborn"
+  }
+}
+</pre>
+
+<span id="general-reducedmotion"></span>
+=== Reduce motion: <code>general.reducedMotion</code> ===
+
+This boolean reduces interface motion and transition effects. The shipped defaults leave the setting unset, so the normal interface motion is used. Set it to <code>true</code> to reduce motion or <code>false</code> to keep normal transitions.
+
+<span id="general-usernamemode"></span>
+=== Choose how notices get a player name: <code>general.usernameMode</code> ===
+
+This string accepts <code>"auto"</code> or <code>"manual"</code>. The shipped default is <code>"auto"</code>.
+
+* <code>"auto"</code> uses the local character name captured by the current game process. ShroudForge captures it when a valid character is first available and again when the character selection or name changes. If capture fails, notices use <code>general.messageNameFallback</code>. A name cached by a previous game process is not restored.
+* <code>"manual"</code> always uses <code>general.messageNameFallback</code>.
+
+This affects names shown in notices. It does not identify remote players or change a mod's own fallback text.
+
+<pre>
+{
+  "general": {
+    "usernameMode": "auto"
+  }
+}
+</pre>
+
+== Logging ==
+
+<span id="logging-minimumlevel"></span>
+=== Minimum saved log level: <code>logging.minimumLevel</code> ===
+
+This string sets the lowest severity that ShroudForge writes to log files. The accepted values, from most detailed to most restrictive, are <code>TRACE</code>, <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, and <code>ERROR</code>. The shipped default is <code>INFO</code>. Entries below the selected level are not saved to the regular log file.
+
+The Debug Console has its own display filter. Changing that filter only changes which entries are shown in the console. It does not change what the log file saves. The saved-file threshold is the setting documented here.
+
+<pre>
+{
+  "logging": {
+    "minimumLevel": "INFO"
+  }
+}
+</pre>
+
+== Export functions ==
+
+<span id="exports-enabled"></span>
+=== Enable mod export functions: <code>exports.enabled</code> ===
+
+This boolean enables or disables mod export functions. The shipped default is <code>true</code>. Set it to <code>false</code> to disable those functions for the installation.
+
+<pre>
+{
+  "exports": {
+    "enabled": true
+  }
+}
+</pre>
+
+This loader preference is different from the <code>export</code> capability requested by an individual mod in <code>mod.json</code>. A mod still has to declare and use the capability it needs. See [[Modding: Capabilities]].
+
+== Module settings ==
+
+<span id="module-settings"></span>
+The <code>modules</code> value is an object with separate sections for the built-in modules. There is no <code>modules.modules</code> option or shared module list. Each section is named for its owner. The shipped defaults currently contain these sections:
+
+{| class="wikitable"
+! Section !! What it configures
+|-
+| <code>modDetection</code> || Mod package discovery and how unknown manifest fields are handled.
+|-
+| <code>dllManager</code> || DLL discovery and compatibility profiles.
+|-
+| <code>debugConsole</code> || Debug Console behavior, including log source, display filter, refresh rate, and shortcut.
+|-
+| <code>worldEditor</code> || World Editor enablement, refresh rate, and shortcut.
+|-
+| <code>modloaderUi</code> || Modloader interface behavior, including its starting page, remote target, and shortcut.
+|-
+| <code>wiki</code> || In-Modloader Wiki availability, paging, and refresh interval.
+|-
+| <code>network</code> || Network module availability and dedicated-server or client allowlist settings.
+|-
+| <code>runtimeDiagnostics</code> || Runtime diagnostic collection, job selection, timing, and slow-callback threshold.
+|-
+| <code>gameProfileDiscovery</code> || Automatic discovery of game profiles.
+|-
+| <code>updates</code> || System and mod update behavior and recycle-bin retention.
+|}
+
+The exact fields and allowed values belong to the schema. Some saved fields are runtime state rather than preferences. For example, window positions and diagnostic request or session values are managed by ShroudForge. Do not copy those values into a mod's <code>extended.mod.json</code> or treat them as mod settings.
+
+<pre>
+{
+  "modules": {
+    "debugConsole": {
+      "enabled": true,
+      "defaultSource": "game",
+      "levelFilter": "ALL"
+    },
+    "worldEditor": {
+      "enabled": true
+    }
+  }
+}
+</pre>
+
+This is a partial example. Keep other module sections and settings already present in the configuration.
+
+== Storage paths ==
+
+<span id="paths-cache"></span>
+=== Reusable cache: <code>paths.cache</code> ===
+
+Stores reusable cached data. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge\cache</code>.
+
+<span id="paths-exports"></span>
+=== Mod export destination: <code>paths.exports</code> ===
+
+Folder where files produced by mod export functions are written. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge\exports</code>.
+
+<span id="paths-logs"></span>
+=== Log files: <code>paths.logs</code> ===
+
+Folder for ShroudForge and mod log files. The client and Dedicated Server write separate log files there. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge\logs</code>.
+
+<span id="paths-mods"></span>
+=== Installed mod packages: <code>paths.mods</code> ===
+
+Folder where ShroudForge searches for installed mod packages. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\mods</code>. This is a sibling of the <code>shroudforge</code> data folder.
+
+<span id="paths-runtime"></span>
+=== Runtime files and profiles: <code>paths.runtime</code> ===
+
+Folder for Lua and native runtime data and detected game profiles. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge\runtime</code>.
+
+<span id="paths-state"></span>
+=== Persistent loader state: <code>paths.state</code> ===
+
+Folder for persistent Modloader state, including saved enablement and runtime status. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge</code>.
+
+<span id="paths-ui"></span>
+=== Interface data: <code>paths.ui</code> ===
+
+Folder for persistent interface data and the Modloader WebView profile. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge\ui</code>.
+
+<span id="paths-updates"></span>
+=== Downloaded updates: <code>paths.updates</code> ===
+
+Folder for downloaded or staged updates. The default value is <code>null</code>, which resolves to <code>&lt;game folder&gt;\shroudforge\updates</code>.
+
+All eight path fields accept a non-empty string or <code>null</code>. With <code>null</code>, ShroudForge chooses the path described above. An absolute path is kept as the selected location. A relative path is resolved from the game folder at startup, then stored as an absolute path. For example, <code>"paths": { "cache": "ShroudForgeCache" }</code> selects a folder named <code>ShroudForgeCache</code> beside the game executable. The selected installation and its client or server process must be able to read and write the chosen folders.
+
+To restore one path to its default, set its value back to <code>null</code>. This does not move data from the old folder. Copy files yourself only when a feature needs existing data at the new location.
+
+== Where the values come from ==
+
+The shipped defaults and accepted fields are defined by the [https://github.com/bonsaibauer/shroudforge/blob/1.8.1/modules/loader-config/loader.schema.json loader configuration schema] and [https://github.com/bonsaibauer/shroudforge/blob/1.8.1/modules/loader-config/loader.default.json default configuration]. Use the Modloader Settings page for regular changes. If a field is not described here, check the matching schema instead of guessing its name or value.
+
+</translate>
+
+[[Category:Guide:Shroudforge]]

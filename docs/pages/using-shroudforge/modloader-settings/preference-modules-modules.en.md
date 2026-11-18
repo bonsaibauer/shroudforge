@@ -12,30 +12,4 @@
 }
 ---
 
-# Module settings
-
-In `shroudforge/config/modloader-config.json`, `/modules` is an object with separate sections for modules. There is no `modules.modules` setting or shared module list.
-
-## Sections
-
-The schema defines `debugConsole`, `worldEditor`, `network`, `modloaderUi`, `runtimeDiagnostics`, and `updates`. The default configuration provides initial values for `debugConsole`, `worldEditor`, `modloaderUi`, `runtimeDiagnostics`, and `updates`.
-
-An excerpt of the default values:
-
-```json
-{
-  "modules": {
-    "debugConsole": { "enabled": true },
-    "worldEditor": { "enabled": true },
-    "modloaderUi": { "enabled": true },
-    "runtimeDiagnostics": { "enabled": false },
-    "updates": { "system": { "enabled": true, "checkMinutes": 60 } }
-  }
-}
-```
-
-Each section belongs to the module named by its key. These loader settings are separate from an individual mod's settings in its `extended.mod.json`.
-
-## Source
-
-`modules/loader-config/loader.schema.json` defines allowed fields and values. `modules/loader-config/loader.default.json` contains the default values.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete article: <a href="https://wiki.shroudforge.net/index.php/Modloader_settings#module-settings">Modloader settings: module settings</a>.</span></div>

@@ -1,0 +1,104 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: How ShroudForge works
+description: Follow a mod from its files through package checks and process selection to Lua code, prepared assets, and supported native game operations.
+language: en-GB
+creator: Bonsaibauer
+-->
+
+<translate>
+
+ShroudForge is the loader that finds mod packages, checks what they request, starts supported features in the right Enshrouded process, and reports their status. A mod is a separate package made by a creator. Enshrouded remains the game where its client or dedicated-server feature runs.
+
+<span id="from-mod-to-game"></span>
+== Three parts with different jobs ==
+
+{| class="wikitable"
+! Part !! What it does
+|-
+| Mod package || Holds the creator's files, identity, dependencies, capabilities, optional settings, and code or assets.
+|-
+| ShroudForge || Finds packages, validates their information, checks requirements, selects the supported execution phase, hosts Lua, and reports results.
+|-
+| Enshrouded || Runs the game. Depending on a mod's design and declared targets, the relevant process is the local client or the Dedicated Server.
+|}
+
+This separation is useful when troubleshooting. A package can be present while its requested feature is unsupported. A mod can load while one particular game operation remains unavailable. A ShroudForge installation does not guarantee that every mod works with every game build or server.
+
+== What ShroudForge does when the game starts ==
+
+{| class="wikitable"
+! Step !! What happens !! Why it matters
+|-
+| 1. Find || ShroudForge looks in its configured mods folder and reads each package's <code>mod.json</code>. || A package needs a valid, recognizable folder and manifest before the loader can use it.
+|-
+| 2. Check || It reads identity, version, dependencies, capabilities, and process targets, then checks the game and available support. || A missing required dependency, invalid manifest, or unavailable capability can keep a package from starting.
+|-
+| 3. Choose the phase || Supported asset changes are prepared before the game starts. Lua callbacks run while the selected game process is running. || These operations have different prerequisites and should not be confused.
+|-
+| 4. Report || The Modloader shows package state and messages. The Debug Console displays recorded runtime and game messages. || These results help distinguish a package problem from a game-build or operation-support problem.
+|}
+
+See [[mod.json]] for package identity, dependencies, and capability declarations. See [[Extended.mod.json]] for player-facing settings and process targets. A target selects the process that runs a mod. It does not synchronize a client's changes with a server or other players.
+
+<span id="prepared-assets"></span>
+== Changes prepared before the game starts ==
+
+A mod that declares the <code>patch</code> capability can request supported game-asset changes. The game must be closed while ShroudForge prepares and checks those files. Start Enshrouded through ShroudForge so the preparation step can run. The loader keeps this work separate from live Lua callbacks and handles its managed files through the game-file preparation path.
+
+An asset change being declared does not make an arbitrary game file safe to patch. Only supported operations and resources are accepted. See [[Modding: Capabilities]] for what the capability permits and [[Startup stops because asset backups are incompatible]] for historical recovery guidance.
+
+<span id="lua-and-kfc-runtime"></span>
+== Lua code and KFC Runtime ==
+
+<code>src/mod.lua</code> is the mod's instruction file. The Lua runtime is the environment in which ShroudForge runs that code. Each mod receives its own Lua environment. The mod calls documented ShroudForge or compatible EML functions. It does not need to load or call ShroudForge's native DLL directly.
+
+For a live feature, the path is:
+
+# The mod's Lua code calls a documented function.
+# ShroudForge checks whether the mod is allowed to use that feature and whether it is available for the current process and game build.
+# If the operation needs supported low-level game access, ShroudForge routes it to the included native provider, KFC Runtime.
+# The result or unavailability reason is returned through the supported interface.
+
+The bundled <code>shroudforge/kfc-runtime.dll</code> is a ShroudForge component, not a separate mod and not a download a mod creator should ask players to install. KFC Runtime supplies reviewed native game operations where Lua alone is not enough. Settings, log messages, Modloader UI actions, and network features can work through their own loader services without requiring every action to use KFC.
+
+<span id="native-profiles"></span>
+== Why native operations depend on profiles ==
+
+Game internals can change between Enshrouded builds. ShroudForge identifies the client or server executable and the installed game build. A runtime profile records which supported structures and operations have been checked for that build and target. The native provider checks that support before making an operation available.
+
+When the matching profile or operation is unavailable, ShroudForge leaves that native operation unavailable instead of treating the Lua function name as proof that the call is safe. A new game build can therefore change native support even when a mod's package and Lua files have not changed. The [[Engine]] guide explains how shared game, runtime, API, and parser checks are displayed.
+
+== Similar names that mean different things ==
+
+{| class="wikitable"
+! Capability or file !! Meaning
+|-
+| <code>runtime</code> || Allows a mod to use the declared live ShroudForge runtime features. It does not promise that every native operation is supported on the current build.
+|-
+| <code>patch</code> || Allows supported game-file changes to be prepared before the game starts. This is separate from live Lua execution.
+|-
+| <code>runtime-register-dll</code> || Registers a native DLL included in that mod's own package for EML compatibility. It is not permission to register ShroudForge's built-in <code>kfc-runtime.dll</code>.
+|-
+| <code>kfc-runtime.dll</code> || The native provider shipped with ShroudForge. It is part of the loader installation, not an EML mod DLL.
+|}
+
+See [[Modding: Capabilities]] for the capability rules and [[Modding with Lua]] for package targets, EML migration, and the Lua API reference link.
+
+== Client, server, and multiplayer ==
+
+A client-targeted mod runs in the player's Enshrouded client. A server-targeted mod runs in the Dedicated Server process. Some packages need installation in both places, depending on the feature. Installing a mod on the server does not automatically copy it to clients. Selecting both targets does not replicate Lua state, mod settings, or world changes over the network. A mod needs an appropriate network feature and server-side behavior for that.
+
+For installation steps, follow [[Quickstart: Multiplayer]] and the server guide that matches your host.
+
+== Where to continue ==
+
+* Start with [[Build your first mod]] for a small working package.
+* Read [[mod.json]] for identity, dependencies, and capabilities.
+* Read [[Extended.mod.json]] for settings, actions, and client/server targets.
+* Use the [https://shroudforge.net/tools/modding/api-reference/ ShroudForge Modding API reference] for exact Lua and native function signatures.
+
+</translate>
+
+[[Category:Modding:Shroudforge]]
