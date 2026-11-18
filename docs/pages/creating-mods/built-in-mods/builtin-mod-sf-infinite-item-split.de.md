@@ -13,23 +13,4 @@
 }
 ---
 
-# SF Infinite Item Split
-
-> **Historische Referenz:** Dieses Modpaket gehört nicht zu den aktuell unter `mods/` enthaltenen Mods. Die Seite bleibt als Erklärung des früheren Pakets erhalten.
-
-> Historischer Referenzmod. Dieses Paket gehört nicht zu den zwei aktuell mitgelieferten Mods. Die Quellenlinks zeigen den nachgewiesenen Repository-Stand vor seiner Entfernung.
-
-Behält beim Teilen von Gegenständen den ursprünglichen Stapel. Das wirkt sich auch auf weitere Inventaraktionen aus.
-
-## Paketangaben
-
-- Mod-ID: `sf-infinite-item-split`
-- Zielprozesse: Client und Dedicated Server
-- Laufzeitberechtigung: ja
-- Deklarierte spielerseitige Einstellungen: 0
-
-## Einstellungen
-
-Dieser Mod deklariert keine spielerseitigen Einstellungen.
-
-Die Einstellungen werden in `extended.mod.json` des Mod-Pakets gespeichert. Der Mod liest sie über `shroudforge.settings.get(key, fallback)`. Weitere Details stehen in der [Lua-Quelldatei](https://github.com/bonsaibauer/shroudforge/blob/81f9c5fe2d70ea4ba10896fb22a75b2d082800a6/reference-mods-0.9/sf-infinite-item-split/src/mod.lua).
+> **Diese Seite wurde ins ShroudForge-Wiki verschoben.** Den vollständigen englischen Artikel findest du hier: [Mod: Infinite Item Split](https://wiki.shroudforge.net/index.php?title=Mod%3A_Infinite_Item_Split).

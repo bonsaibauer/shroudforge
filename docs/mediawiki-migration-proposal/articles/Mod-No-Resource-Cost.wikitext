@@ -1,0 +1,7 @@
+'''Historical package.''' SF No Resource Cost is not in the current repository package list. Its package ID was <code>sf-no-resource-cost</code>.
+
+The mod removed resource consumption in supported building, crafting, and item-use actions. It targeted the client and Dedicated Server, requested the runtime capability, and declared no player-facing settings.
+
+The current [[Mod: Crafting Essentials|SF Crafting Essentials]] package provides a No Recipe Resource Costs setting. It changes direct recipe ingredients, category ingredients, and water charges before startup. It does not remove building costs, upgrade costs, or other shared inventory costs. The change requires a restart. See the Crafting Essentials article for the current behavior and technical scope.
+
+[[Category:Mods]]

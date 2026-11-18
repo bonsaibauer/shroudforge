@@ -1,0 +1,117 @@
+World Editor is a standalone ShroudForge mod for capturing, saving, rotating, previewing, placing, and undoing world blueprints. Its package ID is <code>world-editor</code>. It is disabled by default and targets the client and Dedicated Server.
+
+The mod implements its own editor, blueprint format, selection, rotation, placement plan, paste logic, and undo journal. It uses ShroudForge's public runtime APIs for world, voxel, entity, asset, settings, logging, and export access. It does not use fixed game addresses, function hashes, executable hooks, or private loader patches.
+
+== Client and Dedicated Server ==
+
+The client provides the editor window and blueprint library. The Dedicated Server runs the same mod headlessly and owns server-side world edits. Install and enable the package in both the client and the Dedicated Server when editing a dedicated world.
+
+The editor uses ShroudForge's shared Network module and Steam P2P. The client sends a validated blueprint operation. The server authorizes and queues the request, then runs the same native capture, paste, verification, and undo path used for local edits. The server returns ordered capture data or operation progress to the client. Process-local entity handles never cross the network.
+
+Transfers are limited to 32 MiB per blueprint. Local files are limited to 256 MiB. The server serializes capture, paste, and undo requests in a FIFO queue. It allows up to 32 waiting requests, one waiting request per peer, and a separate 32 MiB upload budget. Requests expire after 45 accumulated callback seconds and recheck authorization and world state before execution. Queue progress is reported every two seconds. The server retains the last 128 terminal request receipts.
+
+Each client has its own latest in-memory undo journal, with up to 32 clients retaining journals in one world session. One client's paste or undo does not replace another client's journal. A confirmed placement permits another paste. A partial placement keeps that client's next paste locked until recovery or explicit release. Restarting the server discards its journals.
+
+== Capture and save a blueprint ==
+
+# Select the building hammer and a single voxel.
+# Mark the two corners of the source area. The editor uses these marks for the selection.
+# Choose a combined voxel-and-prop capture or a props-only capture.
+# Capture and save the blueprint. The new file is selected in the library.
+# Select an existing blueprint from the library to make it active for placement.
+
+Online capture sends the two marked positions to the server. The server runs the native capture path and returns the complete V7 blueprint in ordered chunks. The client checks the sender, request ID, byte count, checksum, and file structure before saving it locally. Partial or stale responses are not saved as files. Reset or release cancels a pending remote capture without discarding an unrelated placement journal.
+
+Prop capture scans incrementally. Each native scan slice checks at most 8,192 entity pointers and yields after about 2 milliseconds of scan time. An incomplete scan is never saved. A changed ECS epoch, unavailable world, 30 seconds without scan progress, or a 120-second overall deadline aborts capture.
+
+== Blueprint files and placement ==
+
+The persistent file format is <code>SHROUDFORGE_WORLD_BLUEPRINT_V7</code>. A blueprint can contain a voxel channel plus props or props alone. Voxel cells store their value and coverage state: Unknown, Empty, or Occupied. The file also stores selection extent, voxel offset, item IDs, native template UUIDs, prop transforms, and the up axis used during capture.
+
+The cursor's world position is the placement anchor. Voxel placement is refused when the resulting voxel-channel origin does not align to the active grid. Props-only blueprints do not require voxel-grid metadata and can use the live cursor, a marked target, or the manual world-coordinate fields.
+
+Choose whether to replace target voxels or add only occupied source cells. In replace mode, Empty source cells clear the target. In add mode, Empty source cells are skipped. Choose whether to keep existing props or replace intersecting props. Replacement is refused if a prop's recipe, native template identity, or transform cannot be safely verified.
+
+Use Preview placement plan to resolve the target and write planned dimensions and counts to the ShroudForge log. This is a non-destructive plan preview. It does not draw a three-dimensional ghost or schematic in the world. Paste active blueprint and Paste at cursor write to the world.
+
+== Blueprint library and editor window ==
+
+The editor window shows a contextual instruction line and the blueprint cards. Its configured window shortcut shows or hides the single editor window. Other shortcuts perform editor actions without toggling window visibility. The library discovers new or copied <code>.sfbp</code> files in the export folder. The dashed New blueprint tile remains at the left of the library. Recently selected or created blueprints appear first after it.
+
+The blueprint manager can rename, duplicate, or delete files and their image. It can browse an Enshrouded screenshot folder, preview supported images, and copy a selected image into the blueprint library as a PNG cover and thumbnail. It never edits the original screenshot. Common screenshot folders are detected, and the selected folder is remembered.
+
+The default action shortcuts are F3 through F8 for rotation, undo, marking the next selection corner, reset or release, paste at cursor, and capture and save. They are declared as keybind settings and can be changed in the mod's Keyboard shortcuts settings or Compatibility → Hotkeys. An empty binding disables that action. The key must be held until the 100 ms update observes it. The input is not consumed by the editor.
+
+== Settings ==
+
+{| class="wikitable"
+! Group !! Setting !! Default !! Meaning or range
+|-
+| Overlay || Blueprint panel width || 1180 || Logical pixels, 760–1920.
+|-
+| Overlay || Blueprint panel height || 190 || Logical pixels, 140–400.
+|-
+| Overlay || Panel position X || −1 || Logical pixels. −1 centers the panel.
+|-
+| Overlay || Panel position Y || 92 || Logical pixels from the top of the game window.
+|-
+| Shortcuts || Rotate blueprint 90° || <code>SDL:60</code> || Advances active blueprint rotation by one quarter turn.
+|-
+| Shortcuts || Undo last paste || <code>SDL:61</code> || Restores the client's latest placement when safe.
+|-
+| Shortcuts || Mark next selection corner || <code>SDL:62</code> || Marks the next source corner, then the other corner.
+|-
+| Shortcuts || Reset / release stuck server operation || <code>SDL:63</code> || Requests release of a stalled or incomplete remote operation.
+|-
+| Shortcuts || Paste at cursor || <code>SDL:64</code> || Pastes the active blueprint at the live cursor position.
+|-
+| Shortcuts || Capture and save blueprint || <code>SDL:65</code> || Captures the current selection and saves a new blueprint.
+|-
+| Blueprint creation || Maximum props per blueprint || 60,000 || Range 1–1,000,000. Larger captures, files, or placements are refused, not truncated.
+|-
+| Blueprint creation || Source cell X, Y, Z || 0, 0, 0 || Manual source cell coordinates when cursor corners are not both marked.
+|-
+| Blueprint creation || Size X, Y, Z || 8, 8, 8 || Manual voxel-cell dimensions, each 1–65,536.
+|-
+| Blueprint creation || Persistent blueprint name || <code>my_blueprint</code> || Name used for a new saved blueprint, 1–64 characters.
+|-
+| Blueprint creation || New name for rename or duplicate || <code>my_blueprint_copy</code> || Destination name for a library rename or duplicate, 1–64 characters.
+|-
+| Blueprint placement || Initial paste rotation || 0 || Quarter turns, 0–3, equivalent to 0°, 90°, 180°, or 270°.
+|-
+| Blueprint placement || Blueprint up axis || Y || X, Y, or Z. Stored in the blueprint when captured.
+|-
+| Blueprint placement || Voxel mode || Replace target voxels || Replace target cells or add occupied source cells.
+|-
+| Blueprint placement || Props at target || Keep existing props || Keep existing props or replace intersecting props that can be verified safely.
+|-
+| Blueprint placement || Target cell X, Y, Z || 0, 0, 0 || Manual voxel-cell target when no cursor or marked target is used.
+|-
+| Blueprint placement || Props-only target world X, Y, Z || 0, 0, 0 || Manual world-coordinate target for a props-only blueprint.
+|-
+| Entity operations || Opaque entity handle || 0 || Process-local runtime handle for advanced actions. Valid only in the current process.
+|-
+| Entity operations || Template UUID high and low || <code>0000000000000000</code> each || Hexadecimal halves of a native entity-template UUID for advanced spawn.
+|-
+| Entity operations || Tracking ID || 0 || ItemInfo placement tracking value used by advanced spawn and placement.
+|-
+| Entity operations || Material feedback ID || 0 || ItemInfo placement feedback value. Required for advanced placement, not removal.
+|-
+| Entity operations || Position X, Y, Z || 0, 0, 0 || World coordinates used by advanced spawn, placement, or removal actions.
+|-
+| Entity operations || Bounds minimum X, Y, Z || 0, 0, 0 || Minimum bounds used by advanced native placement and removal.
+|-
+| Entity operations || Bounds maximum X, Y, Z || 0, 0, 0 || Maximum bounds used by advanced native placement and removal.
+|}
+
+The advanced Entity operations controls are for manual native operations. Normal blueprint capture and placement do not require users to enter UUIDs or runtime handles.
+
+== Undo, errors, and recovery ==
+
+Undo checks target voxels and props before restoring the saved snapshot. It pauses if cells changed after placement. It also checks the live handle and transform of each placed prop before removing it. If a native operation fails, the mod attempts to restore its pre-paste snapshot. If the result cannot be verified, it keeps recovery state for another undo attempt.
+
+If a server operation stops reporting progress for 10 seconds, the client marks it as potentially stuck and offers Reset / release. The client keeps paste locked until the server confirms it discarded the operation's recovery journal and released its lock. Releasing an operation may leave partial terrain or props behind, and the abandoned operation can no longer be undone. If confirmation is lost, request release again. An unreachable server leaves paste paused until release is confirmed.
+
+Progress and operation results are written to the role-appropriate ShroudForge log under the <code>world-editor</code> source. The editor has no separate UI log. A successful live readback confirms the in-world result. It does not prove that the game save persists after reload.
+
+[[Category:Mods]]

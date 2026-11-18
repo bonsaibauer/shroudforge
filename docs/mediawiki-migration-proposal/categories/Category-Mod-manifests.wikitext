@@ -1,3 +1,0 @@
-Reference for the required mod.json package information file, dependency declarations, capabilities, and related manifest data.
-
-[[Category:Modding]]

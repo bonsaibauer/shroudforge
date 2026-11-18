@@ -1,3 +1,0 @@
-Reference for optional extended.mod.json settings, groups, controls, actions, links, and saved mod state.
-
-[[Category:Modding]]

@@ -1,0 +1,7 @@
+'''Historical package.''' SF Infinite Item Use is not in the current repository package list. Its package ID was <code>sf-infinite-item-use</code>.
+
+The mod prevented items from being consumed when used. It targeted the client and Dedicated Server, requested the runtime capability, and declared no player-facing settings.
+
+The current [[Mod: Crafting Essentials|SF Crafting Essentials]] package has a No Item Consumption setting for supported item-use actions. That setting is intentionally narrower. It does not cover every item action, recipe ingredient, trade, or inventory transfer. The current package article describes its exact scope and live behavior.
+
+[[Category:Mods]]

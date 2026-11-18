@@ -1,0 +1,39 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Quickstart: Multiplayer
+description: Choose the right ShroudForge setup for an Enshrouded dedicated server and continue to the matching installation guide.
+language: en-GB
+creator: Bonsaibauer
+-->
+
+<translate>
+
+This quickstart explains how to use ShroudForge with an Enshrouded Dedicated Server. Your PC and the server are separate installations. Installing a mod on one does not install it on the other.
+
+== Choose a server setup ==
+
+ShroudForge currently has guides for these four server setups:
+
+* [[Multiplayer: Windows Dedicated Server|Windows Dedicated Server]] covers the Enshrouded server installed through Steam or managed by a Windows hosting panel.
+* [[Multiplayer: Mornedhel Docker server (Proton)|Mornedhel Docker server with Proton]] covers the Proton image and its required ShroudForge DLL override.
+* [[Multiplayer: Mornedhel Docker server (Wine)|Mornedhel Docker server with Wine]] covers the Wine image tags. Read its compatibility note because the current ShroudForge Docker instructions specifically document the Proton override.
+* [[Multiplayer: Install ShroudForge on GPortal|GPortal Dedicated Server]] covers the community-reported file-upload workaround and its GPortal-specific restrictions.
+
+Windows and Mornedhel Docker use the shared file setup in [[Multiplayer: Install server files|Install ShroudForge server files]]. GPortal has a separate upload process because its file manager rejects the two ShroudForge executable files. Follow the [[Multiplayer: Install ShroudForge on GPortal|GPortal guide]] for that setup.
+
+== Install a mod on the server ==
+
+Stop the server and back up its world before changing its files. Copy the complete ShroudForge release beside <code>enshrouded_server.exe</code>, then copy the mod package into the server's <code>mods</code> folder. Follow [[Multiplayer: Install server files|the shared file installation steps]].
+
+Client and server installations are independent. Install a mod on your PC, the Dedicated Server, or both according to the mod's process targets and its installation instructions. A client-only install does not make the mod run on a Dedicated Server.
+
+== Start and check the server ==
+
+Start the Dedicated Server using its normal Steam, Docker, or hosting-panel method. Check <code>shroudforge/logs/shroudforge-server.log</code> in the server installation or its mounted host folder. The log confirms whether ShroudForge started and reports mod loading errors.
+
+Mods that change game files need their preparation step before the server starts. Follow the mod's article for its required target and restart behavior.
+
+</translate>
+
+[[Category:guide:Shroudforge]]

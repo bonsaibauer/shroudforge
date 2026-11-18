@@ -1,0 +1,40 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Multiplayer: Windows Dedicated Server
+description: Install and enable ShroudForge mods on a Windows Enshrouded Dedicated Server.
+language: en-GB
+creator: Bonsaibauer
+-->
+
+<translate>
+
+Use this guide for the Enshrouded Dedicated Server installed on Windows through Steam or managed by a Windows hosting panel. First complete [[Multiplayer: Install server files|the shared server-file setup]].
+
+== Open the server's mod settings ==
+
+On the Windows PC, open PowerShell in the folder containing the ShroudForge release files. Run the command below and replace the example path with the folder containing the server's <code>enshrouded_server.exe</code>:
+
+<pre>
+.\shroudforge\shroudforge.exe --root "D:\Games\EnshroudedServer\server" --desktop --target server
+</pre>
+
+The command opens ShroudForge settings for that server installation. Enable the mod there. The <code>--target server</code> option selects the Dedicated Server installation even if your PC also has the game client.
+
+== Start the server ==
+
+Start the Dedicated Server using its normal Steam or hosting-panel method. The server loads ShroudForge and its mods from its own installation folder.
+
+The Proton-only <code>WINEDLLOVERRIDES</code> setting is not needed for the Windows Dedicated Server.
+
+== Check the server log ==
+
+Read <code>shroudforge/logs/shroudforge-server.log</code> in the server folder. Check the log after startup if ShroudForge or a mod does not appear to load.
+
+== Use mods on the client ==
+
+The Dedicated Server and each player's PC are separate installations. Install a mod on the PC as well when its instructions or process targets require the client to run it.
+
+</translate>
+
+[[Category:guide:Shroudforge]]

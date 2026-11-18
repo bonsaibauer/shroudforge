@@ -1,0 +1,58 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Multiplayer: Install ShroudForge on GPortal
+description: Install ShroudForge on a GPortal Enshrouded Dedicated Server using the community-tested file-upload workaround.
+language: en-GB
+creator: Bonsaibauer
+-->
+
+<translate>
+
+This guide describes the GPortal file-upload workaround reported in [https://github.com/bonsaibauer/shroudforge/issues/119 ShroudForge issue #119]. It was reported working with ShroudForge 1.8.1. GPortal does not accept the ShroudForge executable files through this upload method, so the two ShroudForge applications are omitted from the server upload.
+
+This is a community-reported setup, not a separate GPortal build of ShroudForge. Check the issue and current ShroudForge release notes for later changes.
+
+== Before you start ==
+
+Stop the server and back up its world. Keep your GPortal server credentials private. You need access to the GPortal file manager and the server's administrator password for the client-side setup described below.
+
+== Disable the GPortal Mod Loader ==
+
+In the GPortal server settings, set the Enshrouded Mod Choice to <code>No mod</code> before uploading ShroudForge files. This disables GPortal's Mod Loader for the server, as shown in the screenshot.
+
+[[File:GPortal-Mod-Loader-choice.png|thumb|center|600px|GPortal Enshrouded Mods setting with Mod-Choice set to No mod]]
+
+== Upload the ShroudForge release files ==
+
+# Download and extract the [https://github.com/bonsaibauer/shroudforge/releases/latest latest ShroudForge release] on your PC.
+# Open the GPortal file manager and locate the Enshrouded Dedicated Server folder containing <code>enshrouded_server.exe</code>.
+# Upload the ShroudForge release contents into that server folder, beside <code>enshrouded_server.exe</code>.
+# Do not upload the two ShroudForge applications named <code>shroudforge.exe</code> and <code>shroudforge-updater.exe</code>. GPortal rejects these executable files through the upload method described in issue #119.
+# Keep the other release files and their folder structure, including the DLL files, the <code>shroudforge</code> folder, and the <code>mods</code> folder.
+
+The two omitted ShroudForge applications are not the Enshrouded server executable. Do not delete or replace <code>enshrouded_server.exe</code>.
+
+The file manager should show the ShroudForge folders and DLL files in the server's game directory. The next screenshot shows the contents of the uploaded <code>shroudforge</code> folder.
+
+[[File:GPortal-Enshrouded-file-manager-root.png|thumb|center|600px|GPortal file manager showing the Enshrouded server files, mods, and ShroudForge folder]]
+
+[[File:GPortal-ShroudForge-folder-contents.png|thumb|center|600px|Contents of the ShroudForge folder in the GPortal file manager]]
+
+== Open the server's mod settings from your PC ==
+
+Install ShroudForge on your own Enshrouded PC as well. Start the GPortal server, start Enshrouded on your PC, and connect to that server.
+
+In the reported ShroudForge 1.8.1 setup, pressing <kbd>F9</kbd> while connected opened ShroudForge's mod settings for the GPortal server. When ShroudForge asks for a password, the issue report identifies it as the GPortal server's administrator password. Enter it only in ShroudForge on your own PC. Never post it in a support request or screenshot.
+
+The reported setup then allowed mods to be configured for the connected server. Follow each mod's own instructions to determine whether it also needs to be installed on your PC.
+
+[[File:ShroudForge-GPortal-server-settings.png|thumb|center|600px|ShroudForge showing server settings and an enabled mod]]
+
+== Start and check the server ==
+
+Start or restart the server from GPortal after uploading the files. Connect to the server and check that ShroudForge and the selected mod behave as expected. If they do not, stop the server and compare the uploaded folder structure with the steps above. Ask for help in [https://github.com/bonsaibauer/shroudforge/issues/119 issue #119] without sharing your administrator password or other private server settings.
+
+</translate>
+
+[[Category:guide:Shroudforge]]

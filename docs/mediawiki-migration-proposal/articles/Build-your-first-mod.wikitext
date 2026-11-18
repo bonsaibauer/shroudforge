@@ -60,8 +60,6 @@ If ShroudForge cannot find the mod, check that its folder is inside the game's <
 
 == Next steps ==
 
-Add player-facing switches or sliders with [[extended.mod.json]]. For Lua features, start with [[Modding with Lua]] and [[Modding API guides]].
+Add player-facing switches or sliders with [[extended.mod.json]]. For Lua modding concepts, continue with [[Modding with Lua]]. Use the [https://bonsaibauer.github.io/shroudforge/en/#api searchable Lua API reference] for exact function documentation.
 
-[[Category:Modding guides]]
-[[Category:Mod manifests]]
-[[Category:Modding]]
+[[Category:Modding:Shroudforge]]

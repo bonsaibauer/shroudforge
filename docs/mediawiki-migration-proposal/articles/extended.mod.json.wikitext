@@ -35,8 +35,7 @@
 
 The setting key is <code>greeting</code>. Lua code reads the value by using that exact key with <code>shroudforge.settings.get</code>. A group makes the setting visible in the Modloader.
 
-The [https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json canonical extended manifest schema] defines the structure and data types. The [https://bonsaibauer.github.io/shroudforge/ ShroudForge documentation] includes a live manifest builder.
+The [https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json canonical extended manifest schema] defines the structure and data types. Use the [https://shroudforge.net/tools/modding/mod-settings/ Mod Settings editor] to edit a sample and preview how its settings appear in the Modloader. The [https://shroudforge.net/schemas/ versioned schema catalogue] lists the published manifest schemas.
 
-[[Category:Mod settings]]
-[[Category:Mod manifests]]
-[[Category:Modding]]
+[[Category:Modding:Shroudforge]]
+[[Category:Mod-extended-json]]

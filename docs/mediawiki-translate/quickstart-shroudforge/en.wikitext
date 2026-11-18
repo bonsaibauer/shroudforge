@@ -81,7 +81,7 @@ Mods that change game files need to be prepared before the game starts. Close th
 
 == Playing on a server? ==
 
-Your PC and the game server are separate. Copy the mod to both places if you want to use it in a shared world. See the [https://bonsaibauer.github.io/shroudforge/en/#server server instructions].
+Your PC and the game server are separate. Copy the mod to both places if you want to use it in a shared world. For a Dedicated Server, see [[Quickstart: Multiplayer|the multiplayer setup guide]].
 
 </translate>
 

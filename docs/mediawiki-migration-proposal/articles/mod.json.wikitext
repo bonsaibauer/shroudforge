@@ -26,8 +26,8 @@ The [https://shroudforge.net/schemas/1.8.0/manifest.schema.json canonical manife
 
 * [[Build your first mod]]
 * [[extended.mod.json]]
-* [[Category:Mod manifests|All manifest topics]]
-* [https://bonsaibauer.github.io/shroudforge/ ShroudForge documentation]
+* [[:Category:Modding:Shroudforge|All modding resources]]
+* [https://shroudforge.net/tools/modding/mod-settings/ Open the Mod Settings editor]
+* [https://shroudforge.net/schemas/ Browse versioned manifest schemas]
 
-[[Category:Mod manifests]]
-[[Category:Modding]]
+[[Category:Modding:Shroudforge]]

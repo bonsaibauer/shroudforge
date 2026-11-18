@@ -1,3 +1,0 @@
-Guides for translating mod text, settings, and the ShroudForge Modloader interface.
-
-[[Category:Modding]]

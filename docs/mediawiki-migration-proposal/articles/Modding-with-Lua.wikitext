@@ -1,27 +1,23 @@
-ShroudForge runs each mod's Lua code in its own Lua environment. The Modding API exposes documented functions for logging, settings, user interface actions, files, localization, and supported runtime features.
+ShroudForge loads each Lua mod as an independent package. A package uses <code>mod.json</code> for its identity, requested capabilities, and process targets. Its <code>src/mod.lua</code> contains the mod logic. An optional <code>extended.mod.json</code> declares player-facing settings, action buttons, and links.
 
-A mod that uses live runtime functions needs the <code>runtime</code> capability in its <code>mod.json</code> and an active runtime callback. Runtime callbacks can run while the game is at the main menu. <code>runtime.phase == "ingame"</code> means that the mod runtime has started. It does not confirm that a character has entered a world.
+== Start with a working package ==
 
-== Common tasks ==
+Follow [[Build your first mod]] to create the package folders, write a minimal manifest, and confirm that ShroudForge can find the mod. Read [[mod.json]] before requesting capabilities. Ask for only what the mod needs and explain why it needs it.
 
-{| class="wikitable"
-! Task !! Function or guide
-|-
-| Detect the main menu || <code>runtime.is_main_menu()</code>
-|-
-| Read the selected local character name || <code>runtime.player.name()</code>
-|-
-| Read a mod setting || <code>shroudforge.settings.get</code>
-|-
-| Register a Modloader action || <code>shroudforge.ui.on_action</code>
-|-
-| Publish a Modloader notice || <code>shroudforge.notifications.publish</code>
-|-
-| Translate mod text || <code>shroudforge.locale()</code> and <code>shroudforge.i18n.get()</code>
-|}
+== Choose the process that owns the behavior ==
 
-The API guides explain prerequisites, arguments, results, and complete examples. Some API functions are EML-specific and others are ShroudForge-specific. Check the [https://bonsaibauer.github.io/shroudforge/ published API reference] for the function contract and current support.
+A mod's target determines which Enshrouded process loads its code. A client mod runs on that player's game. A server-targeted mod runs on the Dedicated Server or the host process. Target selection does not synchronize client changes or grant server authority. A feature that changes shared world state must execute in the process that owns that state.
 
-[[Category:Lua API]]
-[[Category:Modding guides]]
-[[Category:Modding]]
+Install a multiplayer mod in every process required by its design and package declaration. Read [[Quickstart: Shroudforge]] and the mod's own installation notes before changing a server installation.
+
+== Add settings and diagnose loading ==
+
+Declare player-facing values in [[extended.mod.json]]. Give each setting a stable key, a useful label, a safe starting value, and limits that match the behavior. Keep Modloader preferences separate from settings owned by an individual mod.
+
+Open the ShroudForge Mods window with <kbd>F9</kbd>. Use <kbd>F10</kbd> to read loader and mod messages. If a mod does not appear, check its folder, manifest, targets, dependencies, and declared capabilities. Some changes need a game restart. The manifest and settings articles explain those conditions.
+
+== Look up exact Lua functions separately ==
+
+This article explains the package and runtime concepts. The complete searchable Lua, native, game-type, and resource reference remains on the [https://bonsaibauer.github.io/shroudforge/en/#api ShroudForge API reference]. Its function signatures and support data are maintained there. The Wiki does not copy its API-symbol pages.
+
+[[Category:Modding:Shroudforge]]

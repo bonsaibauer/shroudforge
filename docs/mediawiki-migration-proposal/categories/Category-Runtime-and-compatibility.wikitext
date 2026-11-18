@@ -1,3 +1,0 @@
-Documentation about Lua and native runtime support, game profiles, EML compatibility, DLL handling, and mod targets.
-
-[[Category:Modding]]
