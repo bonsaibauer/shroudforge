@@ -13,38 +13,4 @@
   }
 }
 ---
-
-# Feld `groups[].actions[].confirm`
-
-Optionale Rückfrage vor dem Ausführen einer Aktion.
-
-## Datentyp und Pflicht
-
-`string` · optional
-
-## Erlaubte Werte und Grenzen
-
-- Höchstlänge: `500`
-
-## Beispiel
-
-```json
-{
-  "groups": [
-    {
-      "label": "Example",
-      "actions": [
-        {
-          "id": "reset",
-          "label": "Reset",
-          "confirm": "example"
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>action.confirm</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Action_fields">Extended.mod.json: action.confirm</a>.</span></div>

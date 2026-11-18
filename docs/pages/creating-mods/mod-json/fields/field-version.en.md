@@ -12,27 +12,4 @@
   }
 }
 ---
-
-# The `version` field
-
-Version of this mod release using the basic SemVer format.
-
-## Type and requirement
-
-`string` · required
-
-## Allowed values and limits
-
-- pattern: `^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`
-
-## Example
-
-```json
-{
-  "version": "1.0.0"
-}
-```
-
-## Source
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>version</code> here: <a href="https://wiki.shroudforge.net/index.php/Mod.json#Required_fields">Mod.json: version</a>.</span></div>

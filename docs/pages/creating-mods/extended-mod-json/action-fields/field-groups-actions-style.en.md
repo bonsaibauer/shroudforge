@@ -13,38 +13,4 @@
   }
 }
 ---
-
-# The `groups[].actions[].style` field
-
-Appearance of the action button, without changing its behavior.
-
-## Type and requirement
-
-`string` · optional
-
-## Allowed values and limits
-
-- values: `"primary"`, `"secondary"`, `"danger"`
-
-## Example
-
-```json
-{
-  "groups": [
-    {
-      "label": "Example",
-      "actions": [
-        {
-          "id": "reset",
-          "label": "Reset",
-          "style": "secondary"
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>action.style</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Action_fields">Extended.mod.json: action.style</a>.</span></div>

@@ -13,33 +13,4 @@
   }
 }
 ---
-
-# The `settings.<key>.max` field
-
-Largest accepted input value.
-
-## Type and requirement
-
-`number` · optional
-
-## Allowed values and limits
-
-No additional values or limits are declared by the schema.
-
-## Example
-
-```json
-{
-  "settings": {
-    "example": {
-      "value": 1,
-      "control": "number",
-      "max": 1
-    }
-  }
-}
-```
-
-## Source
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>max</code> here: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Numeric_and_text_limits">Extended.mod.json: max</a>.</span></div>

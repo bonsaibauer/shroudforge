@@ -13,33 +13,4 @@
   }
 }
 ---
-
-# Feld `settings.<key>.step`
-
-Schrittweite für Zahlen- und Reglerfelder.
-
-## Datentyp und Pflicht
-
-`number` · optional
-
-## Erlaubte Werte und Grenzen
-
-- größer als: `0`
-
-## Beispiel
-
-```json
-{
-  "settings": {
-    "example": {
-      "value": 1,
-      "control": "number",
-      "step": 0.1
-    }
-  }
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>step</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Numeric_and_text_limits">Extended.mod.json: step</a>.</span></div>

@@ -12,27 +12,4 @@
   }
 }
 ---
-
-# Feld `links`
-
-Bekannte Link-IDs und HTTPS-Adressen für Modloader-Schaltflächen.
-
-## Datentyp und Pflicht
-
-`object` · optional
-
-## Erlaubte Werte und Grenzen
-
-Keine zusätzlichen Werte oder Grenzen im Schema angegeben.
-
-## Beispiel
-
-```json
-{
-  "links": {}
-}
-```
-
-## Quelle
-
-Schema: [extended.mod.json](https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json). Der Paketleser prüft zusätzliche Beziehungen zwischen Feldern.
+<div class="callout info" role="note"><b>Diese Anleitung steht jetzt im ShroudForge-Wiki.</b><span>Die ausführliche Erklärung zu <code>links</code> findest du hier: <a href="https://wiki.shroudforge.net/index.php/Extended.mod.json#Links">Extended.mod.json: links</a>.</span></div>

@@ -12,28 +12,4 @@
   }
 }
 ---
-
-# The `id` field
-
-Stable identifier that other mods can depend on.
-
-## Type and requirement
-
-`string` · required
-
-## Allowed values and limits
-
-- maximum length: `80`
-- pattern: `^[A-Za-z0-9._-]+$`
-
-## Example
-
-```json
-{
-  "id": "author.example-mod"
-}
-```
-
-## Source
-
-Schema: [mod.json](https://shroudforge.net/schemas/1.8.0/manifest.schema.json). The package reader checks additional relationships between fields.
+<div class="callout info" role="note"><b>This guide is now on the ShroudForge Wiki.</b><span>Read the complete explanation of <code>id</code> here: <a href="https://wiki.shroudforge.net/index.php/Mod.json#Required_fields">Mod.json: id</a>.</span></div>
