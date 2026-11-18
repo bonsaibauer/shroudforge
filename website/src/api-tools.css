@@ -44,9 +44,9 @@
 .api-entry-detail{display:grid;gap:14px;padding:15px}
 .api-entry-badges{display:flex;flex-wrap:wrap;gap:7px}
 .api-entry-badge{display:inline-flex;align-items:center;min-height:26px;padding:3px 9px;border:1px solid rgb(99 201 245 / 24%);border-radius:7px;color:var(--brand);background:rgb(99 201 245 / 8%);font-size:11px;font-weight:650;line-height:1.4}
+.api-entry-badge.is-api{border-color:rgb(99 201 245 / 24%);color:var(--brand);background:rgb(99 201 245 / 8%)}
 .api-entry-badge.is-capability{border-color:rgb(233 174 105 / 30%);color:#e9ae69;background:rgb(233 174 105 / 8%)}
-.api-entry-badge.is-integration{border-color:rgb(196 167 244 / 30%);color:#c4a7f4;background:rgb(196 167 244 / 8%)}
-.api-entry-badge.is-source{border-color:var(--surface-5);color:var(--text-secondary);background:var(--surface-2)}
+.api-entry-badge.is-declared{border-color:rgb(196 167 244 / 30%);color:#c4a7f4;background:rgb(196 167 244 / 8%)}
 .api-entry-badge.is-source{border-color:var(--surface-5);color:var(--text-secondary);background:var(--surface-2)}
 .api-entry-block{min-width:0}
 .api-entry-block h3,.api-entry-detail>h3{margin:0 0 7px;color:var(--text-contrast);font-size:13px;font-weight:700}
@@ -64,10 +64,6 @@
 .api-code-panel,.api-response-output{box-sizing:border-box;overflow:auto;margin:6px 0 0;padding:14px;border:1px solid var(--surface-5);border-radius:11px;color:#d1e5e7;background:#111d21;font:13px/1.65 ui-monospace,Consolas,"Liberation Mono",monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .api-source-path{color:var(--text-secondary);font-size:12px;overflow-wrap:anywhere}
 .api-source-path code{color:var(--text-primary)}
-.api-source-links{display:grid;gap:6px;margin:8px 0 0;padding-left:19px}
-.api-source-links a{color:var(--brand);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
-.api-source-links a:hover{color:var(--text-primary)}
-.api-source-links code{font-size:11px}
 .api-detail-muted{margin:3px 0 0}
 .api-data-note{margin:0 0 12px;color:var(--text-secondary);font-size:13px;line-height:1.6}
 .api-data-search{margin-bottom:12px}

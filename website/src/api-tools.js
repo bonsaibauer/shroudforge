@@ -7,10 +7,10 @@
 			skip: 'Skip to API tools', toolsNavLabel: 'Tools', moddingNavLabel: 'Modding', modSettingsNav: 'Mod-Settings', apiCallsNav: 'API calls', browseApiNav: 'Browse API', standardsNavLabel: 'Standards',
 			toolsEyebrow: 'SHROUDFORGE TOOLS · MODDING', apiReferenceTitle: 'Browse the API', apiReferenceLead: 'Start with a task or search the published API, game types, and resource IDs.', apiPlaygroundTitle: 'Try API calls', apiPlaygroundLead: 'Choose a task, edit its inputs, and preview sample output. The browser never calls your game.', tryCallsAction: 'Try API calls', browseApiAction: 'Browse API', apiVersion: 'ShroudForge API version', apiCategories: 'API categories', apiReferenceSections: 'API reference sections',
 			apiRelease: 'API {api} · ShroudForge {release}', gameBuild: 'Captured game build {build}',
-			referenceNotesTitle: 'Status and evidence', referenceNotesAction: 'Show details', referenceNotesLua: 'Documented means the entry appears in the generated Lua API catalogue. It does not prove that the current game process exposes it.', referenceNotesGame: 'Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.', referenceNotesRuntime: 'World Editor reference means the API name appears in the bundled World Editor Lua source. It proves code integration only, not an in-game effect. Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.', worldEditorReference: 'World Editor reference', worldEditorSourceTitle: 'World Editor source references', worldEditorSourceNote: 'Found in {name} v{version}. This confirms source integration only, not a verified in-game effect.',
+			referenceNotesTitle: 'Status and evidence', referenceNotesAction: 'Show details', referenceNotesLua: 'Lua API means the entry is part of the shared Lua interface used by mods. It is generated from the published API declarations. This badge does not confirm availability in the current game process.', referenceNotesGame: 'Mod permission shows the capability checked by the Modloader. Runtime declared means the operation ID is published for runtime checks. Neither badge confirms live availability.', referenceNotesRuntime: 'Only runtime.status or runtime.has inside the running game can report live availability. No per-feature gameplay-effect verification is published here. Game types and resource IDs come from the captured game build, not live game objects.',
 			startWithTask: 'START WITH A TASK', commonTasks: 'What do you want your mod to do?', taskLead: 'Choose an example to see its Lua call and what the response means.', loadingExamples: 'Loading examples…',
 		referenceEyebrow: 'SEARCHABLE REFERENCE', allApiEntries: 'Find an API entry', searchLead: 'Search by task, function, or parameter. Badges describe published evidence, not live availability.', searchLabel: 'Search the API', searchPlaceholder: 'Try “read a setting” or shroudforge.settings.get', clearSearch: 'Clear', filterAll: 'Everything', filterRuntime: 'Runtime', filterGame: 'Game data', functionsTab: 'Lua functions', typesTab: 'Game types', resourcesTab: 'Game resources', loadingCatalog: 'Loading the API catalogue…', typeDataNote: 'These details come from a captured Enshrouded build. They do not describe a live game process.', searchTypes: 'Search game types', typeSearchPlaceholder: 'Type name or field', resourceDataNote: 'Resource names and IDs come from the same captured game snapshot.', searchResources: 'Search game resources', resourceSearchPlaceholder: 'Resource name or ID', referenceFooter: 'The catalogue documents the Lua interface. Check runtime.has or runtime.status inside your mod to learn what is available in the current game process.',
-			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', resultLimit: 'Showing {shown} of {total} matches. Add a search term to narrow the list.', documentedBadge: 'Documented', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
+			apiCount: '{count} API entries', apiCountFiltered: '{count} matching API entries', noApiResults: 'No API entries match this search. Try a shorter task or function name.', resultLimit: 'Showing {shown} of {total} matches. Add a search term to narrow the list.', apiBadge: 'Lua API', operationBadge: 'Runtime declared', capabilityBadge: 'Requires {capability} capability', signatureLabel: 'Lua call', descriptionLabel: 'What it does', parametersLabel: 'Inputs', returnsLabel: 'Returns', errorsLabel: 'Errors', exampleLabel: 'Example', sourceLabel: 'Declaration source', noParameters: 'No named inputs are listed.', noReturn: 'No return value is listed.', noExample: 'No example is included in this declaration.', tryExample: 'Open a matching example',
 		typesLoading: 'Loading captured game types…', resourcesLoading: 'Loading captured game resources…', typeSearchPrompt: 'Enter a type name or field to search the captured catalogue.', resourceSearchPrompt: 'Enter a resource type, GUID, or part number to search.', noTypeResults: 'No captured types match that search.', noResourceResults: 'No captured resources match that search.', showFirst: 'Showing the first {shown} of {total} matches. Add more detail to the search.', typeCount: '{count} game types', resourceCount: '{count} resource types', fieldsCount: '{count} fields', primitiveLabel: 'Kind', sizeLabel: 'Size', alignmentLabel: 'Alignment', fieldsLabel: 'Fields', moreFields: '{count} more fields', enumValues: 'Enum values', resourceEntries: '{count} captured entries', partLabel: 'Part', snapshotLabel: 'Captured snapshot',
 		exampleEditor: 'API CALL EDITOR', editRunExample: 'Build a Lua API call', playgroundLead: 'Choose a task, edit its inputs, and preview sample output. Lua never runs in this browser.', chooseExample: 'Choose a task', loadingExamplesOption: 'Loading examples…', generatedLua: 'Lua code for your mod', copyCode: 'Copy code', runExample: 'Show sample response', exampleResponse: 'SAMPLE RESPONSE', responseHeading: 'What the call may return', sampleOnly: 'Browser sample', runToSeeResponse: 'Choose a task and show its sample response.', noResponseYet: 'No response yet.', responseSource: 'Sample source', sourceChanges: 'The sample source will appear here after you request a response.', viewApiEntry: 'View API entry →', simulationHeading: 'How sample responses work', simulationBody: 'The browser generates a Lua example and reads bundled sample data. It does not execute Lua, query a server, or connect to your running game.', playgroundFooter: 'Copy the generated Lua into your mod. Check live runtime availability in game with runtime.has or runtime.status.',
 			fieldKey: 'Setting key', fieldFallback: 'Fallback value', fieldFeature: 'Runtime feature', fieldTypeName: 'Qualified type name', booleanTrue: 'true', booleanFalse: 'false', scenarioReadSetting: 'Read a mod setting', scenarioRuntimeStatus: 'Check a runtime requirement', scenarioGameType: 'Look up a game type',
@@ -21,7 +21,7 @@
 
 	const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
 	const locale = 'en'
-	const state = { index: null, catalog: null, examples: null, operations: null, worldEditorEvidence: null, gameProfile: null, types: null, resources: null, filter: 'all', typeLoading: false, resourceLoading: false, versionRequest: 0 }
+	const state = { index: null, catalog: null, examples: null, operations: null, gameProfile: null, types: null, resources: null, filter: 'all', typeLoading: false, resourceLoading: false, versionRequest: 0 }
 	const translate = (key, values = {}) => {
 		if (!key) return ''
 		let value = text.en[key] ?? key
@@ -110,10 +110,10 @@
 		const selected = state.index.versions.find(item => item.version === version) || state.index.versions.find(item => item.version === state.index.current) || state.index.versions[0]
 		if (!selected) throw new Error('API version index is empty')
 		const base = `/data/api/${encodeURIComponent(selected.version)}`
-		let catalog, examples, operations, worldEditorEvidence
+		let catalog, examples, operations
 		try {
-			[catalog, examples, operations, worldEditorEvidence] = await Promise.all([
-				fetchJson(`${base}/catalog.json`), fetchJson(`${base}/examples.json`), fetchJson(`${base}/runtime-operations.json`), fetchJson(`${base}/world-editor-references.json`),
+			[catalog, examples, operations] = await Promise.all([
+				fetchJson(`${base}/catalog.json`), fetchJson(`${base}/examples.json`), fetchJson(`${base}/runtime-operations.json`),
 			])
 		} catch (error) {
 			if (request !== state.versionRequest) return
@@ -125,7 +125,6 @@
 		state.catalog = catalog
 		state.examples = examples
 		state.operations = new Set(operations.runtimeOperations)
-		state.worldEditorEvidence = worldEditorEvidence.apiVersion === selected.version ? worldEditorEvidence : null
 		updateQuery({ apiVersion: selected.version })
 		renderVersionPicker()
 		setVersionFacts()
@@ -175,11 +174,10 @@
 	}
 
 	function statusBadges(symbol) {
-		const badges = [`<span class="api-entry-badge is-documented">${escapeHtml(translate('documentedBadge'))}</span>`]
+		const badges = [`<span class="api-entry-badge is-api">${escapeHtml(translate('apiBadge'))}</span>`]
 		const capability = capabilityFor(symbol)
 		if (capability) badges.push(`<span class="api-entry-badge is-capability">${escapeHtml(translate('capabilityBadge', { capability: translate(`${capability}Capability`) }))}</span>`)
 		if (state.operations?.has(symbol.name)) badges.push(`<span class="api-entry-badge is-declared">${escapeHtml(translate('operationBadge'))}</span>`)
-		if (state.worldEditorEvidence?.references?.[symbol.name]?.length) badges.push(`<span class="api-entry-badge is-integration">${escapeHtml(translate('worldEditorReference'))}</span>`)
 		return badges.join('')
 	}
 
@@ -195,7 +193,6 @@
 		const returns = Array.isArray(symbol.returnDetails) && symbol.returnDetails.length
 			? renderParamList(symbol.returnDetails.map(item => ({ ...item, name: item.name || 'value' })), 'returns', 'noReturn')
 			: `<p class="api-return-items">${(symbol.returns || []).map(item => `<code>${escapeHtml(item)}</code>`).join(', ') || escapeHtml(translate('noReturn'))}</p>`
-		const worldEditorReferences = state.worldEditorEvidence?.references?.[symbol.name] || []
 		return `<details class="api-entry-card" data-api-entry data-category="${category}">
 			<summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(signature)}</code><span class="api-entry-summary-description">${htmlInline(symbol.description || '')}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary>
 			<div class="api-entry-detail">
@@ -205,7 +202,6 @@
 				<div class="api-entry-columns"><section class="api-entry-block"><h3>${escapeHtml(translate('parametersLabel'))}</h3>${renderParamList(symbol.params, 'params', 'noParameters')}</section><section class="api-entry-block"><h3>${escapeHtml(translate('returnsLabel'))}</h3>${returns}</section></div>
 				${symbol.errors ? `<div class="api-entry-block"><h3>${escapeHtml(translate('errorsLabel'))}</h3><p>${htmlInline(symbol.errors)}</p></div>` : ''}
 				${symbol.example ? `<div class="api-entry-block"><h3>${escapeHtml(translate('exampleLabel'))}</h3><pre class="api-code-panel"><code>${escapeHtml(symbol.example)}</code></pre></div>` : `<p class="api-detail-muted">${escapeHtml(translate('noExample'))}</p>`}
-				${worldEditorReferences.length ? `<div class="api-entry-block"><h3>${escapeHtml(translate('worldEditorSourceTitle'))}</h3><p>${escapeHtml(translate('worldEditorSourceNote', { name: state.worldEditorEvidence.mod.name, version: state.worldEditorEvidence.mod.version }))}</p><ul class="api-source-links">${worldEditorReferences.map(source => `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noopener"><code>${escapeHtml(source.path)}</code></a></li>`).join('')}</ul></div>` : ''}
 				<p class="api-source-path"><span>${escapeHtml(translate('sourceLabel'))}:</span> <code>${escapeHtml(symbol.source || '—')}</code></p>
 				${tryLink ? `<a class="api-reference-link" href="${escapeHtml(versionRoute('/tools/modding/api-playground/', { scenario: tryLink.id }))}">${escapeHtml(translate('tryExample'))} →</a>` : ''}
 			</div>
@@ -224,7 +220,7 @@
 			if (filter !== 'all' && source !== filter && kind !== filter) return false
 			if (!needle) return true
 			const relatedTasks = (state.examples?.scenarios || []).filter(scenario => scenario.method === symbol.name).flatMap(scenario => [scenario.title?.en, scenario.summary?.en])
-			const searchText = [symbol.name, symbol.signature, symbol.description, symbol.source, state.worldEditorEvidence?.references?.[symbol.name]?.length ? 'world editor' : '', ...(symbol.params || []).map(param => `${param.name} ${param.type} ${param.description}`), ...(symbol.returns || []), ...relatedTasks].join(' ').toLocaleLowerCase(locale)
+			const searchText = [symbol.name, symbol.signature, symbol.description, symbol.source, ...(symbol.params || []).map(param => `${param.name} ${param.type} ${param.description}`), ...(symbol.returns || []), ...relatedTasks].join(' ').toLocaleLowerCase(locale)
 			return needle.split(/\s+/).filter(Boolean).every(term => searchText.includes(term))
 		})
 		const count = $('[data-api-result-count]')
@@ -287,12 +283,12 @@
 			return
 		}
 		const shown = matches.slice(0, 40)
-		target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('showFirst', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(key => {
+			target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('showFirst', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(key => {
 			const item = state.types[key]
 			const fields = Object.values(item.fields || {}).sort((a, b) => a.name.localeCompare(b.name))
 			const visibleFields = fields.slice(0, 35)
 			const enumValues = Object.entries(item.enum_values || {})
-			return `<details class="api-entry-card api-type-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(key)}</code><span class="api-entry-summary-description">${escapeHtml(item.primitive || 'Type')} · ${escapeHtml(translate('fieldsCount', { count: item.field_count ?? fields.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-documented">${escapeHtml(translate('snapshotLabel'))}</span><span class="api-entry-badge is-source">${escapeHtml(item.primitive || 'Type')}</span></div><dl class="api-type-meta"><div><dt>${escapeHtml(translate('primitiveLabel'))}</dt><dd>${escapeHtml(item.primitive || '—')}</dd></div><div><dt>${escapeHtml(translate('sizeLabel'))}</dt><dd>${escapeHtml(item.size ?? '—')} bytes</dd></div><div><dt>${escapeHtml(translate('alignmentLabel'))}</dt><dd>${escapeHtml(item.alignment ?? '—')}</dd></div></dl>${fields.length ? `<h3>${escapeHtml(translate('fieldsLabel'))}</h3><div class="api-field-list">${visibleFields.map(field => `<div><code>${escapeHtml(field.name)}</code><code>${escapeHtml(field.type_name)}</code><span>${escapeHtml(field.data_offset ?? '—')}</span></div>`).join('')}</div>${fields.length > visibleFields.length ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: fields.length - visibleFields.length }))}</p>` : ''}` : ''}${enumValues.length ? `<h3>${escapeHtml(translate('enumValues'))}</h3><div class="api-field-list">${enumValues.slice(0, 40).map(([name, value]) => `<div><code>${escapeHtml(name)}</code><code>${escapeHtml(value)}</code></div>`).join('')}</div>` : ''}</div></details>`
+			return `<details class="api-entry-card api-type-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(key)}</code><span class="api-entry-summary-description">${escapeHtml(item.primitive || 'Type')} · ${escapeHtml(translate('fieldsCount', { count: item.field_count ?? fields.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-snapshot">${escapeHtml(translate('snapshotLabel'))}</span><span class="api-entry-badge is-source">${escapeHtml(item.primitive || 'Type')}</span></div><dl class="api-type-meta"><div><dt>${escapeHtml(translate('primitiveLabel'))}</dt><dd>${escapeHtml(item.primitive || '—')}</dd></div><div><dt>${escapeHtml(translate('sizeLabel'))}</dt><dd>${escapeHtml(item.size ?? '—')} bytes</dd></div><div><dt>${escapeHtml(translate('alignmentLabel'))}</dt><dd>${escapeHtml(item.alignment ?? '—')}</dd></div></dl>${fields.length ? `<h3>${escapeHtml(translate('fieldsLabel'))}</h3><div class="api-field-list">${visibleFields.map(field => `<div><code>${escapeHtml(field.name)}</code><code>${escapeHtml(field.type_name)}</code><span>${escapeHtml(field.data_offset ?? '—')}</span></div>`).join('')}</div>${fields.length > visibleFields.length ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: fields.length - visibleFields.length }))}</p>` : ''}` : ''}${enumValues.length ? `<h3>${escapeHtml(translate('enumValues'))}</h3><div class="api-field-list">${enumValues.slice(0, 40).map(([name, value]) => `<div><code>${escapeHtml(name)}</code><code>${escapeHtml(value)}</code></div>`).join('')}</div>` : ''}</div></details>`
 		}).join('')}`
 	}
 
@@ -310,7 +306,7 @@
 			return
 		}
 		const shown = matches.slice(0, 40)
-		target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('showFirst', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(([name, entries]) => `<details class="api-entry-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(name)}</code><span class="api-entry-summary-description">${escapeHtml(translate('resourceEntries', { count: entries.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-documented">${escapeHtml(translate('snapshotLabel'))}</span></div><div class="api-resource-list">${entries.slice(0, 25).map(entry => `<div><code>${escapeHtml(entry.guid)}</code><span>${escapeHtml(translate('partLabel'))} ${escapeHtml(entry.part ?? 0)}</span></div>`).join('')}</div>${entries.length > 25 ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: entries.length - 25 }))}</p>` : ''}</div></details>`).join('')}`
+		target.innerHTML = `${matches.length > shown.length ? `<p class="api-result-limit">${escapeHtml(translate('showFirst', { shown: shown.length, total: matches.length }))}</p>` : ''}${shown.map(([name, entries]) => `<details class="api-entry-card"><summary><span class="api-entry-summary-main"><code class="api-entry-signature">${escapeHtml(name)}</code><span class="api-entry-summary-description">${escapeHtml(translate('resourceEntries', { count: entries.length }))}</span></span><span class="api-entry-chevron" aria-hidden="true">⌄</span></summary><div class="api-entry-detail"><div class="api-entry-badges"><span class="api-entry-badge is-snapshot">${escapeHtml(translate('snapshotLabel'))}</span></div><div class="api-resource-list">${entries.slice(0, 25).map(entry => `<div><code>${escapeHtml(entry.guid)}</code><span>${escapeHtml(translate('partLabel'))} ${escapeHtml(entry.part ?? 0)}</span></div>`).join('')}</div>${entries.length > 25 ? `<p class="api-detail-muted">${escapeHtml(translate('moreFields', { count: entries.length - 25 }))}</p>` : ''}</div></details>`).join('')}`
 	}
 
 	function renderPlayground(scenarioId) {
