@@ -68,7 +68,7 @@ function apiIntro({ titleKey, titleText, leadKey, leadText, actionLabel, actionH
 
 function taskCards() {
 	return `<section class="mod-preview-section panel api-task-section" aria-labelledby="task-heading">
-		<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="startWithTask">START WITH A TASK</span><h2 id="task-heading" data-i18n="commonTasks">What do you want your mod to do?</h2><p data-i18n="taskLead">Choose a sample to build a Lua call and preview its response.</p></div>${apiVersionControls()}</header>
+		<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="startWithTask">START WITH A TASK</span><h2 id="task-heading" data-i18n="commonTasks">What do you want your mod to do?</h2><p data-i18n="taskLead">Choose a sample to build a Lua call and preview its response.</p></div></header>
 		<div class="api-load-state">${apiLoadError()}</div>
 		<div class="api-task-grid" data-api-tasks><div class="api-loading" role="status" data-i18n="loadingExamples">Loading examples…</div></div>
 	</section>`
@@ -83,9 +83,8 @@ export function renderApiReferencePage({ config, siteUrl }) {
 		actionLabel: { key: 'tryCallsAction', text: 'API calls' },
 		actionHref: playgroundRoute,
 	})}
-		${taskCards()}
 		<section class="editor-stage panel api-reference-panel" aria-labelledby="api-reference-heading">
-			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="referenceEyebrow">API REFERENCE</span><h2 id="api-reference-heading" data-i18n="allApiEntries">Find an API entry</h2><p data-i18n="searchLead">Search by what you want to do, a function name, or a parameter.</p></div><span class="api-result-count" data-api-result-count role="status" aria-live="polite"></span></header>
+			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="referenceEyebrow">API REFERENCE</span><h2 id="api-reference-heading" data-i18n="allApiEntries">Find an API entry</h2><p data-i18n="searchLead">Search by what you want to do, a function name, or a parameter.</p></div><div class="api-reference-heading-controls">${apiVersionControls()}<span class="api-result-count" data-api-result-count role="status" aria-live="polite"></span></div></header>
 			<div class="api-search-row"><label class="api-search-box"><span class="visually-hidden" data-i18n="searchLabel">Search the API</span><input type="search" data-api-search autocomplete="off" placeholder="Try “read a setting” or shroudforge.settings.get" data-i18n-placeholder="searchPlaceholder"></label><button class="button button-secondary api-clear-button" type="button" data-api-clear data-i18n="clearSearch">Clear</button></div>
 			<div class="api-filter-row" role="group" aria-label="API categories" data-i18n-aria-label="apiCategories"><button type="button" class="button button-secondary api-filter is-active" data-api-filter="all" aria-pressed="true" data-i18n="filterAll">Everything</button><button type="button" class="button button-secondary api-filter" data-api-filter="eml" aria-pressed="false">EML</button><button type="button" class="button button-secondary api-filter" data-api-filter="shroudforge" aria-pressed="false">ShroudForge</button><button type="button" class="button button-secondary api-filter" data-api-filter="runtime" aria-pressed="false" data-i18n="filterRuntime">Runtime</button><button type="button" class="button button-secondary api-filter" data-api-filter="game" aria-pressed="false" data-i18n="filterGame">Game API</button></div>
 			<div class="api-catalog-tabs" role="tablist" aria-label="API reference sections" data-i18n-aria-label="apiReferenceSections"><button type="button" role="tab" class="api-tab is-active" aria-selected="true" data-api-tab="functions" data-i18n="functionsTab">Lua functions</button><button type="button" role="tab" class="api-tab" aria-selected="false" data-api-tab="types" data-i18n="typesTab">Game types</button><button type="button" role="tab" class="api-tab" aria-selected="false" data-api-tab="resources" data-i18n="resourcesTab">Game resources</button></div>
@@ -115,16 +114,17 @@ export function renderApiPlaygroundPage({ config, siteUrl }) {
 		actionLabel: { key: 'browseApiAction', text: 'Browse API' },
 		actionHref: referenceRoute,
 	})}
+		${taskCards()}
 		<section class="editor-stage panel api-playground-panel" aria-labelledby="playground-heading">
-			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="exampleEditor">API CALL EDITOR</span><h2 id="playground-heading" data-i18n="editRunExample">Build an API call</h2><p data-i18n="playgroundLead">Choose a task, edit its inputs, and preview an example response. This does not run Lua in the game.</p></div>${apiVersionControls()}</header>
+			<header class="tool-section-heading"><div><span class="eyebrow" data-i18n="exampleEditor">API CALL EDITOR</span><h2 id="playground-heading" data-i18n="editRunExample">Build an API call</h2><p data-i18n="playgroundLead">Choose a task, edit its inputs, and preview an example response. This does not run Lua in the game.</p></div></header>
 			${apiLoadError()}
 			<div class="api-request-column">
 				<label class="api-field-label"><span data-i18n="chooseExample">Choose a task</span><select data-api-scenario aria-label="Choose an API example"><option data-i18n="loadingExamplesOption">Loading examples…</option></select></label>
 				<p class="api-scenario-summary" data-scenario-summary></p>
 				<form data-api-request-form>
 					<div class="api-request-fields" data-request-fields></div>
-					<div class="api-code-heading"><strong data-i18n="generatedLua">Lua code for your mod</strong><button class="text-button" type="button" data-copy-call data-i18n="copyCode">Copy code</button></div>
-					<pre class="api-code-panel"><code data-generated-call></code></pre>
+					<div class="api-code-heading"><strong data-i18n="generatedLua">Lua code for your mod</strong></div>
+					<div class="api-code-row"><pre class="api-code-panel"><code data-generated-call></code></pre><button class="button button-secondary api-copy-button" type="button" data-copy-call data-i18n="copyCode">Copy</button></div>
 					<p class="api-copy-status" data-copy-status role="status" aria-live="polite"></p>
 					<button class="button button-primary api-run-button" type="submit" data-i18n="runExample">Show sample response</button>
 				</form>

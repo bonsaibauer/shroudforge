@@ -1,4 +1,4 @@
-.api-version-controls{display:grid;flex:0 1 350px;min-width:0;gap:10px}
+.api-version-controls{display:grid;min-width:0;width:100%;gap:10px}
 .api-version-controls .preview-version-picker{flex:initial;min-width:0}
 .api-load-error{align-items:center;gap:10px;padding:9px 0}
 .api-load-error[hidden]{display:none}
@@ -15,6 +15,7 @@
 .api-task-copy small{color:var(--text-secondary);font-size:12px;line-height:1.55}
 .api-task-copy code{overflow:hidden;color:var(--brand);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
 .api-reference-panel>.tool-section-heading{align-items:flex-end}
+.api-reference-heading-controls{display:grid;flex:0 1 350px;min-width:0;justify-items:end;gap:8px}
 .api-result-count{color:var(--text-secondary);font-size:12px;white-space:nowrap}
 .api-search-row{display:flex;align-items:flex-end;gap:9px}
 .api-search-box{display:grid;gap:6px;min-width:0;flex:1;color:var(--text-secondary);font-size:11px;font-weight:600}
@@ -80,7 +81,10 @@
 .api-field-label{display:grid;gap:6px;min-width:0;color:var(--text-secondary);font-size:12px;font-weight:600}
 .api-scenario-summary{margin:10px 0 13px;color:var(--text-secondary);font-size:13px;line-height:1.6}
 .api-request-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
-.api-code-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:18px;color:var(--text-primary);font-size:13px}
+.api-code-heading{display:flex;align-items:center;gap:8px;margin-top:18px;color:var(--text-primary);font-size:13px}
+.api-code-row{display:flex;align-items:stretch;min-width:0;margin-top:7px;overflow:hidden;border:1px solid var(--surface-5);border-radius:10px;background:#111d21}
+.api-code-row .api-code-panel{flex:1;min-width:0;margin:0;border:0;border-radius:0;background:transparent;white-space:pre;overflow-wrap:normal}
+.api-copy-button{flex:0 0 auto;align-self:center;margin:6px}
 .api-run-button{margin-top:13px}
 .api-copy-status{min-height:18px;margin:6px 2px 0;color:var(--text-secondary);font-size:12px}
 .api-response-section>.tool-section-heading{align-items:flex-start}
@@ -105,4 +109,4 @@
 html[data-theme='light'] .api-tool-main .api-reference-notes-content{color:var(--page-text-secondary)}
 @media(max-width:1100px){.api-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.api-request-fields{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:650px){.api-version-controls{flex-basis:auto;width:100%}.api-task-grid,.api-entry-columns{grid-template-columns:minmax(0,1fr)}.api-reference-panel>.tool-section-heading{display:grid}.api-search-row{align-items:stretch;flex-direction:column}.api-clear-button{align-self:flex-end}.api-filter-row .api-filter{flex:1 1 auto}.api-field-list>div{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.api-field-list>div span{grid-column:1/-1}}
+@media(max-width:650px){.api-version-controls{width:100%}.api-task-grid,.api-entry-columns{grid-template-columns:minmax(0,1fr)}.api-reference-panel>.tool-section-heading{display:grid}.api-reference-heading-controls{justify-items:stretch;width:100%}.api-reference-heading-controls>.api-result-count{justify-self:start}.api-search-row{align-items:stretch;flex-direction:column}.api-clear-button{align-self:flex-end}.api-filter-row .api-filter{flex:1 1 auto}.api-field-list>div{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.api-field-list>div span{grid-column:1/-1}}
