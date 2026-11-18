@@ -72,6 +72,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
 }
 .header-link .icon { color: var(--header-color, currentColor); transition: transform var(--sf-speed) ease; }
+.top-actions .header-link.discord .icon { width: 20px; height: 20px; }
 .header-link.github { --header-color: #d4e4e5; --header-border: rgba(145, 181, 181, 0.26); --header-bg: rgba(34, 54, 57, 0.48); }
 .header-link.discord { --header-color: #b4baff; --header-border: rgba(88, 101, 242, 0.48); --header-bg: rgba(55, 63, 145, 0.3); }
 .header-link.danger { --header-color: #ff9a9f; --header-border: rgba(255, 112, 120, 0.28); --header-bg: rgba(96, 35, 40, 0.28); }
