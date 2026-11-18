@@ -150,7 +150,7 @@ async function validate() {
   const recommended = feed.releases.find(release => !release.prerelease);
   if (recommended) assert(software.softwareVersion === recommended.version, "Software metadata must describe the latest stable version.");
 
-  for (const relative of ["assets/styles.css", "assets/filters.js", "assets/installation-guide.js", "assets/mod-settings.css", "assets/mod-settings.js", "assets/schemas.css", "assets/schemas.js", "assets/theme.js", "assets/hammer.png", "assets/favicon.ico", "assets/inter-latin.woff2", "licenses/Inter-OFL.txt"]) {
+  for (const relative of ["assets/styles.css", "assets/filters.js", "assets/installation-guide.js", "assets/mod-settings.css", "assets/mod-settings.js", "assets/schemas.css", "assets/schemas.js", "assets/api-tools.css", "assets/api-tools.js", "assets/theme.js", "assets/hammer.png", "assets/favicon.ico", "assets/inter-latin.woff2", "licenses/Inter-OFL.txt"]) {
     await readRequired(relative);
   }
   const previewServer = await fs.readFile(path.resolve(import.meta.dirname, "preview-site.mjs"), "utf8");
@@ -163,7 +163,8 @@ async function validate() {
   const toolTags = tagsFrom(toolHtml);
   assert(/^<!doctype html>/i.test(toolHtml.trimStart()), "Mod-Settings must be an HTML5 document.");
   assert((toolHtml.match(/<h1\b/gi) || []).length === 1 && /<h1[^>]*>Mod-Settings<\/h1>/i.test(toolHtml), "Mod-Settings needs one visible title.");
-  assert(/<div class="tools-nav-group">\s*<div class="tools-category-label">Modding<\/div>\s*<a[^>]*href="\/tools\/modding\/mod-settings\/"[^>]*>Mod-Settings<\/a>\s*<\/div>/.test(toolHtml), "Mod-Settings must appear under the Modding category in the Tools sidebar.");
+  const moddingNavGroup = toolHtml.match(/<div class="tools-nav-group">\s*<div class="tools-category-label"[^>]*>Modding<\/div>([\s\S]*?)<\/div>/)?.[1] || "";
+  assert(tagsFrom(moddingNavGroup).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/mod-settings/") && tagsFrom(moddingNavGroup).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/api-playground/") && tagsFrom(moddingNavGroup).some(tag => tag.name === "a" && tag.attributes.href === "/tools/modding/api-reference/"), "The Modding sidebar must include Mod-Settings and both API tools.");
   assert(toolHtml.includes(`value="${repositoryVersion}">${repositoryVersion}</option>`), "The preview selector must display only the current repository Modloader version.");
   assert(toolHtml.includes('data-json-editor="manifest"') && toolHtml.includes('data-json-editor="extended"'), "Mod-Settings must expose both manifest JSON editors.");
   assert(["id", "name", "version", "description", "authors", "license", "icon"].every(field => toolHtml.includes(`data-manifest-field="${field}"`)) && !toolHtml.includes('data-manifest-field="$schema"') && toolHtml.includes("data-manifest-dependencies") && toolHtml.includes("data-manifest-capabilities"), "The Mod-Settings form must expose manifest metadata, dependencies and capabilities without a manual schema-path field.");
@@ -213,7 +214,7 @@ async function validate() {
   const robots = await readRequired("robots.txt");
   assert(robots.includes("Allow: /") && robots.includes(`Sitemap: ${siteUrl}/sitemap.xml`), "Website robots.txt does not expose the canonical sitemap.");
   const sitemap = await readRequired("sitemap.xml");
-  assert(sitemap.includes(`<loc>${siteUrl}/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/mod-settings/</loc>`) && sitemap.includes(`<loc>${siteUrl}/schemas/</loc>`) && !sitemap.includes("/standards/dinput8-chain/"), "Website sitemap must contain the homepage, Mod-Settings tool and schema catalog, with external standards linked directly.");
+  assert(sitemap.includes(`<loc>${siteUrl}/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/mod-settings/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/api-reference/</loc>`) && sitemap.includes(`<loc>${siteUrl}/tools/modding/api-playground/</loc>`) && sitemap.includes(`<loc>${siteUrl}/schemas/</loc>`) && !sitemap.includes("/standards/dinput8-chain/"), "Website sitemap must contain the homepage, Modding tools and schema catalog, with external standards linked directly.");
   await validateLocalLinks(toolTags, siteUrl, toolRelative);
   const schemaHtml = await readRequired("schemas/index.html");
   const schemaTags = tagsFrom(schemaHtml);

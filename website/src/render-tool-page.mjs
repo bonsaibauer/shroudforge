@@ -3,17 +3,21 @@ import { icon } from './icons.mjs'
 
 const route = '/tools/modding/mod-settings/'
 const schemasRoute = '/schemas/'
+const apiPlaygroundRoute = '/tools/modding/api-playground/'
+const apiReferenceRoute = '/tools/modding/api-reference/'
 
 export function renderToolsSidebar(active, config) {
 	return `<aside class="sidebar tools-sidebar" aria-label="Tools navigation">
 		<div class="tools-sidebar-panel panel">
-			<h2>Tools</h2>
+			<h2 data-i18n="toolsNavLabel">Tools</h2>
 			<div class="tools-nav-group">
-				<div class="tools-category-label">Modding</div>
-				<a class="tool-nav-item${active === 'mod-settings' ? ' is-active' : ''}" href="${route}"${active === 'mod-settings' ? ' aria-current="page"' : ''}>Mod-Settings</a>
+				<div class="tools-category-label" data-i18n="moddingNavLabel">Modding</div>
+				<a class="tool-nav-item${active === 'mod-settings' ? ' is-active' : ''}" href="${route}"${active === 'mod-settings' ? ' aria-current="page"' : ''} data-i18n="modSettingsNav">Mod-Settings</a>
+				<a class="tool-nav-item${active === 'api-playground' ? ' is-active' : ''}" href="${apiPlaygroundRoute}"${active === 'api-playground' ? ' aria-current="page"' : ''} data-i18n="apiCallsNav">API calls</a>
+				<a class="tool-nav-item${active === 'api-reference' ? ' is-active' : ''}" href="${apiReferenceRoute}"${active === 'api-reference' ? ' aria-current="page"' : ''} data-i18n="browseApiNav">Browse API</a>
 			</div>
 			<div class="tools-nav-group">
-				<div class="tools-category-label">Standards</div>
+				<div class="tools-category-label" data-i18n="standardsNavLabel">Standards</div>
 				<a class="tool-nav-item${active === 'schemas' ? ' is-active' : ''}" href="${schemasRoute}"${active === 'schemas' ? ' aria-current="page"' : ''}>Schemas</a>
 				<a class="tool-nav-item" href="${escapeHtml(config.dinput8ChainStandardUrl)}">${icon('external')} DInput8 Standard</a>
 			</div>

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readApiVersion } from "./read-api-version.mjs";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const site = path.join(root, "build", "website");
@@ -9,7 +10,8 @@ const profile = JSON.parse(fs.readFileSync(path.join(snapshot, "profile.json"), 
 const types = JSON.parse(fs.readFileSync(path.join(snapshot, "types.json"), "utf8"));
 const resources = JSON.parse(fs.readFileSync(path.join(snapshot, "resources.json"), "utf8"));
 const api = JSON.parse(fs.readFileSync(path.join(site, "data", "api.json"), "utf8"));
-const version = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+const version = readApiVersion(root);
+const shroudforgeVersion = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
 
 for (const name of ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"]) {
   const source = fs.readFileSync(path.join(root, "modules", "modloader", "manifest", name), "utf8");
@@ -17,7 +19,8 @@ for (const name of ["manifest.schema.json", "extended.mod.schema.json", "mod-loc
   if (source !== published) throw new Error(`published schema is stale: ${name}`);
 }
 
-if (api.version !== version) throw new Error(`site API ${api.version} does not match VERSION ${version}`);
+if (api.version !== version) throw new Error(`site API ${api.version} does not match shroudforge-api package version ${version}`);
+if (api.shroudforge_version !== shroudforgeVersion) throw new Error(`site release ${api.shroudforge_version} does not match VERSION ${shroudforgeVersion}`);
 if (Object.keys(types).length !== profile.type_count) throw new Error("type count does not match profile");
 if (Object.keys(resources).length !== profile.resource_type_count) throw new Error("resource type count does not match profile");
 const fieldCount = Object.values(types).reduce((sum, type) => sum + Object.keys(type.fields || {}).length, 0);
@@ -51,4 +54,4 @@ const publicSource = [fs.readFileSync(path.join(site, "index.html"), "utf8"), JS
 for (const forbidden of ["native bridge", "runtime patches", "api->", "create_patch", "set_patch_enabled"]) {
   if (publicSource.includes(forbidden)) throw new Error(`unsupported API token in public site: ${forbidden}`);
 }
-console.log(`Validated ShroudForge API ${version}: ${api.symbols.length} Lua symbols, ${profile.type_count} types, ${profile.field_count} fields, ${profile.resource_type_count} resource types.`);
+console.log(`Validated ShroudForge API ${version} from release ${shroudforgeVersion}: ${api.symbols.length} Lua symbols, ${profile.type_count} types, ${profile.field_count} fields, ${profile.resource_type_count} resource types.`);

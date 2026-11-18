@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readApiVersion } from "./read-api-version.mjs";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const definitions = path.join(root, "modules", "mod-runtime", "lua");
@@ -26,7 +27,8 @@ fs.copyFileSync(
 const dataDirectory = path.join(outputDirectory, "data");
 const schemasDirectory = path.join(outputDirectory, "schemas");
 const output = path.join(dataDirectory, "api.json");
-const version = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
+const version = readApiVersion(root);
+const shroudforgeVersion = fs.readFileSync(path.join(root, "VERSION"), "utf8").trim();
 fs.mkdirSync(schemasDirectory, { recursive: true });
 for (const name of ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"]) {
   fs.copyFileSync(
@@ -154,8 +156,8 @@ for (const symbol of symbols) {
   addMissingParameterHelp(symbol);
 }
 
-fs.writeFileSync(output, JSON.stringify({ version, symbols }, null, 2) + "\n");
-console.log(`Generated ${symbols.length} implemented Lua symbols for ShroudForge API ${version}.`);
+fs.writeFileSync(output, JSON.stringify({ version, shroudforge_version: shroudforgeVersion, symbols }, null, 2) + "\n");
+console.log(`Generated ${symbols.length} documented Lua symbols for API ${version} from ShroudForge ${shroudforgeVersion}.`);
 
 function parseReturnAnnotation(value) {
   if (!value.startsWith("@return ")) return [];

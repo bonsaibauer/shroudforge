@@ -91,7 +91,7 @@
       "links": [
         { "labelKey": "news.link.firstMod", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#first" },
         { "labelKey": "news.link.extendedModJson", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#doc-extended-mod-json-guide" },
-        { "labelKey": "news.link.api", "url": "https://bonsaibauer.github.io/shroudforge/{locale}/#api" }
+        { "labelKey": "news.link.api", "url": "https://shroudforge.net/tools/modding/api-reference/" }
       ]
     },
     {

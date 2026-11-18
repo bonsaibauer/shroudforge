@@ -1,0 +1,51 @@
+[
+  {
+    "id": "read-mod-setting",
+    "method": "shroudforge.settings.get",
+    "category": "mod-settings",
+    "title": {
+      "en": "Read a mod setting"
+    },
+    "summary": {
+      "en": "Use the same value the player selected in Modloader."
+    },
+    "inputs": [
+      { "name": "key", "type": "string", "value": "showOnLoad" },
+      { "name": "fallback", "type": "boolean", "value": false }
+    ],
+    "handler": "mod-setting",
+    "source": "Starter Mod example: extended.mod.json settings"
+  },
+  {
+    "id": "check-runtime-availability",
+    "method": "runtime.status",
+    "category": "runtime",
+    "title": {
+      "en": "Check a runtime requirement"
+    },
+    "summary": {
+      "en": "See how a mod can handle an available or unavailable operation."
+    },
+    "inputs": [
+      { "name": "feature", "type": "select", "value": "runtime.lifecycle", "options": ["runtime.lifecycle", "runtime.world.cursor.get"] }
+    ],
+    "handler": "runtime-status",
+    "source": "A documented example scenario. This does not inspect a running game."
+  },
+  {
+    "id": "look-up-game-type",
+    "method": "game.types.get",
+    "category": "game-data",
+    "title": {
+      "en": "Look up a game type"
+    },
+    "summary": {
+      "en": "Query the captured Enshrouded type catalogue and inspect its fields."
+    },
+    "inputs": [
+      { "name": "qualified_name", "type": "string", "value": "keen::Achievement" }
+    ],
+    "handler": "game-type",
+    "source": "Captured Enshrouded game data snapshot"
+  }
+]

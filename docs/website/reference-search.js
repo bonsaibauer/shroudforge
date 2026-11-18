@@ -23,6 +23,7 @@ export function createReferenceSearch({ locale, esc, fmt, apiText, copy, state, 
   }
 
   async function loadCatalog() {
+    if (!$("#api-results")) return;
     if (state.apiLoaded) { renderApi($("#api-search")?.value || ""); return; }
     if (apiLoadPromise) return apiLoadPromise;
     setCatalogStatus(locale === "de" ? "Lua-API wird geladen …" : "Loading Lua API …");
