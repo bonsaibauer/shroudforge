@@ -114,7 +114,7 @@
       "kind": "notice.multiplayerSupport",
       "beta": false,
       "englishOnly": false,
-      "title": "Multiplayer support for all ShroudForge mods",
+      "title": "Multiplayer support for the five standard ShroudForge mods",
       "message": "All five mods currently included with ShroudForge support multiplayer. See the server guides for setup details.",
       "level": "info"
     },

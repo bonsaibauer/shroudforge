@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 390" fill="none" role="img" aria-labelledby="title desc">
-  <title id="title">Multiplayer support for all ShroudForge mods</title>
-  <desc id="desc">SF Crafting Essentials, SF Survival, SF Unlimited Flight, SF Unlock Blueprints, and World Editor support multiplayer.</desc>
+  <title id="title">Multiplayer support for the five standard ShroudForge mods</title>
+  <desc id="desc">The logos for SF Crafting Essentials, SF Survival, SF Unlimited Flight, SF Unlock Blueprints, and World Editor show that the five standard ShroudForge mods support multiplayer.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="390" gradientUnits="userSpaceOnUse">
       <stop stop-color="#17282D"/>
@@ -29,35 +29,97 @@
   <g font-family="Segoe UI, Arial, sans-serif">
     <text x="64" y="62" fill="#D0AE6D" font-size="15" font-weight="800" letter-spacing="3">SHROUDFORGE · MULTIPLAYER</text>
     <text x="60" y="145" fill="#F3FFD9" font-size="62" font-weight="900" letter-spacing="-2">MULTIPLAYER SUPPORT</text>
-    <text x="64" y="197" fill="#A8F1DF" font-size="29" font-weight="750" letter-spacing=".4">FOR ALL SHROUDFORGE MODS</text>
-    <text x="64" y="239" fill="#B8C9C5" font-size="18" font-weight="550">The full ShroudForge mod collection, ready for your multiplayer world.</text>
+    <text x="64" y="197" fill="#A8F1DF" font-size="29" font-weight="750" letter-spacing=".4">FOR THE FIVE STANDARD MODS</text>
+    <text x="64" y="239" fill="#B8C9C5" font-size="18" font-weight="550">The five standard ShroudForge mods, ready for your multiplayer world.</text>
   </g>
 
   <g transform="translate(64 275)" font-family="Segoe UI, Arial, sans-serif">
     <g>
       <rect width="210" height="48" rx="8" fill="#101D22" stroke="#38545A"/>
-      <circle cx="22" cy="24" r="5" fill="#D0AE6D"/>
-      <text x="38" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Crafting Essentials</text>
+      <svg x="8" y="8" width="32" height="32" viewBox="0 0 128 128" fill="none">
+        <defs>
+          <linearGradient id="crafting-clock" x1="37" y1="37" x2="85" y2="91" gradientUnits="userSpaceOnUse"><stop stop-color="#ffe8a6"/><stop offset="1" stop-color="#c48636"/></linearGradient>
+          <linearGradient id="crafting-ingot" x1="70" y1="80" x2="100" y2="103" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0bd"/><stop offset="1" stop-color="#d99d4c"/></linearGradient>
+        </defs>
+        <rect x="5" y="5" width="118" height="118" rx="29" fill="#1c1915" stroke="#62513b" stroke-width="2"/>
+        <path d="M57 29h12m-6 0v9m20 3 6-6" stroke="#fff0bf" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="63" cy="64" r="27" fill="url(#crafting-clock)" stroke="#fff0bf" stroke-width="3"/>
+        <circle cx="63" cy="64" r="20" fill="#34291e" stroke="#ffe8a6" stroke-width="2"/>
+        <path d="M63 49v15l10 6" stroke="#fff4d3" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="63" cy="64" r="3" fill="#fff0bd"/>
+        <path d="M30 54h-8m8 10H19m11 10h-8" stroke="#d99d4c" stroke-width="3" stroke-linecap="round"/>
+        <path d="m73 82 21-4 11 13-5 12H69l-5-11 9-10Z" fill="url(#crafting-ingot)" stroke="#fff0c6" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="m73 82 5 11 27-2M64 92l14 1-9 10" stroke="#fff4d3" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+      <text x="48" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Crafting Essentials</text>
     </g>
     <g transform="translate(222)">
       <rect width="125" height="48" rx="8" fill="#101D22" stroke="#38545A"/>
-      <circle cx="22" cy="24" r="5" fill="#81C69F"/>
-      <text x="38" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Survival</text>
+      <svg x="8" y="8" width="32" height="32" viewBox="0 0 128 128" fill="none">
+        <defs>
+          <linearGradient id="survival-shield" x1="34" y1="19" x2="92" y2="105" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0bd"/><stop offset=".48" stop-color="#e1b35f"/><stop offset="1" stop-color="#a66b2d"/></linearGradient>
+          <linearGradient id="survival-heart" x1="48" y1="40" x2="82" y2="84" gradientUnits="userSpaceOnUse"><stop stop-color="#fff8dc"/><stop offset="1" stop-color="#efc66e"/></linearGradient>
+        </defs>
+        <rect x="5" y="5" width="118" height="118" rx="29" fill="#1c1915" stroke="#62513b" stroke-width="2"/>
+        <path d="M64 18 98 31v25c0 25-14 42-34 55C44 98 30 81 30 56V31l34-13Z" fill="url(#survival-shield)" stroke="#fff0c4" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M64 25 90 35v21c0 20-10 34-26 44C48 90 38 76 38 56V35l26-10Z" fill="#282119" stroke="#8c6738" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M64 43c-5-9-18-7-20 4-2 10 9 20 20 28 11-8 22-18 20-28-2-11-15-13-20-4Z" fill="url(#survival-heart)" stroke="#fff4d2" stroke-width="2.5" stroke-linejoin="round"/>
+      </svg>
+      <text x="48" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Survival</text>
     </g>
     <g transform="translate(359)">
       <rect width="171" height="48" rx="8" fill="#101D22" stroke="#38545A"/>
-      <circle cx="22" cy="24" r="5" fill="#A8F1DF"/>
-      <text x="38" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Unlimited Flight</text>
+      <svg x="8" y="8" width="32" height="32" viewBox="0 0 128 128" fill="none">
+        <defs>
+          <linearGradient id="flight-wing" x1="42" y1="31" x2="91" y2="73" gradientUnits="userSpaceOnUse"><stop stop-color="#d5fff6"/><stop offset="1" stop-color="#55c3c1"/></linearGradient>
+          <linearGradient id="flight-body" x1="42" y1="48" x2="99" y2="83" gradientUnits="userSpaceOnUse"><stop stop-color="#8ce3d9"/><stop offset="1" stop-color="#398f9e"/></linearGradient>
+        </defs>
+        <rect x="5" y="5" width="118" height="118" rx="29" fill="#101d22" stroke="#38545a" stroke-width="2"/>
+        <path d="M25 97c7-3 13-8 17-15m-8 23c8-4 14-9 19-16" stroke="#429bb2" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+        <path d="M63 58C56 45 50 34 49 24c15 8 28 18 36 31-8-2-16-1-22 3Z" fill="url(#flight-wing)" stroke="#e5fff8" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M62 56 53 34m16 19L59 31m20 24L66 29" stroke="#72cfc8" stroke-width="2" stroke-linecap="round"/>
+        <path d="M36 77c13-5 21-16 30-25 7-7 15-9 22-6l8-7v9c9-1 16 2 21 7-7 6-15 9-24 8-6 9-16 15-28 18l-17 9-17-2 11-10-14 1 8-8Z" fill="url(#flight-body)" stroke="#cffff3" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="m94 48 8 1-7 5" fill="#ffe8a3" stroke="#ffe8a3" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="88" cy="49" r="1.8" fill="#10252b"/>
+        <path d="M43 77 29 72l9 12-9 7 20-5m9-2-11 13" stroke="#b4f2e9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <text x="48" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Unlimited Flight</text>
     </g>
     <g transform="translate(542)">
       <rect width="195" height="48" rx="8" fill="#101D22" stroke="#38545A"/>
-      <circle cx="22" cy="24" r="5" fill="#E1F5B3"/>
-      <text x="38" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Unlock Blueprints</text>
+      <svg x="8" y="8" width="32" height="32" viewBox="0 0 128 128" fill="none">
+        <defs>
+          <linearGradient id="blueprints-paper" x1="39" y1="32" x2="87" y2="93" gradientUnits="userSpaceOnUse"><stop stop-color="#c8b6ff"/><stop offset="1" stop-color="#7865c1"/></linearGradient>
+          <linearGradient id="blueprints-lock" x1="71" y1="68" x2="99" y2="99" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0bd"/><stop offset="1" stop-color="#d49a4d"/></linearGradient>
+        </defs>
+        <rect x="5" y="5" width="118" height="118" rx="29" fill="#171522" stroke="#52466f" stroke-width="2"/>
+        <path d="M39 35h37l13 13v39a7 7 0 0 1-7 7H46a7 7 0 0 1-7-7V35Z" fill="url(#blueprints-paper)" stroke="#e0d7ff" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M76 35v14h13M48 53h17m-17 9h13m-13 9h10" stroke="#f1edff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M69 83v-6a10 10 0 0 1 20 0v6" stroke="#fff1c7" stroke-width="4" stroke-linecap="round"/>
+        <rect x="65" y="80" width="29" height="22" rx="5" fill="url(#blueprints-lock)" stroke="#fff3cd" stroke-width="2.5"/>
+        <circle cx="79.5" cy="89" r="2.5" fill="#72532d"/>
+        <path d="M80 91v4" stroke="#72532d" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="m47 42 3 3m10-3 3 3" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+      </svg>
+      <text x="48" y="29" fill="#E7EEEA" font-size="13" font-weight="700">Unlock Blueprints</text>
     </g>
     <g transform="translate(749)">
       <rect width="151" height="48" rx="8" fill="#101D22" stroke="#38545A"/>
-      <circle cx="22" cy="24" r="5" fill="#CA9147"/>
-      <text x="38" y="29" fill="#E7EEEA" font-size="13" font-weight="700">World Editor</text>
+      <svg x="8" y="8" width="32" height="32" viewBox="0 0 128 128" fill="none">
+        <defs>
+          <linearGradient id="world-editor-globe" x1="37" y1="34" x2="91" y2="91" gradientUnits="userSpaceOnUse"><stop stop-color="#a8f1df"/><stop offset="1" stop-color="#347f88"/></linearGradient>
+          <linearGradient id="world-editor-land" x1="42" y1="45" x2="83" y2="78" gradientUnits="userSpaceOnUse"><stop stop-color="#e1f5b3"/><stop offset="1" stop-color="#81c69f"/></linearGradient>
+          <linearGradient id="world-editor-pencil" x1="76" y1="72" x2="104" y2="101" gradientUnits="userSpaceOnUse"><stop stop-color="#fff0b0"/><stop offset="1" stop-color="#ca9147"/></linearGradient>
+        </defs>
+        <rect x="5" y="5" width="118" height="118" rx="29" fill="#101d22" stroke="#38545a" stroke-width="2"/>
+        <circle cx="59" cy="59" r="29" fill="url(#world-editor-globe)" stroke="#d1fff2" stroke-width="3"/>
+        <path d="M30 59h58M59 30c-9 8-14 18-14 29s5 21 14 29m0-58c9 8 14 18 14 29s-5 21-14 29M37 44h44M37 74h44" stroke="#ddfff4" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+        <path d="m42 48 10-7 8 4 2 8-7 4 2 9-8 7-8-6-2-9 5-4-4-6Zm24 0 9-4 8 6-4 8-7 2-6-5 2-7Zm3 24 7-5 8 5-4 8-8 3-5-5 2-6Z" fill="url(#world-editor-land)" stroke="#f3ffd9" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="m74 82 23-23a7 7 0 0 1 10 10L84 92l-15 5 5-15Z" fill="url(#world-editor-pencil)" stroke="#fff3c8" stroke-width="2.8" stroke-linejoin="round"/>
+        <path d="m92 64 10 10M74 82l10 10" stroke="#79582e" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="m69 97 5-2-3-3-2 5Z" fill="#fff3c8"/>
+      </svg>
+      <text x="48" y="29" fill="#E7EEEA" font-size="13" font-weight="700">World Editor</text>
     </g>
   </g>
 
