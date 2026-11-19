@@ -8,6 +8,7 @@ import { Snapshot } from './ui-snapshot'
 import { ModeBadge } from '../../ui-resources/show-mode-badge'
 import { WikiHelp } from '../../wiki/ui/show-wiki-help'
 import type { WikiModuleSettings } from '../../wiki/mediawiki-api'
+import type { ChirperMotion } from '../../notifications/ui/notification-types'
 
 export function TopBar({
   data,
@@ -28,6 +29,7 @@ export function TopBar({
   unread,
   severity,
   crowded,
+  motion,
   title,
   onChirper,
 }: {
@@ -49,6 +51,7 @@ export function TopBar({
   unread: number
   severity: string
   crowded: boolean
+  motion: ChirperMotion | null
   title: string
   onChirper(): void
 }) {
@@ -121,6 +124,7 @@ export function TopBar({
           badge={unread || undefined}
           severity={severity}
           crowded={crowded}
+          motion={motion}
           title={title}
           onClick={onChirper}
         />}

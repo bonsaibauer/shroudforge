@@ -212,8 +212,18 @@ export function App() {
     chirperSeverity,
     chirperTitle,
     chirperItems,
+    chirperMotion,
     markRead,
-  } = useNotifications(newsSource, settings, remoteTarget, read[remoteTarget], setRead)
+  } = useNotifications(
+    newsSource,
+    settings,
+    remoteTarget,
+    read[remoteTarget],
+    setRead,
+    remoteTarget === 'client'
+      ? data.newsTemplates !== undefined
+      : serverAdminAuthenticated && serverView !== null,
+  )
   const activeMod = displayedMods.find((mod) => mod.id === selectedMod)
   const compatibilityStatus = compatibilityNavigationStatus(activeData)
   const runtimeCheck = activeData.configuration?.checks.find((check) => check.id === 'runtime')
@@ -455,6 +465,7 @@ export function App() {
         unread={unread.length}
         severity={chirperSeverity}
         crowded={unread.length >= 5}
+        motion={chirperMotion}
         title={chirperTitle}
         onChirper={() => setChirper(true)}
       />
