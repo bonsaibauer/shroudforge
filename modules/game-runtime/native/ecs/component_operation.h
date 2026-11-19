@@ -37,7 +37,6 @@ struct ReadManyOperation {
     std::vector<ComponentType> components;
     std::vector<std::uintptr_t> addresses;
     std::vector<std::uint8_t> output, present, verification;
-    ReadRegionCache regions;
     bool result{};
 };
 
