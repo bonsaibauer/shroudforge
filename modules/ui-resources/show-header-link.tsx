@@ -3,6 +3,7 @@ import { Icon } from './show-icon'
 export function HeaderLink({
   label,
   icon,
+  useInlineIcon = false,
   iconOnly = false,
   collapseOnHover = false,
   tone = '',
@@ -14,6 +15,7 @@ export function HeaderLink({
 }: {
   label: string
   icon: string
+  useInlineIcon?: boolean
   iconOnly?: boolean
   collapseOnHover?: boolean
   tone?: string
@@ -23,7 +25,7 @@ export function HeaderLink({
   title?: string
   onClick(): void
 }) {
-  const asset = linkAssetIcons[icon]
+  const asset = useInlineIcon ? undefined : linkAssetIcons[icon]
   const marker =
     severity === 'error'
       ? '🚨'

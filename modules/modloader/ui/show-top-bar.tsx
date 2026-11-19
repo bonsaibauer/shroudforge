@@ -95,6 +95,7 @@ export function TopBar({
         <HeaderLink
           label={t('header.discord')}
           icon="discord"
+          useInlineIcon
           collapseOnHover
           tone="discord"
           onClick={() => external('https://discord.com/invite/jH2gNJYnt2')}
