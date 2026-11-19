@@ -223,7 +223,9 @@ export function App() {
     [settings.targetUi],
   )
   const pageVisible = (id: PageId, target: 'client' | 'server' = remoteTarget) =>
-    isTargetUiVisible('pages', id, target, targetUi) &&
+    (id === 'server-management'
+      ? target === 'server'
+      : isTargetUiVisible('pages', id, target, targetUi)) &&
     (id !== 'compatibility' ||
       ['modDetection', 'dllManager', 'modloaderUi', 'runtimeDiagnostics'].some((module) =>
         isTargetUiVisible('modules', module, target, targetUi),
@@ -237,8 +239,9 @@ export function App() {
       'discover',
       'updates',
       'recycle-bin',
-      'wiki',
       'settings',
+      'server-management',
+      'wiki',
     ]
     return pages.find((id) => pageVisible(id, target)) ?? 'settings'
   }
@@ -500,6 +503,12 @@ export function App() {
                 label={t('nav.settings')}
                 active={!activeMod && page === 'settings'}
                 onClick={() => navigate('settings')}
+              />}
+              {pageVisible('server-management') && <Nav
+                icon="server"
+                label={t('nav.serverManagement')}
+                active={!activeMod && page === 'server-management'}
+                onClick={() => navigate('server-management')}
               />}
               {pageVisible('wiki') && (
                 <Nav

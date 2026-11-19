@@ -160,6 +160,7 @@ export type PageId =
   | 'recycle-bin'
   | 'compatibility'
   | 'settings'
+  | 'server-management'
   | 'wiki'
 
 export type LinkDefinition = {

@@ -16,6 +16,7 @@ import type { CompatibilityTab } from './show-compatibility'
 import { RecycleBin } from '../../updater/ui/show-recycle-bin'
 import type { UpdaterCommand } from '../../updater/ui/update-types'
 import { WikiPage } from '../../wiki/ui/show-wiki'
+import { ServerManagement } from './show-server-management'
 
 export function Page({
   id,
@@ -144,6 +145,8 @@ export function Page({
         notifyCommandResult={notifyCommandResult}
       />
     )
+  if (id === 'server-management')
+    return <ServerManagement onCommand={onUpdaterCommand} />
   return (
     <SettingsPage data={data} settings={settings} setSettings={setSettings}
       openWikiCategory={openWikiCategory} notifyCommandResult={notifyCommandResult} />
