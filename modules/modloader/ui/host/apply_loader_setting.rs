@@ -30,8 +30,15 @@ pub(crate) fn apply_loader_setting(
         })
         .unwrap_or(false);
     let local_target_setting = module.as_deref() == Some("modloaderUi") && key == "remoteTarget";
-    let remote_config = (selected_server && scope == "module" && !local_target_setting)
+    let remote_config = (selected_server && !arguments.server && scope == "module" && !local_target_setting)
         .then(|| shroudforge_loader_config::paths::remote_server_config(&arguments.root));
+
+    if arguments.vanilla_session && remote_config.is_some() {
+        report_command_result(&arguments.root, webview, &request_id, "Server Modloader",
+            "Save server settings", Err("Server settings are unavailable while the client is in Vanilla mode".into()),
+            "settings.saved", Some("settings"), true);
+        return;
+    }
 
     if let Some(remote_config) = remote_config {
         let root = arguments.root.clone();

@@ -780,6 +780,8 @@
         "modloaderUi": {
           "type": "object",
           "properties": {
+            "vanillaClient": { "type": "boolean" },
+            "vanillaServer": { "type": "boolean" },
             "enabled": {
               "type": "boolean"
             },

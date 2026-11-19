@@ -45,7 +45,12 @@ impl SnapshotRefresher {
         let (requests, request_receiver) = mpsc::channel::<serde_json::Value>();
         let (result_sender, results) = mpsc::channel();
         let root = arguments.root.clone();
-        let (game_pid, desktop, server) = (arguments.game_pid, arguments.desktop, arguments.server);
+        let (game_pid, desktop, server, vanilla_session) = (
+            arguments.game_pid,
+            arguments.desktop,
+            arguments.server,
+            arguments.vanilla_session,
+        );
         let (release, release_announcement, catalog) = (
             release.clone(),
             release_announcement.clone(),
@@ -60,6 +65,7 @@ impl SnapshotRefresher {
                     game_pid,
                     desktop,
                     server,
+                    vanilla_session,
                     &provider,
                     &release,
                     &release_announcement,
@@ -108,6 +114,7 @@ fn refresh(
     game_pid: u32,
     desktop: bool,
     server: bool,
+    vanilla_session: bool,
     provider: &serde_json::Value,
     release: &SharedValue,
     release_announcement: &SharedValue,
@@ -130,7 +137,9 @@ fn refresh(
             changelog: &item.changelog,
         })
         .collect();
-    shroudforge_news::sync_mod_events(root, &notification_mods);
+    if !vanilla_session {
+        shroudforge_news::sync_mod_events(root, &notification_mods);
+    }
     let game_process_id = (!desktop && !server).then_some(game_pid);
     let player_name_detection =
         shroudforge_player_name::detect_active_character_for_process(root, game_process_id);
@@ -139,6 +148,7 @@ fn refresh(
         game_pid,
         desktop,
         server,
+        vanilla_session,
         provider,
         release,
         release_announcement,

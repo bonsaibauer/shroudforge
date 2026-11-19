@@ -320,7 +320,7 @@ export function SettingsPage({
             <GameProfileDiscoverySettings
               enabled={modulePreferences.gameProfileDiscovery?.enabled !== false}
               onChange={changeProfileDiscovery}
-              wikiModuleSettings={modulePreferences.wiki}
+              wikiModuleSettings={data.uiVanilla ? { ...modulePreferences.wiki, enabled: false } : modulePreferences.wiki}
               openWikiCategory={openWikiCategory}
             />
           </Card>

@@ -88,8 +88,10 @@ function multiplayerVersionsStatus(data: Snapshot): CompatibilityStatus {
 export function compatibilityNavigationStatus(
   data: Snapshot,
 ): CompatibilityStatus {
+  const vanillaKey = data.mode === 'SERVER' ? 'vanillaServer' : 'vanillaClient'
+  const requested = data.settings.modulePreferences?.modloaderUi?.[vanillaKey] === true
   const configuration = data.configuration
-  if (!configuration) return 'neutral'
+  if (!configuration) return data.vanillaSession != null && data.vanillaSession !== requested ? 'restart-required' : 'neutral'
   const engineStatuses: CompatibilityStatus[] = configuration.checks
     .filter((check) => ['game', 'runtime', 'api', 'parser'].includes(check.id))
     .map((check) => check.state)
@@ -100,6 +102,7 @@ export function compatibilityNavigationStatus(
     modDetectionStatus(data), dllManagerStatus(data), dependencyStatus(data),
     hasHotkeyConflicts(data) ? 'warning' : 'ok',
     ...(multiplayerCheck ? [multiplayerCheck.state] : []),
+    ...(data.vanillaSession != null && data.vanillaSession !== requested ? ['restart-required' as const] : []),
     ...engineStatuses,
   ])
 }
@@ -430,6 +433,10 @@ export function Compatibility({
           </>
         }
       />
+      {data.vanillaSession != null && <p className="hint">
+        {t(data.vanillaSession ? 'vanilla.active' : 'vanilla.modloaderActive')}
+        {data.vanillaSession !== (data.settings.modulePreferences?.modloaderUi?.[data.mode === 'SERVER' ? 'vanillaServer' : 'vanillaClient'] === true) && ` ${t('vanilla.restartRequired')}`}
+      </p>}
       {allowedTabs.length > 0 && <Segmented
         value={activeTab!}
         onChange={(value) => setTab(value as CompatibilityTab)}

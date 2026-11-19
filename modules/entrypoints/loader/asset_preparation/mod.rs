@@ -14,7 +14,7 @@ use capture_original_game_files::ensure_original_gamefiles;
 use check_asset_preparation::{already_applied, export_pass_needed};
 use lock_startup_assets::startup_asset_lease;
 pub use prepare_game_assets::run;
-pub(crate) use prepare_startup_assets::run_startup;
+pub(crate) use prepare_startup_assets::{prepare_vanilla, run_startup};
 pub(crate) use recover_failed_startup_assets::recover_failed_startup;
 use require_game_stopped::ensure_game_stopped;
 use select_game_target::{process_target_name, target_name};

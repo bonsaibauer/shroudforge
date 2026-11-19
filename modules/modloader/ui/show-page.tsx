@@ -61,7 +61,8 @@ export function Page({
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
 }) {
-  const wikiModuleSettings = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
+  const wikiPreferences = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
+  const wikiModuleSettings = data.uiVanilla ? { ...wikiPreferences, enabled: false } : wikiPreferences
   if (id === 'activity')
     return <ActivityPage activity={data.activity} mods={data.mods} />
   if (id === 'news')

@@ -19,7 +19,7 @@ pub(crate) fn run(args: &[OsString]) -> Option<Result<(), Box<dyn std::error::Er
             );
         }
         Some("--module-ui") => {
-            if let Some(root) = args
+            if !args.iter().any(|arg| arg == "--vanilla-session") && let Some(root) = args
                 .windows(2)
                 .find(|pair| pair[0].to_str() == Some("--root"))
                 .map(|pair| PathBuf::from(&pair[1]))

@@ -162,12 +162,12 @@ void stop_debug_console() {
     }
 }
 
-void start_modloader_ui(const std::filesystem::path& root) {
+void start_modloader_ui(const std::filesystem::path& root, bool vanilla) {
     if (is_dedicated_server_process()) {
         log('D', "Modloader UI window is skipped in the Dedicated Server process");
         return;
     }
-    if (!ShroudforgeConfig::ModuleEnabled(root, "modloaderUi")) {
+    if (!vanilla && !ShroudforgeConfig::ModuleEnabled(root, "modloaderUi")) {
         log('W', "Modloader UI service is unavailable because the module is disabled in Settings");
         return;
     }
@@ -185,7 +185,7 @@ void start_modloader_ui(const std::filesystem::path& root) {
     }
     std::wstring command = L"\"" + executable.wstring() + L"\" --module-ui --root \"" +
         root.wstring() + L"\" --game-pid " + std::to_wstring(pid) +
-        L" --stop-event \"" + event_name + L"\"";
+        L" --stop-event \"" + event_name + L"\"" + (vanilla ? L" --vanilla-session" : L"");
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION process{};
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,

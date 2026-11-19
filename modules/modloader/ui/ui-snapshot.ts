@@ -19,6 +19,9 @@ export type RuntimeProblemCode =
   | 'runtime-not-ready'
 
 export type Snapshot = {
+  vanillaSession?: boolean | null
+  uiVanilla?: boolean
+  installationTarget?: 'client' | 'server'
   diagnostics?: DiagnosticStatus
   dllCandidates: DllCandidate[]
   dllChainEntries: DllLoadEntry[]

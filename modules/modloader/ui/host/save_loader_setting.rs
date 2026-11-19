@@ -153,6 +153,7 @@ pub(crate) fn save_setting_to(
             matches!(
                 key,
                 "enabled" | "startPage" | "remoteTarget" | "toggleKey" | "refreshMilliseconds"
+                    | "vanillaClient" | "vanillaServer"
             ) || key == "window.position"
         }
         "wiki" => matches!(

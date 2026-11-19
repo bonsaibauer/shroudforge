@@ -19,7 +19,7 @@ import { Nav, NavGroup } from '../../ui-resources/show-navigation'
 import { ModIcon } from './show-mod-icon'
 import { ModPage } from './show-mod'
 import { useUiUpdates } from './receive-ui-updates'
-import { RemoteTargetSwitch, TopBar } from './show-top-bar'
+import { RemoteTargetSwitch, ServerAdminVisual, TopBar } from './show-top-bar'
 import { Page } from './show-page'
 import { UiErrorBoundary } from './show-ui-error'
 import { compatibilityNavigationStatus } from './show-compatibility'
@@ -66,6 +66,7 @@ export function App() {
   const [serverAdminGroupName, setServerAdminGroupName] = useState<string | null>(null)
   const [serverAdminLoginPending, setServerAdminLoginPending] = useState(false)
   const [serverAdminLoginError, setServerAdminLoginError] = useState<string | null>(null)
+  const [confirmServerVanilla, setConfirmServerVanilla] = useState(false)
   const pendingServerLogin = useRef<string | null>(null)
   const [read, setRead] = useState<Record<'client' | 'server', string[]>>({
     client: [],
@@ -166,7 +167,7 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (remoteTarget !== 'server') {
+    if (remoteTarget !== 'server' || data.vanillaSession || data.installationTarget === 'server') {
       setServerView(null)
       return
     }
@@ -176,12 +177,14 @@ export function App() {
     fetchServerSnapshot()
     const interval = window.setInterval(fetchServerSnapshot, 10_000)
     return () => window.clearInterval(interval)
-  }, [remoteTarget, serverAdminAuthenticated, data.locale])
+  }, [remoteTarget, serverAdminAuthenticated, data.locale, data.vanillaSession, data.installationTarget])
 
-  const activeData: Snapshot = remoteTarget === 'server'
+  const activeData: Snapshot = remoteTarget === 'server' && data.installationTarget !== 'server'
     ? {
         ...data,
         ...(serverView ?? {}),
+        uiVanilla: data.vanillaSession === true,
+        vanillaSession: serverView ? false : null,
         mode: 'SERVER',
         gameVersion: serverView?.gameVersion ?? '',
         mods: serverAdminAuthenticated ? serverView?.mods ?? [] : [],
@@ -199,8 +202,29 @@ export function App() {
           : data.releaseAnnouncement,
         readNoticeIds: read.server,
       }
-    : { ...data, readNoticeIds: read.client }
+    : { ...data, uiVanilla: data.vanillaSession === true, mode: data.installationTarget === 'server' ? 'SERVER' : data.mode, readNoticeIds: read.client }
   const displayedMods = activeData.mods
+  const vanillaKey = remoteTarget === 'server' ? 'vanillaServer' : 'vanillaClient'
+  const vanillaRequested = data.settings.modulePreferences?.modloaderUi?.[vanillaKey] === true
+  useEffect(() => {
+    if (!confirmServerVanilla) return
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      setConfirmServerVanilla(false)
+    }
+    window.addEventListener('keydown', cancel, true)
+    return () => window.removeEventListener('keydown', cancel, true)
+  }, [confirmServerVanilla])
+
+  useEffect(() => {
+    if (remoteTarget !== 'server' || vanillaRequested ||
+        (data.installationTarget !== 'server' && (!serverAdminAuthenticated || data.vanillaSession))) {
+      setConfirmServerVanilla(false)
+    }
+  }, [remoteTarget, vanillaRequested, data.installationTarget, serverAdminAuthenticated, data.vanillaSession])
+
 
   const newsSource = {
     ...activeData,
@@ -476,6 +500,21 @@ export function App() {
         <div className="workspace">
           <aside className="sidebar">
             <div className="sidebar-target">
+              <button
+                className="button vanilla-mode-button"
+                disabled={remoteTarget === 'server' && data.installationTarget !== 'server' && (!serverAdminAuthenticated || data.vanillaSession === true)}
+                onClick={() => {
+                  if (remoteTarget === 'server' && !vanillaRequested) {
+                    setConfirmServerVanilla(true)
+                    return
+                  }
+                  postRequest('save-setting', {
+                    scope: 'module', module: 'modloaderUi', key: vanillaKey, value: !vanillaRequested,
+                  })
+                }}
+              >
+                {t(vanillaRequested ? 'vanilla.enable' : 'vanilla.button')}
+              </button>
               <RemoteTargetSwitch
                 remoteTarget={remoteTarget}
                 onChange={changeRemoteTarget}
@@ -687,6 +726,42 @@ export function App() {
           </section>
         </div>
       </PageZoomProvider>
+      {confirmServerVanilla && (
+        <div className="overlay server-admin-overlay" role="presentation">
+          <section className="modal server-admin-modal" role="alertdialog" aria-modal="true"
+            aria-labelledby="server-vanilla-title" aria-describedby="server-vanilla-impact">
+            <header>
+              <div>
+                <small>SHROUDFORGE · SERVER</small>
+                <h2 id="server-vanilla-title">{t('vanilla.serverWarning.title')}</h2>
+              </div>
+              <button className="window-control window-close" type="button"
+                onClick={() => setConfirmServerVanilla(false)} aria-label={t('common.close')}
+                title={t('common.close')}>×</button>
+            </header>
+            <div className="modal-body">
+              <ServerAdminVisual warning />
+              <p>{t('vanilla.serverWarning.prompt')}</p>
+              <p id="server-vanilla-impact">{t('vanilla.serverWarning.impact')}</p>
+              <p>{t('vanilla.serverWarning.recover')}</p>
+              <code className="vanilla-server-code">shroudforge/config/modloader-config.json</code>
+              <p>{t('vanilla.serverWarning.setting')}</p>
+              <code className="vanilla-server-code">"vanillaServer": false</code>
+              <p>{t('vanilla.serverWarning.restart')}</p>
+              <div className="remote-admin-actions">
+                <button className="button ghost" type="button" autoFocus
+                  onClick={() => setConfirmServerVanilla(false)}>{t('common.cancel')}</button>
+                <button className="button" type="button" onClick={() => {
+                  setConfirmServerVanilla(false)
+                  postRequest('save-setting', {
+                    scope: 'module', module: 'modloaderUi', key: 'vanillaServer', value: true,
+                  })
+                }}>{t('vanilla.serverWarning.confirm')}</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
       {chirper && (
         <Chirper
           items={chirperItems}
