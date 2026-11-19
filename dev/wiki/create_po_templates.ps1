@@ -149,9 +149,6 @@ foreach ($language in $targetLanguages) {
 
     $languageHeader = $language.Replace('-', '_')
     $lines = [Collections.Generic.List[string]]::new()
-    $lines.Add("# Translation of $pageTitle to $language")
-    $lines.Add('# Exported from the live ShroudForge Translate group')
-    $lines.Add('')
     $lines.Add('msgid ""')
     $lines.Add('msgstr ""')
     $lines.Add('"PO-Revision-Date: ' + $createdAt + '\n"')

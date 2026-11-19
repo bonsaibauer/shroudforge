@@ -406,6 +406,12 @@ foreach ($poPath in $poPaths) {
     $html = $preview.Content
     Assert-NoImportError -Html $html
 
+    if (-not (Get-InputValue -Html $html -Name 'process')) {
+        $plain = [Net.WebUtility]::HtmlDecode(($html -replace '(?is)<script\b.*?</script>|<style\b.*?</style>|<[^>]+>', ' '))
+        $plain = [Regex]::Replace($plain, '\s+', ' ').Trim()
+        throw "Special:ImportTranslations did not show an import preview for '$groupId' / '$language': $plain"
+    }
+
     $submittedLanguage = Get-InputValue -Html $html -Name 'language'
     if ($submittedLanguage -and $submittedLanguage.ToLowerInvariant() -ne $language) {
         throw "Translate import preview selected '$submittedLanguage' instead of '$language' for '$groupId'."

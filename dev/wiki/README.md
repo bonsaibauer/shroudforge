@@ -84,7 +84,7 @@ pwsh -NoProfile -File dev/wiki/create_po_templates.ps1 `
   -WorkspacePath target/wiki/monetization-guidelines
 ```
 
-Die leeren `msgstr`-Felder der gewünschten Sprachdateien ausfüllen. `msgctxt`, `msgid`, `X-Message-Group` und `X-Language-Code` unverändert lassen. Das Skript erzeugt standardmäßig alle Prioritätssprachen der Live-Gruppe. Vorhandene PO-Dateien bleiben erhalten. `-Force` ersetzt sie ausdrücklich.
+Die leeren `msgstr`-Felder der gewünschten Sprachdateien ausfüllen. `msgctxt`, `msgid`, `X-Message-Group` und `X-Language-Code` unverändert lassen. Die Datei beginnt unmittelbar mit dem Gettext-Header `msgid ""`. Das Wiki lehnt vorangestellte Kommentare ab. Das Skript erzeugt standardmäßig alle Prioritätssprachen der Live-Gruppe. Vorhandene PO-Dateien bleiben erhalten. `-Force` ersetzt sie ausdrücklich.
 
 Jede PO-Datei separat prüfen und importieren:
 
