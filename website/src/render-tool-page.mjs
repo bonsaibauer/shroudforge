@@ -1,4 +1,4 @@
-import { escapeHtml, renderSiteHeader } from './render-page.mjs'
+import { escapeHtml, renderSiteFooter, renderSiteHeader } from './render-page.mjs'
 import { icon } from './icons.mjs'
 
 const route = '/tools/modding/mod-settings/'
@@ -30,7 +30,7 @@ function jsonTemplate(id, value) {
 	return `<template id="${id}">${text}</template>`
 }
 
-export function renderModSettingsPage({ config, siteUrl, version, manifest, extended, links }) {
+export function renderModSettingsPage({ config, siteUrl, generatedAt, version, manifest, extended, links }) {
 	const canonicalUrl = new URL(route, siteUrl).href
 	const toolTitle = 'Mod Settings editor and live preview'
 	const description = 'Build a mod settings page in your browser. Preview the current ShroudForge Modloader UI and edit mod.json and extended.mod.json together.'
@@ -115,6 +115,7 @@ export function renderModSettingsPage({ config, siteUrl, version, manifest, exte
 		</main>
 	</div>
 	${jsonTemplate('mod-settings-example', example)}
+	${renderSiteFooter({ config, generatedAt })}
 </body>
 </html>\n`
 }

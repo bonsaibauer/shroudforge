@@ -39,6 +39,7 @@ export function Page({
   onUpdaterCommand,
   compatibilityTab,
   setCompatibilityTab,
+  serverAdminAuthenticated,
 }: {
   id: PageId
   data: Snapshot
@@ -60,6 +61,7 @@ export function Page({
   onUpdaterCommand: UpdaterCommand
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
+  serverAdminAuthenticated: boolean
 }) {
   const wikiPreferences = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
   const wikiModuleSettings = data.uiVanilla ? { ...wikiPreferences, enabled: false } : wikiPreferences
@@ -147,7 +149,13 @@ export function Page({
       />
     )
   if (id === 'server-management')
-    return <ServerManagement onCommand={onUpdaterCommand} />
+    return (
+      <ServerManagement
+        onCommand={onUpdaterCommand}
+        serverRights={data.serverRights}
+        authenticated={serverAdminAuthenticated}
+      />
+    )
   return (
     <SettingsPage data={data} settings={settings} setSettings={setSettings}
       openWikiCategory={openWikiCategory} notifyCommandResult={notifyCommandResult} />

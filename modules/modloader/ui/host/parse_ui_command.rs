@@ -84,6 +84,8 @@ pub(crate) enum Command {
     Refresh(Option<String>),
     CopyLogs(String),
     FetchServerMods(String, String),
+    FetchServerRights(String),
+    SaveServerRights(serde_json::Value, String),
     RefreshMod(String, String),
     ReloadSettings(String),
     OpenUrl(String, String),
@@ -141,6 +143,14 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
             value.locale.unwrap_or_else(|| "en-GB".into()),
             value.request_id.unwrap_or_default(),
         ),
+        "fetch-server-rights" => Command::FetchServerRights(value.request_id.unwrap_or_default()),
+        "save-server-rights" => match value.values {
+            Some(values) => Command::SaveServerRights(
+                values,
+                value.request_id.unwrap_or_default(),
+            ),
+            None => return None,
+        },
         "refresh-mod" => match value.mod_id {
             Some(id) => Command::RefreshMod(id, value.request_id.unwrap_or_default()),
             None => return None,

@@ -65,6 +65,7 @@ export type Snapshot = {
     assets: { state: string; detail: string }
     lastUpdate?: { version: string; build: string; installedAt: number }
   }
+  serverRights?: ServerRights
   connected: boolean
   remoteServerState: 'connecting' | 'connected' | 'disconnected'
   mode: string
@@ -109,9 +110,37 @@ export type ServerView = {
   notices: Notice[]
   newsTemplates?: Snapshot['newsTemplates']
   mods: ModInfo[]
+  serverRights?: ServerRights
 }
 
 export type ServerViewDetails = Omit<ServerView, 'mods'>
+
+export type ServerPermissionValues = {
+  canKickBan: boolean
+  canAccessInventories: boolean
+  canEditWorld: boolean
+  canEditBase: boolean
+  canExtendBase: boolean
+}
+
+export type ServerPermissionGroup = ServerPermissionValues & {
+  name: string
+  isShroudForgeAdmin: boolean
+  syncServerLogs: boolean
+}
+
+export type ServerPermissionPlayer = ServerPermissionValues & {
+  steamId: string
+  playerName?: string
+  groupName?: string
+  permissionsKnown: boolean
+  isShroudForgeAdmin: boolean
+}
+
+export type ServerRights = {
+  groups: ServerPermissionGroup[]
+  players: ServerPermissionPlayer[]
+}
 
 export type DllCandidate = {
   packageDirectory: string

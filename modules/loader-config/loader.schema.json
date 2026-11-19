@@ -801,6 +801,17 @@
             "remoteTarget": {
               "enum": ["client", "server"]
             },
+            "serverRights": {
+              "type": "object",
+              "properties": {
+                "groupLogSync": {
+                  "type": "object",
+                  "maxProperties": 64,
+                  "additionalProperties": { "type": "boolean" }
+                }
+              },
+              "additionalProperties": false
+            },
             "toggleKey": {
               "$ref": "#/$defs/keybind"
             },

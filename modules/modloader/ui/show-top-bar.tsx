@@ -24,7 +24,6 @@ export function TopBar({
   onRemoteTargetChange,
   onOpenWikiCategory,
   showChirper,
-  showWikiHelp,
   isWikiPage,
   unread,
   severity,
@@ -46,7 +45,6 @@ export function TopBar({
   onRemoteTargetChange(target: 'client' | 'server'): void
   onOpenWikiCategory(category: string): void
   showChirper: boolean
-  showWikiHelp: boolean
   isWikiPage: boolean
   unread: number
   severity: string
@@ -58,11 +56,15 @@ export function TopBar({
   const { t } = useI18n()
   const [password, setPassword] = useState('')
   const passwordValid = new TextEncoder().encode(password).length <= 1024
-  const serverAdminWikiHelp = showWikiHelp && (
+  const serverAdminWikiSettings: WikiModuleSettings = {
+    ...(data.settings.modulePreferences?.wiki as WikiModuleSettings | undefined),
+    enabled: !data.uiVanilla,
+  }
+  const serverAdminWikiHelp = (
     <WikiHelp
       articleId="modloader-p2p-connection"
       compact
-      moduleSettings={data.uiVanilla ? { enabled: false } : data.settings.modulePreferences?.wiki as WikiModuleSettings | undefined}
+      moduleSettings={serverAdminWikiSettings}
       onOpenCategory={onOpenWikiCategory}
     />
   )

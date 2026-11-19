@@ -137,6 +137,7 @@ export function App() {
         mods?: ModInfo[]
         mod?: ModInfo
         serverView?: ServerViewDetails
+        serverRights?: ServerView['serverRights']
       }>).detail
       if (Array.isArray(detail?.mods)) {
         const view = detail.serverView
@@ -159,6 +160,22 @@ export function App() {
             ? { ...current, mods: current.mods.map((mod) => (mod.id === updated.id ? updated : mod)) }
             : current,
         )
+      } else if (detail?.serverRights) {
+        setServerView((current) =>
+          current
+            ? { ...current, serverRights: detail.serverRights }
+            : {
+                mode: 'SERVER',
+                gameVersion: '',
+                version: '',
+                dllCandidates: [],
+                dllChainEntries: [],
+                hotkeyConflicts: [],
+                notices: [],
+                mods: [],
+                serverRights: detail.serverRights,
+              },
+        )
       }
     }
     window.addEventListener('shroudforge-remote-mod-data', onRemoteModData)
@@ -172,11 +189,7 @@ export function App() {
       return
     }
     if (!serverAdminAuthenticated) return
-    const fetchServerSnapshot = () =>
-      postRequest('fetch-server-mods', { locale: data.locale })
-    fetchServerSnapshot()
-    const interval = window.setInterval(fetchServerSnapshot, 10_000)
-    return () => window.clearInterval(interval)
+    postRequest('fetch-server-mods', { locale: data.locale })
   }, [remoteTarget, serverAdminAuthenticated, data.locale, data.vanillaSession, data.installationTarget])
 
   const activeData: Snapshot = remoteTarget === 'server' && data.installationTarget !== 'server'
@@ -224,7 +237,6 @@ export function App() {
       setConfirmServerVanilla(false)
     }
   }, [remoteTarget, vanillaRequested, data.installationTarget, serverAdminAuthenticated, data.vanillaSession])
-
 
   const newsSource = {
     ...activeData,
@@ -484,7 +496,6 @@ export function App() {
         onRemoteTargetChange={changeRemoteTarget}
         onOpenWikiCategory={openWikiCategory}
         showChirper={pageVisible('news')}
-        showWikiHelp={isTargetUiVisible('modules', 'wiki', remoteTarget, targetUi)}
         isWikiPage={page === 'wiki'}
         unread={unread.length}
         severity={chirperSeverity}
@@ -721,6 +732,7 @@ export function App() {
                 onUpdaterCommand={postRequest}
                 compatibilityTab={compatibilityTab}
                 setCompatibilityTab={setCompatibilityTab}
+                serverAdminAuthenticated={serverAdminAuthenticated}
               />
             )}
           </section>

@@ -1,4 +1,4 @@
-import { escapeHtml, renderSiteHeader } from './render-page.mjs'
+import { escapeHtml, renderSiteFooter, renderSiteHeader } from './render-page.mjs'
 import { renderToolsSidebar } from './render-tool-page.mjs'
 
 const route = '/schemas/'
@@ -31,7 +31,7 @@ function renderSchemaCard(version, schema, siteUrl) {
 	</article>`
 }
 
-export function renderSchemasPage({ config, siteUrl, schemaVersions, currentVersion }) {
+export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions, currentVersion }) {
 	const canonicalUrl = new URL(route, siteUrl).href
 	const indexable = new URL(siteUrl).origin === new URL(config.siteUrl).origin
 	const versions = [...schemaVersions].sort((left, right) => {
@@ -87,6 +87,7 @@ export function renderSchemasPage({ config, siteUrl, schemaVersions, currentVers
 			<footer class="schema-footer-note"><span>These files are static, versioned downloads. A published version keeps its schema URL.</span><a data-schema-source-link href="${escapeHtml(sourceUrl)}">Schema source in the repository</a></footer>
 		</main>
 	</div>
+	${renderSiteFooter({ config, generatedAt })}
 </body>
 </html>\n`
 }

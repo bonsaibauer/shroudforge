@@ -297,7 +297,14 @@ fn serve(sender: SyncSender<Request>, runtime_pid: u32) {
 fn dispatch(sender: SyncSender<Request>, value: Value) -> Value {
     if !matches!(
         value["type"].as_str(),
-        Some("admin-login" | "config-setting" | "mods-list" | "mod-operation")
+        Some(
+            "admin-login"
+                | "config-setting"
+                | "mods-list"
+                | "mod-operation"
+                | "server-rights-list"
+                | "server-rights-update"
+        )
     ) || value["requestId"]
         .as_str()
         .is_none_or(|request_id| request_id.is_empty() || request_id.len() > 128)
@@ -322,6 +329,33 @@ fn dispatch(sender: SyncSender<Request>, value: Value) -> Value {
             .is_some_and(|locale| locale.is_empty() || locale.len() > 32)
     {
         return serde_json::json!({"success":false,"message":"invalid locale"});
+    }
+    if value["type"] == "server-rights-update" {
+        let Some(groups) = value["values"]["groups"].as_array() else {
+            return serde_json::json!({"success":false,"message":"invalid server rights update"});
+        };
+        let Some(expected_groups) = value["values"]["expectedGroups"].as_array() else {
+            return serde_json::json!({"success":false,"message":"invalid server rights update"});
+        };
+        let invalid_groups = |list: &[Value]| {
+            list.len() > 64 || list.iter().any(|group| {
+                group["name"].as_str().is_none_or(|name| {
+                    name.trim().is_empty() || name.len() > 128 || name.chars().any(char::is_control)
+                }) || [
+                    "canKickBan",
+                    "canAccessInventories",
+                    "canEditWorld",
+                    "canEditBase",
+                    "canExtendBase",
+                    "syncServerLogs",
+                ]
+                .iter()
+                .any(|key| !group[*key].is_boolean())
+            })
+        };
+        if invalid_groups(groups) || invalid_groups(expected_groups) {
+            return serde_json::json!({"success":false,"message":"invalid server rights update"});
+        }
     }
     if value["type"] == "mod-operation" {
         let operation = value["operation"].as_str();

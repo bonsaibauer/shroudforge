@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import config from "../config.mjs";
-import { renderPage } from "../src/render-page.mjs";
+import { renderPage, renderSiteFooter } from "../src/render-page.mjs";
 import { renderModSettingsPage } from "../src/render-tool-page.mjs";
 import { renderSchemasPage } from "../src/render-schemas-page.mjs";
 import { renderApiPlaygroundPage, renderApiReferencePage } from "../src/render-api-tools.mjs";
@@ -176,10 +176,10 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-function renderNotFound(siteUrl) {
+function renderNotFound({ siteUrl, config, generatedAt }) {
   return `<!doctype html>
 <html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><meta name="theme-color" content="#ffffff"><meta name="color-scheme" content="light"><title>Page not found · ${escapeHtml(config.name)}</title><link rel="icon" href="/assets/favicon.ico"><script src="/assets/theme.js"></script><link rel="stylesheet" href="/assets/styles.css"></head>
-<body><main class="not-found"><h1>Page not found</h1><p>The page you requested does not exist.</p><a href="${escapeHtml(siteUrl)}/">Return to ${escapeHtml(config.name)} downloads</a></main></body></html>\n`;
+<body><main class="not-found"><h1>Page not found</h1><p>The page you requested does not exist.</p><a href="${escapeHtml(siteUrl)}/">Return to ${escapeHtml(config.name)} downloads</a></main>${renderSiteFooter({ config, generatedAt })}</body></html>\n`;
 }
 
 async function build() {
@@ -281,6 +281,7 @@ async function build() {
   const toolHtml = renderModSettingsPage({
     config,
     siteUrl,
+    generatedAt,
     version,
     manifest: websiteManifest,
     extended: websiteExtended,
@@ -289,11 +290,12 @@ async function build() {
   const schemasHtml = renderSchemasPage({
     config,
     siteUrl,
+    generatedAt,
     schemaVersions: schemaCatalog.versions,
     currentVersion: version,
   });
-  const apiReferenceHtml = renderApiReferencePage({ config, siteUrl });
-  const apiPlaygroundHtml = renderApiPlaygroundPage({ config, siteUrl });
+  const apiReferenceHtml = renderApiReferencePage({ config, siteUrl, generatedAt });
+  const apiPlaygroundHtml = renderApiPlaygroundPage({ config, siteUrl, generatedAt });
   const publicDirectory = path.join(websiteDirectory, "public");
   await assertRegularTree(publicDirectory);
   for (const name of browserAssets) {
@@ -370,7 +372,7 @@ async function build() {
       path.join(badgeIconDirectory, `${link.icon}.svg`),
     );
   }
-  await fs.writeFile(path.join(outputDirectory, "404.html"), renderNotFound(siteUrl), "utf8");
+  await fs.writeFile(path.join(outputDirectory, "404.html"), renderNotFound({ siteUrl, config, generatedAt }), "utf8");
   await fs.writeFile(path.join(outputDirectory, "releases.json"), `${JSON.stringify({ generatedAt, releases, securityReports }, null, 2)}\n`, "utf8");
   await fs.writeFile(path.join(outputDirectory, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`, "utf8");
   await fs.writeFile(path.join(outputDirectory, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHtml(siteUrl)}/</loc><lastmod>${generatedAt}</lastmod></url><url><loc>${escapeHtml(siteUrl)}/${modSettingsRelativePath.replaceAll(path.sep, "/")}/</loc><lastmod>${generatedAt}</lastmod></url><url><loc>${escapeHtml(siteUrl)}/${apiReferenceRelativePath.replaceAll(path.sep, "/")}/</loc><lastmod>${generatedAt}</lastmod></url><url><loc>${escapeHtml(siteUrl)}/${apiPlaygroundRelativePath.replaceAll(path.sep, "/")}/</loc><lastmod>${generatedAt}</lastmod></url><url><loc>${escapeHtml(siteUrl)}/schemas/</loc><lastmod>${generatedAt}</lastmod></url></urlset>\n`, "utf8");

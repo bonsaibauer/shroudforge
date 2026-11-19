@@ -138,6 +138,14 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
                 "remote_dedicated_server_steam_id",
                 native.remote_dedicated_server_steam_id,
             )?;
+            // The game this client joined, from the game's own session log.
+            result.raw_set(
+                "session_host_steam_id",
+                (reason.is_none() && !(context.is_server)(lua))
+                    .then(|| steam_network::read_session_peers(&(context.root)(lua), false).host())
+                    .flatten()
+                    .map(|id| id.to_string()),
+            )?;
             result.raw_set("service_ready", native.service_ready)?;
             let root = (context.root)(lua);
             if let Ok(config) = shroudforge_loader_config::config::read_loader(&root) {
@@ -268,17 +276,22 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
             ) {
                 return Ok((None::<Table>, Some(reason)));
             }
-            if !(context.is_server)(lua) {
-                return Ok((
-                    None,
-                    Some(
-                        "connected_peers is available only in the Dedicated Server runtime".into(),
-                    ),
-                ));
-            }
-            let peers = match steam_network::connected_peers() {
-                Ok(peers) => peers,
-                Err(reason) => return Ok((None, Some(reason))),
+            let peers = if (context.is_server)(lua) {
+                match steam_network::connected_peers() {
+                    Ok(peers) => peers,
+                    Err(reason) => return Ok((None, Some(reason))),
+                }
+            } else {
+                // A player's game that hosts: the players of its session.
+                match steam_network::read_session_peers(&(context.root)(lua), false).players() {
+                    Some(players) => players.iter().map(u64::to_string).collect(),
+                    None => {
+                        return Ok((
+                            None,
+                            Some("this game does not host a multiplayer session".into()),
+                        ));
+                    }
+                }
             };
             let allowed = match authorized_client_ids(&(context.root)(lua)) {
                 Ok(allowed) => allowed,
@@ -297,6 +310,43 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
                 .enumerate()
             {
                 result.raw_set(index + 1, peer.as_str())?;
+            }
+            Ok((Some(result), None))
+        })?,
+    )?;
+
+    let permissions_owner = owner.clone();
+    network.set(
+        "player_permissions",
+        lua.create_function(move |lua, peer: String| {
+            if let Some(reason) = denied(
+                lua,
+                &permissions_owner,
+                "runtime.network.player_permissions",
+                context,
+            ) {
+                return Ok((None::<Table>, Some(reason)));
+            }
+            let peer = match steam_id(&peer) {
+                Ok(peer) => peer,
+                Err(reason) => return Ok((None, Some(reason))),
+            };
+            // The permissions the player logged in with, from the hosting
+            // game's own log: a Dedicated Server or a player's game.
+            let session =
+                steam_network::read_session_peers(&(context.root)(lua), (context.is_server)(lua));
+            if session.players().is_none() {
+                return Ok((None, Some("this game does not host a multiplayer session".into())));
+            }
+            let Some(names) = session.player_permissions(peer) else {
+                return Ok((
+                    None,
+                    Some("this player is not in this game or has not logged in yet".into()),
+                ));
+            };
+            let result = lua.create_table()?;
+            for name in names {
+                result.raw_set(name.as_str(), true)?;
             }
             Ok((Some(result), None))
         })?,

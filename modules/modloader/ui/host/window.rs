@@ -868,7 +868,9 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             | Command::UpdaterRequest(_, _, id, _)
                             | Command::Diagnostics(_, _, id)
                             | Command::RemoteAdminLogin(_, id)
-                            | Command::FetchServerMods(_, id) => Some(id.clone()),
+                            | Command::FetchServerMods(_, id)
+                            | Command::FetchServerRights(id)
+                            | Command::SaveServerRights(_, id) => Some(id.clone()),
                             _ => None,
                         };
                         if let Some(request_id) = blocked {
@@ -890,6 +892,8 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     let remote_request = if server_target && !arguments.server {
                         match &command {
                             Command::FetchServerMods(_, request_id)
+                            | Command::FetchServerRights(request_id)
+                            | Command::SaveServerRights(_, request_id)
                             | Command::RefreshMod(_, request_id)
                             | Command::SetModEnabled(_, _, _, request_id)
                             | Command::SaveKeyReservation(_, _, _, _, request_id)
@@ -918,6 +922,15 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 "type": "mods-list",
                                 "requestId": request_id,
                                 "locale": server_locale
+                            }),
+                            Command::FetchServerRights(request_id) => serde_json::json!({
+                                "type": "server-rights-list",
+                                "requestId": request_id
+                            }),
+                            Command::SaveServerRights(values, request_id) => serde_json::json!({
+                                "type": "server-rights-update",
+                                "requestId": request_id,
+                                "values": values
                             }),
                             Command::RefreshMod(_, request_id) => serde_json::json!({
                                 "type": "mods-list",
@@ -975,6 +988,8 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         };
                         let action = match &command {
                             Command::FetchServerMods(_, _) | Command::RefreshMod(_, _) => "Load server mods",
+                            Command::FetchServerRights(_) => "Load server rights",
+                            Command::SaveServerRights(_, _) => "Save server rights",
                             Command::SaveModSettings(_, _, _, _) => "Save server mod settings",
                             Command::SetModEnabled(_, enabled, _, _) if *enabled => "Enable server mod",
                             Command::SetModEnabled(_, _, _, _) => "Disable server mod",
@@ -1079,6 +1094,18 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             "Load server mods",
                             Err("Select the server target before loading server mods".into()),
                             "mod.refreshed",
+                            None,
+                            false,
+                        ),
+                        Command::FetchServerRights(request_id)
+                        | Command::SaveServerRights(_, request_id) => report_command_result(
+                            &arguments.root,
+                            &webview,
+                            &request_id,
+                            "Server Modloader",
+                            "Server rights",
+                            Err("Select the server target before managing server rights".into()),
+                            "settings.saved",
                             None,
                             false,
                         ),
@@ -1558,6 +1585,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                 if response["mods"].is_array()
                     || response["mod"].is_object()
                     || response["serverView"].is_object()
+                    || response["serverRights"].is_object()
                 {
                     if let Ok(payload) = serde_json::to_string(&response) {
                         let _ = webview.evaluate_script(&format!(
@@ -1601,7 +1629,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     }
                 } else {
                     let revision = response["mod"]["revision"].as_str().map(str::to_owned);
-                    let success_message = if action == "Load server mods" {
+                    let success_message = if matches!(action.as_str(), "Load server mods" | "Load server rights") {
                         "mod.refreshed"
                     } else {
                         "settings.saved"
