@@ -70,6 +70,10 @@ pub mod config {
     pub use shroudforge_loader_config::config::*;
 }
 pub mod compatibility_status;
+mod installed_version;
+pub use installed_version::installed_version;
+pub mod multiplayer_compatibility;
+pub use multiplayer_compatibility::*;
 pub use shroudforge_loader_config::paths;
 
 mod create_mod;

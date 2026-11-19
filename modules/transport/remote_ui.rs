@@ -1,7 +1,7 @@
-//! File mirror stream used by the local Modloader UI to view a connected server.
+//! Remote Modloader UI data and multiplayer compatibility reports.
 //!
-//! The game remains the Steam owner. This small adapter transfers the existing
-//! server log files and module settings to files beside the local client data.
+//! The game remains the Steam owner. This adapter reuses the bounded Steam UI
+//! channel for server snapshots, logs, settings and authenticated client reports.
 
 use crate::MAX_MESSAGE_BYTES;
 use base64::Engine as _;
@@ -23,6 +23,10 @@ const LOGIN_COOLDOWN: Duration = Duration::from_secs(60);
 const PENDING_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 32;
 const RECEIVE_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(30);
+const COMPATIBILITY_REFRESH_INTERVAL: Duration = Duration::from_secs(2);
+const CLIENT_REPORT_INTERVAL: Duration = Duration::from_secs(10);
+const CLIENT_REPORT_MISSING_AFTER: Duration = Duration::from_secs(15);
+const CLIENT_REPORT_STALE_AFTER: Duration = Duration::from_secs(30);
 const COMPLETED_ACTION_TTL: Duration = Duration::from_secs(10 * 60);
 const MAX_COMPLETED_ACTIONS: usize = 128;
 const MAX_REMOTE_LOG_MIRROR_BYTES: u64 = 1024 * 1024;
@@ -39,6 +43,8 @@ struct ClientState {
     pending: HashMap<String, PendingRequest>,
     mirror_errors: HashSet<&'static str>,
     last_receive_error_log: Option<Instant>,
+    last_compatibility_report: Option<Instant>,
+    compatibility_report_peer: Option<u64>,
 }
 
 struct PendingRequest {
@@ -65,6 +71,20 @@ struct ServerState {
     completed_actions: HashMap<(u64, String), CompletedAction>,
     completed_action_order: VecDeque<(u64, String)>,
     last_receive_error_log: Option<Instant>,
+    last_peer_discovery_error_log: Option<Instant>,
+    last_compatibility_refresh: Option<Instant>,
+    compatibility_peers: HashMap<u64, CompatibilityPeer>,
+    compatibility_peers_available: bool,
+    compatibility_mods: Vec<mod_loader::ClientModVersion>,
+    compatibility_inventory_available: bool,
+    compatibility_check: Option<mod_loader::MultiplayerVersionCheck>,
+    last_logged_compatibility_issues: HashMap<String, String>,
+}
+
+struct CompatibilityPeer {
+    connected_since: Instant,
+    last_report: Option<Instant>,
+    report: Option<mod_loader::ClientCompatibilityReport>,
 }
 
 struct CompletedAction {
@@ -110,6 +130,14 @@ pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
             state.server.loader.offset = None;
             state.server.config_snapshot = None;
             state.server.last_receive_error_log = None;
+            state.server.last_peer_discovery_error_log = None;
+            state.server.last_compatibility_refresh = None;
+            state.server.compatibility_peers.clear();
+            state.server.compatibility_peers_available = false;
+            state.server.compatibility_mods.clear();
+            state.server.compatibility_inventory_available = false;
+            state.server.compatibility_check = None;
+            state.server.last_logged_compatibility_issues.clear();
         }
         return;
     };
@@ -130,6 +158,14 @@ pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
             state.server.loader.offset = None;
             state.server.config_snapshot = None;
             state.server.last_receive_error_log = None;
+            state.server.last_peer_discovery_error_log = None;
+            state.server.last_compatibility_refresh = None;
+            state.server.compatibility_peers.clear();
+            state.server.compatibility_peers_available = false;
+            state.server.compatibility_mods.clear();
+            state.server.compatibility_inventory_available = false;
+            state.server.compatibility_check = None;
+            state.server.last_logged_compatibility_issues.clear();
         }
         return;
     }
@@ -166,6 +202,7 @@ fn stop_client_subscription() {
 }
 
 fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState) {
+    send_compatibility_report(root, client);
     let selected_server = config
         .pointer("/modules/modloaderUi/remoteTarget")
         .and_then(serde_json::Value::as_str)
@@ -263,6 +300,81 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             _ => {}
         }
     }
+}
+
+fn send_compatibility_report(root: &Path, client: &mut ClientState) {
+    let peer = crate::status()
+        .remote_dedicated_server_steam_id
+        .as_deref()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value != 0);
+    let Some(peer) = peer else {
+        client.compatibility_report_peer = None;
+        client.last_compatibility_report = None;
+        return;
+    };
+    let changed_peer = client.compatibility_report_peer != Some(peer);
+    if !changed_peer
+        && client
+            .last_compatibility_report
+            .is_some_and(|last| last.elapsed() < CLIENT_REPORT_INTERVAL)
+    {
+        return;
+    }
+
+    client.compatibility_report_peer = Some(peer);
+    client.last_compatibility_report = Some(Instant::now());
+    let mods = match compatibility_mod_inventory(root) {
+        Ok(mods) => mods,
+        Err(error) => {
+            tracing::warn!(target: "shroudforge::network", %error, "Could not read local mods for the multiplayer compatibility report");
+            return;
+        }
+    };
+    let configuration = mod_loader::compatibility_status::configuration(
+        root,
+        false,
+        env!("CARGO_PKG_VERSION"),
+        shroudforge_loader_config::runtime_status::runtime_pid(root),
+    );
+    let report = mod_loader::ClientCompatibilityReport {
+        schema_version: 1,
+        loader_version: mod_loader::installed_version(root),
+        player_name: shroudforge_player_name::detect_active_character(root).name,
+        mods,
+        problems: mod_loader::client_problems(&configuration),
+    };
+    if let Err(error) = report.validate() {
+        tracing::warn!(target: "shroudforge::network", %error, "Skipped invalid local multiplayer compatibility report");
+        return;
+    }
+    if let Err(error) = send_json(
+        peer,
+        &serde_json::json!({ "type": "compatibility-report", "report": report }),
+    ) {
+        tracing::debug!(target: "shroudforge::network", peer, %error, "Could not send multiplayer compatibility report");
+    }
+}
+
+fn compatibility_mod_inventory(root: &Path) -> Result<Vec<mod_loader::ClientModVersion>, String> {
+    let entries = match fs::read_dir(shroudforge_loader_config::paths::mods_dir(root)) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(format!("Could not read installed mods: {error}")),
+    };
+    let mut mods = Vec::new();
+    for entry in entries.flatten() {
+        let Ok(manifest) = mod_loader::read_manifest_path(root, &entry.path()) else {
+            continue;
+        };
+        mods.push(mod_loader::ClientModVersion {
+            id: manifest.id,
+            version: manifest.version.to_string(),
+            enabled: manifest.enabled,
+            target: manifest.target,
+        });
+    }
+    Ok(mods)
 }
 
 fn fail_pending(client: &mut ClientState, message: &str) {
@@ -577,6 +689,7 @@ fn clear_admin_session(client: &mut ClientState) {
 
 fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState) {
     let (allowed_clients, restrict_clients) = crate::read_network_allowlist(config);
+    refresh_multiplayer_compatibility(root, server);
     let mut config_updated = false;
     for _ in 0..RECEIVE_BUDGET {
         let message = match crate::receive_remote_ui() {
@@ -609,6 +722,13 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
         let Ok(value) = serde_json::from_slice::<serde_json::Value>(&message.payload) else {
             continue;
         };
+        if value["type"] == "compatibility-report" {
+            if !message.reliable {
+                continue;
+            }
+            receive_compatibility_report(peer, &value, server);
+            continue;
+        }
         match value["type"].as_str() {
             Some("subscribe") => {
                 let first_subscription = !server.peers.contains_key(&peer);
@@ -676,13 +796,9 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                             group_name: group_name.clone(),
                         },
                     );
-                    if let Err(error) = send_auth_result(
-                        peer,
-                        request_id,
-                        Some(&token),
-                        Some(&group_name),
-                        "",
-                    ) {
+                    if let Err(error) =
+                        send_auth_result(peer, request_id, Some(&token), Some(&group_name), "")
+                    {
                         server.admin_sessions.remove(&peer);
                         tracing::warn!(
                             target: "shroudforge::network",
@@ -768,6 +884,7 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                 .last_attempt
                 .is_some_and(|last| last.elapsed() < LOGIN_COOLDOWN)
     });
+    refresh_multiplayer_compatibility(root, server);
     if server.peers.is_empty() {
         server.game.offset = None;
         server.loader.offset = None;
@@ -798,6 +915,204 @@ fn should_log_receive_error(last_logged: &mut Option<Instant>) -> bool {
         true
     } else {
         false
+    }
+}
+
+fn receive_compatibility_report(peer: u64, value: &serde_json::Value, server: &mut ServerState) {
+    let Ok(report) =
+        serde_json::from_value::<mod_loader::ClientCompatibilityReport>(value["report"].clone())
+    else {
+        return;
+    };
+    if report.validate().is_err() {
+        return;
+    }
+    if !server.compatibility_peers.contains_key(&peer) && server.compatibility_peers.len() >= 64 {
+        return;
+    }
+    let now = Instant::now();
+    let record = server
+        .compatibility_peers
+        .entry(peer)
+        .or_insert_with(|| CompatibilityPeer {
+            connected_since: now,
+            last_report: None,
+            report: None,
+        });
+    record.last_report = Some(now);
+    record.report = Some(report);
+}
+
+fn refresh_multiplayer_compatibility(root: &Path, server: &mut ServerState) {
+    let refresh = server
+        .last_compatibility_refresh
+        .is_none_or(|last| last.elapsed() >= COMPATIBILITY_REFRESH_INTERVAL);
+    if refresh {
+        server.last_compatibility_refresh = Some(Instant::now());
+        match crate::connected_peers() {
+            Ok(peers) => {
+                let peers = peers
+                    .into_iter()
+                    .filter_map(|peer| peer.parse::<u64>().ok())
+                    .filter(|peer| *peer != 0)
+                    .take(64)
+                    .collect::<HashSet<_>>();
+                server
+                    .compatibility_peers
+                    .retain(|peer, _| peers.contains(peer));
+                for peer in peers {
+                    server
+                        .compatibility_peers
+                        .entry(peer)
+                        .or_insert_with(|| CompatibilityPeer {
+                            connected_since: Instant::now(),
+                            last_report: None,
+                            report: None,
+                        });
+                }
+                server.compatibility_peers_available = true;
+                server.last_peer_discovery_error_log = None;
+            }
+            Err(error) => {
+                server.compatibility_peers_available = false;
+                if should_log_receive_error(&mut server.last_peer_discovery_error_log) {
+                    tracing::warn!(target: "shroudforge::network", %error, "Could not enumerate authenticated game clients for compatibility checks");
+                }
+            }
+        }
+        match compatibility_mod_inventory(root) {
+            Ok(mods) => {
+                server.compatibility_mods = mods;
+                server.compatibility_inventory_available = true;
+            }
+            Err(error) => {
+                server.compatibility_inventory_available = false;
+                if should_log_receive_error(&mut server.last_peer_discovery_error_log) {
+                    tracing::warn!(target: "shroudforge::network", %error, "Could not read server mods for multiplayer compatibility checks");
+                }
+            }
+        }
+    }
+
+    let clients = server
+        .compatibility_peers
+        .iter()
+        .map(|(steam_id, record)| {
+            let state = match (record.last_report, record.report.as_ref()) {
+                (Some(last), Some(_)) if last.elapsed() >= CLIENT_REPORT_STALE_AFTER => {
+                    mod_loader::ClientReportState::Stale
+                }
+                (_, Some(report)) => mod_loader::ClientReportState::Reported(report.clone()),
+                _ if record.connected_since.elapsed() >= CLIENT_REPORT_MISSING_AFTER => {
+                    mod_loader::ClientReportState::Missing
+                }
+                _ => mod_loader::ClientReportState::Pending,
+            };
+            mod_loader::ConnectedClient {
+                steam_id: steam_id.to_string(),
+                state,
+            }
+        })
+        .collect();
+    let mut check = mod_loader::compatibility_check(
+        &mod_loader::installed_version(root),
+        &server.compatibility_mods,
+        clients,
+        server.compatibility_peers_available && server.compatibility_inventory_available,
+    );
+    if !server.compatibility_inventory_available {
+        check.detail = "The server mod inventory could not be read.".into();
+    }
+    log_compatibility_issue_transitions(root, server, &check);
+    server.compatibility_check = Some(check);
+}
+
+fn log_compatibility_issue_transitions(
+    root: &Path,
+    server: &mut ServerState,
+    check: &mod_loader::MultiplayerVersionCheck,
+) {
+    let mut current = HashMap::new();
+    for client in &check.clients {
+        let player = client.player_name.as_deref().unwrap_or(&client.steam_id);
+        for issue in &client.issues {
+            if client.state != "warning" {
+                continue;
+            }
+            let key = format!(
+                "{}|{}|{}|{}|{}",
+                client.steam_id,
+                issue.code,
+                issue.mod_id.as_deref().unwrap_or_default(),
+                issue.client_version.as_deref().unwrap_or_default(),
+                issue.server_version.as_deref().unwrap_or_default(),
+            );
+            current.insert(
+                key,
+                compatibility_issue_message(player, &client.steam_id, issue),
+            );
+        }
+    }
+    for (key, message) in &server.last_logged_compatibility_issues {
+        if !current.contains_key(key) {
+            let _ = shroudforge_logging::append(
+                root,
+                'I',
+                "compatibility",
+                &format!("Multiplayer compatibility issue resolved: {message}"),
+            );
+        }
+    }
+    for (key, message) in &current {
+        if server.last_logged_compatibility_issues.get(key) != Some(message) {
+            let _ = shroudforge_logging::append(
+                root,
+                'W',
+                "compatibility",
+                &format!("Multiplayer compatibility warning: {message}"),
+            );
+        }
+    }
+    server.last_logged_compatibility_issues = current;
+}
+
+fn compatibility_issue_message(
+    player: &str,
+    steam_id: &str,
+    issue: &mod_loader::ClientVersionIssue,
+) -> String {
+    let identity = if player == steam_id {
+        steam_id.to_owned()
+    } else {
+        format!("{player} ({steam_id})")
+    };
+    match issue.code.as_str() {
+        "report-missing" => format!("{identity} has not sent a compatibility report."),
+        "report-stale" => format!("{identity}'s compatibility report is stale."),
+        "loader-version" => format!(
+            "{identity} uses Modloader {}, server uses {}.",
+            issue.client_version.as_deref().unwrap_or("unknown"),
+            issue.server_version.as_deref().unwrap_or("unknown"),
+        ),
+        "mod-version" => format!(
+            "{identity} uses mod {} version {}, server uses {}.",
+            issue.mod_id.as_deref().unwrap_or("unknown"),
+            issue.client_version.as_deref().unwrap_or("unknown"),
+            issue.server_version.as_deref().unwrap_or("unknown"),
+        ),
+        "mod-missing-client" => format!(
+            "Active server mod {} is missing on {identity}.",
+            issue.mod_id.as_deref().unwrap_or("unknown"),
+        ),
+        "mod-missing-server" => format!(
+            "Active client mod {} is missing or disabled on the server for {identity}.",
+            issue.mod_id.as_deref().unwrap_or("unknown"),
+        ),
+        "client-problem" => format!(
+            "{identity} reports a compatibility problem: {}",
+            issue.detail.as_deref().unwrap_or("details unavailable"),
+        ),
+        _ => format!("{identity} has a multiplayer version compatibility issue."),
     }
 }
 
@@ -976,7 +1291,7 @@ fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server:
         return;
     }
     match server_mods_snapshot(root, locale)
-        .and_then(|mods| server_view_snapshot(root, mods))
+        .and_then(|mods| server_view_snapshot(root, mods, server.compatibility_check.clone()))
     {
         Ok((mods, server_view)) => {
             let mod_count = mods.as_array().map_or(0, Vec::len);
@@ -1687,8 +2002,11 @@ fn read_server_mod_icon(
 fn server_view_snapshot(
     root: &Path,
     mods: serde_json::Value,
+    version_check: Option<mod_loader::MultiplayerVersionCheck>,
 ) -> Result<(serde_json::Value, serde_json::Value), String> {
-    let entries = mods.as_array().ok_or("server mod snapshot must be an array")?;
+    let entries = mods
+        .as_array()
+        .ok_or("server mod snapshot must be an array")?;
     let owned_notice_mods = entries
         .iter()
         .map(|item| {
@@ -1709,13 +2027,15 @@ fn server_view_snapshot(
         .collect::<Vec<_>>();
     let notification_mods = owned_notice_mods
         .iter()
-        .map(|(id, name, version, ecosystem, changelog)| shroudforge_news::ModNotification {
-            id,
-            name,
-            version,
-            ecosystem,
-            changelog,
-        })
+        .map(
+            |(id, name, version, ecosystem, changelog)| shroudforge_news::ModNotification {
+                id,
+                name,
+                version,
+                ecosystem,
+                changelog,
+            },
+        )
         .collect::<Vec<_>>();
     let notices = shroudforge_news::read_notifications(root, &notification_mods);
     let news_templates = shroudforge_news::read(root)
@@ -1727,16 +2047,22 @@ fn server_view_snapshot(
         .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
         .and_then(|value| value["gameVersion"].as_str().map(str::to_owned))
         .unwrap_or_else(|| "Automatisch erkannt".into());
-    let compatibility = mod_loader::compatibility_status::configuration(
+    let mut compatibility = mod_loader::compatibility_status::configuration(
         root,
         true,
         env!("CARGO_PKG_VERSION"),
         shroudforge_loader_config::runtime_status::runtime_pid(root),
     );
+    if let (Some(checks), Some(check)) = (compatibility["checks"].as_array_mut(), version_check) {
+        if let Ok(check) = serde_json::to_value(check) {
+            checks.push(check);
+        }
+    }
     let server_view = serde_json::json!({
         "notices": notices,
         "newsTemplates": news_templates,
         "gameVersion": game_version,
+        "version": mod_loader::installed_version(root),
         "configuration": compatibility,
         "dllCandidates": mod_loader::dll_manager::discover_dll_candidates(root),
         "dllChainEntries": mod_loader::dll_manager::chain_load_entries(root),

@@ -45,6 +45,19 @@ export type Snapshot = {
       code?: RuntimeProblemCode
       detail: string
       phase?: string
+      clients?: Array<{
+        steamId: string
+        playerName?: string
+        state: 'ok' | 'warning' | 'neutral'
+        loaderVersion?: string
+        issues: Array<{
+          code: string
+          modId?: string
+          clientVersion?: string
+          serverVersion?: string
+          detail?: string
+        }>
+      }>
     }>
     assets: { state: string; detail: string }
     lastUpdate?: { version: string; build: string; installedAt: number }
@@ -85,6 +98,7 @@ export type Snapshot = {
 export type ServerView = {
   mode: 'SERVER'
   gameVersion: string
+  version: string
   configuration?: Snapshot['configuration']
   dllCandidates: DllCandidate[]
   dllChainEntries: DllLoadEntry[]

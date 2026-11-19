@@ -143,6 +143,7 @@ export function App() {
           setServerView({
             ...view,
             mode: 'SERVER',
+            version: view.version ?? '',
             mods: detail.mods,
             dllCandidates: view.dllCandidates ?? [],
             dllChainEntries: view.dllChainEntries ?? [],
@@ -169,9 +170,12 @@ export function App() {
       setServerView(null)
       return
     }
-    if (serverAdminAuthenticated) {
+    if (!serverAdminAuthenticated) return
+    const fetchServerSnapshot = () =>
       postRequest('fetch-server-mods', { locale: data.locale })
-    }
+    fetchServerSnapshot()
+    const interval = window.setInterval(fetchServerSnapshot, 10_000)
+    return () => window.clearInterval(interval)
   }, [remoteTarget, serverAdminAuthenticated, data.locale])
 
   const activeData: Snapshot = remoteTarget === 'server'

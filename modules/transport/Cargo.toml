@@ -14,6 +14,8 @@ tracing = "0.1"
 shroudforge-loader-config.workspace = true
 shroudforge-hotkeys.workspace = true
 shroudforge-news.workspace = true
+shroudforge-logging.workspace = true
+shroudforge-player-name.workspace = true
 mod-loader = { package = "shroudforge-package", path = "../modloader" }
 mlua = { version = "0.11.2", features = ["lua54", "error-send", "vendored"] }
 serde_json = "1.0"
