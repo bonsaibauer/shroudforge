@@ -1,0 +1,40 @@
+<languages />
+
+<!-- ShroudForge Modloader Wiki Post
+title: Enshrouded Fan Project Guidelines
+description: An overview of Keen Games' rules for Enshrouded fan projects, the monetization they permit, and how ShroudForge follows them.
+language: en-GB
+picture:ShroudForge-Wiki-fan-project-guidelines.svg
+creator: Bonsaibauer
+-->
+
+[[File:ShroudForge-Wiki-fan-project-guidelines.svg|thumb|left|600px|Enshrouded Fan Project Guidelines]]
+
+<br style="clear:both;" />
+
+<translate>
+
+An overview of Keen Games' rules for Enshrouded fan projects, the monetization they permit, and how ShroudForge follows them.
+
+Keen Games' November 2026 ''Enshrouded Fan Project Guidelines'' describe the conditions under which it permits fan projects such as wikis, companion apps, mods, tools, and community servers. The document is a permission, not a license. It does not amend the Enshrouded End User License Agreement, and Keen Games may withdraw it. This page summarizes the document and does not represent a review or endorsement of ShroudForge by Keen Games.
+
+== Voluntary support and project access ==
+
+The guidelines permit donations, tip jars, Patreon-style support, and advertising. Small thank-you perks such as a credit, a Discord role, or an ad-free view are allowed only when they add nothing to the project itself. Everything the project offers must remain free for everyone, at the same time and in the same quality. Money may flow only voluntarily.
+
+== Paid access and advantages ==
+
+Paid tiers, premium or higher-quality versions, paid downloads, paid sync or server features, in-app purchases, and paid access to servers or modded servers are not permitted. The rules also prohibit merchandise using Enshrouded names or artwork and selling Enshrouded data or assets. Community servers may use donations and advertising to cover costs, but they cannot charge players to join or sell items, resources, progress, or other advantages. Paid DLC must remain tied to each player's own purchase.
+
+== How ShroudForge follows the guidelines ==
+
+ShroudForge follows these guidelines. The Modloader and its features are available free to everyone. Support for ShroudForge is voluntary and does not unlock extra features, better quality, downloads, or access.
+
+ShroudForge is an unofficial fan project and is not affiliated with or endorsed by Keen Games. Enshrouded and its content are the property of Keen Games GmbH.
+
+== Source document ==
+
+The full November 2026 guideline is available as the [https://seafile.keengames.com/f/fb6dd5e1ca764daf9a99/ original shared PDF]. The wiki copy is provided as page images: [[Media:Enshrouded_Fan_Project_Guidelines_page_1.png|page 1]], [[Media:Enshrouded_Fan_Project_Guidelines_page_2.png|page 2]], and [[Media:Enshrouded_Fan_Project_Guidelines_page_3.png|page 3]]. This summary reflects that version of the document.
+</translate>
+
+[[Category:guide:Shroudforge]]

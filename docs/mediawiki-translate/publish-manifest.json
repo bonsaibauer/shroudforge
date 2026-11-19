@@ -534,6 +534,34 @@
       "categories": [
         "guide:Shroudforge"
       ]
+    },
+    {
+      "id": "fan-project-guidelines",
+      "title": "Enshrouded Fan Project Guidelines",
+      "sourceLanguage": "en-GB",
+      "priorityLanguages": [
+        "de-at",
+        "de-ch",
+        "de",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "nl",
+        "pl",
+        "sv",
+        "zh"
+      ],
+      "group": "page-Enshrouded Fan Project Guidelines",
+      "wikitext": "docs/mediawiki-translate/fan-project-guidelines/en.wikitext",
+      "asset": "modules/wiki/articles/fan-project-guidelines/illustration.svg",
+      "assetTitle": "ShroudForge-Wiki-fan-project-guidelines.svg",
+      "po": null,
+      "poFiles": [],
+      "categories": [
+        "guide:Shroudforge"
+      ]
     }
   ]
 }
