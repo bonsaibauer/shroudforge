@@ -291,7 +291,6 @@ impl AppState {
         Ok(Self {
             runtime_configured: Cell::new(false),
             runtime_active_mods: RefCell::new(HashSet::new()),
-            map_lua_owners: RefCell::new(HashMap::new()),
             runtime_effects: RefCell::new(HashMap::new()),
             runtime_write_fault: RefCell::new(None),
             runtime_ownership: Rc::new(RefCell::new(

@@ -106,7 +106,6 @@ impl Fixture {
             prepared_asset_output: false,
             asset_input_root: root.clone(),
             asset_output_root: root.clone(),
-            map_lua_owners: RefCell::new(HashMap::new()),
             native_dlls: RefCell::new(Vec::new()),
             pending_native_dlls: RefCell::new(Vec::new()),
             native_plugin_services: RefCell::new(Arc::new(

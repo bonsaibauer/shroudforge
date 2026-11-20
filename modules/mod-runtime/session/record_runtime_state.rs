@@ -20,7 +20,6 @@ impl AppState {
         crate::native_bridge::set_game_access(id, active && runtime && self.is_client());
         if !active {
             self.loaded_resource_indexes.borrow_mut().remove_owner(id);
-            self.release_lua_map_owner(id);
         }
         if let Some(status) = native_dll_status {
             self.report_native_dll_effect(&status);

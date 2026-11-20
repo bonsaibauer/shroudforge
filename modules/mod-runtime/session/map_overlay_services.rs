@@ -1,6 +1,6 @@
 use super::native_plugin_abi::{NATIVE_STATUS_UNAVAILABLE, NativePluginServiceLifetime};
 use mod_loader::ModEnvironment;
-use std::{cell::RefCell, collections::HashMap, ffi::c_void};
+use std::ffi::c_void;
 /// Immutable control-plane authority. No AppState/RefCell is retained by this
 /// object and native callbacks dispatch directly inside the provider.
 pub(crate) struct MapOverlayServices {
@@ -66,86 +66,5 @@ impl super::AppState {
         )?
         .unwrap_or_else(|| super::new_native_plugin_service_lifetime(self.env(), self.is_server()));
         self.set_native_plugin_service_lifetime(services)
-    }
-}
-
-static LUA_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-fn release_before_remove(
-    owners: &RefCell<HashMap<String, u64>>,
-    id: &str,
-    release: impl FnOnce(u64),
-) -> Option<u64> {
-    let generation = owners.borrow().get(id).copied()?;
-    release(generation);
-    let removed = owners.borrow_mut().remove(id);
-    debug_assert_eq!(removed, Some(generation));
-    Some(generation)
-}
-
-impl super::AppState {
-    pub(crate) fn lua_map_owner(&self, id: &str) -> u64 {
-        *self
-            .map_lua_owners
-            .borrow_mut()
-            .entry(id.to_owned())
-            .or_insert_with(|| {
-                (1u64 << 63) | LUA_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            })
-    }
-    pub(crate) fn release_lua_map_owner(&self, id: &str) {
-        release_before_remove(&self.map_lua_owners, id, |generation| {
-            let revoke = shroudforge_runtime_bridge::revoke_map_overlay_services(id, generation);
-            let drain = shroudforge_runtime_bridge::drain_map_overlay_services(id, generation, 250);
-            if revoke != 0 || drain != 0 {
-                tracing::warn!(
-                    mod_id = id,
-                    revoke,
-                    drain,
-                    "Native map owner retained pending drain"
-                );
-            }
-        });
-    }
-
-    pub(crate) fn release_all_lua_map_owners(&self) {
-        let ids = self
-            .map_lua_owners
-            .borrow()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
-        for id in ids {
-            self.release_lua_map_owner(&id);
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::release_before_remove;
-    use std::{cell::RefCell, collections::HashMap};
-
-    #[test]
-    fn native_owner_is_released_before_lua_generation_is_retired() {
-        let owners = RefCell::new(HashMap::from([("general-client-mod".to_owned(), 42_u64)]));
-        let mut released = None;
-        let retired = release_before_remove(&owners, "general-client-mod", |generation| {
-            assert_eq!(owners.borrow().get("general-client-mod"), Some(&generation));
-            released = Some(generation);
-        });
-        assert_eq!(released, Some(42));
-        assert_eq!(retired, Some(42));
-        assert!(!owners.borrow().contains_key("general-client-mod"));
-    }
-
-    #[test]
-    fn missing_lua_generation_does_not_issue_a_native_release() {
-        let owners = RefCell::new(HashMap::new());
-        let mut released = false;
-        assert_eq!(
-            release_before_remove(&owners, "missing", |_| released = true),
-            None
-        );
-        assert!(!released);
     }
 }
