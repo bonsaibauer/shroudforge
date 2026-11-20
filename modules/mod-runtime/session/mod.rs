@@ -38,7 +38,6 @@ pub(crate) const GAME_FILE_HANDLES_RELEASED: &str =
 pub struct AppState {
     pub(crate) runtime_configured: Cell<bool>,
     runtime_active_mods: RefCell<HashSet<String>>,
-    map_lua_owners: RefCell<HashMap<String, u64>>,
     runtime_effects: RefCell<HashMap<String, serde_json::Value>>,
     runtime_write_fault: RefCell<Option<(u64, String)>>,
     runtime_ownership:
@@ -217,7 +216,6 @@ impl AppState {
 impl Drop for AppState {
     fn drop(&mut self) {
         self.shutdown_native_dlls();
-        self.release_all_lua_map_owners();
         if self.asset_transaction.get() && !self.prepared_asset_output {
             // Struct fields drop only after this body, so the handles must be
             // closed explicitly before the rollback replaces any file.

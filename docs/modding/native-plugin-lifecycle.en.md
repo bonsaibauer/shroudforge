@@ -80,7 +80,6 @@ This also applies to plans containing only managed plugins.
   Overlay v3 adds bounded fragment programs; its drawing contract is documented
   in [Native map and overlay services](../runtime/native-map-services.en.md).
 
-Lua runtime APIs expose bounded map snapshots through the optional provider.
 Gameplay controls and mod-specific compatibility adapters belong to mod packages.
 Neither a successful DLL load nor local tests establish game-build or server
 compatibility. Provider preparation must complete before the game entrypoint
