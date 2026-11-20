@@ -66,7 +66,7 @@ impl Fixture {
         fixture
     }
 
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let root = std::env::temp_dir().join(format!("sf-assets-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("mods/fixture/src")).unwrap();
         std::fs::write(
