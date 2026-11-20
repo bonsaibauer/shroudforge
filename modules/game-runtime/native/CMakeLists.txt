@@ -88,7 +88,7 @@ add_library(kfc-runtime SHARED
     map/hud_visibility.cpp
     map/serve_map_overlay.cpp
     graphics/render_overlay.cpp
-    engine-hooks/owned_executable_span.cpp
+    engine-hooks/owned_executable_span.cpp engine-hooks/owned_span_proof.cpp
     graphics/vulkan_overlay.cpp
     graphics/notification_overlay.cpp
     ecs/bind_world_entities.cpp
@@ -369,7 +369,8 @@ set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY
 add_executable(kfc-runtime-test-map-frame EXCLUDE_FROM_ALL
     ../tests/map_frame_test.cpp map/read_map_frame.cpp)
 add_executable(kfc-runtime-test-executable-span-validation EXCLUDE_FROM_ALL
-    ../tests/executable_span_validation_test.cpp host/executable_span_validation.cpp)
+    ../tests/executable_span_validation_test.cpp ../tests/owned_span_proof_test.cpp
+    host/executable_span_validation.cpp engine-hooks/owned_span_proof.cpp)
 target_include_directories(kfc-runtime-test-executable-span-validation PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(kfc-runtime-test-executable-span-validation PRIVATE cxx_std_20)
@@ -378,7 +379,7 @@ target_compile_definitions(kfc-runtime-test-executable-span-validation PRIVATE
 set_property(TARGET kfc-runtime-test-executable-span-validation PROPERTY
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_library(kfc-runtime-test-span-service-runtime OBJECT EXCLUDE_FROM_ALL
-    host/executable_span_validation.cpp host/executable_span_validation_runtime.cpp
+    host/executable_span_validation.cpp host/executable_span_validation_runtime.cpp engine-hooks/owned_span_proof.cpp
     ../tests/executable_span_validation_runtime_fixture.cpp)
 target_include_directories(kfc-runtime-test-span-service-runtime PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -390,12 +391,12 @@ set_property(TARGET kfc-runtime-test-span-service-runtime PROPERTY
 add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
     ../tests/map_service_lifetime_test.cpp map/read_map_frame.cpp
     graphics/render_overlay.cpp graphics/notification_overlay.cpp
-    engine-hooks/owned_executable_span.cpp)
+    engine-hooks/owned_executable_span.cpp engine-hooks/owned_span_proof.cpp)
 add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
     map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp
     engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp
-    engine-hooks/owned_executable_span.cpp)
+    engine-hooks/owned_executable_span.cpp engine-hooks/owned_span_proof.cpp)
 foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-lifetime kfc-runtime-test-overlay-gpu)
     target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_compile_features(${test_target} PRIVATE cxx_std_20)

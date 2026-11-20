@@ -12,6 +12,8 @@
 #include "engine-hooks/write_executable_bytes.h"
 #include "engine-hooks/held_entry_preparation.h"
 #include "engine-hooks/owned_executable_span.h"
+#include "engine-hooks/owned_span_proof.h"
+#include "engine-hooks/shared_call_proof.h"
 #include "host/executable_span_validation.h"
 #include <windows.h>
 #include <algorithm>
@@ -226,6 +228,7 @@ std::uint64_t source_session{}, next_generation{};
 std::uint64_t preparation_generation{};
 std::uint64_t capture_enable_generation{};
 bool capture_enable_in_progress{};
+bool call_proofs_published{};
 struct CaptureEnableReservation {
     std::uint64_t generation{};
     ~CaptureEnableReservation() {
@@ -518,6 +521,49 @@ bool call_hook(std::size_t rva,std::size_t original_target,void* callback) {
     for (unsigned i=0;i<8;++i) relay.push_back(std::uint8_t(handler>>(i*8)));
     return publish_hook(image_base+rva,original,std::move(relay),true);
 }
+bool ReadCallProof(std::uintptr_t source,void* output,std::size_t size) noexcept {
+    return ReadMemory(source,output,size);
+}
+bool CallProofRegion(std::uintptr_t at,std::size_t size,std::uintptr_t allocation,bool image) noexcept {
+    MEMORY_BASIC_INFORMATION region{};
+    if(!at || VirtualQuery(reinterpret_cast<void*>(at),&region,sizeof(region))!=sizeof(region) ||
+        region.State!=MEM_COMMIT || reinterpret_cast<std::uintptr_t>(region.AllocationBase)!=allocation ||
+        (region.Protect&(PAGE_GUARD|PAGE_NOACCESS)) || at<reinterpret_cast<std::uintptr_t>(region.BaseAddress))return false;
+    const auto offset=at-reinterpret_cast<std::uintptr_t>(region.BaseAddress);
+    return offset<=region.RegionSize && size<=region.RegionSize-offset &&
+        (region.Protect&0xff)==PAGE_EXECUTE_READ && (!image || region.Type==MEM_IMAGE);
+}
+bool CallProofResident(std::uintptr_t handler,std::uintptr_t expected) noexcept {
+    HMODULE actual{};
+    return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCWSTR>(handler),&actual) && reinterpret_cast<std::uintptr_t>(actual)==expected;
+}
+bool VerifyCallProof(const void* opaque) noexcept {
+    return opaque && EngineHooks::VerifySharedCallWitness(
+        *static_cast<const EngineHooks::SharedCallWitness*>(opaque),ReadCallProof,CallProofRegion,CallProofResident);
+}
+bool PublishQualifiedCallProofs() {
+    unsigned published{};
+    for(const auto& hook:hooks) {
+        if(hook.original.size()!=5 || hook.replacement.size()!=5 || hook.relay.size()!=14)continue;
+        if(!hook.installed || !hook.publicationQualified || !hook.residentOwner ||
+            hook.target<image_base || hook.target-image_base>UINT32_MAX)return false;
+        auto witness=std::make_shared<EngineHooks::SharedCallWitness>();
+        witness->image=image_base;witness->target=hook.target;witness->allocation=hook.allocation;
+        witness->resident=reinterpret_cast<std::uintptr_t>(hook.residentOwner);
+        std::memcpy(witness->original.data(),hook.original.data(),5);
+        std::memcpy(witness->replacement.data(),hook.replacement.data(),5);
+        std::memcpy(witness->relay.data(),hook.relay.data(),14);
+        std::int32_t relative{};std::memcpy(&relative,witness->original.data()+1,4);
+        witness->original_target=std::uintptr_t(std::int64_t(hook.target)+5+relative);
+        std::memcpy(&witness->handler,witness->relay.data()+6,8);
+        if(!VerifyCallProof(witness.get()) || !EngineHooks::ExecutableProofs().Publish(
+            static_cast<std::uint32_t>(hook.target-image_base),hook.original,hook.replacement,
+            witness,VerifyCallProof))return false;
+        ++published;
+    }
+    return published!=0;
+}
 bool discovery_hook() {
     constexpr std::uint8_t original[]{0x41,0xb8,0x50,0,0,0};
     std::vector<std::uint8_t> code{0x48,0x83,0xec,0x50,0x48,0x89,0x4c,0x24,0x20,0x48,0x89,0x54,0x24,0x28,
@@ -583,6 +629,7 @@ bool SF_EXECUTABLE_SPAN_CALL verify_owned_camera_entry_span(std::uint32_t rva,co
 void StopCapture() noexcept {
     try {
         std::lock_guard control(control_mutex);
+        EngineHooks::ExecutableProofs().Close();
         ++preparation_generation; ++capture_enable_generation; capture_enable_in_progress=false;
         accepting.store(false,std::memory_order_release);capture_generation.store(0);
         DisableHudVisibility();store.Disable();owners.clear();
@@ -619,6 +666,11 @@ std::string PreparationStatus() {
         ",hud="+HudPreparationStatus()+",executable-span="+(executable_span_published?"published":"unavailable");
 }
 std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
+    bool proof_ready{};
+    struct ProofPreparation {
+        bool& ready;
+        ~ProofPreparation(){if(!ready)EngineHooks::ExecutableProofs().Close();}
+    } proof_preparation{proof_ready};
     try {
         std::unique_lock control(control_mutex);
         preparation_step="preconditions";preparation_reason="none";preparation_result=SF_MAP_FAILED;
@@ -629,7 +681,8 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
             preparation_step="owned-camera-readback";
             const bool owned=ReadOwnedCameraEntryReplacement(original,replacement);
             preparation_reason=owned?(executable_span_published?"none":"owned-span-unavailable"):"owned-camera-rejected";
-            preparation_result=owned?SF_MAP_READY:SF_MAP_FAILED;return preparation_result;
+            proof_ready=owned && call_proofs_published;
+            preparation_result=proof_ready?SF_MAP_READY:SF_MAP_FAILED;return preparation_result;
         }
         if(preparation!=Preparation::Unprepared || accepting || !hooks.empty()){preparation_reason="prior-preparation-or-publication";return SF_MAP_FAILED;}
         namespace Profile=KfcRuntimeCompatibility::EnshroudedClient;
@@ -685,6 +738,8 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         // The pinned shared writer guarantees false=no publication/verified rollback;
         // its indeterminate branch fails fast. Never use the old79f writer here.
         for(auto& hook:hooks){hook.residentOwner=resident;hook.publicationQualified=true;}
+        call_proofs_published=PublishQualifiedCallProofs();
+        if(!call_proofs_published){preparation=Preparation::Failed;preparation_reason="call-proof-publication";return SF_MAP_FAILED;}
         const auto camera_hook=std::find_if(hooks.begin(),hooks.end(),[](const auto& hook){return hook.target==image_base+Current5d9ef2f1::Camera;});
         if(camera_hook!=hooks.end() && camera_hook->installed && camera_hook->publicationQualified && camera_hook->target>=image_base &&
            camera_hook->target-image_base<=UINT32_MAX && camera_hook->original.size()==18 && camera_hook->replacement.size()==18) {
@@ -692,6 +747,7 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
                 static_cast<std::uint32_t>(camera_hook->target-image_base),camera_hook->original,camera_hook->replacement,
                 verify_owned_camera_entry_span);
         }
+        proof_ready=true;
         preparation=Preparation::Ready;preparation_step="ready";
         preparation_reason=executable_span_published?"none":"owned-span-unavailable";preparation_result=SF_MAP_READY;
         capture_generation=0;source_session=0;deaths_enabled=admission.deaths;

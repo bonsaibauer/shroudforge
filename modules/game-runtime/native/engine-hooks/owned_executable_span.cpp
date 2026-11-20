@@ -1,4 +1,5 @@
 #include "engine-hooks/owned_executable_span.h"
+#include "engine-hooks/owned_span_proof.h"
 #include <windows.h>
 #include <algorithm>
 #include <array>
@@ -14,7 +15,7 @@ struct Record {
     std::vector<std::uint8_t> original,replacement;
     OwnedExecutableSpanVerifier verifier{};
 };
-std::mutex registry_mutex;
+std::mutex& registry_mutex=ExecutableProofs().Gate();
 std::vector<std::shared_ptr<const Record>> records;
 
 bool ReadProcess(const void* source,void* destination,std::size_t size) noexcept {
@@ -116,7 +117,7 @@ bool PublishOwnedExecutableSpan(std::uint32_t rva,std::span<const std::uint8_t> 
                     record->replacement==existing->replacement && verifier==existing->verifier;
             }
         }
-        if(records.size()>=4096)return false;
+        if(records.size()>=4096 || !ExecutableProofs().ReserveLegacyLocked())return false;
         records.push_back(std::move(record));
         return true;
     } catch(...) { return false; }

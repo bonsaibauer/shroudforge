@@ -53,6 +53,15 @@ struct Registry::Owner {
     std::size_t in_flight{};
     bool revoked{};
     std::vector<Span> spans;
+    std::size_t ever_proofs{};
+};
+
+struct Registry::ProofLease {
+    Owner* owner{};
+    Span span;
+    std::uint32_t prefix{};
+    std::uint64_t session{}, id{}, adopted{};
+    bool live{true};
 };
 
 namespace {
@@ -80,7 +89,12 @@ bool ValidResponse(const SFExecutableSpanValidationResponseV1& response,
 
 Registry::Registry(CodeReader reader, RegistrationGate gate,
         CallbackAddressValidator callback_validator) noexcept
-    : reader_(reader), registration_gate_(gate), callback_validator_(callback_validator) {}
+    : Registry(reader,gate,callback_validator,nullptr,nullptr,nullptr,ProofLimits{}) {}
+Registry::Registry(CodeReader reader, RegistrationGate gate,
+        CallbackAddressValidator callback_validator,EngineHooks::OwnedSpanProofs* proofs,
+        ProofCodePin pin,ProofDispatch dispatch,ProofLimits limits) noexcept
+    : reader_(reader), registration_gate_(gate), callback_validator_(callback_validator),
+      proofs_(proofs), proof_pin_(pin), proof_dispatch_(dispatch), proof_limits_(limits) {}
 Registry::~Registry() = default;
 
 Registry::Owner* Registry::FindLocked(std::string_view package, std::uint64_t generation) const noexcept {
@@ -94,7 +108,7 @@ Registry::Owner* Registry::FindContextLocked(const void* context) const noexcept
     return nullptr;
 }
 Registry::Owner* Registry::CreateLocked(std::string_view package, std::uint64_t generation) noexcept {
-    if (owners_.size() >= MaxOwners) return nullptr;
+    if (owners_.size() >= (std::min)(MaxOwners,proof_limits_.owners)) return nullptr;
     try {
         auto owner = std::make_unique<Owner>();
         owner->registry = this;
@@ -110,21 +124,146 @@ Registry::Owner* Registry::CreateLocked(std::string_view package, std::uint64_t 
 std::int32_t Registry::Query(std::string_view package, std::uint64_t generation,
         std::uint32_t version, std::uint32_t capacity, void* output) noexcept {
     if (!ValidPackage(package) || !generation || !output) return InvalidArgument;
-    if (version != SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1) return AbiMismatch;
-    if (capacity < sizeof(SFExecutableSpanValidationServiceV1)) return BufferTooSmall;
+    if (version != SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1 &&
+        version != SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V2) return AbiMismatch;
+    const bool v2=version==SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V2;
+    if (capacity < (v2?sizeof(SFExecutableSpanValidationServiceV2):sizeof(SFExecutableSpanValidationServiceV1))) return BufferTooSmall;
+    if (v2 && (!proofs_ || !proof_pin_ || !proof_dispatch_)) return Unavailable;
     std::lock_guard lock(mutex_);
     auto* owner = FindLocked(package, generation);
     if (owner && owner->revoked) return Unavailable;
     if (!owner) owner = CreateLocked(package, generation);
     if (!owner) return Busy;
     if (owner->owner_thread != std::this_thread::get_id()) return WrongThread;
-    const SFExecutableSpanValidationServiceV1 table{
-        sizeof(SFExecutableSpanValidationServiceV1),
-        SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1,
-        owner,
-        &Registry::RegisterSpan};
-    std::memcpy(output, &table, sizeof(table));
+    if(v2) {
+        const SFExecutableSpanValidationServiceV2 table{
+            {sizeof(SFExecutableSpanValidationServiceV2),version,owner,&Registry::RegisterSpan},
+            &Registry::AcquireProofLease};
+        std::memcpy(output,&table,sizeof(table));
+    } else {
+        const SFExecutableSpanValidationServiceV1 table{
+            sizeof(SFExecutableSpanValidationServiceV1),version,owner,&Registry::RegisterSpan};
+        std::memcpy(output,&table,sizeof(table));
+    }
     return Ok;
+}
+
+std::int32_t SF_EXECUTABLE_SPAN_VALIDATION_CALL Registry::AcquireProofLease(
+        void* context,const SFExecutableSpanProofBindingV1* binding,
+        std::uint32_t capacity,SFExecutableSpanProofLeaseV1* output) {
+    if(!context)return InvalidArgument;
+    auto* owner=static_cast<Owner*>(context);
+    return owner->registry ? owner->registry->AcquireProof(owner,binding,capacity,output) : Unavailable;
+}
+
+std::int32_t Registry::AcquireProof(Owner* context,const SFExecutableSpanProofBindingV1* input,
+        std::uint32_t capacity,SFExecutableSpanProofLeaseV1* output) noexcept {
+    if(!input || !output)return InvalidArgument;
+    if(capacity<sizeof(*output))return BufferTooSmall;
+    const auto binding=*input;
+    if(binding.size!=sizeof(binding) || binding.version!=1 || binding.reserved ||
+        !binding.registered_byte_count || binding.registered_byte_count>32 ||
+        !binding.owned_prefix_byte_count || binding.owned_prefix_byte_count>binding.registered_byte_count ||
+        !ZeroBytes(binding.expected+binding.registered_byte_count,32-binding.registered_byte_count))return InvalidArgument;
+    if(!proofs_ || !proof_dispatch_ || !proof_pin_ || !registration_gate_ || !registration_gate_())return Unavailable;
+    Span span{};
+    {
+        std::lock_guard lock(mutex_);
+        auto* owner=FindContextLocked(context);
+        if(!owner || owner->revoked)return Unavailable;
+        if(owner->owner_thread!=std::this_thread::get_id())return WrongThread;
+        const auto found=std::find_if(owner->spans.begin(),owner->spans.end(),[&](const Span& s){
+            return s.rva==binding.registered_rva && s.byte_count==binding.registered_byte_count &&
+                !std::memcmp(s.expected.data(),binding.expected,s.byte_count);});
+        if(found==owner->spans.end())return InvalidArgument;
+        span=*found;
+    }
+    std::array<std::uint8_t,32> current{};
+    if(!reader_ || !reader_(span.rva,current.data(),span.byte_count) ||
+        std::memcmp(current.data(),span.expected.data(),span.byte_count) || !proof_pin_())return Unavailable;
+    try {
+        std::lock_guard gate(proofs_->Gate());
+        std::lock_guard lock(mutex_);
+        auto* owner=FindContextLocked(context);
+        if(!owner || owner->revoked || !registration_gate_())return Unavailable;
+        if(owner->owner_thread!=std::this_thread::get_id())return WrongThread;
+        if(!std::any_of(owner->spans.begin(),owner->spans.end(),[&](const Span& s){return SameSpan(s,span);}))return Unavailable;
+        if(owner->ever_proofs>=proof_limits_.per_owner || proof_leases_.size()>=proof_limits_.resident_leases ||
+            next_proof_==UINT64_MAX)return TooLarge;
+        for(const auto& lease:proof_leases_)
+            if(lease->owner==owner && lease->span.rva==span.rva)return InvalidArgument;
+        const auto session=proofs_->BeginStageLocked();
+        if(!session)return TooLarge;
+        auto lease=std::make_unique<ProofLease>();
+        lease->owner=owner; lease->span=span; lease->prefix=binding.owned_prefix_byte_count;
+        lease->session=session; lease->id=++next_proof_;
+        SFExecutableSpanProofLeaseV1 result{sizeof(result),1,lease.get(),proof_dispatch_};
+        proof_leases_.push_back(std::move(lease)); ++owner->ever_proofs;
+        *output=result;return Ok;
+    } catch (...) {return Busy;}
+}
+
+std::int32_t Registry::ValidateProof(void* context,const SFExecutableSpanProofQueryV1* input,
+        std::uint32_t capacity,SFExecutableSpanProofResultV1* output) noexcept {
+    if(!context || !input || !output)return InvalidArgument;
+    if(capacity<sizeof(*output))return BufferTooSmall;
+    const auto request=*input;
+    if(request.size!=sizeof(request) || request.version!=1 || request.phase<1 || request.phase>3 ||
+        !request.byte_count || request.byte_count>32 ||
+        !ZeroBytes(request.observed_current+request.byte_count,32-request.byte_count))return InvalidArgument;
+    if(!proofs_)return Unavailable;
+    ProofLease* lease{};Owner* owner{};
+    Span span{};std::uint32_t prefix{};std::uint64_t session{},adopted{};
+    {
+        std::lock_guard lock(mutex_);
+        for(const auto& candidate:proof_leases_)if(candidate.get()==context){lease=candidate.get();break;}
+        if(!lease)return InvalidArgument;
+        owner=FindContextLocked(lease->owner);
+        if(!owner || owner->revoked || !lease->live ||
+            !std::any_of(owner->spans.begin(),owner->spans.end(),[&](const Span& s){return SameSpan(s,lease->span);}))return Unavailable;
+        if(request.byte_count!=lease->span.byte_count)return InvalidArgument;
+        span=lease->span;prefix=lease->prefix;session=lease->session;adopted=lease->adopted;
+        ++owner->in_flight;
+    }
+    std::array<std::uint8_t,32> before{},after{};
+    bool valid=reader_ && reader_(span.rva,before.data(),span.byte_count) &&
+        !std::memcmp(before.data(),request.observed_current,span.byte_count) &&
+        !std::memcmp(before.data()+prefix,span.expected.data()+prefix,span.byte_count-prefix);
+    const bool unchanged=valid && !std::memcmp(before.data(),span.expected.data(),span.byte_count);
+    std::shared_ptr<const EngineHooks::OwnedSpanProofs::Record> record;
+    if(valid && (!unchanged || adopted)) {
+        std::lock_guard gate(proofs_->Gate());
+        record=proofs_->FindLocked(session,span.rva,{span.expected.data(),prefix});
+    }
+    if(valid && (!unchanged || adopted)) {
+        valid=!unchanged && record && (!adopted || record->serial==adopted) &&
+            !std::memcmp(before.data(),record->replacement.data(),prefix) &&
+            record->verify && record->verify(record->witness.get());
+    }
+    if(valid)valid=reader_ && reader_(span.rva,after.data(),span.byte_count) &&
+        !std::memcmp(before.data(),after.data(),span.byte_count);
+    if(valid && record)valid=record->verify(record->witness.get());
+    // Common success/closure ordering; no code reader/verifier under either lock.
+    std::lock_guard gate(proofs_->Gate());
+    std::lock_guard lock(mutex_);
+    const bool live=lease->live && !owner->revoked && proofs_->SessionLiveLocked(session) &&
+        std::any_of(owner->spans.begin(),owner->spans.end(),[&](const Span& s){return SameSpan(s,span);});
+    valid=valid && live;
+    if(record)valid=valid && proofs_->LiveLocked(record) &&
+        (!lease->adopted || lease->adopted==record->serial);
+    if(unchanged && lease->adopted)valid=false;
+    SFExecutableSpanProofResultV1 result{sizeof(result),1,
+        unchanged?SF_EXECUTABLE_SPAN_PROOF_UNCHANGED:SF_EXECUTABLE_SPAN_PROOF_VERIFIED_HOST_OWNED,0,{}};
+    if(valid && record) {
+        lease->adopted=record->serial;
+        const std::uint64_t identity[]{session,record->serial,owner->generation,lease->id};
+        static_assert(sizeof(identity)==sizeof(result.owner_identity));
+        std::memcpy(result.owner_identity,identity,sizeof(identity));
+    }
+    if(!valid && (lease->adopted || !proofs_->SessionLiveLocked(session)))lease->live=false;
+    if(valid)*output=result;
+    --owner->in_flight;changed_.notify_all();
+    return valid?Ok:Unavailable;
 }
 
 std::int32_t Registry::RegisterSpan(void* context,
@@ -187,11 +326,14 @@ std::int32_t Registry::Register(Owner* context,
 
 std::int32_t Registry::Revoke(std::string_view package, std::uint64_t generation) noexcept {
     if (!ValidPackage(package) || !generation) return InvalidArgument;
+    std::unique_lock<std::mutex> proof_gate;
+    if(proofs_)proof_gate=std::unique_lock(proofs_->Gate());
     std::lock_guard lock(mutex_);
     auto* owner = FindLocked(package, generation);
     if (!owner) return Ok;
     if (owner->owner_thread != std::this_thread::get_id()) return WrongThread;
     owner->revoked = true;
+    for(auto& lease:proof_leases_)if(lease->owner==owner)lease->live=false;
     changed_.notify_all();
     return Ok;
 }

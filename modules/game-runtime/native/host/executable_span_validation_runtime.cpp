@@ -26,11 +26,22 @@ bool ExecutableCallback(SFExecutableSpanValidationCallbackV1 callback) noexcept 
     const auto start = reinterpret_cast<std::uintptr_t>(region.BaseAddress);
     return address >= start && address - start < region.RegionSize;
 }
+int32_t SF_EXECUTABLE_SPAN_VALIDATION_CALL ValidateProof(void* context,
+        const SFExecutableSpanProofQueryV1* request,uint32_t capacity,
+        SFExecutableSpanProofResultV1* output) {
+    return ExecutableSpanValidation::Services().ValidateProof(context,request,capacity,output);
+}
+bool PinProofCode() noexcept {
+    HMODULE resident{};
+    return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,
+        reinterpret_cast<LPCWSTR>(&ValidateProof),&resident)!=FALSE;
+}
 }
 
 namespace ExecutableSpanValidation {
 Registry& Services() noexcept {
-    static auto* registry = new Registry(ReadMainImageCode, HeldEntryActive, ExecutableCallback);
+    static auto* registry = new Registry(ReadMainImageCode,HeldEntryActive,ExecutableCallback,
+        &EngineHooks::ExecutableProofs(),PinProofCode,ValidateProof,Registry::ProofLimits{});
     return *registry;
 }
 

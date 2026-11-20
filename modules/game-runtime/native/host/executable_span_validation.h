@@ -1,6 +1,7 @@
 #pragma once
 
 #include "abi/executable_span_validation_api.h"
+#include "engine-hooks/owned_span_proof.h"
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
@@ -16,12 +17,21 @@ class Registry final {
 public:
     struct Owner;
     struct Span;
+    struct ProofLease;
     using CodeReader = bool (*)(std::uint32_t, std::uint8_t*, std::size_t) noexcept;
     using RegistrationGate = bool (*)() noexcept;
     using CallbackAddressValidator = bool (*)(SFExecutableSpanValidationCallbackV1) noexcept;
+    using ProofCodePin = bool (*)() noexcept;
+    using ProofDispatch = decltype(SFExecutableSpanProofLeaseV1{}.validate);
+    struct ProofLimits {
+        std::size_t owners{4096}, per_owner{16}, resident_leases{65536};
+    };
 
     Registry(CodeReader reader, RegistrationGate gate,
         CallbackAddressValidator callback_validator) noexcept;
+    Registry(CodeReader reader, RegistrationGate gate,
+        CallbackAddressValidator callback_validator, EngineHooks::OwnedSpanProofs* proofs,
+        ProofCodePin pin, ProofDispatch dispatch, ProofLimits limits) noexcept;
     ~Registry();
     Registry(const Registry&) = delete;
     Registry& operator=(const Registry&) = delete;
@@ -42,11 +52,22 @@ public:
     // for the selected-startup activation gate after restored-entry callbacks.
     bool RevalidateAllRegistered() noexcept;
 
+    // Dispatch resolves a returned opaque lease in this resident registry;
+    // it never dereferences an unknown caller context or a Rust host pointer.
+    std::int32_t ValidateProof(void* context,
+        const SFExecutableSpanProofQueryV1* request, std::uint32_t capacity,
+        SFExecutableSpanProofResultV1* output) noexcept;
+
 private:
     static std::int32_t SF_EXECUTABLE_SPAN_VALIDATION_CALL RegisterSpan(
         void* context, const SFExecutableSpanRegistrationV1* registration) noexcept;
     std::int32_t Register(Owner* context,
         const SFExecutableSpanRegistrationV1* registration) noexcept;
+    static std::int32_t SF_EXECUTABLE_SPAN_VALIDATION_CALL AcquireProofLease(
+        void*, const SFExecutableSpanProofBindingV1*, std::uint32_t,
+        SFExecutableSpanProofLeaseV1*);
+    std::int32_t AcquireProof(Owner*, const SFExecutableSpanProofBindingV1*,
+        std::uint32_t, SFExecutableSpanProofLeaseV1*) noexcept;
     bool Invoke(Owner* owner, const Span& span, const std::uint8_t* observed,
         std::size_t guard_size, std::uint32_t phase, std::uint8_t identity[
             SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES]) noexcept;
@@ -57,9 +78,15 @@ private:
     CodeReader reader_{};
     RegistrationGate registration_gate_{};
     CallbackAddressValidator callback_validator_{};
+    EngineHooks::OwnedSpanProofs* proofs_{};
+    ProofCodePin proof_pin_{};
+    ProofDispatch proof_dispatch_{};
+    ProofLimits proof_limits_{};
     std::mutex mutex_;
     std::condition_variable changed_;
     std::vector<std::unique_ptr<Owner>> owners_;
+    std::vector<std::unique_ptr<ProofLease>> proof_leases_;
+    std::uint64_t next_proof_{};
     std::size_t span_count_{};
 };
 

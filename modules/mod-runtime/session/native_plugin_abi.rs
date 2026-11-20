@@ -942,6 +942,7 @@ unsafe extern "C" fn host_query_service(
     }
     let version_supported = match name {
         NATIVE_SERVICE_OVERLAY_V1 => matches!(requested_version, 1 | 2 | 3),
+        NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1 => matches!(requested_version, 1 | 2),
         _ => requested_version == 1,
     };
     if !version_supported {
@@ -2173,9 +2174,20 @@ mod tests {
             2,
             NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1,
         );
-        assert_eq!(status, NATIVE_STATUS_ABI_MISMATCH);
-        assert_eq!(output, 0xA5A5_A5A5);
-        assert!(queried.is_none());
+        assert_eq!(status, NATIVE_STATUS_OK);
+        assert_eq!(output, 0x5346_4D50);
+        assert_eq!(queried.unwrap().3, 2);
+        assert_eq!(
+            query(
+                &package,
+                Arc::new(TestServiceLifetime::default()),
+                false,
+                3,
+                NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1
+            )
+            .0,
+            NATIVE_STATUS_ABI_MISMATCH
+        );
 
         for (permission, allowed, denied) in [
             (
