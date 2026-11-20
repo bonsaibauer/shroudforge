@@ -1096,11 +1096,11 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
+    #[derive(Default)]
     struct V2TestState {
         calls: Vec<&'static str>,
         stage_status: i32,
         prepare_status: i32,
-        entry_restored_status: i32,
         entry_restored_thread: Option<std::thread::ThreadId>,
     }
 
@@ -1130,7 +1130,7 @@ mod tests {
         let state = unsafe { &mut *plugin_context.cast::<V2TestState>() };
         state.calls.push("restored");
         state.entry_restored_thread = Some(std::thread::current().id());
-        state.entry_restored_status
+        NATIVE_STATUS_OK
     }
 
     unsafe extern "C" fn v2_initialize(
@@ -1210,6 +1210,17 @@ mod tests {
     }
 
     impl TestPackage {
+        fn metadata(&self, package_generation: u64) -> NativePluginHostMetadata {
+            NativePluginHostMetadata {
+                package_id: "example".into(),
+                package: self.package.clone(),
+                package_generation,
+                is_server: false,
+                settings_json: b"{}".to_vec(),
+                services: Arc::new(NoNativePluginServices),
+            }
+        }
+
         fn new() -> Self {
             Self::with_runtime(true)
         }
@@ -1406,17 +1417,7 @@ mod tests {
         {
             return NATIVE_STATUS_ABI_MISMATCH;
         }
-        unsafe {
-            out_plugin.write(SFNativePluginV1 {
-                struct_size: size_of::<SFNativePluginV1>() as u32,
-                abi_version: NATIVE_PLUGIN_ABI_V1,
-                plugin_context: std::ptr::null_mut(),
-                initialize: Some(unused_callback),
-                update: Some(unused_update),
-                stop: Some(unused_callback),
-                shutdown: Some(unused_callback),
-            })
-        };
+        unsafe { out_plugin.write(valid_plugin_table()) };
         NATIVE_STATUS_OK
     }
 
@@ -1433,7 +1434,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_load_only_mode_never_looks_up_an_entrypoint() {
+    fn only_explicit_mode_requires_an_entrypoint() {
         let mut looked_up = false;
         let entry = entrypoint_for_mode(NativePluginMode::LegacyLoadOnly, || {
             looked_up = true;
@@ -1443,33 +1444,17 @@ mod tests {
 
         assert!(entry.is_none());
         assert!(!looked_up);
-    }
 
-    #[test]
-    fn explicit_mode_requires_the_entrypoint() {
         let error = entrypoint_for_mode(NativePluginMode::ShroudForgeV1, || None).unwrap_err();
         assert!(error.contains("missing ShroudForgePluginEntry"));
     }
 
     #[test]
     fn v2_preparation_precedes_runtime_initialization_on_one_instance() {
-        let mut test_state = V2TestState {
-            calls: Vec::new(),
-            stage_status: NATIVE_STATUS_OK,
-            prepare_status: NATIVE_STATUS_OK,
-            entry_restored_status: NATIVE_STATUS_OK,
-            entry_restored_thread: None,
-        };
+        let mut test_state = V2TestState::default();
         V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
         let package = TestPackage::new();
-        let metadata = NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: package.package.clone(),
-            package_generation: 42,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
-            services: Arc::new(NoNativePluginServices),
-        };
+        let metadata = package.metadata(42);
         let mut instance = NativePluginInstance::load_with_mode(
             bounded_v2_entry,
             metadata,
@@ -1499,76 +1484,43 @@ mod tests {
     }
 
     #[test]
-    fn failed_v2_preparation_rolls_back_without_runtime_initialization() {
-        let mut test_state = V2TestState {
-            calls: Vec::new(),
-            stage_status: NATIVE_STATUS_OK,
-            prepare_status: NATIVE_STATUS_FAILED,
-            entry_restored_status: NATIVE_STATUS_OK,
-            entry_restored_thread: None,
-        };
-        V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
+    fn failed_v2_startup_rolls_back_before_runtime_initialization() {
         let package = TestPackage::new();
-        let metadata = NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: package.package.clone(),
-            package_generation: 43,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
-            services: Arc::new(NoNativePluginServices),
-        };
-        let mut instance = NativePluginInstance::load_with_mode(
-            bounded_v2_entry,
-            metadata,
-            NativePluginMode::ShroudForgeV2,
-        )
-        .unwrap();
-
-        assert!(instance.stage_before_entry().is_ok());
-        let failure = instance.prepare_before_entry().unwrap_err();
-        assert_eq!(failure.status, NATIVE_STATUS_FAILED);
-        assert_eq!(failure.cleanup, TeardownOutcome::Quiescent);
-        assert_eq!(
-            test_state.calls,
-            ["factory", "stage", "prepare", "stop", "shutdown"]
-        );
-        assert_eq!(instance.state, NativePluginInstanceState::Stopped);
-        assert!(instance.start().is_err());
-        V2_TEST_STATE.with(|slot| slot.set(std::ptr::null_mut()));
-    }
-
-    #[test]
-    fn failed_v2_staging_rolls_back_before_framework_preparation() {
-        let mut test_state = V2TestState {
-            calls: Vec::new(),
-            stage_status: NATIVE_STATUS_FAILED,
-            prepare_status: NATIVE_STATUS_OK,
-            entry_restored_status: NATIVE_STATUS_OK,
-            entry_restored_thread: None,
-        };
-        V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
-        let package = TestPackage::new();
-        let metadata = NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: package.package.clone(),
-            package_generation: 44,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
-            services: Arc::new(NoNativePluginServices),
-        };
-        let mut instance = NativePluginInstance::load_with_mode(
-            bounded_v2_entry,
-            metadata,
-            NativePluginMode::ShroudForgeV2,
-        )
-        .unwrap();
-
-        let failure = instance.stage_before_entry().unwrap_err();
-        assert_eq!(failure.status, NATIVE_STATUS_FAILED);
-        assert_eq!(failure.cleanup, TeardownOutcome::Quiescent);
-        assert_eq!(test_state.calls, ["factory", "stage", "stop", "shutdown"]);
-        assert_eq!(instance.state, NativePluginInstanceState::Stopped);
-        V2_TEST_STATE.with(|slot| slot.set(std::ptr::null_mut()));
+        for (stage_status, prepare_status, calls) in [
+            (
+                NATIVE_STATUS_FAILED,
+                NATIVE_STATUS_OK,
+                &["factory", "stage", "stop", "shutdown"][..],
+            ),
+            (
+                NATIVE_STATUS_OK,
+                NATIVE_STATUS_FAILED,
+                &["factory", "stage", "prepare", "stop", "shutdown"][..],
+            ),
+        ] {
+            let mut test_state = V2TestState {
+                stage_status,
+                prepare_status,
+                ..Default::default()
+            };
+            V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
+            let mut instance = NativePluginInstance::load_with_mode(
+                bounded_v2_entry,
+                package.metadata(43),
+                NativePluginMode::ShroudForgeV2,
+            )
+            .unwrap();
+            let failure = instance
+                .stage_before_entry()
+                .and_then(|()| instance.prepare_before_entry())
+                .unwrap_err();
+            assert_eq!(failure.status, NATIVE_STATUS_FAILED);
+            assert_eq!(failure.cleanup, TeardownOutcome::Quiescent);
+            assert_eq!(test_state.calls, calls);
+            assert_eq!(instance.state, NativePluginInstanceState::Stopped);
+            assert!(instance.start().is_err());
+            V2_TEST_STATE.with(|slot| slot.set(std::ptr::null_mut()));
+        }
     }
 
     #[test]
@@ -1659,17 +1611,7 @@ mod tests {
     #[test]
     fn keybinds_v1_query_returns_the_declared_setting_state() {
         let package = TestPackage::with_keybind(true, "");
-        let mut context = Box::new(
-            NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 71,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
-                services: Arc::new(NoNativePluginServices),
-            })
-            .unwrap(),
-        );
+        let mut context = Box::new(NativePluginHostContext::new(package.metadata(71)).unwrap());
         let host = context.host_table();
         let query = host.query_service.unwrap();
         let name = b"shroudforge.keybinds";
@@ -1728,15 +1670,8 @@ mod tests {
     fn keybinds_v1_is_limited_to_declared_client_runtime_settings() {
         let name = b"shroudforge.keybinds";
         let no_settings = TestPackage::new();
-        let mut no_settings_context = NativePluginHostContext::new(NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: no_settings.package.clone(),
-            package_generation: 72,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
-            services: Arc::new(NoNativePluginServices),
-        })
-        .unwrap();
+        let mut no_settings_context =
+            NativePluginHostContext::new(no_settings.metadata(72)).unwrap();
         assert_eq!(
             unsafe {
                 query_native_service(
@@ -1751,15 +1686,7 @@ mod tests {
         );
 
         let no_runtime = TestPackage::with_keybind(false, "");
-        let mut no_runtime_context = NativePluginHostContext::new(NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: no_runtime.package.clone(),
-            package_generation: 73,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
-            services: Arc::new(NoNativePluginServices),
-        })
-        .unwrap();
+        let mut no_runtime_context = NativePluginHostContext::new(no_runtime.metadata(73)).unwrap();
         assert_eq!(
             unsafe {
                 query_native_service(
@@ -1775,12 +1702,8 @@ mod tests {
 
         let server = TestPackage::with_keybind(true, "");
         let mut server_context = NativePluginHostContext::new(NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: server.package.clone(),
-            package_generation: 74,
             is_server: true,
-            settings_json: b"{}".to_vec(),
-            services: Arc::new(NoNativePluginServices),
+            ..server.metadata(74)
         })
         .unwrap();
         assert_eq!(
@@ -1802,12 +1725,8 @@ mod tests {
         let package = TestPackage::with_keybind(true, "SDL:67");
         let original = br#"{"toggle":"SDL:67"}"#.to_vec();
         let context = NativePluginHostContext::new(NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: package.package.clone(),
-            package_generation: 75,
-            is_server: false,
             settings_json: original.clone(),
-            services: Arc::new(NoNativePluginServices),
+            ..package.metadata(75)
         })
         .unwrap();
         assert!(
@@ -1825,17 +1744,7 @@ mod tests {
     #[test]
     fn keybinds_v1_rejects_wrong_owner_and_bad_table_requests_without_writes() {
         let package = TestPackage::with_keybind(true, "");
-        let mut context = Box::new(
-            NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 76,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
-                services: Arc::new(NoNativePluginServices),
-            })
-            .unwrap(),
-        );
+        let mut context = Box::new(NativePluginHostContext::new(package.metadata(76)).unwrap());
         let name = b"shroudforge.keybinds";
         let foreign_owner = std::thread::spawn(|| std::thread::current().id())
             .join()
@@ -1941,17 +1850,7 @@ mod tests {
     #[test]
     fn keybinds_v1_revocation_closes_an_already_queried_table() {
         let package = TestPackage::with_keybind(true, "");
-        let mut context = Box::new(
-            NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 77,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
-                services: Arc::new(NoNativePluginServices),
-            })
-            .unwrap(),
-        );
+        let mut context = Box::new(NativePluginHostContext::new(package.metadata(77)).unwrap());
         let host = context.host_table();
         let query = host.query_service.unwrap();
         let name = b"shroudforge.keybinds";
@@ -2000,12 +1899,8 @@ mod tests {
         let services = Arc::new(TestServiceLifetime::default());
         let mut context = Box::new(
             NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 78,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
                 services: services.clone(),
+                ..package.metadata(78)
             })
             .unwrap(),
         );
@@ -2116,12 +2011,9 @@ mod tests {
         *services.queried_owner.lock().unwrap() = None;
         let mut server_context = Box::new(
             NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 79,
                 is_server: true,
-                settings_json: b"{}".to_vec(),
                 services: services.clone(),
+                ..package.metadata(79)
             })
             .unwrap(),
         );
@@ -2145,17 +2037,7 @@ mod tests {
     #[test]
     fn current_map_services_are_explicitly_unavailable() {
         let package = TestPackage::new();
-        let mut context = Box::new(
-            NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 7,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
-                services: Arc::new(NoNativePluginServices),
-            })
-            .unwrap(),
-        );
+        let mut context = Box::new(NativePluginHostContext::new(package.metadata(7)).unwrap());
         let host = context.host_table();
         let query = host.query_service.unwrap();
         for service_name in [NATIVE_SERVICE_MAP_V1, NATIVE_SERVICE_OVERLAY_V1] {
@@ -2198,12 +2080,9 @@ mod tests {
         ) -> (i32, u32, Option<(String, u64, String, u32, u32)>) {
             let mut context = Box::new(
                 NativePluginHostContext::new(NativePluginHostMetadata {
-                    package_id: "example".into(),
-                    package: package.package.clone(),
-                    package_generation: 77,
                     is_server,
-                    settings_json: b"{}".to_vec(),
                     services: services.clone(),
+                    ..package.metadata(77)
                 })
                 .unwrap(),
             );
@@ -2331,12 +2210,8 @@ mod tests {
         let package = TestPackage::new();
         let mut context = Box::new(
             NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 9,
-                is_server: false,
                 settings_json: br#"{"enabled":true}"#.to_vec(),
-                services: Arc::new(NoNativePluginServices),
+                ..package.metadata(9)
             })
             .unwrap(),
         );
@@ -2372,17 +2247,7 @@ mod tests {
     #[test]
     fn package_asset_reads_validate_paths_and_report_required_capacity() {
         let package = TestPackage::new();
-        let mut context = Box::new(
-            NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 8,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
-                services: Arc::new(NoNativePluginServices),
-            })
-            .unwrap(),
-        );
+        let mut context = Box::new(NativePluginHostContext::new(package.metadata(8)).unwrap());
         let host = context.host_table();
         let read_asset = host.read_asset.unwrap();
         let path = b"assets/atlas.bin";
@@ -2460,12 +2325,8 @@ mod tests {
         });
         let mut context = Box::new(
             NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 41,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
                 services: services.clone(),
+                ..package.metadata(41)
             })
             .unwrap(),
         );
@@ -2550,12 +2411,9 @@ mod tests {
             let services = Arc::new(TestServiceLifetime::default());
             let mut context = Box::new(
                 NativePluginHostContext::new(NativePluginHostMetadata {
-                    package_id: "example".into(),
-                    package: package.package.clone(),
-                    package_generation: 77,
                     is_server,
-                    settings_json: b"{}".to_vec(),
                     services: services.clone(),
+                    ..package.metadata(77)
                 })
                 .unwrap(),
             );
@@ -2597,12 +2455,8 @@ mod tests {
             let package = TestPackage::with_span_capabilities(runtime, register_dll, engine_hooks);
             let services = Arc::new(TestServiceLifetime::default());
             let mut context = NativePluginHostContext::new(NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 401,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
                 services: services.clone(),
+                ..package.metadata(401)
             })
             .unwrap();
             let mut output = 0xA5A5_5A5Au32;
@@ -2625,12 +2479,8 @@ mod tests {
         let package = TestPackage::with_span_capabilities(true, true, true);
         let services = Arc::new(TestServiceLifetime::default());
         let mut context = NativePluginHostContext::new(NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: package.package.clone(),
-            package_generation: 402,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
             services: services.clone(),
+            ..package.metadata(402)
         })
         .unwrap();
         let mut output = 0u32;
@@ -2681,12 +2531,8 @@ mod tests {
         let package = TestPackage::new();
         let services = Arc::new(TestServiceLifetime::default());
         let metadata = |generation| NativePluginHostMetadata {
-            package_id: "example".into(),
-            package: package.package.clone(),
-            package_generation: generation,
-            is_server: false,
-            settings_json: b"{}".to_vec(),
             services: services.clone(),
+            ..package.metadata(generation)
         };
         let mut late_statuses = Box::new(Vec::<i32>::new());
         let mut instance = NativePluginInstance::load(bounded_entry, metadata(42)).unwrap();
@@ -2734,12 +2580,8 @@ mod tests {
         let mut instance = NativePluginInstance::load(
             bounded_entry,
             NativePluginHostMetadata {
-                package_id: "example".into(),
-                package: package.package.clone(),
-                package_generation: 50,
-                is_server: false,
-                settings_json: b"{}".to_vec(),
                 services: services.clone(),
+                ..package.metadata(50)
             },
         )
         .unwrap();

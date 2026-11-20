@@ -671,23 +671,18 @@ mod tests {
 
     #[test]
     fn generated_publication_refuses_occupied_dat() {
-        let root = fixture();
-        let stage = begin_generated(&root, "game").unwrap();
-        fs::write(root.join("game_123.dat"), b"existing-mod-content").unwrap();
-        fs::write(stage.join("game.kfc"), b"new-index").unwrap();
-        fs::write(stage.join("game.kfc_resources"), b"old-data-new-data").unwrap();
-        fs::write(stage.join("game_123.dat"), b"new-content").unwrap();
-        let result = commit_generated(&root, "game");
-        assert!(
-            result.is_err(),
-            "generated publication must refuse an occupied DAT"
-        );
-        assert_eq!(
-            fs::read(root.join("game_123.dat")).unwrap(),
-            b"existing-mod-content"
-        );
-        abort(&root, "game").unwrap();
-        remove_fixture(&root);
+        for existing in [b"existing-mod-content".as_slice(), b""] {
+            let root = fixture();
+            let stage = begin_generated(&root, "game").unwrap();
+            fs::write(root.join("game_123.dat"), existing).unwrap();
+            fs::write(stage.join("game.kfc"), b"new-index").unwrap();
+            fs::write(stage.join("game.kfc_resources"), b"old-data-new-data").unwrap();
+            fs::write(stage.join("game_123.dat"), b"new-content").unwrap();
+            assert!(commit_generated(&root, "game").is_err());
+            assert_eq!(fs::read(root.join("game_123.dat")).unwrap(), existing);
+            abort(&root, "game").unwrap();
+            remove_fixture(&root);
+        }
     }
 
     #[test]
@@ -794,20 +789,6 @@ mod tests {
             b"preserve"
         );
         fs::remove_file(stage.join("foreign.settings")).unwrap();
-        abort(&root, "game").unwrap();
-        remove_fixture(&root);
-    }
-
-    #[test]
-    fn generated_empty_dat_is_an_occupied_target() {
-        let root = fixture();
-        let stage = begin_generated(&root, "game").unwrap();
-        fs::write(root.join("game_123.dat"), b"").unwrap();
-        fs::write(stage.join("game.kfc"), b"new-index").unwrap();
-        fs::write(stage.join("game.kfc_resources"), b"old-data-new-data").unwrap();
-        fs::write(stage.join("game_123.dat"), b"new-content").unwrap();
-        assert!(commit_generated(&root, "game").is_err());
-        assert_eq!(fs::metadata(root.join("game_123.dat")).unwrap().len(), 0);
         abort(&root, "game").unwrap();
         remove_fixture(&root);
     }
