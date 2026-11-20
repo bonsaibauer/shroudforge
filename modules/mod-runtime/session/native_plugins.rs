@@ -1645,6 +1645,8 @@ impl AppState {
                 }
             }
         };
+        // Worker setup reacquires the package filesystem to read its root.
+        drop(filesystem);
         let canonical = match load_path.canonicalize() {
             Ok(path) => path,
             Err(error) => {
@@ -3038,6 +3040,43 @@ mod tests {
         assert_eq!(error, "residency refused");
         assert!(!called.load(Ordering::Acquire));
     }
+    #[cfg(windows)]
+    #[test]
+    fn native_queue_releases_the_package_filesystem_before_worker_setup() {
+        let (finished, completion) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let fixture = crate::session::asset_tests::Fixture::new();
+            fs::write(fixture.root.join("mods/fixture/invalid.dll"), b"invalid").unwrap();
+            let mut state = fixture
+                .lua
+                .app_data_mut::<crate::session::AppState>()
+                .unwrap();
+            state
+                .config
+                .feature_flags
+                .insert(crate::session::AppFeatures::RUNTIME_DLL);
+            let package = state.env.mod_registry().get("fixture").unwrap().clone();
+            state
+                .queue_mod_native_dll(&package, "invalid.dll", NativePluginMode::ShroudForgeV1)
+                .unwrap();
+            let request = state.pending_native_dlls.borrow_mut().pop().unwrap();
+            assert!(matches!(
+                request
+                    .receiver
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .unwrap(),
+                Err(super::NativeLibraryLoadError::Load(_))
+            ));
+            drop(state);
+            drop(fixture);
+            finished.send(()).unwrap();
+        });
+        completion
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("queueing a native DLL must release the package filesystem");
+        worker.join().unwrap();
+    }
+
     use std::{
         fs,
         path::{Path, PathBuf},
