@@ -21,7 +21,8 @@
  * completed; the callback must remain valid for that lifetime.
  *
  * Validation callbacks are synchronous and may run on any thread, including
- * arbitrary game callback threads. They must be thread-safe, must not call any host callback/service,
+ * arbitrary game callback threads. They must be thread-safe, must not call any host callback/service except an explicitly arbitrary-thread
+ * read-only proof lease defined below,
  * must not retain request/response pointers, and must not mutate executable
  * memory. Request byte arrays contain only byte_count meaningful bytes; the
  * remainder is zero. Response reserved fields and unused identity bytes must
@@ -113,3 +114,63 @@ typedef struct SFExecutableSpanValidationServiceV1 {
         void* context,
         const SFExecutableSpanRegistrationV1* registration);
 } SFExecutableSpanValidationServiceV1;
+
+/* V2 keeps V1 registration/callback layouts. Query and acquisition remain
+ * owner-thread, held-entry Stage operations. Only a copied proof lease may be
+ * retained and used on arbitrary threads, including entry_restored and a
+ * validation callback. It contains no SFNativeHostV1/Rust owner context.
+ *
+ * A binding must exactly match this generation's existing registration;
+ * owned_prefix_byte_count selects a nonempty prefix. Acquisition can precede
+ * framework publication. Validation compares the entire registered sample,
+ * requires a canonical suffix, and proves only an internally published native
+ * prefix. It never grants patch authority or returns addresses/code bytes.
+ *
+ * The first verified publication is permanently adopted. Retirement, native
+ * session closure, package revocation, or replacement invalidates the lease;
+ * restoring canonical bytes cannot bypass an adopted witness. UNCHANGED has
+ * zero identity; VERIFIED_HOST_OWNED has a stable nonzero opaque identity.
+ * Classification values are 1 and 2 respectively (zero is unset).
+ *
+ * Errors leave outputs untouched. All unused array tails/reserved fields must
+ * be zero. Revocation/closure and success share a commit ordering: success
+ * committed before closure may return afterward. This is not quiescence.
+ * Drain includes proof calls; callable code and native opaque tombstones stay
+ * resident until process exit. Exhaustion never recycles a stale context.
+ * Other services and host callbacks retain their original thread restrictions.
+ */
+#define SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V2 2u
+#define SF_EXECUTABLE_SPAN_PROOF_VERSION_V1 1u
+#define SF_EXECUTABLE_SPAN_PROOF_UNCHANGED 1u
+#define SF_EXECUTABLE_SPAN_PROOF_VERIFIED_HOST_OWNED 2u
+
+typedef struct SFExecutableSpanProofBindingV1 {
+    uint32_t size, version, registered_rva, registered_byte_count;
+    uint32_t owned_prefix_byte_count, reserved;
+    uint8_t expected[SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES];
+} SFExecutableSpanProofBindingV1;
+
+typedef struct SFExecutableSpanProofQueryV1 {
+    uint32_t size, version, phase, byte_count;
+    uint8_t observed_current[SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES];
+} SFExecutableSpanProofQueryV1;
+
+typedef struct SFExecutableSpanProofResultV1 {
+    uint32_t size, version, classification, reserved;
+    uint8_t owner_identity[SF_EXECUTABLE_SPAN_VALIDATION_MAX_BYTES];
+} SFExecutableSpanProofResultV1;
+
+typedef struct SFExecutableSpanProofLeaseV1 {
+    uint32_t size, version;
+    void* context;
+    int32_t (SF_EXECUTABLE_SPAN_VALIDATION_CALL *validate)(
+        void*, const SFExecutableSpanProofQueryV1*, uint32_t,
+        SFExecutableSpanProofResultV1*);
+} SFExecutableSpanProofLeaseV1;
+
+typedef struct SFExecutableSpanValidationServiceV2 {
+    SFExecutableSpanValidationServiceV1 base;
+    int32_t (SF_EXECUTABLE_SPAN_VALIDATION_CALL *acquire_owned_prefix_lease)(
+        void*, const SFExecutableSpanProofBindingV1*, uint32_t,
+        SFExecutableSpanProofLeaseV1*);
+} SFExecutableSpanValidationServiceV2;

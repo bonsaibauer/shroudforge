@@ -241,6 +241,9 @@ typedef struct SFNativePluginV2 {
  *   are restored and before the original entrypoint executes. That callback
  *   receives no host table and must not use owner-thread-bound host callbacks
  *   or retained host pointers.
+ *   A service may explicitly issue a native read-only proof lease whose own
+ *   contract permits arbitrary-thread use in this callback. That isolated
+ *   lease is not permission to retain the host table or use other services.
  * - Optional V2 callbacks must be null when not used. The size-tagged V2 tail
  *   remains the extension point for later optional phases. The V1 prefix and
  *   entry export signature remain unchanged.

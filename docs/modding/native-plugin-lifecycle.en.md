@@ -72,6 +72,11 @@ This also applies to plans containing only managed plugins.
   request pointers, or modify executable memory. The host compares the
   registered prefix through a local buffer while preserving every guard
   suffix byte-for-byte.
+  Version 2 adds a read-only lease for a prefix of an existing registration.
+  Acquire it during Stage. Callbacks may use the copied lease across threads.
+  Verification checks the observed span and its suffix against the live
+  owner generation. Revoking the package or retiring its generation invalidates
+  the lease. The host table retains its owner-thread restrictions.
 - `shroudforge.map` v1 and `shroudforge.overlay` v1/v2/v3 are optional native-provider
   services. Query their exact version and handle `UNAVAILABLE`. Host support
   does not establish that a particular game build supplies the service.

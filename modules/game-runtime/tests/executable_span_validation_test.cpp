@@ -215,11 +215,13 @@ void revalidation_rejects_callback_refusal() {
 }
 }
 
+int RunOwnedSpanProofTests();
+
 int main() {
     abi_query_and_registration();
     normalizes_only_registered_prefix();
     phases_reject_malformed_unchanged_and_toctou();
     revalidation_runs_even_for_unchanged_bytes_and_revocation_drains();
     revalidation_rejects_callback_refusal();
-    return check.failures ? 1 : 0;
+    return RunOwnedSpanProofTests() || check.failures ? 1 : 0;
 }

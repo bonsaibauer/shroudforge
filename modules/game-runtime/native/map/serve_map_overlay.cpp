@@ -66,9 +66,11 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeQueryMapOverlayService(const std:
     using namespace OverlayRuntime;try {
         std::string id,name;if(!generation || !output || !Text(package,package_size,256,id) || !Text(service,service_size,64,name))return 1;
         if(name==SF_EXECUTABLE_SPAN_VALIDATION_SERVICE_V1) {
-            if(version!=SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1)return 2;
-            if(capacity<sizeof(SFExecutableSpanValidationServiceV1))return 5;
-            if(!WritableServiceOutput(output,sizeof(SFExecutableSpanValidationServiceV1)))return 1;
+            if(version!=SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1 &&
+                version!=SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V2)return 2;
+            const auto size=version==2?sizeof(SFExecutableSpanValidationServiceV2):sizeof(SFExecutableSpanValidationServiceV1);
+            if(capacity<size)return 5;
+            if(!WritableServiceOutput(output,size))return 1;
             return ExecutableSpanValidation::Services().Query(id,generation,version,capacity,output);
         }
         const bool map_service=name=="shroudforge.map";
