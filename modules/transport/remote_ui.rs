@@ -3,7 +3,7 @@
 //! The game remains the Steam owner. This adapter reuses the bounded Steam UI
 //! channel for server snapshots, logs, settings and authenticated client reports.
 
-use crate::MAX_MESSAGE_BYTES;
+use crate::MAX_REMOTE_UI_MESSAGE_BYTES;
 use base64::Engine as _;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
@@ -129,6 +129,15 @@ static STATE: OnceLock<Mutex<State>> = OnceLock::new();
 /// Transfers the selected server's config snapshot and log tails/deltas.
 /// Called from the existing in-game runtime tick after Steam health service.
 pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
+    // A large message's fragments Steam could not take yet go first.
+    for (peer, error) in crate::flush_remote_ui() {
+        tracing::warn!(
+            target: "shroudforge::network",
+            peer,
+            %error,
+            "Could not send waiting remote UI message"
+        );
+    }
     let Some(config) = config else {
         stop_client_subscription();
         if let Some(state) = STATE.get() {
@@ -2469,7 +2478,13 @@ fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, 
             mod_loader::read_manifest_path(root, &package)
                 .ok()
                 .and_then(|manifest| {
-                    serde_json::to_value(mod_loader::localized_manifest(&manifest, locale))
+                    // Localized for the admin's language, which the Modloader
+                    // sends with each request: the other catalogs stay here
+                    // (every language of every mod made the list larger than
+                    // a Steam message).
+                    let mut localized = mod_loader::localized_manifest(&manifest, locale);
+                    localized.locales.clear();
+                    serde_json::to_value(localized)
                         .ok()
                         .map(|value| (package, value))
                 })
@@ -3322,8 +3337,8 @@ fn send_json(peer: u64, value: &serde_json::Value) -> Result<(), String> {
 
 fn encode_json(value: &serde_json::Value) -> Result<Vec<u8>, String> {
     let payload = serde_json::to_vec(value).map_err(|error| error.to_string())?;
-    if payload.len() > MAX_MESSAGE_BYTES {
-        return Err("remote UI message exceeds the Steam transport limit".into());
+    if payload.len() > MAX_REMOTE_UI_MESSAGE_BYTES {
+        return Err(format!("remote UI message exceeds {MAX_REMOTE_UI_MESSAGE_BYTES} bytes"));
     }
     Ok(payload)
 }
@@ -3418,6 +3433,45 @@ mod tests {
         let saved = shroudforge_loader_config::config::read_loader(&root).unwrap();
         assert!(saved["modules"] == first || saved["modules"] == second);
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn server_mod_snapshot_sends_the_requested_language_only() {
+        let root = std::env::temp_dir()
+            .join(format!("shroudforge-remote-locales-{}", uuid::Uuid::new_v4()));
+        let package = shroudforge_loader_config::paths::mods_dir(&root).join("example");
+        fs::create_dir_all(package.join("locales")).unwrap();
+        fs::write(
+            package.join("mod.json"),
+            br#"{"id":"example","name":"Example","version":"1.2.3"}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("extended.mod.json"),
+            br#"{"schemaVersion":1,"enabled":true,"targets":["server"],"settings":{"enabledFeature":{"value":true,"label":"Enabled","control":"toggle"}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("locales").join("fr.json"),
+            r#"{"settings":{"enabledFeature":{"label":"Activé"}}}"#,
+        )
+        .unwrap();
+
+        let mods = server_mods_snapshot(&root, "fr").unwrap();
+        let item = &mods[0];
+        let setting = item["settings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|setting| setting["key"] == "enabledFeature")
+            .unwrap();
+        assert_eq!(setting["label"], "Activé");
+        assert!(
+            item["locales"].as_object().is_none_or(|locales| locales.is_empty()),
+            "the catalogs stay on the server: {}",
+            item["locales"]
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

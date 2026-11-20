@@ -5,7 +5,9 @@ use std::sync::mpsc::{self, Receiver, Sender, SyncSender, TrySendError};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-const MAX_LOCAL_MESSAGE_BYTES: usize = crate::MAX_MESSAGE_BYTES;
+// As large as a remote UI message: the Modloader's server pages arrive
+// through here (a server's mod list can be larger than one Steam message).
+const MAX_LOCAL_MESSAGE_BYTES: usize = crate::MAX_REMOTE_UI_MESSAGE_BYTES;
 const MAX_LOCAL_REQUEST_QUEUE: usize = 32;
 const MAX_LOCAL_REQUEST_BATCH: usize = 8;
 // The P2P layer expires requests after 30 seconds. Give it five seconds to

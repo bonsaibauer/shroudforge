@@ -7,9 +7,21 @@
 pub const MAX_MESSAGE_BYTES: usize = 512 * 1024;
 /// Reserved for the Modloader remote UI. 65535 remains Network health.
 pub const REMOTE_UI_CHANNEL: i32 = 65_534;
+/// The largest Modloader remote UI message. One larger than a Steam message
+/// (`MAX_MESSAGE_BYTES`, Steam's own limit) is sent in fragments and put back
+/// together on arrival.
+pub const MAX_REMOTE_UI_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
+/// Steam's `k_EResultLimitExceeded`: the peer's send buffer is full.
+const STEAM_RESULT_LIMIT_EXCEEDED: i32 = 25;
 
 #[cfg(windows)]
 static RECEIVE_BUFFER: std::sync::OnceLock<std::sync::Mutex<Vec<u8>>> = std::sync::OnceLock::new();
+static REMOTE_UI_OUTBOX: std::sync::OnceLock<
+    std::sync::Mutex<pace_remote_ui_sends::RemoteUiOutbox>,
+> = std::sync::OnceLock::new();
+static REMOTE_UI_REASSEMBLY: std::sync::OnceLock<
+    std::sync::Mutex<reassemble_remote_ui_message::RemoteUiReassembly>,
+> = std::sync::OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct Status {
@@ -90,8 +102,42 @@ pub fn send(
     send_on_channel(peer_steam_id, payload, channel, reliable, false)
 }
 
+/// Sends a remote UI message, in fragments when it is larger than a Steam
+/// message, after those still waiting for that peer (`flush_remote_ui`).
 pub(crate) fn send_remote_ui(peer_steam_id: u64, payload: &[u8]) -> Result<(), String> {
-    send_on_channel(peer_steam_id, payload, REMOTE_UI_CHANNEL, true, true)
+    if payload.len() > MAX_REMOTE_UI_MESSAGE_BYTES {
+        return Err(format!("remote UI message exceeds {MAX_REMOTE_UI_MESSAGE_BYTES} bytes"));
+    }
+    let pieces = if payload.len() <= MAX_MESSAGE_BYTES {
+        vec![payload.to_vec()]
+    } else {
+        split_remote_ui_message::split_remote_ui_message(payload, uuid::Uuid::new_v4().as_u128())
+    };
+    REMOTE_UI_OUTBOX
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .send(peer_steam_id, pieces, send_remote_ui_piece)
+}
+
+/// Sends the remote UI messages still waiting for their peers; the peers
+/// whose send failed, with the error.
+pub(crate) fn flush_remote_ui() -> Vec<(u64, String)> {
+    REMOTE_UI_OUTBOX
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .flush(send_remote_ui_piece)
+}
+
+fn send_remote_ui_piece(peer_steam_id: u64, piece: &[u8]) -> pace_remote_ui_sends::PieceSent {
+    use pace_remote_ui_sends::PieceSent;
+    match send_result(peer_steam_id, piece, REMOTE_UI_CHANNEL, true, true) {
+        Ok(1) => PieceSent::Sent,
+        Ok(STEAM_RESULT_LIMIT_EXCEEDED) => PieceSent::Full,
+        Ok(result) => PieceSent::Failed(format!("Steam returned EResult {result}")),
+        Err(error) => PieceSent::Failed(error),
+    }
 }
 
 fn send_on_channel(
@@ -101,6 +147,20 @@ fn send_on_channel(
     reliable: bool,
     remote_ui: bool,
 ) -> Result<(), String> {
+    match send_result(peer_steam_id, payload, channel, reliable, remote_ui)? {
+        1 => Ok(()),
+        result => Err(format!("Steam returned EResult {result}")),
+    }
+}
+
+/// Steam's result for one message (1: sent), or an error before Steam.
+fn send_result(
+    peer_steam_id: u64,
+    payload: &[u8],
+    channel: i32,
+    reliable: bool,
+    remote_ui: bool,
+) -> Result<i32, String> {
     if peer_steam_id == 0 {
         return Err("peer Steam ID must be nonzero".into());
     }
@@ -121,12 +181,10 @@ fn send_on_channel(
             channel,
             if reliable { 1 } else { 0 },
         );
-        if result == 1 {
-            Ok(())
-        } else if result < 0 {
+        if result < 0 {
             Err("Steam Networking Messages interface is unavailable".into())
         } else {
-            Err(format!("Steam returned EResult {result}"))
+            Ok(result)
         }
     }
     #[cfg(not(windows))]
@@ -269,8 +327,41 @@ pub fn receive(channel: i32) -> Result<Option<Message>, String> {
     receive_on_channel(channel, false)
 }
 
+/// The next whole remote UI message: fragments are kept until their message
+/// is complete.
 pub(crate) fn receive_remote_ui() -> Result<Option<Message>, String> {
-    receive_on_channel(REMOTE_UI_CHANNEL, true)
+    use reassemble_remote_ui_message::Reassembled;
+    loop {
+        let Some(message) = receive_on_channel(REMOTE_UI_CHANNEL, true)? else {
+            return Ok(None);
+        };
+        let Ok(peer) = message.peer_steam_id.parse::<u64>() else {
+            return Ok(Some(message));
+        };
+        let reassembled = REMOTE_UI_REASSEMBLY
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .accept(peer, message.payload, std::time::Instant::now());
+        match reassembled {
+            Reassembled::Message(payload) => {
+                return Ok(Some(Message {
+                    peer_steam_id: message.peer_steam_id,
+                    payload,
+                    reliable: message.reliable,
+                }));
+            }
+            Reassembled::Pending => {}
+            Reassembled::Invalid(reason) => {
+                tracing::warn!(
+                    target: "shroudforge::network",
+                    peer,
+                    reason,
+                    "Remote UI fragment dropped"
+                );
+            }
+        }
+    }
 }
 
 fn receive_on_channel(channel: i32, remote_ui: bool) -> Result<Option<Message>, String> {
@@ -357,6 +448,9 @@ pub mod lua;
 
 mod remote_ui;
 pub use remote_ui::tick as service_remote_ui;
+mod pace_remote_ui_sends;
+mod reassemble_remote_ui_message;
+mod split_remote_ui_message;
 mod local_bridge;
 pub use local_bridge::submit as request_remote_ui;
 
