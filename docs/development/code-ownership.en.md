@@ -207,6 +207,9 @@ A file contains the implementation of the action named by that file. Related hel
 | Select and run a runtime diagnostics job, export its results, or execute Lua, Python, Rust and mod actions | `modules/runtime-diagnostics/diagnostics-jobs/**/*.job.json` defines all built-in jobs using `catalog/diagnostic-job.schema.json` and the shared parser. The module owns `session/`, `catalog/`, `collectors/` and `execution/`. `execution/write_job_exports.rs` owns `JobExports` under the configured exports folder at `diagnostics/<job-id>/`. Messages use the shared Debug Log. Lua jobs live under `world-editor/`, Python jobs and imports under `game_inspection/`, compiled Rust job actions live alongside their definitions under `game_inspection/`, and tests and fixtures remain under `modules/runtime-diagnostics/tests/`. `modules/mod-runtime/ingame/run_diagnostic_job.rs` hosts the active mod sandbox, Rust actions and canonical mod-action call. |
 | Measure runtime operations | `modules/runtime-diagnostics/collectors/operation_timings.rs` |
 | Report connection health | `modules/transport/report_network_health.rs` |
+| Split a remote UI message larger than one Steam message into fragments | `modules/transport/split_remote_ui_message.rs` |
+| Put a remote UI message's fragments back together, peer by peer | `modules/transport/reassemble_remote_ui_message.rs` |
+| Send remote UI messages to each peer in order as Steam's send buffer takes them | `modules/transport/pace_remote_ui_sends.rs` |
 | Read the joined game's host, the hosted game's players and their permissions from the game's session log | `modules/transport/read_session_peers.rs` |
 
 ### Updater migration timing
