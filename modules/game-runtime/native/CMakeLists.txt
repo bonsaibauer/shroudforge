@@ -391,12 +391,12 @@ set_property(TARGET kfc-runtime-test-span-service-runtime PROPERTY
 add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
     ../tests/map_service_lifetime_test.cpp map/read_map_frame.cpp
     graphics/render_overlay.cpp graphics/notification_overlay.cpp
-    engine-hooks/owned_executable_span.cpp engine-hooks/owned_span_proof.cpp)
+    engine-hooks/owned_executable_span.cpp)
 add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
     map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp
     engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp
-    engine-hooks/owned_executable_span.cpp engine-hooks/owned_span_proof.cpp)
+    engine-hooks/owned_executable_span.cpp)
 foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-lifetime kfc-runtime-test-overlay-gpu)
     target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_compile_features(${test_target} PRIVATE cxx_std_20)
