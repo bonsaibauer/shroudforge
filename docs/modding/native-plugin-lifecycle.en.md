@@ -53,8 +53,8 @@ This also applies to plans containing only managed plugins.
   The persisted feed remains authoritative when an optional HUD presenter is
   unavailable.
 - `shroudforge.executable-spans` v1 is a client-only, read-only query for a
-  bounded executable byte span in the main image. It requires `runtime`,
-  `runtime-register-dll` and `runtime-engine-hooks`. The caller supplies both
+  bounded executable byte span in the main image. An enabled package needs
+  `runtime`, `runtime-register-dll` and `runtime-executable-spans`. The caller supplies both
   the expected original bytes and its current observation; the host checks the
   observation against executable, readable memory before returning
   `UNCHANGED`, `VERIFIED_HOST_OWNED` or `FOREIGN_OR_UNAVAILABLE`. Invalid input
@@ -63,7 +63,9 @@ This also applies to plans containing only managed plugins.
   proves quiescence.
 - shroudforge.executable-span-validation v1 is a client-only, bounded
   callback service for package-owned engine guards. It requires an enabled
-  package with runtime, runtime-register-dll and runtime-engine-hooks.
+  package with `runtime`, `runtime-register-dll` and
+  `runtime-executable-span-validation`. The broader `runtime-engine-hooks`
+  permission remains valid for both span services.
   Registrations are limited to 16 spans per package generation and 64 total;
   callbacks must stay loaded until revoke and drain succeed. Callbacks can
   run synchronously on any thread and must not call host services, retain

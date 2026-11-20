@@ -960,28 +960,26 @@ unsafe extern "C" fn host_query_service(
     {
         return NATIVE_STATUS_UNAVAILABLE;
     }
-    if name == NATIVE_SERVICE_EXECUTABLE_SPANS_V1 {
-        let capabilities = &context.package.info().capabilities;
-        if !capabilities.contains(&mod_loader::Capability::RuntimeRegisterDll)
-            || !capabilities.contains(&mod_loader::Capability::RuntimeEngineHooks)
+    let span_permission = match name {
+        NATIVE_SERVICE_EXECUTABLE_SPANS_V1 => Some(mod_loader::Capability::RuntimeExecutableSpans),
+        NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1 => {
+            Some(mod_loader::Capability::RuntimeExecutableSpanValidation)
+        }
+        _ => None,
+    };
+    if let Some(permission) = span_permission {
+        let info = context.package.info();
+        if !info.enabled
+            || !info
+                .capabilities
+                .contains(&mod_loader::Capability::RuntimeRegisterDll)
+            || !(info.capabilities.contains(&permission)
+                || info
+                    .capabilities
+                    .contains(&mod_loader::Capability::RuntimeEngineHooks))
         {
             return NATIVE_STATUS_UNAVAILABLE;
         }
-    }
-    if name == NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1
-        && (!context.package.info().enabled
-            || !context
-                .package
-                .info()
-                .capabilities
-                .contains(&mod_loader::Capability::RuntimeRegisterDll)
-            || !context
-                .package
-                .info()
-                .capabilities
-                .contains(&mod_loader::Capability::RuntimeEngineHooks))
-    {
-        return NATIVE_STATUS_UNAVAILABLE;
     }
     if name == notifications::SERVICE {
         return unsafe {
@@ -2091,9 +2089,7 @@ mod tests {
 
         let unknown_name = b"shroudforge.unknown";
         assert_eq!(
-            unsafe {
-                query_native_service(&mut context, unknown_name, 2, 0, std::ptr::null_mut())
-            },
+            unsafe { query_native_service(&mut context, unknown_name, 2, 0, std::ptr::null_mut()) },
             NATIVE_STATUS_UNKNOWN_SERVICE
         );
 
@@ -2192,12 +2188,13 @@ mod tests {
     }
 
     #[test]
-    fn executable_span_validation_requires_enabled_client_and_all_authorities() {
+    fn executable_span_services_require_enabled_client_and_matching_permission() {
         fn query(
             package: &TestPackage,
             services: Arc<TestServiceLifetime>,
             is_server: bool,
             version: u32,
+            service_name: &str,
         ) -> (i32, u32, Option<(String, u64, String, u32, u32)>) {
             let mut context = Box::new(
                 NativePluginHostContext::new(NativePluginHostMetadata {
@@ -2211,7 +2208,7 @@ mod tests {
                 .unwrap(),
             );
             let host = context.host_table();
-            let name = NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1.as_bytes();
+            let name = service_name.as_bytes();
             let mut output = 0xA5A5_A5A5;
             let status = unsafe {
                 host.query_service.unwrap()(
@@ -2252,7 +2249,13 @@ mod tests {
         for (capabilities, enabled, is_server) in cases {
             let package = TestPackage::with_capabilities_and_enabled(capabilities, enabled);
             let services = Arc::new(TestServiceLifetime::default());
-            let (status, output, queried) = query(&package, services, is_server, 1);
+            let (status, output, queried) = query(
+                &package,
+                services,
+                is_server,
+                1,
+                NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1,
+            );
             assert_eq!(status, NATIVE_STATUS_UNAVAILABLE);
             assert_eq!(output, 0xA5A5_A5A5);
             assert!(queried.is_none());
@@ -2263,7 +2266,13 @@ mod tests {
             true,
         );
         let services = Arc::new(TestServiceLifetime::default());
-        let (status, output, queried) = query(&package, services, false, 1);
+        let (status, output, queried) = query(
+            &package,
+            services,
+            false,
+            1,
+            NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1,
+        );
         assert_eq!(status, NATIVE_STATUS_OK);
         assert_eq!(output, 0x5346_4D50);
         assert_eq!(
@@ -2278,10 +2287,43 @@ mod tests {
         );
 
         let services = Arc::new(TestServiceLifetime::default());
-        let (status, output, queried) = query(&package, services, false, 2);
+        let (status, output, queried) = query(
+            &package,
+            services,
+            false,
+            2,
+            NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1,
+        );
         assert_eq!(status, NATIVE_STATUS_ABI_MISMATCH);
         assert_eq!(output, 0xA5A5_A5A5);
         assert!(queried.is_none());
+
+        for (permission, allowed, denied) in [
+            (
+                "runtime-executable-spans",
+                NATIVE_SERVICE_EXECUTABLE_SPANS_V1,
+                NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1,
+            ),
+            (
+                "runtime-executable-span-validation",
+                NATIVE_SERVICE_EXECUTABLE_SPAN_VALIDATION_V1,
+                NATIVE_SERVICE_EXECUTABLE_SPANS_V1,
+            ),
+        ] {
+            let package = TestPackage::with_capabilities_and_enabled(
+                &["runtime", "runtime-register-dll", permission],
+                true,
+            );
+            let services = Arc::new(TestServiceLifetime::default());
+            assert_eq!(
+                query(&package, services.clone(), false, 1, allowed).0,
+                NATIVE_STATUS_OK
+            );
+            assert_eq!(
+                query(&package, services, false, 1, denied).0,
+                NATIVE_STATUS_UNAVAILABLE
+            );
+        }
     }
 
     #[test]
