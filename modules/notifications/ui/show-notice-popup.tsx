@@ -22,7 +22,7 @@ export function Chirper({
   const warnings = items.filter((item) => item.level === 'warn').length
   return (
     <div
-      className="overlay"
+      className="overlay chirper-overlay"
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <section className="modal chirper-modal">
@@ -59,16 +59,21 @@ export function Chirper({
         <div className="modal-body">
           {items.length ? (
             <div className="compact-news">
-              {items.map((item) => (
-                <NoticeCard
+              {items.map((item, index) => (
+                <div
+                  className="chirper-item"
                   key={item.id}
-                  item={item}
-                  compact
-                  unread
-                  onAction={runNoticeAction}
-                  onRead={() => markRead([item.id])}
-                  onWikiArticle={openWikiArticle}
-                />
+                  style={{ animationDelay: `${Math.min(index, 8) * 55}ms` }}
+                >
+                  <NoticeCard
+                    item={item}
+                    compact
+                    unread
+                    onAction={runNoticeAction}
+                    onRead={() => markRead([item.id])}
+                    onWikiArticle={openWikiArticle}
+                  />
+                </div>
               ))}
             </div>
           ) : (

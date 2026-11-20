@@ -1,29 +1,34 @@
 import { Icon } from './show-icon'
+import type { ChirperMotion } from '../notifications/ui/notification-types'
 
 export function HeaderLink({
   label,
   icon,
+  useInlineIcon = false,
   iconOnly = false,
   collapseOnHover = false,
   tone = '',
   badge,
   severity,
   crowded = false,
+  motion = null,
   title,
   onClick,
 }: {
   label: string
   icon: string
+  useInlineIcon?: boolean
   iconOnly?: boolean
   collapseOnHover?: boolean
   tone?: string
   badge?: number
   severity?: string
   crowded?: boolean
+  motion?: ChirperMotion | null
   title?: string
   onClick(): void
 }) {
-  const asset = linkAssetIcons[icon]
+  const asset = useInlineIcon ? undefined : linkAssetIcons[icon]
   const marker =
     severity === 'error'
       ? '🚨'
@@ -38,12 +43,20 @@ export function HeaderLink({
               : ''
   return (
     <button
-      className={`header-link ${tone}${iconOnly ? ' icon-only' : ''}${collapseOnHover ? ' expand-on-hover' : ''}${severity ? ` chirper--${severity}` : ''}${crowded ? ' chirper-crowded' : ''}`}
+      className={`header-link ${tone}${iconOnly ? ' icon-only' : ''}${collapseOnHover ? ' expand-on-hover' : ''}${severity ? ` chirper--${severity}` : ''}${crowded ? ' chirper-crowded' : ''}${tone === 'chirper' && motion ? ` chirper-event--${motion.kind}` : ''}`}
       aria-label={iconOnly || collapseOnHover ? label : undefined}
       title={title ?? (iconOnly ? label : undefined)}
       onClick={onClick}
     >
-      {asset ? (
+      {tone === 'chirper' ? (
+        <span
+          className="chirper-icon-stage"
+          key={motion?.revision ?? 'idle'}
+          aria-hidden="true"
+        >
+          <Icon name={icon} />
+        </span>
+      ) : asset ? (
         <img className="icon" src={asset} aria-hidden="true" />
       ) : (
         <Icon name={icon} />
@@ -54,7 +67,12 @@ export function HeaderLink({
           {marker}
         </i>
       )}
-      {badge !== undefined && <b>{badge > 99 ? '99+' : badge}</b>}
+      {motion && tone === 'chirper' && (
+        <i className="chirper-event-flash" key={`flash-${motion.revision}`} aria-hidden="true" />
+      )}
+      {badge !== undefined && (
+        <b><span className="chirper-count-value">{badge > 99 ? '99+' : badge}</span></b>
+      )}
     </button>
   )
 }

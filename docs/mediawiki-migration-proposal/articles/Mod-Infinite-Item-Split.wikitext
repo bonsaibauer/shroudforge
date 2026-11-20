@@ -1,7 +1,0 @@
-'''Historical package.''' SF Infinite Item Split is not in the current repository package list. Its package ID was <code>sf-infinite-item-split</code>.
-
-The mod preserved the original stack when splitting items. Its historical description also says that it affected other inventory operations. It targeted the client and Dedicated Server, requested the runtime capability, and declared no player-facing settings.
-
-The source package used an older native implementation. The current ShroudForge runtime API can inspect transaction data, but does not provide safe access to the live inventory transaction at the point when the game removes the source quantity. The current package set does not claim to provide this feature. It requires a verified native transaction operation before it can be reintroduced safely.
-
-[[Category:Mods]]

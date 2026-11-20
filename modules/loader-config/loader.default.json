@@ -323,8 +323,13 @@
     },
     "modloaderUi": {
       "enabled": true,
+      "vanillaClient": false,
+      "vanillaServer": false,
       "startPage": "news",
       "remoteTarget": "client",
+      "serverRights": {
+        "groupLogSync": {}
+      },
       "toggleKey": "SDL:66",
       "refreshMilliseconds": 2000,
       "window": {

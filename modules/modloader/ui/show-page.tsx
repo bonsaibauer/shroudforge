@@ -16,6 +16,7 @@ import type { CompatibilityTab } from './show-compatibility'
 import { RecycleBin } from '../../updater/ui/show-recycle-bin'
 import type { UpdaterCommand } from '../../updater/ui/update-types'
 import { WikiPage } from '../../wiki/ui/show-wiki'
+import { ServerManagement } from './show-server-management'
 
 export function Page({
   id,
@@ -38,6 +39,7 @@ export function Page({
   onUpdaterCommand,
   compatibilityTab,
   setCompatibilityTab,
+  serverAdminAuthenticated,
 }: {
   id: PageId
   data: Snapshot
@@ -59,8 +61,10 @@ export function Page({
   onUpdaterCommand: UpdaterCommand
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
+  serverAdminAuthenticated: boolean
 }) {
-  const wikiModuleSettings = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
+  const wikiPreferences = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
+  const wikiModuleSettings = data.uiVanilla ? { ...wikiPreferences, enabled: false } : wikiPreferences
   if (id === 'activity')
     return <ActivityPage activity={data.activity} mods={data.mods} />
   if (id === 'news')
@@ -142,6 +146,14 @@ export function Page({
         onOpenCategory={openWikiCategory}
         moduleSettings={wikiModuleSettings}
         notifyCommandResult={notifyCommandResult}
+      />
+    )
+  if (id === 'server-management')
+    return (
+      <ServerManagement
+        onCommand={onUpdaterCommand}
+        serverRights={data.serverRights}
+        authenticated={serverAdminAuthenticated}
       />
     )
   return (

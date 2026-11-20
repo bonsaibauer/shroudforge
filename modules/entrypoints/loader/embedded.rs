@@ -269,6 +269,41 @@ fn prepare_native_dlls_before_game_entry(game: &Path) -> bool {
     }
 }
 
+/// Restore the verified vanilla asset pair without starting the mod runtime.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn shroudforge_prepare_vanilla(game: *const u16) -> bool {
+    if game.is_null() {
+        return false;
+    }
+    let result = std::panic::catch_unwind(|| {
+        let mut length = 0usize;
+        unsafe {
+            while length < 32768 && *game.add(length) != 0 {
+                length += 1;
+            }
+        }
+        if length == 0 || length == 32768 {
+            return false;
+        }
+        let root = PathBuf::from(String::from_utf16_lossy(unsafe {
+            std::slice::from_raw_parts(game, length)
+        }));
+        match pregame::prepare_vanilla(&root) {
+            Ok(()) => true,
+            Err(error) => {
+                let _ = shroudforge_logging::append(
+                    &root,
+                    'E',
+                    "startup-assets",
+                    &format!("Vanilla preparation failed: {error}"),
+                );
+                false
+            }
+        }
+    });
+    result.unwrap_or(false)
+}
+
 /// Applies stale pregame asset mods from the bootstrap thread before the live
 /// ECS runtime is created. This lets a normal game start use the bundled
 /// loader instead of requiring a separate `prepare` command.

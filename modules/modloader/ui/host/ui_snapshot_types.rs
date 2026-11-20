@@ -63,6 +63,8 @@ pub(crate) type Activity = shroudforge_logging::ActivityLogEntry;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Snapshot {
+    pub(crate) vanilla_session: Option<bool>,
+    pub(crate) installation_target: &'static str,
     pub(crate) diagnostics: serde_json::Value,
     pub(crate) dll_candidates: Vec<shroudforge_package::dll_manager::DllCandidate>,
     pub(crate) dll_chain_entries: Vec<shroudforge_package::dll_manager::CandidateLoadEntry>,

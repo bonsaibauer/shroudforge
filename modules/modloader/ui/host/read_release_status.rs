@@ -80,7 +80,7 @@ pub(crate) fn read_release_status(
                     snapshot["totalBytes"] = status["totalBytes"].clone();
                     snapshot["bytesPerSecond"] = status["bytesPerSecond"].clone();
                     if state == "installed" {
-                        snapshot["currentVersion"] = installed_version(root).into();
+                        snapshot["currentVersion"] = shroudforge_package::installed_version(root).into();
                     }
                 }
             }
@@ -91,7 +91,7 @@ pub(crate) fn read_release_status(
 
 pub(crate) fn idle_release_status(root: &Path) -> serde_json::Value {
     serde_json::json!({
-        "currentVersion": installed_version(root),
+        "currentVersion": shroudforge_package::installed_version(root),
         "updaterAvailable": shroudforge_loader_config::paths::updater_available(root),
         "latestVersion": null,
         "updateAvailable": false,
@@ -107,12 +107,4 @@ pub(crate) fn idle_release_status(root: &Path) -> serde_json::Value {
         "totalBytes": null,
         "bytesPerSecond": null
     })
-}
-
-fn installed_version(root: &Path) -> String {
-    fs::read(shroudforge_loader_config::paths::version_file(root))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|value| value["version"].as_str().map(str::to_owned))
-        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").into())
 }

@@ -19,6 +19,9 @@ export type RuntimeProblemCode =
   | 'runtime-not-ready'
 
 export type Snapshot = {
+  vanillaSession?: boolean | null
+  uiVanilla?: boolean
+  installationTarget?: 'client' | 'server'
   diagnostics?: DiagnosticStatus
   dllCandidates: DllCandidate[]
   dllChainEntries: DllLoadEntry[]
@@ -45,10 +48,24 @@ export type Snapshot = {
       code?: RuntimeProblemCode
       detail: string
       phase?: string
+      clients?: Array<{
+        steamId: string
+        playerName?: string
+        state: 'ok' | 'warning' | 'neutral'
+        loaderVersion?: string
+        issues: Array<{
+          code: string
+          modId?: string
+          clientVersion?: string
+          serverVersion?: string
+          detail?: string
+        }>
+      }>
     }>
     assets: { state: string; detail: string }
     lastUpdate?: { version: string; build: string; installedAt: number }
   }
+  serverRights?: ServerRights
   connected: boolean
   remoteServerState: 'connecting' | 'connected' | 'disconnected'
   mode: string
@@ -85,6 +102,7 @@ export type Snapshot = {
 export type ServerView = {
   mode: 'SERVER'
   gameVersion: string
+  version: string
   configuration?: Snapshot['configuration']
   dllCandidates: DllCandidate[]
   dllChainEntries: DllLoadEntry[]
@@ -92,9 +110,37 @@ export type ServerView = {
   notices: Notice[]
   newsTemplates?: Snapshot['newsTemplates']
   mods: ModInfo[]
+  serverRights?: ServerRights
 }
 
 export type ServerViewDetails = Omit<ServerView, 'mods'>
+
+export type ServerPermissionValues = {
+  canKickBan: boolean
+  canAccessInventories: boolean
+  canEditWorld: boolean
+  canEditBase: boolean
+  canExtendBase: boolean
+}
+
+export type ServerPermissionGroup = ServerPermissionValues & {
+  name: string
+  isShroudForgeAdmin: boolean
+  syncServerLogs: boolean
+}
+
+export type ServerPermissionPlayer = ServerPermissionValues & {
+  steamId: string
+  playerName?: string
+  groupName?: string
+  permissionsKnown: boolean
+  isShroudForgeAdmin: boolean
+}
+
+export type ServerRights = {
+  groups: ServerPermissionGroup[]
+  players: ServerPermissionPlayer[]
+}
 
 export type DllCandidate = {
   packageDirectory: string
@@ -146,6 +192,7 @@ export type PageId =
   | 'recycle-bin'
   | 'compatibility'
   | 'settings'
+  | 'server-management'
   | 'wiki'
 
 export type LinkDefinition = {

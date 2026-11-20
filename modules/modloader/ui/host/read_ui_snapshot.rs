@@ -22,6 +22,7 @@ pub(crate) fn read_ui_snapshot(
     game_pid: u32,
     desktop: bool,
     server: bool,
+    vanilla_session: bool,
     provider: &serde_json::Value,
     release: &Arc<Mutex<serde_json::Value>>,
     release_announcement: &Arc<Mutex<serde_json::Value>>,
@@ -68,10 +69,14 @@ pub(crate) fn read_ui_snapshot(
         root,
         &central["modules"]["runtimeDiagnostics"],
     );
-    let remote_target = central
-        .pointer("/modules/modloaderUi/remoteTarget")
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("client");
+    let remote_target = if server {
+        "server"
+    } else {
+        central
+            .pointer("/modules/modloaderUi/remoteTarget")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("client")
+    };
     let active_runtime_pid = (!desktop).then(|| runtime_pid(root)).flatten();
     let diagnostics = shroudforge_runtime_diagnostics::status(root);
     let runtime_status = shroudforge_loader_config::config::read_document(
@@ -93,10 +98,7 @@ pub(crate) fn read_ui_snapshot(
         && runtime_status["updatedAt"]
             .as_u64()
             .is_some_and(|updated_at| updated_at <= now && now - updated_at <= 5);
-    let remote_server_state = if network_enabled
-        && connected
-        && runtime_status_fresh
-    {
+    let remote_server_state = if network_enabled && connected && runtime_status_fresh {
         match runtime_status["network"]["remoteServerState"].as_str() {
             Some("connected") => "connected",
             Some("disconnected") => "disconnected",
@@ -105,7 +107,7 @@ pub(crate) fn read_ui_snapshot(
     } else {
         "disconnected"
     };
-    let mut module_preferences = if remote_target == "server" {
+    let mut module_preferences = if remote_target == "server" && !server {
         let path = shroudforge_loader_config::paths::remote_server_config(root);
         shroudforge_loader_config::config::read_loader_file(root, &path)
             .ok()
@@ -127,6 +129,8 @@ pub(crate) fn read_ui_snapshot(
         .collect();
     let hotkey_conflicts = hotkey_conflicts(&central, &mods, server);
     let snapshot = Snapshot {
+        vanilla_session: (!desktop).then_some(vanilla_session),
+        installation_target: if server { "server" } else { "client" },
         diagnostics,
         dll_candidates: shroudforge_package::dll_manager::discover_dll_candidates(root),
         dll_chain_entries: shroudforge_package::dll_manager::chain_load_entries(root),
@@ -206,11 +210,9 @@ pub(crate) fn read_ui_snapshot(
                 .map(str::to_owned),
             active_runtime_profile: active_runtime_profile(root),
             runtime_profiles: runtime_profile_ids(root),
-            runtime_profile_directory: shroudforge_loader_config::paths::runtime_profiles_dir(
-                root,
-            )
-            .display()
-            .to_string(),
+            runtime_profile_directory: shroudforge_loader_config::paths::runtime_profiles_dir(root)
+                .display()
+                .to_string(),
             diagnostic_jobs: diagnostic_jobs.jobs,
             diagnostic_job_errors: diagnostic_jobs.errors,
             diagnostic_job_directory: diagnostic_jobs.directory,
@@ -240,7 +242,10 @@ fn hotkey_conflicts(
         return Vec::new();
     }
     let mut bindings = Vec::new();
-    if let Some(modules) = central.get("modules").and_then(serde_json::Value::as_object) {
+    if let Some(modules) = central
+        .get("modules")
+        .and_then(serde_json::Value::as_object)
+    {
         for (id, module) in modules {
             if module.get("enabled").and_then(serde_json::Value::as_bool) == Some(false) {
                 continue;

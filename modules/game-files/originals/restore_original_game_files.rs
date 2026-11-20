@@ -104,3 +104,58 @@ fn rollback_files(root: &Path, safety: &Path, replaced: &[String]) {
         }
     }
 }
+
+/// Restore the verified pair through the same journal used by startup asset
+/// publication. The caller owns the startup lease and invalidates the applied
+/// fingerprint before invoking this operation.
+pub fn restore_originals_for_startup(root: &Path, target: &str) -> Result<(), String> {
+    let stem = stem(target)?;
+    if originals_status(root, stem)["status"] != "ready" {
+        return Err("verified original game files are not available for this game build".into());
+    }
+    let manifest = manifest(root, stem)?;
+    let executable_hash = manifest["gameExecutable"]["sha256"]
+        .as_str()
+        .ok_or("original backup does not identify its Enshrouded build")?;
+    if sha256(&game_executable(root, stem))? != executable_hash {
+        return Err(
+            "saved original files belong to a different Enshrouded executable build".into(),
+        );
+    }
+    let names = pair(stem);
+    let mut expected = Vec::new();
+    for name in &names {
+        let hash = manifest["files"]
+            .as_array()
+            .and_then(|files| files.iter().find(|file| file["name"] == *name))
+            .and_then(|file| file["sha256"].as_str())
+            .ok_or("original manifest is incomplete")?;
+        if sha256(&originals_dir(root, stem).join(name))? != hash {
+            return Err(format!("original backup failed hash verification: {name}"));
+        }
+        expected.push(hash.to_owned());
+    }
+    if names
+        .iter()
+        .zip(&expected)
+        .all(|(name, hash)| sha256(&root.join(name)).as_deref() == Ok(hash))
+    {
+        return Ok(());
+    }
+    let stage = crate::transaction::begin(root, stem).map_err(|error| error.to_string())?;
+    let result = (|| {
+        for (name, hash) in names.iter().zip(&expected) {
+            let target = stage.join(name);
+            fs::copy(originals_dir(root, stem).join(name), &target)
+                .map_err(|error| error.to_string())?;
+            if sha256(&target)? != *hash {
+                return Err(format!("staged original failed hash verification: {name}"));
+            }
+        }
+        crate::transaction::commit(root, stem).map_err(|error| error.to_string())
+    })();
+    if result.is_err() {
+        crate::transaction::abort(root, stem).map_err(|error| error.to_string())?;
+    }
+    result
+}

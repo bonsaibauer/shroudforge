@@ -207,7 +207,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
             }
         }
     }
-    if !arguments.desktop
+    if !arguments.desktop && !arguments.vanilla_session
         && read_central_config(&arguments.root)["modules"]["modloaderUi"]["enabled"] == false
     {
         return Ok(());
@@ -223,7 +223,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
         read_missing_updater_announcement::read_cached(&arguments.root),
     ));
     let announcement_config = read_central_config(&arguments.root);
-    if !arguments.server {
+    if !arguments.server && !arguments.vanilla_session {
         read_missing_updater_announcement::start_refresh(
             &arguments.root,
             &announcement_config,
@@ -295,7 +295,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
         game_pid,
         arguments.desktop,
     );
-    let mut native_menu_toggle = if !arguments.desktop && !arguments.server {
+    let mut native_menu_toggle = if !arguments.desktop && !arguments.server && !arguments.vanilla_session {
         let enabled = read_central_config(&arguments.root)
             .pointer("/general/showNativeModMenu")
             .and_then(serde_json::Value::as_bool)
@@ -463,7 +463,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
     let mut loaded_settings_revision = live_settings_revision(&arguments.root);
     let mut keybind_layout_revision = shroudforge_hotkeys::layout_revision();
     let mut pending_window_geometry_save: Option<Instant> = None;
-    let main_menu_preload_event_name = (!arguments.desktop && !arguments.server).then(|| {
+    let main_menu_preload_event_name = (!arguments.desktop && !arguments.server && !arguments.vanilla_session).then(|| {
         format!(
             "Local\\ShroudForge.ModloaderUI.MainMenu.{}",
             arguments.game_pid
@@ -593,7 +593,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                     false,
                                 );
                             }
-                            if !arguments.desktop
+                            if !arguments.desktop && !arguments.vanilla_session
                                 && read_central_config(&arguments.root)["modules"]["modloaderUi"]["enabled"] == false
                             {
                                 shown = false;
@@ -609,7 +609,9 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         }
                         loaded_settings_revision = current_settings_revision;
                     }
-                    dispatch_control_actions(&arguments, &control_sender, &mut recovered_control_actions);
+                    if !arguments.vanilla_session {
+                        dispatch_control_actions(&arguments, &control_sender, &mut recovered_control_actions);
+                    }
                     if let Some(toggle) = native_menu_toggle.as_mut() {
                         let enabled = read_central_config(&arguments.root)
                             .pointer("/general/showNativeModMenu")
@@ -859,6 +861,25 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     next_refresh = Instant::now();
                 }
                 while let Ok(command) = receiver.try_recv() {
+                    if arguments.vanilla_session {
+                        let blocked = match &command {
+                            Command::SetWindowVisibility(_, _, id)
+                            | Command::RunModAction(_, _, id)
+                            | Command::UpdaterRequest(_, _, id, _)
+                            | Command::Diagnostics(_, _, id)
+                            | Command::RemoteAdminLogin(_, id)
+                            | Command::FetchServerMods(_, id)
+                            | Command::FetchServerRights(id)
+                            | Command::SaveServerRights(_, id) => Some(id.clone()),
+                            _ => None,
+                        };
+                        if let Some(request_id) = blocked {
+                            report_command_result(&arguments.root, &webview, &request_id,
+                                "Modloader", "Vanilla mode", Err("This action is unavailable while the game is running in Vanilla mode".into()),
+                                "settings.saved", None, false);
+                            continue;
+                        }
+                    }
                     let server_target = shroudforge_loader_config::config::read_loader(&arguments.root)
                         .ok()
                         .and_then(|config| {
@@ -868,9 +889,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 .map(|target| target == "server")
                         })
                         .unwrap_or(false);
-                    let remote_request = if server_target {
+                    let remote_request = if server_target && !arguments.server {
                         match &command {
                             Command::FetchServerMods(_, request_id)
+                            | Command::FetchServerRights(request_id)
+                            | Command::SaveServerRights(_, request_id)
                             | Command::RefreshMod(_, request_id)
                             | Command::SetModEnabled(_, _, _, request_id)
                             | Command::SaveKeyReservation(_, _, _, _, request_id)
@@ -899,6 +922,15 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 "type": "mods-list",
                                 "requestId": request_id,
                                 "locale": server_locale
+                            }),
+                            Command::FetchServerRights(request_id) => serde_json::json!({
+                                "type": "server-rights-list",
+                                "requestId": request_id
+                            }),
+                            Command::SaveServerRights(values, request_id) => serde_json::json!({
+                                "type": "server-rights-update",
+                                "requestId": request_id,
+                                "values": values
                             }),
                             Command::RefreshMod(_, request_id) => serde_json::json!({
                                 "type": "mods-list",
@@ -956,6 +988,8 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         };
                         let action = match &command {
                             Command::FetchServerMods(_, _) | Command::RefreshMod(_, _) => "Load server mods",
+                            Command::FetchServerRights(_) => "Load server rights",
+                            Command::SaveServerRights(_, _) => "Save server rights",
                             Command::SaveModSettings(_, _, _, _) => "Save server mod settings",
                             Command::SetModEnabled(_, enabled, _, _) if *enabled => "Enable server mod",
                             Command::SetModEnabled(_, _, _, _) => "Disable server mod",
@@ -1060,6 +1094,18 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             "Load server mods",
                             Err("Select the server target before loading server mods".into()),
                             "mod.refreshed",
+                            None,
+                            false,
+                        ),
+                        Command::FetchServerRights(request_id)
+                        | Command::SaveServerRights(_, request_id) => report_command_result(
+                            &arguments.root,
+                            &webview,
+                            &request_id,
+                            "Server Modloader",
+                            "Server rights",
+                            Err("Select the server target before managing server rights".into()),
+                            "settings.saved",
                             None,
                             false,
                         ),
@@ -1374,7 +1420,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
 
                 if Instant::now() >= next_refresh {
                     if Instant::now() >= next_announcement_retry {
-                        if !arguments.server {
+                        if !arguments.server && !arguments.vanilla_session {
                             read_missing_updater_announcement::start_refresh(
                                 &arguments.root,
                                 &read_central_config(&arguments.root),
@@ -1383,10 +1429,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         }
                         next_announcement_retry = Instant::now() + Duration::from_secs(30);
                     }
-                    next_refresh = Instant::now()
-                        + Duration::from_millis(
-                            module_config.refresh_milliseconds.clamp(250, 10_000),
-                        );
+                    next_refresh = Instant::now() + if arguments.vanilla_session {
+                        Duration::from_secs(86400)
+                    } else {
+                        Duration::from_millis(module_config.refresh_milliseconds.clamp(250, 10_000))
+                    };
                     if visible && !initial_snapshot_running {
                         refresher.request(&active_provider);
                         if !initial_snapshot_requested {
@@ -1538,6 +1585,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                 if response["mods"].is_array()
                     || response["mod"].is_object()
                     || response["serverView"].is_object()
+                    || response["serverRights"].is_object()
                 {
                     if let Ok(payload) = serde_json::to_string(&response) {
                         let _ = webview.evaluate_script(&format!(
@@ -1581,7 +1629,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     }
                 } else {
                     let revision = response["mod"]["revision"].as_str().map(str::to_owned);
-                    let success_message = if action == "Load server mods" {
+                    let success_message = if matches!(action.as_str(), "Load server mods" | "Load server rights") {
                         "mod.refreshed"
                     } else {
                         "settings.saved"
@@ -1603,7 +1651,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
             }
             Event::UserEvent(UiEvent::Toggle) => {
                 if !arguments.server && !shroudforge_hotkeys::is_capture_active()
-                    && (arguments.desktop
+                    && (arguments.desktop || arguments.vanilla_session
                         || read_central_config(&arguments.root)["modules"]["modloaderUi"]["enabled"]
                             != false)
                 {

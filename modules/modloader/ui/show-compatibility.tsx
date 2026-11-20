@@ -27,6 +27,7 @@ export type CompatibilityTab =
   | 'dll-manager'
   | 'hotkeys'
   | 'dependencies'
+  | 'multiplayer-versions'
   | 'engine'
 
 function combinedStatus(statuses: CompatibilityStatus[]): CompatibilityStatus {
@@ -76,19 +77,32 @@ function dependencyStatus(data: Snapshot): CompatibilityStatus {
   return data.configuration ? 'ok' : 'neutral'
 }
 
+function multiplayerVersionsCheck(data: Snapshot) {
+  return data.configuration?.checks.find((check) => check.id === 'networkVersions')
+}
+
+function multiplayerVersionsStatus(data: Snapshot): CompatibilityStatus {
+  return multiplayerVersionsCheck(data)?.state ?? 'neutral'
+}
+
 export function compatibilityNavigationStatus(
   data: Snapshot,
 ): CompatibilityStatus {
+  const vanillaKey = data.mode === 'SERVER' ? 'vanillaServer' : 'vanillaClient'
+  const requested = data.settings.modulePreferences?.modloaderUi?.[vanillaKey] === true
   const configuration = data.configuration
-  if (!configuration) return 'neutral'
+  if (!configuration) return data.vanillaSession != null && data.vanillaSession !== requested ? 'restart-required' : 'neutral'
   const engineStatuses: CompatibilityStatus[] = configuration.checks
     .filter((check) => ['game', 'runtime', 'api', 'parser'].includes(check.id))
     .map((check) => check.state)
   if (configuration.errors.length) engineStatuses.push('error')
   if (configuration.assets) engineStatuses.push(assetCompatibilityStatus(configuration.assets.state))
+  const multiplayerCheck = multiplayerVersionsCheck(data)
   return combinedStatus([
     modDetectionStatus(data), dllManagerStatus(data), dependencyStatus(data),
     hasHotkeyConflicts(data) ? 'warning' : 'ok',
+    ...(multiplayerCheck ? [multiplayerCheck.state] : []),
+    ...(data.vanillaSession != null && data.vanillaSession !== requested ? ['restart-required' as const] : []),
     ...engineStatuses,
   ])
 }
@@ -133,6 +147,7 @@ export function Compatibility({
     isTargetUiVisible('modules', module, target, data.settings.targetUi)
   const allowedTabs: CompatibilityTab[] = []
   if (moduleVisible('modDetection')) allowedTabs.push('mod-detection', 'dependencies')
+  if (target === 'server' && moduleVisible('network')) allowedTabs.push('multiplayer-versions')
   if (moduleVisible('dllManager')) allowedTabs.push('dll-manager')
   if (moduleVisible('modloaderUi')) allowedTabs.push('hotkeys')
   if (moduleVisible('runtimeDiagnostics')) allowedTabs.push('engine')
@@ -175,6 +190,7 @@ export function Compatibility({
   const tolerateUnknownFields =
     localDetection.tolerateUnknownManifestFields !== false
   const dllStatus = dllManagerStatus(data)
+  const networkVersions = multiplayerVersionsCheck(data)
   const changeDetection = (key: string, value: boolean) => {
     logUiEvent({
       level: 'DEBUG', source: 'compatibility', operation: 'save-setting-requested', subject: 'mod-detection',
@@ -417,6 +433,10 @@ export function Compatibility({
           </>
         }
       />
+      {data.vanillaSession != null && <p className="hint">
+        {t(data.vanillaSession ? 'vanilla.active' : 'vanilla.modloaderActive')}
+        {data.vanillaSession !== (data.settings.modulePreferences?.modloaderUi?.[data.mode === 'SERVER' ? 'vanillaServer' : 'vanillaClient'] === true) && ` ${t('vanilla.restartRequired')}`}
+      </p>}
       {allowedTabs.length > 0 && <Segmented
         value={activeTab!}
         onChange={(value) => setTab(value as CompatibilityTab)}
@@ -443,6 +463,15 @@ export function Compatibility({
             <CompatibilityTabLabel
               label={t('compatibility.tab.dllManager')}
               status={dllStatus}
+            />,
+          ],
+          ] : []),
+          ...(target === 'server' && moduleVisible('network') ? [
+          [
+            'multiplayer-versions',
+            <CompatibilityTabLabel
+              label={t('compatibility.tab.multiplayerVersions')}
+              status={multiplayerVersionsStatus(data)}
             />,
           ],
           ] : []),
@@ -574,6 +603,96 @@ export function Compatibility({
                 )}
               </div>
             ))}
+          </section>
+        </div>
+      )}
+      {activeTab === 'multiplayer-versions' && (
+        <div className="settings-module-list compatibility-sections">
+          <section className="settings-module compatibility-section">
+            <header>
+              <div>
+                <h3>{t('compatibility.section.multiplayerVersions')}</h3>
+                <p className="hint">
+                  {t('compatibility.section.multiplayerVersions.description')}
+                </p>
+                <small>{t('compatibility.multiplayerVersions.loader', {
+                  version: data.version,
+                })}</small>
+              </div>
+              <CompatibilityStatusBadge status={multiplayerVersionsStatus(data)} />
+            </header>
+            {!networkVersions?.clients?.length && (
+              <p className="hint settings-module-description">
+                {t('compatibility.multiplayerVersions.empty')}
+              </p>
+            )}
+            {networkVersions?.clients?.map((client) => {
+              const player = client.playerName?.trim() || client.steamId
+              const status: CompatibilityStatus = client.state === 'warning'
+                ? 'warning' : client.state === 'ok' ? 'ok' : 'neutral'
+              return (
+                <div className={`settings-option ${status}`} key={client.steamId}>
+                  <span className="compatibility-row-copy">
+                    <strong>{player}</strong>
+                    <small>
+                      {client.steamId} · {t('compatibility.multiplayerVersions.loader', {
+                        version: client.loaderVersion ?? '—',
+                      })}
+                    </small>
+                    {client.issues.length ? client.issues.map((issue, index) => {
+                      let detail: string
+                      switch (issue.code) {
+                        case 'report-pending':
+                          detail = t('compatibility.multiplayerVersions.reportPending', { player })
+                          break
+                        case 'report-missing':
+                          detail = t('compatibility.multiplayerVersions.reportMissing', { player })
+                          break
+                        case 'report-stale':
+                          detail = t('compatibility.multiplayerVersions.reportStale', { player })
+                          break
+                        case 'loader-version':
+                          detail = t('compatibility.multiplayerVersions.loaderMismatch', {
+                            player,
+                            clientVersion: issue.clientVersion ?? '—',
+                            serverVersion: issue.serverVersion ?? '—',
+                          })
+                          break
+                        case 'mod-version':
+                          detail = t('compatibility.multiplayerVersions.modMismatch', {
+                            modId: issue.modId ?? 'unknown',
+                            player,
+                            clientVersion: issue.clientVersion ?? '—',
+                            serverVersion: issue.serverVersion ?? '—',
+                          })
+                          break
+                        case 'mod-missing-client':
+                          detail = t('compatibility.multiplayerVersions.modMissingClient', {
+                            modId: issue.modId ?? 'unknown', player,
+                          })
+                          break
+                        case 'mod-missing-server':
+                          detail = t('compatibility.multiplayerVersions.modMissingServer', {
+                            modId: issue.modId ?? 'unknown', player,
+                          })
+                          break
+                        case 'client-problem':
+                          detail = t('compatibility.multiplayerVersions.clientProblem', {
+                            player, detail: issue.detail ?? issue.code,
+                          })
+                          break
+                        default:
+                          detail = `${issue.code}${issue.detail ? `: ${issue.detail}` : ''}`
+                      }
+                      return <small key={`${issue.code}:${issue.modId ?? ''}:${index}`}>{detail}</small>
+                    }) : (
+                      <small>{t('compatibility.multiplayerVersions.clientOk')}</small>
+                    )}
+                  </span>
+                  <CompatibilityStatusBadge status={status} />
+                </div>
+              )
+            })}
           </section>
         </div>
       )}

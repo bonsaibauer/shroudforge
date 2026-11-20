@@ -30,6 +30,23 @@ void clear_runtime_heartbeat(const std::filesystem::path& root) {
     std::filesystem::remove(ShroudforgeConfig::Directory(root, "runtime", "shroudforge/runtime") / L"heartbeat.json", ignored);
 }
 
+bool read_vanilla_setting(const std::filesystem::path& root, bool& vanilla) {
+    vanilla = false;
+    const auto path = root / L"shroudforge/config/modloader-config.json";
+    std::error_code error;
+    if (!std::filesystem::exists(path, error)) return !error;
+    try {
+        std::ifstream input(path);
+        if (!input) return false;
+        const auto config = nlohmann::json::parse(input);
+        const auto modules = config.value("modules", nlohmann::json::object());
+        const auto ui = modules.value("modloaderUi", nlohmann::json::object());
+        const auto key = is_dedicated_server_process() ? "vanillaServer" : "vanillaClient";
+        if (ui.contains(key)) vanilla = ui.at(key).get<bool>();
+        return true;
+    } catch (...) { return false; }
+}
+
 DWORD WINAPI run(void*) {
     // Never touch KFC files until the main thread is parked outside loader lock.
     // A late-loaded proxy cannot safely prepare assets for an already running game.
@@ -50,11 +67,38 @@ DWORD WINAPI run(void*) {
     begin_log_session(root);
     session_started = std::chrono::steady_clock::now();
     log_shroudforge_build_identity(root);
-    clear_runtime_heartbeat(root);
     startup_stage(root, "bootstrap-thread-started");
     log("Log session started for game PID " + std::to_string(GetCurrentProcessId()) +
         ". Archived log files contain earlier sessions");
     log_shroudforge_banner(is_dedicated_server_process());
+    bool vanilla = false;
+    if (!read_vanilla_setting(root, vanilla)) {
+        startup_failed(root, "vanilla-config", "Could not read the requested startup mode from the Modloader configuration.");
+        return 1;
+    }
+    if (vanilla) {
+        const auto path = shroudforge_directory(root) / L"shroudforge-runtime.dll";
+        const auto runtime = LoadLibraryW(path.c_str());
+        if (!runtime) {
+            startup_failed(root, "vanilla-preparation", "Could not load the startup preparation component. " + windows_error(GetLastError()));
+            return 1;
+        }
+        const auto prepare = reinterpret_cast<PrepareStartup>(GetProcAddress(runtime, "shroudforge_prepare_vanilla"));
+        const bool prepared = prepare && prepare(root.c_str());
+        FreeLibrary(runtime);
+        if (!prepared) {
+            startup_failed(root, "vanilla-preparation", "Could not verify and restore the original game files. See the ShroudForge log.");
+            return 1;
+        }
+        clear_runtime_heartbeat(root);
+        start_modloader_ui(root, true);
+        log("Vanilla assets verified. Starting without the mod runtime or mod DLLs.");
+        startup.release();
+        WaitForSingleObject(stop_event, INFINITE);
+        stop_modloader_ui();
+        return 0;
+    }
+    clear_runtime_heartbeat(root);
     // Check the release manifest before starting any UI or loading runtime DLLs.
     startup_stage(root, "startup-update-check");
     if (!run_startup_update_check(root)) return 1;

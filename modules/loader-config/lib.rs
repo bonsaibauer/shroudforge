@@ -5,6 +5,8 @@ mod claim_control_actions;
 pub mod documents;
 mod initialize_loader_settings;
 mod lock_installation;
+#[cfg(windows)]
+pub mod update_queue_lock;
 mod migrate_legacy_toggle_key_settings;
 mod migrate_module_target_visibility;
 mod migrate_wiki_refresh_interval;

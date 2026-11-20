@@ -1,11 +1,11 @@
 # Masterplan: Serveransicht im Modloader-Client
 
-**Status:** Architekturvorschlag auf Basis einer gezielten Code- und Live-Server-Prüfung  
+**Status:** Umsetzungsstand der Serveransicht auf Basis einer gezielten Code- und Live-Server-Prüfung
 **Ziel:** Den bestehenden Modloader im Client um eine geschützte Ansicht für einen Dedicated Server erweitern. Seiten und Bedienelemente bleiben vertraut. Daten und Aktionen kommen für das Serverziel vom Server.
 
 ## 1. Zielbild
 
-Der Modloader bleibt ein gemeinsames Fenster mit derselben Navigation. Oben wählt man **Client** oder **Server**. Die aktuelle Seite, etwa Aktivität, installierte Mods oder Kompatibilität, zeigt danach die Daten des gewählten Ziels. Serverlogs erhalten zusätzlich eine eigene Client-/Server-Umschaltung in der Debug Console.
+Der Modloader bleibt ein gemeinsames Fenster mit derselben Navigation. Oben wählt man **Client** oder **Server**. Die aktuelle Seite, etwa Aktivität, installierte Mods oder Kompatibilität, zeigt danach die Daten des gewählten Ziels. Serverlogs werden nur nach einer erfolgreichen ShroudForge-Admin-Anmeldung und bei aktivierter Gruppenfreigabe übertragen.
 
 Der Dedicated Server startet weiterhin ohne interaktives Fenster. Er stellt dem Client eine schmale, typisierte Verwaltungsoberfläche über den bestehenden Steam-P2P-Transport bereit. Der Client sendet keine beliebigen Datei-, Shell- oder Lua-Befehle. Der Server prüft jede Anfrage und ruft danach die vorhandene Funktion des zuständigen Moduls auf.
 
@@ -30,13 +30,13 @@ flowchart LR
 
 ### 2.1 Modloader-Oberfläche
 
-Die Navigation des Modloaders hat die Bereiche Aktivität, News, Kompatibilität, Einstellungen, Wiki, Entdecken, Installiert, Updates und Papierkorb. Installierte Mods erzeugen darunter dynamische Detailseiten. Diese Oberfläche ist bereits eine gemeinsame Shell aus [app.tsx](../../modules/modloader/ui/app.tsx) und [show-page.tsx](../../modules/modloader/ui/show-page.tsx).
+Die Navigation des Modloaders hat die Bereiche Aktivität, News, Kompatibilität, Einstellungen, Wiki, Entdecken, Installiert, Updates, Papierkorb und Servermanagement. Installierte Mods erzeugen darunter dynamische Detailseiten. Diese Oberfläche ist bereits eine gemeinsame Shell aus [app.tsx](../../modules/modloader/ui/app.tsx) und [show-page.tsx](../../modules/modloader/ui/show-page.tsx).
 
-Das UI spricht seinen nativen Host über typisierte WebView-Nachrichten an. Der Host liest einen `Snapshot`, verarbeitet Befehle und fragt Daten periodisch neu ab. [ui-snapshot.ts](../../modules/modloader/ui/ui-snapshot.ts) kennt bereits `CLIENT`, `SERVER` und `DESKTOP`. Der Servermodus bedeutet heute aber einen lokalen Host mit Serverinstallation. Ein Remote-Snapshot im Client existiert noch nicht.
+Das UI spricht seinen nativen Host über typisierte WebView-Nachrichten an. Der Host liest einen `Snapshot`, verarbeitet Befehle und fragt Daten gezielt nach. [ui-snapshot.ts](../../modules/modloader/ui/ui-snapshot.ts) kennt bereits `CLIENT`, `SERVER` und `DESKTOP`. Der vorhandene Navigationseintrag und die Servermanagement-Seite bleiben bestehen. Der Featurebanner bleibt oben. Der Tab Serverrechte steht darunter.
 
 ### 2.2 Dedicated Server und Debug Console
 
-Der [Windows-Bootstrap](../../modules/entrypoints/windows-bootstrap/module_processes.cpp) überspringt auf dem Dedicated Server sowohl das Modloader-Fenster als auch die interaktive Debug Console. Der Server schreibt stattdessen in `shroudforge-server.log`. Der heutige Debug-Console-Host liest lokal `enshrouded.log` und das lokale ShroudForge-Clientlog. Für einen entfernten Server muss das Log daher im Serverprozess gelesen und kontrolliert über P2P übertragen werden.
+Der [Windows-Bootstrap](../../modules/entrypoints/windows-bootstrap/module_processes.cpp) überspringt auf dem Dedicated Server sowohl das Modloader-Fenster als auch die interaktive Debug Console. Der Server schreibt stattdessen in `shroudforge-server.log`. Der heutige Debug-Console-Host liest lokal `enshrouded.log` und das lokale ShroudForge-Clientlog. Für das Serverziel liest der Serverprozess die Logs selbst und überträgt sie über den bestehenden P2P-Kanal nur nach Admin-Anmeldung und mit aktivierter Gruppenfreigabe.
 
 ### 2.3 Vorhandener Steam-P2P-Transport
 
@@ -44,17 +44,15 @@ Der [Windows-Bootstrap](../../modules/entrypoints/windows-bootstrap/module_proce
 
 Auf dem Dedicated Server stammen verbundene Peer-IDs aus der von Enshrouded authentifizierten Spielerliste. Die optionale `modules.network.allowedClientSteamIds`-Liste wird zusätzlich angewandt. Eine nichtleere, ungültige Allowlist wird restriktiv behandelt. Diese Liste regelt den Netzwerkzugang. Sie ist kein Beleg für ein Modloader-Administratorrecht.
 
-Das [World-Editor-P2P](../../mods/world-editor/src/p2p.lua) ist ein bestehendes Beispiel für sichere Fachdatenübertragung. Es verwendet begrenzte, geordnete Chunks mit Prüfsumme, Anfragestatus, Duplikatbehandlung und bestätigten Ergebnissen. Die Serveraktion geht danach durch die kanonische World-Editor-Implementierung in [operations.lua](../../mods/world-editor/src/operations.lua). Für Modloader-Verwaltung wird ein eigener, typisierter Befehlssatz benötigt.
+Das [World-Editor-P2P](../../mods/world-editor/src/p2p.lua) ist ein bestehendes Beispiel für sichere Fachdatenübertragung. Es verwendet begrenzte, geordnete Chunks mit Prüfsumme, Anfragestatus, Duplikatbehandlung und bestätigten Ergebnissen. Die Serveraktion geht danach durch die kanonische World-Editor-Implementierung in [operations.lua](../../mods/world-editor/src/operations.lua). Modloader-Verwaltung läuft über den vorhandenen typisierten Befehlssatz und den bestehenden Steam-P2P-Kanal.
 
 ### 2.4 Live-Server und Spielerrechte
 
 Am 3. November 2026 liefen auf dem Entwicklungsrechner sowohl Enshrouded-Client als auch Dedicated Server. Die installierte Serverkonfiguration enthält die Gruppen Admin, Friend, Guest und Visitor mit unterschiedlichen Werten für `canKickBan`, `canAccessInventories`, `canEditWorld`, `canEditBase` und `canExtendBase`. Die Zugangspasswörter wurden bei der Prüfung nicht ausgegeben und gehören niemals in einen Remote-Snapshot.
 
-Du hattest auch mit dem Serverlog recht. Das aktive `logs/enshrouded_server.log` protokolliert beim Beitritt die effektiven Spielerrechte. Im gerade geprüften Eintrag standen `CanKickBan`, `CanAccessInventories`, `CanEditBase`, `CanEditWorld` und `CanExtendBase`. Damit haben wir einen Live-Nachweis für die Rechte, die Enshrouded dem Spieler tatsächlich gegeben hat.
+Das aktive `logs/enshrouded_server.log` protokolliert beim Beitritt den Spielernamen und die effektiven Rechte. Der Dedicated-Serverprozess liest diese Einträge selbst. Er verbindet sie über die Steam-ID aus seinen eigenen Enshrouded-Peerinformationen mit dem authentifizierten Spieler. Die Namen und Rechte aus einem Client-Kompatibilitätsbericht werden für diese Serverrechteansicht nicht verwendet.
 
-Der Beitrittslog ordnet diese Rechte einem Spielernamen zu. Der aktuell verwendete ShroudForge-Transport liefert separat authentifizierte SteamIDs. Der Modloader hat noch keine geprüfte Funktion, die beides im Serverprozess sicher zusammenführt. Die generierten Enshrouded-Typdaten führen `keen::PlayerPermissions` als Bitmaske. Eine freigegebene Runtime-Operation für die Live-Abfrage dieser Rechte ist in der aktuellen ShroudForge-Lua-API nicht vorhanden.
-
-Der Spielername ist damit eine Anzeigeinformation. Der Logeintrag allein reicht nicht aus, um die Steam-P2P-Verbindung einer Rechtezeile zuzuordnen, weil er keine SteamID enthält. Ein vom Client gesendeter Name darf diese Zuordnung nicht ersetzen.
+Der gemeinsame Leser in `modules/transport/read_session_peers.rs` hält Namen und Rechte in einem Datensatz pro Steam-ID. Die Rechte stammen aus Enshroudeds Log, die Gruppenvorgaben aus `enshrouded_server.json`. Die Zuordnung der Logblöcke folgt der Reihenfolge der Serverlogeinträge. Gleichzeitige Beitritte sind separat zu prüfen. Bis ein Rechteblock vorliegt, zeigt die Oberfläche die Steam-ID und unbekannte Rechte an.
 
 Der laufende ShroudForge-Server hat Steam-P2P-Healthchecks bestätigt und protokolliert World-Editor-Anfragen. Das aktuelle ShroudForge-Log beschreibt die bestehende World-Editor-Zulassung über verbundene Enshrouded-Spieler und die Network-Beschränkung. Die effektiven Enshrouded-Rechte fließen dort noch nicht in die Freigabe ein.
 
@@ -62,20 +60,11 @@ Die Serverinstallation hat aktuell Netzwerk-P2P aktiviert und eine Allowlist mit
 
 ## 3. Rechte-Modell
 
-Die Implementierung trennt den ShroudForge-Modloaderzugang von Enshrouded-Spielrechten. Für den Modloader prüft der Server `enshrouded_server.json`: Eine dynamisch gefundene `userGroups`-Gruppe zählt als Admin, wenn ihr Name und Passwort zusammenpassen und alle fünf Rechte `canKickBan`, `canAccessInventories`, `canEditWorld`, `canEditBase` und `canExtendBase` exakt `true` sind. World-Editor-Aktionen prüfen ihre passenden Enshrouded-Spielrechte weiterhin zusätzlich.
+Der Server leitet die Rolle **ShroudForge Admin** aus einer `userGroups`-Gruppe ab, deren fünf Rechte `canKickBan`, `canAccessInventories`, `canEditWorld`, `canEditBase` und `canExtendBase` alle `true` sind. Der Gruppenname ist frei wählbar. Für die Serververwaltung meldet sich ein verbundener Spieler mit dem Passwort einer solchen Gruppe an. Der Server prüft das Passwort und die fünf Flags, bindet das Sitzungstoken an die authentifizierte Steam-ID und prüft es serverseitig bei jeder Verwaltungsanfrage. Die Log-Synchronisierung ist eine zusätzliche Einstellung pro ShroudForge-Admin-Gruppe.
 
 ### 3.1 Enshrouded-Spielrechte
 
-Enshrouded weist einem verbundenen Spieler effektive Rechte wie `CanEditWorld` oder `CanKickBan` zu. Der Server muss den Steam-Peer aus dem Transport mit dem aktuellen Enshrouded-Spielerzustand und dessen Rechten verbinden. Die Zuordnung gilt für die aktive Sitzung und wird bei Aktionen erneut geprüft. Ein beim Login gecachter Anzeigename oder eine einmalige UI-Prüfung reicht nicht.
-
-Vor der Freigabe dieser Integration wird eine Runtime-Untersuchung benötigt, die für denselben verbundenen Spieler belastbar nachweist:
-
-1. SteamID64 aus der authentifizierten Serververbindung.
-2. Enshrouded-Spieleridentität und effektive `PlayerPermissions`-Bitmaske.
-3. Korrekte Zuordnung über Beitritt, Trennung und erneuten Beitritt.
-4. Übereinstimmung mit der Ausgabe des echten Serverlogs für mehrere Gruppen.
-
-Das Log ist dabei ein guter Vergleichsnachweis. Der Produktpfad sollte die strukturierte Live-Spielerberechtigung lesen. Ein freier Logtextparser wäre für die Autorisierung zu zerbrechlich und besitzt in der gelesenen Zeile keine SteamID. Wenn der Server die SteamID nicht sicher einem aktiven Spielerobjekt mit Rechtemaske zuordnen kann, lehnt er die Verwaltungsanfrage ab.
+Die Serverrechteansicht zeigt die vom Dedicated Server gelesenen Rechte des gerade verbundenen Spielers. Ein fehlender Logeintrag wird als unbekannt behandelt. Der Name des Spielers ist keine Berechtigungsgrundlage. Der Server verwendet die Enshrouded-Rechte bei Verwaltungsanmeldungen nicht aus einem Clientbericht.
 
 ### 3.2 Freigabe des Modloader-Serverbereichs
 
@@ -85,8 +74,9 @@ Nach erfolgreicher Prüfung erhält ausschließlich die Client-Runtime ein zufä
 
 | Freigabe | Wirkung |
 | --- | --- |
-| Steam-Peer ist verbunden und nach der Network-Allowlist erlaubt | P2P-Verbindung, Serverlogs und lesender Modloader-Snapshot |
-| Passwort stimmt mit einer `userGroups`-Gruppe überein und alle fünf Flags sind `true` | Serverseitige Modloader-Einstellungen ändern |
+| Steam-Peer ist verbunden und nach der Network-Allowlist erlaubt | P2P-Verbindung und nichtgeheime Verbindungsdaten. Noch keine Serverlogs |
+| Passwort stimmt mit einer `userGroups`-Gruppe überein und alle fünf Flags sind `true` | Serververwaltung und Serverrechte lesen oder ändern |
+| Die Gruppenfreigabe für Serverlogs ist aktiv | Serverlogs an die angemeldete ShroudForge-Admin-Gruppe übertragen |
 | Enshrouded `PlayerPermissions` | Separate Prüfung für passende World-Editor-Spielaktionen |
 
 `CanKickBan` allein ist damit kein Modloader-Login. Die fünf JSON-Flags werden bei schreibenden Aktionen erneut geprüft; wird eines davon entzogen, verfällt die Sitzung.
@@ -104,7 +94,7 @@ Client- und Serverlog erhalten dieselbe Request-ID. Der Client protokolliert Zie
 | Modloader-Funktion | Serveransicht | Schreib- oder Aktionsrecht |
 | --- | --- | --- |
 | **Zielumschalter** | Client oder konfigurierter Dedicated Server. Zeigt Zielname, Steam-Verbindung, Server-Runtime, ShroudForge-Version und letzten Snapshot-Zeitpunkt. | Auswahl ist lokal. Serververbindung selbst gewährt kein Recht. |
-| **Aktivität** | Zeigt die Aktivitäten des gewählten Ziels. Servereinträge erhalten Ziel- und Zeitmarkierung. | Network-Allowlist für Serverlogs; keine Admin-Anmeldung zum Lesen. Kopieren exportiert nur sichtbare Einträge. |
+| **Aktivität** | Zeigt die Aktivitäten des gewählten Ziels. Servereinträge erhalten Ziel- und Zeitmarkierung. | Serverlogs nur nach Admin-Anmeldung und bei aktivierter Logfreigabe der angemeldeten Gruppe. Kopieren exportiert nur sichtbare Einträge. |
 | **News und Benachrichtigungen** | Globale News bleiben gemeinsame Katalogdaten. Modbenachrichtigungen und Gelesenstatus können pro Ziel geladen werden. | Globale News bleiben öffentlich. Serverbezogene Modbenachrichtigungen benötigen die Admin-Sitzung. |
 | **Wiki** | Artikel bleiben gemeinsam und offline verfügbar. Kontextuelle Links können auf die gewählte Zielseite führen. | Kein Remote-Schreibrecht. |
 | **Entdecken** | Katalogdaten können clientseitig gesucht werden. Installieren adressiert ausdrücklich das gewählte Ziel und zeigt Serverpaket, Zielplattform und Version. | Admin-Sitzung für Installation und Paketänderung. |
@@ -120,9 +110,10 @@ Client- und Serverlog erhalten dieselbe Request-ID. Der Client protokolliert Zie
 | **Einstellungen: Allgemein und Darstellung** | Sprache, Zoom, Animation und Fensterverhalten gehören dem Modloader-Client und bleiben lokal. | Lokal. Keine P2P-Anfrage. |
 | **Einstellungen: Module** | Zeigt serverseitige Modulpräferenzen, Logging und Netzwerkstatus. Nur servertaugliche Felder sind editierbar. | Admin-Sitzung für freigegebene Felder. Sicherheits- und Transportkonfiguration benötigt zusätzlich eine serverlokale Freigabe. |
 | **Einstellungen: Pfade** | Zeigt normalisierte Serverpfade mit passenden Labels. Zugangsdaten und private Verzeichnisse werden nicht ungefiltert übertragen. | Admin-Sitzung. Erlaubt sind nur vorhandene, validierte Pfadfelder. |
-| **Serverkonfiguration** | Kann Servername, Slots und nichtgeheime Rechteprofile aus `enshrouded_server.json` anzeigen. Passwörter, Netzwerkadresse und Bannkonten bleiben verborgen. | Admin-Sitzung zum Lesen. Schreibunterstützung braucht Validierung gegen das Spielschema, atomisches Sichern und einen klaren Neustarthinweis. |
+| **Servermanagement** | Die vorhandene Seite und der Featurebanner bleiben bestehen. Darunter zeigt der Tab Serverrechte alle Gruppen und verbundenen Spieler mit den vom Server gelesenen Namen und Rechten. | Admin-Sitzung zum Lesen und Ändern. Der Server verwendet keine vom Client gelieferten Namen oder Rechte für diese Ansicht. |
+| **Serverkonfiguration** | Zeigt und bearbeitet die Gruppenrechte aus `enshrouded_server.json`. Passwörter, Netzwerkadresse und Bannkonten bleiben verborgen. | Admin-Sitzung. Gruppenänderungen werden atomar gespeichert und beim Serverneustart übernommen. |
 | **Runtime-Diagnostik** | Zeigt serverseitige Diagnosestatus und freigegebene Jobdefinitionen. Ergebnisdateien werden begrenzt und gezielt übertragen. | Admin-Sitzung für geprüfte Jobs. Schreibende oder weltverändernde Jobs brauchen eine zusätzliche Freigabe und dürfen nicht als allgemeine Diagnose angeboten werden. |
-| **Debug Console** | Eigene Umschaltung für Client- und Serverlogs. Serverlogs kommen live oder in begrenzten Blöcken aus dem Serverprozess. | Network-Allowlist; keine Admin-Anmeldung zum Lesen. Serverpfade werden nicht gesendet. Sichtbare Logdaten unterliegen der Aufbewahrungsgrenze. |
+| **Debug Console** | Client- und Serverlogs bleiben als Quellen auswählbar. Serverlogs kommen live oder in begrenzten Blöcken aus dem Serverprozess. | Serverlogs nur nach Admin-Anmeldung und bei aktivierter Logfreigabe der angemeldeten Gruppe. Serverpfade werden nicht gesendet. Sichtbare Logdaten unterliegen der Aufbewahrungsgrenze. |
 | **World Editor** | Bestehendes World-Editor-Fenster bleibt der Besitzer seiner Weltaktionen. Die Modloader-Zielauswahl zeigt an, zu welchem Server die P2P-Operation gehört. | Jede Weltaktion prüft die dafür nötigen effektiven Enshrouded-Rechte. `CanKickBan` allein reicht dafür nicht. |
 
 ## 5. UI- und Snapshot-Konzept
@@ -144,7 +135,7 @@ Die Debug Console hat zwei Auswahlachsen:
 
 Der Serverprozess verfolgt seine Dateien mit begrenztem Tail und liefert vollständige neue Logzeilen, Sequenznummer und Cursor. Das UI kann bei Wiederverbindung einen begrenzten neuen Tail laden. Bei Sequenzlücke wird der angezeigte Stand ersetzt, statt Zeilen still zu verlieren. Suche, Schweregradfilter, Pause, Auto-Scroll und Kopieren bleiben UI-seitig.
 
-Übertragen werden Logzeilen, nicht Serverdateipfade. Ein bestätigter Verwaltungsrequest erscheint sowohl im Client- als auch im Serverlog unter derselben Request-ID. Die Serverzeile führt den serverseitig bestätigten Namen und die geprüften Rechte. Logzugriff ist geschützt, weil Logs Spielernamen, Steam-IDs und Betriebsdetails enthalten können.
+Übertragen werden Logzeilen, nicht Serverdateipfade. Ein bestätigter Verwaltungsrequest erscheint sowohl im Client- als auch im Serverlog unter derselben Request-ID. Der Server sendet Logs erst nach Admin-Anmeldung und nur, wenn die Gruppenfreigabe aktiv ist. Spielernamen und Rechte der Serverrechteansicht werden aus dem Serverlog gelesen und per Steam-ID zugeordnet. Ein vom Client gemeldeter Name ist dafür keine Quelle.
 
 ## 6. Transport und Befehlsfluss
 
@@ -156,7 +147,7 @@ Der Server delegiert anschließend an vorhandene Besitzer:
 - Updateprüfung, Warteschlange, Installation und Papierkorb an den Updater.
 - Aktivität und Laufzeitlogs an Logging und Debug Console.
 - Diagnoseaufträge an Runtime Diagnostics.
-- Enshrouded-Spielerrechte an eine erst zu belegende, strukturierte Server-Runtime-Abfrage.
+- Enshrouded-Spielerrechte an den gemeinsamen Parser des Serverlogs und die serverseitig authentifizierte Steam-Peer-Liste.
 - P2P-Framing, Größenlimits, Sequenzen und Peerzustand an Transport.
 
 Der Transportvertrag wird versioniert. Jeder Befehl hat eine feste Kennung, ein validiertes Payloadschema, eine maximale Größe, Request-ID, Serverinstanzkennung und einen begrenzten Timeout. Lesen, Ergebnis, Fortschritt und Mutation sind unterscheidbare Nachrichtenarten. Serverneustart oder Verbindungsabbruch machen einen gesendeten Schreibauftrag gegebenenfalls **ungewiss**. Das UI wiederholt dann nicht blind.
@@ -222,8 +213,8 @@ Ein zusätzlicher Negativfall ändert den Steam- oder Enshrouded-Anzeigenamen ei
 ### Phase 4: Diagnose, Serverkonfiguration und Wiederherstellung
 
 - Geprüfte Diagnosejobs nach Risiko klassifizieren.
-- Nichtgeheime `enshrouded_server.json`-Werte zunächst nur anzeigen.
-- Falls Schreibunterstützung benötigt wird, nur konkrete bekannte Felder atomar ändern, Sicherung erzeugen und die erforderliche Serverneustartgrenze respektieren.
+- Gruppenrechte in `enshrouded_server.json` nur über die vorhandene Serverrechteansicht ändern.
+- Bekannte Gruppenfelder serverseitig validieren, atomar speichern und den erforderlichen Serverneustart anzeigen.
 - DLL-Auswahl, Papierkorb, Gamefile-Backups und Wiederherstellung mit der Admin-Sitzung und expliziten Bestätigungen ergänzen.
 
 **Abnahme:** Passwörter und andere Geheimnisse gelangen nie in UI-Snapshots oder Logs. Destruktive Aktionen zeigen Umfang und erwartete Wirkung vor dem Absenden.
@@ -255,7 +246,7 @@ Ein zusätzlicher Negativfall ändert den Steam- oder Enshrouded-Anzeigenamen ei
 2. Welche Enshrouded-Rechte verlangen World-Editor-Lesen, Platzieren, Rückgängig und Abbruch jeweils? Diese Zuordnung wird getrennt pro Operation festgelegt.
 3. Reicht zunächst ein fest konfigurierter Server, oder wird schon in Version eins eine Liste mehrerer Server benötigt?
 4. Welche Modaktionen sind aus der Ferne erlaubt? Paketmetadaten deklarieren die Aktion, aber nicht zwingend ihr Schadenspotenzial.
-5. Dürfen `enshrouded_server.json`-Felder später geändert werden, oder bleibt diese Datei in der ersten Ausbaustufe nur lesbar?
+5. Die fünf Rechtefelder der `userGroups`-Einträge dürfen über die Admin-Ansicht geändert werden. Passwörter und andere Serverfelder bleiben verborgen und unverändert.
 
 Empfehlung: ein fest konfigurierter Server, Serverprüfung der `userGroups`-Zugangsdaten und der fünf Flags, Sitzungstoken nur im Speicher und konfliktgeprüfte Settingsänderungen. Die Zuordnung von SteamID zu `PlayerPermissions` bleibt eine getrennte Voraussetzung für spätere World-Editor-Aktionen.
 

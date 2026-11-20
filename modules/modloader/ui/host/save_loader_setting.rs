@@ -153,11 +153,16 @@ pub(crate) fn save_setting_to(
             matches!(
                 key,
                 "enabled" | "startPage" | "remoteTarget" | "toggleKey" | "refreshMilliseconds"
+                    | "vanillaClient" | "vanillaServer"
             ) || key == "window.position"
         }
         "wiki" => matches!(
             key,
-            "enabled" | "itemsPerPage" | "pageSize" | "maxResultsPerQuery" | "refreshIntervalMinutes"
+            "enabled"
+                | "itemsPerPage"
+                | "pageSize"
+                | "maxResultsPerQuery"
+                | "refreshIntervalMinutes"
         ),
         "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
         "network" => matches!(key, "enabled" | "serverSteamId" | "allowedClientSteamIds"),
@@ -331,24 +336,28 @@ mod tests {
         let path = shroudforge_loader_config::paths::loader_config(root.path());
         let before = std::fs::read(&path).unwrap();
         for invalid in [json!("true"), json!(1), serde_json::Value::Null] {
-            assert!(save_setting(
+            assert!(
+                save_setting(
+                    root.path(),
+                    "module",
+                    Some("gameProfileDiscovery"),
+                    "enabled",
+                    &invalid,
+                )
+                .is_err()
+            );
+            assert_eq!(std::fs::read(&path).unwrap(), before);
+        }
+        assert!(
+            save_setting(
                 root.path(),
                 "module",
                 Some("gameProfileDiscovery"),
-                "enabled",
-                &invalid,
+                "profileId",
+                &json!("beta_client"),
             )
-            .is_err());
-            assert_eq!(std::fs::read(&path).unwrap(), before);
-        }
-        assert!(save_setting(
-            root.path(),
-            "module",
-            Some("gameProfileDiscovery"),
-            "profileId",
-            &json!("beta_client"),
-        )
-        .is_err());
+            .is_err()
+        );
         assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 }

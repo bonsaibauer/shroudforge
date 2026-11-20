@@ -1,7 +1,0 @@
-'''Historical package.''' SF No Fall Damage is not in the current repository package list. Its package ID was <code>sf-no-fall-damage</code>.
-
-The mod prevented health loss from falling. It targeted the client and Dedicated Server, requested the runtime capability, and declared no player-facing settings.
-
-The current [[Mod: Survival|SF Survival]] package includes a No Fall Damage setting. It changes the fall-damage start distance on the player's character template and keeps that value at least as high as the lethal distance. Players using the same template share the setting's effect. See the Survival article for its runtime restoration behavior.
-
-[[Category:Mods]]

@@ -1,7 +1,7 @@
-//! File mirror stream used by the local Modloader UI to view a connected server.
+//! Remote Modloader UI data and multiplayer compatibility reports.
 //!
-//! The game remains the Steam owner. This small adapter transfers the existing
-//! server log files and module settings to files beside the local client data.
+//! The game remains the Steam owner. This adapter reuses the bounded Steam UI
+//! channel for server snapshots, logs, settings and authenticated client reports.
 
 use crate::MAX_MESSAGE_BYTES;
 use base64::Engine as _;
@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 
 const MAX_LOG_TAIL_BYTES: u64 = 64 * 1024;
 const MAX_LOG_DELTA_BYTES: u64 = 64 * 1024;
+const ARCHIVE_CHUNK_BYTES: usize = 256 * 1024;
+const ARCHIVE_INDEX_BATCH_SIZE: usize = 128;
 const RECEIVE_BUDGET: usize = 16;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
 const SERVER_PEER_TIMEOUT: Duration = Duration::from_secs(30);
@@ -23,6 +25,9 @@ const LOGIN_COOLDOWN: Duration = Duration::from_secs(60);
 const PENDING_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 32;
 const RECEIVE_ERROR_LOG_INTERVAL: Duration = Duration::from_secs(30);
+const COMPATIBILITY_REFRESH_INTERVAL: Duration = Duration::from_secs(2);
+const CLIENT_REPORT_INTERVAL: Duration = Duration::from_secs(10);
+const CLIENT_REPORT_MISSING_AFTER: Duration = Duration::from_secs(15);
 const COMPLETED_ACTION_TTL: Duration = Duration::from_secs(10 * 60);
 const MAX_COMPLETED_ACTIONS: usize = 128;
 const MAX_REMOTE_LOG_MIRROR_BYTES: u64 = 1024 * 1024;
@@ -38,7 +43,11 @@ struct ClientState {
     session_generation: u64,
     pending: HashMap<String, PendingRequest>,
     mirror_errors: HashSet<&'static str>,
+    archive_transfers: HashMap<String, (u64, u64)>,
     last_receive_error_log: Option<Instant>,
+    last_compatibility_report: Option<Instant>,
+    compatibility_report: Option<serde_json::Value>,
+    compatibility_report_peer: Option<u64>,
 }
 
 struct PendingRequest {
@@ -57,6 +66,7 @@ struct FileCursor {
 #[derive(Default)]
 struct ServerState {
     peers: HashMap<u64, Instant>,
+    log_sync_peers: HashSet<u64>,
     admin_sessions: HashMap<u64, AdminSession>,
     login_failures: HashMap<u64, LoginFailures>,
     game: FileCursor,
@@ -65,6 +75,28 @@ struct ServerState {
     completed_actions: HashMap<(u64, String), CompletedAction>,
     completed_action_order: VecDeque<(u64, String)>,
     last_receive_error_log: Option<Instant>,
+    last_peer_discovery_error_log: Option<Instant>,
+    last_log_policy_refresh: Option<Instant>,
+    last_compatibility_refresh: Option<Instant>,
+    compatibility_peers: HashMap<u64, CompatibilityPeer>,
+    compatibility_peers_available: bool,
+    compatibility_mods: Vec<mod_loader::ClientModVersion>,
+    compatibility_inventory_available: bool,
+    compatibility_check: Option<mod_loader::MultiplayerVersionCheck>,
+    last_logged_compatibility_issues: HashMap<String, String>,
+    archive_transfers: HashMap<u64, VecDeque<ServerArchiveTransfer>>,
+}
+
+struct ServerArchiveTransfer {
+    name: String,
+    path: PathBuf,
+    size: u64,
+    offset: u64,
+}
+
+struct CompatibilityPeer {
+    connected_since: Instant,
+    report: Option<mod_loader::ClientCompatibilityReport>,
 }
 
 struct CompletedAction {
@@ -106,10 +138,21 @@ pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
             state.server.admin_sessions.clear();
             state.server.login_failures.clear();
             state.server.peers.clear();
+            state.server.log_sync_peers.clear();
             state.server.game.offset = None;
             state.server.loader.offset = None;
             state.server.config_snapshot = None;
             state.server.last_receive_error_log = None;
+            state.server.last_peer_discovery_error_log = None;
+            state.server.last_log_policy_refresh = None;
+            state.server.last_compatibility_refresh = None;
+            state.server.compatibility_peers.clear();
+            state.server.compatibility_peers_available = false;
+            state.server.compatibility_mods.clear();
+            state.server.compatibility_inventory_available = false;
+            state.server.compatibility_check = None;
+            state.server.last_logged_compatibility_issues.clear();
+            state.server.archive_transfers.clear();
         }
         return;
     };
@@ -126,10 +169,21 @@ pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
             state.server.admin_sessions.clear();
             state.server.login_failures.clear();
             state.server.peers.clear();
+            state.server.log_sync_peers.clear();
             state.server.game.offset = None;
             state.server.loader.offset = None;
             state.server.config_snapshot = None;
             state.server.last_receive_error_log = None;
+            state.server.last_peer_discovery_error_log = None;
+            state.server.last_log_policy_refresh = None;
+            state.server.last_compatibility_refresh = None;
+            state.server.compatibility_peers.clear();
+            state.server.compatibility_peers_available = false;
+            state.server.compatibility_mods.clear();
+            state.server.compatibility_inventory_available = false;
+            state.server.compatibility_check = None;
+            state.server.last_logged_compatibility_issues.clear();
+            state.server.archive_transfers.clear();
         }
         return;
     }
@@ -154,6 +208,7 @@ fn stop_client_subscription() {
         let _ = send_json(peer, &serde_json::json!({ "type": "unsubscribe" }));
     }
     state.client.last_heartbeat = None;
+    state.client.archive_transfers.clear();
     clear_admin_session(&mut state.client);
     for (_, pending) in state.client.pending.drain() {
         let _ = pending.response.send(serde_json::json!({
@@ -166,6 +221,7 @@ fn stop_client_subscription() {
 }
 
 fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState) {
+    send_compatibility_report(root, client);
     let selected_server = config
         .pointer("/modules/modloaderUi/remoteTarget")
         .and_then(serde_json::Value::as_str)
@@ -177,6 +233,7 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             }
         }
         client.last_heartbeat = None;
+        client.archive_transfers.clear();
         fail_pending(
             client,
             "Server target was closed before the request completed",
@@ -200,6 +257,7 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             let _ = send_json(previous, &serde_json::json!({ "type": "unsubscribe" }));
         }
         client.last_heartbeat = None;
+        client.archive_transfers.clear();
         clear_admin_session(client);
         fail_pending(client, "No connected Enshrouded server was found");
         process_local_requests(None, client);
@@ -211,6 +269,7 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             let _ = send_json(previous, &serde_json::json!({ "type": "unsubscribe" }));
         }
         client.last_heartbeat = None;
+        client.archive_transfers.clear();
         clear_admin_session(client);
         fail_pending(
             client,
@@ -253,16 +312,106 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             continue;
         };
         match value["type"].as_str() {
-            Some("log") => receive_log(root, &value, client),
+            Some("log") if client.admin_token.is_some() => receive_log(root, &value, client),
+            Some("archive-index") if client.admin_token.is_some() => {
+                receive_archive_index(root, &value, client)
+            }
+            Some("archive-chunk") if client.admin_token.is_some() => {
+                receive_archive_chunk(root, &value, client)
+            }
             Some("config") => {
                 receive_config(root, &value["value"], client);
             }
             Some("admin-auth-result") => receive_auth_result(&value, client),
             Some("config-update-result") => receive_config_result(root, &value, client),
-            Some("mods-list-result" | "mod-operation-result") => receive_mod_result(&value, client),
+            Some("mods-list-result" | "mod-operation-result" | "server-rights-result") => {
+                receive_mod_result(&value, client)
+            }
             _ => {}
         }
     }
+}
+
+fn send_compatibility_report(root: &Path, client: &mut ClientState) {
+    let peer = crate::status()
+        .remote_dedicated_server_steam_id
+        .as_deref()
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value != 0);
+    let Some(peer) = peer else {
+        client.compatibility_report_peer = None;
+        client.last_compatibility_report = None;
+        client.compatibility_report = None;
+        return;
+    };
+    let changed_peer = client.compatibility_report_peer != Some(peer);
+    if changed_peer {
+        client.compatibility_report = None;
+    }
+    if !changed_peer
+        && client
+            .last_compatibility_report
+            .is_some_and(|last| last.elapsed() < CLIENT_REPORT_INTERVAL)
+    {
+        return;
+    }
+
+    client.compatibility_report_peer = Some(peer);
+    client.last_compatibility_report = Some(Instant::now());
+    let mods = match compatibility_mod_inventory(root) {
+        Ok(mods) => mods,
+        Err(error) => {
+            tracing::warn!(target: "shroudforge::network", %error, "Could not read local mods for the multiplayer compatibility report");
+            return;
+        }
+    };
+    let configuration = mod_loader::compatibility_status::configuration(
+        root,
+        false,
+        env!("CARGO_PKG_VERSION"),
+        shroudforge_loader_config::runtime_status::runtime_pid(root),
+    );
+    let report = mod_loader::ClientCompatibilityReport {
+        schema_version: 1,
+        loader_version: mod_loader::installed_version(root),
+        player_name: shroudforge_player_name::detect_active_character(root).name,
+        mods,
+        problems: mod_loader::client_problems(&configuration),
+    };
+    if let Err(error) = report.validate() {
+        tracing::warn!(target: "shroudforge::network", %error, "Skipped invalid local multiplayer compatibility report");
+        return;
+    }
+    let payload = serde_json::json!({ "type": "compatibility-report", "report": report });
+    if !changed_peer && client.compatibility_report.as_ref() == Some(&payload) {
+        return;
+    }
+    if let Err(error) = send_json(peer, &payload) {
+        tracing::debug!(target: "shroudforge::network", peer, %error, "Could not send multiplayer compatibility report");
+    } else {
+        client.compatibility_report = Some(payload);
+    }
+}
+
+fn compatibility_mod_inventory(root: &Path) -> Result<Vec<mod_loader::ClientModVersion>, String> {
+    let entries = match fs::read_dir(shroudforge_loader_config::paths::mods_dir(root)) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(format!("Could not read installed mods: {error}")),
+    };
+    let mut mods = Vec::new();
+    for entry in entries.flatten() {
+        let Ok(manifest) = mod_loader::read_manifest_path(root, &entry.path()) else {
+            continue;
+        };
+        mods.push(mod_loader::ClientModVersion {
+            id: manifest.id,
+            version: manifest.version.to_string(),
+            enabled: manifest.enabled,
+            target: manifest.target,
+        });
+    }
+    Ok(mods)
 }
 
 fn fail_pending(client: &mut ClientState, message: &str) {
@@ -313,6 +462,10 @@ fn process_local_requests(peer: Option<u64>, client: &mut ClientState) {
             "admin-login" => ("admin-auth-result", "admin-login".to_owned()),
             "config-setting" => ("config-update-result", "config-setting".to_owned()),
             "mods-list" => ("mods-list-result", "mods-list".to_owned()),
+            "server-rights-list" | "server-rights-update" => (
+                "server-rights-result",
+                request_type.to_owned(),
+            ),
             "mod-operation" => (
                 "mod-operation-result",
                 format!(
@@ -369,7 +522,10 @@ fn process_local_requests(peer: Option<u64>, client: &mut ClientState) {
                     "modules": value["modules"]
                 })
             }
-            Some("mods-list") | Some("mod-operation") => {
+            Some("mods-list")
+            | Some("mod-operation")
+            | Some("server-rights-list")
+            | Some("server-rights-update") => {
                 let Some(token) = client.admin_token.as_deref() else {
                     let _ = request.response.send(serde_json::json!({
                         "success": false,
@@ -577,6 +733,7 @@ fn clear_admin_session(client: &mut ClientState) {
 
 fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState) {
     let (allowed_clients, restrict_clients) = crate::read_network_allowlist(config);
+    refresh_multiplayer_compatibility(root, server);
     let mut config_updated = false;
     for _ in 0..RECEIVE_BUDGET {
         let message = match crate::receive_remote_ui() {
@@ -609,12 +766,19 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
         let Ok(value) = serde_json::from_slice::<serde_json::Value>(&message.payload) else {
             continue;
         };
+        if value["type"] == "compatibility-report" {
+            if !message.reliable {
+                continue;
+            }
+            receive_compatibility_report(peer, &value, server);
+            continue;
+        }
         match value["type"].as_str() {
             Some("subscribe") => {
                 let first_subscription = !server.peers.contains_key(&peer);
                 server.peers.insert(peer, Instant::now());
                 if first_subscription {
-                    if send_initial_snapshot(root, config, peer, server) {
+                    if send_initial_snapshot(config, peer, server) {
                         server.config_snapshot = Some(config.clone());
                         tracing::debug!(
                             target: "shroudforge::network",
@@ -623,13 +787,25 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                         );
                     } else {
                         remove_failed_peers(server, [peer]);
+                        continue;
                     }
                 }
             }
             Some("unsubscribe") => {
                 server.peers.remove(&peer);
+                server.log_sync_peers.remove(&peer);
+                server.archive_transfers.remove(&peer);
+                server.admin_sessions.remove(&peer);
+                server.login_failures.remove(&peer);
                 forget_completed_actions(server, peer);
                 tracing::debug!(target: "shroudforge::network", peer, "Remote UI peer unsubscribed");
+            }
+            Some("archive-request") => {
+                if server.log_sync_peers.contains(&peer)
+                    && admin_log_sync_enabled(root, config, peer, server)
+                {
+                    enqueue_server_archive(root, peer, value["name"].as_str(), server);
+                }
             }
             Some("admin-login") => {
                 if !server.peers.contains_key(&peer) {
@@ -676,13 +852,9 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                             group_name: group_name.clone(),
                         },
                     );
-                    if let Err(error) = send_auth_result(
-                        peer,
-                        request_id,
-                        Some(&token),
-                        Some(&group_name),
-                        "",
-                    ) {
+                    if let Err(error) =
+                        send_auth_result(peer, request_id, Some(&token), Some(&group_name), "")
+                    {
                         server.admin_sessions.remove(&peer);
                         tracing::warn!(
                             target: "shroudforge::network",
@@ -691,6 +863,19 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                             "Could not return server admin session token"
                         );
                     } else {
+                        if group_log_sync_enabled(root, config, &group_name) {
+                            let reset_cursors = server.log_sync_peers.is_empty();
+                            server.log_sync_peers.insert(peer);
+                            if !send_initial_logs(root, peer, server, reset_cursors)
+                                || !send_archive_index(root, peer)
+                            {
+                                remove_failed_peers(server, [peer]);
+                                continue;
+                            }
+                        } else {
+                            server.log_sync_peers.remove(&peer);
+                            server.archive_transfers.remove(&peer);
+                        }
                         tracing::info!(
                             target: "shroudforge::network",
                             request_id,
@@ -732,6 +917,10 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                 config_updated |= handle_config_update(root, peer, &value, server);
             }
             Some("mods-list") => handle_mods_list(root, peer, &value, server),
+            Some("server-rights-list") => handle_server_rights_list(root, peer, &value, server),
+            Some("server-rights-update") => {
+                handle_server_rights_update(root, peer, &value, config, server)
+            }
             Some("mod-operation") => handle_mod_operation(root, peer, &value, server),
             _ => {}
         }
@@ -751,6 +940,8 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
         .collect::<Vec<_>>();
     for peer in expired_peers {
         server.peers.remove(&peer);
+        server.log_sync_peers.remove(&peer);
+        server.archive_transfers.remove(&peer);
         server.login_failures.remove(&peer);
         forget_completed_actions(server, peer);
         tracing::info!(target: "shroudforge::network", peer, "Remote UI peer disconnected or lost network authorization");
@@ -762,16 +953,74 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                     .iter()
                     .any(|value| value.parse::<u64>().ok() == Some(*peer)))
     });
+    let refresh_log_policy = server
+        .last_log_policy_refresh
+        .is_none_or(|last| last.elapsed() >= COMPATIBILITY_REFRESH_INTERVAL);
+    if refresh_log_policy {
+        let policy_config = if server.last_log_policy_refresh.is_none() {
+            shroudforge_loader_config::config::read_loader(root)
+                .unwrap_or_else(|_| config.clone())
+        } else {
+            config.clone()
+        };
+        server.last_log_policy_refresh = Some(Instant::now());
+        let policy = read_server_log_sync_policy(root, &policy_config);
+        server.admin_sessions.retain(|_, session| {
+            policy
+                .get(&session.group_name)
+                .is_some_and(|(is_admin, _)| *is_admin)
+        });
+        let log_sync_sessions = server
+            .admin_sessions
+            .iter()
+            .filter_map(|(peer, session)| {
+                (server.peers.contains_key(peer)
+                    && policy
+                        .get(&session.group_name)
+                        .is_some_and(|(_, sync_logs)| *sync_logs))
+                .then_some(*peer)
+            })
+            .collect::<HashSet<_>>();
+        let newly_enabled_log_peers = log_sync_sessions
+            .difference(&server.log_sync_peers)
+            .copied()
+            .collect::<Vec<_>>();
+        server
+            .log_sync_peers
+            .retain(|peer| log_sync_sessions.contains(peer));
+        server
+            .archive_transfers
+            .retain(|peer, _| log_sync_sessions.contains(peer));
+        for peer in newly_enabled_log_peers {
+            let reset_cursors = server.log_sync_peers.is_empty();
+            server.log_sync_peers.insert(peer);
+            if !send_initial_logs(root, peer, server, reset_cursors)
+                || !send_archive_index(root, peer)
+            {
+                remove_failed_peers(server, [peer]);
+            }
+        }
+    } else {
+        server
+            .log_sync_peers
+            .retain(|peer| server.peers.contains_key(peer) && server.admin_sessions.contains_key(peer));
+        server
+            .archive_transfers
+            .retain(|peer, _| server.log_sync_peers.contains(peer));
+    }
     server.login_failures.retain(|peer, failures| {
         crate::is_authorized_server_peer(*peer)
             && failures
                 .last_attempt
                 .is_some_and(|last| last.elapsed() < LOGIN_COOLDOWN)
     });
+    refresh_multiplayer_compatibility(root, server);
     if server.peers.is_empty() {
+        server.log_sync_peers.clear();
         server.game.offset = None;
         server.loader.offset = None;
         server.config_snapshot = None;
+        server.archive_transfers.clear();
         return;
     }
 
@@ -781,15 +1030,28 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
     if server.peers.is_empty() {
         return;
     }
-    let game = server_game_log(root);
-    let loader = shroudforge_loader_config::paths::current_log(root);
-    let failed = broadcast_file_delta(&server.peers, &game, "game", &mut server.game);
-    remove_failed_peers(server, failed);
-    if server.peers.is_empty() {
-        return;
+    let log_peers = server
+        .log_sync_peers
+        .iter()
+        .filter_map(|peer| server.peers.get(peer).map(|last_seen| (*peer, *last_seen)))
+        .collect::<HashMap<_, _>>();
+    if !log_peers.is_empty() {
+        let game = server_game_log(root);
+        let loader = shroudforge_loader_config::paths::current_log(root);
+        let failed = broadcast_file_delta(&log_peers, &game, "game", &mut server.game);
+        remove_failed_peers(server, failed);
+        if server.peers.is_empty() {
+            return;
+        }
+        let log_peers = server
+            .log_sync_peers
+            .iter()
+            .filter_map(|peer| server.peers.get(peer).map(|last_seen| (*peer, *last_seen)))
+            .collect::<HashMap<_, _>>();
+        let failed = broadcast_file_delta(&log_peers, &loader, "loader", &mut server.loader);
+        remove_failed_peers(server, failed);
+        service_server_archive_transfers(server);
     }
-    let failed = broadcast_file_delta(&server.peers, &loader, "loader", &mut server.loader);
-    remove_failed_peers(server, failed);
 }
 
 fn should_log_receive_error(last_logged: &mut Option<Instant>) -> bool {
@@ -798,6 +1060,198 @@ fn should_log_receive_error(last_logged: &mut Option<Instant>) -> bool {
         true
     } else {
         false
+    }
+}
+
+fn receive_compatibility_report(peer: u64, value: &serde_json::Value, server: &mut ServerState) {
+    let Ok(report) =
+        serde_json::from_value::<mod_loader::ClientCompatibilityReport>(value["report"].clone())
+    else {
+        return;
+    };
+    if report.validate().is_err() {
+        return;
+    }
+    if !server.compatibility_peers.contains_key(&peer) && server.compatibility_peers.len() >= 64 {
+        return;
+    }
+    let now = Instant::now();
+    let record = server
+        .compatibility_peers
+        .entry(peer)
+        .or_insert_with(|| CompatibilityPeer {
+            connected_since: now,
+            report: None,
+        });
+    record.report = Some(report);
+}
+
+fn refresh_multiplayer_compatibility(root: &Path, server: &mut ServerState) {
+    let refresh = server
+        .last_compatibility_refresh
+        .is_none_or(|last| last.elapsed() >= COMPATIBILITY_REFRESH_INTERVAL);
+    if refresh {
+        server.last_compatibility_refresh = Some(Instant::now());
+        match crate::connected_peers() {
+            Ok(peers) => {
+                let peers = peers
+                    .into_iter()
+                    .filter_map(|peer| peer.parse::<u64>().ok())
+                    .filter(|peer| *peer != 0)
+                    .take(64)
+                    .collect::<HashSet<_>>();
+                server
+                    .compatibility_peers
+                    .retain(|peer, _| peers.contains(peer));
+                for peer in peers {
+                    server
+                        .compatibility_peers
+                        .entry(peer)
+                        .or_insert_with(|| CompatibilityPeer {
+                            connected_since: Instant::now(),
+                            report: None,
+                        });
+                }
+                server.compatibility_peers_available = true;
+                server.last_peer_discovery_error_log = None;
+            }
+            Err(error) => {
+                server.compatibility_peers_available = false;
+                if should_log_receive_error(&mut server.last_peer_discovery_error_log) {
+                    tracing::warn!(target: "shroudforge::network", %error, "Could not enumerate authenticated game clients for compatibility checks");
+                }
+            }
+        }
+        match compatibility_mod_inventory(root) {
+            Ok(mods) => {
+                server.compatibility_mods = mods;
+                server.compatibility_inventory_available = true;
+            }
+            Err(error) => {
+                server.compatibility_inventory_available = false;
+                if should_log_receive_error(&mut server.last_peer_discovery_error_log) {
+                    tracing::warn!(target: "shroudforge::network", %error, "Could not read server mods for multiplayer compatibility checks");
+                }
+            }
+        }
+    }
+
+    let clients = server
+        .compatibility_peers
+        .iter()
+        .map(|(steam_id, record)| {
+            let state = match record.report.as_ref() {
+                Some(report) => mod_loader::ClientReportState::Reported(report.clone()),
+                _ if record.connected_since.elapsed() >= CLIENT_REPORT_MISSING_AFTER => {
+                    mod_loader::ClientReportState::Missing
+                }
+                _ => mod_loader::ClientReportState::Pending,
+            };
+            mod_loader::ConnectedClient {
+                steam_id: steam_id.to_string(),
+                state,
+            }
+        })
+        .collect();
+    let mut check = mod_loader::compatibility_check(
+        &mod_loader::installed_version(root),
+        &server.compatibility_mods,
+        clients,
+        server.compatibility_peers_available && server.compatibility_inventory_available,
+    );
+    if !server.compatibility_inventory_available {
+        check.detail = "The server mod inventory could not be read.".into();
+    }
+    log_compatibility_issue_transitions(root, server, &check);
+    server.compatibility_check = Some(check);
+}
+
+fn log_compatibility_issue_transitions(
+    root: &Path,
+    server: &mut ServerState,
+    check: &mod_loader::MultiplayerVersionCheck,
+) {
+    let mut current = HashMap::new();
+    for client in &check.clients {
+        let player = client.player_name.as_deref().unwrap_or(&client.steam_id);
+        for issue in &client.issues {
+            if client.state != "warning" {
+                continue;
+            }
+            let key = format!(
+                "{}|{}|{}|{}|{}",
+                client.steam_id,
+                issue.code,
+                issue.mod_id.as_deref().unwrap_or_default(),
+                issue.client_version.as_deref().unwrap_or_default(),
+                issue.server_version.as_deref().unwrap_or_default(),
+            );
+            current.insert(
+                key,
+                compatibility_issue_message(player, &client.steam_id, issue),
+            );
+        }
+    }
+    for (key, message) in &server.last_logged_compatibility_issues {
+        if !current.contains_key(key) {
+            let _ = shroudforge_logging::append(
+                root,
+                'I',
+                "compatibility",
+                &format!("Multiplayer compatibility issue resolved: {message}"),
+            );
+        }
+    }
+    for (key, message) in &current {
+        if server.last_logged_compatibility_issues.get(key) != Some(message) {
+            let _ = shroudforge_logging::append(
+                root,
+                'W',
+                "compatibility",
+                &format!("Multiplayer compatibility warning: {message}"),
+            );
+        }
+    }
+    server.last_logged_compatibility_issues = current;
+}
+
+fn compatibility_issue_message(
+    player: &str,
+    steam_id: &str,
+    issue: &mod_loader::ClientVersionIssue,
+) -> String {
+    let identity = if player == steam_id {
+        steam_id.to_owned()
+    } else {
+        format!("{player} ({steam_id})")
+    };
+    match issue.code.as_str() {
+        "report-missing" => format!("{identity} has not sent a compatibility report."),
+        "report-stale" => format!("{identity}'s compatibility report is stale."),
+        "loader-version" => format!(
+            "{identity} uses Modloader {}, server uses {}.",
+            issue.client_version.as_deref().unwrap_or("unknown"),
+            issue.server_version.as_deref().unwrap_or("unknown"),
+        ),
+        "mod-version" => format!(
+            "{identity} uses mod {} version {}, server uses {}.",
+            issue.mod_id.as_deref().unwrap_or("unknown"),
+            issue.client_version.as_deref().unwrap_or("unknown"),
+            issue.server_version.as_deref().unwrap_or("unknown"),
+        ),
+        "mod-missing-client" => format!(
+            "Active server mod {} is missing on {identity}.",
+            issue.mod_id.as_deref().unwrap_or("unknown"),
+        ),
+        "mod-missing-server" => format!(
+            "Active client mod {} is missing or disabled on the server for {identity}.",
+            issue.mod_id.as_deref().unwrap_or("unknown"),
+        ),
+        "client-problem" => format!(
+            "{identity} reports a compatibility problem: {}",
+            issue.detail.as_deref().unwrap_or("details unavailable"),
+        ),
+        _ => format!("{identity} has a multiplayer version compatibility issue."),
     }
 }
 
@@ -840,6 +1294,80 @@ fn matching_admin_group(root: &Path, password: &str) -> Option<String> {
             (!name.is_empty() && correct_password && group_has_admin_permissions(group))
                 .then(|| name.to_owned())
         })
+}
+
+fn group_log_sync_enabled(root: &Path, config: &serde_json::Value, group_name: &str) -> bool {
+    let Ok(bytes) = fs::read(root.join("enshrouded_server.json")) else {
+        return false;
+    };
+    let Ok(server_config) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return false;
+    };
+    let Some(group) = server_config
+        .get("userGroups")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|groups| {
+            groups.iter().find(|group| {
+                group.get("name").and_then(serde_json::Value::as_str) == Some(group_name)
+            })
+        })
+    else {
+        return false;
+    };
+    if !group_has_admin_permissions(group) {
+        return false;
+    }
+    config
+        .pointer("/modules/modloaderUi/serverRights/groupLogSync")
+        .and_then(|settings| settings.get(group_name))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn read_server_log_sync_policy(
+    root: &Path,
+    config: &serde_json::Value,
+) -> HashMap<String, (bool, bool)> {
+    let Ok(bytes) = fs::read(root.join("enshrouded_server.json")) else {
+        return HashMap::new();
+    };
+    let Ok(server_config) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return HashMap::new();
+    };
+    let settings = config
+        .pointer("/modules/modloaderUi/serverRights/groupLogSync")
+        .and_then(serde_json::Value::as_object);
+    server_config
+        .get("userGroups")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|group| {
+            let name = group.get("name")?.as_str()?.trim();
+            if name.is_empty() {
+                return None;
+            }
+            let is_admin = group_has_admin_permissions(group);
+            let sync_logs = settings
+                .and_then(|settings| settings.get(name))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(is_admin)
+                && is_admin;
+            Some((name.to_owned(), (is_admin, sync_logs)))
+        })
+        .collect()
+}
+
+fn admin_log_sync_enabled(
+    root: &Path,
+    config: &serde_json::Value,
+    peer: u64,
+    server: &ServerState,
+) -> bool {
+    server.admin_sessions.get(&peer).is_some_and(|session| {
+        admin_group_still_qualified(root, &session.group_name)
+            && group_log_sync_enabled(root, config, &session.group_name)
+    })
 }
 
 fn handle_config_update(
@@ -976,7 +1504,9 @@ fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server:
         return;
     }
     match server_mods_snapshot(root, locale)
-        .and_then(|mods| server_view_snapshot(root, mods))
+        .and_then(|mods| {
+            server_view_snapshot(root, mods, server.compatibility_check.clone(), server)
+        })
     {
         Ok((mods, server_view)) => {
             let mod_count = mods.as_array().map_or(0, Vec::len);
@@ -1038,6 +1568,134 @@ fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server:
             );
         }
     }
+}
+
+fn handle_server_rights_list(
+    root: &Path,
+    peer: u64,
+    request: &serde_json::Value,
+    server: &mut ServerState,
+) {
+    let Some(request_id) = request["requestId"]
+        .as_str()
+        .filter(|id| !id.is_empty() && id.len() <= 128)
+    else {
+        return;
+    };
+    if !authorize_admin_request(root, peer, request["token"].as_str(), server) {
+        let _ = send_server_rights_result(
+            peer,
+            request_id,
+            false,
+            false,
+            "Server admin access expired; sign in again",
+            None,
+        );
+        return;
+    }
+    let config = shroudforge_loader_config::config::read_loader(root).unwrap_or_default();
+    let result = server_rights_snapshot(root, &config, server);
+    match result {
+        Ok(rights) => {
+            let _ = send_server_rights_result(
+                peer,
+                request_id,
+                true,
+                true,
+                "Server rights loaded",
+                Some(rights),
+            );
+        }
+        Err(error) => {
+            let _ = send_server_rights_result(peer, request_id, false, true, &error, None);
+        }
+    }
+}
+
+fn handle_server_rights_update(
+    root: &Path,
+    peer: u64,
+    request: &serde_json::Value,
+    config: &serde_json::Value,
+    server: &mut ServerState,
+) {
+    let Some(request_id) = request["requestId"]
+        .as_str()
+        .filter(|id| !id.is_empty() && id.len() <= 128)
+    else {
+        return;
+    };
+    if !authorize_admin_request(root, peer, request["token"].as_str(), server) {
+        let _ = send_server_rights_result(
+            peer,
+            request_id,
+            false,
+            false,
+            "Server admin access expired; sign in again",
+            None,
+        );
+        return;
+    }
+    match save_server_rights(root, &request["values"]) {
+        Ok(()) => {
+            server.last_log_policy_refresh = None;
+            let current = shroudforge_loader_config::config::read_loader(root)
+                .unwrap_or_else(|_| config.clone());
+            match server_rights_snapshot(root, &current, server) {
+                Ok(rights) => {
+                    let _ = send_server_rights_result(
+                        peer,
+                        request_id,
+                        true,
+                        true,
+                        "Server permissions saved",
+                        Some(rights),
+                    );
+                }
+                Err(error) => {
+                    let _ = send_server_rights_result(
+                        peer,
+                        request_id,
+                        false,
+                        true,
+                        &error,
+                        None,
+                    );
+                }
+            }
+        }
+        Err(error) => {
+            let _ = send_server_rights_result(
+                peer,
+                request_id,
+                false,
+                true,
+                &error,
+                None,
+            );
+        }
+    }
+}
+
+fn send_server_rights_result(
+    peer: u64,
+    request_id: &str,
+    success: bool,
+    authorized: bool,
+    message: &str,
+    server_rights: Option<serde_json::Value>,
+) -> Result<(), String> {
+    send_json(
+        peer,
+        &serde_json::json!({
+            "type": "server-rights-result",
+            "requestId": request_id,
+            "success": success,
+            "authorized": authorized,
+            "message": message,
+            "serverRights": server_rights
+        }),
+    )
 }
 
 fn handle_mod_operation(
@@ -1496,6 +2154,263 @@ fn group_has_admin_permissions(group: &serde_json::Value) -> bool {
     .all(|key| group.get(*key).and_then(serde_json::Value::as_bool) == Some(true))
 }
 
+const SERVER_PERMISSION_KEYS: [&str; 5] = [
+    "canKickBan",
+    "canAccessInventories",
+    "canEditWorld",
+    "canEditBase",
+    "canExtendBase",
+];
+
+fn group_permissions(group: &serde_json::Value) -> serde_json::Value {
+    let mut rights = serde_json::Map::new();
+    for key in SERVER_PERMISSION_KEYS {
+        rights.insert(
+            key.into(),
+            serde_json::Value::Bool(group.get(key).and_then(serde_json::Value::as_bool) == Some(true)),
+        );
+    }
+    serde_json::Value::Object(rights)
+}
+
+fn permissions_match(left: &serde_json::Value, right: &serde_json::Value) -> bool {
+    SERVER_PERMISSION_KEYS
+        .iter()
+        .all(|key| left.get(*key) == right.get(*key))
+}
+
+fn server_rights_snapshot(
+    root: &Path,
+    config: &serde_json::Value,
+    server: &ServerState,
+) -> Result<serde_json::Value, String> {
+    let bytes = fs::read(root.join("enshrouded_server.json"))
+        .map_err(|error| format!("Could not read enshrouded_server.json: {error}"))?;
+    let enshrouded: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Could not parse enshrouded_server.json: {error}"))?;
+    let configured_groups = enshrouded
+        .get("userGroups")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("enshrouded_server.json has no userGroups list")?;
+    let sync_settings = config
+        .pointer("/modules/modloaderUi/serverRights/groupLogSync")
+        .and_then(serde_json::Value::as_object);
+    let groups = configured_groups
+        .iter()
+        .filter_map(|group| {
+            let name = group.get("name")?.as_str()?.trim();
+            if name.is_empty() {
+                return None;
+            }
+            let rights = group_permissions(group);
+            let is_admin = group_has_admin_permissions(group);
+            Some(serde_json::json!({
+                "name": name,
+                "canKickBan": rights["canKickBan"],
+                "canAccessInventories": rights["canAccessInventories"],
+                "canEditWorld": rights["canEditWorld"],
+                "canEditBase": rights["canEditBase"],
+                "canExtendBase": rights["canExtendBase"],
+                "isShroudForgeAdmin": is_admin,
+                "syncServerLogs": sync_settings
+                    .and_then(|settings| settings.get(name))
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(is_admin) && is_admin
+            }))
+        })
+        .collect::<Vec<_>>();
+    let session = crate::read_session_peers(root, true);
+    let mut players = server
+        .compatibility_peers
+        .keys()
+        .map(|steam_id| {
+            let game_player = session.player_records.get(steam_id);
+            let permissions_known = game_player.is_some();
+            let permissions = game_player
+                .map(|player| player.permissions.iter().map(String::as_str).collect::<HashSet<_>>())
+                .unwrap_or_default();
+            let rights = serde_json::json!({
+                "canKickBan": permissions.contains("CanKickBan"),
+                "canAccessInventories": permissions.contains("CanAccessInventories"),
+                "canEditWorld": permissions.contains("CanEditWorld"),
+                "canEditBase": permissions.contains("CanEditBase"),
+                "canExtendBase": permissions.contains("CanExtendBase")
+            });
+            let matching_groups = if permissions_known {
+                configured_groups
+                    .iter()
+                    .filter(|group| permissions_match(&rights, &group_permissions(group)))
+                    .filter_map(|group| group.get("name").and_then(serde_json::Value::as_str))
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            // The compatibility report is supplied by the client and its
+            // player name can be spoofed. Rights management only displays the
+            // name Enshrouded wrote in this server's own log.
+            let player_name = game_player.and_then(|player| player.name.as_deref());
+            serde_json::json!({
+                "steamId": steam_id.to_string(),
+                "playerName": player_name,
+                "groupName": (matching_groups.len() == 1).then(|| matching_groups[0]),
+                "permissionsKnown": permissions_known,
+                "canKickBan": rights["canKickBan"],
+                "canAccessInventories": rights["canAccessInventories"],
+                "canEditWorld": rights["canEditWorld"],
+                "canEditBase": rights["canEditBase"],
+                "canExtendBase": rights["canExtendBase"],
+                "isShroudForgeAdmin": SERVER_PERMISSION_KEYS
+                    .iter()
+                    .all(|key| rights[*key] == true)
+            })
+        })
+        .collect::<Vec<_>>();
+    players.sort_by(|left, right| {
+        left["playerName"]
+            .as_str()
+            .unwrap_or(left["steamId"].as_str().unwrap_or_default())
+            .to_lowercase()
+            .cmp(
+                &right["playerName"]
+                    .as_str()
+                    .unwrap_or(right["steamId"].as_str().unwrap_or_default())
+                    .to_lowercase(),
+            )
+    });
+    Ok(serde_json::json!({ "groups": groups, "players": players }))
+}
+
+fn save_server_rights(root: &Path, values: &serde_json::Value) -> Result<(), String> {
+    let expected = values
+        .get("expectedGroups")
+        .and_then(serde_json::Value::as_array)
+        .filter(|groups| groups.len() <= 64)
+        .ok_or("Missing server rights snapshot. Refresh before saving")?;
+    let updates = values
+        .get("groups")
+        .and_then(serde_json::Value::as_array)
+        .filter(|groups| groups.len() <= 64)
+        .ok_or("Invalid server rights update")?;
+    let mut by_name = HashMap::new();
+    let mut group_sync = serde_json::Map::new();
+    for update in updates {
+        let name = update
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|name| {
+                !name.is_empty() && name.len() <= 128 && !name.chars().any(char::is_control)
+            })
+            .ok_or("Invalid server group name")?;
+        if by_name.contains_key(name) {
+            return Err("Duplicate server group name in rights update".into());
+        }
+        for key in SERVER_PERMISSION_KEYS {
+            if !update.get(key).is_some_and(serde_json::Value::is_boolean) {
+                return Err(format!("Missing or invalid group right {key}"));
+            }
+        }
+        let sync_server_logs = update
+            .get("syncServerLogs")
+            .and_then(serde_json::Value::as_bool)
+            .ok_or("Missing or invalid server log sync setting")?;
+        if sync_server_logs && !group_has_admin_permissions(update) {
+            return Err("Only ShroudForge Admin groups can receive server logs".into());
+        }
+        by_name.insert(name.to_owned(), update.clone());
+        group_sync.insert(name.to_owned(), serde_json::Value::Bool(sync_server_logs));
+    }
+
+    let server_path = root.join("enshrouded_server.json");
+    let bytes = fs::read(&server_path).map_err(|error| error.to_string())?;
+    let original: serde_json::Value = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    let mut updated = original.clone();
+    let groups = updated
+        .get_mut("userGroups")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or("enshrouded_server.json has no userGroups list")?;
+    if groups.len() != by_name.len() {
+        return Err("Server groups changed. Refresh the rights list before saving".into());
+    }
+    if groups.len() != expected.len() {
+        return Err("Server groups changed. Refresh the rights list before saving".into());
+    }
+    let current_loader = shroudforge_loader_config::config::read_loader(root)?;
+    let current_sync = current_loader
+        .pointer("/modules/modloaderUi/serverRights/groupLogSync")
+        .and_then(serde_json::Value::as_object);
+    let expected_by_name = expected
+        .iter()
+        .filter_map(|group| {
+            group
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .map(|name| (name, group))
+        })
+        .collect::<HashMap<_, _>>();
+    if expected_by_name.len() != expected.len() {
+        return Err("Invalid or duplicate expected server group".into());
+    }
+    for group in groups.iter() {
+        let name = group
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .ok_or("A server group has no name")?;
+        let expected_group = expected_by_name
+            .get(name)
+            .ok_or("Server groups changed. Refresh the rights list before saving")?;
+        let is_admin = group_has_admin_permissions(group);
+        let current_sync_enabled = current_sync
+            .and_then(|settings| settings.get(name))
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(is_admin)
+            && is_admin;
+        if !permissions_match(&group_permissions(group), &group_permissions(expected_group))
+            || current_sync_enabled
+                != expected_group["syncServerLogs"]
+                    .as_bool()
+                    .unwrap_or(false)
+        {
+            return Err("Server rights changed in another session. Refresh before saving".into());
+        }
+    }
+    let mut seen = HashSet::new();
+    for group in groups.iter_mut() {
+        let name = group
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .ok_or("A server group has no name")?;
+        let update = by_name
+            .get(name)
+            .ok_or("Server groups changed. Refresh the rights list before saving")?;
+        seen.insert(name.to_owned());
+        for key in SERVER_PERMISSION_KEYS {
+            group[key] = update[key].clone();
+        }
+    }
+    if seen.len() != by_name.len() {
+        return Err("Server groups changed. Refresh the rights list before saving".into());
+    }
+    if groups.iter().all(|group| !group_has_admin_permissions(group)) {
+        return Err("At least one ShroudForge Admin group must keep all five permissions".into());
+    }
+    shroudforge_loader_config::config::write_json(&server_path, &updated)?;
+    if let Err(error) = shroudforge_loader_config::config::update_loader(root, |loader| {
+        loader["modules"]["modloaderUi"]["serverRights"]["groupLogSync"] =
+            serde_json::Value::Object(group_sync);
+        Ok(())
+    }) {
+        let rollback = shroudforge_loader_config::config::write_json(&server_path, &original);
+        return match rollback {
+            Ok(()) => Err(error),
+            Err(rollback_error) => Err(format!(
+                "Could not save server log-sync policy ({error}) and could not restore server permissions ({rollback_error})"
+            )),
+        };
+    }
+    Ok(())
+}
+
 /// Compare and write the modules under the installation's existing config lock.
 /// A stale client therefore cannot overwrite a setting saved by another client.
 fn compare_and_swap_modules(
@@ -1505,14 +2420,43 @@ fn compare_and_swap_modules(
 ) -> (Result<(), String>, bool) {
     let mut conflict = false;
     let result = shroudforge_loader_config::config::update_loader(root, |current| {
-        if current.get("modules") != Some(expected) {
+        let current_modules = current.get("modules").cloned().unwrap_or_default();
+        let protected_server_rights = current_modules
+            .pointer("/modloaderUi/serverRights")
+            .cloned();
+        let mut expected_modules = expected.clone();
+        let mut next_modules = modules.clone();
+        if let Some(server_rights) = protected_server_rights {
+            preserve_server_rights(&mut expected_modules, &server_rights);
+            preserve_server_rights(&mut next_modules, &server_rights);
+        }
+        if current_modules != expected_modules {
             conflict = true;
             return Err("Server settings changed in another session".into());
         }
-        current["modules"] = modules.clone();
+        current["modules"] = next_modules;
         Ok(())
     });
     (result, conflict)
+}
+
+fn preserve_server_rights(modules: &mut serde_json::Value, server_rights: &serde_json::Value) {
+    let Some(modules) = modules.as_object_mut() else {
+        return;
+    };
+    match modules.get_mut("modloaderUi") {
+        Some(ui) => {
+            if let Some(ui) = ui.as_object_mut() {
+                ui.insert("serverRights".into(), server_rights.clone());
+            }
+        }
+        None => {
+            modules.insert(
+                "modloaderUi".into(),
+                serde_json::json!({ "serverRights": server_rights }),
+            );
+        }
+    }
 }
 
 fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, String> {
@@ -1687,8 +2631,12 @@ fn read_server_mod_icon(
 fn server_view_snapshot(
     root: &Path,
     mods: serde_json::Value,
+    version_check: Option<mod_loader::MultiplayerVersionCheck>,
+    server: &ServerState,
 ) -> Result<(serde_json::Value, serde_json::Value), String> {
-    let entries = mods.as_array().ok_or("server mod snapshot must be an array")?;
+    let entries = mods
+        .as_array()
+        .ok_or("server mod snapshot must be an array")?;
     let owned_notice_mods = entries
         .iter()
         .map(|item| {
@@ -1709,13 +2657,15 @@ fn server_view_snapshot(
         .collect::<Vec<_>>();
     let notification_mods = owned_notice_mods
         .iter()
-        .map(|(id, name, version, ecosystem, changelog)| shroudforge_news::ModNotification {
-            id,
-            name,
-            version,
-            ecosystem,
-            changelog,
-        })
+        .map(
+            |(id, name, version, ecosystem, changelog)| shroudforge_news::ModNotification {
+                id,
+                name,
+                version,
+                ecosystem,
+                changelog,
+            },
+        )
         .collect::<Vec<_>>();
     let notices = shroudforge_news::read_notifications(root, &notification_mods);
     let news_templates = shroudforge_news::read(root)
@@ -1727,20 +2677,29 @@ fn server_view_snapshot(
         .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
         .and_then(|value| value["gameVersion"].as_str().map(str::to_owned))
         .unwrap_or_else(|| "Automatisch erkannt".into());
-    let compatibility = mod_loader::compatibility_status::configuration(
+    let mut compatibility = mod_loader::compatibility_status::configuration(
         root,
         true,
         env!("CARGO_PKG_VERSION"),
         shroudforge_loader_config::runtime_status::runtime_pid(root),
     );
+    if let (Some(checks), Some(check)) = (compatibility["checks"].as_array_mut(), version_check) {
+        if let Ok(check) = serde_json::to_value(check) {
+            checks.push(check);
+        }
+    }
+    let loader_config = shroudforge_loader_config::config::read_loader(root)?;
+    let server_rights = server_rights_snapshot(root, &loader_config, server)?;
     let server_view = serde_json::json!({
         "notices": notices,
         "newsTemplates": news_templates,
         "gameVersion": game_version,
+        "version": mod_loader::installed_version(root),
         "configuration": compatibility,
         "dllCandidates": mod_loader::dll_manager::discover_dll_candidates(root),
         "dllChainEntries": mod_loader::dll_manager::chain_load_entries(root),
         "hotkeyConflicts": [],
+        "serverRights": server_rights,
         "mode": "SERVER"
     });
     Ok((mods, server_view))
@@ -1756,35 +2715,191 @@ fn server_mod_info(root: &Path, id: &str, locale: &str) -> Option<serde_json::Va
 }
 
 fn send_initial_snapshot(
-    root: &Path,
     config: &serde_json::Value,
     peer: u64,
-    server: &mut ServerState,
+    server: &ServerState,
 ) -> bool {
-    let modules_sent = send_config(peer, config).is_ok();
+    send_config(peer, config, server.admin_sessions.contains_key(&peer)).is_ok()
+}
+
+fn send_initial_logs(
+    root: &Path,
+    peer: u64,
+    server: &mut ServerState,
+    reset_cursors: bool,
+) -> bool {
     let (game_tail, game_offset) = read_tail(&server_game_log(root));
     let game_sent = send_log(peer, "game", "replace", game_tail).is_ok();
-    if game_sent && server.game.offset.is_none() {
+    if game_sent && (reset_cursors || server.game.offset.is_none()) {
         server.game.offset = game_offset;
     }
     let (loader_tail, loader_offset) =
         read_tail(&shroudforge_loader_config::paths::current_log(root));
     let loader_sent = send_log(peer, "loader", "replace", loader_tail).is_ok();
-    if loader_sent && server.loader.offset.is_none() {
+    if loader_sent && (reset_cursors || server.loader.offset.is_none()) {
         server.loader.offset = loader_offset;
     }
-    modules_sent && game_sent && loader_sent
+    game_sent && loader_sent
+}
+
+fn send_archive_index(root: &Path, peer: u64) -> bool {
+    let files = list_server_archives(root);
+    if files.is_empty() {
+        return send_json(
+            peer,
+            &serde_json::json!({ "type": "archive-index", "files": [] }),
+        )
+        .is_ok();
+    }
+    files.chunks(ARCHIVE_INDEX_BATCH_SIZE).all(|batch| {
+        let files = batch
+            .iter()
+            .map(|(name, size)| serde_json::json!({ "name": name, "size": size }))
+            .collect::<Vec<_>>();
+        send_json(
+            peer,
+            &serde_json::json!({ "type": "archive-index", "files": files }),
+        )
+        .is_ok()
+    })
+}
+
+fn list_server_archives(root: &Path) -> Vec<(String, u64)> {
+    let directory = shroudforge_loader_config::paths::logs_dir(root);
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut files = entries
+        .flatten()
+        .filter_map(|entry| {
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_file() {
+                return None;
+            }
+            let name = entry.file_name().into_string().ok()?;
+            if !valid_server_archive_name(&name) {
+                return None;
+            }
+            let metadata = entry.metadata().ok()?;
+            (metadata.len() > 0).then_some((name, metadata.len()))
+        })
+        .collect::<Vec<_>>();
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    files
+}
+
+fn valid_server_archive_name(name: &str) -> bool {
+    let Some(stamp_and_suffix) = name
+        .strip_prefix("shroudforge-server-")
+        .and_then(|value| value.strip_suffix(".log"))
+    else {
+        return false;
+    };
+    if Path::new(name).file_name().and_then(|value| value.to_str()) != Some(name) {
+        return false;
+    }
+    stamp_and_suffix
+        .split('-')
+        .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+}
+
+fn enqueue_server_archive(root: &Path, peer: u64, name: Option<&str>, server: &mut ServerState) {
+    let Some(name) = name.filter(|value| valid_server_archive_name(value)) else {
+        return;
+    };
+    let path = shroudforge_loader_config::paths::logs_dir(root).join(name);
+    let Ok(metadata) = fs::metadata(&path) else {
+        return;
+    };
+    if !metadata.is_file() || metadata.len() == 0 {
+        return;
+    }
+    let queue = server.archive_transfers.entry(peer).or_default();
+    if queue.iter().any(|transfer| transfer.name == name) {
+        return;
+    }
+    queue.push_back(ServerArchiveTransfer {
+        name: name.to_owned(),
+        path,
+        size: metadata.len(),
+        offset: 0,
+    });
+}
+
+fn service_server_archive_transfers(server: &mut ServerState) {
+    let peers = server.archive_transfers.keys().copied().collect::<Vec<_>>();
+    let mut failed = Vec::new();
+    for peer in peers {
+        let Some(queue) = server.archive_transfers.get_mut(&peer) else {
+            continue;
+        };
+        let Some(transfer) = queue.front_mut() else {
+            server.archive_transfers.remove(&peer);
+            continue;
+        };
+        let remaining = transfer.size.saturating_sub(transfer.offset);
+        if remaining == 0 {
+            queue.pop_front();
+            continue;
+        }
+        let chunk_length = remaining.min(ARCHIVE_CHUNK_BYTES as u64) as usize;
+        let read_result = (|| {
+            let mut file = File::open(&transfer.path)?;
+            file.seek(SeekFrom::Start(transfer.offset))?;
+            let mut bytes = vec![0; chunk_length];
+            file.read_exact(&mut bytes)?;
+            Ok::<_, std::io::Error>(bytes)
+        })();
+        let bytes = match read_result {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                tracing::warn!(
+                    target: "shroudforge::network",
+                    peer,
+                    archive = %transfer.name,
+                    %error,
+                    "Could not read server log archive for transfer"
+                );
+                queue.pop_front();
+                continue;
+            }
+        };
+        let payload = encode_json(&serde_json::json!({
+            "type": "archive-chunk",
+            "name": transfer.name,
+            "size": transfer.size,
+            "offset": transfer.offset,
+            "data": base64::engine::general_purpose::STANDARD.encode(&bytes)
+        }));
+        let Ok(payload) = payload else {
+            queue.pop_front();
+            continue;
+        };
+        if crate::send_remote_ui(peer, &payload).is_err() {
+            failed.push(peer);
+            continue;
+        }
+        transfer.offset += bytes.len() as u64;
+        if transfer.offset == transfer.size {
+            queue.pop_front();
+        }
+    }
+    remove_failed_peers(server, failed);
 }
 
 fn send_module_changes(config: &serde_json::Value, server: &mut ServerState) {
     if server.config_snapshot.as_ref() == Some(config) {
         return;
     }
-    let payload = encode_json(&serde_json::json!({ "type": "config", "value": config }));
-    let Ok(payload) = payload else {
-        return;
-    };
-    let failed = send_payload_to_peers(&server.peers, &payload);
+    let failed = server
+        .peers
+        .keys()
+        .copied()
+        .filter(|peer| {
+            let value = remote_config(config, server.admin_sessions.contains_key(peer));
+            send_json(*peer, &serde_json::json!({ "type": "config", "value": value })).is_err()
+        })
+        .collect::<Vec<_>>();
     remove_failed_peers(server, failed);
     server.config_snapshot = (!server.peers.is_empty()).then(|| config.clone());
 }
@@ -1865,6 +2980,168 @@ fn receive_log(root: &Path, value: &serde_json::Value, client: &mut ClientState)
     }
 }
 
+fn receive_archive_index(root: &Path, value: &serde_json::Value, client: &mut ClientState) {
+    let Some(files) = value["files"].as_array() else {
+        return;
+    };
+    let Some(peer) = client.peer else { return };
+    let directory = shroudforge_loader_config::paths::logs_dir(root);
+    for entry in files.iter().take(ARCHIVE_INDEX_BATCH_SIZE) {
+        let Some(name) = entry["name"]
+            .as_str()
+            .filter(|name| valid_server_archive_name(name))
+        else {
+            continue;
+        };
+        let Some(size) = entry["size"].as_u64().filter(|size| *size > 0) else {
+            continue;
+        };
+        let path = directory.join(name);
+        let already_present =
+            fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.len() == size);
+        if !already_present
+            && let Err(error) = send_json(
+                peer,
+                &serde_json::json!({ "type": "archive-request", "name": name }),
+            )
+        {
+            log_archive_transfer_failure(client, &path, error);
+        }
+    }
+}
+
+fn receive_archive_chunk(root: &Path, value: &serde_json::Value, client: &mut ClientState) {
+    let Some(name) = value["name"]
+        .as_str()
+        .filter(|name| valid_server_archive_name(name))
+    else {
+        return;
+    };
+    let Some(size) = value["size"].as_u64().filter(|size| *size > 0) else {
+        return;
+    };
+    let Some(offset) = value["offset"].as_u64() else {
+        return;
+    };
+    let Some(encoded) = value["data"].as_str() else {
+        return;
+    };
+    let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(encoded) else {
+        return;
+    };
+    if bytes.is_empty()
+        || bytes.len() > ARCHIVE_CHUNK_BYTES
+        || offset
+            .checked_add(bytes.len() as u64)
+            .is_none_or(|end| end > size)
+    {
+        return;
+    }
+
+    let directory = shroudforge_loader_config::paths::logs_dir(root);
+    let path = directory.join(name);
+    let partial_path = directory.join(format!("{name}.part"));
+    if let Err(error) = fs::create_dir_all(&directory) {
+        log_archive_transfer_failure(client, &directory, error);
+        return;
+    }
+    let mut file = if offset == 0 {
+        let opened = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&partial_path);
+        match opened {
+            Ok(file) => {
+                if let Err(error) = file.set_len(size) {
+                    log_archive_transfer_failure(client, &partial_path, error);
+                    client.archive_transfers.remove(name);
+                    return;
+                }
+                file
+            }
+            Err(error) => {
+                log_archive_transfer_failure(client, &partial_path, error);
+                client.archive_transfers.remove(name);
+                return;
+            }
+        }
+    } else {
+        if client.archive_transfers.get(name) != Some(&(size, offset)) {
+            return;
+        }
+        match OpenOptions::new().write(true).open(&partial_path) {
+            Ok(file) => file,
+            Err(error) => {
+                log_archive_transfer_failure(client, &partial_path, error);
+                client.archive_transfers.remove(name);
+                return;
+            }
+        }
+    };
+    if offset == 0 {
+        client.archive_transfers.insert(name.to_owned(), (size, 0));
+    }
+    if let Err(error) = file
+        .seek(SeekFrom::Start(offset))
+        .and_then(|_| file.write_all(&bytes))
+    {
+        log_archive_transfer_failure(client, &partial_path, error);
+        client.archive_transfers.remove(name);
+        return;
+    }
+    let next_offset = offset + bytes.len() as u64;
+    if next_offset == size {
+        if let Err(error) = file.flush().and_then(|_| file.sync_all()) {
+            log_archive_transfer_failure(client, &partial_path, error);
+            client.archive_transfers.remove(name);
+            return;
+        }
+        drop(file);
+        match fs::rename(&partial_path, &path) {
+            Ok(()) => {
+                client.archive_transfers.remove(name);
+                tracing::debug!(
+                    target: "shroudforge::network",
+                    archive = %name,
+                    bytes = size,
+                    "Received server session log archive"
+                );
+                if client.mirror_errors.remove("archive") {
+                    tracing::info!(
+                        target: "shroudforge::network",
+                        archive = %name,
+                        "Server log archive transfer recovered"
+                    );
+                }
+            }
+            Err(error) => {
+                log_archive_transfer_failure(client, &path, error);
+                client.archive_transfers.remove(name);
+            }
+        }
+    } else {
+        client
+            .archive_transfers
+            .insert(name.to_owned(), (size, next_offset));
+    }
+}
+
+fn log_archive_transfer_failure(
+    client: &mut ClientState,
+    path: &Path,
+    error: impl std::fmt::Display,
+) {
+    if client.mirror_errors.insert("archive") {
+        tracing::warn!(
+            target: "shroudforge::network",
+            path = %path.display(),
+            %error,
+            "Could not receive server log archive"
+        );
+    }
+}
+
 fn append_remote_log(path: &Path, text: &str) -> std::io::Result<bool> {
     let mut file = OpenOptions::new().create(true).append(true).open(path)?;
     file.write_all(text.as_bytes())?;
@@ -1939,10 +3216,35 @@ fn receive_config(root: &Path, value: &serde_json::Value, client: &mut ClientSta
     true
 }
 
-fn send_config(peer: u64, config: &serde_json::Value) -> Result<(), String> {
+fn remote_config(config: &serde_json::Value, include_server_rights: bool) -> serde_json::Value {
+    let mut value = config.clone();
+    if !include_server_rights {
+        if let Some(modules) = value
+            .get_mut("modules")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            if let Some(ui) = modules
+                .get_mut("modloaderUi")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                ui.remove("serverRights");
+            }
+        }
+    }
+    value
+}
+
+fn send_config(
+    peer: u64,
+    config: &serde_json::Value,
+    include_server_rights: bool,
+) -> Result<(), String> {
     send_json(
         peer,
-        &serde_json::json!({ "type": "config", "value": config }),
+        &serde_json::json!({
+            "type": "config",
+            "value": remote_config(config, include_server_rights)
+        }),
     )
 }
 
@@ -2039,6 +3341,8 @@ fn send_payload_to_peers(peers: &HashMap<u64, Instant>, payload: &[u8]) -> Vec<u
 fn remove_failed_peers(server: &mut ServerState, failed: impl IntoIterator<Item = u64>) {
     for peer in failed {
         server.peers.remove(&peer);
+        server.log_sync_peers.remove(&peer);
+        server.archive_transfers.remove(&peer);
         server.login_failures.remove(&peer);
         forget_completed_actions(server, peer);
         tracing::warn!(target: "shroudforge::network", peer, "Removed remote UI peer after a Steam send failure");

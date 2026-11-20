@@ -119,4 +119,4 @@ export type UpdaterViewData = {
 export type UpdaterCommand = (
   command: string,
   payload?: Record<string, unknown>,
-) => void
+) => string | void

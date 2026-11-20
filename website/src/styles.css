@@ -58,7 +58,7 @@ html[data-theme='light'] {
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
+body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; min-width: 320px; }
 a { color: var(--brand); text-decoration: none; }
 a:hover { color: var(--text-contrast); }
 button, input { font: inherit; }
@@ -284,7 +284,7 @@ h1, h2, h3 { color: var(--text-contrast); line-height: 1.25; }
 .security-hashes dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
 .security-hashes code { font-size: 10px; }
 
-.site-footer { border-top: 1px solid var(--border-chrome); }
+.site-footer { margin-top: auto; border-top: 1px solid var(--border-chrome); }
 .footer-inner { display: grid; grid-template-columns: 1fr auto; gap: 20px; max-width: 1280px; padding: 26px 24px 30px; margin: auto; }
 .footer-brand { color: var(--text-contrast); font-size: 14px; font-weight: 700; }
 .footer-brand span { margin-left: 13px; color: var(--text-secondary); font-size: 12px; font-weight: 400; }

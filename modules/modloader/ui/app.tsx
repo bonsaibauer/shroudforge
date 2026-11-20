@@ -19,7 +19,7 @@ import { Nav, NavGroup } from '../../ui-resources/show-navigation'
 import { ModIcon } from './show-mod-icon'
 import { ModPage } from './show-mod'
 import { useUiUpdates } from './receive-ui-updates'
-import { RemoteTargetSwitch, TopBar } from './show-top-bar'
+import { RemoteTargetSwitch, ServerAdminVisual, TopBar } from './show-top-bar'
 import { Page } from './show-page'
 import { UiErrorBoundary } from './show-ui-error'
 import { compatibilityNavigationStatus } from './show-compatibility'
@@ -66,6 +66,7 @@ export function App() {
   const [serverAdminGroupName, setServerAdminGroupName] = useState<string | null>(null)
   const [serverAdminLoginPending, setServerAdminLoginPending] = useState(false)
   const [serverAdminLoginError, setServerAdminLoginError] = useState<string | null>(null)
+  const [confirmServerVanilla, setConfirmServerVanilla] = useState(false)
   const pendingServerLogin = useRef<string | null>(null)
   const [read, setRead] = useState<Record<'client' | 'server', string[]>>({
     client: [],
@@ -136,6 +137,7 @@ export function App() {
         mods?: ModInfo[]
         mod?: ModInfo
         serverView?: ServerViewDetails
+        serverRights?: ServerView['serverRights']
       }>).detail
       if (Array.isArray(detail?.mods)) {
         const view = detail.serverView
@@ -143,6 +145,7 @@ export function App() {
           setServerView({
             ...view,
             mode: 'SERVER',
+            version: view.version ?? '',
             mods: detail.mods,
             dllCandidates: view.dllCandidates ?? [],
             dllChainEntries: view.dllChainEntries ?? [],
@@ -157,6 +160,22 @@ export function App() {
             ? { ...current, mods: current.mods.map((mod) => (mod.id === updated.id ? updated : mod)) }
             : current,
         )
+      } else if (detail?.serverRights) {
+        setServerView((current) =>
+          current
+            ? { ...current, serverRights: detail.serverRights }
+            : {
+                mode: 'SERVER',
+                gameVersion: '',
+                version: '',
+                dllCandidates: [],
+                dllChainEntries: [],
+                hotkeyConflicts: [],
+                notices: [],
+                mods: [],
+                serverRights: detail.serverRights,
+              },
+        )
       }
     }
     window.addEventListener('shroudforge-remote-mod-data', onRemoteModData)
@@ -165,19 +184,20 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (remoteTarget !== 'server') {
+    if (remoteTarget !== 'server' || data.vanillaSession || data.installationTarget === 'server') {
       setServerView(null)
       return
     }
-    if (serverAdminAuthenticated) {
-      postRequest('fetch-server-mods', { locale: data.locale })
-    }
-  }, [remoteTarget, serverAdminAuthenticated, data.locale])
+    if (!serverAdminAuthenticated) return
+    postRequest('fetch-server-mods', { locale: data.locale })
+  }, [remoteTarget, serverAdminAuthenticated, data.locale, data.vanillaSession, data.installationTarget])
 
-  const activeData: Snapshot = remoteTarget === 'server'
+  const activeData: Snapshot = remoteTarget === 'server' && data.installationTarget !== 'server'
     ? {
         ...data,
         ...(serverView ?? {}),
+        uiVanilla: data.vanillaSession === true,
+        vanillaSession: serverView ? false : null,
         mode: 'SERVER',
         gameVersion: serverView?.gameVersion ?? '',
         mods: serverAdminAuthenticated ? serverView?.mods ?? [] : [],
@@ -195,8 +215,28 @@ export function App() {
           : data.releaseAnnouncement,
         readNoticeIds: read.server,
       }
-    : { ...data, readNoticeIds: read.client }
+    : { ...data, uiVanilla: data.vanillaSession === true, mode: data.installationTarget === 'server' ? 'SERVER' : data.mode, readNoticeIds: read.client }
   const displayedMods = activeData.mods
+  const vanillaKey = remoteTarget === 'server' ? 'vanillaServer' : 'vanillaClient'
+  const vanillaRequested = data.settings.modulePreferences?.modloaderUi?.[vanillaKey] === true
+  useEffect(() => {
+    if (!confirmServerVanilla) return
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      setConfirmServerVanilla(false)
+    }
+    window.addEventListener('keydown', cancel, true)
+    return () => window.removeEventListener('keydown', cancel, true)
+  }, [confirmServerVanilla])
+
+  useEffect(() => {
+    if (remoteTarget !== 'server' || vanillaRequested ||
+        (data.installationTarget !== 'server' && (!serverAdminAuthenticated || data.vanillaSession))) {
+      setConfirmServerVanilla(false)
+    }
+  }, [remoteTarget, vanillaRequested, data.installationTarget, serverAdminAuthenticated, data.vanillaSession])
 
   const newsSource = {
     ...activeData,
@@ -208,8 +248,18 @@ export function App() {
     chirperSeverity,
     chirperTitle,
     chirperItems,
+    chirperMotion,
     markRead,
-  } = useNotifications(newsSource, settings, remoteTarget, read[remoteTarget], setRead)
+  } = useNotifications(
+    newsSource,
+    settings,
+    remoteTarget,
+    read[remoteTarget],
+    setRead,
+    remoteTarget === 'client'
+      ? data.newsTemplates !== undefined
+      : serverAdminAuthenticated && serverView !== null,
+  )
   const activeMod = displayedMods.find((mod) => mod.id === selectedMod)
   const compatibilityStatus = compatibilityNavigationStatus(activeData)
   const runtimeCheck = activeData.configuration?.checks.find((check) => check.id === 'runtime')
@@ -219,7 +269,9 @@ export function App() {
     [settings.targetUi],
   )
   const pageVisible = (id: PageId, target: 'client' | 'server' = remoteTarget) =>
-    isTargetUiVisible('pages', id, target, targetUi) &&
+    (id === 'server-management'
+      ? target === 'server'
+      : isTargetUiVisible('pages', id, target, targetUi)) &&
     (id !== 'compatibility' ||
       ['modDetection', 'dllManager', 'modloaderUi', 'runtimeDiagnostics'].some((module) =>
         isTargetUiVisible('modules', module, target, targetUi),
@@ -233,8 +285,9 @@ export function App() {
       'discover',
       'updates',
       'recycle-bin',
-      'wiki',
       'settings',
+      'server-management',
+      'wiki',
     ]
     return pages.find((id) => pageVisible(id, target)) ?? 'settings'
   }
@@ -443,11 +496,11 @@ export function App() {
         onRemoteTargetChange={changeRemoteTarget}
         onOpenWikiCategory={openWikiCategory}
         showChirper={pageVisible('news')}
-        showWikiHelp={isTargetUiVisible('modules', 'wiki', remoteTarget, targetUi)}
         isWikiPage={page === 'wiki'}
         unread={unread.length}
         severity={chirperSeverity}
         crowded={unread.length >= 5}
+        motion={chirperMotion}
         title={chirperTitle}
         onChirper={() => setChirper(true)}
       />
@@ -458,6 +511,21 @@ export function App() {
         <div className="workspace">
           <aside className="sidebar">
             <div className="sidebar-target">
+              <button
+                className="button vanilla-mode-button"
+                disabled={remoteTarget === 'server' && data.installationTarget !== 'server' && (!serverAdminAuthenticated || data.vanillaSession === true)}
+                onClick={() => {
+                  if (remoteTarget === 'server' && !vanillaRequested) {
+                    setConfirmServerVanilla(true)
+                    return
+                  }
+                  postRequest('save-setting', {
+                    scope: 'module', module: 'modloaderUi', key: vanillaKey, value: !vanillaRequested,
+                  })
+                }}
+              >
+                {t(vanillaRequested ? 'vanilla.enable' : 'vanilla.button')}
+              </button>
               <RemoteTargetSwitch
                 remoteTarget={remoteTarget}
                 onChange={changeRemoteTarget}
@@ -496,6 +564,12 @@ export function App() {
                 label={t('nav.settings')}
                 active={!activeMod && page === 'settings'}
                 onClick={() => navigate('settings')}
+              />}
+              {pageVisible('server-management') && <Nav
+                icon="server"
+                label={t('nav.serverManagement')}
+                active={!activeMod && page === 'server-management'}
+                onClick={() => navigate('server-management')}
               />}
               {pageVisible('wiki') && (
                 <Nav
@@ -658,11 +732,48 @@ export function App() {
                 onUpdaterCommand={postRequest}
                 compatibilityTab={compatibilityTab}
                 setCompatibilityTab={setCompatibilityTab}
+                serverAdminAuthenticated={serverAdminAuthenticated}
               />
             )}
           </section>
         </div>
       </PageZoomProvider>
+      {confirmServerVanilla && (
+        <div className="overlay server-admin-overlay" role="presentation">
+          <section className="modal server-admin-modal" role="alertdialog" aria-modal="true"
+            aria-labelledby="server-vanilla-title" aria-describedby="server-vanilla-impact">
+            <header>
+              <div>
+                <small>SHROUDFORGE · SERVER</small>
+                <h2 id="server-vanilla-title">{t('vanilla.serverWarning.title')}</h2>
+              </div>
+              <button className="window-control window-close" type="button"
+                onClick={() => setConfirmServerVanilla(false)} aria-label={t('common.close')}
+                title={t('common.close')}>×</button>
+            </header>
+            <div className="modal-body">
+              <ServerAdminVisual warning />
+              <p>{t('vanilla.serverWarning.prompt')}</p>
+              <p id="server-vanilla-impact">{t('vanilla.serverWarning.impact')}</p>
+              <p>{t('vanilla.serverWarning.recover')}</p>
+              <code className="vanilla-server-code">shroudforge/config/modloader-config.json</code>
+              <p>{t('vanilla.serverWarning.setting')}</p>
+              <code className="vanilla-server-code">"vanillaServer": false</code>
+              <p>{t('vanilla.serverWarning.restart')}</p>
+              <div className="remote-admin-actions">
+                <button className="button ghost" type="button" autoFocus
+                  onClick={() => setConfirmServerVanilla(false)}>{t('common.cancel')}</button>
+                <button className="button" type="button" onClick={() => {
+                  setConfirmServerVanilla(false)
+                  postRequest('save-setting', {
+                    scope: 'module', module: 'modloaderUi', key: 'vanillaServer', value: true,
+                  })
+                }}>{t('vanilla.serverWarning.confirm')}</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
       {chirper && (
         <Chirper
           items={chirperItems}

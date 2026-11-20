@@ -61,6 +61,11 @@ export type NewsItem = {
   changelog?: string[]
 }
 
+export type ChirperMotion = {
+  kind: 'arrival' | 'update' | 'warning' | 'error' | 'cleared'
+  revision: number
+}
+
 export type NewsPersonalization = {
   usernameMode: 'auto' | 'manual'
   detectedUsername?: string | null

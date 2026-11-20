@@ -237,6 +237,18 @@ async function validate() {
   assert(!schemaHtml.includes('class="schema-standard-panel'), "The DInput8 standard card must be separate from the schema catalog page.");
   assert(schemaHtml.includes('data-schema-version aria-label="Modloader version"') && schemaHtml.includes(`value="${repositoryVersion}"`) && schemaHtml.includes('selected>'), "The schema catalog must select the current Modloader version.");
   assert(schemaTags.some(tag => tag.name === "link" && tag.attributes.rel === "canonical" && tag.attributes.href === `${siteUrl}/schemas/`), "The Schema page must declare its canonical URL.");
+  const fullHtmlPages = [
+    ["index.html", html],
+    ["schemas/index.html", schemaHtml],
+    [toolRelative, toolHtml],
+    ["tools/modding/api-reference/index.html", await readRequired("tools/modding/api-reference/index.html")],
+    ["tools/modding/api-playground/index.html", await readRequired("tools/modding/api-playground/index.html")],
+    ["404.html", notFound],
+  ];
+  for (const [relative, pageHtml] of fullHtmlPages) {
+    const siteFooterCount = (pageHtml.match(/<footer\b[^>]*class="site-footer"/gi) || []).length;
+    assert(siteFooterCount === 1 && /<footer\b[^>]*class="site-footer"[\s\S]*?<\/footer>\s*<\/body>/i.test(pageHtml), `The shared site footer must appear once at the bottom of ${relative}.`);
+  }
   await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
   const schemaNames = ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"];
   const snapshotDirectory = path.resolve(import.meta.dirname, "../schema-snapshots");

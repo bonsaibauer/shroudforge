@@ -21,7 +21,7 @@ pub(crate) fn apply_loader_settings(
                 .map(|target| target == "server")
         })
         .unwrap_or(false);
-    let result = if remote_target {
+    let result = if remote_target && !arguments.server {
         Err("Bulk settings save is still local-only. Save individual server module settings instead.".into())
     } else {
         save_settings(&arguments.root, &settings)

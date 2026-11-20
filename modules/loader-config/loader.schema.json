@@ -780,6 +780,8 @@
         "modloaderUi": {
           "type": "object",
           "properties": {
+            "vanillaClient": { "type": "boolean" },
+            "vanillaServer": { "type": "boolean" },
             "enabled": {
               "type": "boolean"
             },
@@ -798,6 +800,17 @@
             },
             "remoteTarget": {
               "enum": ["client", "server"]
+            },
+            "serverRights": {
+              "type": "object",
+              "properties": {
+                "groupLogSync": {
+                  "type": "object",
+                  "maxProperties": 64,
+                  "additionalProperties": { "type": "boolean" }
+                }
+              },
+              "additionalProperties": false
             },
             "toggleKey": {
               "$ref": "#/$defs/keybind"

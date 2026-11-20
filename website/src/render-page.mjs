@@ -21,6 +21,11 @@ function formatDate(value) {
 	}).format(new Date(value))
 }
 
+export function renderSiteFooter({ config, generatedAt }) {
+	const repositoryUrl = `https://github.com/${config.repository}`
+	return `<footer class="site-footer"><div class="footer-inner"><span class="footer-brand">ShroudForge <span>Modding starts here.</span></span><div class="footer-links"><button class="theme-switch" id="theme-toggle" type="button" role="switch" aria-checked="true" aria-label="Light background" hidden><span>Light background</span><span class="theme-switch-track" aria-hidden="true"><span class="theme-switch-thumb"></span></span></button><a href="${repositoryUrl}">Source code ${icon('external')}</a><a href="${escapeHtml(config.statusUrl)}">Status ${icon('external')}</a><a href="${escapeHtml(config.discordUrl)}">Discord ${icon('external')}</a></div><p class="footer-meta">Release index updated <time datetime="${escapeHtml(generatedAt)}">${formatDate(generatedAt)}</time>. ShroudForge is a community project for Enshrouded. Not affiliated with or endorsed by Keen Games. Enshrouded and its content are the property of Keen Games GmbH.</p></div></footer>`
+}
+
 function formatSize(bytes) {
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -174,7 +179,7 @@ export function renderPage({ releases, generatedAt, siteUrl, config, securityRep
 			</section>
 		</main>
 	</div>
-	<footer class="site-footer"><div class="footer-inner"><span class="footer-brand">ShroudForge <span>Modding starts here.</span></span><div class="footer-links"><button class="theme-switch" id="theme-toggle" type="button" role="switch" aria-checked="true" aria-label="Light background" hidden><span>Light background</span><span class="theme-switch-track" aria-hidden="true"><span class="theme-switch-thumb"></span></span></button><a href="${repositoryUrl}">Source code ${icon('external')}</a><a href="${escapeHtml(config.statusUrl)}">Status ${icon('external')}</a><a href="${escapeHtml(config.discordUrl)}">Discord ${icon('external')}</a></div><p class="footer-meta">Release index updated <time datetime="${escapeHtml(generatedAt)}">${formatDate(generatedAt)}</time>. ShroudForge is a community project for Enshrouded.</p></div></footer>
+	${renderSiteFooter({ config, generatedAt })}
 </body>
 </html>`
 }

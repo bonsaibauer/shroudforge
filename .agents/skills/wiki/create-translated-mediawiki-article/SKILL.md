@@ -1,17 +1,20 @@
 ---
 name: create-translated-mediawiki-article
-description: Create or migrate ShroudForge MediaWiki articles with Translate, prepare locally written PO translations, set supported priority languages, import them through the wiki form, and verify the rendered language pages.
+description: Publish English ShroudForge MediaWiki articles through the live API, mark them for Translate, and optionally create and import PO translations separately.
 ---
 
-# Create and Translate ShroudForge MediaWiki Articles
+# Publish ShroudForge MediaWiki Articles Online
 
-Work from the repository root and preserve existing changes. Use this skill for a new MediaWiki article or a migration from the offline Modloader Wiki. For a batch, keep one English source page and one Translate message group per article. The detailed, maintained procedure and commands are in [`docs/mediawiki-translate/README.md`](../../../../docs/mediawiki-translate/README.md).
+Create public MediaWiki articles directly through `https://wiki.shroudforge.net/api.php`. Keep permanent procedures and scripts in `dev/wiki/`. Keep article drafts, media, and PO files only in the ignored temporary workspace `target/wiki/<article-id>/`. Do not create an online Wiki article under `modules/wiki/articles/`, `docs/`, or another tracked content directory. `modules/wiki/articles/` belongs to the Modloader's separate offline help system.
 
-## Prepare the article
+Read [`dev/wiki/README.md`](../../../../dev/wiki/README.md) for the maintained commands and two publication methods.
 
-Inspect the English and localized files under `modules/wiki/articles/<id>/`. Reuse the article's existing title, text, illustration, and available translations. When migrating, compare the English source units with each local translation. Resolve missing, extra, or reordered units before preparing POs. Keep technical names, commands, paths, links, and code intact.
+## Method 1: English source page
 
-Use the ShroudForge page schema. Metadata, illustration, and categories stay outside `<translate>`. The English summary and article text stay inside it. Let Translate generate translation-unit markers and page subpages.
+1. Create a temporary workspace with `dev/wiki/new_article_workspace.ps1` or make `target/wiki/<article-id>/` manually.
+2. Write the English page to `en.wikitext` and place referenced image files in that workspace. Use the ShroudForge page schema. Metadata, illustration, and categories stay outside `<translate>`. The English summary and article text stay inside it.
+3. Run `dev/wiki/publish_article.ps1 -WhatIf` to review the page and MediaWiki actions.
+4. Run it without `-WhatIf` to upload missing images and the English source through the Action API, mark the page for translation, enable title translation, and set the accepted priority languages.
 
 ```wikitext
 <languages />
@@ -39,39 +42,22 @@ creator: Bonsaibauer
 [[Category:guide:Shroudforge]]
 ```
 
-Keep the metadata `picture:` value identical to the `File:` name. Use `[[Category:guide:Shroudforge]]` first. If an article needs a subject category, append it after the guide category. `Startup stops because asset backups are incompatible` also uses `[[Category:Problems:Shroudforge]]`. Shared metadata, images, and categories must not be placed inside the translated block.
+Keep the metadata `picture:` value identical to the `File:` name. Use `[[Category:guide:Shroudforge]]` first. Add subject categories after it when needed. The source language is `en-GB`. Supported priority languages are `de-at`, `de-ch`, `de`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv`, and `zh`. The Wiki rejects `en-US` as a priority language.
 
-## Write local PO translations
+Existing English pages are left unchanged by default. Pass `-UpdateExisting` only when the user explicitly asks to replace the live source text. The script uses `baserevid` and then marks the resulting revision.
 
-Translate the source text locally. Do not connect or call an external translation service unless the user explicitly asks for one. Use existing local article translations where they exist. For the other supported languages, add the translated units to `docs/mediawiki-translate/offline-translations.json` and generate the POs with the existing scripts.
+## Method 2: PO translations in a separate upload
 
-PO files live under `docs/mediawiki-translate/<article-id>/`. Preserve the live group's `X-Message-Group`, `X-Language-Code`, `msgctxt`, source strings, and every translation unit, including the translatable page title. Use the live Translate message collection as the authority for contexts. Check that each translation is paired with the intended English unit, not only that the entry counts match. Never invent contexts or silently drop a unit.
+After the source page is marked for translation, use `dev/wiki/create_po_templates.ps1` with the live group ID `page-<English title>`. It reads current message contexts and English source strings from the Wiki API and writes blank PO templates under the temporary article workspace. Never invent `msgctxt` values or rely on a local article export as the context authority.
 
-The current accepted target locales are `de-at`, `de-ch`, `de`, `es`, `fr`, `hi`, `it`, `ja`, `nl`, `pl`, `sv`, and `zh`. `en-GB` is the source language. The wiki rejects `en-US` as a priority language. Read `PRIORITY_LANGUAGES` in `docs/mediawiki-translate/build-pages.py` before adding or changing locales. German variants are generated from `de`, with `ß` converted to `ss` for `de-ch`.
+Fill every `msgstr` while preserving the group and language headers, contexts, source strings, and all units including the page title. Import each completed file separately with `dev/wiki/import_po.ps1`. The importer checks that the PO covers the current live group, verifies each source unit, submits it through `Special:ImportTranslations`, and confirms the saved translations.
 
-## Publish, mark, and import
+PO import requires the normal Wiki account with `translate-import`. A BotPassword cannot access the Special page. Store API and import credentials with `dev/wiki/configure_credentials.ps1`. Credentials remain encrypted under the Windows user profile. Never print or commit credentials, and never ask the user to paste a password into chat.
 
-Use the existing workflow rather than building a second importer:
+Translate creates language subpages through `TranslateRenderJob`. If all PO messages are saved but a language subpage is missing, report the queued-job condition. Do not create static language pages by hand. The Wiki host must process the Translate render jobs.
 
-```powershell
-pwsh -NoProfile -File docs/mediawiki-translate/run.ps1 -WhatIf
-pwsh -NoProfile -File docs/mediawiki-translate/run.ps1
-```
+## Media and offline help
 
-For one article, add `-ArticleId <article-id>`. The workflow prepares localized POs, fills local translations, builds English Wikitext and the manifest, publishes missing source pages and images, marks the source for translation with title translation enabled, applies the supported priority languages, then imports the POs through [Special:ImportTranslations](https://wiki.shroudforge.net/index.php/Special:ImportTranslations). `-WhatIf` avoids live wiki mutations but still regenerates local PO files and the manifest.
+The current Wiki upload allowlist accepts PNG, GIF, JPG, JPEG, WebP, and SVG. PDF upload is rejected. Link the original PDF or place rendered page images in the ignored temporary workspace.
 
-`publish.ps1` uses the locally stored bot API credential for page creation, file upload, and `pagetranslation`. It leaves existing article text unchanged. `import-po.ps1` uses the separately stored normal Wiki account with `translate-import`. A BotPassword cannot use the Special: page. Configure the normal account with:
-
-```powershell
-pwsh -NoProfile -File docs/mediawiki-translate/import-po.ps1 -ConfigureCredential
-```
-
-Credentials stay encrypted in the Windows user profile. Never print or commit them, and never ask the user to paste a password into chat. The PO import is a Special:ImportTranslations form workflow, not an Action API or XML import. Rights such as `import` and `importupload` are unrelated.
-
-## Verify rendered pages
-
-Verify the source group and `en-gb` source language, all expected priority languages, and every imported PO entry. Then check the actual language subpages such as `<English title>/de` and `<English title>/ja`. A successful PO import means Translate stored the message translations. It does not guarantee that the visible language subpages have rendered yet.
-
-Translate updates those pages with `TranslateRenderJob` through MediaWiki's server-side job queue. If the imported messages are present but language subpages are missing, do not create static `/de` or other language pages by hand and do not claim the task is complete. The Wiki API cannot run the server maintenance queue. A host administrator must inspect the job types with `php maintenance/run.php showJobs --group` and process the Translate render jobs with `maintenance/run.php runJobs`. See the job-queue section in the repository README for a bounded example.
-
-For offline Modloader article changes, follow [add-modloader-wiki-article](../add-modloader-wiki-article/SKILL.md). Do not confuse the older `docs/mediawiki-migration/` package with the current MediaWiki Translate workflow.
+For offline Modloader help articles, use [`add-modloader-wiki-article`](../add-modloader-wiki-article/SKILL.md). That workflow is separate from public online MediaWiki pages.

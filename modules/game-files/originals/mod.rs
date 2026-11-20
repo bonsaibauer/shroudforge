@@ -94,4 +94,4 @@ mod restore_original_game_files;
 pub use crate::read_game_file_status::management_status;
 pub use capture_original_game_files::{capture_verified_originals, ensure_originals};
 pub use read_original_backups::originals_status;
-pub use restore_original_game_files::restore_originals;
+pub use restore_original_game_files::{restore_originals, restore_originals_for_startup};

@@ -5,6 +5,45 @@ use super::{
 use crate::LoaderError;
 use std::path::Path;
 
+pub(crate) fn prepare_vanilla(game_directory: &Path) -> Result<(), LoaderError> {
+    let target = process_target_name(game_directory)?;
+    super::require_game_stopped::ensure_no_other_game_process(target, game_directory)?;
+    let other_target = if target == "enshrouded" {
+        "enshrouded_server"
+    } else {
+        "enshrouded"
+    };
+    super::require_game_stopped::ensure_no_other_game_process(other_target, game_directory)?;
+    #[cfg(windows)]
+    let _update_lease =
+        shroudforge_loader_config::update_queue_lock::acquire_queue_worker_mutex(game_directory)
+            .map_err(LoaderError::Pregame)?
+            .ok_or_else(|| {
+                LoaderError::Pregame("An update or game-file restoration is still running".into())
+            })?;
+    let _lease = startup_asset_lease(&shroudforge_loader_config::paths::startup_asset_lock(
+        game_directory,
+    ))?;
+    shroudforge_game_assets::transaction::recover(game_directory, target)
+        .map_err(|error| LoaderError::Pregame(error.to_string()))?;
+    let original = shroudforge_game_assets::originals::ensure_originals(game_directory, target)
+        .map_err(LoaderError::Pregame)?;
+    if original["status"] != "ready" {
+        return Err(LoaderError::Pregame(
+            "Verified original game files are unavailable for this build".into(),
+        ));
+    }
+    // A previous fingerprint must never describe the restored original files.
+    shroudforge_loader_config::config::write_document(
+        game_directory,
+        shroudforge_game_assets::documents::APPLIED,
+        &serde_json::json!({"schemaVersion": 1, "status": "preparing", "target": target}),
+    )
+    .map_err(LoaderError::Pregame)?;
+    shroudforge_game_assets::originals::restore_originals_for_startup(game_directory, target)
+        .map_err(LoaderError::Pregame)
+}
+
 pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     let game_directory = game_directory.as_ref();
     let file_name = process_target_name(game_directory)?;

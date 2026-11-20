@@ -12,6 +12,7 @@ pub(crate) struct Arguments {
     pub(crate) stop_name: Option<String>,
     pub(crate) desktop: bool,
     pub(crate) server: bool,
+    pub(crate) vanilla_session: bool,
 }
 
 pub(crate) fn arguments() -> Result<Arguments, Box<dyn std::error::Error>> {
@@ -119,5 +120,6 @@ pub(crate) fn arguments() -> Result<Arguments, Box<dyn std::error::Error>> {
         stop_name,
         desktop,
         server,
+        vanilla_session: values.iter().any(|value| value == "--vanilla-session"),
     })
 }

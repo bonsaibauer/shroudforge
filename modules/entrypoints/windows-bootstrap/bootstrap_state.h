@@ -60,7 +60,7 @@ void show_startup_error(const std::filesystem::path& root, const std::string& de
 void clear_runtime_heartbeat(const std::filesystem::path& root);
 void start_debug_console(const std::filesystem::path& root);
 void stop_debug_console();
-void start_modloader_ui(const std::filesystem::path& root);
+void start_modloader_ui(const std::filesystem::path& root, bool vanilla = false);
 void stop_modloader_ui();
 void start_world_editor_ui(const std::filesystem::path& root);
 void stop_world_editor_ui();

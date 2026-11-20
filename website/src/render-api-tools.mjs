@@ -1,10 +1,10 @@
-import { escapeHtml, renderSiteHeader } from './render-page.mjs'
+import { escapeHtml, renderSiteFooter, renderSiteHeader } from './render-page.mjs'
 import { renderToolsSidebar } from './render-tool-page.mjs'
 
 const referenceRoute = '/tools/modding/api-reference/'
 const playgroundRoute = '/tools/modding/api-playground/'
 
-function pageShell({ config, siteUrl, route, active, title, description, body }) {
+function pageShell({ config, siteUrl, generatedAt, route, active, title, description, body }) {
 	const canonicalUrl = new URL(route, siteUrl).href
 	return `<!doctype html>
 <html lang="en" data-theme="light">
@@ -33,6 +33,7 @@ function pageShell({ config, siteUrl, route, active, title, description, body })
 			${body}
 		</main>
 	</div>
+	${renderSiteFooter({ config, generatedAt })}
 </body>
 </html>\n`
 }
@@ -67,7 +68,7 @@ function taskCards() {
 	</section>`
 }
 
-export function renderApiReferencePage({ config, siteUrl }) {
+export function renderApiReferencePage({ config, siteUrl, generatedAt }) {
 	const body = `${apiIntro({
 		titleKey: 'apiReferenceTitle',
 		titleText: 'Browse the API',
@@ -88,6 +89,7 @@ export function renderApiReferencePage({ config, siteUrl }) {
 	return pageShell({
 		config,
 		siteUrl,
+		generatedAt,
 		route: referenceRoute,
 		active: 'api-reference',
 		title: 'Browse the ShroudForge Lua API',
@@ -96,7 +98,7 @@ export function renderApiReferencePage({ config, siteUrl }) {
 	})
 }
 
-export function renderApiPlaygroundPage({ config, siteUrl }) {
+export function renderApiPlaygroundPage({ config, siteUrl, generatedAt }) {
 	const body = `${apiIntro({
 		titleKey: 'apiPlaygroundTitle',
 		titleText: 'API calls',
@@ -131,6 +133,7 @@ export function renderApiPlaygroundPage({ config, siteUrl }) {
 	return pageShell({
 		config,
 		siteUrl,
+		generatedAt,
 		route: playgroundRoute,
 		active: 'api-playground',
 		title: 'ShroudForge API calls',

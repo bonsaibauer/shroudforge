@@ -1,2 +1,0 @@
-Articles in this category describe individual Enshrouded mod packages that are included with, compatible with, or historically documented by ShroudForge. Each package has its own `Mod:` article and clearly states its current status and installation scope.
-

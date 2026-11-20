@@ -27,14 +27,10 @@
 
 ## Welcome!
 
-ShroudForge is the loader that finds, checks, and starts mods for **Enshrouded**. A mod is a separate add-on that changes or adds something in the game. You can use mods made by other players, or create your own. Read [how ShroudForge works](https://bonsaibauer.github.io/shroudforge/en/#workings) for a clear explanation of how the loader and mods fit together.
+ShroudForge is the loader that finds, checks, and starts mods for **Enshrouded**. A mod is a separate add-on that changes or adds something in the game. You can use mods made by other players, or create your own. Read [how ShroudForge works](https://wiki.shroudforge.net/index.php/How_ShroudForge_works#from-mod-to-game) for a clear explanation of how the loader and mods fit together.
 
-New to mods? Start with the illustrated guide. It explains everything in simple steps, in English and German:
-
-- [English: install ShroudForge, add mods, and make your first mod](https://bonsaibauer.github.io/shroudforge/en/)
-- [Deutsch: ShroudForge einrichten, Mods hinzufügen und den ersten Mod bauen](https://bonsaibauer.github.io/shroudforge/de/)
-
-The guide includes separate instructions for your PC and game server, pictures of the Modloader, a first-mod lesson, and an interactive preview for mod settings.
+- [Quickstart: Install ShroudForge](https://wiki.shroudforge.net/index.php/Quickstart:_Shroudforge)
+- [Quickstart: Install ShroudForge on a Server](https://wiki.shroudforge.net/index.php/Quickstart:_Multiplayer)
 
 <p align="center">
   <a href="https://github.com/bonsaibauer/shroudforge/releases/latest"><img src="assets\shroudforge-banner-4-release-1.0.svg" width="100%" alt="ShroudForge 10 Support"></a>
@@ -80,8 +76,6 @@ Follow the mod creator's instructions. Unpack the mod download, then copy the mo
 
 Open the game, press **F9**, find the mod, and switch it on. Some mods need a game restart. Mods that change game files must prepare those changes before the game starts.
 
-Read the full [PC quickstart](https://bonsaibauer.github.io/shroudforge/en/#play) for screenshots and help with each step.
-
 ## Multiplayer server quickstart
 
 > [!NOTE]
@@ -122,20 +116,20 @@ Install ShroudForge and the mod on your PC and on the server.
 
 8. Start the server again.
 
-See the [English server guide](https://bonsaibauer.github.io/shroudforge/en/#server) or the [German server guide](https://bonsaibauer.github.io/shroudforge/de/#server) for the full Docker steps, including how to find and inspect an existing container before recreating it.
+See the [Server guide](https://wiki.shroudforge.net/index.php?title=Quickstart%3A_Multiplayer) for the full Docker steps, including how to find and inspect an existing container before recreating it.
 
 ## Make your first mod
 
 Start with the [mod template](docs/modding/starter-mod/README.md). It gives you the files for a small mod and explains what to change.
 
-The website's [first-mod lesson](https://bonsaibauer.github.io/shroudforge/en/#first) walks through a complete example. When you are ready, try the [mod settings guide](https://bonsaibauer.github.io/shroudforge/en/#manifests): edit an example on the left and see the Modloader-style preview on the right. It also shows how `extended.mod.json` exposes a setting and how Lua reads it with `shroudforge.settings.get`.
+The website's [first-mod lesson](https://wiki.shroudforge.net/index.php/Build_your_first_mod) walks through a complete example. When you are ready, try the [mod settings tool](https://shroudforge.net/tools/modding/mod-settings/): edit an example and see the Modloader-style preview. It also shows how `extended.mod.json` exposes a setting and how Lua reads it with `shroudforge.settings.get`.
 
-To look up functions or Enshrouded game information, open the [searchable API reference](https://bonsaibauer.github.io/shroudforge/en/#api).
+To look up functions or Enshrouded game information, open the [searchable API reference](https://shroudforge.net/tools/modding/api-reference/).
 
 
 ## Contribute translations
 
-Help bring ShroudForge to players worldwide by contributing translations in Fink. Submit your changes as a GitHub pull request. Read the [translation guide](modules/wiki/articles/translations/en.md) for the steps.
+Help bring ShroudForge to players worldwide by contributing translations in Fink. Submit your changes as a GitHub pull request. Read the [translation guide](https://wiki.shroudforge.net/index.php/Translate_the_Modloader) for the steps.
 
 [![Help bring ShroudForge to players worldwide. Contribute translations in Fink and submit a pull request on GitHub.](modules/wiki/articles/translations/illustration.svg)](https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang)
 
@@ -172,6 +166,10 @@ target/                     # Cargo build output
 ~~~
 
 ## License and support
+
+> [!NOTE]
+> ShroudForge is a community project for Enshrouded. Unofficial fan project. Not affiliated with or endorsed by Keen Games. Enshrouded and its content are the property of Keen Games GmbH.
+> According to the [Enshrouded Fan-Project-Guidelines_v.2611](https://seafile.keengames.com/f/fb6dd5e1ca764daf9a99/)
 
 ShroudForge is shared under the [MIT License](https://github.com/bonsaibauer/shroudforge/blob/main/LICENSE).
 
