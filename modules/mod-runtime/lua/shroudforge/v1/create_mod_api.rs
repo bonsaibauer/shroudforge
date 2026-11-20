@@ -260,7 +260,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     let notifications = lua.create_table()?;
     notifications.raw_set(
         "publish",
-        lua.create_function(move |_, notice: Table| {
+        lua.create_function(move |lua, notice: Table| {
             let id = notice.get::<String>("id")?;
             let title = notice.get::<String>("title")?;
             let message = notice.get::<String>("message")?;
@@ -281,15 +281,22 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             }
             let namespaced_id = format!("{mod_id}.{id}");
             let payload = json!({
-                "id": namespaced_id,
+                "id": &namespaced_id,
                 "modId": mod_id,
-                "title": title,
-                "message": message,
-                "level": level,
+                "title": &title,
+                "message": &message,
+                "level": &level,
                 "actionUrl": action_url,
                 "updatedAt": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
             });
-            shroudforge_news::write_event(&game_dir, &format!("{mod_id}-{id}"), &payload).map_err(mlua::Error::external)?;
+            crate::notice_protocol::persist_then_mirror(
+                || shroudforge_news::write_event(&game_dir, &format!("{mod_id}-{id}"), &payload),
+                || {
+                    if lua.app_data_ref::<crate::session::AppState>().is_some_and(|state| !state.is_server()) {
+                        shroudforge_runtime_bridge::publish_notification(&namespaced_id, &title, &message, &level)
+                    } else { 3 }
+                },
+            ).map_err(mlua::Error::external)?;
             Ok(())
         })?,
     )?;

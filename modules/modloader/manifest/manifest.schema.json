@@ -93,7 +93,12 @@
           "patch",
           "export",
           "runtime",
-          "runtime-register-dll"
+          "runtime-register-dll",
+          "runtime-engine-hooks",
+          "runtime-executable-spans",
+          "runtime-executable-span-validation",
+          "runtime-map",
+          "runtime-overlay"
         ]
       }
     }

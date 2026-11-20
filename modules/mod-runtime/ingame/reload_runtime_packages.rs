@@ -27,6 +27,19 @@ impl IngameRuntime {
                 .app_data_ref::<AppState>()
                 .unwrap()
                 .set_runtime_mod_active(&item.id, false);
+            let native_stop = self
+                .runner
+                .lua
+                .app_data_ref::<AppState>()
+                .unwrap()
+                .stop_native_plugin(&item.id);
+            if let Err(error) = native_stop {
+                let mod_id = item.id.clone();
+                self.restore_previous_runtime(&previously_active);
+                return Err(format!(
+                    "mod '{mod_id}' native plugin teardown prevented package refresh: {error}"
+                ));
+            }
         }
 
         let game_path = self

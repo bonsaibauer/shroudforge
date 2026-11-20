@@ -340,6 +340,11 @@ pub enum Capability {
     Patch,
     Runtime,
     RuntimeRegisterDll,
+    RuntimeEngineHooks,
+    RuntimeExecutableSpans,
+    RuntimeExecutableSpanValidation,
+    RuntimeMap,
+    RuntimeOverlay,
 }
 
 impl Capability {
@@ -350,6 +355,15 @@ impl Capability {
 
     /// EML native DLL registration participates in the live runtime lifecycle.
     pub fn requires_runtime(self) -> bool {
-        matches!(self, Self::Runtime | Self::RuntimeRegisterDll)
+        matches!(
+            self,
+            Self::Runtime
+                | Self::RuntimeRegisterDll
+                | Self::RuntimeEngineHooks
+                | Self::RuntimeExecutableSpans
+                | Self::RuntimeExecutableSpanValidation
+                | Self::RuntimeMap
+                | Self::RuntimeOverlay
+        )
     }
 }

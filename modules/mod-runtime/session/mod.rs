@@ -42,6 +42,9 @@ pub struct AppState {
     runtime_write_fault: RefCell<Option<(u64, String)>>,
     runtime_ownership:
         Rc<RefCell<crate::lua::ingame::overrides::claim_runtime_storage::OwnershipStore>>,
+    native_dlls: RefCell<Vec<native_plugins::NativeDll>>,
+    pending_native_dlls: RefCell<Vec<native_plugins::PendingNativeDll>>,
+    native_plugin_services: RefCell<Arc<dyn native_plugin_abi::NativePluginServiceLifetime>>,
     env: ModEnvironment,
     api: ShroudForgeApi,
     config: AppConfig,
@@ -59,6 +62,11 @@ pub struct AppState {
     reader: RefCell<Option<KFCCursor<KFCReader>>>,
     writer: RefCell<Option<KFCWriter<Rc<KFCFile>, Rc<TypeRegistry>>>>,
     asset_transaction: Cell<bool>,
+    generated_asset_transaction: bool,
+    defer_current_commit: bool,
+    prepared_asset_output: bool,
+    asset_input_root: std::path::PathBuf,
+    asset_output_root: std::path::PathBuf,
     asset_stem: String,
 
     // NOTE: the `Vec<u8>` must always be treated as immutable
@@ -207,7 +215,8 @@ impl AppState {
 
 impl Drop for AppState {
     fn drop(&mut self) {
-        if self.asset_transaction.get() {
+        self.shutdown_native_dlls();
+        if self.asset_transaction.get() && !self.prepared_asset_output {
             // Struct fields drop only after this body, so the handles must be
             // closed explicitly before the rollback replaces any file.
             self.reader.get_mut().take();
@@ -223,11 +232,33 @@ impl Drop for AppState {
 }
 
 mod asset_resources;
+#[cfg(test)]
+pub(crate) mod asset_tests;
 pub(crate) mod configure_component_contract;
 mod create_mod_session;
 pub(crate) mod loaded_resource_indexes;
 mod loaded_resources;
+mod map_overlay_services;
+mod native_plugin_abi;
+mod native_plugin_lifecycle;
 mod native_plugins;
+mod validate_generated_assets;
+pub use native_plugins::native_overlay_startup_demand;
+pub(crate) use native_plugins::{
+    discard_staged_native_plugins,
+    dispatch_published_entry_restored_callbacks as dispatch_selected_native_plugins_entry_restored,
+    finalize_entry_restored_callbacks as finalize_selected_native_plugins_entry_restored,
+    load_selected_native_plugins, prepare_selected_native_plugins, selected_native_plugin_services,
+    selected_native_plugins_adopted, stage_selected_native_plugins_before_entry,
+};
+
+pub(crate) fn new_native_plugin_service_lifetime(
+    env: &ModEnvironment,
+    is_server: bool,
+) -> Arc<dyn native_plugin_abi::NativePluginServiceLifetime> {
+    Arc::new(map_overlay_services::MapOverlayServices::new(env, is_server))
+}
+
 mod record_runtime_state;
 pub(crate) use asset_resources::ContentReadPermit;
 pub use asset_resources::ResourceInfo;
