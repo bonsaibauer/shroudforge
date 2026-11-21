@@ -112,6 +112,11 @@ pub fn validate_hotkey_configuration(
     config: &Value,
     changed_mod: Option<(&str, &Value, Option<bool>)>,
 ) -> Result<(), String> {
+    // A Dedicated Server reads no keyboard: its shortcuts cannot conflict,
+    // and a mod enabled from the Server view must not be refused for them.
+    if crate::paths::is_dedicated_server(root) {
+        return Ok(());
+    }
     let previous_config = crate::config::read_loader(root)?;
     let mut bindings = Vec::new();
     let protected = protected_hotkeys(config);
@@ -363,4 +368,60 @@ fn assess_binding(
         None => HotkeyAssessment::Allowed,
         Some(ProtectedHotkeyPolicy::Cancel) => unreachable!("cancel policy returned above"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An installation with the World Editor module on F2 and a disabled mod
+    /// with a shortcut on F2, the game's executable named `game`.
+    fn installation(game: &str) -> std::path::PathBuf {
+        let root = std::env::temp_dir()
+            .join(format!("shroudforge-hotkeys-{game}-{}", uuid_like()));
+        let config_dir = shroudforge_loader_config::paths::config_dir(&root);
+        fs::create_dir_all(&config_dir).unwrap();
+        fs::write(root.join(game), b"").unwrap();
+        fs::write(
+            config_dir.join("modloader-config.json"),
+            br#"{"schemaVersion":1,"modules":{"worldEditor":{"enabled":true,"toggleKey":"SDL:59"}}}"#,
+        )
+        .unwrap();
+        let package = shroudforge_loader_config::paths::mods_dir(&root).join("ring");
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(
+            package.join("mod.json"),
+            br#"{"id":"ring","name":"Ring","version":"1.0.0"}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("extended.mod.json"),
+            br#"{"schemaVersion":1,"enabled":false,"settings":{"keyRing":{"value":"SDL:59","label":"Ring","control":"keybind"}}}"#,
+        )
+        .unwrap();
+        fs::write(package.join("src").join("mod.lua"), b"return {}\n").unwrap();
+        root
+    }
+
+    fn uuid_like() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    }
+
+    #[test]
+    fn a_dedicated_server_does_not_check_shortcut_conflicts() {
+        for (game, refused) in [("enshrouded.exe", true), ("enshrouded_server.exe", false)] {
+            let root = installation(game);
+            let config = crate::config::read_loader(&root).unwrap();
+            let result = validate_hotkey_configuration(
+                &root,
+                &config,
+                Some(("ring", &serde_json::json!({}), Some(true))),
+            );
+            assert_eq!(result.is_err(), refused, "{game}: {result:?}");
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
 }
