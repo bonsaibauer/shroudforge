@@ -233,6 +233,7 @@ impl ModEnvironment {
             server: bool,
             include_disabled: bool,
             version: &semver::Version,
+            release: Option<&semver::Version>,
             visiting: &mut HashSet<String>,
             done: &mut HashSet<String>,
             order: &mut Vec<&'a crate::Mod>,
@@ -257,6 +258,24 @@ impl ModEnvironment {
                 return Err(format!("{id}: wrong process target"));
             }
             for dependency in &item.info().dependencies {
+                if dependency.id == crate::SHROUDFORGE_RELEASE_DEPENDENCY {
+                    match release {
+                        Some(release) if dependency.version.matches(release) => {}
+                        Some(release) => {
+                            return Err(format!(
+                                "{id}: incompatible ShroudForge {release}, requires {}",
+                                dependency.version
+                            ));
+                        }
+                        None => {
+                            return Err(format!(
+                                "{id}: incompatible ShroudForge release (unknown), requires {}",
+                                dependency.version
+                            ));
+                        }
+                    }
+                    continue;
+                }
                 if dependency.id == "shroudforge-api" {
                     if !dependency.version.matches(version) {
                         return Err(format!("{id}: incompatible API dependency"));
@@ -282,6 +301,7 @@ impl ModEnvironment {
                     server,
                     include_disabled,
                     version,
+                    release,
                     visiting,
                     done,
                     order,
@@ -293,6 +313,7 @@ impl ModEnvironment {
             Ok(())
         }
         let version = semver::Version::parse(api_version).expect("API version is semver");
+        let release = crate::installed_release(self.game_dir().as_std_path());
         let mut ids: Vec<_> = if include_disabled {
             self.mod_registry()
                 .values()
@@ -325,6 +346,7 @@ impl ModEnvironment {
                 is_server,
                 include_disabled,
                 &version,
+                release.as_ref(),
                 &mut HashSet::new(),
                 &mut done,
                 &mut order,
@@ -341,6 +363,63 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;
+
+    #[test]
+    fn a_mod_requires_a_shroudforge_release() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("shroudforge-release-plan-{suffix}"));
+        fs::create_dir_all(shroudforge_loader_config::paths::config_dir(&root)).unwrap();
+        fs::write(
+            shroudforge_loader_config::paths::config_dir(&root).join("modloader-config.json"),
+            br#"{"schemaVersion":1,"logging":{"minimumLevel":"INFO"},"modules":{}}"#,
+        )
+        .unwrap();
+        fs::write(
+            shroudforge_loader_config::paths::version_file(&root),
+            br#"{"version":"1.8.1"}"#,
+        )
+        .unwrap();
+        for (id, requirement) in [("mod.current", ">=1.8.1"), ("mod.future", ">=1.9.0")] {
+            let package = shroudforge_loader_config::paths::mods_dir(&root).join(id);
+            fs::create_dir_all(package.join("src")).unwrap();
+            fs::write(
+                package.join("mod.json"),
+                serde_json::to_vec(&serde_json::json!({
+                    "id": id,
+                    "name": id,
+                    "version": "1.0.0",
+                    "dependencies": [{"id": "shroudforge", "version": requirement}],
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            fs::write(
+                package.join("extended.mod.json"),
+                br#"{"schemaVersion":1,"enabled":true}"#,
+            )
+            .unwrap();
+            fs::write(package.join("src/mod.lua"), "return {}\n").unwrap();
+        }
+
+        let environment = ModEnvironment::load(root.to_str().unwrap()).unwrap();
+        let (plan, issues) = environment.plan_report_detailed(false, "1.0.0");
+        assert!(plan.iter().any(|item| item.info().id == "mod.current"));
+        assert!(!plan.iter().any(|item| item.info().id == "mod.future"));
+        let issue = issues.iter().find(|issue| issue.mod_id == "mod.future").unwrap();
+        assert_eq!(issue.code, "dependency-version");
+        assert!(
+            issue
+                .detail
+                .contains("incompatible ShroudForge 1.8.1, requires >=1.9.0"),
+            "{}",
+            issue.detail
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn disabled_mods_remain_installed_but_are_not_enabled() {

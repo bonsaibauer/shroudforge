@@ -2541,10 +2541,17 @@ fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, 
                     let dependency_id = dependency["id"].as_str().unwrap_or_default();
                     let requirement = dependency["version"].as_str().unwrap_or_default();
                     let optional = dependency["optional"].as_bool().unwrap_or(false);
-                    let candidate = installed.get(dependency_id);
+                    let mut candidate = installed
+                        .get(dependency_id)
+                        .map(|(version, enabled)| (version.clone(), *enabled));
                     let status = if dependency_id == "shroudforge-api" {
                         "loader-api"
-                    } else if let Some((installed_version, enabled)) = candidate {
+                    } else if dependency_id == mod_loader::SHROUDFORGE_RELEASE_DEPENDENCY {
+                        let (status, release) =
+                            mod_loader::release_dependency_status(root, requirement);
+                        candidate = Some((release, true));
+                        status
+                    } else if let Some((installed_version, enabled)) = &candidate {
                         match semver::VersionReq::parse(requirement)
                             .ok()
                             .zip(semver::Version::parse(installed_version).ok())

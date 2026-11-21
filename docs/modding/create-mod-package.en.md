@@ -89,6 +89,10 @@ disabled, incompatible, conflicting, or cyclic dependencies per mod. A blocked
 mod is skipped while the game can continue to start. Runtime mods also require
 their mandatory dependencies to be active before lifecycle callbacks run. The
 special id `shroudforge-api` checks the installed ShroudForge Lua API version.
+The special id `shroudforge` checks the installed ShroudForge release, for
+example `{ "id": "shroudforge", "version": ">=1.8.1" }` for a mod that uses
+functions first published in 1.8.1. A mod whose requirement does not match is
+blocked, and its Dependencies tab shows the installed release.
 Dependencies express planning and availability requirements; they do not
 automatically export functions or create shared globals. Cross-mod module
 loading uses the existing `require("mods.<id>.<module>")` support separately.

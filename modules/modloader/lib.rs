@@ -72,6 +72,10 @@ pub mod config {
 pub mod compatibility_status;
 mod installed_version;
 pub use installed_version::installed_version;
+mod require_shroudforge_release;
+pub use require_shroudforge_release::{
+    SHROUDFORGE_RELEASE_DEPENDENCY, installed_release, release_dependency_status,
+};
 pub mod multiplayer_compatibility;
 pub use multiplayer_compatibility::*;
 pub use shroudforge_loader_config::paths;

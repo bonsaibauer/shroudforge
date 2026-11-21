@@ -85,9 +85,15 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
                     .get("optional")
                     .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false);
-                let installed_version = installed.get(&id).map(|(version, _)| version.clone());
+                let mut installed_version =
+                    installed.get(&id).map(|(version, _)| version.clone());
                 let status = if id == "shroudforge-api" {
                     "loader-api"
+                } else if id == shroudforge_package::SHROUDFORGE_RELEASE_DEPENDENCY {
+                    let (status, release) =
+                        shroudforge_package::release_dependency_status(root, &version);
+                    installed_version = Some(release);
+                    status
                 } else if let Some((candidate_version, enabled)) = installed.get(&id) {
                     match semver::VersionReq::parse(&version)
                         .ok()
