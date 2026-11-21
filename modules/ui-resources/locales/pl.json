@@ -242,6 +242,7 @@
   "compatibility.tab.multiplayerVersions": "Wersje wieloosobowe",
   "compatibility.section.multiplayerVersions": "Wersje wieloosobowe",
   "compatibility.section.multiplayerVersions.description": "Porównuje wersję Modloadera serwera i aktywne wspólne mody z każdym połączonym klientem.",
+  "compatibility.section.multiplayerVersions.clientDescription": "Porównuje wersję Modloadera i wspólne mody tej gry z serwerem, do którego dołączyła, tak jak zgłasza je serwer.",
   "compatibility.multiplayerVersions.empty": "Brak połączonych klientów.",
   "compatibility.multiplayerVersions.loader": "Modloader {version}",
   "compatibility.multiplayerVersions.reportPending": "Oczekiwanie na raport wersji od {player}.",

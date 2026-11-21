@@ -242,6 +242,7 @@
   "compatibility.tab.multiplayerVersions": "मल्टीप्लेयर संस्करण",
   "compatibility.section.multiplayerVersions": "मल्टीप्लेयर संस्करण",
   "compatibility.section.multiplayerVersions.description": "सर्वर के Modloader संस्करण और सक्रिय साझा मॉड की तुलना हर जुड़े क्लाइंट से करता है।",
+  "compatibility.section.multiplayerVersions.clientDescription": "इस गेम के Modloader संस्करण और साझा mods की तुलना उस सर्वर से करता है जिससे यह जुड़ा है, जैसा सर्वर बताता है।",
   "compatibility.multiplayerVersions.empty": "कोई क्लाइंट जुड़ा नहीं है।",
   "compatibility.multiplayerVersions.loader": "Modloader {version}",
   "compatibility.multiplayerVersions.reportPending": "{player} की संस्करण रिपोर्ट की प्रतीक्षा है।",

@@ -111,6 +111,10 @@ pub fn diagnostic_jobs_dir(root: &Path) -> PathBuf {
 pub fn startup_asset_lock(root: &Path) -> PathBuf {
     runtime_dir(root).join("startup-assets.lock")
 }
+/// The Dedicated Server's version check of this player, as the server sent it.
+pub fn server_versions_file(root: &Path) -> PathBuf {
+    runtime_dir(root).join("server-versions.json")
+}
 pub fn runtime_dir(root: &Path) -> PathBuf {
     configured_dir(root, "runtime")
         .or_else(|| default_directory(root, "runtime"))

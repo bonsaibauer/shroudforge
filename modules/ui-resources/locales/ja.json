@@ -242,6 +242,7 @@
   "compatibility.tab.multiplayerVersions": "マルチプレイヤーのバージョン",
   "compatibility.section.multiplayerVersions": "マルチプレイヤーのバージョン",
   "compatibility.section.multiplayerVersions.description": "サーバーの Modloader バージョンと有効な共有 MOD を、接続中の各クライアントと比較します。",
+  "compatibility.section.multiplayerVersions.clientDescription": "このゲームのModloaderのバージョンと共有Modを、参加したサーバーが報告する内容と比較します。",
   "compatibility.multiplayerVersions.empty": "接続中のクライアントはいません。",
   "compatibility.multiplayerVersions.loader": "Modloader {version}",
   "compatibility.multiplayerVersions.reportPending": "{player} のバージョンレポートを待っています。",

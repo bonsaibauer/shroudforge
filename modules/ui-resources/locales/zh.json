@@ -242,6 +242,7 @@
   "compatibility.tab.multiplayerVersions": "多人游戏版本",
   "compatibility.section.multiplayerVersions": "多人游戏版本",
   "compatibility.section.multiplayerVersions.description": "将服务器的 Modloader 版本和已启用的共享模组与每个已连接客户端进行比较。",
+  "compatibility.section.multiplayerVersions.clientDescription": "将本游戏的 Modloader 版本和共享模组与所加入的服务器进行比较，以服务器报告的内容为准。",
   "compatibility.multiplayerVersions.empty": "没有已连接的客户端。",
   "compatibility.multiplayerVersions.loader": "Modloader {version}",
   "compatibility.multiplayerVersions.reportPending": "正在等待 {player} 的版本报告。",

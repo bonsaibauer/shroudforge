@@ -355,6 +355,7 @@ fn symbol(name: &[u8]) -> Option<*const ()> {
 #[path = "lua/network.rs"]
 pub mod lua;
 
+mod record_server_versions;
 mod remote_ui;
 pub use remote_ui::tick as service_remote_ui;
 mod local_bridge;

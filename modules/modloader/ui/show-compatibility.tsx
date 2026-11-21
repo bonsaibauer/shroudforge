@@ -147,7 +147,11 @@ export function Compatibility({
     isTargetUiVisible('modules', module, target, data.settings.targetUi)
   const allowedTabs: CompatibilityTab[] = []
   if (moduleVisible('modDetection')) allowedTabs.push('mod-detection', 'dependencies')
-  if (target === 'server' && moduleVisible('network')) allowedTabs.push('multiplayer-versions')
+  // A player sees the server's check of their own versions once the game
+  // received it from a Dedicated Server.
+  if (moduleVisible('network') && (target === 'server' || multiplayerVersionsCheck(data))) {
+    allowedTabs.push('multiplayer-versions')
+  }
   if (moduleVisible('dllManager')) allowedTabs.push('dll-manager')
   if (moduleVisible('modloaderUi')) allowedTabs.push('hotkeys')
   if (moduleVisible('runtimeDiagnostics')) allowedTabs.push('engine')
@@ -613,7 +617,9 @@ export function Compatibility({
               <div>
                 <h3>{t('compatibility.section.multiplayerVersions')}</h3>
                 <p className="hint">
-                  {t('compatibility.section.multiplayerVersions.description')}
+                  {t(target === 'server'
+                    ? 'compatibility.section.multiplayerVersions.description'
+                    : 'compatibility.section.multiplayerVersions.clientDescription')}
                 </p>
                 <small>{t('compatibility.multiplayerVersions.loader', {
                   version: data.version,

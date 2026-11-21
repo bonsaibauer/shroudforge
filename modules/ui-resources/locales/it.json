@@ -242,6 +242,7 @@
   "compatibility.tab.multiplayerVersions": "Versioni multigiocatore",
   "compatibility.section.multiplayerVersions": "Versioni multigiocatore",
   "compatibility.section.multiplayerVersions.description": "Confronta la versione del Modloader e le mod condivise attive del server con ogni client connesso.",
+  "compatibility.section.multiplayerVersions.clientDescription": "Confronta la versione del Modloader e le mod condivise di questo gioco con il server a cui si è unito, come le riporta il server.",
   "compatibility.multiplayerVersions.empty": "Nessun client connesso.",
   "compatibility.multiplayerVersions.loader": "Modloader {version}",
   "compatibility.multiplayerVersions.reportPending": "In attesa del rapporto di {player}.",
