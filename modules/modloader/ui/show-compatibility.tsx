@@ -149,9 +149,9 @@ export function Compatibility({
   if (moduleVisible('modDetection')) allowedTabs.push('mod-detection', 'dependencies')
   // A player sees the server's check of their own versions once the game
   // received it from a Dedicated Server.
-  if (moduleVisible('network') && (target === 'server' || multiplayerVersionsCheck(data))) {
-    allowedTabs.push('multiplayer-versions')
-  }
+  const multiplayerVersionsTab = moduleVisible('network')
+    && (target === 'server' || multiplayerVersionsCheck(data) != null)
+  if (multiplayerVersionsTab) allowedTabs.push('multiplayer-versions')
   if (moduleVisible('dllManager')) allowedTabs.push('dll-manager')
   if (moduleVisible('modloaderUi')) allowedTabs.push('hotkeys')
   if (moduleVisible('runtimeDiagnostics')) allowedTabs.push('engine')
@@ -470,7 +470,7 @@ export function Compatibility({
             />,
           ],
           ] : []),
-          ...(target === 'server' && moduleVisible('network') ? [
+          ...(multiplayerVersionsTab ? [
           [
             'multiplayer-versions',
             <CompatibilityTabLabel
