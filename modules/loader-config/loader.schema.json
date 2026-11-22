@@ -1193,6 +1193,7 @@
         "news": { "type": "boolean" },
         "compatibility": { "type": "boolean" },
         "settings": { "type": "boolean" },
+        "server-management": { "type": "boolean" },
         "wiki": { "type": "boolean" },
         "discover": { "type": "boolean" },
         "installed": { "type": "boolean" },

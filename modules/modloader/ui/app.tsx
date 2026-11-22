@@ -269,9 +269,7 @@ export function App() {
     [settings.targetUi],
   )
   const pageVisible = (id: PageId, target: 'client' | 'server' = remoteTarget) =>
-    (id === 'server-management'
-      ? target === 'server'
-      : isTargetUiVisible('pages', id, target, targetUi)) &&
+    isTargetUiVisible('pages', id, target, targetUi) &&
     (id !== 'compatibility' ||
       ['modDetection', 'dllManager', 'modloaderUi', 'runtimeDiagnostics'].some((module) =>
         isTargetUiVisible('modules', module, target, targetUi),
