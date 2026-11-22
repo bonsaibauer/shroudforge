@@ -65,55 +65,7 @@ struct HandleRecord {
     std::uintptr_t table_slot{};
 };
 
-// Read batches reuse page observations only inside this one owner operation.
-// SEH still protects every actual payload copy. Each observed region must be
-// queried again with identical properties before any output is published.
-struct ReadRegionCache {
-    struct Region {
-        MEMORY_BASIC_INFORMATION memory{};
-        std::uintptr_t begin{}, end{};
-    };
-    std::array<Region, 64> regions{};
-    std::size_t count{};
-
-    static bool covers(const MEMORY_BASIC_INFORMATION& memory, std::uintptr_t address, std::size_t size) {
-        const auto base = reinterpret_cast<std::uintptr_t>(memory.BaseAddress);
-        return memory.State == MEM_COMMIT && !(memory.Protect & (PAGE_GUARD | PAGE_NOACCESS)) &&
-            memory.RegionSize <= UINTPTR_MAX - base && address >= base &&
-            address - base <= memory.RegionSize && size <= memory.RegionSize - (address - base);
-    }
-    bool check(std::uintptr_t address, std::size_t size) {
-        if (!address || !size || address > UINTPTR_MAX - size) return false;
-        for (std::size_t index = 0; index < count; ++index) {
-            auto& region = regions[index];
-            if (!covers(region.memory, address, size)) continue;
-            region.begin = (std::min)(region.begin, address);
-            region.end = (std::max)(region.end, address + size);
-            return true;
-        }
-        MEMORY_BASIC_INFORMATION memory{};
-        if (!VirtualQuery(reinterpret_cast<const void*>(address), &memory, sizeof(memory)) ||
-            !covers(memory, address, size) || count == regions.size()) return false;
-        regions[count++] = {memory, address, address + size};
-        return true;
-    }
-    bool revalidate() const {
-        for (std::size_t index = 0; index < count; ++index) {
-            const auto& region = regions[index];
-            MEMORY_BASIC_INFORMATION memory{};
-            if (!VirtualQuery(reinterpret_cast<const void*>(region.begin), &memory, sizeof(memory)) ||
-                !covers(memory, region.begin, region.end - region.begin) ||
-                memory.BaseAddress != region.memory.BaseAddress ||
-                memory.AllocationBase != region.memory.AllocationBase ||
-                memory.AllocationProtect != region.memory.AllocationProtect ||
-                memory.RegionSize != region.memory.RegionSize || memory.State != region.memory.State ||
-                memory.Protect != region.memory.Protect || memory.Type != region.memory.Type) return false;
-        }
-        return true;
-    }
-};
-
-bool readable(std::uintptr_t address, std::size_t size, ReadRegionCache* regions = nullptr);
+bool readable(std::uintptr_t address, std::size_t size);
 
 bool guarded_copy(void* destination, const void* source, std::size_t size);
 
@@ -149,8 +101,7 @@ bool component_presence(const EntityView& entity, const ResolvedLayout& layout,
 bool component_present(const EntityView& entity, const ResolvedLayout& layout, const ComponentType& component);
 
 bool component_address(const EntityView& entity, const ResolvedLayout& layout,
-                       const ComponentType& component, std::uintptr_t& address, bool check_page = true,
-                       ReadRegionCache* regions = nullptr);
+                       const ComponentType& component, std::uintptr_t& address, bool check_page = true);
 
 bool resolve_component(const char* name, ComponentType& component);
 
