@@ -131,7 +131,7 @@ To look up functions or Enshrouded game information, open the [searchable API re
 
 Help bring ShroudForge to players worldwide by contributing translations in Fink. Submit your changes as a GitHub pull request. Read the [translation guide](https://wiki.shroudforge.net/index.php/Translate_the_Modloader) for the steps.
 
-[![Help bring ShroudForge to players worldwide. Contribute translations in Fink and submit a pull request on GitHub.](modules/wiki/articles/translations/illustration.svg)](https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang)
+[![Help bring ShroudForge to players worldwide. Contribute translations in Fink and submit a pull request on GitHub.](assets/ShroudForge-Wiki-translations.svg)](https://fink.inlang.com/?repo=bonsaibauer/shroudforge&project=modules/ui-resources/project.inlang)
 
 ## Repository structure
 
