@@ -5,6 +5,7 @@ export const TARGET_UI_PAGES = [
   'news',
   'compatibility',
   'settings',
+  'server-management',
   'wiki',
   'discover',
   'installed',
@@ -31,7 +32,7 @@ export type TargetUiModule = (typeof TARGET_UI_MODULES)[number]
 export const DEFAULT_UI_TARGET_SETTINGS: UiTargetSettings = {
   visibility: {
     client: {
-      pages: Object.fromEntries(TARGET_UI_PAGES.map((page) => [page, true])) as Record<TargetUiPage, boolean>,
+      pages: Object.fromEntries(TARGET_UI_PAGES.map((page) => [page, page !== 'server-management'])) as Record<TargetUiPage, boolean>,
       modules: Object.fromEntries(TARGET_UI_MODULES.map((module) => [module, true])) as Record<TargetUiModule, boolean>,
     },
     server: {
@@ -40,6 +41,7 @@ export const DEFAULT_UI_TARGET_SETTINGS: UiTargetSettings = {
         news: true,
         compatibility: true,
         settings: true,
+        'server-management': true,
         wiki: false,
         discover: false,
         installed: true,
@@ -88,6 +90,7 @@ export function isTargetUiVisible(
   settings?: UiTargetSettings,
 ): boolean {
   if (type === 'pages' && id === 'settings') return true
+  if (type === 'pages' && id === 'server-management' && target === 'client') return false
   const resolved = resolveUiTargetSettings(settings)
   return resolved.visibility[target][type][id] ?? (type !== 'pages' || id !== 'wiki')
 }

@@ -418,16 +418,8 @@ body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-g
 @media(prefers-reduced-motion:reduce){.remote-target button.server-target::after{animation:none;--remote-server-glint-angle:35deg}.remote-target.server-selected button.server-target[aria-pressed="true"]{box-shadow:0 0 0 1px rgba(255,225,157,.58),0 0 8px 2px rgba(235,185,76,.42)}}
 .mod-links .header-link.discord{--header-color:#b4baff;--header-border:rgba(88,101,242,.48);--header-bg:rgba(55,63,145,.3)}.mod-links .header-link.youtube{--header-color:#ff9c9c;--header-border:rgba(255,72,72,.42);--header-bg:rgba(112,28,28,.28)}
 
-.server-management-tabs{display:flex;gap:8px;margin:22px 0 14px;border-bottom:1px solid var(--sf-line)}
-.server-management-tab{padding:10px 14px;border:0;border-bottom:2px solid var(--sf-gold-bright);color:var(--sf-text);background:transparent;font:600 12px var(--sf-font)}
-.server-rights-page{display:grid;gap:14px;padding-bottom:28px}
-.server-rights-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}
-.server-rights-heading h2,.server-rights-heading h3{margin:0;color:var(--sf-text);font:600 16px var(--sf-font)}
-.server-rights-heading h3{font-size:13px}
-.server-rights-heading p{max-width:760px;margin:5px 0 0;color:var(--sf-muted);font-size:12px;line-height:1.55}
-.server-rights-section-heading{margin-top:8px}
-.server-rights-empty{margin:0;padding:18px;border:1px solid var(--sf-line);border-radius:10px;color:var(--sf-muted);background:rgba(10,18,22,.55);font-size:12px}
-.server-rights-table-wrap{max-width:100%;overflow:auto;border:1px solid var(--sf-line);border-radius:10px;background:rgba(10,18,22,.55)}
+.server-rights-actions{display:flex;align-items:center;gap:10px}
+.server-rights-table-wrap{max-width:100%;overflow:auto;background:linear-gradient(145deg,rgba(22,36,41,.78),rgba(12,22,26,.76))}
 .server-rights-table{width:100%;border-collapse:collapse;font-size:11px}
 .server-rights-table th,.server-rights-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.07);text-align:center;white-space:nowrap}
 .server-rights-table thead th{position:sticky;top:0;color:var(--sf-muted);background:#111b20;font-size:10px;font-weight:600}
@@ -443,7 +435,7 @@ body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-g
 .server-rights-value{color:var(--sf-muted);font-weight:700}
 .server-rights-value.is-enabled{color:var(--sf-green,#8fcf9c)}
 .server-rights-admin{display:block;width:max-content;max-width:100%;margin-top:3px;padding:2px 6px;border:1px solid rgba(235,190,96,.28);border-radius:20px;color:var(--sf-gold-bright);font-size:9px;font-weight:600}
-@media(max-width:760px){.server-rights-heading{align-items:flex-start}.server-rights-table th,.server-rights-table td{padding:8px 7px}}
+@media(max-width:760px){.server-rights-table th,.server-rights-table td{padding:8px 7px}}
 
 /* Keep the top actions aligned with the centered content heading on every page. */
 .shell {
