@@ -33,8 +33,7 @@ bool compact_entity_pointers(const std::uintptr_t* slots, std::size_t count,
     return true;
 }
 
-bool readable(std::uintptr_t address, std::size_t size, ReadRegionCache* regions){
-    if (regions) return regions->check(address, size);
+bool readable(std::uintptr_t address, std::size_t size){
     if (!address || !size || address > UINTPTR_MAX - size) return false;
     MEMORY_BASIC_INFORMATION memory{};
     if (!VirtualQuery(reinterpret_cast<const void*>(address), &memory, sizeof(memory))) return false;
