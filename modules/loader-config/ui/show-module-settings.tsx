@@ -325,11 +325,8 @@ export function ModulePreferencesEditor({
         change={change}
       />}
       <div className="settings-module-list">
-        {TARGET_UI_MODULES
-          .filter((module) => (
-            ['debugConsole', 'worldEditor', 'modloaderUi', 'wiki', 'runtimeDiagnostics'].includes(module) &&
-            visibleInTarget(module)
-          ))
+        {(['debugConsole', 'worldEditor', 'modloaderUi', 'wiki', 'runtimeDiagnostics'] as const)
+          .filter(visibleInTarget)
           .map((module) => (
           <Card key={module} title={t(`settings.modules.${module}.title`)}>
             <p className="hint settings-module-description">
