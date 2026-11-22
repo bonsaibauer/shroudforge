@@ -51,6 +51,7 @@ impl IngameRuntime {
             self.publish_status(true);
             self.next_status = std::time::Instant::now() + std::time::Duration::from_secs(1);
         }
+        shroudforge_steam_networking::service_transport();
         crate::env::shroudforge::dispatch_ui_actions(&self.runner.lua, &self.active_mod_ids());
         self.update_mod_callbacks(delta_seconds);
         let state = self.runner.lua.app_data_ref::<AppState>().unwrap();

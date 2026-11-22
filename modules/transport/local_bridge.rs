@@ -5,9 +5,8 @@ use std::sync::mpsc::{self, Receiver, Sender, SyncSender, TrySendError};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-// As large as a remote UI message: the Modloader's server pages arrive
-// through here (a server's mod list can be larger than one Steam message).
-const MAX_LOCAL_MESSAGE_BYTES: usize = crate::MAX_REMOTE_UI_MESSAGE_BYTES;
+// Local requests and responses carry complete logical network messages.
+const MAX_LOCAL_MESSAGE_BYTES: usize = crate::MAX_LOGICAL_MESSAGE_BYTES;
 const MAX_LOCAL_REQUEST_QUEUE: usize = 32;
 const MAX_LOCAL_REQUEST_BATCH: usize = 8;
 // The P2P layer expires requests after 30 seconds. Give it five seconds to
@@ -340,20 +339,23 @@ fn dispatch(sender: SyncSender<Request>, value: Value) -> Value {
             return serde_json::json!({"success":false,"message":"invalid server rights update"});
         };
         let invalid_groups = |list: &[Value]| {
-            list.len() > 64 || list.iter().any(|group| {
-                group["name"].as_str().is_none_or(|name| {
-                    name.trim().is_empty() || name.len() > 128 || name.chars().any(char::is_control)
-                }) || [
-                    "canKickBan",
-                    "canAccessInventories",
-                    "canEditWorld",
-                    "canEditBase",
-                    "canExtendBase",
-                    "syncServerLogs",
-                ]
-                .iter()
-                .any(|key| !group[*key].is_boolean())
-            })
+            list.len() > 64
+                || list.iter().any(|group| {
+                    group["name"].as_str().is_none_or(|name| {
+                        name.trim().is_empty()
+                            || name.len() > 128
+                            || name.chars().any(char::is_control)
+                    }) || [
+                        "canKickBan",
+                        "canAccessInventories",
+                        "canEditWorld",
+                        "canEditBase",
+                        "canExtendBase",
+                        "syncServerLogs",
+                    ]
+                    .iter()
+                    .any(|key| !group[*key].is_boolean())
+                })
         };
         if invalid_groups(groups) || invalid_groups(expected_groups) {
             return serde_json::json!({"success":false,"message":"invalid server rights update"});
