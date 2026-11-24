@@ -176,6 +176,7 @@ A file contains the implementation of the action named by that file. Related hel
 | Save mod settings | `modules/modloader/save_mod_settings.rs` |
 | Parse SDL scancode shortcuts, observe keyboard input, or edit the shared shortcut field | `modules/hotkeys/` |
 | Check declared module and mod shortcut conflicts | `modules/modloader/check_hotkey_conflicts.rs` |
+| Check a mod's requirement on the installed ShroudForge release | `modules/modloader/require_shroudforge_release.rs` |
 | Change a mod's enabled state | `modules/modloader/set_mod_enabled.rs` |
 | Create a missing EML compatibility extension | `modules/modloader/ensure_eml_extension.rs` |
 | Check the revision, validate, and write changed mod configuration | `modules/modloader/update_mod_configuration.rs` |

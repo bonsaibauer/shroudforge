@@ -54,7 +54,10 @@ pub(super) fn plan_runtime_mods<'a>(
             continue;
         }
         let blocked_dependency = item.info().dependencies.iter().find_map(|dependency| {
-            if dependency.id == "shroudforge-api" || dependency.optional.unwrap_or(false) {
+            if dependency.id == "shroudforge-api"
+                || dependency.id == mod_loader::SHROUDFORGE_RELEASE_DEPENDENCY
+                || dependency.optional.unwrap_or(false)
+            {
                 return None;
             }
             let candidate = env.mod_registry().get(&dependency.id);

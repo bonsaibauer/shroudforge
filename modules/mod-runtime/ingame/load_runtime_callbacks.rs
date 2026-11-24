@@ -83,6 +83,7 @@ pub(super) fn load_runtime_callbacks(
                     item.info().dependencies.iter().find(|dependency| {
                         !dependency.optional.unwrap_or(false)
                             && dependency.id != "shroudforge-api"
+                            && dependency.id != mod_loader::SHROUDFORGE_RELEASE_DEPENDENCY
                             && errors.contains_key(&dependency.id)
                     })
                 })
