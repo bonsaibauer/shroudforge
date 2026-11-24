@@ -16,8 +16,7 @@ bool component_present(const EntityView& entity, const ResolvedLayout& layout, c
 }
 
 bool component_address(const EntityView& entity, const ResolvedLayout& layout,
-                       const ComponentType& component, std::uintptr_t& address, bool check_page,
-                       ReadRegionCache* regions){
+                       const ComponentType& component, std::uintptr_t& address, bool check_page){
     std::uint16_t offset{}, stride{};
     if (!component_present(entity, layout, component) ||
         !read(entity.layout + layout.component_offsets + component.index * 2, offset) ||
@@ -28,7 +27,7 @@ bool component_address(const EntityView& entity, const ResolvedLayout& layout,
     // Read-only scan callers immediately copy through guarded_copy (SEH).
     // Re-querying the page for every component doubles kernel transitions for
     // every prop in the world; writes and address-only queries keep the check.
-    return !check_page || readable(address, component.size, regions);
+    return !check_page || readable(address, component.size);
 }
 
 bool resolve_component(const char* name, ComponentType& component){

@@ -3,7 +3,7 @@
 //! The game remains the Steam owner. This adapter reuses the bounded Steam UI
 //! channel for server snapshots, logs, settings and authenticated client reports.
 
-use crate::MAX_MESSAGE_BYTES;
+use crate::MAX_LOGICAL_MESSAGE_BYTES;
 use base64::Engine as _;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
@@ -476,10 +476,9 @@ fn process_local_requests(peer: Option<u64>, client: &mut ClientState) {
             "admin-login" => ("admin-auth-result", "admin-login".to_owned()),
             "config-setting" => ("config-update-result", "config-setting".to_owned()),
             "mods-list" => ("mods-list-result", "mods-list".to_owned()),
-            "server-rights-list" | "server-rights-update" => (
-                "server-rights-result",
-                request_type.to_owned(),
-            ),
+            "server-rights-list" | "server-rights-update" => {
+                ("server-rights-result", request_type.to_owned())
+            }
             "mod-operation" => (
                 "mod-operation-result",
                 format!(
@@ -806,6 +805,7 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
                 }
             }
             Some("unsubscribe") => {
+                crate::discard_remote_ui(peer);
                 server.peers.remove(&peer);
                 server.log_sync_peers.remove(&peer);
                 server.archive_transfers.remove(&peer);
@@ -972,8 +972,7 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
         .is_none_or(|last| last.elapsed() >= COMPATIBILITY_REFRESH_INTERVAL);
     if refresh_log_policy {
         let policy_config = if server.last_log_policy_refresh.is_none() {
-            shroudforge_loader_config::config::read_loader(root)
-                .unwrap_or_else(|_| config.clone())
+            shroudforge_loader_config::config::read_loader(root).unwrap_or_else(|_| config.clone())
         } else {
             config.clone()
         };
@@ -1015,9 +1014,9 @@ fn server_tick(root: &Path, config: &serde_json::Value, server: &mut ServerState
             }
         }
     } else {
-        server
-            .log_sync_peers
-            .retain(|peer| server.peers.contains_key(peer) && server.admin_sessions.contains_key(peer));
+        server.log_sync_peers.retain(|peer| {
+            server.peers.contains_key(peer) && server.admin_sessions.contains_key(peer)
+        });
         server
             .archive_transfers
             .retain(|peer, _| server.log_sync_peers.contains(peer));
@@ -1583,11 +1582,9 @@ fn handle_mods_list(root: &Path, peer: u64, request: &serde_json::Value, server:
         );
         return;
     }
-    match server_mods_snapshot(root, locale)
-        .and_then(|mods| {
-            server_view_snapshot(root, mods, server.compatibility_check.clone(), server)
-        })
-    {
+    match server_mods_snapshot(root, locale).and_then(|mods| {
+        server_view_snapshot(root, mods, server.compatibility_check.clone(), server)
+    }) {
         Ok((mods, server_view)) => {
             let mod_count = mods.as_array().map_or(0, Vec::len);
             let result = send_json(
@@ -1733,26 +1730,12 @@ fn handle_server_rights_update(
                     );
                 }
                 Err(error) => {
-                    let _ = send_server_rights_result(
-                        peer,
-                        request_id,
-                        false,
-                        true,
-                        &error,
-                        None,
-                    );
+                    let _ = send_server_rights_result(peer, request_id, false, true, &error, None);
                 }
             }
         }
         Err(error) => {
-            let _ = send_server_rights_result(
-                peer,
-                request_id,
-                false,
-                true,
-                &error,
-                None,
-            );
+            let _ = send_server_rights_result(peer, request_id, false, true, &error, None);
         }
     }
 }
@@ -2247,7 +2230,9 @@ fn group_permissions(group: &serde_json::Value) -> serde_json::Value {
     for key in SERVER_PERMISSION_KEYS {
         rights.insert(
             key.into(),
-            serde_json::Value::Bool(group.get(key).and_then(serde_json::Value::as_bool) == Some(true)),
+            serde_json::Value::Bool(
+                group.get(key).and_then(serde_json::Value::as_bool) == Some(true),
+            ),
         );
     }
     serde_json::Value::Object(rights)
@@ -2307,7 +2292,13 @@ fn server_rights_snapshot(
             let game_player = session.player_records.get(steam_id);
             let permissions_known = game_player.is_some();
             let permissions = game_player
-                .map(|player| player.permissions.iter().map(String::as_str).collect::<HashSet<_>>())
+                .map(|player| {
+                    player
+                        .permissions
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<HashSet<_>>()
+                })
                 .unwrap_or_default();
             let rights = serde_json::json!({
                 "canKickBan": permissions.contains("CanKickBan"),
@@ -2403,7 +2394,8 @@ fn save_server_rights(root: &Path, values: &serde_json::Value) -> Result<(), Str
 
     let server_path = root.join("enshrouded_server.json");
     let bytes = fs::read(&server_path).map_err(|error| error.to_string())?;
-    let original: serde_json::Value = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
+    let original: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
     let mut updated = original.clone();
     let groups = updated
         .get_mut("userGroups")
@@ -2445,11 +2437,10 @@ fn save_server_rights(root: &Path, values: &serde_json::Value) -> Result<(), Str
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(is_admin)
             && is_admin;
-        if !permissions_match(&group_permissions(group), &group_permissions(expected_group))
-            || current_sync_enabled
-                != expected_group["syncServerLogs"]
-                    .as_bool()
-                    .unwrap_or(false)
+        if !permissions_match(
+            &group_permissions(group),
+            &group_permissions(expected_group),
+        ) || current_sync_enabled != expected_group["syncServerLogs"].as_bool().unwrap_or(false)
         {
             return Err("Server rights changed in another session. Refresh before saving".into());
         }
@@ -2471,7 +2462,10 @@ fn save_server_rights(root: &Path, values: &serde_json::Value) -> Result<(), Str
     if seen.len() != by_name.len() {
         return Err("Server groups changed. Refresh the rights list before saving".into());
     }
-    if groups.iter().all(|group| !group_has_admin_permissions(group)) {
+    if groups
+        .iter()
+        .all(|group| !group_has_admin_permissions(group))
+    {
         return Err("At least one ShroudForge Admin group must keep all five permissions".into());
     }
     shroudforge_loader_config::config::write_json(&server_path, &updated)?;
@@ -2549,7 +2543,13 @@ fn server_mods_snapshot(root: &Path, locale: &str) -> Result<serde_json::Value, 
             mod_loader::read_manifest_path(root, &package)
                 .ok()
                 .and_then(|manifest| {
-                    serde_json::to_value(mod_loader::localized_manifest(&manifest, locale))
+                    // Localized for the admin's language, which the Modloader
+                    // sends with each request: the other catalogs stay here
+                    // (every language of every mod made the list larger than
+                    // a Steam message).
+                    let mut localized = mod_loader::localized_manifest(&manifest, locale);
+                    localized.locales.clear();
+                    serde_json::to_value(localized)
                         .ok()
                         .map(|value| (package, value))
                 })
@@ -2794,11 +2794,7 @@ fn server_mod_info(root: &Path, id: &str, locale: &str) -> Option<serde_json::Va
         .cloned()
 }
 
-fn send_initial_snapshot(
-    config: &serde_json::Value,
-    peer: u64,
-    server: &ServerState,
-) -> bool {
+fn send_initial_snapshot(config: &serde_json::Value, peer: u64, server: &ServerState) -> bool {
     send_config(peer, config, server.admin_sessions.contains_key(&peer)).is_ok()
 }
 
@@ -2977,7 +2973,11 @@ fn send_module_changes(config: &serde_json::Value, server: &mut ServerState) {
         .copied()
         .filter(|peer| {
             let value = remote_config(config, server.admin_sessions.contains_key(peer));
-            send_json(*peer, &serde_json::json!({ "type": "config", "value": value })).is_err()
+            send_json(
+                *peer,
+                &serde_json::json!({ "type": "config", "value": value }),
+            )
+            .is_err()
         })
         .collect::<Vec<_>>();
     remove_failed_peers(server, failed);
@@ -3396,14 +3396,19 @@ fn server_game_log(root: &Path) -> PathBuf {
 }
 
 fn send_json(peer: u64, value: &serde_json::Value) -> Result<(), String> {
+    if value["type"] == "unsubscribe" {
+        crate::discard_remote_ui(peer);
+    }
     let payload = encode_json(value)?;
     crate::send_remote_ui(peer, &payload)
 }
 
 fn encode_json(value: &serde_json::Value) -> Result<Vec<u8>, String> {
     let payload = serde_json::to_vec(value).map_err(|error| error.to_string())?;
-    if payload.len() > MAX_MESSAGE_BYTES {
-        return Err("remote UI message exceeds the Steam transport limit".into());
+    if payload.len() > MAX_LOGICAL_MESSAGE_BYTES {
+        return Err(format!(
+            "network message exceeds {MAX_LOGICAL_MESSAGE_BYTES} bytes"
+        ));
     }
     Ok(payload)
 }
@@ -3498,6 +3503,49 @@ mod tests {
         let saved = shroudforge_loader_config::config::read_loader(&root).unwrap();
         assert!(saved["modules"] == first || saved["modules"] == second);
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn server_mod_snapshot_sends_the_requested_language_only() {
+        let root = std::env::temp_dir().join(format!(
+            "shroudforge-remote-locales-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let package = shroudforge_loader_config::paths::mods_dir(&root).join("example");
+        fs::create_dir_all(package.join("locales")).unwrap();
+        fs::write(
+            package.join("mod.json"),
+            br#"{"id":"example","name":"Example","version":"1.2.3"}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("extended.mod.json"),
+            br#"{"schemaVersion":1,"enabled":true,"targets":["server"],"settings":{"enabledFeature":{"value":true,"label":"Enabled","control":"toggle"}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("locales").join("fr.json"),
+            r#"{"settings":{"enabledFeature":{"label":"Activé"}}}"#,
+        )
+        .unwrap();
+
+        let mods = server_mods_snapshot(&root, "fr").unwrap();
+        let item = &mods[0];
+        let setting = item["settings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|setting| setting["key"] == "enabledFeature")
+            .unwrap();
+        assert_eq!(setting["label"], "Activé");
+        assert!(
+            item["locales"]
+                .as_object()
+                .is_none_or(|locales| locales.is_empty()),
+            "the catalogs stay on the server: {}",
+            item["locales"]
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

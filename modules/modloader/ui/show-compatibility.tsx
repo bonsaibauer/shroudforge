@@ -8,6 +8,7 @@ import { Icon } from '../../ui-resources/show-icon'
 import { PageHeader } from '../../ui-resources/show-page-header'
 import { DependencyList } from './show-mod-dependencies'
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { Card } from '../../ui-resources/show-card'
 import { WikiHelp } from '../../wiki/ui/show-wiki-help'
@@ -417,6 +418,61 @@ export function Compatibility({
       </section>
     )
   }
+  const tabItems: Array<[string, ReactNode]> = []
+  if (moduleVisible('modDetection')) {
+    tabItems.push(
+      [
+        'mod-detection',
+        <CompatibilityTabLabel
+          label={t('compatibility.tab.modDetection')}
+          status={modDetectionStatus(data)}
+        />,
+      ],
+      [
+        'dependencies',
+        <CompatibilityTabLabel
+          label={t('compatibility.tab.dependencies')}
+          status={dependencyStatus(data)}
+        />,
+      ],
+    )
+  }
+  if (moduleVisible('dllManager')) {
+    tabItems.push([
+      'dll-manager',
+      <CompatibilityTabLabel
+        label={t('compatibility.tab.dllManager')}
+        status={dllStatus}
+      />,
+    ])
+  }
+  if (multiplayerVersionsTab) {
+    tabItems.push([
+      'multiplayer-versions',
+      <CompatibilityTabLabel
+        label={t('compatibility.tab.multiplayerVersions')}
+        status={multiplayerVersionsStatus(data)}
+      />,
+    ])
+  }
+  if (moduleVisible('modloaderUi')) {
+    tabItems.push([
+      'hotkeys',
+      <CompatibilityTabLabel
+        label={t('compatibility.tab.hotkeys')}
+        status={hasHotkeyConflicts(data) ? 'warning' : 'ok'}
+      />,
+    ])
+  }
+  if (moduleVisible('runtimeDiagnostics')) {
+    tabItems.push([
+      'engine',
+      <CompatibilityTabLabel
+        label={t('compatibility.tab.engine')}
+        status={engineStatus}
+      />,
+    ])
+  }
   return (
     <>
       <PageHeader
@@ -444,60 +500,7 @@ export function Compatibility({
       {allowedTabs.length > 0 && <Segmented
         value={activeTab!}
         onChange={(value) => setTab(value as CompatibilityTab)}
-        items={[
-          ...(moduleVisible('modDetection') ? [
-          [
-            'mod-detection',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.modDetection')}
-              status={modDetectionStatus(data)}
-            />,
-          ],
-          [
-            'dependencies',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.dependencies')}
-              status={dependencyStatus(data)}
-            />,
-          ],
-          ] : []),
-          ...(moduleVisible('dllManager') ? [
-          [
-            'dll-manager',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.dllManager')}
-              status={dllStatus}
-            />,
-          ],
-          ] : []),
-          ...(multiplayerVersionsTab ? [
-          [
-            'multiplayer-versions',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.multiplayerVersions')}
-              status={multiplayerVersionsStatus(data)}
-            />,
-          ],
-          ] : []),
-          ...(moduleVisible('modloaderUi') ? [
-          [
-            'hotkeys',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.hotkeys')}
-              status={hasHotkeyConflicts(data) ? 'warning' : 'ok'}
-            />,
-          ],
-          ] : []),
-          ...(moduleVisible('runtimeDiagnostics') ? [
-          [
-            'engine',
-            <CompatibilityTabLabel
-              label={t('compatibility.tab.engine')}
-              status={engineStatus}
-            />,
-          ],
-          ] : []),
-        ]}
+        items={tabItems}
       />}
       {activeTab === 'mod-detection' && (
         <div className="settings-module-list compatibility-sections">

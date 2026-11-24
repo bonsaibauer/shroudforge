@@ -7,7 +7,7 @@ document.addEventListener('click', async event => {
 		await navigator.clipboard.writeText(button.dataset.copySchema)
 		status.textContent = 'Schema URL copied.'
 	} catch {
-		status.textContent = 'Copy is unavailable. Select the JSON URL above.'
+		status.textContent = 'Copy is unavailable. Copy the link address instead.'
 	}
 })
 
@@ -29,5 +29,18 @@ if (versionPicker) {
 		if (sourceLink && selectedOption) {
 			sourceLink.href = selectedOption.dataset.sourceUrl || '#'
 		}
+	})
+}
+
+const blueprintVersionPicker = document.querySelector('[data-blueprint-version]')
+if (blueprintVersionPicker) {
+	const sections = [...document.querySelectorAll('[data-blueprint-version-section]')]
+	const url = document.querySelector('[data-blueprint-url]')
+	blueprintVersionPicker.addEventListener('change', () => {
+		for (const section of sections) {
+			section.hidden = section.dataset.blueprintVersionSection !== blueprintVersionPicker.value
+		}
+		const selectedLink = sections.find(section => !section.hidden)?.querySelector('a')
+		if (url && selectedLink) url.textContent = selectedLink.href
 	})
 }
