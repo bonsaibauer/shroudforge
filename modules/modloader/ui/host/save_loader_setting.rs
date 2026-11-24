@@ -275,7 +275,13 @@ pub(crate) fn save_setting_to(
                 .clone()
                 .unwrap_or_else(|| setting.clone());
         }
-        if key == "toggleKey" || (key == "enabled" && setting == &serde_json::Value::Bool(true)) {
+        // A Dedicated Server's configuration, edited from the Server target,
+        // is not checked here: the server reads no keyboard, and this
+        // installation's mods are not the server's.
+        if remote_config.is_none()
+            && (key == "toggleKey"
+                || (key == "enabled" && setting == &serde_json::Value::Bool(true)))
+        {
             shroudforge_package::validate_hotkey_configuration(root, config, None)?;
         }
         Ok(())

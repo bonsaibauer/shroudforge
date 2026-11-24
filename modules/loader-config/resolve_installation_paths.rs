@@ -142,7 +142,8 @@ pub fn current_log(root: &Path) -> PathBuf {
     })
 }
 
-fn is_dedicated_server(root: &Path) -> bool {
+/// Whether this process or installation is a Dedicated Server's.
+pub fn is_dedicated_server(root: &Path) -> bool {
     std::env::current_exe().ok().is_some_and(|path| {
         path.file_name()
             .and_then(|name| name.to_str())
