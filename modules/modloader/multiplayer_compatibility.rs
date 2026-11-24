@@ -344,7 +344,11 @@ pub fn client_problems(configuration: &serde_json::Value) -> Vec<ClientCompatibi
         for check in checks {
             let state = check["state"].as_str().unwrap_or_default();
             let code = check["id"].as_str().unwrap_or_default();
-            if !matches!(state, "warning" | "error") || matches!(code, "mods" | "dependencies") {
+            // `networkVersions` is the server's own check of this player, which
+            // the game keeps: reporting it back would echo it to the server.
+            if !matches!(state, "warning" | "error")
+                || matches!(code, "mods" | "dependencies" | "networkVersions")
+            {
                 continue;
             }
             let detail = clean_detail(check["detail"].as_str().unwrap_or_default());
@@ -406,4 +410,22 @@ fn clean_detail(detail: &str) -> String {
         .filter(|character| !character.is_control())
         .take(MAX_PROBLEM_DETAIL_CHARS)
         .collect()
+}
+
+#[cfg(test)]
+mod client_problem_tests {
+    use super::*;
+
+    #[test]
+    fn the_servers_own_check_is_not_reported_back() {
+        let configuration = serde_json::json!({
+            "checks": [
+                {"id": "networkVersions", "state": "warning", "detail": ""},
+                {"id": "runtime", "state": "warning", "detail": "Runtime not ready"},
+            ]
+        });
+        let problems = client_problems(&configuration);
+        assert_eq!(problems.len(), 1);
+        assert_eq!(problems[0].code, "runtime");
+    }
 }

@@ -242,6 +242,7 @@
   "compatibility.tab.multiplayerVersions": "Flerspelarversioner",
   "compatibility.section.multiplayerVersions": "Flerspelarversioner",
   "compatibility.section.multiplayerVersions.description": "Jämför serverns Modloader-version och aktiva gemensamma moddar med varje ansluten klient.",
+  "compatibility.section.multiplayerVersions.clientDescription": "Jämför spelets Modloader-version och delade moddar med servern det anslöt till, så som servern rapporterar dem.",
   "compatibility.multiplayerVersions.empty": "Inga anslutna klienter.",
   "compatibility.multiplayerVersions.loader": "Modloader {version}",
   "compatibility.multiplayerVersions.reportPending": "Väntar på en versionsrapport från {player}.",

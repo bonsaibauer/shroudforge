@@ -210,6 +210,7 @@ A file contains the implementation of the action named by that file. Related hel
 | Split logical network messages larger than one Steam packet into fragments | `modules/transport/split_network_message.rs` |
 | Reassemble logical network message fragments by peer and channel | `modules/transport/reassemble_network_message.rs` |
 | Queue and pace reliable messages for each peer and channel | `modules/transport/pace_network_sends.rs` |
+| Keep and show a player the Dedicated Server's version check of them | `modules/transport/record_server_versions.rs` |
 | Read the joined game's host, the hosted game's players and their permissions from the game's session log | `modules/transport/read_session_peers.rs` |
 
 ### Updater migration timing

@@ -48,6 +48,8 @@ struct ClientState {
     last_compatibility_report: Option<Instant>,
     compatibility_report: Option<serde_json::Value>,
     compatibility_report_peer: Option<u64>,
+    // The server's version check of this player, as last received.
+    server_versions: Option<serde_json::Value>,
 }
 
 struct PendingRequest {
@@ -85,6 +87,8 @@ struct ServerState {
     compatibility_check: Option<mod_loader::MultiplayerVersionCheck>,
     last_logged_compatibility_issues: HashMap<String, String>,
     archive_transfers: HashMap<u64, VecDeque<ServerArchiveTransfer>>,
+    // Each reporting player's own version check, as last sent to them.
+    compatibility_results_sent: HashMap<u64, serde_json::Value>,
 }
 
 struct ServerArchiveTransfer {
@@ -153,6 +157,7 @@ pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
             state.server.compatibility_check = None;
             state.server.last_logged_compatibility_issues.clear();
             state.server.archive_transfers.clear();
+            state.server.compatibility_results_sent.clear();
         }
         return;
     };
@@ -184,6 +189,7 @@ pub fn tick(root: &Path, config: Option<&serde_json::Value>, is_server: bool) {
             state.server.compatibility_check = None;
             state.server.last_logged_compatibility_issues.clear();
             state.server.archive_transfers.clear();
+            state.server.compatibility_results_sent.clear();
         }
         return;
     }
@@ -238,6 +244,7 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             client,
             "Server target was closed before the request completed",
         );
+        receive_server_versions(root, client);
         process_local_requests(None, client);
         return;
     }
@@ -324,6 +331,12 @@ fn client_tick(root: &Path, config: &serde_json::Value, client: &mut ClientState
             }
             Some("admin-auth-result") => receive_auth_result(&value, client),
             Some("config-update-result") => receive_config_result(root, &value, client),
+            Some("compatibility-result") => crate::record_server_versions::record_server_versions(
+                root,
+                peer,
+                &value,
+                &mut client.server_versions,
+            ),
             Some("mods-list-result" | "mod-operation-result" | "server-rights-result") => {
                 receive_mod_result(&value, client)
             }
@@ -342,6 +355,7 @@ fn send_compatibility_report(root: &Path, client: &mut ClientState) {
         client.compatibility_report_peer = None;
         client.last_compatibility_report = None;
         client.compatibility_report = None;
+        crate::record_server_versions::forget_server_versions(root, &mut client.server_versions);
         return;
     };
     let changed_peer = client.compatibility_report_peer != Some(peer);
@@ -1085,6 +1099,71 @@ fn receive_compatibility_report(peer: u64, value: &serde_json::Value, server: &m
     record.report = Some(report);
 }
 
+/// Outside the Server target, the client reads no remote UI messages but the
+/// server's version check of this player (`send_compatibility_results`).
+fn receive_server_versions(root: &Path, client: &mut ClientState) {
+    let Some(peer) = client.compatibility_report_peer else {
+        return;
+    };
+    for _ in 0..RECEIVE_BUDGET {
+        let Ok(Some(message)) = crate::receive_remote_ui() else {
+            break;
+        };
+        if message.peer_steam_id.parse::<u64>().ok() != Some(peer) {
+            continue;
+        }
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&message.payload) else {
+            continue;
+        };
+        if value["type"] == "compatibility-result" {
+            crate::record_server_versions::record_server_versions(
+                root,
+                peer,
+                &value,
+                &mut client.server_versions,
+            );
+        }
+    }
+}
+
+/// Each player who reported their versions gets their own result when it
+/// changes, so that they see what the admin sees (a failed send is tried
+/// again at the next refresh).
+fn send_compatibility_results(
+    server: &mut ServerState,
+    check: &mod_loader::MultiplayerVersionCheck,
+) {
+    let mut sent = HashMap::new();
+    for client in &check.clients {
+        let Ok(peer) = client.steam_id.parse::<u64>() else {
+            continue;
+        };
+        if !server
+            .compatibility_peers
+            .get(&peer)
+            .is_some_and(|record| record.report.is_some())
+        {
+            continue;
+        }
+        let payload = serde_json::json!({
+            "type": "compatibility-result",
+            "check": {
+                "id": check.id,
+                "group": check.group,
+                "state": client.state,
+                "detail": "",
+                "clients": [client],
+            },
+        });
+        if server.compatibility_results_sent.get(&peer) == Some(&payload)
+            || send_json(peer, &payload).is_ok()
+        {
+            sent.insert(peer, payload);
+        }
+    }
+    server.compatibility_results_sent = sent;
+}
+
 fn refresh_multiplayer_compatibility(root: &Path, server: &mut ServerState) {
     let refresh = server
         .last_compatibility_refresh
@@ -1162,6 +1241,7 @@ fn refresh_multiplayer_compatibility(root: &Path, server: &mut ServerState) {
         check.detail = "The server mod inventory could not be read.".into();
     }
     log_compatibility_issue_transitions(root, server, &check);
+    send_compatibility_results(server, &check);
     server.compatibility_check = Some(check);
 }
 

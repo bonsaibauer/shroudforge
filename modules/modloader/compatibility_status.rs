@@ -777,6 +777,18 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
     checks
         .push(json!({"id":"parser","group":"parser","state":parser_state,"detail":parser_detail}));
     checks.push(runtime_status);
+    // The Dedicated Server's version check of this player, kept by the game
+    // that received it, while that game runs.
+    if !server && runtime_fresh {
+        if let Some(check) = fs::read(shroudforge_loader_config::paths::server_versions_file(root))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .filter(|document| document["pid"].as_u64() == game_pid.map(u64::from))
+            .map(|document| document["check"].clone())
+        {
+            checks.push(check);
+        }
+    }
     let state_path = shroudforge_loader_config::paths::state_file(root);
     let updates = match fs::read(&state_path) {
         Ok(bytes) => match serde_json::from_slice::<Value>(&bytes) {
