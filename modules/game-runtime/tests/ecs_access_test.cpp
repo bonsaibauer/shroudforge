@@ -5,22 +5,9 @@
 #include "voxels/voxel_request.h"
 namespace {
 unsigned page_query_count{};
-unsigned mutate_on_page_query{};
-void* page_query_mutation{};
-DWORD page_query_protection{};
-bool mutate_before_page_query{};
 SIZE_T WINAPI counted_ecs_virtual_query(LPCVOID address, PMEMORY_BASIC_INFORMATION memory, SIZE_T length) {
     ++page_query_count;
-    const auto mutate = [&] {
-        DWORD previous{};
-        if (!::VirtualProtect(page_query_mutation, 4096, page_query_protection, &previous)) std::abort();
-        page_query_mutation = nullptr;
-    };
-    const bool inject = page_query_mutation && page_query_count == mutate_on_page_query;
-    if (inject && mutate_before_page_query) mutate();
-    const auto result = ::VirtualQuery(address, memory, length);
-    if (inject && !mutate_before_page_query) mutate();
-    return result;
+    return ::VirtualQuery(address, memory, length);
 }
 }
 #define VirtualQuery counted_ecs_virtual_query
@@ -479,8 +466,8 @@ int main() {
     check(mixed_present[0] == 1 && mixed_present[1] == 0);
     check(std::memcmp(mixed_output.data(), &component, sizeof(component)) == 0);
     check(std::all_of(mixed_output.begin() + sizeof(Component), mixed_output.end(), [](auto byte) { return byte == 0; }));
-    // Two present candidates share one private memory region. The page check
-    // happens once before the copies and once at the end, rather than 3*N.
+    // Two present candidates share one private memory region. Batched reads
+    // copy the components under SEH without querying their memory pages.
     auto* shared_components = static_cast<Component*>(VirtualAlloc(nullptr, 4096,
         MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
     check(shared_components != nullptr);
@@ -493,7 +480,7 @@ int main() {
     page_query_count = 0;
     check(KfcRuntimeEcsReadMany(handle, batch_names, batch_sizes, 2,
         mixed_output.data(), mixed_output.size(), mixed_present.data()));
-    check(page_query_count == 2 && mixed_present[0] == 1 && mixed_present[1] == 1);
+    check(page_query_count == 0 && mixed_present[0] == 1 && mixed_present[1] == 1);
     check(std::memcmp(mixed_output.data(), shared_components, mixed_output.size()) == 0);
     const auto rejected_region_batch = [&] {
         mixed_output.fill(0x5a);
@@ -506,37 +493,34 @@ int main() {
     DWORD prior_region_protection{};
     check(VirtualProtect(shared_components, 4096, PAGE_NOACCESS, &prior_region_protection));
     page_query_count = 0;
-    check(rejected_region_batch() && page_query_count == 1);
+    check(rejected_region_batch() && page_query_count == 0);
     check(VirtualProtect(shared_components, 4096, PAGE_READWRITE, &prior_region_protection));
     check(VirtualProtect(shared_components, 4096, PAGE_READWRITE | PAGE_GUARD, &prior_region_protection));
     page_query_count = 0;
-    check(rejected_region_batch() && page_query_count == 1);
+    check(rejected_region_batch() && page_query_count == 0);
     check(VirtualProtect(shared_components, 4096, PAGE_READWRITE, &prior_region_protection));
-    // A changed protection at final validation rejects even a still-readable
-    // region. The cache is not a permission retained across calls.
-    page_query_count = 0;
-    mutate_on_page_query = 2;
-    page_query_mutation = shared_components;
-    page_query_protection = PAGE_READONLY;
-    mutate_before_page_query = true;
-    check(rejected_region_batch() && page_query_count == 2 && !page_query_mutation);
-    check(VirtualProtect(shared_components, 4096, PAGE_READWRITE, &prior_region_protection));
-    page_query_count = 0;
-    page_query_mutation = shared_components;
-    page_query_protection = PAGE_NOACCESS;
-    check(rejected_region_batch() && page_query_count == 2 && !page_query_mutation);
-    check(VirtualProtect(shared_components, 4096, PAGE_READWRITE, &prior_region_protection));
-    // Losing access after the initial observation fails in the actual SEH
-    // payload copy, before any output or final page validation can escape.
-    page_query_count = 0;
-    mutate_on_page_query = 1;
-    page_query_mutation = shared_components;
-    mutate_before_page_query = false;
-    check(rejected_region_batch() && page_query_count == 1 && !page_query_mutation);
-    check(VirtualProtect(shared_components, 4096, PAGE_READWRITE, &prior_region_protection));
+    // Read-only pages are valid inputs. There is no final protection
+    // revalidation, so these checks do not claim to detect later changes.
+    check(VirtualProtect(shared_components, 4096, PAGE_READONLY, &prior_region_protection));
     page_query_count = 0;
     check(KfcRuntimeEcsReadMany(handle, batch_names, batch_sizes, 2,
-        mixed_output.data(), mixed_output.size(), mixed_present.data()) && page_query_count == 2);
+        mixed_output.data(), mixed_output.size(), mixed_present.data()) && page_query_count == 0);
+    check(mixed_present[0] == 1 && mixed_present[1] == 1 &&
+        std::memcmp(mixed_output.data(), shared_components, mixed_output.size()) == 0);
+    check(VirtualProtect(shared_components, 4096, PAGE_READWRITE, &prior_region_protection));
+    // A fault in the second component must not publish the first copy either.
+    auto* split_pages = static_cast<std::uint8_t*>(VirtualAlloc(nullptr, 8192,
+        MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    check(split_pages != nullptr);
+    auto* split_components = reinterpret_cast<Component*>(split_pages + 4096 - sizeof(Component));
+    split_components[0] = {101, 202};
+    split_components[1] = {303, 404};
+    entity.storage = reinterpret_cast<std::uintptr_t>(split_components);
+    check(VirtualProtect(split_pages + 4096, 4096, PAGE_NOACCESS, &prior_region_protection));
+    page_query_count = 0;
+    check(rejected_region_batch() && page_query_count == 0);
+    check(VirtualProtect(split_pages + 4096, 4096, PAGE_READWRITE, &prior_region_protection));
+    check(VirtualFree(split_pages, 0, MEM_RELEASE));
     entity.storage = previous_storage;
     layout.next_stride = 0;
     check(VirtualFree(shared_components, 0, MEM_RELEASE));
