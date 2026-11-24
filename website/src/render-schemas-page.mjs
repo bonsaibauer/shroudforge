@@ -21,6 +21,8 @@ const schemaDefinitions = [
 	},
 ]
 
+const blueprintVersions = ['7']
+
 function renderSchemaCard(version, schema, siteUrl) {
 	const url = new URL(`/schemas/${version}/${schema.file}`, siteUrl).href
 	return `<article class="schema-card panel">
@@ -49,6 +51,7 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 			<div class="schema-grid">${schemaDefinitions.map(schema => renderSchemaCard(version, schema, siteUrl)).join('')}</div>
 		</section>`).join('')
 	const manifestSchemaUrl = new URL(`/schemas/${currentVersion}/manifest.schema.json`, siteUrl).href
+	const blueprintSchemaUrl = new URL(`/schemas/sfbp/v${blueprintVersions[0]}.txt`, siteUrl).href
 	const sourceUrl = config.repository ? `https://github.com/${config.repository}/tree/${currentVersion}/modules/modloader/manifest` : '#'
 	return `<!doctype html>
 <html lang="en" data-theme="light">
@@ -56,7 +59,7 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Schema | ${escapeHtml(config.name)}</title>
-	<meta name="description" content="Versioned ShroudForge Modloader schemas for mod manifests, settings extensions and localized mod text.">
+	<meta name="description" content="Versioned ShroudForge mod package schemas and World Editor blueprint format specifications.">
 	<meta name="theme-color" content="#ffffff">
 	<meta name="color-scheme" content="light">
 	<meta name="robots" content="${indexable ? 'index, follow' : 'noindex, nofollow'}">
@@ -77,12 +80,25 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 			<section class="page-intro schema-intro" aria-labelledby="page-title">
 				<div class="eyebrow">SHROUDFORGE TOOLS · STANDARDS</div>
 				<h1 id="page-title">Schema</h1>
-				<p>Versioned contracts for ShroudForge mod packages. Pin a schema URL to the Modloader version your mod supports.</p>
+				<p>Versioned contracts for ShroudForge mod packages and World Editor blueprints.</p>
 			</section>
 			<section class="schema-reference panel" aria-labelledby="schema-reference-title">
 				<header class="tool-section-heading"><div><span class="eyebrow">MACHINE-READABLE REFERENCES</span><h2 id="schema-reference-title">Mod package schemas</h2><p>Open a schema in your editor or copy its version-specific URL into the <code>$schema</code> field.</p></div><label class="preview-version-picker schema-version-picker"><span>Modloader version</span><select data-schema-version aria-label="Modloader version">${versionOptions}</select></label></header>
 				<div class="schema-manifest-example"><span>Example for <code>mod.json</code></span><code class="schema-url-value" data-schema-manifest-example>"$schema": "${escapeHtml(manifestSchemaUrl)}"</code></div>
 				${versionSections}
+			</section>
+			<section class="schema-reference panel" aria-labelledby="blueprint-reference-title">
+				<header class="tool-section-heading"><div><span class="eyebrow">FILE FORMAT REFERENCE</span><h2 id="blueprint-reference-title">World Editor blueprints</h2><p>Open or download the specification for this line-based blueprint format.</p></div><label class="preview-version-picker schema-version-picker"><span>Blueprint version</span><select data-blueprint-version aria-label="Blueprint version">${blueprintVersions.map(version => `<option value="${escapeHtml(version)}" ${version === blueprintVersions[0] ? 'selected' : ''}>${escapeHtml(version)}</option>`).join('')}</select></label></header>
+				<div class="schema-manifest-example"><span>Blueprint specification URL</span><code class="schema-url-value" data-blueprint-url>${escapeHtml(blueprintSchemaUrl)}</code></div>
+				${blueprintVersions.map(version => {
+					const url = new URL(`/schemas/sfbp/v${version}.txt`, siteUrl).href
+					return `<section class="schema-version-section" data-blueprint-version-section="${escapeHtml(version)}" aria-label="Blueprint format version ${escapeHtml(version)}" ${version === blueprintVersions[0] ? '' : 'hidden'}><div class="schema-grid"><article class="schema-card panel">
+						<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">V${escapeHtml(version)}</span><div><h3>World Editor blueprint</h3><code>.sfbp · version ${escapeHtml(version)}</code></div></div>
+						<p>File structure, field constraints and examples for SFBP V${escapeHtml(version)}. The World Editor validates loaded blueprints with the linked Lua implementation.</p>
+						<div class="schema-card-actions"><a class="schema-action-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open specification</a><a class="schema-action-link" href="${escapeHtml(url)}" download>Download</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(url)}">Copy URL</button><a class="schema-action-link" href="${escapeHtml(new URL(`/schemas/sfbp/v${version}.lua`, siteUrl).href)}" target="_blank" rel="noopener">Validation code</a></div>
+						<output class="schema-copy-status" aria-live="polite"></output>
+					</article></div></section>`
+				}).join('')}
 			</section>
 			<footer class="schema-footer-note"><span>These files are static, versioned downloads. A published version keeps its schema URL.</span><a data-schema-source-link href="${escapeHtml(sourceUrl)}">Schema source in the repository</a></footer>
 		</main>

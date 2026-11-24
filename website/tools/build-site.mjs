@@ -318,6 +318,16 @@ async function build() {
     await fs.mkdir(versionDirectory, { recursive: true });
     await fs.writeFile(path.join(versionDirectory, schema.name), schema.contents, "utf8");
   }
+  const blueprintSchemaDirectory = path.join(schemasDirectory, "sfbp");
+  await fs.mkdir(blueprintSchemaDirectory, { recursive: true });
+  for (const [source, name] of [
+    [path.join(repositoryDirectory, "mods", "world-editor", "schemas", "v7.txt"), "v7.txt"],
+    [path.join(repositoryDirectory, "mods", "world-editor", "src", "sfbp_v7.lua"), "v7.lua"],
+  ]) {
+    const stat = await fs.lstat(source);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Blueprint schema must be a regular file: ${source}`);
+    await fs.copyFile(source, path.join(blueprintSchemaDirectory, name));
+  }
   const toolDirectory = path.join(outputDirectory, modSettingsRelativePath);
   await fs.mkdir(toolDirectory, { recursive: true });
   await fs.writeFile(path.join(toolDirectory, "index.html"), toolHtml, "utf8");
