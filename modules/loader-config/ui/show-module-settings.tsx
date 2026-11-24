@@ -93,6 +93,7 @@ export function AdvancedSettingsEditor({
     news: 'nav.news',
     compatibility: 'nav.compatibility',
     settings: 'nav.settings',
+    'server-management': 'nav.serverManagement',
     wiki: 'settings.modules.serverTargetVisibility.pageWiki',
     discover: 'nav.discover',
     installed: 'nav.installed',
@@ -150,7 +151,7 @@ export function AdvancedSettingsEditor({
           target: t('settings.modules.serverTargetVisibility.clientTarget'),
         })}
         checked={isTargetUiVisible(group, id, 'client', targetUi)}
-        disabled={group === 'pages' && id === 'settings'}
+        disabled={group === 'pages' && (id === 'settings' || id === 'server-management')}
         onChange={(value) => changeTargetVisibility(group, id, 'client', value)}
       />
       <Toggle
@@ -324,11 +325,8 @@ export function ModulePreferencesEditor({
         change={change}
       />}
       <div className="settings-module-list">
-        {TARGET_UI_MODULES
-          .filter((module) => (
-            ['debugConsole', 'worldEditor', 'modloaderUi', 'wiki', 'runtimeDiagnostics'].includes(module) &&
-            visibleInTarget(module)
-          ))
+        {(['debugConsole', 'worldEditor', 'modloaderUi', 'wiki', 'runtimeDiagnostics'] as const)
+          .filter(visibleInTarget)
           .map((module) => (
           <Card key={module} title={t(`settings.modules.${module}.title`)}>
             <p className="hint settings-module-description">

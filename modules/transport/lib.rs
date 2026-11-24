@@ -4,12 +4,27 @@
 //! resolves the initialized client or game-server interfaces exported by the
 //! loaded Steam API DLL and passes bounded messages through the native runtime.
 
+/// Maximum bytes in one message passed to the native Steam ABI.
 pub const MAX_MESSAGE_BYTES: usize = 512 * 1024;
+/// Maximum complete application message carried through the shared transport.
+pub const MAX_LOGICAL_MESSAGE_BYTES: usize = 16 * 1024 * 1024;
 /// Reserved for the Modloader remote UI. 65535 remains Network health.
 pub const REMOTE_UI_CHANNEL: i32 = 65_534;
+/// Steam's `k_EResultLimitExceeded`: the peer's send buffer is full.
+const STEAM_RESULT_LIMIT_EXCEEDED: i32 = 25;
+/// A receive call reads at most this many wire packets while looking for one
+/// complete logical message.
+const MAX_WIRE_MESSAGES_PER_RECEIVE: usize = 16;
 
 #[cfg(windows)]
 static RECEIVE_BUFFER: std::sync::OnceLock<std::sync::Mutex<Vec<u8>>> = std::sync::OnceLock::new();
+static TRANSPORT_OUTBOX: std::sync::OnceLock<
+    std::sync::Mutex<pace_network_sends::TransportOutbox>,
+> = std::sync::OnceLock::new();
+static TRANSPORT_REASSEMBLY: std::sync::OnceLock<
+    std::sync::Mutex<reassemble_network_message::NetworkReassembly>,
+> = std::sync::OnceLock::new();
+static TRANSPORT_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[derive(Debug, Clone)]
 pub struct Status {
@@ -90,8 +105,47 @@ pub fn send(
     send_on_channel(peer_steam_id, payload, channel, reliable, false)
 }
 
+/// Sends one complete logical message using the shared transport framing.
 pub(crate) fn send_remote_ui(peer_steam_id: u64, payload: &[u8]) -> Result<(), String> {
     send_on_channel(peer_steam_id, payload, REMOTE_UI_CHANNEL, true, true)
+}
+
+/// Discards queued remote UI messages before sending an unsubscribe to a peer.
+pub(crate) fn discard_remote_ui(peer_steam_id: u64) {
+    if let Some(outbox) = TRANSPORT_OUTBOX.get() {
+        outbox
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .discard(peer_steam_id, REMOTE_UI_CHANNEL);
+    }
+}
+
+/// Flushes queued messages and expires incomplete receives once per runtime
+/// update. Steam initialization and callback pumping remain game-owned.
+pub fn service_transport() {
+    if !TRANSPORT_ACTIVE.load(std::sync::atomic::Ordering::Acquire) {
+        return;
+    }
+    let failures = TRANSPORT_OUTBOX
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .flush(std::time::Instant::now(), send_transport_piece);
+    for (peer, channel, error) in failures {
+        tracing::warn!(
+            target: "shroudforge::network",
+            peer,
+            channel,
+            %error,
+            "Could not send queued network message"
+        );
+    }
+    if let Some(reassembly) = TRANSPORT_REASSEMBLY.get() {
+        reassembly
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .expire(std::time::Instant::now());
+    }
 }
 
 fn send_on_channel(
@@ -101,6 +155,94 @@ fn send_on_channel(
     reliable: bool,
     remote_ui: bool,
 ) -> Result<(), String> {
+    if peer_steam_id == 0 {
+        return Err("peer Steam ID must be nonzero".into());
+    }
+    validate_channel(channel, remote_ui)?;
+    if payload.len() > MAX_LOGICAL_MESSAGE_BYTES {
+        return Err(format!("payload exceeds {MAX_LOGICAL_MESSAGE_BYTES} bytes"));
+    }
+    let pieces = if payload.len() <= MAX_MESSAGE_BYTES {
+        vec![payload.to_vec()]
+    } else {
+        split_network_message::split_network_message(payload, uuid::Uuid::new_v4().as_u128())
+    };
+    if !reliable {
+        let queued = TRANSPORT_OUTBOX
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .has_pending(peer_steam_id, channel);
+        if queued {
+            return Err("an earlier message is queued on this peer and channel".into());
+        }
+        for piece in &pieces {
+            match send_transport_piece(peer_steam_id, channel, false, piece) {
+                pace_network_sends::PieceSent::Sent => {}
+                pace_network_sends::PieceSent::Full => {
+                    return Err("Steam send buffer is full; unreliable message was dropped".into());
+                }
+                pace_network_sends::PieceSent::Failed(error) => return Err(error),
+            }
+        }
+        return Ok(());
+    }
+    TRANSPORT_OUTBOX
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .send(
+            peer_steam_id,
+            channel,
+            reliable,
+            pieces,
+            std::time::Instant::now(),
+            send_transport_piece,
+        )
+}
+
+fn send_transport_piece(
+    peer_steam_id: u64,
+    channel: i32,
+    reliable: bool,
+    piece: &[u8],
+) -> pace_network_sends::PieceSent {
+    use pace_network_sends::PieceSent;
+    if !transport_peer_is_authorized(peer_steam_id) {
+        return PieceSent::Failed("peer is no longer authorized".into());
+    }
+    match send_result(
+        peer_steam_id,
+        piece,
+        channel,
+        reliable,
+        channel == REMOTE_UI_CHANNEL,
+    ) {
+        Ok(1) => PieceSent::Sent,
+        Ok(STEAM_RESULT_LIMIT_EXCEEDED) => PieceSent::Full,
+        Ok(result) => PieceSent::Failed(format!("Steam returned EResult {result}")),
+        Err(error) => PieceSent::Failed(error),
+    }
+}
+
+#[cfg(windows)]
+fn transport_peer_is_authorized(peer_steam_id: u64) -> bool {
+    is_authorized_server_peer(peer_steam_id)
+}
+
+#[cfg(not(windows))]
+fn transport_peer_is_authorized(_peer_steam_id: u64) -> bool {
+    true
+}
+
+/// Steam's result for one message (1: sent), or an error before Steam.
+fn send_result(
+    peer_steam_id: u64,
+    payload: &[u8],
+    channel: i32,
+    reliable: bool,
+    remote_ui: bool,
+) -> Result<i32, String> {
     if peer_steam_id == 0 {
         return Err("peer Steam ID must be nonzero".into());
     }
@@ -121,12 +263,10 @@ fn send_on_channel(
             channel,
             if reliable { 1 } else { 0 },
         );
-        if result == 1 {
-            Ok(())
-        } else if result < 0 {
+        if result < 0 {
             Err("Steam Networking Messages interface is unavailable".into())
         } else {
-            Err(format!("Steam returned EResult {result}"))
+            Ok(result)
         }
     }
     #[cfg(not(windows))]
@@ -154,9 +294,16 @@ pub fn service_tick(authorized_clients: &[String], restrict_clients: bool) {
     }
     #[cfg(not(windows))]
     let _ = (authorized_clients, restrict_clients);
+    let active = status().service_ready;
+    TRANSPORT_ACTIVE.store(active, std::sync::atomic::Ordering::Release);
+    if !active {
+        clear_transport_state();
+    }
 }
 
 pub fn service_shutdown() {
+    TRANSPORT_ACTIVE.store(false, std::sync::atomic::Ordering::Release);
+    clear_transport_state();
     #[cfg(windows)]
     unsafe {
         type NetworkShutdown = unsafe extern "C" fn();
@@ -164,6 +311,21 @@ pub fn service_shutdown() {
             let shutdown: NetworkShutdown = std::mem::transmute(address);
             shutdown();
         }
+    }
+}
+
+fn clear_transport_state() {
+    if let Some(outbox) = TRANSPORT_OUTBOX.get() {
+        outbox
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+    if let Some(reassembly) = TRANSPORT_REASSEMBLY.get() {
+        reassembly
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
     }
 }
 
@@ -266,14 +428,83 @@ pub fn connected_peers() -> Result<Vec<String>, String> {
 }
 
 pub fn receive(channel: i32) -> Result<Option<Message>, String> {
-    receive_on_channel(channel, false)
+    Ok(
+        receive_logical_batch(channel, false, MAX_WIRE_MESSAGES_PER_RECEIVE, 1)?
+            .into_iter()
+            .next(),
+    )
 }
 
+pub(crate) fn receive_batch(channel: i32, limit: usize) -> Result<Vec<Message>, String> {
+    if !(1..=32).contains(&limit) {
+        return Err("receive limit must be between 1 and 32".into());
+    }
+    receive_logical_batch(channel, false, limit, limit)
+}
+
+/// Receives one complete message on the reserved Modloader channel.
 pub(crate) fn receive_remote_ui() -> Result<Option<Message>, String> {
-    receive_on_channel(REMOTE_UI_CHANNEL, true)
+    Ok(
+        receive_logical_batch(REMOTE_UI_CHANNEL, true, MAX_WIRE_MESSAGES_PER_RECEIVE, 1)?
+            .into_iter()
+            .next(),
+    )
 }
 
-fn receive_on_channel(channel: i32, remote_ui: bool) -> Result<Option<Message>, String> {
+fn receive_logical_batch(
+    channel: i32,
+    remote_ui: bool,
+    wire_budget: usize,
+    logical_budget: usize,
+) -> Result<Vec<Message>, String> {
+    use reassemble_network_message::Reassembled;
+    let mut messages = Vec::new();
+    for _ in 0..wire_budget {
+        let Some(message) = receive_wire_on_channel(channel, remote_ui)? else {
+            break;
+        };
+        let Ok(peer) = message.peer_steam_id.parse::<u64>() else {
+            messages.push(message);
+            if messages.len() >= logical_budget {
+                break;
+            }
+            continue;
+        };
+        if !is_authorized_server_peer(peer) {
+            continue;
+        }
+        let reassembled = TRANSPORT_REASSEMBLY
+            .get_or_init(Default::default)
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .accept(peer, channel, message.payload, std::time::Instant::now());
+        match reassembled {
+            Reassembled::Message(payload) => {
+                messages.push(Message {
+                    peer_steam_id: message.peer_steam_id,
+                    payload,
+                    reliable: message.reliable,
+                });
+                if messages.len() >= logical_budget {
+                    break;
+                }
+            }
+            Reassembled::Pending => {}
+            Reassembled::Invalid(reason) => {
+                tracing::warn!(
+                    target: "shroudforge::network",
+                    peer,
+                    channel,
+                    reason,
+                    "Network fragment dropped"
+                );
+            }
+        }
+    }
+    Ok(messages)
+}
+
+fn receive_wire_on_channel(channel: i32, remote_ui: bool) -> Result<Option<Message>, String> {
     validate_channel(channel, remote_ui)?;
     #[cfg(windows)]
     unsafe {
@@ -358,6 +589,9 @@ pub mod lua;
 mod remote_ui;
 pub use remote_ui::tick as service_remote_ui;
 mod local_bridge;
+mod pace_network_sends;
+mod reassemble_network_message;
+mod split_network_message;
 pub use local_bridge::submit as request_remote_ui;
 
 mod read_network_allowlist;

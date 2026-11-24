@@ -40,6 +40,8 @@ Die aktuellen Modloader-Schemas liegen unter `modules/modloader/manifest/`. Für
 
 Für die aktuelle Repository-Version prüft der Build, dass der Snapshot mit dem kanonischen Schema übereinstimmt, abgesehen von `$id`. Bei einer neuen Modloader-Version werden die drei aktuellen Schema-Dateien in ein neues Versionsverzeichnis kopiert. Bereits veröffentlichte Versionsverzeichnisse bleiben erhalten. Die Seite `/schemas/` listet alle Snapshots und verlinkt außerdem auf den dokumentierten DInput8-Chain-Standard im Modding-Wiki.
 
+Das zeilenbasierte World-Editor-Format ist kein JSON. Seine unabhängig vom Modloader versionierte Spezifikation liegt unter `mods/world-editor/schemas/v7.txt`. Der Website-Build veröffentlicht sie unter `/schemas/sfbp/v7.txt` und die beim Laden verwendete Lua-Prüfung aus `mods/world-editor/src/sfbp_v7.lua` unter `/schemas/sfbp/v7.lua`. Bei einer neuen Formatversion bleiben die V7-Dateien unter ihren festen URLs erhalten.
+
 ## Veröffentlichung im bestehenden Releaseablauf
 
 Der vorhandene Workflow `.github/workflows/build.yml` wird weiterhin manuell auf einem Versions-Branch wie `1.0.0` gestartet. Nach dem vollständig erfolgreichen Job `publish` ruft der zusätzliche Job `website` den wiederverwendbaren Workflow `website-deploy.yml` auf. Build-, Scan-, Paket- und Releasefreigaben bleiben Bestandteil des bisherigen Ablaufs.

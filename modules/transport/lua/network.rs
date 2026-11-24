@@ -336,7 +336,10 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
             let session =
                 steam_network::read_session_peers(&(context.root)(lua), (context.is_server)(lua));
             if session.players().is_none() {
-                return Ok((None, Some("this game does not host a multiplayer session".into())));
+                return Ok((
+                    None,
+                    Some("this game does not host a multiplayer session".into()),
+                ));
             }
             let Some(names) = session.player_permissions(peer) else {
                 return Ok((
@@ -372,26 +375,25 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
             let is_server = (context.is_server)(lua);
             let messages = lua.create_table()?;
             let mut output_index = 0;
-            for _ in 1..=limit {
-                match steam_network::receive(channel) {
-                    Ok(Some(message)) => {
-                        if is_server
-                            && message.peer_steam_id.parse::<u64>().map_or(true, |peer| {
-                                !steam_network::is_authorized_server_peer(peer)
-                            })
-                        {
-                            continue;
-                        }
-                        let value = lua.create_table()?;
-                        value.raw_set("peer_steam_id", message.peer_steam_id)?;
-                        value.raw_set("payload", lua.create_string(&message.payload)?)?;
-                        value.raw_set("reliable", message.reliable)?;
-                        output_index += 1;
-                        messages.raw_set(output_index, value)?;
-                    }
-                    Ok(None) => break,
-                    Err(reason) => return Ok((Some(messages), Some(reason))),
+            let incoming = match steam_network::receive_batch(channel, limit) {
+                Ok(incoming) => incoming,
+                Err(reason) => return Ok((Some(messages), Some(reason))),
+            };
+            for message in incoming {
+                if is_server
+                    && message
+                        .peer_steam_id
+                        .parse::<u64>()
+                        .map_or(true, |peer| !steam_network::is_authorized_server_peer(peer))
+                {
+                    continue;
                 }
+                let value = lua.create_table()?;
+                value.raw_set("peer_steam_id", message.peer_steam_id)?;
+                value.raw_set("payload", lua.create_string(&message.payload)?)?;
+                value.raw_set("reliable", message.reliable)?;
+                output_index += 1;
+                messages.raw_set(output_index, value)?;
             }
             Ok((Some(messages), None))
         })?,
@@ -415,44 +417,45 @@ pub fn create(lua: &Lua, owner: &Mod, context: RuntimeContext) -> mlua::Result<T
             let is_server = (context.is_server)(lua);
             let messages = lua.create_table()?;
             let mut output_index = 0;
-            for _ in 1..=limit {
-                match steam_network::receive(mod_channel(&receive_mod_owner.info().id)) {
-                    Ok(Some(message)) => {
-                        if is_server
-                            && message.peer_steam_id.parse::<u64>().map_or(true, |peer| {
-                                !steam_network::is_authorized_server_peer(peer)
-                            })
-                        {
-                            continue;
-                        }
-                        let Ok(envelope) =
-                            serde_json::from_slice::<serde_json::Value>(&message.payload)
-                        else {
-                            continue;
-                        };
-                        if envelope["protocol"] != "shroudforge.mod-message.v1"
-                            || envelope["to_mod"].as_str() != Some(&receive_mod_owner.info().id)
-                        {
-                            continue;
-                        }
-                        let Some(from_mod) = envelope["from_mod"].as_str() else {
-                            continue;
-                        };
-                        let Some(payload) = envelope["payload"].as_str() else {
-                            continue;
-                        };
-                        let value = lua.create_table()?;
-                        value.raw_set("peer_steam_id", message.peer_steam_id)?;
-                        value.raw_set("from_mod", from_mod)?;
-                        value.raw_set("to_mod", receive_mod_owner.info().id.as_str())?;
-                        value.raw_set("payload", payload)?;
-                        value.raw_set("reliable", message.reliable)?;
-                        output_index += 1;
-                        messages.raw_set(output_index, value)?;
-                    }
-                    Ok(None) => break,
-                    Err(reason) => return Ok((Some(messages), Some(reason))),
+            let incoming = match steam_network::receive_batch(
+                mod_channel(&receive_mod_owner.info().id),
+                limit,
+            ) {
+                Ok(incoming) => incoming,
+                Err(reason) => return Ok((Some(messages), Some(reason))),
+            };
+            for message in incoming {
+                if is_server
+                    && message
+                        .peer_steam_id
+                        .parse::<u64>()
+                        .map_or(true, |peer| !steam_network::is_authorized_server_peer(peer))
+                {
+                    continue;
                 }
+                let Ok(envelope) = serde_json::from_slice::<serde_json::Value>(&message.payload)
+                else {
+                    continue;
+                };
+                if envelope["protocol"] != "shroudforge.mod-message.v1"
+                    || envelope["to_mod"].as_str() != Some(&receive_mod_owner.info().id)
+                {
+                    continue;
+                }
+                let Some(from_mod) = envelope["from_mod"].as_str() else {
+                    continue;
+                };
+                let Some(payload) = envelope["payload"].as_str() else {
+                    continue;
+                };
+                let value = lua.create_table()?;
+                value.raw_set("peer_steam_id", message.peer_steam_id)?;
+                value.raw_set("from_mod", from_mod)?;
+                value.raw_set("to_mod", receive_mod_owner.info().id.as_str())?;
+                value.raw_set("payload", payload)?;
+                value.raw_set("reliable", message.reliable)?;
+                output_index += 1;
+                messages.raw_set(output_index, value)?;
             }
             Ok((Some(messages), None))
         })?,

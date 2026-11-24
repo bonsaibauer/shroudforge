@@ -34,7 +34,11 @@ void read_on_game_thread(void* opaque){
 void read_many_on_game_thread(void* opaque){
     std::scoped_lock operation_lock(operation_mutex);
     auto& operation = *static_cast<ReadManyOperation*>(opaque);
-    operation.regions = {};
+    // As in read_on_game_thread, every copy runs under SEH and is published
+    // only when a second copy, the entity and the component address still
+    // match: pages are not queried. In game, VirtualQuery took 3 to 20 ms
+    // per call, several times per batch, and attribute reads polled by a mod
+    // held the mods' loop and the game's frames back.
     ResolvedLayout layout{};
     EntityView entity{};
     if (!layout_snapshot(layout) || !entity_for_handle(operation.handle, layout, entity)) return;
@@ -56,12 +60,12 @@ void read_many_on_game_thread(void* opaque){
             auto* output = operation.output.data() + offset;
             EntityView current{};
             std::uintptr_t current_address{};
-            if (!component_address(entity, layout, component, address, true, &operation.regions) ||
+            if (!component_address(entity, layout, component, address, false) ||
                 !read_bytes(address, output, size) ||
                 !read_bytes(address, operation.verification.data(), size) ||
                 std::memcmp(output, operation.verification.data(), size) != 0 ||
                 !entity_for_handle(operation.handle, layout, current) || current != entity ||
-                !component_address(current, layout, component, current_address, true, &operation.regions) || current_address != address) return;
+                !component_address(current, layout, component, current_address, false) || current_address != address) return;
             operation.present[index] = 1;
         }
         offset += size;
@@ -77,11 +81,11 @@ void read_many_on_game_thread(void* opaque){
             present != (operation.present[index] == 1)) return;
         if (present) {
             std::uintptr_t address{};
-            if (!component_address(current, layout, operation.components[index], address, true, &operation.regions) ||
+            if (!component_address(current, layout, operation.components[index], address, false) ||
                 address != operation.addresses[index]) return;
         }
     }
-    operation.result = operation.regions.revalidate();
+    operation.result = true;
 }
 
 }

@@ -297,7 +297,7 @@ function runtime.network.status() end
 ---@field reliable boolean? Reliable, ordered delivery on this peer/channel; default true.
 --- Send raw bytes to a Steam peer. This is a separate Steam P2P session, not an Enshrouded game packet. True means Steam accepted the send request, not that the peer acknowledged it.
 ---@param peer_steam_id string Decimal SteamID64 from runtime.network.status().local_steam_id on the remote process.
----@param payload string Binary-safe Lua string, maximum 512 KiB.
+---@param payload string Binary-safe Lua string, maximum 16 MiB as a complete transport message.
 ---@param options RuntimeNetworkSendOptions?
 ---@return boolean ok
 ---@return string? reason
@@ -305,7 +305,7 @@ function runtime.network.send(peer_steam_id, payload, options) end
 --- Send a UTF-8 text message from this mod to a named mod on a specific Steam peer. The destination mod receives it through receive_mod; this does not broadcast or identify the human player beyond their SteamID64.
 ---@param peer_steam_id string Decimal SteamID64 of the specific client or server process.
 ---@param target_mod_id string Mod ID installed on the receiving process.
----@param payload string UTF-8 text, maximum 512 KiB including protocol envelope.
+---@param payload string UTF-8 text. The complete routed transport message is limited to 16 MiB.
 ---@param options RuntimeNetworkSendOptions? Only reliable is used; destination channel is derived from target_mod_id.
 ---@return boolean ok
 ---@return string? reason

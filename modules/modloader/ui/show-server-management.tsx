@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../../ui-resources/i18n'
 import type { TranslationKey } from '../../ui-resources/i18n'
+import { Segmented } from '../../ui-resources/choose-segment'
+import { Card } from '../../ui-resources/show-card'
 import { FeatureBanner } from '../../ui-resources/show-feature-banner'
 import { PageHeader } from '../../ui-resources/show-page-header'
 import type { UpdaterCommand } from '../../updater/ui/update-types'
 import type {
-  ServerPermissionGroup,
   ServerPermissionPlayer,
   ServerPermissionValues,
   ServerRights,
@@ -61,6 +62,7 @@ export function ServerManagement({
   authenticated: boolean
 }) {
   const { t } = useI18n()
+  const [tab, setTab] = useState('rights')
   const [draft, setDraft] = useState<EditableServerPermissionGroup[]>([])
   const [saving, setSaving] = useState(false)
   const pendingSave = useRef<string | null>(null)
@@ -183,119 +185,121 @@ export function ServerManagement({
         </div>
       </FeatureBanner>
 
-      <div className="server-management-tabs" role="tablist" aria-label={t('nav.serverManagement')}>
-        <button className="server-management-tab" type="button" role="tab" aria-selected="true">
-          {t('serverRights.tab')}
-        </button>
-      </div>
+      <Segmented
+        value={tab}
+        onChange={setTab}
+        items={[['rights', t('serverRights.tab')]]}
+      />
 
-      <section className="server-rights-page" role="tabpanel">
-        <div className="server-rights-heading">
-          <div>
-            <h2>{t('serverRights.tab')}</h2>
-            <p>{t('serverRights.description')}</p>
-          </div>
-          <button
-            className="button ghost"
-            type="button"
-            disabled={!authenticated}
-            onClick={refreshPlayers}
+      {tab === 'rights' && (
+        !authenticated || !serverRights ? (
+          <Card
+            title={t('serverRights.tab')}
+            actions={
+              <button className="button ghost" type="button" disabled={!authenticated} onClick={refreshPlayers}>
+                {t('serverRights.refresh')}
+              </button>
+            }
           >
-            {t('serverRights.refresh')}
-          </button>
-        </div>
-
-        {!authenticated || !serverRights ? (
-          <p className="server-rights-empty">{t('serverRights.waiting')}</p>
+            <p className="hint">{t('serverRights.description')}</p>
+            <p className="hint">{t('serverRights.waiting')}</p>
+          </Card>
         ) : (
           <>
-            <div className="server-rights-heading server-rights-section-heading">
-              <h3>{t('serverRights.groupsTitle')}</h3>
-              <button
-                className="button primary"
-                type="button"
-                disabled={!dirty || saving}
-                onClick={save}
-              >
-                {saving ? t('serverRights.saving') : t('serverRights.save')}
-              </button>
-            </div>
-            <div className="server-rights-table-wrap">
-              <table className="server-rights-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('serverRights.group')}</th>
-                    {permissionColumns.map(({ key, label }) => (
-                      <th scope="col" key={key}>{t(label)}</th>
-                    ))}
-                    <th scope="col">{t('serverRights.syncServerLogs')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {draft.map((group) => (
-                    <tr key={group.name}>
-                      <th scope="row">
-                        <span>{group.name}</span>
-                        {hasAllAdminRights(group) && (
-                          <span className="server-rights-admin">
-                            {t('serverRights.shroudforgeAdmin')}
-                          </span>
-                        )}
-                      </th>
+            <Card
+              title={t('serverRights.groupsTitle')}
+              actions={
+                <button className="button" type="button" disabled={!dirty || saving} onClick={save}>
+                  {saving ? t('serverRights.saving') : t('serverRights.save')}
+                </button>
+              }
+            >
+              <p className="hint">{t('serverRights.description')}</p>
+              <div className="server-rights-table-wrap">
+                <table className="server-rights-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('serverRights.group')}</th>
                       {permissionColumns.map(({ key, label }) => (
-                        <td key={key}>
+                        <th scope="col" key={key}>{t(label)}</th>
+                      ))}
+                      <th scope="col">{t('serverRights.syncServerLogs')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draft.map((group) => (
+                      <tr key={group.name}>
+                        <th scope="row">
+                          <span>{group.name}</span>
+                          {hasAllAdminRights(group) && (
+                            <span className="server-rights-admin">
+                              {t('serverRights.shroudforgeAdmin')}
+                            </span>
+                          )}
+                        </th>
+                        {permissionColumns.map(({ key, label }) => (
+                          <td key={key}>
+                            <input
+                              aria-label={`${group.name}: ${t(label)}`}
+                              type="checkbox"
+                              checked={group[key]}
+                              onChange={(event) => changeGroup(group.name, key, event.currentTarget.checked)}
+                            />
+                          </td>
+                        ))}
+                        <td>
                           <input
-                            aria-label={`${group.name}: ${t(label)}`}
+                            aria-label={`${group.name}: ${t('serverRights.syncServerLogs')}`}
                             type="checkbox"
-                            checked={group[key]}
-                            onChange={(event) => changeGroup(group.name, key, event.currentTarget.checked)}
+                            checked={group.syncServerLogs}
+                            disabled={!hasAllAdminRights(group)}
+                            onChange={(event) => changeGroup(group.name, 'syncServerLogs', event.currentTarget.checked)}
                           />
                         </td>
-                      ))}
-                      <td>
-                        <input
-                          aria-label={`${group.name}: ${t('serverRights.syncServerLogs')}`}
-                          type="checkbox"
-                          checked={group.syncServerLogs}
-                          disabled={!hasAllAdminRights(group)}
-                          onChange={(event) => changeGroup(group.name, 'syncServerLogs', event.currentTarget.checked)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                  {draft.length === 0 && (
-                    <tr><td colSpan={7}>{t('serverRights.noGroups')}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="server-rights-heading server-rights-section-heading">
-              <h3>{t('serverRights.playersTitle')}</h3>
-              <span>{serverRights.players.length}</span>
-            </div>
-            <div className="server-rights-table-wrap">
-              <table className="server-rights-table server-rights-player-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{t('serverRights.player')}</th>
-                    <th scope="col">{t('serverRights.group')}</th>
-                    {permissionColumns.map(({ key, label }) => (
-                      <th scope="col" key={key}>{t(label)}</th>
+                      </tr>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {serverRights.players.map(renderPlayer)}
-                  {serverRights.players.length === 0 && (
-                    <tr><td colSpan={7}>{t('serverRights.noPlayers')}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    {draft.length === 0 && (
+                      <tr><td colSpan={7}>{t('serverRights.noGroups')}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card
+              title={t('serverRights.playersTitle')}
+              actions={
+                <div className="server-rights-actions">
+                  <span>{serverRights.players.length}</span>
+                  <button className="button ghost" type="button" onClick={refreshPlayers}>
+                    {t('serverRights.refresh')}
+                  </button>
+                </div>
+              }
+            >
+              <div className="server-rights-table-wrap">
+                <table className="server-rights-table server-rights-player-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{t('serverRights.player')}</th>
+                      <th scope="col">{t('serverRights.group')}</th>
+                      {permissionColumns.map(({ key, label }) => (
+                        <th scope="col" key={key}>{t(label)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serverRights.players.map(renderPlayer)}
+                    {serverRights.players.length === 0 && (
+                      <tr><td colSpan={7}>{t('serverRights.noPlayers')}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </>
-        )}
-      </section>
+        )
+      )}
     </>
   )
 }
