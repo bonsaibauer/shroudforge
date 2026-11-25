@@ -1025,6 +1025,37 @@ function runtime.world.entity.destroy(entity_handle) end
 --- @return string? reason
 function runtime.world.entity.destroy(position, rotation, bounds, tracking_id, feedback_id) end
 
+--- @class RuntimeWorldEntityChangeJob
+local RuntimeWorldEntityChangeJob = {}
+--- Nil while the change waits or runs. Then `{ok = true, handle = integer?, seconds = number}`, with
+--- the new prop's handle for a spawn, or `{error = string, seconds = number}`. `seconds` is how long
+--- the change ran on the background thread.
+--- @return table?
+function RuntimeWorldEntityChangeJob:result() end
+
+--- Spawn like `spawn`, without waiting on the mods' update loop: the spawn and the wait for its live
+--- ECS record run on a background thread, and the job's `result()` gives the handle during a later
+--- update. Changes started with `start_spawn` and `start_destroy` run one at a time, in the order they
+--- were started, for all mods. At most 256 may wait at once; a finished change counts until its
+--- result is read or its job is released. Availability is that of `runtime.world.entity.spawn`.
+--- @param template_uuid_high_hex string
+--- @param template_uuid_low_hex string
+--- @param position number[] Three world coordinates.
+--- @param rotation number[] Non-zero quaternion x,y,z,w; KFC Runtime normalizes it before dispatch.
+--- @param tracking_id integer
+--- @param flags integer
+--- @return RuntimeWorldEntityChangeJob? job
+--- @return string? reason
+function runtime.world.entity.start_spawn(template_uuid_high_hex, template_uuid_low_hex, position, rotation, tracking_id, flags) end
+
+--- Destroy like `destroy(entity_handle)`, without waiting on the mods' update loop: the removal and
+--- the check that the handle disappeared run on the background thread of `start_spawn`, in the same
+--- order. Availability is that of `runtime.world.entity.destroy`.
+--- @param entity_handle integer Handle returned by query_props, spawn or a start_spawn result.
+--- @return RuntimeWorldEntityChangeJob? job
+--- @return string? reason
+function runtime.world.entity.start_destroy(entity_handle) end
+
 --- Dispatch the profile's finish-building operation in a validated live actor placement context.
 --- @param complete boolean
 --- @return boolean ok

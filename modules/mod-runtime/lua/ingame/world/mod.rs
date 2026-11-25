@@ -1,12 +1,14 @@
 use super::*;
 mod access_prop_transform;
 mod change_building_entities;
+mod change_entities_in_background;
 mod query_props;
 mod read_world_context;
 mod read_write_voxels;
 mod register_prop_recipes;
 use access_prop_transform::*;
 use change_building_entities::*;
+use change_entities_in_background::*;
 use query_props::*;
 use read_world_context::*;
 use read_write_voxels::*;
@@ -80,6 +82,20 @@ pub(super) fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::T
     add_function_with_mod(lua, &entity, "spawn", r#mod, lua_world_entity_spawn)?;
     add_function_with_mod(lua, &entity, "place", r#mod, lua_world_entity_place)?;
     add_function_with_mod(lua, &entity, "destroy", r#mod, lua_world_entity_destroy)?;
+    add_function_with_mod(
+        lua,
+        &entity,
+        "start_spawn",
+        r#mod,
+        lua_world_entity_start_spawn,
+    )?;
+    add_function_with_mod(
+        lua,
+        &entity,
+        "start_destroy",
+        r#mod,
+        lua_world_entity_start_destroy,
+    )?;
     add_function_with_mod(
         lua,
         &entity,
