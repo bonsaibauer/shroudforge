@@ -65,6 +65,9 @@ bool EntityDestructionAvailable() {
         EngineContext::EcsView view;
         if (!EngineContext::ResolveEcs(view) || view.role != EngineContext::EcsRole::LocalAuthority)
             return false;
+        // Page queries before the Scene gate, which holds the game's frame.
+        EntityCommandQueueSelection checked;
+        if (!EcsRuntime::CheckEntityCommandQueuePages(view, checked)) return false;
         // Availability can be called by an ECS status reader holding its state
         // mutex. Never wait for another operation or acquire SessionGuard here.
         std::unique_lock operation_lock(NamedServiceImplementation::operation_mutex, std::try_to_lock);
@@ -74,7 +77,7 @@ bool EntityDestructionAvailable() {
         RegisteredOperation found;
         EntityCommandQueueSelection queue;
         return operation(bindings, view, found) &&
-            EcsRuntime::ResolveEntityCommandQueue(bindings.tasks, view, queue) && scene.Validate();
+            EcsRuntime::ResolveEntityCommandQueue(bindings.tasks, view, checked, queue) && scene.Validate();
     } catch (...) { return false; }
 }
 
@@ -84,6 +87,12 @@ DestructionResult SubmitEntityDestruction(std::uint64_t expected_session,
     bool invocation_started{};
     try {
         const Bindings bindings;
+        // Page queries before the Scene gate, which holds the game's frame.
+        EngineContext::EcsView checked_view;
+        EntityCommandQueueSelection checked;
+        if (!EngineContext::ResolveEcs(checked_view) ||
+            !EcsRuntime::CheckEntityCommandQueuePages(checked_view, checked))
+            return DestructionResult::Unavailable;
         std::scoped_lock operation_lock(NamedServiceImplementation::operation_mutex);
         EcsRuntime::SessionGuard session;
         if (!session.TryAcquire(expected_session)) return DestructionResult::StaleSession;
@@ -94,7 +103,7 @@ DestructionResult SubmitEntityDestruction(std::uint64_t expected_session,
         EntityCommandQueueSelection queue, repeated;
         std::uint32_t id{}, generation{};
         if (!operation(bindings, session.View(), found) ||
-            !EcsRuntime::ResolveEntityCommandQueue(bindings.tasks, session.View(), queue))
+            !EcsRuntime::ResolveEntityCommandQueue(bindings.tasks, session.View(), checked, queue))
             return DestructionResult::Unavailable;
         if (!session.ResolveEntityIdentity(entity_handle, id, generation)) return DestructionResult::Rejected;
 

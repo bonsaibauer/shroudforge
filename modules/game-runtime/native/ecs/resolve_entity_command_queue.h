@@ -51,7 +51,21 @@ struct EntityCommandQueueSelection {
 bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract& binding,
     const EngineContext::EcsView& owner, EntityCommandQueueSelection& output);
 
+// Before SessionGuard and the Scene gate: the page queries of the snapshot
+// (entity id counter, task and queue records, each queue buffer, the vtable)
+// on the fixed regions alone, while the game's frame may run. A spawn or a
+// destruction passes the result to the overload below, so that those queries
+// (about 2.7 ms each in game) are not made while the Scene gate holds the frame.
+bool CheckEntityCommandQueuePages(const EngineContext::EcsView& owner, EntityCommandQueueSelection& checked);
+
+// Under the gates, as above, without querying again the pages that `checked`
+// queried at the same address and size. Any other region is queried.
+bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract& binding,
+    const EngineContext::EcsView& owner, const EntityCommandQueueSelection& checked,
+    EntityCommandQueueSelection& output);
+
 // Revalidates the same selection, including all neighbouring original queues.
+// The pages of the regions `expected` holds are not queried again.
 // Only the selected queue's cursor/count may advance. Its other metadata and
 // all owner/backreference/array fields must match expected. The caller compares
 // the full header immediately before dispatch, then the precise expected

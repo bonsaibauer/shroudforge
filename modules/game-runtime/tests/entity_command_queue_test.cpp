@@ -13,7 +13,7 @@
 namespace {
 unsigned checks{};
 std::uintptr_t fixture_service{};
-unsigned binding_calls{}, move_binding_on_call{};
+unsigned binding_calls{}, move_binding_on_call{}, writable_calls{};
 void check(bool value, std::source_location location = std::source_location::current()) {
     ++checks;
     if (!value) {
@@ -73,6 +73,7 @@ bool executable_callback(std::uintptr_t address) {
         address == reinterpret_cast<std::uintptr_t>(second_fixture_method);
 }
 bool writable(std::uintptr_t address, std::size_t size) {
+    ++writable_calls;
     if (!address || !size || address > UINTPTR_MAX - size) return false;
     const auto end = address + size;
     while (address < end) {
@@ -136,6 +137,41 @@ void check_layout(const EngineContext::EntityCommandQueueLayout& layout) {
     check(original.selected_index == 0 && original.queue_address == queues_address && original.queue_count == 2);
     check(original.header == queues[0] && original.task_links[1].queue == queues_address + 64);
     check(EcsRuntime::RereadEntityCommandQueue(binding, owner, original, current));
+
+    // Pages checked before the Scene gate are not queried again under it: the
+    // counter, both record arrays and each queue buffer at the same address and
+    // size. The plain resolution still queries them; a moved buffer is queried.
+    EcsRuntime::EntityCommandQueueSelection checked, gated;
+    writable_calls = 0;
+    check(EcsRuntime::CheckEntityCommandQueuePages(owner, checked) && writable_calls == 5);
+    writable_calls = 0;
+    check(EcsRuntime::ResolveEntityCommandQueue(binding, owner, checked, gated) && writable_calls == 0);
+    check(gated.queue_address == original.queue_address && gated.header == original.header);
+    check(EcsRuntime::RereadEntityCommandQueue(binding, owner, gated, current) && writable_calls == 0);
+    check(EcsRuntime::ResolveEntityCommandQueue(binding, owner, current) && writable_calls == 5);
+    writable_calls = 0;
+    const auto moved_buffer = queues[1].buffer;
+    queues[1].buffer += 64;
+    check(!EcsRuntime::ResolveEntityCommandQueue(binding, owner, checked, gated) || writable_calls == 1);
+    queues[1].buffer = moved_buffer;
+    writable_calls = 0;
+    // The pages are checked while the game's frame may run: queues being
+    // appended to, or in another execution mode, do not fail the page check.
+    queues[0].byte_cursor = queues[1].byte_cursor = 16;
+    queues[0].command_count = queues[1].command_count = 1;
+    queues[1].execution_mode = 1;
+    check(!EcsRuntime::ResolveEntityCommandQueue(binding, owner, current));
+    writable_calls = 0;
+    check(EcsRuntime::CheckEntityCommandQueuePages(owner, checked) && writable_calls == 5);
+    queues[0].byte_cursor = queues[1].byte_cursor = 0;
+    queues[0].command_count = queues[1].command_count = 0;
+    queues[1].execution_mode = 0;
+    // A buffer that is no longer writable fails the page check.
+    DWORD protection{};
+    check(VirtualProtect(reinterpret_cast<void*>(queues[1].buffer), 4096, PAGE_READONLY, &protection) != 0);
+    check(!EcsRuntime::CheckEntityCommandQueuePages(owner, checked));
+    check(VirtualProtect(reinterpret_cast<void*>(queues[1].buffer), 4096, protection, &protection) != 0);
+    writable_calls = 0;
 
     auto expect_failure = [&] {
         current.queue_address = 0x1234;

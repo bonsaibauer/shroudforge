@@ -33,12 +33,37 @@ bool header_valid(const EntityCommandQueueHeader& header, std::uintptr_t counter
         header.byte_cursor <= header.capacity &&
         ((!header.byte_cursor && !header.command_count) ||
          (header.byte_cursor >= 12 && header.command_count && header.command_count <= header.byte_cursor / 12)) &&
-        !header.execution_mode && header.entity_id_counter == counter &&
-        NamedServiceImplementation::writable(header.buffer, static_cast<std::size_t>(header.capacity));
+        !header.execution_mode && header.entity_id_counter == counter;
+}
+
+// Whether `checked` (a snapshot taken by CheckEntityCommandQueue before the
+// Scene gate) already queried the pages of this exact region: the entity id
+// counter, the task and queue records, or a queue's fixed buffer.
+bool pages_proven(const EntityCommandQueueSelection* checked, const EngineContext::EntityCommandQueueLayout& layout,
+    std::uintptr_t address, std::size_t size) {
+    if (!checked || !checked->manager || !address || !size || checked->queue_count > maximum_entity_command_queues)
+        return false;
+    const auto count = static_cast<std::size_t>(checked->queue_count);
+    if (checked->manager <= UINTPTR_MAX - layout.entity_id_counter &&
+        address == checked->manager + layout.entity_id_counter && size == sizeof(std::uint32_t)) return true;
+    if (address == checked->task_records && size == count * layout.task_record_stride) return true;
+    if (address == checked->queue_records && size == count * sizeof(EntityCommandQueueHeader)) return true;
+    for (std::size_t index = 0; index < count; ++index)
+        if (checked->headers[index].buffer == address && checked->headers[index].capacity == size) return true;
+    return false;
+}
+
+// A page query, unless `checked` already made it for the same region. Each
+// query took about 2.7 ms in game: the 39 of a spawn or a destruction, made
+// while the Scene gate was held, held the game's frame for about 105 ms.
+bool writable(const EntityCommandQueueSelection* checked, const EngineContext::EntityCommandQueueLayout& layout,
+    std::uintptr_t address, std::size_t size) {
+    return pages_proven(checked, layout, address, size) || NamedServiceImplementation::writable(address, size);
 }
 
 bool snapshot(const NamedServiceImplementation::BindingContract& binding,
-    const EngineContext::EcsView& owner, EntityCommandQueueSelection& result) {
+    const EngineContext::EcsView& owner, EntityCommandQueueSelection& result,
+    const EntityCommandQueueSelection* checked) {
     if (binding.key != "ecs::Tasks" || owner.role != EngineContext::EcsRole::LocalAuthority ||
         !owner.manager || !owner.execution_owner || !owner.registry_owner || !owner.owners.image ||
         !owner.entity_command_queue_layout) return false;
@@ -67,10 +92,10 @@ bool snapshot(const NamedServiceImplementation::BindingContract& binding,
         (current.task_records & 7) || (current.queue_records & 0x3f) ||
         !field(owner.manager, layout.active_tracking_contexts, current.active_tracking_contexts) ||
         current.active_tracking_contexts ||
-        !NamedServiceImplementation::writable(counter, sizeof(std::uint32_t)) ||
-        !NamedServiceImplementation::writable(current.task_records,
+        !writable(checked, layout, counter, sizeof(std::uint32_t)) ||
+        !writable(checked, layout, current.task_records,
             static_cast<std::size_t>(task_count) * layout.task_record_stride) ||
-        !NamedServiceImplementation::writable(current.queue_records,
+        !writable(checked, layout, current.queue_records,
             static_cast<std::size_t>(current.queue_count) * sizeof(EntityCommandQueueHeader))) return false;
     std::uintptr_t vtable{}, allocator{}, tracker{};
     bool selected{};
@@ -80,10 +105,12 @@ bool snapshot(const NamedServiceImplementation::BindingContract& binding,
         auto& links = current.task_links[index];
         auto& header = current.headers[index];
         if (!read(task, links) || links.manager != owner.manager || links.queue != queue || links.tracker != expected_tracker ||
-            !read(queue, header) || !header_valid(header, counter, layout.buffer_capacity)) return false;
+            !read(queue, header) || !header_valid(header, counter, layout.buffer_capacity) ||
+            !writable(checked, layout, header.buffer, static_cast<std::size_t>(header.capacity))) return false;
         if (!index) {
             vtable = header.vtable; allocator = header.allocator; tracker = links.tracker;
-            if (!image_vtable(vtable, owner.owners.image) || !tracker) return false;
+            const bool vtable_proven = checked && checked->queue_count && checked->headers[0].vtable == vtable;
+            if ((!vtable_proven && !image_vtable(vtable, owner.owners.image)) || !tracker) return false;
         } else if (header.vtable != vtable || header.allocator != allocator || links.tracker != tracker) return false;
         // Original fixed-capacity buffers are independent allocations. Overlapping them
         // would make a command publication overwrite another worker's commands.
@@ -129,7 +156,53 @@ bool snapshot(const NamedServiceImplementation::BindingContract& binding,
 bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract& binding,
     const EngineContext::EcsView& owner, EntityCommandQueueSelection& output) {
     EntityCommandQueueSelection found;
-    if (!snapshot(binding, owner, found) || !found.queue_address) return false;
+    if (!snapshot(binding, owner, found, nullptr) || !found.queue_address) return false;
+    output = found;
+    return true;
+}
+
+bool CheckEntityCommandQueuePages(const EngineContext::EcsView& owner, EntityCommandQueueSelection& checked) {
+    // Only the fixed regions: while the game's frame runs, the workers append
+    // to their queues, so cursors, counts and modes are not required here.
+    // The snapshot under the Scene gate checks them, and every other field.
+    if (owner.role != EngineContext::EcsRole::LocalAuthority || !owner.manager || !owner.owners.image ||
+        !owner.entity_command_queue_layout) return false;
+    const auto& layout = *owner.entity_command_queue_layout;
+    if (layout.task_record_stride < sizeof(EntityCommandQueueTaskLinks) || layout.buffer_capacity < 160 ||
+        layout.buffer_capacity > std::numeric_limits<std::uint32_t>::max()) return false;
+    EntityCommandQueueSelection found;
+    found.manager = owner.manager;
+    std::uintptr_t counter{};
+    std::uint64_t task_count{};
+    if (!add(owner.manager, layout.entity_id_counter, counter) ||
+        !field(owner.manager, layout.task_records, found.task_records) ||
+        !field(owner.manager, layout.task_count, task_count) ||
+        !field(owner.manager, layout.queue_records, found.queue_records) ||
+        !field(owner.manager, layout.queue_count, found.queue_count) || task_count != found.queue_count ||
+        !extent(found.task_records, task_count, layout.task_record_stride) ||
+        !extent(found.queue_records, found.queue_count, sizeof(EntityCommandQueueHeader)) ||
+        !NamedServiceImplementation::writable(counter, sizeof(std::uint32_t)) ||
+        !NamedServiceImplementation::writable(found.task_records,
+            static_cast<std::size_t>(task_count) * layout.task_record_stride) ||
+        !NamedServiceImplementation::writable(found.queue_records,
+            static_cast<std::size_t>(found.queue_count) * sizeof(EntityCommandQueueHeader))) return false;
+    for (std::size_t index = 0; index < found.queue_count; ++index) {
+        auto& header = found.headers[index];
+        if (!read(found.queue_records + index * sizeof(EntityCommandQueueHeader), header) ||
+            !header.buffer || header.capacity != layout.buffer_capacity ||
+            header.buffer > UINTPTR_MAX - header.capacity ||
+            !NamedServiceImplementation::writable(header.buffer, static_cast<std::size_t>(header.capacity)) ||
+            (!index && !image_vtable(header.vtable, owner.owners.image))) return false;
+    }
+    checked = found;
+    return true;
+}
+
+bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract& binding,
+    const EngineContext::EcsView& owner, const EntityCommandQueueSelection& checked,
+    EntityCommandQueueSelection& output) {
+    EntityCommandQueueSelection found;
+    if (!snapshot(binding, owner, found, &checked) || !found.queue_address) return false;
     output = found;
     return true;
 }
@@ -139,7 +212,7 @@ bool RereadEntityCommandQueue(const NamedServiceImplementation::BindingContract&
     EntityCommandQueueSelection& output) {
     EntityCommandQueueSelection found;
     if (!expected.queue_address || expected.selected_index >= expected.queue_count ||
-        expected.queue_count > maximum_entity_command_queues || !snapshot(binding, owner, found) ||
+        expected.queue_count > maximum_entity_command_queues || !snapshot(binding, owner, found, &expected) ||
         found.manager != expected.manager || found.tasks_service != expected.tasks_service ||
         found.task_state != expected.task_state || found.task_records != expected.task_records ||
         found.queue_records != expected.queue_records || found.queue_count != expected.queue_count ||
