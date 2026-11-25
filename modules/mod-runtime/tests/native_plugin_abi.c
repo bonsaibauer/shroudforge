@@ -1,12 +1,16 @@
 #include <stddef.h>
 #include "../../game-runtime/native/abi/executable_span_api.h"
-#include "../native_plugin_api.h"
+#include "../native_bridge/shroudforge_mod_native.h"
 #include "../../game-runtime/native/abi/map_overlay_api.h"
 #include "../../game-runtime/native/abi/executable_span_validation_api.h"
 #include "../../game-runtime/native/abi/runtime_api.h"
 
 /* Match the Rust host layouts from an ordinary x64 C plugin consumer. */
 _Static_assert(KFC_RUNTIME_ABI_VERSION == 12u, "stable runtime ABI");
+_Static_assert(SHROUDFORGE_MOD_NATIVE_ABI_VERSION == 3u, "extended mod bridge ABI");
+_Static_assert(sizeof(ShroudforgeModHost) == 56, "mod host layout");
+_Static_assert(offsetof(ShroudforgeModHost, read_local_camera) == 40, "stable ABI 2 tail");
+_Static_assert(offsetof(ShroudforgeModHost, register_lifecycle) == 48, "appended ABI 3 tail");
 _Static_assert(sizeof(SFNativePluginV1) == 48, "plugin layout");
 _Static_assert(offsetof(SFNativePluginV1, initialize) == 16, "initialize offset");
 _Static_assert(sizeof(SFNativePluginV2) == 72, "version 2 plugin layout");
@@ -43,13 +47,13 @@ _Static_assert(sizeof(SFExecutableSpanValidationServiceV1) == 24, "span service 
 _Static_assert(sizeof(SFMapFrameV1) == 640, "map frame layout");
 _Static_assert(sizeof(SFMapMarkerV1) == 88, "map marker layout");
 _Static_assert(offsetof(SFMapMarkerV1, icon_candidates) == 48, "marker candidates offset");
-_Static_assert(sizeof(SFMapServiceV1) == 40, "map service layout");
+_Static_assert(sizeof(SFMapServiceV1) == 32, "map service layout");
 _Static_assert(sizeof(SFOverlayServiceV1) == 40, "overlay service layout");
 _Static_assert(sizeof(SFOverlayEncoderV1) == 48, "overlay encoder layout");
 _Static_assert(sizeof(SFOverlayEncoderV2) == 56, "extended encoder layout");
 _Static_assert(sizeof(SFOverlayStatusV1) == 48, "overlay status layout");
 
-SFNativeStatusV1 SF_NATIVE_CALL ShroudForgePluginEntry(
+static SFNativeStatusV1 SF_NATIVE_CALL lifecycle_factory(
     uint32_t requested_abi, uint32_t out_size, SFNativePluginV1 *out_plugin)
 {
     (void)requested_abi;
@@ -58,4 +62,33 @@ SFNativeStatusV1 SF_NATIVE_CALL ShroudForgePluginEntry(
     return SF_NATIVE_STATUS_ABI_MISMATCH;
 }
 
-int main(void) { return 0; }
+SHROUDFORGE_MOD_NATIVE_EXPORT int32_t SHROUDFORGE_MOD_NATIVE_CALL
+ShroudforgeModNativeInit(const ShroudforgeModHost *host)
+{
+    if (!host || host->abi_version < 3u || host->size < sizeof(*host)
+        || !host->register_lifecycle) return 0;
+    return host->register_lifecycle(host, lifecycle_factory) == 1u;
+}
+
+static ShroudforgeNativeLifecycleFactory registered_factory;
+static uint32_t SHROUDFORGE_MOD_NATIVE_CALL register_lifecycle(
+    const ShroudforgeModHost *host, ShroudforgeNativeLifecycleFactory factory)
+{
+    (void)host;
+    registered_factory = factory;
+    return 1u;
+}
+
+int main(void)
+{
+    ShroudforgeModHost host = {0};
+    host.abi_version = 2u;
+    host.size = 48u;
+    if (ShroudforgeModNativeInit(&host) != 0 || registered_factory) return 1;
+    host.abi_version = SHROUDFORGE_MOD_NATIVE_ABI_VERSION;
+    host.size = sizeof(host);
+    host.register_lifecycle = register_lifecycle;
+    if (ShroudforgeModNativeInit(&host) != 1 || !registered_factory) return 2;
+    if (registered_factory(99u, 0u, NULL) != SF_NATIVE_STATUS_ABI_MISMATCH) return 3;
+    return 0;
+}

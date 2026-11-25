@@ -71,6 +71,7 @@ impl Record {
 pub(crate) struct ProcessLibraryResult {
     pub(crate) handle: Option<isize>,
     pub(crate) initialization: Result<bool, String>,
+    pub(crate) lifecycle_factory: Option<crate::native_bridge::NativeLifecycleFactory>,
 }
 
 struct LoadRequest {
@@ -112,14 +113,16 @@ fn executor() -> Result<&'static Executor, String> {
                                 entry.mod_id.as_deref(),
                                 &shroudforge_loader_config::paths::mods_dir(&root).join(&entry.package_directory),
                             ),
-                            None => Ok(false),
+                            None => Ok(crate::native_bridge::NativeRegistration::default()),
                         });
+                        let lifecycle_factory = result.as_ref().ok().and_then(|registration| registration.lifecycle_factory);
+                        let result = result.map(|registration| registration.connected);
                         let (state_name, detail) = match &result {
                             Ok(bridged) => {
                                 tracing::info!(target: "shroudforge::dll_manager", status_id = %entry.status_id,
                                     dll = %entry.path.display(), bridged, "Native DLL loaded. Mod functionality is not independently verified");
                                 ("loaded", if *bridged {
-                                    "Native DLL loaded for this process and connected to its mod's Lua code. Functionality is not independently verified"
+                                    "Native DLL loaded for this process and connected to its mod's native API. Functionality is not independently verified"
                                 } else {
                                     "Native DLL loaded for this process. Functionality is not independently verified"
                                 }.to_owned())
@@ -135,7 +138,7 @@ fn executor() -> Result<&'static Executor, String> {
                         if let Some(record) = state.records.get_mut(&key) {
                             record.state = state_name;
                             record.detail = detail;
-                            let result = ProcessLibraryResult { handle, initialization: result };
+                            let result = ProcessLibraryResult { handle, initialization: result, lifecycle_factory };
                             record.complete(result);
                         }
                         completed.notify_all();
@@ -827,6 +830,14 @@ pub(crate) fn load_library(
 mod managed_plugin_plan_tests {
     use super::*;
 
+    unsafe extern "C" fn test_lifecycle_factory(
+        _abi: u32,
+        _size: u32,
+        _output: *mut crate::session::SFNativePluginV1,
+    ) -> i32 {
+        2
+    }
+
     fn controlled_executor() -> (Executor, mpsc::Receiver<LoadRequest>) {
         let (sender, receiver) = mpsc::channel();
         (
@@ -866,14 +877,24 @@ mod managed_plugin_plan_tests {
             record.complete(ProcessLibraryResult {
                 handle: Some(42),
                 initialization: Ok(true),
+                lifecycle_factory: Some(test_lifecycle_factory),
             });
         }
         for result in [ordinary.recv().unwrap(), managed.recv().unwrap()] {
             assert_eq!(result.handle, Some(42));
             assert_eq!(result.initialization, Ok(true));
+            assert!(std::ptr::fn_addr_eq(
+                result.lifecycle_factory.unwrap(),
+                test_lifecycle_factory as crate::native_bridge::NativeLifecycleFactory
+            ));
         }
         let replay = queue_package_library_on(&executor, &fixture.0, entry, true).unwrap();
-        assert_eq!(replay.recv().unwrap().handle, Some(42));
+        let replay = replay.recv().unwrap();
+        assert_eq!(replay.handle, Some(42));
+        assert!(std::ptr::fn_addr_eq(
+            replay.lifecycle_factory.unwrap(),
+            test_lifecycle_factory as crate::native_bridge::NativeLifecycleFactory
+        ));
         assert!(
             work.try_recv().is_err(),
             "reload must reuse the process result"
@@ -907,6 +928,7 @@ mod managed_plugin_plan_tests {
             .complete(ProcessLibraryResult {
                 handle: Some(43),
                 initialization: Err("bridge refused".into()),
+                lifecycle_factory: None,
             });
         assert_eq!(
             pending.recv().unwrap().initialization,

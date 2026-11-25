@@ -12,13 +12,55 @@ Lifecycle=shroudforge-v1
 Services=shroudforge.map,shroudforge.overlay,shroudforge.executable-spans,shroudforge.keybinds,shroudforge.notifications
 ```
 
-Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`. The
-DLL must export `ShroudForgePluginEntry` with the C layout and calling
-convention in [native_plugin_api.h](../../modules/mod-runtime/native_plugin_api.h).
+Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`. Include
+the existing [mod native SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
+and export `ShroudforgeModNativeInit`. Mod bridge ABI 3 appends
+`register_lifecycle` to `ShroudforgeModHost`. During that one-time DLL
+initialization, pass it the DLL's lifecycle factory. No second export is queried.
+
+```c
+static SFNativeStatusV1 SF_NATIVE_CALL create_activation(
+    uint32_t requested_abi, uint32_t out_size, SFNativePluginV1 *out_plugin);
+
+SHROUDFORGE_MOD_NATIVE_EXPORT int32_t SHROUDFORGE_MOD_NATIVE_CALL
+ShroudforgeModNativeInit(const ShroudforgeModHost *host)
+{
+    if (!host || host->abi_version < 3u || host->size < sizeof(*host)
+        || !host->register_lifecycle) return 0;
+    return host->register_lifecycle(host, create_activation) == 1u;
+}
+```
+
+`create_activation` validates the requested version, pointer and capacity before
+writing the callback table described in the SDK. It only supplies callbacks.
+The runtime calls it later on the activation owner thread. Returning an error
+or an invalid table prevents activation. Registering it does not start the mod
+or grant access to the game. Duplicate registration returns 3, registration
+outside DLL initialization returns 4, and invalid arguments return 2. The bridge
+withdraws both the factory and that DLL's Lua functions if DLL initialization
+fails. The factory is stored in the same process-owned DLL record as its load
+result. Reloading Lua does not rerun DLL initialization or factory registration.
+
+The process-lifetime `ShroudforgeModHost` and activation-lifetime `SFNativeHostV1`
+have different lifetimes. The first registers the DLL's integration once. The
+second supplies settings, package reads and services to that activation's
+callbacks, with its package identity and generation. Its services expire when
+the activation is revoked and drained. Neither table is a separate loader.
+
+Existing mod bridge ABI 1/2 fields retain their offsets and behavior. DLLs
+that register only Lua functions or do not use the optional init export keep
+their existing path. Consumers of the unpublished `native_plugin_api.h` draft
+must replace that include with this SDK and register their former
+`ShroudForgePluginEntry` implementation as a local factory through the existing
+init export. That old export is no longer queried. The additional `Lifecycle`
+and `Services` declarations shown above still
+select preparation in this intermediate PR state. Their removal and integration
+with the common package lifecycle are tracked in [issue #149](https://github.com/bonsaibauer/shroudforge/issues/149).
+
 The optional executable-span service uses the standalone
 [executable_span_api.h](../../modules/game-runtime/native/abi/executable_span_api.h)
 contract.
-The entrypoint negotiates a table; initialize work belongs in its `initialize`
+The registered factory supplies a table. Initialization work belongs in its `initialize`
 callback. A DLL with an invalid explicit lifecycle declaration is rejected,
 including through a profile or Lua registration. It cannot fall back to an
 ordinary load. Other DLLs in the same package retain their selected load mode.
@@ -39,11 +81,18 @@ releasing the activation. DLL code stays owned by the process executor until
 exit, including after an initialization error. A failed drain or callback also
 retains its owner context. The runtime reports that a restart is required.
 Plugins must stop their workers and release host pointers before returning from
-shutdown. A
-pending activation cancelled during disable cannot initialize later. Cancellation
+shutdown. A pending activation cancelled during disable cannot initialize later. Cancellation
 does not cancel an OS load already queued or release the process-owned module.
 When reactivation is supported, it reuses the recorded load and bridge result.
 A failed bridge initialization is never retried in the same process.
+
+A V1 activation that completed shutdown and both service drains releases its
+activation record. A later activation invokes the same registered factory with
+a fresh host context and generation, without loading or initializing the DLL
+again. Its previous service tables remain revoked. The factory must provide a
+valid context for each activation. Failed cleanup retains the activation and
+rejects reactivation with a restart-required error. V2 preparation still belongs
+to process startup and cannot be repeated in place.
 
 The executable-span validation registry retains drained generation tombstones
 so an old generation cannot be reused. It keeps at most 4,096 distinct package

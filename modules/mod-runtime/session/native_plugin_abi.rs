@@ -52,7 +52,8 @@ pub(crate) enum NativePluginMode {
     ShroudForgeV2,
 }
 
-pub(crate) type NativePluginEntry = unsafe extern "C" fn(u32, u32, *mut SFNativePluginV1) -> i32;
+pub(crate) type NativeLifecycleFactory =
+    unsafe extern "C" fn(u32, u32, *mut SFNativePluginV1) -> i32;
 type NativeInitializeFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1) -> i32;
 type NativeUpdateFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1, u64) -> i32;
 type NativeStopFn = unsafe extern "C" fn(*mut c_void, *const SFNativeHostV1) -> i32;
@@ -346,14 +347,14 @@ enum NativePluginInstanceState {
 
 impl NativePluginInstance {
     pub(crate) fn load(
-        entry: NativePluginEntry,
+        entry: NativeLifecycleFactory,
         metadata: NativePluginHostMetadata,
     ) -> Result<Self, String> {
         Self::load_with_mode(entry, metadata, NativePluginMode::ShroudForgeV1)
     }
 
     pub(crate) fn load_with_mode(
-        entry: NativePluginEntry,
+        entry: NativeLifecycleFactory,
         metadata: NativePluginHostMetadata,
         mode: NativePluginMode,
     ) -> Result<Self, String> {
@@ -394,7 +395,7 @@ impl NativePluginInstance {
             };
         if status != NATIVE_STATUS_OK {
             return Err(format!(
-                "ShroudForgePluginEntry rejected ABI v{abi}: {}",
+                "registered native lifecycle factory rejected ABI v{abi}: {}",
                 native_status_description(status),
             ));
         }
@@ -672,18 +673,18 @@ impl LifecycleCallbacks for NativePluginInstance {
     }
 }
 
-pub(crate) fn entrypoint_for_mode(
+pub(crate) fn lifecycle_factory_for_mode(
     mode: NativePluginMode,
-    lookup: impl FnOnce() -> Option<NativePluginEntry>,
-) -> Result<Option<NativePluginEntry>, String> {
+    lookup: impl FnOnce() -> Option<NativeLifecycleFactory>,
+) -> Result<Option<NativeLifecycleFactory>, String> {
     match mode {
         NativePluginMode::LegacyLoadOnly => Ok(None),
-        NativePluginMode::ShroudForgeV1 => lookup()
-            .map(Some)
-            .ok_or_else(|| "opt-in native plugin is missing ShroudForgePluginEntry".into()),
-        NativePluginMode::ShroudForgeV2 => lookup()
-            .map(Some)
-            .ok_or_else(|| "opt-in native plugin is missing ShroudForgePluginEntry".into()),
+        NativePluginMode::ShroudForgeV1 => lookup().map(Some).ok_or_else(|| {
+            "opt-in native plugin is missing registered native lifecycle factory".into()
+        }),
+        NativePluginMode::ShroudForgeV2 => lookup().map(Some).ok_or_else(|| {
+            "opt-in native plugin is missing registered native lifecycle factory".into()
+        }),
     }
 }
 
@@ -1029,10 +1030,19 @@ impl notifications::Owner for NativePluginHostContext {
         std::str::from_utf8(&self.package_id_utf8).unwrap_or("")
     }
     fn persist(&self, id: &str, title: &str, message: &str, level: u32) -> i32 {
-        let Some(level) = notifications::level_name(level) else { return 1; };
+        let Some(level) = notifications::level_name(level) else {
+            return 1;
+        };
         match shroudforge_news::publish_mod_notice(
-            &self.game_root, self.package(),
-            shroudforge_news::ModNotice { id, title, message, level, action_url: None },
+            &self.game_root,
+            self.package(),
+            shroudforge_news::ModNotice {
+                id,
+                title,
+                message,
+                level,
+                action_url: None,
+            },
             shroudforge_runtime_bridge::publish_notification,
         ) {
             Ok(()) => NATIVE_STATUS_OK,
@@ -1429,9 +1439,9 @@ mod tests {
     }
 
     #[test]
-    fn only_explicit_mode_requires_an_entrypoint() {
+    fn only_explicit_mode_requires_a_registered_factory() {
         let mut looked_up = false;
-        let entry = entrypoint_for_mode(NativePluginMode::LegacyLoadOnly, || {
+        let entry = lifecycle_factory_for_mode(NativePluginMode::LegacyLoadOnly, || {
             looked_up = true;
             None
         })
@@ -1440,8 +1450,64 @@ mod tests {
         assert!(entry.is_none());
         assert!(!looked_up);
 
-        let error = entrypoint_for_mode(NativePluginMode::ShroudForgeV1, || None).unwrap_err();
-        assert!(error.contains("missing ShroudForgePluginEntry"));
+        let error =
+            lifecycle_factory_for_mode(NativePluginMode::ShroudForgeV1, || None).unwrap_err();
+        assert!(error.contains("missing registered native lifecycle factory"));
+    }
+
+    #[test]
+    fn one_registered_factory_creates_fresh_v1_generations_without_reviving_old_services() {
+        let package =
+            TestPackage::with_capabilities(vec!["runtime", "runtime-register-dll", "runtime-map"]);
+        let record =
+            crate::native_bridge::open_host("example", &package.root.join("mods/example")).unwrap();
+        let host = record.host();
+        assert_eq!(
+            unsafe { ((*host).register_lifecycle)(host, Some(bounded_entry)) },
+            1
+        );
+        let registration = crate::native_bridge::close_registration(record, true);
+        let services = Arc::new(TestServiceLifetime::default());
+        let activation = |generation| {
+            let mut metadata = package.metadata(generation);
+            metadata.services = services.clone();
+            NativePluginInstance::load(registration.lifecycle_factory.unwrap(), metadata).unwrap()
+        };
+        let query = |instance: &NativePluginInstance| {
+            let name = NATIVE_SERVICE_MAP_V1.as_bytes();
+            let mut output = 0u32;
+            let host = &instance.host;
+            let status = unsafe {
+                host.query_service.unwrap()(
+                    host.package_context,
+                    name.as_ptr(),
+                    name.len() as u32,
+                    1,
+                    4,
+                    (&mut output as *mut u32).cast(),
+                )
+            };
+            (status, output)
+        };
+        let mut first = activation(41);
+        assert!(first.start().is_ok());
+        assert_eq!(query(&first), (NATIVE_STATUS_OK, 0x5346_4D50));
+        assert_eq!(first.stop(), TeardownOutcome::Quiescent);
+        assert_eq!(query(&first), (NATIVE_STATUS_UNAVAILABLE, 0));
+        let mut second = activation(42);
+        assert!(second.start().is_ok());
+        assert_eq!(second.package_generation(), 42);
+        assert_eq!(query(&second), (NATIVE_STATUS_OK, 0x5346_4D50));
+        assert_eq!(
+            services.queried_owner.lock().unwrap().as_ref().unwrap().1,
+            42
+        );
+        assert_eq!(query(&first), (NATIVE_STATUS_UNAVAILABLE, 0));
+        assert_eq!(
+            unsafe { ((*host).register_lifecycle)(host, Some(bounded_entry)) },
+            4
+        );
+        assert_eq!(second.stop(), TeardownOutcome::Quiescent);
     }
 
     #[test]
@@ -1450,8 +1516,20 @@ mod tests {
         V2_TEST_STATE.with(|slot| slot.set(&mut test_state));
         let package = TestPackage::new();
         let metadata = package.metadata(42);
+        let record =
+            crate::native_bridge::open_host("example", &package.root.join("mods/example")).unwrap();
+        let host = record.host();
+        assert_eq!(
+            unsafe { ((*host).register_lifecycle)(host, Some(bounded_v2_entry)) },
+            1
+        );
+        let registration = crate::native_bridge::close_registration(record, true);
+        assert!(
+            test_state.calls.is_empty(),
+            "DLL initialization only registers the factory"
+        );
         let mut instance = NativePluginInstance::load_with_mode(
-            bounded_v2_entry,
+            registration.lifecycle_factory.unwrap(),
             metadata,
             NativePluginMode::ShroudForgeV2,
         )

@@ -1,6 +1,6 @@
 use super::*;
 use crate::session::native_plugin_abi::{
-    NativePluginEntry, NativePluginHostMetadata, NativePluginInstance, NativePluginMode,
+    NativeLifecycleFactory, NativePluginHostMetadata, NativePluginInstance, NativePluginMode,
 };
 use mod_loader::Capability;
 use mod_loader::dll_manager::{DllLoadMode, PluginLoadDisposition};
@@ -30,8 +30,6 @@ struct StagedNativePlugin {
     package: Mod,
     settings_json: Vec<u8>,
     package_generation: u64,
-    bridge_initialized: bool,
-    library: NativeLibrary,
     instance: NativePluginInstance,
 }
 
@@ -42,25 +40,9 @@ struct StagedNativePluginBatch<Plugin = StagedNativePlugin> {
     plugins: Vec<Plugin>,
 }
 
-struct LoadedNativeLibrary {
-    library: NativeLibrary,
-    bridge_initialized: bool,
-}
-
 enum NativeLibraryLoadError {
     Load(String),
-    Bridge {
-        library: NativeLibrary,
-        detail: String,
-    },
-}
-
-impl NativeLibraryLoadError {
-    fn detail(&self) -> &str {
-        match self {
-            Self::Load(detail) | Self::Bridge { detail, .. } => detail,
-        }
-    }
+    Bridge { detail: String },
 }
 
 enum SelectedNativePluginState<Plugin = StagedNativePlugin> {
@@ -538,22 +520,21 @@ pub(crate) fn load_selected_native_plugins(
                     })
                     .map_err(|error| match error {
                         NativeLibraryLoadError::Load(detail) => detail,
-                        NativeLibraryLoadError::Bridge { library, detail } => {
-                            // Registration may have retained callbacks into this DLL.
-                            std::mem::forget(library);
+                        NativeLibraryLoadError::Bridge { detail } => {
                             format!(
                                 "{detail}; native bridge module code is retained until process exit"
                             )
                         }
                     })?;
-            let LoadedNativeLibrary {
-                library,
-                bridge_initialized,
-            } = loaded;
-            let entry = match library.entrypoint(NativePluginMode::ShroudForgeV2) {
+            let entry = match super::native_plugin_abi::lifecycle_factory_for_mode(
+                NativePluginMode::ShroudForgeV2,
+                || loaded,
+            ) {
                 Ok(Some(entry)) => entry,
                 Ok(None) => {
-                    return Err("V2 native plugin is missing ShroudForgePluginEntry".into());
+                    return Err(
+                        "V2 native plugin is missing registered native lifecycle factory".into(),
+                    );
                 }
                 Err(error) => {
                     return Err(error);
@@ -589,8 +570,6 @@ pub(crate) fn load_selected_native_plugins(
                 package,
                 settings_json,
                 package_generation,
-                bridge_initialized,
-                library,
                 instance,
             };
             plugins.push(staged);
@@ -1064,8 +1043,6 @@ impl AppState {
                 mod_id: plugin.mod_id,
                 path: plugin.path,
                 mode: NativePluginMode::ShroudForgeV2,
-                bridge_initialized: plugin.bridge_initialized,
-                library: plugin.library,
                 module: NativeModule::Lifecycle(Box::new(plugin.instance)),
             })
             .collect();
@@ -1226,13 +1203,6 @@ impl AppState {
             .any(|dll| dll.mod_id == id && dll.is_retained())
         {
             Some("retained")
-        } else if self
-            .native_dlls
-            .borrow()
-            .iter()
-            .any(|dll| dll.mod_id == id && matches!(&dll.module, NativeModule::StoppedBridge))
-        {
-            Some("stopped")
         } else if self.native_dlls.borrow().iter().any(|dll| dll.mod_id == id) {
             Some("loaded")
         } else if self
@@ -1575,6 +1545,13 @@ impl AppState {
         let mod_id = target_mod.info().id.to_string();
         let is_duplicate = {
             let loaded = self.native_dlls.borrow();
+            if mode.is_lifecycle_managed()
+                && loaded
+                    .iter()
+                    .any(|dll| dll.mod_id == mod_id && dll.is_retained())
+            {
+                return Err("Native activation resources are still retained. Restart the process before reactivating this mod".into());
+            }
             let pending = self.pending_native_dlls.borrow();
             loaded.iter().any(|dll| {
                 is_duplicate_request(
@@ -1661,16 +1638,10 @@ impl AppState {
                         dll = %item.path.display(), "Native DLL load failed: {error}");
                     self.report_runtime_effect(&item.mod_id, "error", &error);
                 }
-                Err(NativeLibraryLoadError::Bridge { library, detail }) => {
-                    self.retain_bridge_library(
-                        item.mod_id.clone(),
-                        item.path.clone(),
-                        item.mode,
-                        library,
-                    );
+                Err(NativeLibraryLoadError::Bridge { detail }) => {
                     self.report_runtime_effect(
                         &item.mod_id,
-                        "retained",
+                        "error",
                         &format!("{detail}; the native module is retained until process exit"),
                     );
                 }
@@ -1681,18 +1652,16 @@ impl AppState {
         }
     }
 
-    fn finish_native_library_load(&self, item: PendingNativeDll, loaded: LoadedNativeLibrary) {
-        let LoadedNativeLibrary {
-            library,
-            bridge_initialized,
-        } = loaded;
+    fn finish_native_library_load(
+        &self,
+        item: PendingNativeDll,
+        registered_factory: Option<NativeLifecycleFactory>,
+    ) {
         if item.mode == NativePluginMode::LegacyLoadOnly {
             self.native_dlls.borrow_mut().push(NativeDll {
                 mod_id: item.mod_id.clone(),
                 path: item.path.clone(),
                 mode: item.mode,
-                bridge_initialized,
-                library,
                 module: NativeModule::LegacyLoadOnly,
             });
             tracing::info!(target: "shroudforge::runtime", mod_id = %item.mod_id,
@@ -1704,93 +1673,35 @@ impl AppState {
             );
             return;
         }
-
         match self.pending_plugin_is_current(&item) {
             Ok(true) => {}
             Ok(false) => {
-                if bridge_initialized {
-                    self.retain_bridge_library(
-                        item.mod_id.clone(),
-                        item.path.clone(),
-                        item.mode,
-                        library,
-                    );
-                    self.report_runtime_effect(
-                        &item.mod_id,
-                        "retained",
-                        "native bridge initialized before package selection changed; module code remains mapped until process exit",
-                    );
-                } else {
-                    self.report_runtime_effect(
-                        &item.mod_id,
-                        "stopped",
-                        "native plugin was disabled or changed before load completion; DLL code remains mapped until process exit",
-                    );
-                }
+                self.report_runtime_effect(&item.mod_id, "stopped",
+                    "native plugin was disabled or changed before activation; DLL code remains mapped until process exit");
                 return;
             }
             Err(error) => {
-                if bridge_initialized {
-                    self.retain_bridge_library(
-                        item.mod_id.clone(),
-                        item.path.clone(),
-                        item.mode,
-                        library,
-                    );
-                    self.report_runtime_effect(
-                        &item.mod_id,
-                        "retained",
-                        &format!(
-                            "{error}; native bridge module code remains mapped until process exit"
-                        ),
-                    );
-                } else {
-                    self.report_runtime_effect(&item.mod_id, "error", &error);
-                }
+                self.report_runtime_effect(&item.mod_id, "error", &error);
                 return;
             }
         }
-
-        let entry = match library.entrypoint(item.mode) {
-            Ok(Some(entry)) => entry,
+        let factory = match super::native_plugin_abi::lifecycle_factory_for_mode(item.mode, || {
+            registered_factory
+        }) {
+            Ok(Some(factory)) => factory,
             Ok(None) => {
-                let error = "opt-in native plugin is missing ShroudForgePluginEntry";
-                tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id, "{error}");
-                match self.release_or_retain_uninitialized_library(
+                self.report_runtime_effect(
                     &item.mod_id,
-                    &item.path,
-                    item.mode,
-                    library,
-                    bridge_initialized,
-                ) {
-                    Ok(()) => self.report_runtime_effect(&item.mod_id, "error", error),
-                    Err(unload_error) => self.report_runtime_effect(
-                        &item.mod_id,
-                        "retained",
-                        &format!("{error}; {unload_error}"),
-                    ),
-                }
+                    "error",
+                    "native lifecycle factory was not registered through ShroudforgeModNativeInit",
+                );
                 return;
             }
             Err(error) => {
-                match self.release_or_retain_uninitialized_library(
-                    &item.mod_id,
-                    &item.path,
-                    item.mode,
-                    library,
-                    bridge_initialized,
-                ) {
-                    Ok(()) => self.report_runtime_effect(&item.mod_id, "error", &error),
-                    Err(unload_error) => self.report_runtime_effect(
-                        &item.mod_id,
-                        "retained",
-                        &format!("{error}; {unload_error}"),
-                    ),
-                }
+                self.report_runtime_effect(&item.mod_id, "error", &error);
                 return;
             }
         };
-        let services = self.native_plugin_services.borrow().clone();
         let metadata = NativePluginHostMetadata {
             game_root: self.env().game_dir().as_std_path().to_path_buf(),
             package_id: item.mod_id.clone(),
@@ -1798,71 +1709,42 @@ impl AppState {
             package_generation: item.package_generation,
             is_server: self.is_server(),
             settings_json: item.settings_json,
-            services,
+            services: self.native_plugin_services.borrow().clone(),
         };
-        let mut instance = match NativePluginInstance::load_with_mode(entry, metadata, item.mode) {
+        let mut instance = match NativePluginInstance::load_with_mode(factory, metadata, item.mode)
+        {
             Ok(instance) => instance,
             Err(error) => {
-                tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id, "Native plugin ABI negotiation failed: {error}");
-                match self.release_or_retain_uninitialized_library(
-                    &item.mod_id,
-                    &item.path,
-                    item.mode,
-                    library,
-                    bridge_initialized,
-                ) {
-                    Ok(()) => self.report_runtime_effect(&item.mod_id, "error", &error),
-                    Err(unload_error) => self.report_runtime_effect(
-                        &item.mod_id,
-                        "retained",
-                        &format!("{error}; {unload_error}"),
-                    ),
-                }
+                tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id,
+                    "Native lifecycle ABI negotiation failed: {error}");
+                self.report_runtime_effect(&item.mod_id, "error", &error);
                 return;
             }
         };
-
         match instance.start() {
             Ok(()) => {
                 self.native_dlls.borrow_mut().push(NativeDll {
                     mod_id: item.mod_id.clone(),
                     path: item.path.clone(),
                     mode: item.mode,
-                    bridge_initialized,
-                    library,
                     module: NativeModule::Lifecycle(Box::new(instance)),
                 });
                 tracing::info!(target: "shroudforge::runtime", mod_id = %item.mod_id,
-                    dll = %item.path.display(), "ShroudForge native plugin initialized on the runtime owner thread");
+                    dll = %item.path.display(), "Native lifecycle initialized on the runtime owner thread");
                 self.report_runtime_effect(
                     &item.mod_id,
                     "loaded",
-                    "ShroudForge native plugin lifecycle is active",
+                    "native lifecycle is active on the runtime owner thread",
                 );
             }
             Err(failure) => {
                 let detail = format!(
-                    "native plugin initialization failed with status {}; {}",
+                    "native initialization failed with status {}; {}",
                     failure.status,
                     failure.cleanup.description()
                 );
                 match failure.cleanup {
                     crate::session::native_plugin_lifecycle::TeardownOutcome::Quiescent => {
-                        if bridge_initialized {
-                            drop(instance);
-                            self.retain_bridge_library(
-                                item.mod_id.clone(),
-                                item.path.clone(),
-                                item.mode,
-                                library,
-                            );
-                            self.report_runtime_effect(
-                                &item.mod_id,
-                                "retained",
-                                &format!("{detail}; native bridge module code remains mapped until process exit"),
-                            );
-                            return;
-                        }
                         drop(instance);
                         self.report_runtime_effect(&item.mod_id, "error", &detail);
                     }
@@ -1872,10 +1754,8 @@ impl AppState {
                     } => {
                         self.retain_native_module(
                             item.mod_id.clone(),
-                            item.path.clone(),
+                            item.path,
                             item.mode,
-                            bridge_initialized,
-                            library,
                             instance,
                             stage,
                             status,
@@ -1887,7 +1767,6 @@ impl AppState {
             }
         }
     }
-
     fn pending_plugin_is_current(&self, item: &PendingNativeDll) -> Result<bool, String> {
         if !item.mode.is_lifecycle_managed() {
             return Ok(true);
@@ -1952,48 +1831,11 @@ impl AppState {
         )?;
         Ok(authorized.declaration == declaration.metadata)
     }
-    fn release_or_retain_uninitialized_library(
-        &self,
-        mod_id: &str,
-        path: &std::path::Path,
-        mode: NativePluginMode,
-        library: NativeLibrary,
-        bridge_initialized: bool,
-    ) -> Result<(), String> {
-        if bridge_initialized {
-            self.retain_bridge_library(mod_id.to_owned(), path.to_path_buf(), mode, library);
-            Err("native bridge pointers may have escaped; module code is retained until process exit".into())
-        } else {
-            // The process executor keeps the module mapped independently of
-            // this failed activation, even without a Lua bridge registration.
-            Ok(())
-        }
-    }
-
-    fn retain_bridge_library(
-        &self,
-        mod_id: String,
-        path: NativePathBuf,
-        mode: NativePluginMode,
-        library: NativeLibrary,
-    ) {
-        self.native_dlls.borrow_mut().push(NativeDll {
-            mod_id,
-            path,
-            mode,
-            bridge_initialized: true,
-            library,
-            module: NativeModule::StoppedBridge,
-        });
-    }
-
     fn retain_native_module(
         &self,
         mod_id: String,
         path: NativePathBuf,
         mode: NativePluginMode,
-        bridge_initialized: bool,
-        library: NativeLibrary,
         instance: NativePluginInstance,
         stage: &'static str,
         status: i32,
@@ -2002,8 +1844,6 @@ impl AppState {
             mod_id,
             path,
             mode,
-            bridge_initialized,
-            library,
             module: NativeModule::Retained {
                 instance: Some(Box::new(instance)),
                 stage,
@@ -2145,15 +1985,12 @@ impl AppState {
             }
             return Ok(cancelled);
         };
-        let (instance, library, bridge_initialized) = {
+        let instance = {
             let mut dlls = self.native_dlls.borrow_mut();
             let dll = &mut dlls[index];
             let previous = std::mem::replace(&mut dll.module, NativeModule::Transitioning);
             match previous {
-                NativeModule::Lifecycle(instance) => {
-                    let library = std::mem::replace(&mut dll.library, NativeLibrary::new(0));
-                    (instance, library, dll.bridge_initialized)
-                }
+                NativeModule::Lifecycle(instance) => instance,
                 NativeModule::Retained {
                     instance,
                     stage,
@@ -2169,15 +2006,6 @@ impl AppState {
                     self.report_runtime_effect(mod_id, "retained", &error);
                     return Err(error);
                 }
-                NativeModule::StoppedBridge => {
-                    dll.module = NativeModule::StoppedBridge;
-                    self.report_runtime_effect(
-                        mod_id,
-                        "stopped",
-                        "native plugin services are stopped; bridge module code remains mapped until process exit",
-                    );
-                    return Ok(true);
-                }
                 other => {
                     dll.module = other;
                     return Ok(cancelled);
@@ -2191,14 +2019,6 @@ impl AppState {
             .expect("native plugin instance is available")
             .stop();
         let (remove, module, result) = match outcome {
-            crate::session::native_plugin_lifecycle::TeardownOutcome::Quiescent
-                if bridge_initialized =>
-            {
-                // The legacy Lua bridge registry is process-owned. Keep its
-                // code mapped and forbid a second bridge initialization.
-                drop(instance.take());
-                (false, Some(NativeModule::StoppedBridge), Ok(()))
-            }
             crate::session::native_plugin_lifecycle::TeardownOutcome::Quiescent => {
                 drop(instance.take());
                 (true, None, Ok(()))
@@ -2219,7 +2039,6 @@ impl AppState {
                 )),
             ),
         };
-        let mut library = Some(library);
         let mut module = module;
 
         let restored = {
@@ -2231,7 +2050,6 @@ impl AppState {
                     dlls.remove(index);
                 } else {
                     let dll = &mut dlls[index];
-                    dll.library = library.take().expect("native plugin library is present");
                     dll.module = module
                         .take()
                         .expect("retained native module state is present");
@@ -2243,9 +2061,6 @@ impl AppState {
         };
         if !restored {
             // A reentrant owner mutation makes callback ownership uncertain.
-            if let Some(library) = library.take() {
-                std::mem::forget(library);
-            }
             if let Some(module) = module.take() {
                 std::mem::forget(module);
             }
@@ -2308,7 +2123,7 @@ impl AppState {
                         "Retaining native plugin through process exit: teardown stopped at {stage} with status {status}");
                     std::mem::forget((dll, instance));
                 }
-                NativeModule::LegacyLoadOnly | NativeModule::StoppedBridge => {}
+                NativeModule::LegacyLoadOnly => {}
                 NativeModule::Transitioning => {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %dll.mod_id,
                         "Retaining native plugin in an incomplete lifecycle transition");
@@ -2348,8 +2163,6 @@ pub(super) struct NativeDll {
     pub(super) mod_id: String,
     pub(super) path: NativePathBuf,
     mode: NativePluginMode,
-    bridge_initialized: bool,
-    library: NativeLibrary,
     module: NativeModule,
 }
 
@@ -2361,9 +2174,7 @@ impl NativeDll {
     fn is_lifecycle_managed(&self) -> bool {
         matches!(
             &self.module,
-            NativeModule::Lifecycle(_)
-                | NativeModule::Retained { .. }
-                | NativeModule::StoppedBridge
+            NativeModule::Lifecycle(_) | NativeModule::Retained { .. }
         )
     }
 
@@ -2384,7 +2195,6 @@ enum NativeModule {
         stage: &'static str,
         status: i32,
     },
-    StoppedBridge,
     Transitioning,
 }
 
@@ -2401,54 +2211,12 @@ pub(super) struct PendingNativeDll {
     receiver: Receiver<crate::native_dlls::ProcessLibraryResult>,
 }
 
-struct NativeLibrary {
-    // Borrowed from the process executor. No session may call FreeLibrary.
-    handle: isize,
-}
-
-impl NativeLibrary {
-    fn new(handle: isize) -> Self {
-        Self { handle }
-    }
-
-    fn entrypoint(&self, mode: NativePluginMode) -> Result<Option<NativePluginEntry>, String> {
-        #[cfg(windows)]
-        {
-            use windows_sys::Win32::System::LibraryLoader::GetProcAddress;
-            super::native_plugin_abi::entrypoint_for_mode(mode, || {
-                let symbol = unsafe {
-                    GetProcAddress(
-                        self.handle as windows_sys::Win32::Foundation::HMODULE,
-                        b"ShroudForgePluginEntry\0".as_ptr(),
-                    )
-                };
-                symbol.map(|symbol| unsafe {
-                    std::mem::transmute::<unsafe extern "system" fn() -> isize, NativePluginEntry>(
-                        symbol,
-                    )
-                })
-            })
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = (self, mode);
-            Err("native plugin lifecycle lookup is supported only on Windows".into())
-        }
-    }
-}
-
 fn loaded_process_library(
     result: crate::native_dlls::ProcessLibraryResult,
-) -> Result<LoadedNativeLibrary, NativeLibraryLoadError> {
+) -> Result<Option<NativeLifecycleFactory>, NativeLibraryLoadError> {
     match (result.handle, result.initialization) {
-        (Some(handle), Ok(bridge_initialized)) => Ok(LoadedNativeLibrary {
-            library: NativeLibrary::new(handle),
-            bridge_initialized,
-        }),
-        (Some(handle), Err(detail)) => Err(NativeLibraryLoadError::Bridge {
-            library: NativeLibrary::new(handle),
-            detail,
-        }),
+        (Some(_), Ok(_)) => Ok(result.lifecycle_factory),
+        (Some(_), Err(detail)) => Err(NativeLibraryLoadError::Bridge { detail }),
         (None, Err(detail)) => Err(NativeLibraryLoadError::Load(detail)),
         (None, Ok(_)) => Err(NativeLibraryLoadError::Load(
             "native DLL worker returned no module".into(),
@@ -2472,9 +2240,8 @@ mod tests {
     }
 
     struct RetainedOwnerProbe {
-        bridge_initialized: bool,
-        // Separate counters model the loaded module, plugin instance, boxed
-        // host table, and opaque context held by a staged plugin.
+        // Independent resources owned by a staged activation must outlive
+        // callbacks even when the bootstrap owner thread exits.
         parts: [OwnerDropProbe; 4],
     }
 
@@ -2539,14 +2306,12 @@ mod tests {
         let (owner_timeout, owner_exits) = mpsc::channel();
         let owner = std::thread::spawn(move || {
             let services = Arc::new(DropTrackedServices(thread_owner_drops[0].clone()));
-            let plugin_probe = |bridge_initialized, index: usize| RetainedOwnerProbe {
-                bridge_initialized,
+            let plugin_probe = |index: usize| RetainedOwnerProbe {
                 parts: std::array::from_fn(|part| {
                     OwnerDropProbe(thread_owner_drops[1 + index * 4 + part].clone())
                 }),
             };
-            let plugins = vec![plugin_probe(false, 0), plugin_probe(true, 1)];
-            assert!(!plugins[0].bridge_initialized && plugins[1].bridge_initialized);
+            let plugins = vec![plugin_probe(0), plugin_probe(1)];
             let batch = StagedNativePluginBatch::<RetainedOwnerProbe> {
                 root: PathBuf::from("prepared-owner-test"),
                 is_server: false,
@@ -2647,7 +2412,8 @@ mod tests {
                     .unwrap(),
                 crate::native_dlls::ProcessLibraryResult {
                     handle: None,
-                    initialization: Err(_)
+                    initialization: Err(_),
+                    ..
                 }
             ));
             drop(state);
@@ -2667,6 +2433,52 @@ mod tests {
         sync::mpsc,
         time::Instant,
     };
+
+    #[test]
+    fn retained_activation_cannot_report_a_successful_reactivation() {
+        let fixture = crate::session::asset_tests::Fixture::new();
+        let path = fixture.root.join("mods/fixture/retained.dll");
+        fs::write(&path, b"invalid").unwrap();
+        let path = path.canonicalize().unwrap();
+        let mut state = fixture
+            .lua
+            .app_data_mut::<crate::session::AppState>()
+            .unwrap();
+        state
+            .config
+            .feature_flags
+            .insert(crate::session::AppFeatures::RUNTIME_DLL);
+        let package = state.env.mod_registry().get("fixture").unwrap().clone();
+        state.native_dlls.borrow_mut().push(super::NativeDll {
+            mod_id: "fixture".into(),
+            path: path.clone(),
+            mode: NativePluginMode::ShroudForgeV1,
+            module: super::NativeModule::Retained {
+                instance: None,
+                stage: "final service drain",
+                status: 6,
+            },
+        });
+        let entry = mod_loader::dll_manager::DllLoadEntry {
+            status_id: "dll:fixture:retained.dll".into(),
+            mod_id: Some("fixture".into()),
+            package_directory: "fixture".into(),
+            path,
+            mode: mod_loader::dll_manager::DllLoadMode::Library,
+            source: "test".into(),
+        };
+        let error = state
+            .queue_mod_native_dll(
+                &package,
+                "retained.dll",
+                NativePluginMode::ShroudForgeV1,
+                entry,
+            )
+            .unwrap_err();
+        assert!(error.contains("resources are still retained"));
+        assert!(state.pending_native_dlls.borrow().is_empty());
+        assert_eq!(state.native_dll_state("fixture"), Some("retained"));
+    }
 
     #[test]
     fn duplicate_opted_in_start_is_rejected_by_package_identity() {
@@ -2700,7 +2512,8 @@ mod tests {
             sender
                 .send(crate::native_dlls::ProcessLibraryResult {
                     handle: Some(0),
-                    initialization: Ok(false)
+                    initialization: Ok(false),
+                    lifecycle_factory: None,
                 })
                 .is_ok()
         );

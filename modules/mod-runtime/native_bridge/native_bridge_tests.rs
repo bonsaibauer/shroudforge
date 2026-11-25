@@ -80,10 +80,7 @@ unsafe extern "C" fn overflow(
         reserved: 0,
         payload: NativePayload { integer: 0 },
     };
-    let invalid = NativeValue {
-        kind: 99,
-        ..value
-    };
+    let invalid = NativeValue { kind: 99, ..value };
     unsafe {
         record_code(((*results).push)(results, &invalid));
         record_code(((*results).push)(results, std::ptr::null()));
@@ -111,6 +108,8 @@ fn host_describes_the_owning_mod_and_its_abi() {
     let host = unsafe { &*record.host() };
     assert_eq!(host.abi_version, ABI_VERSION);
     assert_eq!(host.size as usize, size_of::<ModHost>());
+    assert_eq!(std::mem::offset_of!(ModHost, read_local_camera), 40);
+    assert_eq!(std::mem::offset_of!(ModHost, register_lifecycle), 48);
     assert_eq!(
         unsafe { std::ffi::CStr::from_ptr(host.mod_id) }.to_str(),
         Ok("bridge.host")
@@ -126,6 +125,87 @@ fn host_describes_the_owning_mod_and_its_abi() {
         (host.log)(std::ptr::null(), 2, c"ignored".as_ptr());
     }
     assert!(open_host("bad\0id", Path::new("C:/Game")).is_err());
+}
+
+unsafe extern "C" fn lifecycle_factory(
+    abi: u32,
+    _size: u32,
+    _output: *mut crate::session::SFNativePluginV1,
+) -> i32 {
+    record_code(abi);
+    2
+}
+
+#[test]
+fn lifecycle_registration_uses_the_existing_initialization_window() {
+    let record = open_host("bridge.lifecycle", Path::new("mods/lifecycle")).unwrap();
+    let host = record.host();
+    take_codes();
+    unsafe {
+        assert_eq!(
+            ((*host).register_lifecycle)(std::ptr::null(), Some(lifecycle_factory)),
+            2
+        );
+        assert_eq!(((*host).register_lifecycle)(host, None), 2);
+        assert_eq!(
+            ((*host).register_lifecycle)(host, Some(lifecycle_factory)),
+            1
+        );
+        assert_eq!(
+            ((*host).register_lifecycle)(host, Some(lifecycle_factory)),
+            3
+        );
+    }
+    assert!(
+        take_codes().is_empty(),
+        "registration must not enter activation code on the DLL worker"
+    );
+    let registered = close_registration(record, true);
+    assert!(registered.connected);
+    unsafe {
+        assert_eq!(
+            ((*host).register_lifecycle)(host, Some(lifecycle_factory)),
+            4
+        );
+        assert_eq!(
+            registered.lifecycle_factory.unwrap()(99, 0, std::ptr::null_mut()),
+            2
+        );
+    }
+    assert_eq!(take_codes(), [99]);
+}
+
+#[test]
+fn failed_init_withdraws_its_factory_without_touching_another_dll() {
+    let kept = open_host(
+        "bridge.lifecycle-failure",
+        Path::new("mods/lifecycle-failure"),
+    )
+    .unwrap();
+    let failed = open_host(
+        "bridge.lifecycle-failure",
+        Path::new("mods/lifecycle-failure"),
+    )
+    .unwrap();
+    unsafe {
+        for record in [kept, failed] {
+            let host = record.host();
+            assert_eq!(
+                ((*host).register_lifecycle)(host, Some(lifecycle_factory)),
+                1
+            );
+        }
+    }
+    let kept_registration = close_registration(kept, true);
+    let failed_registration = close_registration(failed, false);
+    assert!(kept_registration.lifecycle_factory.is_some());
+    assert!(!failed_registration.connected && failed_registration.lifecycle_factory.is_none());
+    let ordinary = open_host("bridge.ordinary", Path::new("mods/ordinary")).unwrap();
+    assert!(
+        close_registration(ordinary, true)
+            .lifecycle_factory
+            .is_none()
+    );
 }
 
 #[test]
@@ -270,7 +350,10 @@ fn the_local_camera_follows_the_mods_runtime_access() {
     };
     assert_eq!(read(std::ptr::null_mut(), VIEW_VALUES), 2);
     assert_eq!(read(view.as_mut_ptr(), CAMERA_VALUES - 1), 2);
-    assert_eq!(unsafe { ((*host).read_local_camera)(std::ptr::null(), view.as_mut_ptr(), 9) }, 2);
+    assert_eq!(
+        unsafe { ((*host).read_local_camera)(std::ptr::null(), view.as_mut_ptr(), 9) },
+        2
+    );
     // Not an active runtime mod: no game read, whatever the runtime offers.
     assert_eq!(read(view.as_mut_ptr(), VIEW_VALUES), 7);
     set_game_access("bridge.camera", true);

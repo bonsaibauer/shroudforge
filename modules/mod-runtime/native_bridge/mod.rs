@@ -1,24 +1,31 @@
-//! Bridge between a mod's own native DLL and the same mod's Lua code.
+//! Bridge between a mod's own native DLL, Lua code and runtime activation.
 //! The C contract is `shroudforge_mod_native.h`. These types mirror it.
 //! Registrations are process-owned like the DLLs: Lua reloads find them again.
 
 use std::ffi::{c_char, c_void};
 
+#[path = "track_game_access.rs"]
+mod access;
 #[path = "call_mod_function.rs"]
 mod call;
 mod read_local_camera;
 #[path = "register_mod_functions.rs"]
 mod registration;
-#[path = "track_game_access.rs"]
-mod access;
 
+pub(crate) use crate::session::NativeLifecycleFactory;
 pub(crate) use access::{has_game_access, set_game_access};
 pub(crate) use call::{NativeArgument, NativeResult, call};
-pub(crate) use registration::{function_names, initialize};
 #[cfg(test)]
 pub(crate) use registration::{close_registration, open_host};
+pub(crate) use registration::{function_names, initialize};
 
-pub(crate) const ABI_VERSION: u32 = 2;
+pub(crate) const ABI_VERSION: u32 = 3;
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct NativeRegistration {
+    pub(crate) connected: bool,
+    pub(crate) lifecycle_factory: Option<NativeLifecycleFactory>,
+}
 pub(crate) const MAX_RESULTS: usize = 32;
 /// Camera: position x, y, z in meters, orientation x, y, z, w, fovY, aspect.
 pub(crate) const CAMERA_VALUES: usize = 9;
@@ -73,10 +80,17 @@ pub(crate) struct ModHost {
     pub mod_id: *const c_char,
     pub mod_directory: *const c_char,
     pub log: unsafe extern "C" fn(*const ModHost, u32, *const c_char),
-    pub register_function:
-        unsafe extern "C" fn(*const ModHost, *const c_char, Option<NativeFunction>, *mut c_void) -> u32,
+    pub register_function: unsafe extern "C" fn(
+        *const ModHost,
+        *const c_char,
+        Option<NativeFunction>,
+        *mut c_void,
+    ) -> u32,
     // ABI 2.
     pub read_local_camera: unsafe extern "C" fn(*const ModHost, *mut f64, usize) -> u32,
+    // ABI 3. Registration only, during the existing DLL init export.
+    pub register_lifecycle:
+        unsafe extern "C" fn(*const ModHost, Option<NativeLifecycleFactory>) -> u32,
 }
 
 pub(crate) type InitFunction = unsafe extern "C" fn(*const ModHost) -> i32;

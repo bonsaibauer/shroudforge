@@ -240,6 +240,9 @@ pub(crate) mod loaded_resource_indexes;
 mod loaded_resources;
 mod map_overlay_services;
 mod native_plugin_abi;
+pub(crate) use native_plugin_abi::NativeLifecycleFactory;
+#[cfg(test)]
+pub(crate) use native_plugin_abi::SFNativePluginV1;
 mod native_plugin_lifecycle;
 mod native_plugins;
 mod validate_generated_assets;
