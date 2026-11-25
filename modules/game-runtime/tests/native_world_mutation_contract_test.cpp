@@ -130,6 +130,8 @@ bool SessionGuard::WritesAllowed() const { return false; }
 void SessionGuard::MarkWriteUncertain(const char*) {}
 bool MarkSessionWriteUncertain(std::uint64_t, const char*) { ++SpawnRetryFixture::fences;return false; }
 bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract&, const EngineContext::EcsView&, EntityCommandQueueSelection&) { return false; }
+bool CheckEntityCommandQueuePages(const EngineContext::EcsView&, EntityCommandQueueSelection&) { return false; }
+bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract&, const EngineContext::EcsView&, const EntityCommandQueueSelection&, EntityCommandQueueSelection&) { return false; }
 bool RereadEntityCommandQueue(const NamedServiceImplementation::BindingContract&, const EngineContext::EcsView&, const EntityCommandQueueSelection&, EntityCommandQueueSelection&) { return false; }
 }
 namespace ImpactRuntime {

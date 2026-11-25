@@ -34,6 +34,7 @@ struct Fixture {
     std::uint8_t operation_arity{1};
     unsigned fail_reread_call{}, fail_copy_call{}, throw_copy_call{}, change_identity_call{}, fail_identity_call{};
     unsigned binding_calls{}, session_calls{}, scene_calls{}, resolve_calls{}, reread_calls{}, identity_calls{};
+    unsigned check_calls{};
     unsigned callback_calls{}, registry_calls{}, copy_calls{}, uncertain_calls{}, scene_releases{};
     bool session_held{}, scene_held{};
     CallbackMode mode{CallbackMode::Append};
@@ -265,10 +266,19 @@ bool MarkSessionWriteUncertain(std::uint64_t expected, const char* reason) {
     fixture.uncertainty_reason = reason;
     return true;
 }
+bool CheckEntityCommandQueuePages(const EngineContext::EcsView& view, EntityCommandQueueSelection& checked) {
+    ++fixture.check_calls;
+    // The page queries are made before SessionGuard and the Scene gate.
+    check(!fixture.scene_held && !fixture.session_held && view == fixture.view);
+    checked = fixture.selection;
+    return true;
+}
 bool ResolveEntityCommandQueue(const NamedServiceImplementation::BindingContract& binding,
-    const EngineContext::EcsView& view, EntityCommandQueueSelection& output) {
+    const EngineContext::EcsView& view, const EntityCommandQueueSelection& checked,
+    EntityCommandQueueSelection& output) {
     ++fixture.resolve_calls;
     check(fixture.scene_held && binding.key == "ecs::Tasks" && view == fixture.view);
+    check(checked.queue_records == fixture.selection.queue_records);
     if (!fixture.queue_available) return false;
     output = fixture.selection;
     output.header = fixture.header;

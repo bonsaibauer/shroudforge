@@ -799,6 +799,9 @@ bool BuildingPropSpawnAvailable() {
         EngineContext::EcsView view;
         if (!EngineContext::ResolveEcs(view) || view.role != EngineContext::EcsRole::LocalAuthority)
             return false;
+        // Page queries before the Scene gate, which holds the game's frame.
+        EntityCommandQueueSelection checked;
+        if (!EcsRuntime::CheckEntityCommandQueuePages(view, checked)) return false;
         std::unique_lock operation_lock(NamedServiceImplementation::operation_mutex, std::try_to_lock);
         if (!operation_lock.owns_lock()) return false;
         EngineContext::EcsWriteGuard scene;
@@ -806,7 +809,7 @@ bool BuildingPropSpawnAvailable() {
         EntityCommandQueueSelection queue;
         std::uint8_t flag{};
         return validate_code(contract) && globals(contract, flag) &&
-            EcsRuntime::ResolveEntityCommandQueue(binding, view, queue) && scene.Validate();
+            EcsRuntime::ResolveEntityCommandQueue(binding, view, checked, queue) && scene.Validate();
     } catch (...) { return false; }
 }
 
@@ -822,6 +825,12 @@ BuildingPropSpawnResult SubmitBuildingPropSpawn(std::uint64_t expected_session,
             return BuildingPropSpawnResult::Rejected;
         if (!resolve_contract(contract)) return BuildingPropSpawnResult::Unavailable;
         const auto binding = NamedServiceImplementation::binding_contract("ecs::Tasks");
+        // Page queries before the Scene gate, which holds the game's frame.
+        EngineContext::EcsView checked_view;
+        EntityCommandQueueSelection checked;
+        if (!EngineContext::ResolveEcs(checked_view) ||
+            !EcsRuntime::CheckEntityCommandQueuePages(checked_view, checked))
+            return BuildingPropSpawnResult::Unavailable;
         std::scoped_lock operation_lock(NamedServiceImplementation::operation_mutex);
         EcsRuntime::SessionGuard session;
         if (!session.TryAcquire(expected_session)) return BuildingPropSpawnResult::StaleSession;
@@ -832,7 +841,7 @@ BuildingPropSpawnResult SubmitBuildingPropSpawn(std::uint64_t expected_session,
         std::uint8_t flag{}, after_flag{};
         std::uint32_t counter{}, after_counter{};
         if (!validate_code(contract) || !globals(contract, flag) ||
-            !EcsRuntime::ResolveEntityCommandQueue(binding, session.View(), queue) ||
+            !EcsRuntime::ResolveEntityCommandQueue(binding, session.View(), checked, queue) ||
             !NamedServiceImplementation::read(queue.header.entity_id_counter, counter) || counter == UINT32_MAX)
             return BuildingPropSpawnResult::Unavailable;
         ULONG_PTR stack_low{}, stack_high{};
