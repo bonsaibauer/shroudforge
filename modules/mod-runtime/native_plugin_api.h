@@ -251,7 +251,8 @@ typedef struct SFNativePluginV2 {
  *   initialize/update/stop/shutdown and the host's final service drain.
  * - The plugin must stop its worker threads and stop using every host pointer
  *   before shutdown returns. Service callbacks may outlive stop, so the host
- *   independently revokes and drains them before unloading plugin code.
+ *   independently revokes and drains them before releasing the activation.
+ *   The common DLL executor keeps module code mapped until process exit.
  * - read_settings_json, read_asset, query_service, revoke_services, and
  *   drain_services run on the runtime control thread. read_asset accepts a
  *   UTF-8 package-relative path of at most SF_NATIVE_MAX_ASSET_PATH_BYTES and reads at most

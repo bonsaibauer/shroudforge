@@ -23,25 +23,35 @@ callback. A DLL with an invalid explicit lifecycle declaration is rejected,
 including through a profile or Lua registration. It cannot fall back to an
 ordinary load. Other DLLs in the same package retain their selected load mode.
 
-Initialization and updates run on the runtime owner thread after asynchronous
-library loading. Settings and package asset reads use bounded UTF-8 byte spans.
+All DLL loads and optional `ShroudforgeModNativeInit` calls run on the existing
+ordered process worker in `native_dlls.rs`. Selected DLLs, Lua registrations and
+managed declarations share canonical-path deduplication and the same load
+result. Initialization and updates run on the runtime owner thread after that
+asynchronous load. Settings and package asset reads use bounded UTF-8 byte spans.
 Short output buffers report the required size without partial writes. Paths
 are relative to the owning package, including for archived packages.
+DLL binaries use the existing resolver for installed, unpacked mod folders.
+The runtime does not extract another native package copy.
 
 Each activation has a new owner generation. Shutdown revokes services, drains
 in-flight callbacks, stops the plugin, calls shutdown and drains again before
-unloading code. A failed drain or callback retains the library and owner
-context; the runtime reports that a restart is required. Plugins must stop
-their workers and release host pointers before returning from shutdown. A
-pending load cancelled during disable cannot initialize later.
+releasing the activation. DLL code stays owned by the process executor until
+exit, including after an initialization error. A failed drain or callback also
+retains its owner context. The runtime reports that a restart is required.
+Plugins must stop their workers and release host pointers before returning from
+shutdown. A
+pending activation cancelled during disable cannot initialize later. Cancellation
+does not cancel an OS load already queued or release the process-owned module.
+When reactivation is supported, it reuses the recorded load and bridge result.
+A failed bridge initialization is never retried in the same process.
 
 The executable-span validation registry retains drained generation tombstones
 so an old generation cannot be reused. It keeps at most 4,096 distinct package
 generations for the process lifetime. Once that limit is reached, queries for
 new validation-service generations return BUSY until the process restarts.
 
-Before starting a managed DLL worker, the host pins its own runtime module for
-the process lifetime. Pending workers and retained callback contexts therefore
+Before starting the common DLL worker, the host pins its own runtime module for
+the process lifetime. Pending loads and retained callback contexts therefore
 remain backed by mapped code even after the bootstrap releases its reference.
 This also applies to plans containing only managed plugins.
 

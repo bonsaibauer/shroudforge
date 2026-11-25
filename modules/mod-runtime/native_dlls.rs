@@ -46,12 +46,37 @@ pub(crate) struct NativeDllStatus {
 
 struct Record {
     mode: DllLoadMode,
+    mod_id: Option<String>,
+    session_owned: bool,
     ids: HashSet<String>,
     state: &'static str,
     detail: String,
     source: String,
-    // Retaining the Windows reference prevents Lua reloads from unloading hooks.
-    _handle: Option<isize>,
+    // The result owns the Windows reference for process life, including errors
+    // after initialization began. Session receivers only borrow that handle.
+    result: Option<ProcessLibraryResult>,
+    waiters: Vec<mpsc::Sender<ProcessLibraryResult>>,
+}
+
+impl Record {
+    fn complete(&mut self, result: ProcessLibraryResult) {
+        self.result = Some(result.clone());
+        for waiter in self.waiters.drain(..) {
+            let _ = waiter.send(result.clone());
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct ProcessLibraryResult {
+    pub(crate) handle: Option<isize>,
+    pub(crate) initialization: Result<bool, String>,
+}
+
+struct LoadRequest {
+    key: String,
+    root: PathBuf,
+    entry: DllLoadEntry,
 }
 
 #[derive(Default)]
@@ -61,7 +86,7 @@ struct State {
 }
 
 struct Executor {
-    sender: mpsc::Sender<(String, PathBuf, DllLoadEntry)>,
+    sender: mpsc::Sender<LoadRequest>,
     shared: Arc<(Mutex<State>, Condvar)>,
 }
 
@@ -69,13 +94,13 @@ fn executor() -> Result<&'static Executor, String> {
     EXECUTOR
         .get_or_init(|| {
             pin_native_runtime_module()?;
-            let (sender, receiver) = mpsc::channel::<(String, PathBuf, DllLoadEntry)>();
+            let (sender, receiver) = mpsc::channel::<LoadRequest>();
             let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
             let worker_state = shared.clone();
             std::thread::Builder::new()
                 .name("sf-native-dlls".into())
                 .spawn(move || {
-                    while let Ok((key, root, entry)) = receiver.recv() {
+                    while let Ok(LoadRequest { key, root, entry }) = receiver.recv() {
                         tracing::debug!(target: "shroudforge::dll_manager", status_id = %entry.status_id,
                             dll = %entry.path.display(), source = %entry.source, mode = ?entry.mode,
                             "Loading native DLL on the ordered process worker");
@@ -85,16 +110,15 @@ fn executor() -> Result<&'static Executor, String> {
                             Some(handle) => crate::native_bridge::initialize(
                                 handle,
                                 entry.mod_id.as_deref(),
-                                &shroudforge_loader_config::paths::mods_dir(&root)
-                                    .join(&entry.package_directory),
+                                &shroudforge_loader_config::paths::mods_dir(&root).join(&entry.package_directory),
                             ),
                             None => Ok(false),
                         });
-                        let (state_name, detail) = match result {
+                        let (state_name, detail) = match &result {
                             Ok(bridged) => {
                                 tracing::info!(target: "shroudforge::dll_manager", status_id = %entry.status_id,
                                     dll = %entry.path.display(), bridged, "Native DLL loaded. Mod functionality is not independently verified");
-                                ("loaded", if bridged {
+                                ("loaded", if *bridged {
                                     "Native DLL loaded for this process and connected to its mod's Lua code. Functionality is not independently verified"
                                 } else {
                                     "Native DLL loaded for this process. Functionality is not independently verified"
@@ -103,7 +127,7 @@ fn executor() -> Result<&'static Executor, String> {
                             Err(error) => {
                                 tracing::error!(target: "shroudforge::dll_manager", status_id = %entry.status_id,
                                     dll = %entry.path.display(), %error, "Native DLL could not be initialized");
-                                ("error", error)
+                                ("error", error.clone())
                             }
                         };
                         let (state, completed) = &*worker_state;
@@ -111,7 +135,8 @@ fn executor() -> Result<&'static Executor, String> {
                         if let Some(record) = state.records.get_mut(&key) {
                             record.state = state_name;
                             record.detail = detail;
-                            record._handle = handle;
+                            let result = ProcessLibraryResult { handle, initialization: result };
+                            record.complete(result);
                         }
                         completed.notify_all();
                     }
@@ -217,8 +242,26 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
 }
 
 fn queue_process_library(root: &Path, entry: DllLoadEntry) -> Result<(), String> {
+    queue_package_library(root, entry, false).map(drop)
+}
+
+/// An already authorized package request uses the same ordered executor as the
+/// DLL Manager. This does not grant selection or lifecycle permissions.
+pub(crate) fn queue_package_library(
+    root: &Path,
+    entry: DllLoadEntry,
+    session_owned: bool,
+) -> Result<mpsc::Receiver<ProcessLibraryResult>, String> {
+    queue_package_library_on(executor()?, root, entry, session_owned)
+}
+
+fn queue_package_library_on(
+    executor: &Executor,
+    root: &Path,
+    entry: DllLoadEntry,
+    session_owned: bool,
+) -> Result<mpsc::Receiver<ProcessLibraryResult>, String> {
     let key = path_key(&entry.path);
-    let executor = executor()?;
     let mut state = executor
         .shared
         .0
@@ -232,31 +275,49 @@ fn queue_process_library(root: &Path, entry: DllLoadEntry) -> Result<(), String>
         if record.mode != entry.mode && entry.mode != DllLoadMode::Library {
             return Err("This DLL was already scheduled with another initialization mode. Restart the game after changing its selection".into());
         }
+        if record.mod_id != entry.mod_id {
+            return Err("This DLL is already owned by another mod. Restart the game after changing its package identity".into());
+        }
         record.ids.extend(ids);
+        record.session_owned |= session_owned;
         tracing::trace!(target: "shroudforge::dll_manager", dll = %entry.path.display(),
             "Reusing the process-owned native DLL registration");
-        return Ok(());
+        let (sender, receiver) = mpsc::channel();
+        if let Some(result) = &record.result {
+            let _ = sender.send(result.clone());
+        } else {
+            record.waiters.push(sender);
+        }
+        return Ok(receiver);
     }
+    let (sender, receiver) = mpsc::channel();
     state.records.insert(
         key.clone(),
         Record {
             mode: entry.mode,
+            mod_id: entry.mod_id.clone(),
+            session_owned,
             ids,
             state: "loading",
             detail: "Native DLL queued in the declared load order".into(),
             source: entry.source.clone(),
-            _handle: None,
+            result: None,
+            waiters: vec![sender],
         },
     );
     if executor
         .sender
-        .send((key.clone(), root.to_path_buf(), entry))
+        .send(LoadRequest {
+            key: key.clone(),
+            root: root.to_path_buf(),
+            entry,
+        })
         .is_err()
     {
         state.records.remove(&key);
         return Err("The native DLL worker is no longer available".into());
     }
-    Ok(())
+    Ok(receiver)
 }
 
 fn root_key(root: &Path) -> Result<String, String> {
@@ -486,7 +547,11 @@ fn is_authorized_deferred_entry(root: &Path, entry: &DllLoadEntry) -> Result<boo
 /// Called while the bootstrap holds the game entrypoint, outside the loader lock.
 /// File errors remain local to their DLL. A worker that never finishes must not
 /// release the game into an unknown, possibly locked initialization state.
-pub(crate) fn prepare_selected_startup(root: &Path, is_server: bool, expected: &serde_json::Value) -> Result<(), String> {
+pub(crate) fn prepare_selected_startup(
+    root: &Path,
+    is_server: bool,
+    expected: &serde_json::Value,
+) -> Result<(), String> {
     if APPLIED_PLAN.get().is_some() {
         return Err("Native plan was applied before selected admission".into());
     }
@@ -510,7 +575,12 @@ pub(crate) fn apply_plan(root: &Path, is_server: bool, wait: bool) -> Result<(),
 }
 
 // One execution path for ordinary startup and the retained admission snapshot.
-fn apply_resolved_plan(root: &Path, is_server: bool, wait: bool, plan: mod_loader::dll_manager::DllLoadPlan) -> Result<(), String> {
+fn apply_resolved_plan(
+    root: &Path,
+    is_server: bool,
+    wait: bool,
+    plan: mod_loader::dll_manager::DllLoadPlan,
+) -> Result<(), String> {
     let enabled = manager_enabled(root)?;
     let root_key = root_key(root)?;
     let identity = mod_loader::dll_manager::load_plan_identity(&plan);
@@ -616,6 +686,11 @@ pub(crate) fn statuses() -> Vec<NativeDllStatus> {
     };
     for record in state.records.values() {
         for id in &record.ids {
+            // Session activation reports its own callbacks and failures. A
+            // successful OS load must not overwrite that mod's lifecycle state.
+            if record.session_owned && record.mod_id.as_ref() == Some(id) {
+                continue;
+            }
             if statuses
                 .get(id)
                 .is_none_or(|previous| priority(previous.state) < priority(record.state))
@@ -751,6 +826,119 @@ pub(crate) fn load_library(
 #[cfg(test)]
 mod managed_plugin_plan_tests {
     use super::*;
+
+    fn controlled_executor() -> (Executor, mpsc::Receiver<LoadRequest>) {
+        let (sender, receiver) = mpsc::channel();
+        (
+            Executor {
+                sender,
+                shared: Arc::new((Mutex::new(State::default()), Condvar::new())),
+            },
+            receiver,
+        )
+    }
+
+    #[test]
+    fn ordinary_and_managed_requests_share_pending_and_completed_loads() {
+        let fixture = Fixture::new();
+        fixture.package("shared", "", &["plugin.dll"]);
+        let entry = fixture.entry("shared", "plugin.dll", DllLoadMode::Library);
+        let (executor, work) = controlled_executor();
+        let ordinary =
+            queue_package_library_on(&executor, &fixture.0, entry.clone(), false).unwrap();
+        let cancelled =
+            queue_package_library_on(&executor, &fixture.0, entry.clone(), true).unwrap();
+        let managed = queue_package_library_on(&executor, &fixture.0, entry.clone(), true).unwrap();
+        drop(cancelled);
+        let request = work.try_recv().unwrap();
+        assert!(
+            work.try_recv().is_err(),
+            "one OS load and bridge initialization for all requests"
+        );
+        assert!(ordinary.try_recv().is_err() && managed.try_recv().is_err());
+        {
+            let mut state = executor.shared.0.lock().unwrap();
+            let record = state.records.get_mut(&request.key).unwrap();
+            assert!(
+                record.session_owned,
+                "OS status must not replace lifecycle status"
+            );
+            record.complete(ProcessLibraryResult {
+                handle: Some(42),
+                initialization: Ok(true),
+            });
+        }
+        for result in [ordinary.recv().unwrap(), managed.recv().unwrap()] {
+            assert_eq!(result.handle, Some(42));
+            assert_eq!(result.initialization, Ok(true));
+        }
+        let replay = queue_package_library_on(&executor, &fixture.0, entry, true).unwrap();
+        assert_eq!(replay.recv().unwrap().handle, Some(42));
+        assert!(
+            work.try_recv().is_err(),
+            "reload must reuse the process result"
+        );
+        assert_eq!(
+            executor.shared.0.lock().unwrap().records[&request.key]
+                .result
+                .as_ref()
+                .unwrap()
+                .handle,
+            Some(42)
+        );
+    }
+
+    #[test]
+    fn failed_bridge_is_retained_and_never_initialized_again() {
+        let fixture = Fixture::new();
+        fixture.package("failed", "", &["plugin.dll"]);
+        let mut entry = fixture.entry("failed", "plugin.dll", DllLoadMode::Library);
+        let (executor, work) = controlled_executor();
+        let pending = queue_package_library_on(&executor, &fixture.0, entry.clone(), true).unwrap();
+        let request = work.try_recv().unwrap();
+        executor
+            .shared
+            .0
+            .lock()
+            .unwrap()
+            .records
+            .get_mut(&request.key)
+            .unwrap()
+            .complete(ProcessLibraryResult {
+                handle: Some(43),
+                initialization: Err("bridge refused".into()),
+            });
+        assert_eq!(
+            pending.recv().unwrap().initialization,
+            Err("bridge refused".into())
+        );
+        let replay = queue_package_library_on(&executor, &fixture.0, entry.clone(), true)
+            .unwrap()
+            .recv()
+            .unwrap();
+        assert_eq!(replay.handle, Some(43));
+        assert_eq!(replay.initialization, Err("bridge refused".into()));
+        entry.mod_id = Some("different.owner".into());
+        assert!(queue_package_library_on(&executor, &fixture.0, entry, true).is_err());
+        assert!(work.try_recv().is_err());
+    }
+
+    #[test]
+    fn mixed_requests_preserve_order_and_cannot_change_load_mode() {
+        let fixture = Fixture::new();
+        fixture.package("ordered", "", &["one.dll", "two.dll"]);
+        let one = fixture.entry("ordered", "one.dll", DllLoadMode::Library);
+        let two = fixture.entry("ordered", "two.dll", DllLoadMode::Library);
+        let (executor, work) = controlled_executor();
+        let _one = queue_package_library_on(&executor, &fixture.0, one.clone(), false).unwrap();
+        let _two = queue_package_library_on(&executor, &fixture.0, two.clone(), true).unwrap();
+        assert_eq!(work.try_recv().unwrap().entry.path, one.path);
+        assert_eq!(work.try_recv().unwrap().entry.path, two.path);
+        let mut changed_mode = one;
+        changed_mode.mode = DllLoadMode::Dinput8;
+        assert!(queue_package_library_on(&executor, &fixture.0, changed_mode, true).is_err());
+        assert!(work.try_recv().is_err());
+    }
 
     struct Fixture(PathBuf);
 
