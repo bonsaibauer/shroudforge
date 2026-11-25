@@ -67,17 +67,33 @@ impl Fixture {
     }
 
     pub(super) fn new() -> Self {
+        Self::with_manifest(&["patch"], false)
+    }
+
+    pub(crate) fn with_capabilities(capabilities: &[&str]) -> Self {
+        Self::with_manifest(capabilities, true)
+    }
+
+    fn with_manifest(capabilities: &[&str], enabled: bool) -> Self {
         let root = std::env::temp_dir().join(format!("sf-assets-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("mods/fixture/src")).unwrap();
         std::fs::write(
             root.join("mods/fixture/mod.json"),
-            r#"{
-            "id":"fixture", "name":"Fixture", "version":"1.0.0",
-            "authors":["Test"], "description":"Synthetic assets", "capabilities":["patch"]
-        }"#,
+            serde_json::to_vec(&serde_json::json!({
+                "id":"fixture", "name":"Fixture", "version":"1.0.0",
+                "authors":["Test"], "description":"Synthetic assets", "capabilities":capabilities, "enabled":enabled
+            }))
+            .unwrap(),
         )
         .unwrap();
         std::fs::write(root.join("mods/fixture/src/mod.lua"), "return {}").unwrap();
+        if enabled {
+            std::fs::write(
+                root.join("mods/fixture/extended.mod.json"),
+                r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"],"settings":{}}"#,
+            )
+            .unwrap();
+        }
         let env = ModEnvironment::load(camino::Utf8Path::from_path(&root).unwrap()).unwrap();
         let owner = env
             .mod_registry()

@@ -111,6 +111,15 @@ Runtime mods have separate Lua environments. The loader selects a matching profi
 
 Native DLL handles are process-owned. `modules/modloader/dll_manager.rs` detects installed native components and resolves INI declarations, local selections, compatibility profiles and `dinput8-chain.ini` into one ordered plan. Chain entries must resolve inside a direct installed mod package. `mod_profiles.rs` reads data-only mod adapters independently of installed files. Manifest overlays preserve existing capabilities and add profile capabilities without duplicates. `modules/mod-runtime/native_dlls.rs` owns loading, canonical path deduplication, DirectInput provider registration and status. Ordinary DLLs own their internal startup. A DLL that belongs to a mod may also export `ShroudforgeModNativeInit` (`modules/mod-runtime/native_bridge/shroudforge_mod_native.h`): the loader calls it once after the load and the DLL registers functions that only the same mod's Lua code reaches through `shroudforge.native`. Mod bridge ABI 3 appends optional lifecycle-factory registration to the same host table and stores its accepted factory in that DLL's process record. The runtime validates its callback table later on the activation owner thread. No second plugin export is queried. Registration grants no game access. Activation-scoped host services retain their existing package, thread and generation checks. The bootstrap prepares this plan before releasing the game entrypoint. DLLs stay loaded until process exit, so changed native selections require a game restart. Reading the inventory never executes DLLs or rewrites mod files.
 
+Managed native callbacks participate in `modules/mod-runtime/ingame/`'s existing
+package lifecycle. The common dependency plan controls activation. Lua `on_load`
+runs before native initialization. One traversal schedules due Lua updates and
+per-tick native updates. A failure in either uses the same retryable package
+cleanup. Lua unload and automatic override restoration precede native teardown,
+and the active scope remains until both finish. Native-only packages with
+registered callbacks need no empty Lua script. V2 Stage/Prepare remains a
+pre-entry requirement, separate from gameplay activation.
+
 ## The two mod information files
 
 - **mod.json** follows the EML format. It contains the mod's identity, version, dependencies, and permissions.

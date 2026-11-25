@@ -571,6 +571,11 @@ pub fn prepare_startup(root: &Path, is_server: bool) -> Result<(), String> {
 
 pub(crate) fn apply_plan(root: &Path, is_server: bool, wait: bool) -> Result<(), String> {
     if APPLIED_PLAN.get().is_some() {
+        if wait {
+            if let Some(Ok(executor)) = EXECUTOR.get() {
+                wait_for_libraries(executor)?;
+            }
+        }
         return Ok(());
     }
     let plan = mod_loader::dll_manager::resolve_load_plan(root, is_server);
@@ -588,8 +593,26 @@ fn apply_resolved_plan(
     let root_key = root_key(root)?;
     let identity = mod_loader::dll_manager::load_plan_identity(&plan);
     let mut issues = plan.issues;
+    let ordered = plan.entries.clone();
     let (ordinary, deferred, rejected_entries, classified_issues) =
         classify_plan_entries(root, plan.entries);
+    let scheduled: Vec<_> = ordered
+        .into_iter()
+        .filter_map(|entry| {
+            if ordinary
+                .iter()
+                .any(|candidate| same_entry(candidate, &entry))
+            {
+                Some((entry, false))
+            } else if deferred.iter().any(|candidate| {
+                candidate.declaration.state.is_enabled() && same_entry(&candidate.entry, &entry)
+            }) {
+                Some((entry, true))
+            } else {
+                None
+            }
+        })
+        .collect();
     issues.extend(classified_issues);
     if APPLIED_PLAN
         .set(AppliedPlan {
@@ -607,7 +630,7 @@ fn apply_resolved_plan(
         tracing::info!(target: "shroudforge::dll_manager", "DLL Manager is disabled. Native DLL loading is skipped");
         return Ok(());
     }
-    if ordinary.is_empty() && issues.is_empty() {
+    if scheduled.is_empty() && issues.is_empty() {
         return Ok(());
     }
     let executor = executor()?;
@@ -622,9 +645,14 @@ fn apply_resolved_plan(
             .issues
             .insert(issue.status_id, issue.detail);
     }
-    for entry in ordinary {
+    for (entry, managed) in scheduled {
         let status_id = entry.status_id.clone();
-        if let Err(error) = queue(root, entry) {
+        let queued = if managed {
+            queue_package_library(root, entry, true).map(drop)
+        } else {
+            queue(root, entry)
+        };
+        if let Err(error) = queued {
             tracing::error!(target: "shroudforge::dll_manager", %status_id, %error,
                 "Native DLL could not be scheduled");
             executor
@@ -637,31 +665,36 @@ fn apply_resolved_plan(
         }
     }
     if wait {
-        let deadline = Instant::now() + STARTUP_LOAD_TIMEOUT;
-        let (state, completed) = &*executor.shared;
-        let mut state = state.lock().unwrap_or_else(|error| error.into_inner());
-        while state
-            .records
-            .values()
-            .any(|record| record.state == "loading")
-        {
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                let pending = state
-                    .records
-                    .iter()
-                    .find(|(_, record)| record.state == "loading")
-                    .map(|(path, _)| path.as_str())
-                    .unwrap_or("unknown");
-                return Err(format!(
-                    "Native DLL '{pending}' did not finish initialization within 15 seconds. Disable it in DLL Manager and restart the game"
-                ));
-            }
-            state = completed
-                .wait_timeout(state, remaining)
-                .unwrap_or_else(|error| error.into_inner())
-                .0;
+        wait_for_libraries(executor)?;
+    }
+    Ok(())
+}
+
+fn wait_for_libraries(executor: &Executor) -> Result<(), String> {
+    let deadline = Instant::now() + STARTUP_LOAD_TIMEOUT;
+    let (state, completed) = &*executor.shared;
+    let mut state = state.lock().unwrap_or_else(|error| error.into_inner());
+    while state
+        .records
+        .values()
+        .any(|record| record.state == "loading")
+    {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            let pending = state
+                .records
+                .iter()
+                .find(|(_, record)| record.state == "loading")
+                .map(|(path, _)| path.as_str())
+                .unwrap_or("unknown");
+            return Err(format!(
+                "Native DLL '{pending}' did not finish initialization within 15 seconds. Disable it in DLL Manager and restart the game"
+            ));
         }
+        state = completed
+            .wait_timeout(state, remaining)
+            .unwrap_or_else(|error| error.into_inner())
+            .0;
     }
     Ok(())
 }

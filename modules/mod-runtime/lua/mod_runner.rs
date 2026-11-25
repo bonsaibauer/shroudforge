@@ -93,6 +93,21 @@ impl LuaModRunner {
     }
 
     pub(crate) fn load_runtime_module(&self, id: &str) -> mlua::Result<crate::lua::LuaValue> {
+        let mods = self.state.mods();
+        let target = mods
+            .get(id)
+            .ok_or_else(|| mlua::Error::runtime("runtime package is not loaded"))?;
+        let has_lua = target.fs().exists("src/mod.lua");
+        drop(mods);
+        if !has_lua
+            && self
+                .lua
+                .app_data_ref::<AppState>()
+                .unwrap()
+                .native_plugin_has_callbacks(id)
+        {
+            return Ok(mlua::Value::Nil);
+        }
         self.state.require_mod(id, &self.lua)
     }
 

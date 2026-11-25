@@ -54,8 +54,9 @@ must replace that include with this SDK and register their former
 `ShroudForgePluginEntry` implementation as a local factory through the existing
 init export. That old export is no longer queried. The additional `Lifecycle`
 and `Services` declarations shown above still
-select preparation in this intermediate PR state. Their removal and integration
-with the common package lifecycle are tracked in [issue #149](https://github.com/bonsaibauer/shroudforge/issues/149).
+select preparation in this intermediate PR state. Their removal is tracked in
+[issue #149](https://github.com/bonsaibauer/shroudforge/issues/149). The callbacks
+already participate in the common package lifecycle described below.
 
 The optional executable-span service uses the standalone
 [executable_span_api.h](../../modules/game-runtime/native/abi/executable_span_api.h)
@@ -68,12 +69,47 @@ ordinary load. Other DLLs in the same package retain their selected load mode.
 All DLL loads and optional `ShroudforgeModNativeInit` calls run on the existing
 ordered process worker in `native_dlls.rs`. Selected DLLs, Lua registrations and
 managed declarations share canonical-path deduplication and the same load
-result. Initialization and updates run on the runtime owner thread after that
-asynchronous load. Settings and package asset reads use bounded UTF-8 byte spans.
+result. The startup plan queues enabled managed DLLs in the original DLL order
+and waits for loading and SDK registration to finish before provider preparation.
+The factory's callback table is then prepared on the activation owner thread.
+This preparation does not call its gameplay `initialize` callback.
+Settings and package asset reads use bounded UTF-8 byte spans.
 Short output buffers report the required size without partial writes. Paths
 are relative to the owning package, including for archived packages.
 DLL binaries use the existing resolver for installed, unpacked mod folders.
 The runtime does not extract another native package copy.
+
+## Common package activation
+
+`mod-runtime/ingame/` owns one dependency-aware package plan and one lifecycle
+traversal for Lua and native callbacks. A package with registered native callbacks
+can omit `src/mod.lua`. A mixed package uses its ordinary Lua lifecycle table.
+Neither form creates another mod scheduler or bypasses a blocked dependency.
+
+Activation establishes the package's active scope, calls Lua `on_load` when
+present, and then calls native `initialize`. A start failure follows the same
+package rollback path. Native initialization failure also uses the SDK's existing
+revocation and drain rules before releasing or retaining its activation context.
+
+During each runtime tick, the common traversal calls a due Lua `on_update` first,
+then native `update`. Native updates retain their per-tick cadence. Lua retains
+its declared `update_interval_ms` and skips missed periods without replay bursts.
+An error in either callback enters package cleanup through the same controller.
+
+Cleanup calls Lua `on_unload`, restores automatic runtime overrides, releases
+input reservations, and then stops the native activation. The package's active
+scope is cleared only after all cleanup succeeds. An incomplete cleanup keeps
+that scope for cleanup retries and suppresses all further regular Lua and native
+updates. Retained native context rejects reactivation and requires a process
+restart. A prepared activation that never started is discarded or rolled back
+without calling gameplay `initialize`.
+
+Disable, reload, refresh rollback and process shutdown use these same package
+transitions. Native settings continue to consume the canonical package setting
+values. V2's pre-entry Stage/Prepare sequence remains a startup requirement and
+cannot be repeated by live reactivation or Lua reload.
+
+## Activation lifetime
 
 Each activation has a new owner generation. Shutdown revokes services, drains
 in-flight callbacks, stops the plugin, calls shutdown and drains again before

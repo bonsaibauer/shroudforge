@@ -243,6 +243,8 @@ mod native_plugin_abi;
 pub(crate) use native_plugin_abi::NativeLifecycleFactory;
 #[cfg(test)]
 pub(crate) use native_plugin_abi::SFNativePluginV1;
+#[cfg(test)]
+pub(crate) use native_plugin_abi::{NativeLifecycleProbe, NativeLifecycleTestState};
 mod native_plugin_lifecycle;
 mod native_plugins;
 mod validate_generated_assets;

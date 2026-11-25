@@ -85,14 +85,15 @@ pub(super) fn settings_to_apply_live(
 
 impl IngameRuntime {
     pub(super) fn refresh_configuration(&mut self) {
-        let world_editor_enabled = shroudforge_loader_config::config::read_loader_in_background(&self.root)
-            .ok()
-            .and_then(|config| {
-                config
-                    .pointer("/modules/worldEditor/enabled")
-                    .and_then(serde_json::Value::as_bool)
-            })
-            .unwrap_or(false);
+        let world_editor_enabled =
+            shroudforge_loader_config::config::read_loader_in_background(&self.root)
+                .ok()
+                .and_then(|config| {
+                    config
+                        .pointer("/modules/worldEditor/enabled")
+                        .and_then(serde_json::Value::as_bool)
+                })
+                .unwrap_or(false);
         let configured_enabled: std::collections::HashMap<String, bool> = self
             .configurations
             .iter()
@@ -235,13 +236,6 @@ impl IngameRuntime {
                         item.activate_runtime_mod(&self.runner.lua, None)
                             .and_then(|result| result)
                             .map_err(|error| error.to_string())
-                            .and_then(|()| {
-                                self.runner
-                                    .lua
-                                    .app_data_ref::<AppState>()
-                                    .unwrap()
-                                    .restart_native_plugin(id)
-                            })
                     } else if item.active {
                         self.diagnostics.release_mod_host(id);
                         item.try_unload(&self.runner.lua)
@@ -249,7 +243,7 @@ impl IngameRuntime {
                             .and_then(|()| {
                                 let state = self.runner.lua.app_data_ref::<AppState>().unwrap();
                                 state.set_runtime_mod_active(id, false);
-                                state.stop_native_plugin(id).map(|_| ())
+                                Ok(())
                             })
                     } else {
                         Ok(())

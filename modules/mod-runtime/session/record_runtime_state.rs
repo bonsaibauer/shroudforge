@@ -26,6 +26,7 @@ impl AppState {
         } else if let Some(state) = native_dll_state {
             let detail = match state {
                 "loading" => "native DLL is still loading",
+                "prepared" => "native callbacks are prepared and await package activation",
                 "retained" => {
                     "native plugin remains resident because safe unload was not confirmed"
                 }

@@ -1010,34 +1010,7 @@ impl AppState {
             services: _,
             plugins,
         } = batch;
-        let mut active = Vec::new();
-        let mut pending = plugins.into_iter();
-        while let Some(mut plugin) = pending.next() {
-            match plugin.instance.start() {
-                Ok(()) => active.push(plugin),
-                Err(failure) => {
-                    let detail = format!(
-                        "V2 native plugin {} failed initialization with status {}; {}",
-                        plugin.mod_id,
-                        failure.status,
-                        failure.cleanup.description(),
-                    );
-                    release_staged_plugin(plugin, Some(failure.cleanup));
-                    for mut active_plugin in active.into_iter().rev() {
-                        let outcome = active_plugin.instance.stop();
-                        release_staged_plugin(active_plugin, Some(outcome));
-                    }
-                    for mut pending_plugin in pending {
-                        let outcome = pending_plugin.instance.rollback_preparation();
-                        release_staged_plugin(pending_plugin, Some(outcome));
-                    }
-                    set_selected_native_plugins_failed();
-                    return Err(detail);
-                }
-            }
-        }
-
-        let adopted: Vec<_> = active
+        let adopted: Vec<_> = plugins
             .into_iter()
             .map(|plugin| NativeDll {
                 mod_id: plugin.mod_id,
@@ -1059,18 +1032,14 @@ impl AppState {
             .native_dlls
             .borrow()
             .iter()
-            .filter(|plugin| {
-                plugin.mode() == NativePluginMode::ShroudForgeV2
-                    && plugin.is_active()
-                    && plugin.path.starts_with(root)
-            })
+            .filter(|plugin| plugin.mode() == NativePluginMode::ShroudForgeV2)
             .map(|plugin| plugin.mod_id.clone())
             .collect();
         for mod_id in adopted_ids {
             self.report_runtime_effect(
                 &mod_id,
-                "loaded",
-                "ShroudForge V2 native plugin was prepared before entry and adopted into the runtime lifecycle",
+                "prepared",
+                "Native startup preparation adopted; activation belongs to the package lifecycle",
             );
         }
         Ok(())
@@ -1203,6 +1172,13 @@ impl AppState {
             .any(|dll| dll.mod_id == id && dll.is_retained())
         {
             Some("retained")
+        } else if self
+            .native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == id && dll.is_lifecycle_managed() && !dll.is_active())
+        {
+            Some("prepared")
         } else if self.native_dlls.borrow().iter().any(|dll| dll.mod_id == id) {
             Some("loaded")
         } else if self
@@ -1309,7 +1285,7 @@ impl AppState {
             if let Some(dll) = self.native_dlls.borrow().iter().find(|dll| {
                 dll.mod_id == target_mod.info().id && dll.mode() == NativePluginMode::ShroudForgeV2
             }) {
-                if dll.is_active() {
+                if matches!(&dll.module, NativeModule::Lifecycle(_)) {
                     return Ok(true);
                 }
                 return Err(
@@ -1322,7 +1298,16 @@ impl AppState {
         Ok(true)
     }
 
-    pub(crate) fn restart_native_plugin(&self, mod_id: &str) -> Result<(), String> {
+    fn prepare_native_plugin(&self, mod_id: &str) -> Result<bool, String> {
+        let Some(target_mod) = self.env.mod_registry().get(mod_id) else {
+            return Ok(false);
+        };
+        let Some(declaration) = read_native_plugin_declaration(target_mod)? else {
+            return Ok(false);
+        };
+        if !native_plugin_mode(&declaration.metadata)?.is_lifecycle_managed() {
+            return Ok(false);
+        }
         let plugins = crate::native_dlls::deferred_native_plugins(
             self.env.game_dir().as_std_path(),
             self.is_server(),
@@ -1331,23 +1316,9 @@ impl AppState {
             .into_iter()
             .find(|plugin| plugin.entry.mod_id.as_deref() == Some(mod_id))
         else {
-            return Ok(());
+            return Ok(false);
         };
-        if plugin
-            .declaration
-            .lifecycle
-            .as_deref()
-            .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
-        {
-            return Err(
-                "V2 native plugins are process-start only and cannot be restarted in place".into(),
-            );
-        }
-        let Some(target_mod) = self.env.mod_registry().get(mod_id) else {
-            return Ok(());
-        };
-        let _ = self.load_native_dll_declaration(target_mod, &plugin)?;
-        Ok(())
+        self.load_native_dll_declaration(target_mod, &plugin)
     }
 
     pub(super) fn validate_native_plugin_package(&self, target_mod: &Mod) -> Result<(), String> {
@@ -1711,8 +1682,7 @@ impl AppState {
             settings_json: item.settings_json,
             services: self.native_plugin_services.borrow().clone(),
         };
-        let mut instance = match NativePluginInstance::load_with_mode(factory, metadata, item.mode)
-        {
+        let instance = match NativePluginInstance::load_with_mode(factory, metadata, item.mode) {
             Ok(instance) => instance,
             Err(error) => {
                 tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id,
@@ -1721,51 +1691,17 @@ impl AppState {
                 return;
             }
         };
-        match instance.start() {
-            Ok(()) => {
-                self.native_dlls.borrow_mut().push(NativeDll {
-                    mod_id: item.mod_id.clone(),
-                    path: item.path.clone(),
-                    mode: item.mode,
-                    module: NativeModule::Lifecycle(Box::new(instance)),
-                });
-                tracing::info!(target: "shroudforge::runtime", mod_id = %item.mod_id,
-                    dll = %item.path.display(), "Native lifecycle initialized on the runtime owner thread");
-                self.report_runtime_effect(
-                    &item.mod_id,
-                    "loaded",
-                    "native lifecycle is active on the runtime owner thread",
-                );
-            }
-            Err(failure) => {
-                let detail = format!(
-                    "native initialization failed with status {}; {}",
-                    failure.status,
-                    failure.cleanup.description()
-                );
-                match failure.cleanup {
-                    crate::session::native_plugin_lifecycle::TeardownOutcome::Quiescent => {
-                        drop(instance);
-                        self.report_runtime_effect(&item.mod_id, "error", &detail);
-                    }
-                    crate::session::native_plugin_lifecycle::TeardownOutcome::Retain {
-                        stage,
-                        status,
-                    } => {
-                        self.retain_native_module(
-                            item.mod_id.clone(),
-                            item.path,
-                            item.mode,
-                            instance,
-                            stage,
-                            status,
-                        );
-                        self.report_runtime_effect(&item.mod_id, "retained", &detail);
-                    }
-                }
-                tracing::error!(target: "shroudforge::runtime", mod_id = %item.mod_id, "{detail}");
-            }
-        }
+        self.native_dlls.borrow_mut().push(NativeDll {
+            mod_id: item.mod_id.clone(),
+            path: item.path,
+            mode: item.mode,
+            module: NativeModule::Lifecycle(Box::new(instance)),
+        });
+        self.report_runtime_effect(
+            &item.mod_id,
+            "prepared",
+            "native callbacks prepared; package activation has not run",
+        );
     }
     fn pending_plugin_is_current(&self, item: &PendingNativeDll) -> Result<bool, String> {
         if !item.mode.is_lifecycle_managed() {
@@ -1831,100 +1767,182 @@ impl AppState {
         )?;
         Ok(authorized.declaration == declaration.metadata)
     }
-    fn retain_native_module(
+    pub(crate) fn native_plugin_has_callbacks(&self, mod_id: &str) -> bool {
+        self.native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == mod_id && dll.is_lifecycle_managed())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn attach_native_lifecycle_fixture(
         &self,
-        mod_id: String,
-        path: NativePathBuf,
-        mode: NativePluginMode,
-        instance: NativePluginInstance,
-        stage: &'static str,
-        status: i32,
+        mod_id: &str,
+        probe: super::NativeLifecycleProbe,
     ) {
+        let metadata = NativePluginHostMetadata {
+            game_root: self.env.game_dir().as_std_path().to_path_buf(),
+            package_id: mod_id.to_owned(),
+            package: self.env.mod_registry().get(mod_id).unwrap().clone(),
+            package_generation: next_native_package_generation(),
+            is_server: false,
+            settings_json: b"{}".to_vec(),
+            services: self.native_plugin_services.borrow().clone(),
+        };
+        let instance = super::native_plugin_abi::package_lifecycle_fixture(metadata, probe);
         self.native_dlls.borrow_mut().push(NativeDll {
-            mod_id,
-            path,
-            mode,
-            module: NativeModule::Retained {
-                instance: Some(Box::new(instance)),
-                stage,
-                status,
-            },
+            mod_id: mod_id.to_owned(),
+            path: self.env.game_dir().as_std_path().join("fixture.dll"),
+            mode: NativePluginMode::ShroudForgeV1,
+            module: NativeModule::Lifecycle(Box::new(instance)),
         });
     }
 
-    pub(crate) fn update_native_plugins(&self, delta_seconds: f64) {
-        let elapsed_microseconds = if delta_seconds.is_finite() && delta_seconds > 0.0 {
+    pub(crate) fn activate_native_plugin(&self, mod_id: &str) -> Result<(), String> {
+        let expected = if self
+            .native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == mod_id)
+        {
+            true
+        } else {
+            self.prepare_native_plugin(mod_id)?
+        };
+        self.poll_native_dll_loads();
+        if self
+            .pending_native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == mod_id)
+        {
+            return Err("Native DLL initialization has not completed; restart the process after correcting its startup selection".into());
+        }
+        let mut instance = {
+            let mut dlls = self.native_dlls.borrow_mut();
+            let Some(dll) = dlls.iter_mut().find(|dll| dll.mod_id == mod_id) else {
+                if expected {
+                    let effects = self.runtime_effects.borrow();
+                    let detail = effects
+                        .get(mod_id)
+                        .and_then(|effect| effect["detail"].as_str())
+                        .unwrap_or("native callback preparation did not produce an activation");
+                    return Err(detail.to_owned());
+                }
+                return Ok(());
+            };
+            if dll.is_active() || matches!(&dll.module, NativeModule::LegacyLoadOnly) {
+                return Ok(());
+            }
+            match std::mem::replace(&mut dll.module, NativeModule::Transitioning) {
+                NativeModule::Lifecycle(instance) => instance,
+                previous => {
+                    dll.module = previous;
+                    return Err("Native activation is retained or already transitioning".into());
+                }
+            }
+        };
+        let (module, result) = match instance.start() {
+            Ok(()) => (Some(NativeModule::Lifecycle(instance)), Ok(())),
+            Err(failure) => {
+                let detail = format!(
+                    "native initialization failed with status {}; {}",
+                    failure.status,
+                    failure.cleanup.description()
+                );
+                let module = match failure.cleanup {
+                    crate::session::native_plugin_lifecycle::TeardownOutcome::Quiescent => None,
+                    crate::session::native_plugin_lifecycle::TeardownOutcome::Retain {
+                        stage,
+                        status,
+                    } => Some(NativeModule::Retained {
+                        instance: Some(instance),
+                        stage,
+                        status,
+                    }),
+                };
+                (module, Err(detail))
+            }
+        };
+        let mut module = module;
+        let mut dlls = self.native_dlls.borrow_mut();
+        let Some(index) = dlls.iter().position(|dll| {
+            dll.mod_id == mod_id && matches!(&dll.module, NativeModule::Transitioning)
+        }) else {
+            std::mem::forget(module);
+            return Err(
+                "Native activation ownership changed during initialization; context retained"
+                    .into(),
+            );
+        };
+        if let Some(module) = module.take() {
+            dlls[index].module = module;
+        } else {
+            dlls.remove(index);
+        }
+        drop(dlls);
+        self.report_runtime_effect(
+            mod_id,
+            if result.is_ok() { "loaded" } else { "error" },
+            result
+                .as_ref()
+                .err()
+                .map(String::as_str)
+                .unwrap_or("native callbacks active in the package lifecycle"),
+        );
+        result
+    }
+
+    pub(crate) fn update_native_plugin(
+        &self,
+        mod_id: &str,
+        delta_seconds: f64,
+    ) -> Result<(), String> {
+        if self
+            .native_dlls
+            .borrow()
+            .iter()
+            .any(|dll| dll.mod_id == mod_id && dll.is_lifecycle_managed() && !dll.is_active())
+        {
+            self.activate_native_plugin(mod_id)?;
+        }
+        let elapsed = if delta_seconds.is_finite() && delta_seconds > 0.0 {
             (delta_seconds * 1_000_000.0).min(u64::MAX as f64) as u64
         } else {
             0
         };
-        let mod_ids: Vec<_> = self
-            .native_dlls
-            .borrow()
-            .iter()
-            .filter(|dll| dll.is_active())
-            .map(|dll| dll.mod_id.clone())
-            .collect();
-        let mut failed = Vec::new();
-        for mod_id in mod_ids {
-            let instance = {
-                let mut dlls = self.native_dlls.borrow_mut();
-                let Some(dll) = dlls.iter_mut().find(|dll| dll.mod_id == mod_id) else {
-                    continue;
-                };
-                match std::mem::replace(&mut dll.module, NativeModule::Transitioning) {
-                    NativeModule::Lifecycle(instance) => instance,
-                    previous => {
-                        dll.module = previous;
-                        continue;
-                    }
-                }
+        let instance = {
+            let mut dlls = self.native_dlls.borrow_mut();
+            let Some(dll) = dlls
+                .iter_mut()
+                .find(|dll| dll.mod_id == mod_id && dll.is_active())
+            else {
+                return Ok(());
             };
-            let mut instance = Some(instance);
-            let status = instance
-                .as_mut()
-                .expect("native plugin instance is available")
-                .update(elapsed_microseconds);
-            let restored = {
-                let mut dlls = self.native_dlls.borrow_mut();
-                if let Some(dll) = dlls.iter_mut().find(|dll| dll.mod_id == mod_id)
-                    && matches!(&dll.module, NativeModule::Transitioning)
-                {
-                    dll.module = NativeModule::Lifecycle(
-                        instance
-                            .take()
-                            .expect("native plugin instance is available"),
-                    );
-                    true
-                } else {
-                    false
-                }
-            };
-            if !restored {
-                // An owner vanished while its callback was running. Keep both
-                // context and module mapped when ownership cannot be proven.
-                if let Some(instance) = instance.take() {
-                    std::mem::forget(instance);
-                }
-                tracing::error!(target: "shroudforge::runtime", mod_id,
-                    "Retaining native plugin after update ownership changed during callback");
-                continue;
+            match std::mem::replace(&mut dll.module, NativeModule::Transitioning) {
+                NativeModule::Lifecycle(instance) => instance,
+                _ => unreachable!("active native instance"),
             }
-            if status != crate::session::native_plugin_abi::NATIVE_STATUS_OK {
-                failed.push(mod_id);
-            }
-        }
-        for mod_id in failed {
-            let detail = "native plugin update failed; lifecycle teardown was requested";
-            match self.stop_native_plugin(&mod_id) {
-                Ok(_) => self.report_runtime_effect(&mod_id, "error", detail),
-                Err(error) => {
-                    self.report_runtime_effect(&mod_id, "retained", &format!("{detail}; {error}"))
-                }
-            }
+        };
+        let mut instance = Some(instance);
+        let status = instance.as_mut().unwrap().update(elapsed);
+        let mut dlls = self.native_dlls.borrow_mut();
+        let Some(dll) = dlls
+            .iter_mut()
+            .find(|dll| dll.mod_id == mod_id && matches!(&dll.module, NativeModule::Transitioning))
+        else {
+            std::mem::forget(instance);
+            return Err(
+                "Native activation ownership changed during update; context retained".into(),
+            );
+        };
+        dll.module = NativeModule::Lifecycle(instance.take().unwrap());
+        if status == crate::session::native_plugin_abi::NATIVE_STATUS_OK {
+            Ok(())
+        } else {
+            Err(format!("native update failed with status {status}"))
         }
     }
-
     pub(crate) fn update_native_plugin_settings(
         &self,
         mod_id: &str,
@@ -2088,13 +2106,6 @@ impl AppState {
         }
     }
 
-    pub(crate) fn restart_native_plugins(&self, mod_ids: &[String]) -> Result<(), String> {
-        for mod_id in mod_ids {
-            self.restart_native_plugin(mod_id)?;
-        }
-        Ok(())
-    }
-
     pub(crate) fn shutdown_native_dlls(&mut self) {
         self.pending_native_dlls.get_mut().clear();
         let dlls = self.native_dlls.get_mut();
@@ -2179,7 +2190,7 @@ impl NativeDll {
     }
 
     fn is_active(&self) -> bool {
-        matches!(&self.module, NativeModule::Lifecycle(_))
+        matches!(&self.module, NativeModule::Lifecycle(instance) if instance.is_active())
     }
 
     fn is_retained(&self) -> bool {

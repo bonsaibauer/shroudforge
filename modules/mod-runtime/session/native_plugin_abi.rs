@@ -549,7 +549,22 @@ impl NativePluginInstance {
         }
     }
 
+    pub(crate) fn is_active(&self) -> bool {
+        self.state == NativePluginInstanceState::Active
+    }
+
     pub(crate) fn stop(&mut self) -> TeardownOutcome {
+        if self.state == NativePluginInstanceState::Stopped {
+            return TeardownOutcome::Quiescent;
+        }
+        if matches!(
+            self.state,
+            NativePluginInstanceState::New
+                | NativePluginInstanceState::Staged
+                | NativePluginInstanceState::Prepared
+        ) {
+            return self.rollback_preparation();
+        }
         if self.state != NativePluginInstanceState::Active {
             return TeardownOutcome::Retain {
                 stage: "plugin is not active",
@@ -596,7 +611,7 @@ impl NativePluginInstance {
     }
 
     pub(crate) fn rollback_preparation(&mut self) -> TeardownOutcome {
-        if !self.is_v2 || !self.host_context.is_owner_thread() {
+        if !self.host_context.is_owner_thread() {
             return TeardownOutcome::Retain {
                 stage: "pre-entry rollback state or owner thread",
                 status: NATIVE_STATUS_FAILED,
@@ -1088,6 +1103,76 @@ unsafe extern "C" fn host_drain_services(
     context
         .services
         .drain(package_id, package_generation, timeout_ms)
+}
+
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct NativeLifecycleTestState {
+    pub(crate) events: Vec<&'static str>,
+    pub(crate) fail_initialize: bool,
+    pub(crate) fail_update: bool,
+    pub(crate) fail_shutdown: bool,
+}
+
+#[cfg(test)]
+pub(crate) type NativeLifecycleProbe = Arc<std::sync::Mutex<NativeLifecycleTestState>>;
+
+#[cfg(test)]
+pub(crate) fn package_lifecycle_fixture(
+    metadata: NativePluginHostMetadata,
+    probe: NativeLifecycleProbe,
+) -> NativePluginInstance {
+    unsafe fn event(
+        context: *mut c_void,
+        name: &'static str,
+        fail: impl FnOnce(&NativeLifecycleTestState) -> bool,
+    ) -> i32 {
+        let probe = unsafe { &*context.cast::<NativeLifecycleProbe>() };
+        let mut state = probe.lock().unwrap_or_else(|error| error.into_inner());
+        state.events.push(name);
+        if fail(&state) {
+            NATIVE_STATUS_FAILED
+        } else {
+            NATIVE_STATUS_OK
+        }
+    }
+    unsafe extern "C" fn initialize(context: *mut c_void, _: *const SFNativeHostV1) -> i32 {
+        unsafe { event(context, "native.load", |state| state.fail_initialize) }
+    }
+    unsafe extern "C" fn update(context: *mut c_void, _: *const SFNativeHostV1, _: u64) -> i32 {
+        unsafe { event(context, "native.update", |state| state.fail_update) }
+    }
+    unsafe extern "C" fn stop(context: *mut c_void, _: *const SFNativeHostV1) -> i32 {
+        unsafe { event(context, "native.stop", |_| false) }
+    }
+    unsafe extern "C" fn shutdown(context: *mut c_void, _: *const SFNativeHostV1) -> i32 {
+        unsafe { event(context, "native.shutdown", |state| state.fail_shutdown) }
+    }
+    unsafe extern "C" fn factory(abi: u32, capacity: u32, output: *mut SFNativePluginV1) -> i32 {
+        if abi != NATIVE_PLUGIN_ABI_V1
+            || capacity < size_of::<SFNativePluginV1>() as u32
+            || output.is_null()
+        {
+            return NATIVE_STATUS_ABI_MISMATCH;
+        }
+        unsafe {
+            output.write(SFNativePluginV1 {
+                struct_size: size_of::<SFNativePluginV1>() as u32,
+                abi_version: NATIVE_PLUGIN_ABI_V1,
+                plugin_context: std::ptr::null_mut(),
+                initialize: Some(initialize),
+                update: Some(update),
+                stop: Some(stop),
+                shutdown: Some(shutdown),
+            })
+        };
+        NATIVE_STATUS_OK
+    }
+    let mut instance = NativePluginInstance::load(factory, metadata).unwrap();
+    // Test callback code and context, like a resident DLL's context, stay
+    // available through cancellation and retained teardown until process exit.
+    instance.plugin.plugin_context = Box::into_raw(Box::new(probe)).cast();
+    instance
 }
 
 #[cfg(test)]

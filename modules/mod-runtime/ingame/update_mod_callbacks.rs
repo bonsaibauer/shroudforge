@@ -24,19 +24,36 @@ impl IngameRuntime {
                 item.next_update = std::time::Instant::now() + item.update_interval;
                 continue;
             }
-            if let Some(key) = &item.update {
-                if std::time::Instant::now() < item.next_update {
-                    continue;
-                }
+            let native = self
+                .runner
+                .lua
+                .app_data_ref::<AppState>()
+                .unwrap()
+                .native_plugin_has_callbacks(&item.id);
+            let lua_due = item.update.is_some() && std::time::Instant::now() >= item.next_update;
+            if lua_due || native {
                 let started = self
                     .diagnostics
                     .enabled("mods")
                     .then(std::time::Instant::now);
-                let result = self
-                    .runner
-                    .lua
-                    .registry_value::<Function>(key)
-                    .and_then(|callback| callback.call::<()>(delta_seconds));
+                let result = item
+                    .update
+                    .as_ref()
+                    .filter(|_| lua_due)
+                    .map_or(Ok(()), |key| {
+                        self.runner
+                            .lua
+                            .registry_value::<Function>(key)
+                            .and_then(|callback| callback.call::<()>(delta_seconds))
+                    })
+                    .and_then(|()| {
+                        self.runner
+                            .lua
+                            .app_data_ref::<AppState>()
+                            .unwrap()
+                            .update_native_plugin(&item.id, delta_seconds)
+                            .map_err(mlua::Error::runtime)
+                    });
                 if let Some(started) = started {
                     self.diagnostics.measure(
                         "mods",
@@ -54,14 +71,16 @@ impl IngameRuntime {
                     .as_nanos()
                     / item.update_interval.as_nanos()
                     + 1;
-                item.next_update = u32::try_from(periods)
-                    .ok()
-                    .and_then(|periods| {
-                        item.next_update
-                            .checked_add(item.update_interval.saturating_mul(periods))
-                    })
-                    .filter(|next| *next > completed)
-                    .unwrap_or(completed + item.update_interval);
+                if lua_due {
+                    item.next_update = u32::try_from(periods)
+                        .ok()
+                        .and_then(|periods| {
+                            item.next_update
+                                .checked_add(item.update_interval.saturating_mul(periods))
+                        })
+                        .filter(|next| *next > completed)
+                        .unwrap_or(completed + item.update_interval);
+                }
                 if let Err(error) = result {
                     tracing::error!(target: "shroudforge::runtime", mod_id = %item.id,
                         "on_update failed: {error}");

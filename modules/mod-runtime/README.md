@@ -33,6 +33,13 @@ The available game types depend on the compatibility profile selected for the in
 | `lua/eml/v1/definitions/` | EML v1 Lua declarations |
 | `lua/shroudforge/v1/definitions/` | ShroudForge v1 Lua declarations |
 
+Managed native callbacks use the same `ingame/` package activation, dependency
+checks, update traversal and retryable cleanup as Lua callbacks. A native-only
+runtime package needs no empty Lua entrypoint. DLL loading and one-time SDK
+registration remain process-owned in `native_dlls.rs`. The callback lifecycle and
+its remaining draft selection fields are documented in
+[Native plugin lifecycle](../../docs/modding/native-plugin-lifecycle.en.md).
+
 ## Read a setting in Lua
 
 The key inside `extended.mod.json` is the key your mod reads. For example, the starter file defines `greeting` under `settings`. its Lua code calls:

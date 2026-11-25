@@ -7,10 +7,11 @@ pub(super) fn load_native_plugins(
     errors: &mut serde_json::Map<String, serde_json::Value>,
 ) {
     let state = runner.lua.app_data_ref::<AppState>().unwrap();
+    let runtime_mods = runner.runtime_mod_ids();
     // Usually prepared before the game entrypoint. This also supports callers
     // that create an in-game runtime directly and reuses process-owned handles.
     if let Err(error) =
-        crate::native_dlls::apply_plan(env.game_dir().as_std_path(), state.is_server(), false)
+        crate::native_dlls::apply_plan(env.game_dir().as_std_path(), state.is_server(), true)
     {
         tracing::error!(target: "shroudforge::dll_manager", %error, "DLL Manager could not prepare native DLLs");
         state.report_runtime_effect("dll-manager", "error", &error);
@@ -30,6 +31,12 @@ pub(super) fn load_native_plugins(
                     errors.insert(entry.status_id.clone(), error.into());
                     continue;
                 };
+                if !runtime_mods.iter().any(|id| id == mod_id) || errors.contains_key(mod_id) {
+                    if let Err(error) = state.stop_native_plugin(mod_id) {
+                        errors.insert(mod_id.to_owned(), error.into());
+                    }
+                    continue;
+                }
                 let Some(target_mod) = env.mod_registry().get(mod_id) else {
                     let error = "Lifecycle-managed native plugin is unavailable in the current runtime plan";
                     state.report_runtime_effect(mod_id, "error", error);
@@ -43,7 +50,7 @@ pub(super) fn load_native_plugins(
                         state.report_runtime_effect(
                             mod_id,
                             "loading",
-                            "DLL Manager selected this ShroudForge lifecycle plugin; Lua runtime continues independently",
+                            "Native callbacks prepared for the common package lifecycle",
                         );
                     }
                     Ok(false) => {
