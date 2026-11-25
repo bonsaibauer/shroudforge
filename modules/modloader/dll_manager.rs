@@ -671,13 +671,6 @@ pub struct PluginIniDeclaration {
     pub dll: Option<String>,
     pub declared_dlls: Vec<String>,
     pub lifecycle: Option<String>,
-    pub services: Vec<String>,
-}
-
-impl PluginIniDeclaration {
-    pub fn declares_service(&self, service: &str) -> bool {
-        self.services.iter().any(|declared| declared == service)
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -697,9 +690,8 @@ pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
         mut dll,
         mut declared_dlls,
         mut lifecycle,
-        mut services,
         mut invalid,
-    ) = (false, false, None, None, Vec::new(), None, None, false);
+    ) = (false, false, None, None, Vec::new(), None, false);
     for line in text
         .lines()
         .map(|line| line.trim().trim_start_matches('\u{feff}'))
@@ -741,16 +733,6 @@ pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
         } else if key.eq_ignore_ascii_case("lifecycle") {
             invalid |= lifecycle.is_some();
             lifecycle = Some(value.to_owned());
-        } else if key.eq_ignore_ascii_case("services") {
-            invalid |= services.is_some();
-            services = Some(
-                value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|service| !service.is_empty())
-                    .map(str::to_owned)
-                    .collect::<Vec<_>>(),
-            );
         }
     }
 
@@ -770,7 +752,6 @@ pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
         dll,
         declared_dlls,
         lifecycle,
-        services: services.unwrap_or_default(),
     }
 }
 
@@ -1123,7 +1104,6 @@ mod plugin_ini_tests {
         assert_eq!(declaration.state, PluginIniState::Enabled);
         assert_eq!(declaration.dll.as_deref(), Some("bin/sample.dll"));
         assert_eq!(declaration.lifecycle, None);
-        assert!(declaration.services.is_empty());
         assert_eq!(
             classify_plugin_load(&declaration, true).unwrap(),
             PluginLoadDisposition::Ordinary
@@ -1148,7 +1128,6 @@ mod plugin_ini_tests {
             "[Plugin]\nDll=one.dll\nDll=two.dll",
             "[Plugin]\nEnabled=true\nEnabled=false\nDll=sample.dll",
             "[Plugin]\nDll=sample.dll\nLifecycle=shroudforge-v1\nLifecycle=shroudforge-v1",
-            "[Plugin]\nDll=sample.dll\nServices=shroudforge.overlay\nServices=shroudforge.overlay",
             "[Plugin]\nmalformed",
         ] {
             assert_eq!(
@@ -1186,13 +1165,13 @@ mod plugin_ini_tests {
         );
     }
     #[test]
-    fn lifecycle_and_services_require_explicit_opt_in() {
+    fn obsolete_services_key_does_not_change_dll_selection() {
         let ordinary = parse_plugin_ini("[Plugin]\nDll=sample.dll\nServices=shroudforge.overlay\n");
+        assert_eq!(ordinary, parse_plugin_ini("[Plugin]\nDll=sample.dll\n"));
         assert_eq!(
             classify_plugin_load(&ordinary, true).unwrap(),
             PluginLoadDisposition::Ordinary
         );
-        assert!(ordinary.declares_service("shroudforge.overlay"));
 
         let opted_in = parse_plugin_ini(
             "[Plugin]\nEnabled=yes\nDll=sample.dll\nLifecycle=ShroudForge-V1\nServices=shroudforge.overlay, shroudforge.map\n",
@@ -1202,9 +1181,10 @@ mod plugin_ini_tests {
             classify_plugin_load(&opted_in, true).unwrap(),
             PluginLoadDisposition::ShroudForgeV1
         );
-        assert!(opted_in.declares_service("shroudforge.overlay"));
-        assert!(opted_in.declares_service("shroudforge.map"));
-        assert!(!opted_in.declares_service("shroudforge.unknown"));
+        assert_eq!(
+            opted_in,
+            parse_plugin_ini("[Plugin]\nEnabled=yes\nDll=sample.dll\nLifecycle=ShroudForge-V1\n")
+        );
     }
 
     #[test]

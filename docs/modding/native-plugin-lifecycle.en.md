@@ -9,10 +9,23 @@ package can opt into managed callbacks with `native-plugin.ini`:
 Enabled=true
 Dll=bin/plugin.dll
 Lifecycle=shroudforge-v1
-Services=shroudforge.map,shroudforge.overlay,shroudforge.executable-spans,shroudforge.keybinds,shroudforge.notifications
 ```
 
-Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`. Include
+Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`.
+Optional game services use the existing manifest capabilities. For example, a
+native map renderer adds `runtime-map` and `runtime-overlay` to that same list:
+
+```json
+"capabilities": ["runtime", "runtime-register-dll", "runtime-map", "runtime-overlay"]
+```
+
+The normal package plan derives map and graphics startup demand from these
+capabilities for both Lua and native consumers. No `Services=` list is used or
+required. A leftover `Services=` key from the unpublished draft is ignored and
+grants no permission or startup demand. Actual SDK service queries still check
+the owning package, activation generation, capability and live provider support.
+
+Include
 the existing [mod native SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
 and export `ShroudforgeModNativeInit`. Mod bridge ABI 3 appends
 `register_lifecycle` to `ShroudforgeModHost`. During that one-time DLL
@@ -53,8 +66,8 @@ their existing path. Consumers of the unpublished `native_plugin_api.h` draft
 must replace that include with this SDK and register their former
 `ShroudForgePluginEntry` implementation as a local factory through the existing
 init export. That old export is no longer queried. The additional `Lifecycle`
-and `Services` declarations shown above still
-select preparation in this intermediate PR state. Their removal is tracked in
+declaration shown above still selects callback preparation in this intermediate
+PR state. Its removal is tracked in
 [issue #149](https://github.com/bonsaibauer/shroudforge/issues/149). The callbacks
 already participate in the common package lifecycle described below.
 
@@ -186,7 +199,8 @@ This also applies to plans containing only managed plugins.
 Gameplay controls and mod-specific compatibility adapters belong to mod packages.
 Neither a successful DLL load nor local tests establish game-build or server
 compatibility. Provider preparation must complete before the game entrypoint
-is released; `native_overlay_startup_demand` reports the selected overlay demand.
+is released. `startup_services.rs` derives the demand from the existing resolved
+package plan and its manifest capabilities.
 
 ## Validation
 

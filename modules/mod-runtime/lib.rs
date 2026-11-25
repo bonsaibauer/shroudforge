@@ -26,8 +26,6 @@ use startup::open_game_assets as game_files;
 
 pub const API_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub use session::native_overlay_startup_demand;
-
 /// Deployed contract must describe this binary, not invent native capabilities.
 /// ECS readiness and per-component compatibility are still checked at call time.
 pub fn runtime_operations(_root: &std::path::Path) -> anyhow::Result<Vec<String>> {

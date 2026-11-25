@@ -935,33 +935,6 @@ fn normalize_plugin_path(path: &str) -> String {
         .to_ascii_lowercase()
 }
 
-/// Whether the selected client plugins request the native overlay service.
-/// Startup callers must prepare graphics before releasing the game entrypoint.
-pub fn native_overlay_startup_demand(environment: &ModEnvironment) -> Result<bool, String> {
-    for plugin in
-        crate::native_dlls::deferred_native_plugins(environment.game_dir().as_std_path(), false)?
-    {
-        if !plugin.declaration.state.is_enabled()
-            || !plugin.declaration.declares_service("shroudforge.overlay")
-        {
-            continue;
-        }
-        let Some(mod_id) = plugin.entry.mod_id.as_deref() else {
-            continue;
-        };
-        let Some(package) = environment.mod_registry().get(mod_id) else {
-            continue;
-        };
-        let info = package.info();
-        if info.enabled
-            && info.target.supports_process(false)
-            && info.capabilities.contains(&Capability::RuntimeRegisterDll)
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
 impl AppState {
     /// Install the runtime-owned service gate before opted-in plugins are
     /// initialized. Render callbacks must use this gate without touching Lua

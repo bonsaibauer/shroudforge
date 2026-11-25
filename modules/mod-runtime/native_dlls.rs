@@ -1052,7 +1052,7 @@ mod managed_plugin_plan_tests {
         let fixture = Fixture::new();
         fixture.package(
             "managed",
-            "[Plugin]\nEnabled=true\nDll=bin/plugin.dll\nLifecycle=shroudforge-v1\nServices=shroudforge.overlay\n",
+            "[Plugin]\nEnabled=true\nDll=bin/plugin.dll\nLifecycle=shroudforge-v1\n",
             &["bin/plugin.dll", "bin/other.dll"],
         );
         let plugin = fixture.entry("managed", "bin/plugin.dll", DllLoadMode::Library);
@@ -1066,11 +1066,6 @@ mod managed_plugin_plan_tests {
         assert!(same_entry(&ordinary[0], &other));
         assert_eq!(deferred.len(), 1);
         assert!(same_entry(&deferred[0].entry, &plugin));
-        assert!(
-            deferred[0]
-                .declaration
-                .declares_service("shroudforge.overlay")
-        );
     }
 
     #[test]

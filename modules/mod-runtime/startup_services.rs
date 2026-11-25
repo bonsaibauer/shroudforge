@@ -116,8 +116,7 @@ fn inspect(
         }
         manifest_identity.push(serde_json::to_value(info).map_err(|e| e.to_string())?);
     }
-    let (_, plugins, native_issues) =
-        crate::native_dlls::selected_startup_plugins(root, server);
+    let (_, plugins, native_issues) = crate::native_dlls::selected_startup_plugins(root, server);
     for plugin in &plugins {
         if plugin.declaration.state.is_enabled() {
             if plugin
@@ -127,12 +126,6 @@ fn inspect(
                 .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
             {
                 services |= NATIVE_PLUGIN_PREENTRY;
-            }
-            if plugin.declaration.declares_service("shroudforge.map") {
-                services |= MAP;
-            }
-            if plugin.declaration.declares_service("shroudforge.overlay") {
-                services |= GRAPHICS;
             }
         }
     }
@@ -191,7 +184,7 @@ fn inspect(
             let declaration = &plugin.declaration;
             serde_json::json!({"path":plugin.entry.path,"state":declaration.state.as_str(),
             "dll":declaration.dll,"dlls":declaration.declared_dlls,
-            "lifecycle":declaration.lifecycle,"services":declaration.services})
+            "lifecycle":declaration.lifecycle})
         })
         .collect();
     let identity = serde_json::json!({"packages":manifest_identity,"dlls":dll_identity,
@@ -213,7 +206,9 @@ impl Admission {
         for path in paths {
             let path = canonical(&path)?;
             if !path.starts_with(&root) && !path.starts_with(&mods_root) {
-                return Err("Startup input escapes the installation and configured mod directory".into());
+                return Err(
+                    "Startup input escapes the installation and configured mod directory".into(),
+                );
             }
             let mut options = fs::OpenOptions::new();
             options.read(true);
@@ -564,6 +559,45 @@ mod tests {
     }
 
     #[test]
+    fn obsolete_ini_services_cannot_request_map_or_graphics_preparation() {
+        let fixture = Fixture::new(&["runtime", "runtime-register-dll"]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fs::write(package.join("native-plugin.ini"),
+            b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\nServices=shroudforge.map,shroudforge.overlay\n"
+        ).unwrap();
+        fixture.select_dll("probe", "probe.dll");
+        assert!(Admission::capture(&fixture.0, false).unwrap().is_none());
+    }
+
+    #[test]
+    fn native_map_and_graphics_demand_comes_from_the_existing_manifest_plan() {
+        let fixture = Fixture::new(&[
+            "runtime",
+            "runtime-register-dll",
+            "runtime-map",
+            "runtime-overlay",
+        ]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fs::write(
+            package.join("native-plugin.ini"),
+            b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\n",
+        )
+        .unwrap();
+        fixture.select_dll("probe", "probe.dll");
+        let mut admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        assert_eq!(admission.plan.services, METADATA | MAP | GRAPHICS);
+        // The obsolete INI field has no second identity or demand authority.
+        fs::write(package.join("native-plugin.ini"),
+            b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\nServices=unknown,shroudforge.overlay\n"
+        ).unwrap();
+        admission
+            .transition(&fixture.0, Phase::Admitted, Phase::Taken)
+            .unwrap();
+    }
+
+    #[test]
     fn v2_plugin_alone_admits_the_held_native_preentry_service() {
         let fixture = Fixture::new(&["runtime-register-dll"]);
         let package = fixture.0.join("mods/probe");
@@ -601,7 +635,12 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert!(plugins.is_empty() && !issues);
         let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
-        assert!(admission.inputs.iter().any(|input| input.path == canonical(&ordinary.join("original.dll")).unwrap()));
+        assert!(
+            admission
+                .inputs
+                .iter()
+                .any(|input| input.path == canonical(&ordinary.join("original.dll")).unwrap())
+        );
         drop(admission);
         // Without selected service demand, the same ordinary DLL stays on the
         // existing data-driven loading path; it is never executed by this test.
@@ -619,7 +658,12 @@ mod tests {
         let installation = Fixture::new(&[]);
         let external = Fixture::new(&["runtime-map"]);
         let mut config = shroudforge_loader_config::config::read_loader_defaults().unwrap();
-        config["paths"]["mods"] = external.0.join("mods").to_string_lossy().into_owned().into();
+        config["paths"]["mods"] = external
+            .0
+            .join("mods")
+            .to_string_lossy()
+            .into_owned()
+            .into();
         let config_path = shroudforge_loader_config::paths::loader_config(&installation.0);
         fs::create_dir_all(config_path.parent().unwrap()).unwrap();
         fs::write(&config_path, serde_json::to_vec(&config).unwrap()).unwrap();
@@ -627,10 +671,16 @@ mod tests {
         let manifest = canonical(&external.0.join("mods/probe/mod.json")).unwrap();
         assert!(admission.inputs.iter().any(|input| input.path == manifest));
         assert!(!manifest.starts_with(&admission.root));
-        admission.transition(&installation.0, Phase::Admitted, Phase::Taken).unwrap();
+        admission
+            .transition(&installation.0, Phase::Admitted, Phase::Taken)
+            .unwrap();
         config["paths"]["mods"] = serde_json::Value::Null;
         fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
-        assert!(admission.transition(&installation.0, Phase::Taken, Phase::Committed).is_err());
+        assert!(
+            admission
+                .transition(&installation.0, Phase::Taken, Phase::Committed)
+                .is_err()
+        );
     }
 
     #[test]

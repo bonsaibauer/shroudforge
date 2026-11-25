@@ -248,7 +248,6 @@ pub(crate) use native_plugin_abi::{NativeLifecycleProbe, NativeLifecycleTestStat
 mod native_plugin_lifecycle;
 mod native_plugins;
 mod validate_generated_assets;
-pub use native_plugins::native_overlay_startup_demand;
 pub(crate) use native_plugins::{
     discard_staged_native_plugins,
     dispatch_published_entry_restored_callbacks as dispatch_selected_native_plugins_entry_restored,
