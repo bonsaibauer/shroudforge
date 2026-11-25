@@ -30,7 +30,7 @@ unsigned actual_role() {
 }
 SelectedStartup::Operations operations(Context& context) {
     return {&context,
-        +[](void*,bool execution){return ProviderImplementation::initialize_provider(execution,true);},
+        +[](void*,bool){return ProviderImplementation::initialize_provider(true);},
         +[](void*){return ProviderImplementation::provider_initialized.load() && EngineHooks::StartupReady();},
         +[](void* value){const auto token=static_cast<Context*>(value)->token;return token && MapRuntime::PrepareCapture(*token)==SF_MAP_READY;},
         +[](void*){return OverlayRuntime::PrepareGraphicsBoot(true);},

@@ -116,7 +116,7 @@ fn inspect(
         }
         manifest_identity.push(serde_json::to_value(info).map_err(|e| e.to_string())?);
     }
-    let (ordinary, plugins, native_issues) =
+    let (_, plugins, native_issues) =
         crate::native_dlls::selected_startup_plugins(root, server);
     for plugin in &plugins {
         if plugin.declaration.state.is_enabled() {
@@ -173,25 +173,14 @@ fn inspect(
     if !issues.is_empty() || native_issues {
         return Err("Selected startup has unresolved package or DLL selections".into());
     }
-    if !ordinary.is_empty() {
-        return Err(
-            "Selected startup cannot compose ordinary DLL execution with framework services".into(),
-        );
-    }
     if server && services & (MAP | GRAPHICS) != 0 {
         return Err("Client map and graphics services cannot start in a server process".into());
     }
     let dll_plan = mod_loader::dll_manager::resolve_load_plan(root, server);
-    let entries: Vec<_> = dll_plan
-        .entries
-        .iter()
-        .map(|entry| {
-            serde_json::json!({
-                "statusId":entry.status_id,"modId":entry.mod_id,"package":entry.package_directory,
-                "path":entry.path,"mode":entry.mode,"source":entry.source
-            })
-        })
-        .collect();
+    // Include ordinary DLL-only packages as well as manifest-backed packages.
+    // The same ordered executor loads these retained inputs before preparation.
+    files.extend(dll_plan.entries.iter().map(|entry| entry.path.clone()));
+    let dll_identity = mod_loader::dll_manager::load_plan_identity(&dll_plan);
     // Profiles can provide virtual Lua/package files outside the physical mod
     // directory. Bind their contents as well as the resolved manifests.
     let profiles =
@@ -205,7 +194,7 @@ fn inspect(
             "lifecycle":declaration.lifecycle,"services":declaration.services})
         })
         .collect();
-    let identity = serde_json::json!({"packages":manifest_identity,"dlls":entries,
+    let identity = serde_json::json!({"packages":manifest_identity,"dlls":dll_identity,
         "profiles":profiles,"declarations":declarations});
     Ok((services, identity, files))
 }
@@ -219,11 +208,12 @@ impl Admission {
             return Ok(None);
         }
         paths.insert(root.join("shroudforge/kfc-runtime.dll"));
+        let mods_root = canonical(&shroudforge_loader_config::paths::mods_dir(&root))?;
         let mut inputs = Vec::new();
         for path in paths {
             let path = canonical(&path)?;
-            if !path.starts_with(&root) {
-                return Err("Selected startup input escapes the installation".into());
+            if !path.starts_with(&root) && !path.starts_with(&mods_root) {
+                return Err("Startup input escapes the installation and configured mod directory".into());
             }
             let mut options = fs::OpenOptions::new();
             options.read(true);
@@ -320,6 +310,7 @@ pub fn prepare(root: &Path, server: bool) -> Result<bool, String> {
         return Ok(false);
     };
     let plan = admission.plan;
+    let dll_identity = admission.identity["dlls"].clone();
     let staging_environment = admission.environment.clone();
     {
         let mut current = state()
@@ -330,7 +321,7 @@ pub fn prepare(root: &Path, server: bool) -> Result<bool, String> {
         }
         *current = Some(admission);
     }
-    if let Err(error) = crate::native_dlls::prepare_selected_startup(root, server) {
+    if let Err(error) = crate::native_dlls::prepare_selected_startup(root, server, &dll_identity) {
         fail_admission();
         return Err(error);
     }
@@ -458,16 +449,6 @@ pub fn after_create(success: bool) -> Result<(), String> {
                 "Runtime creation completed without adopting the selected V2 native plugins".into(),
             );
         }
-    }
-    Ok(())
-}
-
-pub(crate) fn require_ordinary_loading() -> Result<(), String> {
-    let state = state()
-        .lock()
-        .map_err(|_| "Startup admission lock poisoned")?;
-    if state.is_some() {
-        return Err("Ordinary DLL execution is unsupported in selected startup".into());
     }
     Ok(())
 }
@@ -600,7 +581,7 @@ mod tests {
     }
 
     #[test]
-    fn selected_startup_rejects_wrong_root_early_create_and_ordinary_dll_composition() {
+    fn startup_rejects_wrong_root_and_phase_but_retains_ordinary_dll_inputs() {
         let fixture = Fixture::new(&["runtime-map"]);
         let other = Fixture::new(&["runtime-map"]);
         for (root, from) in [(&other.0, Phase::Admitted), (&fixture.0, Phase::Committed)] {
@@ -619,8 +600,9 @@ mod tests {
             crate::native_dlls::selected_startup_plugins(&fixture.0, false);
         assert_eq!(entries.len(), 1);
         assert!(plugins.is_empty() && !issues);
-        let error = Admission::capture(&fixture.0, false).err().unwrap();
-        assert!(error.contains("ordinary DLL execution"), "{error}");
+        let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        assert!(admission.inputs.iter().any(|input| input.path == canonical(&ordinary.join("original.dll")).unwrap()));
+        drop(admission);
         // Without selected service demand, the same ordinary DLL stays on the
         // existing data-driven loading path; it is never executed by this test.
         let manifest = fixture.0.join("mods/probe/mod.json");
@@ -630,6 +612,25 @@ mod tests {
         )
         .unwrap();
         assert!(Admission::capture(&fixture.0, false).unwrap().is_none());
+    }
+
+    #[test]
+    fn startup_retains_configured_external_mod_inputs_and_rejects_retargeting() {
+        let installation = Fixture::new(&[]);
+        let external = Fixture::new(&["runtime-map"]);
+        let mut config = shroudforge_loader_config::config::read_loader_defaults().unwrap();
+        config["paths"]["mods"] = external.0.join("mods").to_string_lossy().into_owned().into();
+        let config_path = shroudforge_loader_config::paths::loader_config(&installation.0);
+        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        fs::write(&config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+        let mut admission = Admission::capture(&installation.0, false).unwrap().unwrap();
+        let manifest = canonical(&external.0.join("mods/probe/mod.json")).unwrap();
+        assert!(admission.inputs.iter().any(|input| input.path == manifest));
+        assert!(!manifest.starts_with(&admission.root));
+        admission.transition(&installation.0, Phase::Admitted, Phase::Taken).unwrap();
+        config["paths"]["mods"] = serde_json::Value::Null;
+        fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+        assert!(admission.transition(&installation.0, Phase::Taken, Phase::Committed).is_err());
     }
 
     #[test]
@@ -654,9 +655,7 @@ mod tests {
         }"#,
         )
         .unwrap();
-        assert!(require_ordinary_loading().is_ok());
         assert!(prepare(&fixture.0, false).unwrap());
-        assert!(require_ordinary_loading().is_err());
         let plan = take(&fixture.0).unwrap().unwrap();
         assert_eq!(plan.services, METADATA | MAP);
         commit(&fixture.0, plan.services).unwrap();
@@ -671,7 +670,6 @@ mod tests {
             .unwrap();
         assert_eq!(script, "return {}");
         after_create(true).unwrap();
-        assert!(require_ordinary_loading().is_err());
         assert!(before_create(&fixture.0).is_err());
         assert!(take(&fixture.0).is_err());
         // Clear only this test-owned singleton; ordinary DLL executor was never started.

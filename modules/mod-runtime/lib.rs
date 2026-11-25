@@ -1,6 +1,4 @@
 pub mod documents;
-mod notice_delivery;
-mod notice_protocol;
 use kfc::{ResourceReference, TypeDefinition};
 use shroudforge_compatibility::GameContract;
 use std::path::PathBuf;

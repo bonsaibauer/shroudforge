@@ -20,6 +20,12 @@ and cannot be retained. The optional tables are introduced by this change;
 consumers of earlier drafts must rebuild against the corrected header. The
 base native runtime ABI remains version 12.
 
+The map table exposes only snapshot acquisition and release. Keyboard input
+uses the existing declared keybind settings and SDL input owner, through
+`shroudforge.input` or its native adapter. There is no raw Windows virtual-key
+reader in the map service. Consumers of the unpublished draft header must
+rebuild against this layout.
+
 Vulkan device and swapchain creation must be observed through the prepared
 startup broker. Late requests report why drawing is unavailable. Drawing
 requires an observed unprotected graphics queue and color-attachment swapchain
@@ -147,11 +153,14 @@ service masks and completion after the deadline stop startup.
 
 The bootstrap prepares and activates the exact admitted mask, then commits it
 on its one-shot restored-entry continuation before runtime creation. Ordinary
-DLL execution combined with selected services is explicitly unsupported. The
-ordinary data-driven DLL Manager path remains available for packages without
-selected-service demand. Ordinary plugin initialization is not a pre-entry
-provider contract. Removed capabilities, unknown plan bits and nonzero opt-ins
-must fail closed rather than silently select a partial plan.
+DLLs use the existing ordered process executor before provider preparation.
+Their selected binaries are retained with the other startup inputs. Actual
+foreign code changes still fail the affected operation's byte guards. Package
+inputs may live in the configured mod directory outside the installation.
+Optional map/graphics preparation uses normal ECS initialization and does not
+add another write-permission fence. Existing world, owner, authority and write
+fault checks remain in force. Removed capabilities, unknown plan bits and
+nonzero opt-ins must fail closed rather than silently select a partial plan.
 
 ## Validation
 

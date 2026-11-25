@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use mlua::{Function, Table, Value, Variadic};
 use mod_loader::Mod;
 use serde_json::json;
@@ -157,7 +155,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             let binding = read_keybind(lua, &keybind_id, &declared_keybinds, &key)?;
             let extra = super::reserve_mod_input::extra_modifiers(&keybind_id, &key);
             Ok(binding.is_some_and(|binding| {
-                is_game_focused()
+                shroudforge_hotkeys::is_process_focused()
                     && !shroudforge_hotkeys::is_capture_active()
                     && shroudforge_hotkeys::is_hotkey_down_with(&binding, extra)
             }))
@@ -179,7 +177,7 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             let signature = binding.normalized();
             let extra = super::reserve_mod_input::extra_modifiers(&keybind_id, &key);
             let revision = shroudforge_hotkeys::hotkey_press_revision_with(&binding, extra);
-            let focused = is_game_focused() && !shroudforge_hotkeys::is_capture_active();
+            let focused = shroudforge_hotkeys::is_process_focused() && !shroudforge_hotkeys::is_capture_active();
             let Ok(mut revisions) = press_revisions.lock() else {
                 return Ok(false);
             };
@@ -266,34 +264,16 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
             let message = notice.get::<String>("message")?;
             let level = notice.get::<Option<String>>("level")?.unwrap_or_else(|| "info".into());
             let action_url = notice.get::<Option<String>>("action_url")?;
-            if !valid_identifier(&mod_id)
-                || !valid_identifier(&id)
-                || title.len() > 120
-                || message.len() > 2_000
-            {
-                return Err(mlua::Error::runtime("invalid notification payload"));
-            }
-            if !matches!(level.as_str(), "info" | "success" | "warning" | "error" | "update") {
-                return Err(mlua::Error::runtime("invalid notification level"));
-            }
-            if action_url.as_deref().is_some_and(|url| !url.starts_with("https://")) {
-                return Err(mlua::Error::runtime("notification action_url must use HTTPS"));
-            }
-            let namespaced_id = format!("{mod_id}.{id}");
-            let payload = json!({
-                "id": &namespaced_id,
-                "modId": mod_id,
-                "title": &title,
-                "message": &message,
-                "level": &level,
-                "actionUrl": action_url,
-                "updatedAt": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-            });
-            crate::notice_protocol::persist_then_mirror(
-                || shroudforge_news::write_event(&game_dir, &format!("{mod_id}-{id}"), &payload),
-                || {
+            shroudforge_news::publish_mod_notice(
+                &game_dir,
+                &mod_id,
+                shroudforge_news::ModNotice {
+                    id: &id, title: &title, message: &message, level: &level,
+                    action_url: action_url.as_deref(),
+                },
+                |id, title, message, level| {
                     if lua.app_data_ref::<crate::session::AppState>().is_some_and(|state| !state.is_server()) {
-                        shroudforge_runtime_bridge::publish_notification(&namespaced_id, &title, &message, &level)
+                        shroudforge_runtime_bridge::publish_notification(id, title, message, level)
                     } else { 3 }
                 },
             ).map_err(mlua::Error::external)?;
@@ -344,28 +324,6 @@ fn read_setting_value(current: &Table, key: &str) -> mlua::Result<serde_json::Va
         Value::String(value) => json!(value.to_str()?.to_string()),
         _ => serde_json::Value::Null,
     })
-}
-
-fn is_game_focused() -> bool {
-    #[cfg(windows)]
-    {
-        use windows_sys::Win32::{
-            System::Threading::GetCurrentProcessId,
-            UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
-        };
-
-        let foreground = unsafe { GetForegroundWindow() };
-        if foreground.is_null() {
-            return false;
-        }
-        let mut process_id = 0;
-        unsafe { GetWindowThreadProcessId(foreground, &mut process_id) };
-        return process_id == unsafe { GetCurrentProcessId() };
-    }
-    #[cfg(not(windows))]
-    {
-        false
-    }
 }
 
 const LEGACY_KEY_DOWN_MIGRATION_MESSAGE: &str = concat!(

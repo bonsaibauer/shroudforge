@@ -471,7 +471,7 @@ pub(crate) fn load_selected_native_plugins(
         if !same_native_path(environment.game_dir().as_std_path(), &root) {
             return Err("Staged package plan belongs to a different game root".into());
         }
-        let services = super::new_native_plugin_service_lifetime(environment, is_server);
+        let services = super::new_native_plugin_service_lifetime(is_server);
         for plugin in selected_v2 {
             if plugin.entry.mode != DllLoadMode::Library {
                 return Err("Selected V2 native plugins require library mode".into());
@@ -584,6 +584,7 @@ pub(crate) fn load_selected_native_plugins(
             };
             let package_generation = next_native_package_generation();
             let metadata = NativePluginHostMetadata {
+                game_root: root.clone(),
                 package_id: mod_id.to_owned(),
                 package: package.clone(),
                 package_generation,
@@ -1951,6 +1952,7 @@ impl AppState {
         };
         let services = self.native_plugin_services.borrow().clone();
         let metadata = NativePluginHostMetadata {
+            game_root: self.env().game_dir().as_std_path().to_path_buf(),
             package_id: item.mod_id.clone(),
             package: item.package,
             package_generation: item.package_generation,

@@ -130,32 +130,6 @@ pub fn drain_map_overlay_services(package: &str, generation: u64, timeout: u32) 
     unsafe { (exports.drain)(package.as_ptr(), package.len() as u32, generation, timeout) }
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Default)]
-pub struct InputKeyState {
-    pub virtual_key: u32,
-    pub flags: u32,
-    pub sequence: u64,
-    pub sampled_at_ms: u64,
-}
-pub fn read_input_keys(keys: &[u32]) -> Result<Vec<InputKeyState>, i32> {
-    if keys.is_empty() || keys.len() > 32 || keys.iter().any(|key| *key == 0 || *key > 255) {
-        return Err(1);
-    }
-    let Some(call) = provider().and_then(|p| p.read_input_keys) else {
-        return Err(3);
-    };
-    let mut output = vec![InputKeyState::default(); keys.len()];
-    let status = unsafe {
-        call(
-            keys.as_ptr(),
-            keys.len() as u32,
-            std::mem::size_of_val(output.as_slice()) as u32,
-            output.as_mut_ptr().cast(),
-        )
-    };
-    if status == 0 { Ok(output) } else { Err(status) }
-}
 #[cfg(test)]
 mod map_overlay_tests {
     use super::*;
@@ -212,11 +186,6 @@ mod map_overlay_tests {
     }
     #[test]
     fn rejects_unbounded_control_inputs_before_provider_access() {
-        assert_eq!(read_input_keys(&[]).unwrap_err(), 1);
-        assert_eq!(read_input_keys(&[0]).unwrap_err(), 1);
-        assert_eq!(read_input_keys(&[256]).unwrap_err(), 1);
-        assert_eq!(read_input_keys(&[1; 33]).unwrap_err(), 1);
-        assert_eq!(std::mem::size_of::<InputKeyState>(), 24);
         assert_eq!(
             unsafe {
                 query_map_overlay_service(

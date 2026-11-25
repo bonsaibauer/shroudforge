@@ -95,7 +95,7 @@ std::int32_t Registry::Query(std::uint64_t id,const std::string& name,std::uint3
     auto owner=Find(id); if(!owner) return 1;
     std::lock_guard lock(owner->mutex); if(owner->revoked) return 3;
     if(name=="shroudforge.map") {
-        SFMapServiceV1 table{sizeof(table),1,owner.get(),Acquire,Release,Keys}; std::memcpy(output,&table,sizeof(table));
+        SFMapServiceV1 table{sizeof(table),1,owner.get(),Acquire,Release}; std::memcpy(output,&table,sizeof(table));
     } else if(name==SF_EXECUTABLE_SPAN_SERVICE_NAME) {
         const auto thread=GetCurrentThreadId();
         if(owner->executable_span_thread && owner->executable_span_thread!=thread)return SF_EXECUTABLE_SPAN_STATUS_WRONG_THREAD;
@@ -177,10 +177,6 @@ std::int32_t Registry::ExecutableSpanQuery(void* context,const SFExecutableSpanQ
     }
     return status;
 }
-std::int32_t Registry::Keys(void* context,const std::uint32_t* keys,std::uint32_t count,std::uint32_t capacity,SFInputKeyStateV1* output) {
-    if(!context) return 1; auto& owner=*static_cast<Owner*>(context);
-    std::lock_guard lock(owner.mutex); if(owner.revoked) return 3; return SampleKeys(keys,count,capacity,output);
-}
 std::int32_t Registry::Revoke(std::uint64_t id) {
     auto owner=Find(id); if(!owner) return 0;
     std::lock_guard lock(owner->mutex); owner->revoked=true; owner->gate.active.store(false,std::memory_order_release); owner->callback=nullptr; owner->callback_context=nullptr;
@@ -221,22 +217,4 @@ bool Registry::Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t n
     return success;
 }
 Registry& Services() { static auto* registry=new Registry(MapRuntime::CapturedFrames()); return *registry; }
-std::int32_t SampleKeys(const std::uint32_t* keys,std::uint32_t count,std::uint32_t capacity,SFInputKeyStateV1* output) {
-    if(!keys || !output || !count || count>32) return 1;
-    if(capacity<count*sizeof(*output)) return 5;
-    for(unsigned i=0;i<count;++i) if(!keys[i] || keys[i]>255) return 1;
-    static std::mutex mutex; static SFInputKeyStateV1 states[256]{};
-    static std::uint64_t sequence{}; std::lock_guard lock(mutex);
-    const auto now=GetTickCount64(); DWORD process{}; GetWindowThreadProcessId(GetForegroundWindow(),&process);
-    const bool focused=process==GetCurrentProcessId();
-    for(unsigned i=0;i<count;++i) {
-        const auto key=keys[i]; auto& state=states[key];
-        if(state.sampled_at_ms!=now) {
-            const bool down=focused && MapRuntime::HudInputAllowed(now) && (GetAsyncKeyState(int(key)) & 0x8000)!=0, was_down=(state.flags&1)!=0;
-            state={key,std::uint32_t((down?1:0)|(down&&!was_down?2:0)|(!down&&was_down?4:0)|(focused?8:0)),++sequence,now};
-        }
-        output[i]=state;
-    }
-    return 0;
-}
 }

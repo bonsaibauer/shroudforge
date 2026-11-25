@@ -27,7 +27,6 @@ DWORD path(HMODULE, LPWSTR out, DWORD capacity) {
 #include "ecs/initialize_metadata.h"
 #undef GetModuleFileNameW
 #undef GetModuleHandleW
-#include "ecs/generic_write_policy.h"
 namespace KfcRuntimeCompatibility::EnshroudedClient {
 bool Load() { ++Fixture::loads; return Fixture::execution_profile; }
 }
@@ -76,10 +75,5 @@ int main() {
     check(std::filesystem::remove(Fixture::process));
     check(!prepare(false)); // A readable mapped header cannot substitute for file identity.
 
-    EcsImplementation::GenericWritePolicy policy;
-    check(policy.Allows(false));
-    policy.Selected(false); check(!policy.Allows(false) && !policy.Allows(true));
-    policy.Selected(true); check(!policy.Allows(false) && policy.Allows(true) && !policy.Allows(true, false));
-    policy.Legacy(); check(policy.Allows(false));
-    std::puts("PASS: metadata identity without hooks, missing inputs refused, selected write fence");
+    std::puts("PASS: metadata identity without hooks and missing inputs refused");
 }

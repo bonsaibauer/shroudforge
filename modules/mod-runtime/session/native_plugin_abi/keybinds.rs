@@ -13,6 +13,7 @@ pub(super) struct Keybinds(HashMap<String, Binding>);
 struct Binding {
     hotkey: Option<shroudforge_hotkeys::Hotkey>,
     previous_revision: Option<u64>,
+    previous_extra: Option<u8>,
 }
 
 impl Binding {
@@ -68,6 +69,7 @@ impl Keybinds {
                 Binding {
                     hotkey,
                     previous_revision,
+                    previous_extra: self.0.get(&setting.key).and_then(|old| old.previous_extra),
                 },
             );
         }
@@ -75,13 +77,18 @@ impl Keybinds {
         Ok(())
     }
 
-    fn read(&mut self, key: &str, allowed: bool) -> Result<u32, i32> {
+    fn read(&mut self, mod_id: &str, key: &str, allowed: bool) -> Result<u32, i32> {
         let binding = self.0.get_mut(key).ok_or(NATIVE_STATUS_NOT_FOUND)?;
         let Some(hotkey) = &binding.hotkey else {
             return Ok(0);
         };
-        let revision = shroudforge_hotkeys::hotkey_press_revision(hotkey);
-        let down = shroudforge_hotkeys::is_hotkey_down(hotkey);
+        let extra = crate::lua::shroudforge::v1::extra_modifiers(mod_id, key);
+        if binding.previous_extra != Some(extra) {
+            binding.previous_revision = None;
+            binding.previous_extra = Some(extra);
+        }
+        let revision = shroudforge_hotkeys::hotkey_press_revision_with(hotkey, extra);
+        let down = shroudforge_hotkeys::is_hotkey_down_with(hotkey, extra);
         Ok(binding.sample(revision, down, allowed))
     }
 }
@@ -156,8 +163,8 @@ unsafe extern "C" fn read_keybind_v1(
     let Ok(mut keybinds) = context.keybinds.try_borrow_mut() else {
         return NATIVE_STATUS_BUSY;
     };
-    let allowed = game_is_focused() && !shroudforge_hotkeys::is_capture_active();
-    match keybinds.read(setting_key, allowed) {
+    let allowed = shroudforge_hotkeys::is_process_focused() && !shroudforge_hotkeys::is_capture_active();
+    match keybinds.read(&context.package.info().id, setting_key, allowed) {
         Ok(flags) => {
             unsafe {
                 out_state.write(KeybindStateV1 {
@@ -169,27 +176,6 @@ unsafe extern "C" fn read_keybind_v1(
         }
         Err(status) => status,
     }
-}
-
-#[cfg(windows)]
-fn game_is_focused() -> bool {
-    use windows_sys::Win32::{
-        System::Threading::GetCurrentProcessId,
-        UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
-    };
-
-    let foreground = unsafe { GetForegroundWindow() };
-    if foreground.is_null() {
-        return false;
-    }
-    let mut process_id = 0;
-    unsafe { GetWindowThreadProcessId(foreground, &mut process_id) };
-    process_id == unsafe { GetCurrentProcessId() }
-}
-
-#[cfg(not(windows))]
-fn game_is_focused() -> bool {
-    false
 }
 
 #[cfg(test)]
@@ -212,6 +198,7 @@ mod tests {
         let mut binding = Binding {
             hotkey: None,
             previous_revision: None,
+            previous_extra: None,
         };
         assert_eq!(binding.sample(4, false, true), 0);
         assert_eq!(binding.sample(5, false, true), KEYBIND_PRESSED);

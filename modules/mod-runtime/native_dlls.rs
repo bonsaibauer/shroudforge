@@ -213,7 +213,6 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
             return Ok(());
         }
     }
-    crate::startup_services::require_ordinary_loading()?;
     queue_process_library(root, entry)
 }
 
@@ -487,25 +486,15 @@ fn is_authorized_deferred_entry(root: &Path, entry: &DllLoadEntry) -> Result<boo
 /// Called while the bootstrap holds the game entrypoint, outside the loader lock.
 /// File errors remain local to their DLL. A worker that never finishes must not
 /// release the game into an unknown, possibly locked initialization state.
-pub(crate) fn prepare_selected_startup(root: &Path, is_server: bool) -> Result<(), String> {
+pub(crate) fn prepare_selected_startup(root: &Path, is_server: bool, expected: &serde_json::Value) -> Result<(), String> {
     if APPLIED_PLAN.get().is_some() {
         return Err("Native plan was applied before selected admission".into());
     }
     let plan = mod_loader::dll_manager::resolve_load_plan(root, is_server);
-    let identity = mod_loader::dll_manager::load_plan_identity(&plan);
-    let (_, deferred, rejected_entries, issues) = classify_plan_entries(root, plan.entries);
-    if !issues.is_empty() || !plan.issues.is_empty() || !rejected_entries.is_empty() {
-        return Err("Selected native plan is unresolved".into());
+    if mod_loader::dll_manager::load_plan_identity(&plan) != *expected {
+        return Err("DLL Manager plan changed after startup admission".into());
     }
-    APPLIED_PLAN
-        .set(AppliedPlan {
-            root_key: root_key(root)?,
-            is_server,
-            identity,
-            entries: deferred,
-            rejected_entries,
-        })
-        .map_err(|_| "Native startup plan was already published".into())
+    apply_resolved_plan(root, is_server, true, plan)
 }
 
 pub fn prepare_startup(root: &Path, is_server: bool) -> Result<(), String> {
@@ -516,8 +505,13 @@ pub(crate) fn apply_plan(root: &Path, is_server: bool, wait: bool) -> Result<(),
     if APPLIED_PLAN.get().is_some() {
         return Ok(());
     }
-    let enabled = manager_enabled(root)?;
     let plan = mod_loader::dll_manager::resolve_load_plan(root, is_server);
+    apply_resolved_plan(root, is_server, wait, plan)
+}
+
+// One execution path for ordinary startup and the retained admission snapshot.
+fn apply_resolved_plan(root: &Path, is_server: bool, wait: bool, plan: mod_loader::dll_manager::DllLoadPlan) -> Result<(), String> {
+    let enabled = manager_enabled(root)?;
     let root_key = root_key(root)?;
     let identity = mod_loader::dll_manager::load_plan_identity(&plan);
     let mut issues = plan.issues;

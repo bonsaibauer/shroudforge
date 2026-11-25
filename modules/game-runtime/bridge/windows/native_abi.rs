@@ -144,11 +144,9 @@ pub(super) type QueryMapOverlayService =
     unsafe extern "C" fn(*const u8, u32, u64, *const u8, u32, u32, u32, *mut c_void) -> i32;
 pub(super) type RevokeMapOverlayServices = unsafe extern "C" fn(*const u8, u32, u64) -> i32;
 pub(super) type DrainMapOverlayServices = unsafe extern "C" fn(*const u8, u32, u64, u32) -> i32;
-pub(super) type ReadInputKeys = unsafe extern "C" fn(*const u32, u32, u32, *mut c_void) -> i32;
 pub(super) type PublishNotification =
     unsafe extern "C" fn(*const u8, u32, *const u8, u32, *const u8, u32, u32) -> i32;
 pub(super) struct Provider {
-    pub(super) read_input_keys: Option<ReadInputKeys>,
     pub(super) publish_notification: Option<PublishNotification>,
     pub(super) map_overlay: Option<super::map_overlay::MapOverlayExports>,
     pub(super) configure: Configure,

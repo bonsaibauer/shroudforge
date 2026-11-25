@@ -33,7 +33,7 @@ KFC_RUNTIME_API bool __cdecl KfcRuntimePrepareOverlay(unsigned demand) {
 
 KFC_RUNTIME_API bool __cdecl KfcRuntimeInitialize() {
     if (selected_startup_attempted()) return false;
-    return initialize_provider(true, false);
+    return initialize_provider(false);
 }
 
 KFC_RUNTIME_API void __cdecl KfcRuntimeTick() {
@@ -62,9 +62,11 @@ KFC_RUNTIME_API void __cdecl KfcRuntimeShutdown() {
 }
 
 namespace ProviderImplementation {
-bool initialize_provider(bool execution, bool selected) {
+bool initialize_provider(bool selected) {
     try {
-        const auto initialized = selected ? EcsRuntime::Initialize(execution) : EcsRuntime::Initialize();
+        // Optional map/graphics preparation does not replace normal ECS setup
+        // or change the existing per-operation write authority.
+        const auto initialized = EcsRuntime::Initialize();
         // The selected state machine owns failure retirement exactly once.
         if (selected && !initialized) return false;
         const auto resources = ResourceRuntime::Initialize();

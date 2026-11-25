@@ -1,5 +1,9 @@
 use std::{ffi::c_void, mem::size_of};
-pub(super) const SERVICE: &str = crate::notice_protocol::SERVICE;
+pub(super) const SERVICE: &str = "shroudforge.notifications";
+
+pub(super) fn level_name(level: u32) -> Option<&'static str> {
+    ["info", "success", "warning", "error", "update"].get(level as usize).copied()
+}
 pub(super) trait Owner {
     fn owner_thread(&self) -> bool;
     fn revoked(&self) -> bool;
@@ -93,7 +97,11 @@ unsafe extern "C" fn publish<T: Owner>(
     ) else {
         return 1;
     };
-    if !crate::notice_protocol::valid(owner.package(), id, title, message, level) {
+    let Some(level_text) = level_name(level) else { return 1; };
+    if title.contains('\0') || message.contains('\0')
+        || !shroudforge_news::valid_mod_notice(owner.package(), &shroudforge_news::ModNotice {
+            id, title, message, level: level_text, action_url: None,
+        }) {
         return 1;
     }
     owner.persist(id, title, message, level)

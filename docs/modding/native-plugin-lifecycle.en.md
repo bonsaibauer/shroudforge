@@ -48,8 +48,11 @@ This also applies to plans containing only managed plugins.
 ## Services
 
 - `shroudforge.keybinds` v1 reads the package's declared keybind settings. It
-  requires an active client runtime package and respects input suppression.
+  uses the same SDL input, focus, extra-modifier and capture-suppression rules
+  as `shroudforge.input`. The map service has no separate raw-key reader.
 - `shroudforge.notifications` v1 publishes bounded, package-namespaced notices.
+  Lua and native notices share the notifications module's validation and
+  persistence. The map/overlay service does not publish or store notices.
   The persisted feed remains authoritative when an optional HUD presenter is
   unavailable.
 - `shroudforge.executable-spans` v1 is a client-only, read-only query for a

@@ -30,7 +30,7 @@ pub use sync_mod_events::sync_mod_events;
 pub use validate_news_id::valid_news_id;
 pub use validate_notification_event::validate_event;
 pub use write_mod_event::write_event_notice;
-pub use write_notification_event::write_event;
+pub use write_notification_event::{ModNotice, publish_mod_notice, valid_mod_notice, write_event};
 
 fn now() -> u64 {
     std::time::SystemTime::now()

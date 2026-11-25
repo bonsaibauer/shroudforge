@@ -253,10 +253,9 @@ pub(crate) use native_plugins::{
 };
 
 pub(crate) fn new_native_plugin_service_lifetime(
-    env: &ModEnvironment,
     is_server: bool,
 ) -> Arc<dyn native_plugin_abi::NativePluginServiceLifetime> {
-    Arc::new(map_overlay_services::MapOverlayServices::new(env, is_server))
+    Arc::new(map_overlay_services::MapOverlayServices::new(is_server))
 }
 
 mod record_runtime_state;

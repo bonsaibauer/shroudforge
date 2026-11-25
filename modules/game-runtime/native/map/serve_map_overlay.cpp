@@ -57,9 +57,6 @@ void ShutdownServices() {
 }
 }
 extern "C" {
-KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeReadInputKeys(const std::uint32_t* keys,std::uint32_t count,std::uint32_t capacity,void* output) {
-    try{return OverlayRuntime::SampleKeys(keys,count,capacity,static_cast<SFInputKeyStateV1*>(output));}catch(...){return 7;}
-}
 KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeQueryMapOverlayService(const std::uint8_t* package,std::uint32_t package_size,
     std::uint64_t generation,const std::uint8_t* service,std::uint32_t service_size,std::uint32_t version,
     std::uint32_t capacity,void* output) {

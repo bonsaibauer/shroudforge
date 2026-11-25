@@ -86,10 +86,6 @@ typedef struct SFMapFrameV1 {
     SFMapEnvironmentV1 environment;
 } SFMapFrameV1;
 typedef uint64_t SFMapFrameLeaseV1;
-typedef struct SFInputKeyStateV1 {
-    uint32_t virtual_key, flags; /* DOWN=1, PRESSED=2, RELEASED=4, FOCUSED=8. */
-    uint64_t sequence, sampled_at_ms;
-} SFInputKeyStateV1;
 typedef struct SFMapServiceV1 {
     uint32_t size, version;
     void* context;
@@ -98,10 +94,6 @@ typedef struct SFMapServiceV1 {
     int32_t (*acquire)(void* context, uint64_t expected_generation, uint32_t out_size,
         SFMapFrameV1* out_frame, SFMapFrameLeaseV1* out_lease);
     int32_t (*release)(void* context, SFMapFrameLeaseV1 lease);
-    /* At most 32 configured Windows virtual keys (1..255). Shared high-bit
-     * sampling never consumes GetAsyncKeyState's process-global pressed bit. */
-    int32_t (*read_keys)(void* context, const uint32_t* virtual_keys, uint32_t count,
-        uint32_t out_capacity, SFInputKeyStateV1* out_keys);
 } SFMapServiceV1;
 
 /* All control/encoder function results use the package SDK SF_NATIVE_STATUS_*

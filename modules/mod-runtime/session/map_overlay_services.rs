@@ -1,38 +1,18 @@
 use super::native_plugin_abi::{NATIVE_STATUS_UNAVAILABLE, NativePluginServiceLifetime};
-use mod_loader::ModEnvironment;
 use std::ffi::c_void;
 /// Immutable control-plane authority. No AppState/RefCell is retained by this
 /// object and native callbacks dispatch directly inside the provider.
 pub(crate) struct MapOverlayServices {
     client: bool,
-    root: std::path::PathBuf,
 }
 impl MapOverlayServices {
-    pub(crate) fn new(env: &ModEnvironment, is_server: bool) -> Self {
+    pub(crate) fn new(is_server: bool) -> Self {
         Self {
             client: !is_server,
-            root: env.game_dir().to_path_buf().into(),
         }
     }
 }
 impl NativePluginServiceLifetime for MapOverlayServices {
-    fn publish_notice(
-        &self,
-        package: &str,
-        _generation: u64,
-        id: &str,
-        title: &str,
-        message: &str,
-        level: u32,
-    ) -> i32 {
-        if !self.client {
-            return NATIVE_STATUS_UNAVAILABLE;
-        }
-        match crate::notice_delivery::publish(&self.root, package, id, title, message, level) {
-            Ok(()) => 0,
-            Err(_) => 7,
-        }
-    }
     unsafe fn query_service(
         &self,
         package: &str,
@@ -64,7 +44,7 @@ impl super::AppState {
             self.env().game_dir().as_std_path(),
             self.is_server(),
         )?
-        .unwrap_or_else(|| super::new_native_plugin_service_lifetime(self.env(), self.is_server()));
+        .unwrap_or_else(|| super::new_native_plugin_service_lifetime(self.is_server()));
         self.set_native_plugin_service_lifetime(services)
     }
 }

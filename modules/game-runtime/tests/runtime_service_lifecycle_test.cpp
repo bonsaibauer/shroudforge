@@ -17,7 +17,7 @@ DWORD WINAPI SelectedFixtureModuleName(HMODULE,wchar_t* path,DWORD count) {
 namespace {
 std::vector<unsigned> stopped;
 unsigned ticks{}, resource_initializations{};
-bool fail_tick{}, fail_stop{}, fail_initialization{}, hooks_ready{}, selected_execution{};
+bool fail_tick{}, fail_stop{}, fail_initialization{}, hooks_ready{};
 bool held_entry_callback{};
 unsigned native_plugin_preparations{};
 std::vector<unsigned> prepared;
@@ -51,8 +51,7 @@ bool entry_restored_fixture() {
 }
 }
 namespace EcsRuntime {
-bool Initialize() { return true; }
-bool Initialize(bool execution) {selected_execution=execution;prepared.push_back(1);return true;}
+bool Initialize() { prepared.push_back(1); return true; }
 void Tick() { ++ticks; }
 void Shutdown() { stopped.push_back(8); }
 }
@@ -180,7 +179,7 @@ int main(int argc,char**) {
     check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==0 && prepared.empty());
     check(KfcRuntimePrepareSelectedV2(&plan,&proof,stage_native_plugins_fixture,
         prepare_native_plugins_fixture,&completed) &&
-        completed==plan.services && !selected_execution);
+        completed==plan.services);
     check(prepared==std::vector<unsigned>({0,1,2,4,9}) && native_plugin_preparations==1 && !KfcRuntimeInitialize());
     bool continuation_succeeded{};
     std::thread original_entry([&] {

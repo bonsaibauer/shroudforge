@@ -49,7 +49,6 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                     ))
                 } else {
                     Ok(Provider {
-                        read_input_keys: optional_symbol!("KfcRuntimeReadInputKeys", ReadInputKeys),
                         publish_notification: optional_symbol!(
                             "KfcRuntimePublishNotificationV1",
                             PublishNotification

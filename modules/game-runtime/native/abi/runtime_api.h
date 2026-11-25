@@ -51,8 +51,6 @@ KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeRevokeMapOverlayServices(
     const uint8_t*, uint32_t, uint64_t);
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeDrainMapOverlayServices(
     const uint8_t*, uint32_t, uint64_t, uint32_t);
-KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeReadInputKeys(
-    const uint32_t*, uint32_t, uint32_t, void*);
 /* Optional ABI-12 selected-character cache. Returns required UTF-8 bytes
  * including NUL, or zero when unavailable. Copies only a complete name.
  * This getter never reads game memory or refreshes the cached selection. */

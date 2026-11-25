@@ -148,6 +148,7 @@ struct SFNativeHostV1 {
 }
 
 pub(crate) struct NativePluginHostMetadata {
+    pub(crate) game_root: std::path::PathBuf,
     pub(crate) package_id: String,
     pub(crate) package: Mod,
     pub(crate) package_generation: u64,
@@ -160,17 +161,6 @@ pub(crate) struct NativePluginHostMetadata {
 /// Implementations revoke by package identity and generation, then report BUSY
 /// from drain until every callback acquired through that owner has exited.
 pub(crate) trait NativePluginServiceLifetime: Send + Sync {
-    fn publish_notice(
-        &self,
-        _package: &str,
-        _generation: u64,
-        _id: &str,
-        _title: &str,
-        _message: &str,
-        _level: u32,
-    ) -> i32 {
-        NATIVE_STATUS_UNAVAILABLE
-    }
     /// Write the requested service table only when `out_capacity` is large
     /// enough. Implementations must not touch AppState or Lua from callbacks.
     unsafe fn query_service(
@@ -211,6 +201,7 @@ impl NativePluginServiceLifetime for NoNativePluginServices {
 }
 
 struct NativePluginHostContext {
+    game_root: std::path::PathBuf,
     package_id_utf8: Box<[u8]>,
     package: Mod,
     package_generation: u64,
@@ -247,6 +238,7 @@ impl NativePluginHostContext {
         }
 
         Ok(Self {
+            game_root: metadata.game_root,
             package_id_utf8,
             package: metadata.package,
             package_generation: metadata.package_generation,
@@ -1037,14 +1029,15 @@ impl notifications::Owner for NativePluginHostContext {
         std::str::from_utf8(&self.package_id_utf8).unwrap_or("")
     }
     fn persist(&self, id: &str, title: &str, message: &str, level: u32) -> i32 {
-        self.services.publish_notice(
-            self.package(),
-            self.package_generation,
-            id,
-            title,
-            message,
-            level,
-        )
+        let Some(level) = notifications::level_name(level) else { return 1; };
+        match shroudforge_news::publish_mod_notice(
+            &self.game_root, self.package(),
+            shroudforge_news::ModNotice { id, title, message, level, action_url: None },
+            shroudforge_runtime_bridge::publish_notification,
+        ) {
+            Ok(()) => NATIVE_STATUS_OK,
+            Err(_) => 7,
+        }
     }
 }
 unsafe extern "C" fn host_revoke_services(
@@ -1213,6 +1206,7 @@ mod tests {
     impl TestPackage {
         fn metadata(&self, package_generation: u64) -> NativePluginHostMetadata {
             NativePluginHostMetadata {
+                game_root: self.root.clone(),
                 package_id: "example".into(),
                 package: self.package.clone(),
                 package_generation,

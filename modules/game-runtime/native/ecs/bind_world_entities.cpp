@@ -1,6 +1,5 @@
 #include "ecs/component_operation.h"
 #include "ecs/entity_session.h"
-#include "ecs/generic_write_policy.h"
 #include "ecs/initialize_metadata.h"
 #include "ecs/building_prop_query_state.h"
 #include "ecs/registry/component_discovery_state.h"
@@ -106,8 +105,6 @@ bool invoke_read_operation(GameThreadDispatcher::Operation operation, const std:
 }
 
 namespace EcsRuntime {
-namespace { EcsImplementation::GenericWritePolicy generic_writes; }
-bool GenericWritesAllowed() { return generic_writes.Allows(EngineHooks::StartupReady()); }
 struct SessionGuard::State {
     std::unique_lock<std::mutex> lock{state_mutex};
     EngineContext::EcsView view;
@@ -143,7 +140,7 @@ bool SessionGuard::TryAcquire(std::uint64_t expected_session) {
 
 const EngineContext::EcsView& SessionGuard::View() const { return state_->view; }
 
-bool SessionGuard::WritesAllowed() const { return state_ && GenericWritesAllowed() && !write_fault_active_locked(); }
+bool SessionGuard::WritesAllowed() const { return state_ && !write_fault_active_locked(); }
 
 bool SessionGuard::ResolveEntityIdentity(std::uint32_t handle,
     std::uint32_t& id, std::uint32_t& generation) const {
@@ -172,18 +169,10 @@ bool MarkSessionWriteUncertain(std::uint64_t expected_session, const char* reaso
     return true;
 }
 
-namespace {
-bool initialize_metadata(bool enable_execution_hooks) {
-    if (!InitializeMetadata(enable_execution_hooks, image_base, image_size, stop_requested)) return false;
+bool Initialize() {
     // Metadata discovery remains available when a build lacks proven native
     // execution adapters. Original-owner entity reads do not authorize writes.
-    return true;
-}
-}
-bool Initialize() { generic_writes.Legacy(); return initialize_metadata(true); }
-bool Initialize(bool enable_execution_hooks) {
-    generic_writes.Selected(enable_execution_hooks);
-    return initialize_metadata(enable_execution_hooks);
+    return InitializeMetadata(true, image_base, image_size, stop_requested);
 }
 
 void Tick() {
