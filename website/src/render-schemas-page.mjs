@@ -93,8 +93,8 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 				${blueprintVersions.map(version => {
 					const url = new URL(`/schemas/sfbp/v${version}.txt`, siteUrl).href
 					return `<section class="schema-version-section" data-blueprint-version-section="${escapeHtml(version)}" aria-label="Blueprint format version ${escapeHtml(version)}" ${version === blueprintVersions[0] ? '' : 'hidden'}><div class="schema-grid"><article class="schema-card panel">
-						<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">V${escapeHtml(version)}</span><div><h3>World Editor blueprint</h3><code>.sfbp · version ${escapeHtml(version)}</code></div></div>
-						<p>File structure, field constraints and examples for SFBP V${escapeHtml(version)}. The World Editor validates loaded blueprints with the linked Lua implementation.</p>
+						<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">BP</span><div><h3>Blueprint format</h3><code>.sfbp</code></div></div>
+						<p>File structure, field constraints and examples. The linked Lua implementation validates blueprints on load.</p>
 						<div class="schema-card-actions"><a class="schema-action-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open specification</a><a class="schema-action-link" href="${escapeHtml(url)}" download>Download</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(url)}">Copy URL</button><a class="schema-action-link" href="${escapeHtml(new URL(`/schemas/sfbp/v${version}.lua`, siteUrl).href)}" target="_blank" rel="noopener">Validation code</a></div>
 						<output class="schema-copy-status" aria-live="polite"></output>
 					</article></div></section>`
