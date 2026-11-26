@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
@@ -52,7 +51,6 @@ export function WikiPage({
   const [languageFilter, setLanguageFilter] = useState('auto')
   const [itemsPerPage, setItemsPerPage] = useState(apiSettings.itemsPerPage)
   const [currentPage, setCurrentPage] = useState(1)
-  const [topPaginationTarget, setTopPaginationTarget] = useState<HTMLElement | null>(null)
   const [categories, setCategories] = useState(() => readCachedWikiCategories()?.categories || [])
   const [listRetryAttempt, setListRetryAttempt] = useState(0)
   const [articleRetryAttempt, setArticleRetryAttempt] = useState(0)
@@ -85,10 +83,6 @@ export function WikiPage({
   const opened = useRef(false)
   const refreshingList = useRef(false)
   const lastArticleFailure = useRef('')
-
-  useEffect(() => {
-    setTopPaginationTarget(document.getElementById('wiki-pagination-top'))
-  }, [])
 
   useEffect(() => {
     setItemsPerPage(apiSettings.itemsPerPage)
@@ -439,7 +433,6 @@ export function WikiPage({
   )
 
   return <>
-    {showPagination && topPaginationTarget && createPortal(renderPagination(), topPaginationTarget)}
     <PageHeader eyebrow={t('nav.modloader')} title={t('nav.wiki')} subtitle={t('wiki.subtitle')}
       actions={<WikiActions
         notifyCommandResult={notifyCommandResult}
@@ -482,7 +475,10 @@ export function WikiPage({
           </select>
         </label>
       </div>
-      <p className="wiki-result-count" aria-live="polite">{t('wiki.resultsCount', { count: visiblePages.length })}</p>
+      <div className="wiki-results-toolbar">
+        <p className="wiki-result-count" aria-live="polite">{t('wiki.resultsCount', { count: visiblePages.length })}</p>
+        {showPagination && renderPagination()}
+      </div>
       <div className="wiki-article-list" aria-busy={loadingPages || refreshingPages}>
         {pageItems.map((item) => <button type="button" className="wiki-article-link" key={item.pageTitle}
           onClick={() => selectArticle(item.pageTitle)}>
