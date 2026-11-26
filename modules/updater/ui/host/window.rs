@@ -393,7 +393,14 @@ fn handle_command(
             });
             Ok(())
         }
-        "check-mod-updates" => {
+        "check-all-updates"
+        | "check-mod-updates"
+        | "check-schematic-updates"
+        | "check-modpack-updates" => {
+            let check_command = command["command"]
+                .as_str()
+                .unwrap_or("check-mod-updates")
+                .to_owned();
             let running = mod_check_running.clone();
             let results = results.clone();
             let root = root_path.clone();
@@ -410,7 +417,7 @@ fn handle_command(
             std::thread::spawn(move || {
                 let result = crate::run_request(
                     &root,
-                    &serde_json::json!({"command":"check-mod-updates","manual":true}),
+                    &serde_json::json!({"command":check_command,"manual":true}),
                 );
                 if let Ok(mut value) = running.lock() {
                     *value = false;
@@ -464,7 +471,7 @@ fn updater_request(root: &Path, command: &serde_json::Value) -> serde_json::Valu
         "remove-update-queue-item" => {
             request["id"] = command["key"].clone();
         }
-        "search-catalog" | "install-mod" | "update-mod" => {
+        "search-catalog" | "install-mod" | "update-mod" | "update-schematic" | "update-modpack" => {
             let config = shroudforge_loader_config::config::read_loader(root).unwrap_or_default();
             request["provider"] =
                 config
@@ -595,6 +602,10 @@ fn read_snapshot(
         ),
         "modUpdates": config.pointer("/modules/updates/mods/latestUpdates").cloned().unwrap_or_else(|| serde_json::json!([])),
         "modCheckResult": config.pointer("/modules/updates/mods/lastCheckResult").cloned(),
+        "schematicUpdates": config.pointer("/modules/updates/schematics/latestUpdates").cloned().unwrap_or_else(|| serde_json::json!([])),
+        "schematicCheckResult": config.pointer("/modules/updates/schematics/lastCheckResult").cloned(),
+        "modpackUpdates": config.pointer("/modules/updates/modpacks/latestUpdates").cloned().unwrap_or_else(|| serde_json::json!([])),
+        "modpackCheckResult": config.pointer("/modules/updates/modpacks/lastCheckResult").cloned(),
         "modCheckRunning": mod_check_running.lock().is_ok_and(|value| *value),
         "updatesEnabled": config.pointer("/modules/updates/enabled").and_then(serde_json::Value::as_bool).unwrap_or(false),
         "locale": config.pointer("/general/locale").and_then(serde_json::Value::as_str).unwrap_or("de")

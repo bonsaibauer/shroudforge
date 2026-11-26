@@ -128,6 +128,7 @@ pub(crate) fn read_ui_snapshot(
         })
         .collect();
     let hotkey_conflicts = hotkey_conflicts(&central, &mods, server);
+    let schematics = shroudforge_schematics::schematic_library::list(root).unwrap_or_default();
     let snapshot = Snapshot {
         vanilla_session: (!desktop).then_some(vanilla_session),
         installation_target: if server { "server" } else { "client" },
@@ -154,7 +155,7 @@ pub(crate) fn read_ui_snapshot(
         version,
         notices: shroudforge_news::read_notifications(root, &notification_mods),
         mods,
-        schematics: shroudforge_schematics::schematic_library::list(root).unwrap_or_default(),
+        schematics,
         schematics_enabled: central
             .pointer("/modules/schematics/enabled")
             .and_then(serde_json::Value::as_bool)

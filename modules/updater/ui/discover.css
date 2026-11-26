@@ -1,6 +1,18 @@
 .discover-page {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+}
+
+.discover-page button:focus-visible,
+.discover-page a:focus-visible,
+.discover-page summary:focus-visible {
+  outline: 2px solid var(--sf-gold-bright);
+  outline-offset: 2px;
+}
+
+.discover-explore-link {
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .discover-type-tabs {
@@ -11,7 +23,7 @@
   padding: 5px;
   overflow-x: auto;
   border: 1px solid var(--sf-line);
-  border-radius: 999px;
+  border-radius: 11px;
   background: var(--sf-glass-strong);
   box-shadow: var(--sf-shadow-soft);
 }
@@ -20,7 +32,7 @@
   min-height: 37px;
   padding: 0 16px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 7px;
   color: var(--sf-text);
   background: transparent;
   font-size: 12px;
@@ -57,7 +69,7 @@
   gap: 12px;
   padding: 0 16px;
   border: 1px solid var(--sf-line-strong);
-  border-radius: 13px;
+  border-radius: 10px;
   background: var(--sf-glass);
   transition: border-color var(--sf-speed) ease, box-shadow var(--sf-speed) ease;
 }
@@ -230,7 +242,7 @@
   place-items: center;
   padding: 0 7px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--sf-text);
   background: transparent;
   font-size: 12px;
@@ -273,14 +285,14 @@
 
 .discover-row {
   display: grid;
-  grid-template-columns: 124px minmax(0, 1fr) minmax(150px, 190px);
-  min-height: 158px;
+  grid-template-columns: 104px minmax(0, 1fr) minmax(150px, 190px);
+  min-height: 136px;
   min-width: 0;
   align-items: start;
   gap: 15px;
   padding: 15px 17px;
   border: 1px solid var(--sf-line);
-  border-radius: 15px;
+  border-radius: 13px;
   background: linear-gradient(125deg, var(--sf-glass-strong), rgba(14, 27, 31, 0.84));
   box-shadow: var(--sf-shadow-soft);
   transition: border-color var(--sf-speed) ease, background var(--sf-speed) ease;
@@ -294,12 +306,12 @@
 
 .discover-row-icon {
   display: grid;
-  width: 124px;
+  width: 104px;
   aspect-ratio: 1;
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--sf-line-strong);
-  border-radius: 15px;
+  border-radius: 11px;
   color: var(--sf-gold-bright);
   background: var(--sf-gold-soft);
   font-size: 25px;
@@ -428,12 +440,6 @@
   border-color: rgba(255, 112, 120, 0.3);
   color: var(--sf-red);
   background: var(--sf-red-soft);
-}
-
-.discover-page.project-open > .discover-type-tabs,
-.discover-page.project-open > .discover-search,
-.discover-page.project-open > .discover-toolbar {
-  display: none;
 }
 
 .discover-row-aside {
@@ -876,31 +882,31 @@
 
 .discover-project-page {
   display: grid;
-  gap: 16px;
+  gap: 20px;
   min-width: 0;
-  padding: 18px;
+  padding: 22px;
   border: 1px solid var(--sf-line);
-  border-radius: 16px;
+  border-radius: 13px;
   background: var(--sf-glass);
   box-shadow: var(--sf-shadow-soft);
 }
 
 .discover-project-header {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) auto;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
   align-items: start;
-  gap: 16px;
-  padding-bottom: 16px;
+  gap: 18px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--sf-line);
 }
 
 .discover-project-icon {
-  width: 104px;
+  width: 96px;
   height: auto;
   aspect-ratio: 1;
   object-fit: cover;
   border: 1px solid var(--sf-line-strong);
-  border-radius: 15px;
+  border-radius: 11px;
   background: var(--sf-glass-soft);
 }
 
@@ -911,7 +917,7 @@
 .discover-project-heading h2 {
   margin: 0 0 4px;
   color: var(--sf-text-strong);
-  font-size: clamp(20px, 2vw, 29px);
+  font-size: clamp(20px, 2vw, 25px);
   line-height: 1.2;
 }
 
@@ -920,6 +926,7 @@
   color: var(--sf-text);
   font-size: 14px;
   line-height: 1.45;
+  overflow-wrap: break-word;
 }
 
 .discover-project-stats,
@@ -954,16 +961,17 @@
 
 .discover-project-install {
   min-height: 42px;
-  border: 1px solid var(--sf-green);
-  border-radius: 11px;
-  color: var(--sf-bg-deep);
-  background: var(--sf-green);
+  border: 1px solid rgba(202, 170, 103, 0.48);
+  border-radius: 9px;
+  color: var(--sf-gold-bright);
+  background: var(--sf-gold-soft);
   font-weight: 800;
   white-space: nowrap;
 }
 
 .discover-project-install:hover:not(:disabled) {
-  filter: brightness(1.08);
+  border-color: var(--sf-gold-bright);
+  background: rgba(202, 170, 103, 0.2);
 }
 
 .discover-project-tabs {
@@ -974,7 +982,7 @@
   padding: 5px;
   overflow-x: auto;
   border: 1px solid var(--sf-line);
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--sf-glass-strong);
 }
 
@@ -982,7 +990,7 @@
   min-height: 36px;
   padding: 0 15px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 7px;
   color: var(--sf-text);
   background: transparent;
   font-size: 12px;
@@ -1005,6 +1013,10 @@
   align-items: start;
 }
 
+.discover-project-content.no-sidebar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .discover-project-description,
 .discover-project-sidebar > section,
 .discover-version-detail > section,
@@ -1013,7 +1025,7 @@
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--sf-line);
-  border-radius: 13px;
+  border-radius: 11px;
   background: var(--sf-glass-soft);
 }
 
@@ -1033,6 +1045,13 @@
 
 .discover-project-sidebar > section > p {
   margin-bottom: 0;
+}
+
+.discover-latest-version {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--sf-text-strong);
+  font-size: 14px;
 }
 
 .discover-project-tags,
@@ -1073,12 +1092,22 @@
 .discover-markdown {
   color: var(--sf-text);
   font-size: 14px;
-  line-height: 1.65;
-  overflow-wrap: anywhere;
+  line-height: 1.5;
+  overflow-wrap: break-word;
 }
 
 .discover-markdown > :first-child {
   margin-top: 0;
+}
+
+.discover-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.discover-markdown p,
+.discover-markdown ul,
+.discover-markdown ol {
+  margin: 0 0 14px;
 }
 
 .discover-markdown h1,
@@ -1189,7 +1218,7 @@
 .discover-version-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -1226,8 +1255,7 @@
   gap: 8px;
 }
 
-.discover-clear-filters,
-.discover-virustotal {
+.discover-clear-filters {
   padding: 6px;
   border: 0;
   color: var(--sf-muted);
@@ -1235,20 +1263,59 @@
   cursor: pointer;
 }
 
-.discover-clear-filters:hover,
-.discover-virustotal:hover {
+.discover-clear-filters:hover {
   color: var(--sf-green);
 }
 
 .discover-version-actions {
   white-space: nowrap;
+  text-align: right !important;
 }
+
+.discover-version-actions > button + button {
+  margin-left: 5px;
+}
+
+.discover-virustotal {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--sf-muted);
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.discover-virustotal .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.discover-virustotal:hover {
+  border-color: var(--sf-line-strong);
+  background: var(--sf-glass-soft);
+}
+
+.discover-virustotal:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.discover-virustotal.passed { color: var(--sf-green); }
+.discover-virustotal.manually_approved { color: var(--sf-blue); }
+.discover-virustotal.blocked,
+.discover-virustotal.failed { color: var(--sf-red); }
 
 .discover-version-pagination {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
+  margin-left: 0;
   color: var(--sf-muted);
 }
 
@@ -1315,33 +1382,45 @@
 
 .discover-channel-mark {
   display: grid;
-  width: 28px;
-  height: 28px;
+  min-height: 24px;
   place-items: center;
-  border-radius: 50%;
+  padding: 0 7px;
+  border: 1px solid rgba(98, 214, 154, 0.24);
+  border-radius: 6px;
   color: var(--sf-green);
   background: var(--sf-green-soft);
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: capitalize;
 }
 
 .discover-channel-mark.beta {
+  border-color: rgba(202, 170, 103, 0.28);
   color: var(--sf-gold-bright);
   background: var(--sf-gold-soft);
 }
 
 .discover-version-install {
-  width: 31px;
-  height: 31px;
-  border: 0;
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--sf-line-strong);
   border-radius: 8px;
-  color: var(--sf-green);
+  color: var(--sf-gold-bright);
   background: transparent;
-  font-size: 18px;
   cursor: pointer;
+  vertical-align: middle;
 }
 
 .discover-version-install:hover:not(:disabled) {
-  background: var(--sf-green-soft);
+  border-color: var(--sf-gold-bright);
+  background: var(--sf-gold-soft);
+}
+
+.discover-version-install .icon {
+  width: 17px;
+  height: 17px;
 }
 
 .discover-version-install:disabled {
@@ -1410,6 +1489,36 @@
   gap: 3px;
   overflow-wrap: anywhere;
 }
+
+.discover-file-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.discover-file-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.discover-file-actions .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.discover-version-files .discover-virustotal {
+  border-color: transparent;
+  color: var(--sf-muted);
+  background: transparent;
+}
+
+.discover-version-files .discover-virustotal.passed { color: var(--sf-green); }
+.discover-version-files .discover-virustotal.manually_approved { color: var(--sf-blue); }
+.discover-version-files .discover-virustotal.blocked,
+.discover-version-files .discover-virustotal.failed { color: var(--sf-red); }
 
 .discover-version-files small {
   color: var(--sf-muted);
@@ -1573,6 +1682,15 @@
 @media (max-width: 520px) {
   .discover-project-page {
     padding: 12px;
+  }
+
+  .discover-version-files > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .discover-file-actions {
+    justify-content: flex-start;
   }
 
   .discover-project-tabs {

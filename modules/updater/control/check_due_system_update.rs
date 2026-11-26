@@ -5,6 +5,8 @@ use crate::headless_check_system_updates;
 enum UpdateKind {
     System,
     Mods,
+    Schematics,
+    Modpacks,
 }
 
 fn configured_update_check_interval(settings: Option<&serde_json::Value>) -> std::time::Duration {
@@ -41,6 +43,14 @@ fn update_check_delay(root: &std::path::Path, kind: UpdateKind) -> std::time::Du
             .as_ref()
             .and_then(|value| value.pointer("/modules/updates/mods/lastCheckAt"))
             .and_then(serde_json::Value::as_u64),
+        UpdateKind::Schematics => settings
+            .as_ref()
+            .and_then(|value| value.pointer("/modules/updates/schematics/lastCheckAt"))
+            .and_then(serde_json::Value::as_u64),
+        UpdateKind::Modpacks => settings
+            .as_ref()
+            .and_then(|value| value.pointer("/modules/updates/modpacks/lastCheckAt"))
+            .and_then(serde_json::Value::as_u64),
     };
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -58,24 +68,46 @@ pub(crate) fn system_update_check_delay(root: &std::path::Path) -> std::time::Du
 }
 
 pub(crate) fn mod_update_check_delay(root: &std::path::Path) -> std::time::Duration {
-    update_check_delay(root, UpdateKind::Mods)
+    [
+        UpdateKind::Mods,
+        UpdateKind::Schematics,
+        UpdateKind::Modpacks,
+    ]
+    .into_iter()
+    .map(|kind| update_check_delay(root, kind))
+    .min()
+    .unwrap_or_default()
 }
 
 pub(crate) fn check_due_mod_updates(root: &std::path::Path) -> std::time::Instant {
-    let delay = mod_update_check_delay(root);
-    if delay.is_zero() {
-        match crate::mod_installation::catalog::check_catalog_mod_updates(root, false) {
+    for (kind, name) in [
+        (UpdateKind::Mods, "mod"),
+        (UpdateKind::Schematics, "schematic"),
+        (UpdateKind::Modpacks, "modpack"),
+    ] {
+        if !update_check_delay(root, kind).is_zero() {
+            continue;
+        }
+        let result = if matches!(kind, UpdateKind::Mods) {
+            crate::mod_installation::catalog::check_catalog_mod_updates(root, false)
+        } else {
+            crate::mod_installation::check_catalog_content_updates::check_catalog_content_updates(
+                root, name, false,
+            )
+        };
+        match result {
             Ok(_) => {}
             Err(error) => {
                 let _ = shroudforge_logging::append(
                     root,
                     'W',
                     "updates",
-                    &format!("Automatic mod update check failed: {error}"),
+                    &format!("Automatic {name} update check failed: {error}"),
                 );
             }
         }
     }
+    let delay = mod_update_check_delay(root);
     let next = if delay.is_zero() {
         let delay = mod_update_check_delay(root);
         if delay.is_zero() {

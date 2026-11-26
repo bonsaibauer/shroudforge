@@ -22,7 +22,7 @@ export type Release = {
 
 export type UpdateQueueItem = {
   id: string
-  kind: 'system' | 'mod' | 'maintenance' | 'installer'
+  kind: 'system' | 'mod' | 'schematic' | 'modpack' | 'maintenance' | 'installer'
   operation?: string
   title: string
   version?: string
@@ -167,6 +167,11 @@ export type CatalogProjectVersion = {
     primary?: boolean
     size?: number
     hashes?: Record<string, string>
+    malware?: {
+      status: 'pending' | 'passed' | 'manually_approved' | 'blocked'
+      analysis_url: string | null
+      failed: boolean
+    }
   }>
   dependencies: Array<Record<string, unknown>>
 }
@@ -184,6 +189,28 @@ export type ModUpdateCheckResult = {
   checked: number
   failed: number
   checkedAt?: number
+  errors?: string[]
+}
+
+export type SchematicUpdate = {
+  projectId: string
+  name: string
+  currentVersionId: string
+  latestVersionId: string
+  latestVersion?: string
+  modified: boolean
+}
+
+export type ModpackUpdate = {
+  projectId: string
+  name: string
+  currentVersion: string
+  currentVersionId: string
+  latestVersion: string
+  latestVersionId: string
+  changes: Array<{ kind: string; projectId: string }>
+  conflicts: string[]
+  canUpdate: boolean
 }
 
 export type UpdaterViewData = {
@@ -197,6 +224,10 @@ export type UpdaterViewData = {
   modUpdates?: ModUpdate[]
   modCheckResult?: ModUpdateCheckResult | null
   modCheckRunning?: boolean
+  schematicUpdates?: SchematicUpdate[]
+  schematicCheckResult?: ModUpdateCheckResult | null
+  modpackUpdates?: ModpackUpdate[]
+  modpackCheckResult?: ModUpdateCheckResult | null
 }
 
 export type UpdaterCommand = (

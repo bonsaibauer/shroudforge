@@ -29,6 +29,9 @@
       "react-dom/*": [
         "./node_modules/@types/react-dom/*"
       ],
+      "react-dom": [
+        "./node_modules/@types/react-dom/index.d.ts"
+      ],
       "dompurify": [
         "./node_modules/dompurify/dist/purify.es.d.mts"
       ],

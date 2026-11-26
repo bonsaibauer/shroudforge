@@ -6,7 +6,13 @@ import { PageHeader } from '../../ui-resources/show-page-header'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { SystemUpdate } from './show-system-update'
 import { UpdateQueuePanel } from './show-update-queue'
-import type { UpdaterCommand, UpdaterViewData } from './update-types'
+import type {
+  ModUpdateCheckResult,
+  ModpackUpdate,
+  SchematicUpdate,
+  UpdaterCommand,
+  UpdaterViewData,
+} from './update-types'
 import { UpdaterAvailability } from './show-updater-availability'
 import { useSystemInstallationActions } from './show-system-installation-actions'
 
@@ -25,9 +31,15 @@ export function Updates({
   const modUpdates = data.modUpdates || []
   const modCheckResult = data.modCheckResult
   const checking =
-    tab === 'mods'
+    ['all', 'mods', 'schematics', 'modpacks'].includes(tab)
       ? data.modCheckRunning === true
       : data.release.state === 'checking'
+  const checkCommand = {
+    all: 'check-all-updates',
+    mods: 'check-mod-updates',
+    schematics: 'check-schematic-updates',
+    modpacks: 'check-modpack-updates',
+  }[tab] || 'check-updates'
   const updaterAvailable = data.release.updaterAvailable === true
   const enabled = data.enabled === true
   const actionsEnabled = updaterAvailable && enabled
@@ -93,9 +105,7 @@ export function Updates({
             {installationActions.repairAction}
             <button
               className="button"
-              onClick={() =>
-                onCommand(tab === 'mods' ? 'check-mod-updates' : 'check-updates')
-              }
+              onClick={() => onCommand(checkCommand)}
               disabled={!actionsEnabled || checking}
             >
               <Icon name="refresh" />
@@ -126,6 +136,8 @@ export function Updates({
           ['all', t('common.all')],
           ['system', t('updates.system')],
           ['mods', t('updates.mods')],
+          ['schematics', t('updates.schematics')],
+          ['modpacks', t('updates.modpacks')],
           ['history', t('updates.history')],
         ]}
       />
@@ -138,15 +150,24 @@ export function Updates({
           onCommand={onCommand}
         />
       )}
-      {tab === 'mods' ? (
+      {tab === 'all' && (
+        <SystemUpdate
+          release={systemRelease}
+          queued={queuedSystem}
+          disabled={!actionsEnabled}
+          onCommand={onCommand}
+        />
+      )}
+      {tab === 'mods' || tab === 'all' ? (
         <>
-          {modUpdates.length === 0 ? (
+          {tab === 'all' && <h2>{t('updates.mods')}</h2>}
+          {modUpdates.length === 0 && !modCheckResult?.failed ? (
             <Empty
               title={t('updates.mods.empty.title')}
               text={t('updates.mods.empty.text')}
               icon="updates"
             />
-          ) : (
+          ) : modUpdates.length > 0 ? (
             <div className="settings-module-list">
               {modUpdates.map((update) => {
                 const queued = queue.items.some(
@@ -182,7 +203,7 @@ export function Updates({
                 )
               })}
             </div>
-          )}
+          ) : null}
           {modCheckResult?.checkedAt && (
             <p className="hint settings-module-hint">
               {t('updates.mods.lastChecked', {
@@ -192,7 +213,39 @@ export function Updates({
               })}
             </p>
           )}
+          {modCheckResult?.errors?.map((error, index) => (
+            <p className="notice warning" key={index}>{error}</p>
+          ))}
+          {tab === 'all' && (
+            <>
+              <ContentUpdates
+                kind="schematic"
+                updates={data.schematicUpdates || []}
+                checkResult={data.schematicCheckResult}
+                queue={queue}
+                disabled={!actionsEnabled}
+                onCommand={onCommand}
+              />
+              <ContentUpdates
+                kind="modpack"
+                updates={data.modpackUpdates || []}
+                checkResult={data.modpackCheckResult}
+                queue={queue}
+                disabled={!actionsEnabled}
+                onCommand={onCommand}
+              />
+            </>
+          )}
         </>
+      ) : tab === 'schematics' || tab === 'modpacks' ? (
+        <ContentUpdates
+          kind={tab === 'schematics' ? 'schematic' : 'modpack'}
+          updates={tab === 'schematics' ? data.schematicUpdates || [] : data.modpackUpdates || []}
+          checkResult={tab === 'schematics' ? data.schematicCheckResult : data.modpackCheckResult}
+          queue={queue}
+          disabled={!actionsEnabled}
+          onCommand={onCommand}
+        />
       ) : tab === 'history' ? (
         <Empty
           title={t('updates.history.empty.title')}
@@ -210,5 +263,97 @@ export function Updates({
         </>
       )}
     </>
+  )
+}
+
+function ContentUpdates({
+  kind,
+  updates,
+  checkResult,
+  queue,
+  disabled,
+  onCommand,
+}: {
+  kind: 'schematic' | 'modpack'
+  updates: SchematicUpdate[] | ModpackUpdate[]
+  checkResult?: ModUpdateCheckResult | null
+  queue: NonNullable<UpdaterViewData['updateQueue']>
+  disabled: boolean
+  onCommand: UpdaterCommand
+}) {
+  const { t } = useI18n()
+  return (
+    <section className="settings-module-list">
+      <h2>{t(kind === 'schematic' ? 'updates.schematics' : 'updates.modpacks')}</h2>
+      {updates.length === 0 && !checkResult?.failed && (
+        <Empty
+          title={t('updates.content.empty.title')}
+          text={t('updates.content.empty.text')}
+          icon="updates"
+        />
+      )}
+      {updates.map((update) => {
+        const queued = queue.items.some(
+          (item) =>
+            item.id === `${kind}-update:${update.projectId}` &&
+            !['complete', 'cancelled', 'error'].includes(item.state),
+        )
+        const blocked = kind === 'schematic'
+          ? (update as SchematicUpdate).modified
+          : !(update as ModpackUpdate).canUpdate
+        const reason = kind === 'schematic'
+          ? blocked ? t('updates.schematics.modified') : ''
+          : (update as ModpackUpdate).conflicts.join(' ')
+        return (
+          <section className="card" key={update.projectId}>
+            <div className="card-head">
+              <div>
+                <h3>{update.name}</h3>
+                <p>
+                  {'currentVersion' in update ? update.currentVersion : update.currentVersionId}
+                  {' → '}
+                  {update.latestVersion || update.latestVersionId}
+                </p>
+                {kind === 'modpack' && (
+                  <>
+                    <p className="hint">
+                      {t('updates.modpacks.changes', { count: (update as ModpackUpdate).changes.length })}
+                    </p>
+                    {(update as ModpackUpdate).changes.some((change) => change.kind === 'removed') && (
+                      <p className="hint">{t('updates.modpacks.removedRetained')}</p>
+                    )}
+                  </>
+                )}
+                {reason && <p className="notice warning">{reason}</p>}
+              </div>
+              <button
+                className="button"
+                disabled={disabled || queued || blocked}
+                onClick={() => onCommand(`update-${kind}`, {
+                  projectId: update.projectId,
+                  versionId: update.latestVersionId,
+                  title: update.name,
+                })}
+              >
+                {t(queued ? 'updates.queue.added' : 'updates.content.add')}
+              </button>
+            </div>
+          </section>
+        )
+      })}
+      {checkResult?.checkedAt && (
+        <p className="hint settings-module-hint">
+          {t('updates.content.lastChecked', {
+            type: t(kind === 'schematic' ? 'updates.schematics' : 'updates.modpacks'),
+            checked: checkResult.checked,
+            failed: checkResult.failed,
+            time: new Date(checkResult.checkedAt * 1000).toLocaleString(),
+          })}
+        </p>
+      )}
+      {checkResult?.errors?.map((error, index) => (
+        <p className="notice warning" key={index}>{error}</p>
+      ))}
+    </section>
   )
 }

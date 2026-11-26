@@ -54,9 +54,11 @@ export const iconPaths: Record<string, React.ReactNode> = {
   ),
   download: (
     <>
-      <path d="M12 3v12m-5-5 5 5 5-5" />
-      <path d="M5 17v3h14v-3" />
+      <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4-4 4m0 0-4-4m4 4V4" />
     </>
+  ),
+  virustotal: (
+    <path d="M10.87 12L0 22.68h24V1.32H0zm10.73 8.52H5.28l8.637-8.448L5.28 3.48H21.6z" fill="currentColor" stroke="none" />
   ),
   history: (
     <>
@@ -241,7 +243,7 @@ export function Icon({ name }: { name: string }) {
       aria-hidden
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={name === 'download' ? 2 : 1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
     >

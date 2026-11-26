@@ -24,7 +24,7 @@ pub fn request_mod_install(
     validate_version_id(version_id)?;
     enqueue_update_item(
         root,
-        serde_json::json!({"id":format!("{content_type}-install:{project_id}"),"kind":"mod","operation":"install","title":title,"version":"","state":"queued","selected":true,"payload":{"projectId":project_id,"versionId":version_id,"provider":provider,"contentType":content_type}}),
+        serde_json::json!({"id":format!("{content_type}-install:{project_id}"),"kind":content_type,"operation":"install","title":title,"version":"","state":"queued","selected":true,"payload":{"projectId":project_id,"versionId":version_id,"provider":provider,"contentType":content_type}}),
     )
     .map(|_| ())
 }
@@ -54,6 +54,71 @@ fn validate_version_id(version_id: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+pub fn request_catalog_content_update(
+    root: &std::path::Path,
+    content_type: &str,
+    project_id: &str,
+    title: &str,
+    provider: serde_json::Value,
+    version_id: &str,
+) -> Result<(), String> {
+    request_catalog_content_update_if_needed(
+        root,
+        content_type,
+        project_id,
+        title,
+        provider,
+        version_id,
+    )
+    .map(|_| ())
+}
+
+pub(crate) fn request_catalog_content_update_if_needed(
+    root: &std::path::Path,
+    content_type: &str,
+    project_id: &str,
+    title: &str,
+    provider: serde_json::Value,
+    version_id: &str,
+) -> Result<bool, String> {
+    if !crate::update_check::updates_enabled(root) {
+        return Err(crate::UPDATE_MODULE_DISABLED_MESSAGE.into());
+    }
+    if !matches!(content_type, "schematic" | "modpack") {
+        return Err("unsupported ShroudEdit content update type".into());
+    }
+    validate_version_id(Some(project_id))?;
+    validate_version_id(Some(version_id))?;
+    let section = if content_type == "schematic" {
+        "schematics"
+    } else {
+        "modpacks"
+    };
+    let config = shroudforge_loader_config::config::read_loader(root)?;
+    let update = config["modules"]["updates"][section]["latestUpdates"]
+        .as_array()
+        .and_then(|updates| {
+            updates.iter().find(|update| {
+                update["projectId"] == project_id && update["latestVersionId"] == version_id
+            })
+        })
+        .ok_or("The selected content update is no longer available. Check for updates again.")?;
+    if content_type == "schematic" && update["modified"] == true {
+        return Err("The local schematic was modified and cannot be replaced automatically".into());
+    }
+    if content_type == "modpack" && update["canUpdate"] != true {
+        return Err("The modpack update has conflicting or changed pins".into());
+    }
+    enqueue_update_item(
+        root,
+        serde_json::json!({
+            "id":format!("{content_type}-update:{project_id}"), "kind":content_type,
+            "operation":"update", "title":title, "version":"", "state":"queued", "selected":true,
+            "payload":{"projectId":project_id,"versionId":version_id,"provider":provider,"contentType":content_type}
+        }),
+    )
+}
+
 pub(crate) fn request_mod_update_if_needed(
     root: &std::path::Path,
     project_id: &str,
@@ -76,6 +141,11 @@ fn enqueue_mod_update(
 ) -> Result<bool, String> {
     if !crate::update_check::updates_enabled(root) {
         return Err(crate::UPDATE_MODULE_DISABLED_MESSAGE.into());
+    }
+    if crate::mod_installation::catalog::pack_pinned_mod_ids(root).contains(mod_id) {
+        return Err(format!(
+            "mod '{mod_id}' is pinned by an installed modpack and cannot be updated separately"
+        ));
     }
     if project_id.is_empty()
         || project_id.len() > 128

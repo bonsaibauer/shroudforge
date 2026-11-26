@@ -389,6 +389,16 @@
         "latestUpdates": [],
         "lastCheckResult": null
       },
+      "schematics": {
+        "lastCheckAt": null,
+        "latestUpdates": [],
+        "lastCheckResult": null
+      },
+      "modpacks": {
+        "lastCheckAt": null,
+        "latestUpdates": [],
+        "lastCheckResult": null
+      },
       "recycleBin": {
         "automaticCleanup": true,
         "retentionDays": 30

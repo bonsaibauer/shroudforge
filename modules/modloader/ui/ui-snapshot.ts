@@ -226,7 +226,7 @@ export const empty: Snapshot = {
   remoteServerState: 'connecting',
   mode: 'DESKTOP',
   gameVersion: '',
-  version: '1.0.0',
+  version: '',
   mods: [],
   schematics: [],
   schematicsEnabled: true,
@@ -238,7 +238,7 @@ export const empty: Snapshot = {
   readNoticeIdsServer: [],
   locale: 'en-GB',
   release: {
-    currentVersion: '1.0.0',
+    currentVersion: '',
     updaterAvailable: false,
     updateAvailable: false,
     state: 'idle',

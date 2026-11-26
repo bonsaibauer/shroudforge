@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, io::{Read, Seek}, sync::LazyLock};
+use std::{
+    collections::HashSet,
+    io::{Read, Seek},
+    sync::LazyLock,
+};
 
 pub const MAX_PACK_BYTES: u64 = 1024 * 1024;
 pub const MANIFEST_NAME: &str = "shroudforge.index.json";
@@ -32,13 +36,18 @@ pub fn parse_manifest(bytes: &[u8]) -> Result<Modpack, String> {
         return Err("modpack manifest exceeds 1 MiB".into());
     }
     static VALIDATOR: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
-        jsonschema::validator_for(&serde_json::from_str::<serde_json::Value>(SCHEMA)
-            .expect("bundled sfpack schema is JSON"))
-            .expect("bundled sfpack schema is valid")
+        jsonschema::validator_for(
+            &serde_json::from_str::<serde_json::Value>(SCHEMA)
+                .expect("bundled sfpack schema is JSON"),
+        )
+        .expect("bundled sfpack schema is valid")
     });
     let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
     if let Err(error) = VALIDATOR.validate(&value) {
-        return Err(format!("invalid sfpack manifest at {}: {error}", error.instance_path));
+        return Err(format!(
+            "invalid sfpack manifest at {}: {error}",
+            error.instance_path
+        ));
     }
     let pack: Modpack = serde_json::from_value(value).map_err(|e| e.to_string())?;
     let mut projects = HashSet::new();
@@ -55,15 +64,26 @@ pub fn read_modpack<R: Read + Seek>(input: R) -> Result<Modpack, String> {
     if zip.len() != 1 {
         return Err("sfpack must contain only shroudforge.index.json".into());
     }
-    let mut entry = zip.by_name(MANIFEST_NAME).map_err(|_| "missing shroudforge.index.json")?;
-    if entry.is_dir() || entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000)
-        || !matches!(entry.compression(), zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated)
+    let mut entry = zip
+        .by_name(MANIFEST_NAME)
+        .map_err(|_| "missing shroudforge.index.json")?;
+    if entry.is_dir()
+        || entry
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        || !matches!(
+            entry.compression(),
+            zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated
+        )
         || entry.size() > MAX_PACK_BYTES
     {
         return Err("invalid sfpack manifest entry".into());
     }
     let mut bytes = Vec::new();
-    (&mut entry).take(MAX_PACK_BYTES + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+    (&mut entry)
+        .take(MAX_PACK_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
     parse_manifest(&bytes)
 }
 
@@ -71,30 +91,66 @@ pub fn read_modpack<R: Read + Seek>(input: R) -> Result<Modpack, String> {
 /// and the installer both enforce this contract before writing any package.
 pub fn validate_versions(pack: &Modpack, versions: &[serde_json::Value]) -> Result<(), String> {
     for item in &pack.mods {
-        let version = versions.iter().find(|version| version["id"].as_str() == Some(&item.version_id))
+        let version = versions
+            .iter()
+            .find(|version| version["id"].as_str() == Some(&item.version_id))
             .ok_or_else(|| format!("modpack version `{}` is unavailable", item.version_id))?;
         if version["project_id"].as_str() != Some(&item.project_id)
-            || !matches!(version["status"].as_str(), Some("listed" | "archived" | "unlisted"))
+            || !matches!(
+                version["status"].as_str(),
+                Some("listed" | "archived" | "unlisted")
+            )
             || !contains(&version["project_types"], "mod")
-            || !(contains(&version["loaders"], "shroudforge") || contains(&version["loaders"], "eml"))
+            || !(contains(&version["loaders"], "shroudforge")
+                || contains(&version["loaders"], "eml"))
         {
-            return Err(format!("version `{}` is not a public ShroudForge/EML mod of project `{}`", item.version_id, item.project_id));
+            return Err(format!(
+                "version `{}` is not a public ShroudForge/EML mod of project `{}`",
+                item.version_id, item.project_id
+            ));
         }
-        if !pack.game_versions.iter().all(|game| contains(&version["game_versions"], game)) {
-            return Err(format!("mod `{}` does not support every game version declared by the pack", item.project_id));
-        }
-        let file = version["files"].as_array().and_then(|files| {
-            files.iter().find(|file| file["primary"].as_bool() == Some(true))
-                .or_else(|| files.first())
-        }).ok_or_else(|| format!("version `{}` has no primary package", item.version_id))?;
-        if !file["hashes"]["sha512"].as_str().is_some_and(|hash| hash.eq_ignore_ascii_case(&item.sha512)) {
-            return Err(format!("pinned ZIP checksum does not match the selected package of version `{}`", item.version_id));
-        }
-        if !file["filename"].as_str().is_some_and(|name| name.to_ascii_lowercase().ends_with(".zip"))
-            || !file["url"].as_str().is_some_and(|url| url.starts_with("https://"))
-            || !file["size"].as_u64().is_some_and(|size| size > 0 && size <= 512 * 1024 * 1024)
+        if !pack
+            .game_versions
+            .iter()
+            .all(|game| contains(&version["game_versions"], game))
         {
-            return Err(format!("version `{}` does not contain a supported mod ZIP", item.version_id));
+            return Err(format!(
+                "mod `{}` does not support every game version declared by the pack",
+                item.project_id
+            ));
+        }
+        let file = version["files"]
+            .as_array()
+            .and_then(|files| {
+                files
+                    .iter()
+                    .find(|file| file["primary"].as_bool() == Some(true))
+                    .or_else(|| files.first())
+            })
+            .ok_or_else(|| format!("version `{}` has no primary package", item.version_id))?;
+        if !file["hashes"]["sha512"]
+            .as_str()
+            .is_some_and(|hash| hash.eq_ignore_ascii_case(&item.sha512))
+        {
+            return Err(format!(
+                "pinned ZIP checksum does not match the selected package of version `{}`",
+                item.version_id
+            ));
+        }
+        if !file["filename"]
+            .as_str()
+            .is_some_and(|name| name.to_ascii_lowercase().ends_with(".zip"))
+            || !file["url"]
+                .as_str()
+                .is_some_and(|url| url.starts_with("https://"))
+            || !file["size"]
+                .as_u64()
+                .is_some_and(|size| size > 0 && size <= 512 * 1024 * 1024)
+        {
+            return Err(format!(
+                "version `{}` does not contain a supported mod ZIP",
+                item.version_id
+            ));
         }
         for dependency in version["dependencies"].as_array().into_iter().flatten() {
             let project_id = dependency["project_id"].as_str();
@@ -105,14 +161,20 @@ pub fn validate_versions(pack: &Modpack, versions: &[serde_json::Value]) -> Resu
                     && version_id.is_none_or(|id| candidate.version_id == id)
             });
             match dependency["dependency_type"].as_str() {
-                Some("required") if !matches => return Err(format!(
-                    "mod `{}` requires an unlisted or conflicting dependency `{}`", item.project_id,
-                    version_id.or(project_id).unwrap_or("unknown")
-                )),
-                Some("incompatible") if matches => return Err(format!(
-                    "mod `{}` conflicts with another pinned pack mod", item.project_id
-                )),
-                _ => {},
+                Some("required") if !matches => {
+                    return Err(format!(
+                        "mod `{}` requires an unlisted or conflicting dependency `{}`",
+                        item.project_id,
+                        version_id.or(project_id).unwrap_or("unknown")
+                    ));
+                }
+                Some("incompatible") if matches => {
+                    return Err(format!(
+                        "mod `{}` conflicts with another pinned pack mod",
+                        item.project_id
+                    ));
+                }
+                _ => {}
             }
         }
     }
@@ -120,7 +182,9 @@ pub fn validate_versions(pack: &Modpack, versions: &[serde_json::Value]) -> Resu
 }
 
 fn contains(value: &serde_json::Value, expected: &str) -> bool {
-    value.as_array().is_some_and(|values| values.iter().any(|value| value.as_str() == Some(expected)))
+    value
+        .as_array()
+        .is_some_and(|values| values.iter().any(|value| value.as_str() == Some(expected)))
 }
 
 #[cfg(test)]
@@ -135,10 +199,18 @@ mod tests {
     #[test]
     fn schema_rejects_foreign_paths_formats_and_unpinned_mods() {
         assert!(parse_manifest(&serde_json::to_vec(&example()).unwrap()).is_ok());
-        for (field, value) in [("game", json!("minecraft")), ("formatVersion", json!(2)), ("overrides", json!([])), ("mods", json!([]))] {
+        for (field, value) in [
+            ("game", json!("minecraft")),
+            ("formatVersion", json!(2)),
+            ("overrides", json!([])),
+            ("mods", json!([])),
+        ] {
             let mut data = example();
             data[field] = value;
-            assert!(parse_manifest(&serde_json::to_vec(&data).unwrap()).is_err(), "{field}");
+            assert!(
+                parse_manifest(&serde_json::to_vec(&data).unwrap()).is_err(),
+                "{field}"
+            );
         }
         let mut data = example();
         data["mods"][0]["projectId"] = json!("../escape");

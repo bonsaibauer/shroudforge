@@ -200,7 +200,7 @@ pub(crate) fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
                     item["payload"]["purgeData"].as_bool() == Some(true),
                 )
             }
-            Some("mod") => {
+            Some("mod" | "schematic" | "modpack") => {
                 let payload = &item["payload"];
                 let request = serde_json::json!({
                     "schemaVersion":1,
@@ -226,11 +226,9 @@ pub(crate) fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
                     payload["versionId"].as_str(),
                     update_mod_id,
                     id,
-                    if item["operation"] == "update" {
-                        "mod"
-                    } else {
-                        payload["contentType"].as_str().unwrap_or("mod")
-                    },
+                    payload["contentType"]
+                        .as_str()
+                        .unwrap_or_else(|| item["kind"].as_str().unwrap_or("mod")),
                 )
                 .map(|_| ())
             }

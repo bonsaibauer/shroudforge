@@ -123,6 +123,10 @@ export function Page({
             data.settings.modulePreferences?.updates?.mods?.latestUpdates,
           modCheckResult:
             data.settings.modulePreferences?.updates?.mods?.lastCheckResult,
+          schematicUpdates: data.settings.modulePreferences?.updates?.schematics?.latestUpdates,
+          schematicCheckResult: data.settings.modulePreferences?.updates?.schematics?.lastCheckResult,
+          modpackUpdates: data.settings.modulePreferences?.updates?.modpacks?.latestUpdates,
+          modpackCheckResult: data.settings.modulePreferences?.updates?.modpacks?.lastCheckResult,
         }}
         onCommand={onUpdaterCommand}
       />

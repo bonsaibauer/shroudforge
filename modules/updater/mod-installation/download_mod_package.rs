@@ -178,9 +178,8 @@ pub fn download_catalog_version(
         .map_err(|error| format!("Invalid mod.json: {error}"))?;
     shroudforge_package::validate_manifest(&manifest)
         .map_err(|error| format!("Invalid mod manifest: {error}"))?;
-    let project_slug = crate::install_catalog_mod::catalog_project_slug(
-        client, provider, &resolved.project_id,
-    )?;
+    let project_slug =
+        crate::install_catalog_mod::catalog_project_slug(client, provider, &resolved.project_id)?;
     if manifest.id != project_slug {
         return Err(format!(
             "mod.json ID '{}' differs from ShroudEdit project slug '{}'",

@@ -1082,6 +1082,57 @@
               },
               "additionalProperties": false
             },
+            "schematics": {
+              "type": "object",
+              "properties": {
+                "lastCheckAt": { "type": ["integer", "null"], "minimum": 0 },
+                "latestUpdates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "projectId": { "type": "string" },
+                      "name": { "type": "string" },
+                      "currentVersionId": { "type": "string" },
+                      "latestVersionId": { "type": "string" },
+                      "latestVersion": { "type": ["string", "null"] },
+                      "modified": { "type": "boolean" }
+                    },
+                    "required": ["projectId", "name", "currentVersionId", "latestVersionId", "modified"],
+                    "additionalProperties": false
+                  }
+                },
+                "lastCheckResult": { "$ref": "#/$defs/catalogContentCheckResult" }
+              },
+              "additionalProperties": false
+            },
+            "modpacks": {
+              "type": "object",
+              "properties": {
+                "lastCheckAt": { "type": ["integer", "null"], "minimum": 0 },
+                "latestUpdates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "projectId": { "type": "string" },
+                      "name": { "type": "string" },
+                      "currentVersion": { "type": "string" },
+                      "currentVersionId": { "type": "string" },
+                      "latestVersion": { "type": "string" },
+                      "latestVersionId": { "type": "string" },
+                      "changes": { "type": "array", "items": { "type": "object" } },
+                      "conflicts": { "type": "array", "items": { "type": "string" } },
+                      "canUpdate": { "type": "boolean" }
+                    },
+                    "required": ["projectId", "name", "currentVersion", "currentVersionId", "latestVersion", "latestVersionId", "changes", "conflicts", "canUpdate"],
+                    "additionalProperties": false
+                  }
+                },
+                "lastCheckResult": { "$ref": "#/$defs/catalogContentCheckResult" }
+              },
+              "additionalProperties": false
+            },
             "recycleBin": {
               "type": "object",
               "properties": {
@@ -1163,6 +1214,18 @@
     }
   },
   "$defs": {
+    "catalogContentCheckResult": {
+      "type": ["object", "null"],
+      "properties": {
+        "checked": { "type": "integer", "minimum": 0 },
+        "available": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "checkedAt": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["checked", "available", "failed", "checkedAt", "errors"],
+      "additionalProperties": false
+    },
     "moduleServerTargetVisibility": {
       "type": "boolean",
       "deprecated": true

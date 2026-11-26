@@ -50,6 +50,13 @@ pub struct SchematicInfo {
     pub modified_at: u64,
 }
 
+pub struct CatalogSchematic {
+    pub name: String,
+    pub project_id: String,
+    pub version_id: String,
+    pub modified: bool,
+}
+
 static VALIDATION_CACHE: LazyLock<
     Mutex<
         HashMap<
@@ -71,6 +78,8 @@ struct SchematicMetadata {
     project_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     version_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    content_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     duplicate_of: Option<String>,
 }
@@ -156,6 +165,34 @@ pub fn list(root: &Path) -> Result<Vec<SchematicInfo>, String> {
     }
     schematics.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
     Ok(schematics)
+}
+
+pub fn catalog_installations(root: &Path) -> Result<Vec<CatalogSchematic>, String> {
+    let directory = directory(root);
+    let mut entries = Vec::new();
+    for item in list(root)? {
+        if item.source != "shroudedit" {
+            continue;
+        }
+        let Some(metadata) = read_metadata(&directory, &item.name) else {
+            continue;
+        };
+        let (Some(project_id), Some(version_id)) = (metadata.project_id, metadata.version_id)
+        else {
+            continue;
+        };
+        let path = schematic_path(&directory, &item.name);
+        regular_file_metadata(&path)?;
+        let current_hash = hash_hex(file_hash(&path)?);
+        let modified = metadata.content_sha256.as_deref() != Some(current_hash.as_str());
+        entries.push(CatalogSchematic {
+            name: item.name,
+            project_id,
+            version_id,
+            modified,
+        });
+    }
+    Ok(entries)
 }
 
 pub fn read(root: &Path, name: &str) -> Result<Vec<u8>, String> {
@@ -312,6 +349,7 @@ pub fn duplicate(root: &Path, name: &str, new_name: &str) -> Result<(), String> 
         source: "local".into(),
         project_id: None,
         version_id: None,
+        content_sha256: None,
         duplicate_of: Some(name.to_owned()),
     };
     if let Err(error) = write_metadata(&directory, new_name, &metadata) {
@@ -448,8 +486,29 @@ pub fn import_catalog_data(
     }
     validate_schematic_bytes(bytes)?;
     let directory = ensure_directory(root)?;
+    let incoming_hash = hash_hex(Sha256::digest(bytes).into());
     if let Some(existing) = find_catalog_schematic(&directory, project_id)? {
         let destination = schematic_path(&directory, &existing);
+        regular_file_metadata(&destination)?;
+        let current_hash = hash_hex(file_hash(&destination)?);
+        let previous =
+            read_metadata(&directory, &existing).ok_or("Catalog schematic metadata is missing")?;
+        if previous.version_id.as_deref() == Some(version_id) && current_hash == incoming_hash {
+            if previous.content_sha256.is_none() {
+                write_metadata(
+                    &directory,
+                    &existing,
+                    &SchematicMetadata {
+                        content_sha256: Some(current_hash),
+                        ..previous
+                    },
+                )?;
+            }
+            return Ok(existing);
+        }
+        if previous.content_sha256.as_deref() != Some(current_hash.as_str()) {
+            return Err("Catalog schematic was edited locally or has no verified original checksum. Its file was not replaced".into());
+        }
         let schematic_backup = destination.with_file_name(format!(
             ".schematic-{}-{}.bak",
             std::process::id(),
@@ -481,6 +540,7 @@ pub fn import_catalog_data(
             source: "shroudedit".into(),
             project_id: Some(project_id.to_owned()),
             version_id: Some(version_id.to_owned()),
+            content_sha256: Some(incoming_hash.clone()),
             duplicate_of: None,
         };
         let result = write_replace_file(&destination, bytes)
@@ -531,6 +591,7 @@ pub fn import_catalog_data(
         source: "shroudedit".into(),
         project_id: Some(project_id.to_owned()),
         version_id: Some(version_id.to_owned()),
+        content_sha256: Some(incoming_hash),
         duplicate_of: None,
     };
     if let Err(error) = write_metadata(&directory, &name, &metadata) {
@@ -1125,6 +1186,10 @@ fn file_hash(path: &Path) -> Result<[u8; 32], String> {
         hash.update(&buffer[..read]);
     }
     Ok(hash.finalize().into())
+}
+
+fn hash_hex(hash: [u8; 32]) -> String {
+    hash.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn migrated_name(legacy: &Path, destination: &Path, old_name: &str) -> Result<String, String> {

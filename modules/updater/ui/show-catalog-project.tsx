@@ -149,8 +149,11 @@ export function CatalogProjectPage({
   const channels = [...new Set(versions.map(versionChannel))]
   const platforms = [...new Set(versions.flatMap((version) => version.loaders))]
   const projectIsServer = projectType === 'server' || project?.projectTypes.includes('server')
+  const projectLinks = project ? safeLinks(project) : []
+  const hasSidebar = projectLinks.length > 0 || !projectIsServer || Boolean(project?.dependencies.length)
   const canInstall = projectType === 'mod' || projectType === 'schematic' || projectType === 'modpack'
-  const latestVersionId = versions[0]?.id
+  const latestVersion = versions[0]
+  const latestVersionId = latestVersion?.id
 
   useEffect(() => {
     if (viewerIndex === null) return
@@ -178,14 +181,39 @@ export function CatalogProjectPage({
     const safe = safeUrl(url)
     if (safe) onOpenLink(safe)
   }
+  const virusTotalLabel = (file: CatalogProjectVersion['files'][number]) => {
+    if (!file.malware) return t('discover.virus.lookup')
+    if (file.malware.failed) return t('discover.virus.failed')
+    if (file.malware.status === 'passed') return t('discover.virus.passed')
+    if (file.malware.status === 'manually_approved') return t('discover.virus.approved')
+    if (file.malware.status === 'blocked') return t('discover.virus.blocked')
+    return t('discover.virus.pending')
+  }
+  const renderVirusTotalButton = (file: CatalogProjectVersion['files'][number]) => {
+    const hash = file.hashes?.sha256 || file.hashes?.sha1
+    const url = safeUrl(file.malware?.analysis_url || undefined)
+      || (hash && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(hash)
+        ? `https://www.virustotal.com/gui/file/${hash}`
+        : undefined)
+    if (!url && !file.malware) return null
+    const label = virusTotalLabel(file)
+    return <button
+      type="button"
+      className={`discover-virustotal ${file.malware?.failed ? 'failed' : file.malware?.status || 'unknown'}`}
+      onClick={() => openLink(url)}
+      disabled={!url}
+      title={label}
+      aria-label={label}
+    ><Icon name="virustotal" /><span>VirusTotal</span></button>
+  }
   const renderInstallButton = (version?: string) => canInstall && (
     <button className="button discover-project-install" type="button" disabled={!enabled || !(version || latestVersionId)} onClick={() => onInstall(version || latestVersionId)}>
-      <span aria-hidden="true">↓</span>
+      <Icon name="download" />
       {projectType === 'schematic'
-        ? 'Import'
+        ? t('schematics.import')
         : projectType === 'modpack'
-          ? 'Install pack'
-          : installed ? t('discover.detail.updateVersion') : t('common.install')}
+          ? t('discover.detail.installPack')
+          : installed ? t('discover.status.updateButton') : t('common.install')}
     </button>
   )
 
@@ -196,18 +224,18 @@ export function CatalogProjectPage({
       ) : error ? (
         <div className="discover-project-error">
           <p className="notice error" role="alert">{error || t('discover.detail.failed')}</p>
-          <button className="button ghost" type="button" onClick={onClose}>{t('common.close')}</button>
+          <button className="button ghost" type="button" onClick={onClose}>{t('discover.detail.backToResults')}</button>
         </div>
       ) : project ? (
         <>
           <header className="discover-project-header">
-            {project.iconUrl ? <img className="discover-project-icon" src={project.iconUrl} alt="" /> : <span className="discover-project-icon catalog-icon-fallback">SF</span>}
+            {project.iconUrl ? <img className="discover-project-icon" src={project.iconUrl} alt="" /> : <span className="discover-project-icon catalog-icon-fallback">{project.name.slice(0, 2).toUpperCase()}</span>}
             <div className="discover-project-heading">
               <h2>{project.name}</h2>
               <p>{project.summary}</p>
               <div className="discover-project-stats">
-                {typeof project.downloads === 'number' && <span><Icon name="download" /> {formatNumber(project.downloads, locale)} downloads</span>}
-                {typeof project.follows === 'number' && <span><Icon name="heart" /> {formatNumber(project.follows, locale)} followers</span>}
+                {typeof project.downloads === 'number' && <span><Icon name="download" /> {t(project.downloads === 1 ? 'discover.detail.download' : 'discover.detail.downloads', { count: formatNumber(project.downloads, locale) || '0' })}</span>}
+                {typeof project.follows === 'number' && <span><Icon name="heart" /> {t(project.follows === 1 ? 'discover.detail.follower' : 'discover.detail.followers', { count: formatNumber(project.follows, locale) || '0' })}</span>}
                 {project.author && <span>{project.author}</span>}
               </div>
               <div className="discover-badges">
@@ -217,20 +245,19 @@ export function CatalogProjectPage({
               </div>
             </div>
             <div className="discover-project-actions">
-              {renderInstallButton(selectedVersion?.id)}
-              <button className="button ghost" type="button" onClick={onClose}>{t('common.close')}</button>
+              <button className="button ghost" type="button" onClick={onClose}>{t('discover.detail.backToResults')}</button>
             </div>
           </header>
 
           {projectIsServer && project.enshroudedServer && (
-            <section className="discover-project-data" aria-label="Server details">
+            <section className="discover-project-data" aria-label={t('discover.detail.serverDetails')}>
               {serverFields(project.enshroudedServer).map(([key, value]) => (
                 <div key={key}><span>{key.replaceAll('_', ' ')}</span><strong>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</strong></div>
               ))}
             </section>
           )}
           {(projectType === 'schematic' || project.projectTypes.includes('schematic')) && project.schematic && (
-            <section className="discover-project-data" aria-label="Schematic details">
+            <section className="discover-project-data" aria-label={t('discover.detail.schematicDetails')}>
               {serverFields(project.schematic).map(([key, value]) => (
                 <div key={key}><span>{key.replaceAll('_', ' ')}</span><strong>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</strong></div>
               ))}
@@ -240,14 +267,14 @@ export function CatalogProjectPage({
           <nav className="discover-project-tabs" role="tablist" aria-label={project.name}>
             {([
               ['description', t('discover.detail.description')],
-              ['versions', t('mod.versions')],
-              ['gallery', 'Gallery'],
+              ['versions', t('discover.detail.versions')],
+              ['gallery', t('discover.detail.gallery')],
             ] as const).filter(([value]) => value !== 'gallery' || visibleGallery.length > 0).map(([value, label]) => (
               <button
-                className={`discover-project-tab${tab === value && !(value === 'versions' && versionId) ? ' active' : ''}`}
+                className={`discover-project-tab${tab === value ? ' active' : ''}`}
                 type="button"
                 role="tab"
-                aria-selected={tab === value && !(value === 'versions' && versionId)}
+                aria-selected={tab === value}
                 key={value}
                 onClick={() => onTab(value)}
               >
@@ -257,17 +284,16 @@ export function CatalogProjectPage({
           </nav>
 
           {tab === 'description' && (
-            <div className="discover-project-content">
-              <div className="discover-project-description">
-                <h3>{t('discover.detail.description')}</h3>
+            <div className={`discover-project-content${hasSidebar ? '' : ' no-sidebar'}`}>
+              <section className="discover-project-description" aria-label={t('discover.detail.description')}>
                 <CatalogMarkdown value={project.description || project.summary || ''} />
-              </div>
-              <aside className="discover-project-sidebar">
-                {safeLinks(project).length > 0 && (
+              </section>
+              {hasSidebar && <aside className="discover-project-sidebar">
+                {projectLinks.length > 0 && (
                   <section>
-                    <h3>Links</h3>
+                    <h3>{t('discover.detail.links')}</h3>
                     <div className="discover-project-links">
-                      {safeLinks(project).map(([name, url]) => (
+                      {projectLinks.map(([name, url]) => (
                         <button type="button" key={name} onClick={() => openLink(url)}>{name.replaceAll('_', ' ')}</button>
                       ))}
                     </div>
@@ -276,12 +302,15 @@ export function CatalogProjectPage({
                 {!projectIsServer && (
                   <section>
                     <h3>{t('discover.detail.installVersion')}</h3>
-                    <div className="discover-project-tags">
-                      {project.gameVersions.map((value) => <span className="discover-badge" key={value}>{value}</span>)}
-                      {project.loaders.map((value) => <span className="discover-badge loader" key={value}>{value}</span>)}
-                    </div>
-                    {renderInstallButton(latestVersionId)}
-                    {project.dateCreated && <p className="discover-project-date">Published {formatDate(project.dateCreated, locale)}</p>}
+                    {latestVersion ? <>
+                      <strong className="discover-latest-version">{latestVersion.versionNumber || latestVersion.name}</strong>
+                      <div className="discover-project-tags">
+                        {latestVersion.gameVersions.map((value) => <span className="discover-badge" key={value}>{value}</span>)}
+                        {latestVersion.loaders.map((value) => <span className="discover-badge loader" key={value}>{value}</span>)}
+                      </div>
+                      {renderInstallButton(latestVersionId)}
+                      {latestVersion.published && <p className="discover-project-date">{t('discover.detail.published')} {formatDate(latestVersion.published, locale)}</p>}
+                    </> : <p className="muted">{t('discover.detail.noVersions')}</p>}
                   </section>
                 )}
                 {project.dependencies.length > 0 && (
@@ -297,7 +326,7 @@ export function CatalogProjectPage({
                     </ul>
                   </section>
                 )}
-              </aside>
+              </aside>}
             </div>
           )}
 
@@ -305,7 +334,7 @@ export function CatalogProjectPage({
             <section className="discover-versions-page">
               <div className="discover-version-filters">
                 <label className="discover-toolbar-control">
-                  <span>Channel</span>
+                  <span>{t('discover.detail.channel')}</span>
                   <select value={channel} onChange={(event) => onVersionFilter(event.target.value, gameVersion)}>
                     <option value="all">{t('common.all')}</option>
                     {channels.map((value) => <option key={value} value={value}>{value}</option>)}
@@ -320,7 +349,7 @@ export function CatalogProjectPage({
                 </label>
                 {platforms.length > 0 && (
                   <details className="discover-platform-filter">
-                    <summary>Platform{selectedPlatforms.length ? `: ${selectedPlatforms.length}` : ''}</summary>
+                    <summary>{t('discover.detail.platform')}{selectedPlatforms.length ? `: ${selectedPlatforms.length}` : ''}</summary>
                     <div>
                       {platforms.map((platform) => (
                         <label key={platform}>
@@ -340,11 +369,11 @@ export function CatalogProjectPage({
                   <button className="discover-clear-filters" type="button" onClick={() => {
                     setSelectedPlatforms([])
                     onVersionFilter('all', '')
-                  }}>Clear</button>
+                  }}>{t('discover.detail.clearFilters')}</button>
                 )}
-                <span className="discover-result-count">{filteredVersions.length} versions</span>
+                <span className="discover-result-count">{t(filteredVersions.length === 1 ? 'discover.detail.versionCount' : 'discover.detail.versionsCount', { count: filteredVersions.length })}</span>
                 <div className="discover-version-pagination">
-                  <button className="discover-page-next" type="button" aria-label="Previous page" disabled={boundedPage <= 1} onClick={() => onVersionPage(boundedPage - 1)}><Icon name="chevron" /></button>
+                  <button className="discover-page-next" type="button" aria-label={t('wiki.previousPage')} disabled={boundedPage <= 1} onClick={() => onVersionPage(boundedPage - 1)}><Icon name="chevron" /></button>
                   <div className="discover-page-numbers">
                     {versionPageItems(boundedPage, pageCount).map((value, index) => value === 'ellipsis'
                       ? <span className="discover-page-ellipsis" key={`version-ellipsis-${index}`} aria-hidden="true">…</span>
@@ -357,26 +386,22 @@ export function CatalogProjectPage({
                           onClick={() => onVersionPage(value)}
                         >{value}</button>)}
                   </div>
-                  <button className="discover-page-next" type="button" aria-label="Next page" disabled={boundedPage >= pageCount} onClick={() => onVersionPage(boundedPage + 1)}><Icon name="chevron" /></button>
+                  <button className="discover-page-next" type="button" aria-label={t('wiki.nextPage')} disabled={boundedPage >= pageCount} onClick={() => onVersionPage(boundedPage + 1)}><Icon name="chevron" /></button>
                 </div>
               </div>
               <div className="discover-versions-table-wrap">
                 <table className="discover-versions-table">
-                  <thead><tr><th>Version</th><th>Game version</th><th>Platform</th><th>Published</th><th>Downloads</th><th /></tr></thead>
+                  <thead><tr><th>{t('discover.detail.version')}</th><th>{t('discover.filter.gameVersion')}</th><th>{t('discover.detail.platform')}</th><th>{t('discover.detail.published')}</th><th>{t('discover.sort.downloads')}</th><th /></tr></thead>
                   <tbody>
                     {visibleVersions.map((version) => {
                       const file = version.files.find((item) => item.primary) || version.files[0]
-                      const hash = file?.hashes?.sha256 || file?.hashes?.sha1
-                      const virusTotalUrl = hash && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(hash)
-                        ? `https://www.virustotal.com/gui/file/${hash}`
-                        : undefined
                       return (
                       <tr key={version.id} onClick={(event) => {
                         if (!(event.target as HTMLElement).closest('button, a, input, select')) onVersion(version.id)
                       }}>
                         <td>
                           <button className="discover-version-row-link" type="button" onClick={() => onVersion(version.id)}>
-                            <span className={`discover-channel-mark ${versionChannel(version)}`}>{versionChannel(version).slice(0, 1).toUpperCase()}</span>
+                            <span className={`discover-channel-mark ${versionChannel(version)}`}>{versionChannel(version)}</span>
                             <span><strong>{version.versionNumber || version.name || version.id}</strong><small>{version.name && version.name !== version.versionNumber ? version.name : ''}</small></span>
                           </button>
                         </td>
@@ -385,8 +410,8 @@ export function CatalogProjectPage({
                         <td>{formatRelativeDate(version.published, locale) || formatDate(version.published, locale) || '—'}</td>
                         <td>{formatNumber(version.downloads, locale) || '—'}</td>
                         <td className="discover-version-actions">
-                          {virusTotalUrl && <button type="button" className="discover-virustotal" onClick={() => openLink(virusTotalUrl)} title="VirusTotal">VirusTotal ↗</button>}
-                          {canInstall && <button className="discover-version-install" type="button" disabled={!enabled} aria-label={t('common.install')} onClick={() => onInstall(version.id)}>↓</button>}
+                          {file && renderVirusTotalButton(file)}
+                          {canInstall && <button className="discover-version-install" type="button" disabled={!enabled} aria-label={t('common.install')} title={t('common.install')} onClick={() => onInstall(version.id)}><Icon name="download" /></button>}
                         </td>
                       </tr>
                     )})}
@@ -399,7 +424,7 @@ export function CatalogProjectPage({
 
           {tab === 'versions' && versionId && (
             <section className="discover-version-detail">
-              <button className="discover-back-to-versions" type="button" onClick={onVersionList}>← {t('mod.versions')}</button>
+              <button className="discover-back-to-versions" type="button" onClick={onVersionList}>← {t('discover.detail.versions')}</button>
               {selectedVersion ? (
                 <>
                   <div className="discover-version-detail-heading">
@@ -415,20 +440,23 @@ export function CatalogProjectPage({
                     {selectedVersion.gameVersions.map((value) => <span className="discover-badge" key={value}>{value}</span>)}
                     {selectedVersion.loaders.map((value) => <span className="discover-badge loader" key={value}>{value}</span>)}
                     <span>{formatDate(selectedVersion.published, locale)}</span>
-                    {typeof selectedVersion.downloads === 'number' && <span>{formatNumber(selectedVersion.downloads, locale)} downloads</span>}
+                    {typeof selectedVersion.downloads === 'number' && <span>{t(selectedVersion.downloads === 1 ? 'discover.detail.download' : 'discover.detail.downloads', { count: formatNumber(selectedVersion.downloads, locale) || '0' })}</span>}
                   </div>
                   <div className="discover-detail-columns">
-                    <section><h3>Changelog</h3><CatalogMarkdown value={selectedVersion.changelog || t('discover.detail.noChangelog')} /></section>
+                    <section><h3>{t('discover.detail.changelog')}</h3><CatalogMarkdown value={selectedVersion.changelog || t('discover.detail.noChangelog')} /></section>
                     <section>
-                      <h3>Files</h3>
+                      <h3>{t('discover.detail.files')}</h3>
                       <div className="discover-version-files">
                         {selectedVersion.files.map((file, index) => (
                           <div key={file.id || file.filename || index}>
-                            <div><strong>{file.filename || file.id || 'Project file'}</strong><small>{typeof file.size === 'number' ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}</small></div>
-                            {file.url && <button type="button" onClick={() => openLink(file.url)}>Download ↗</button>}
+                            <div><strong>{file.filename || file.id || t('discover.detail.projectFile')}</strong><small>{typeof file.size === 'number' ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}</small></div>
+                            <span className="discover-file-actions">
+                              {renderVirusTotalButton(file)}
+                              {file.url && <button type="button" onClick={() => openLink(file.url)}><Icon name="download" /> {t('discover.detail.downloadFile')}</button>}
+                            </span>
                           </div>
                         ))}
-                        {!selectedVersion.files.length && <p className="muted">No files listed for this version.</p>}
+                        {!selectedVersion.files.length && <p className="muted">{t('discover.detail.noFiles')}</p>}
                       </div>
                     </section>
                   </div>
@@ -437,7 +465,7 @@ export function CatalogProjectPage({
                       <h3>{t('mod.dependencies.title')}</h3>
                       {selectedVersion.dependencies.map((dependency, index) => {
                         const id = String(dependency.project_id || dependency.projectId || '')
-                        return <button type="button" key={String(dependency.version_id || id || index)} onClick={() => id && onOpenProject(id)}>{id || String(dependency.dependency_type || 'Dependency')}</button>
+                        return <button type="button" key={String(dependency.version_id || id || index)} onClick={() => id && onOpenProject(id)}>{id || String(dependency.dependency_type || t('discover.detail.dependency'))}</button>
                       })}
                     </section>
                   )}
@@ -466,23 +494,23 @@ export function CatalogProjectPage({
       ) : null}
 
       {project && viewerIndex !== null && visibleGallery[viewerIndex] && (
-        <div className="discover-image-viewer" role="dialog" aria-modal="true" aria-label="Project gallery" onMouseDown={(event) => { if (event.target === event.currentTarget) setViewerIndex(null) }}>
+        <div className="discover-image-viewer" role="dialog" aria-modal="true" aria-label={t('discover.detail.gallery')} onMouseDown={(event) => { if (event.target === event.currentTarget) setViewerIndex(null) }}>
           <header>
             <div><strong>{visibleGallery[viewerIndex].title || project.name}</strong><span>{viewerIndex + 1} / {visibleGallery.length}</span></div>
             <div className="discover-image-viewer-actions">
-              <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))}>−</button>
+              <button type="button" aria-label={t('common.zoomOut')} onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))}>−</button>
               <span>{Math.round(zoom * 100)}%</span>
-              <button type="button" aria-label="Zoom in" onClick={() => setZoom((value) => Math.min(3, value + 0.25))}>+</button>
-              <button type="button" aria-label="Open image in browser" onClick={() => openLink(galleryUrl(visibleGallery[viewerIndex], true))}>↗</button>
-              <button type="button" aria-label="Close gallery" onClick={() => setViewerIndex(null)}>×</button>
+              <button type="button" aria-label={t('common.zoomIn')} onClick={() => setZoom((value) => Math.min(3, value + 0.25))}>+</button>
+              <button type="button" aria-label={t('discover.detail.openImage')} onClick={() => openLink(galleryUrl(visibleGallery[viewerIndex], true))}>↗</button>
+              <button type="button" aria-label={t('discover.detail.closeGallery')} onClick={() => setViewerIndex(null)}>×</button>
             </div>
           </header>
-          <button className="discover-viewer-previous" type="button" aria-label="Previous image" onClick={() => setViewerIndex((index) => index === null ? null : (index + visibleGallery.length - 1) % visibleGallery.length)}>‹</button>
+          <button className="discover-viewer-previous" type="button" aria-label={t('wiki.previousPage')} onClick={() => setViewerIndex((index) => index === null ? null : (index + visibleGallery.length - 1) % visibleGallery.length)}>‹</button>
           <figure>
             <img src={galleryUrl(visibleGallery[viewerIndex], true) || galleryUrl(visibleGallery[viewerIndex])} alt={visibleGallery[viewerIndex].title || project.name} style={{ transform: `scale(${zoom})` }} />
             {visibleGallery[viewerIndex].description && <figcaption>{visibleGallery[viewerIndex].description}</figcaption>}
           </figure>
-          <button className="discover-viewer-next" type="button" aria-label="Next image" onClick={() => setViewerIndex((index) => index === null ? null : (index + 1) % visibleGallery.length)}>›</button>
+          <button className="discover-viewer-next" type="button" aria-label={t('wiki.nextPage')} onClick={() => setViewerIndex((index) => index === null ? null : (index + 1) % visibleGallery.length)}>›</button>
         </div>
       )}
     </section>

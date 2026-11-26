@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import DOMPurify from 'dompurify'
 import MarkdownIt from 'markdown-it'
 
-const markdown = new MarkdownIt({ html: true, linkify: true, breaks: true })
+const markdown = new MarkdownIt({ html: true, linkify: true, breaks: false })
 const renderLinkOpen = markdown.renderer.rules.link_open
 markdown.renderer.rules.link_open = (tokens, index, options, environment, self) => {
   tokens[index].attrSet('target', '_blank')

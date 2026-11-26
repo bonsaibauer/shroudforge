@@ -166,10 +166,7 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
         ),
         "fetch-server-rights" => Command::FetchServerRights(value.request_id.unwrap_or_default()),
         "save-server-rights" => match value.values {
-            Some(values) => Command::SaveServerRights(
-                values,
-                value.request_id.unwrap_or_default(),
-            ),
+            Some(values) => Command::SaveServerRights(values, value.request_id.unwrap_or_default()),
             None => return None,
         },
         "refresh-mod" => match value.mod_id {
@@ -274,12 +271,7 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
             (Some(action), Some(id))
                 if matches!(
                     action.as_str(),
-                    "import"
-                        | "rename"
-                        | "duplicate"
-                        | "delete"
-                        | "set-cover"
-                        | "undo-cover"
+                    "import" | "rename" | "duplicate" | "delete" | "set-cover" | "undo-cover"
                 ) && shroudforge_schematics::schematic_library::valid_name(&id)
                     && value.value.to_string().len() <= 96 * 1024 * 1024 =>
             {
@@ -320,10 +312,21 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
             "check-system-update",
             "Updates".into(),
         ),
+        "check-all-updates" => ("check-all-updates", "check-all-updates", "Updates".into()),
         "check-mod-updates" => (
             "check-mod-updates",
             "check-mod-updates",
             "ShroudEdit mods".into(),
+        ),
+        "check-schematic-updates" => (
+            "check-schematic-updates",
+            "check-schematic-updates",
+            "ShroudEdit schematics".into(),
+        ),
+        "check-modpack-updates" => (
+            "check-modpack-updates",
+            "check-modpack-updates",
+            "ShroudEdit modpacks".into(),
         ),
         "stage-update" => (
             "stage-system-update",
@@ -376,6 +379,11 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
         ),
         "install-mod" => ("install-mod", "install-mod", value.project_id.clone()?),
         "update-mod" => ("update-mod", "update-mod", value.mod_id.clone()?),
+        "update-schematic" | "update-modpack" => (
+            value.command.as_str(),
+            value.command.as_str(),
+            value.project_id.clone()?,
+        ),
         "remove-mod" => ("remove-mod", "recycle-mod", value.mod_id.clone()?),
         "updater-request" => {
             let action = value.action.as_deref()?;
@@ -390,8 +398,7 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
             ) || (matches!(
                 action,
                 "recycle-bin-restore" | "recycle-bin-delete" | "convert-schematic"
-            )
-                && value.id.is_none())
+            ) && value.id.is_none())
             {
                 return None;
             }
@@ -402,7 +409,11 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
     let mut request = serde_json::to_value(value).ok()?;
     request["command"] = command.into();
     match value.command.as_str() {
-        "check-updates" | "check-mod-updates" => request["manual"] = true.into(),
+        "check-updates"
+        | "check-all-updates"
+        | "check-mod-updates"
+        | "check-schematic-updates"
+        | "check-modpack-updates" => request["manual"] = true.into(),
         "stage-update" => request["waitForGame"] = value.wait_for_game.unwrap_or(!desktop).into(),
         "start-update-queue" => {
             request["waitForGame"] = value.wait_for_game.unwrap_or(!desktop).into();

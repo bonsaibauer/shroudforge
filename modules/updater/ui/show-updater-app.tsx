@@ -8,6 +8,8 @@ import type {
   BackupManagement,
   ModUpdate,
   ModUpdateCheckResult,
+  SchematicUpdate,
+  ModpackUpdate,
   Release,
   UpdateQueue,
   UpdaterViewData,
@@ -24,6 +26,10 @@ type UpdaterSnapshot = {
   modUpdates?: ModUpdate[]
   modCheckResult?: ModUpdateCheckResult | null
   modCheckRunning?: boolean
+  schematicUpdates?: SchematicUpdate[]
+  schematicCheckResult?: ModUpdateCheckResult | null
+  modpackUpdates?: ModpackUpdate[]
+  modpackCheckResult?: ModUpdateCheckResult | null
   locale?: string
   updatesEnabled?: boolean
 }
@@ -79,6 +85,10 @@ export function UpdaterApp() {
     modUpdates: snapshot.modUpdates,
     modCheckResult: snapshot.modCheckResult,
     modCheckRunning: snapshot.modCheckRunning,
+    schematicUpdates: snapshot.schematicUpdates,
+    schematicCheckResult: snapshot.schematicCheckResult,
+    modpackUpdates: snapshot.modpackUpdates,
+    modpackCheckResult: snapshot.modpackCheckResult,
   }
   const command = (name: string, payload?: Record<string, unknown>) => {
     setMessage('')

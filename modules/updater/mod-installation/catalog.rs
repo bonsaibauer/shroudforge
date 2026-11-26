@@ -5,7 +5,7 @@ use crate::{
     provider_config::CatalogProviderConfig,
 };
 use semver::Version;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -19,7 +19,14 @@ pub fn resolve_catalog_project(
     project_id: &str,
     existing_project_ids: &[String],
 ) -> Result<ResolveContentPlan, String> {
-    resolve_catalog_version(root, client, provider, project_id, existing_project_ids, None)
+    resolve_catalog_version(
+        root,
+        client,
+        provider,
+        project_id,
+        existing_project_ids,
+        None,
+    )
 }
 
 pub fn resolve_catalog_version(
@@ -94,6 +101,42 @@ struct InstalledCatalogProject {
     version_id: String,
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledPackMember {
+    pub project_id: String,
+    pub version_id: String,
+    pub mod_id: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledCatalogPack {
+    pub version_id: String,
+    pub version_number: String,
+    pub mods: Vec<InstalledPackMember>,
+}
+
+pub fn installed_catalog_packs(root: &Path) -> Vec<(String, InstalledCatalogPack)> {
+    read_catalog_install_registry(root)["packs"]
+        .as_object()
+        .into_iter()
+        .flat_map(|packs| packs.iter())
+        .filter_map(|(id, value)| {
+            serde_json::from_value(value.clone())
+                .ok()
+                .map(|pack| (id.clone(), pack))
+        })
+        .collect()
+}
+
+pub fn pack_pinned_mod_ids(root: &Path) -> std::collections::HashSet<String> {
+    installed_catalog_packs(root)
+        .into_iter()
+        .flat_map(|(_, pack)| pack.mods.into_iter().map(|item| item.mod_id))
+        .collect()
+}
+
 struct InstalledModPackage {
     id: String,
     name: String,
@@ -163,26 +206,36 @@ fn lookup_catalog_mod_by_manifest_id(
     let loaders =
         serde_json::to_string(&["shroudforge", "eml"]).map_err(|error| error.to_string())?;
     let versions = fetch_catalog_mod_versions(client, base, &project_id, &loaders)?;
-    let installed_version_id = versions.iter()
+    let installed_version_id = versions
+        .iter()
         .find(|version| version["version_number"].as_str() == Some(installed_version))
         .and_then(|version| version["id"].as_str())
         .map(str::to_owned);
-    let latest = versions.iter().find(|version| {
-        let candidate_channel = version["version_type"].as_str().unwrap_or("release");
-        let allowed = match release_channel {
-            Some(shroudforge_package::ModReleaseChannel::Alpha) => matches!(candidate_channel, "alpha" | "beta" | "release"),
-            Some(shroudforge_package::ModReleaseChannel::Beta) => matches!(candidate_channel, "beta" | "release"),
-            _ => candidate_channel == "release",
-        };
-        allowed &&
-        game_version.is_none_or(|game| {
-            version["game_versions"].as_array().is_some_and(|games| {
-                games.iter().any(|value| value.as_str() == Some(game))
-            })
+    let latest = versions
+        .iter()
+        .find(|version| {
+            let candidate_channel = version["version_type"].as_str().unwrap_or("release");
+            let allowed = match release_channel {
+                Some(shroudforge_package::ModReleaseChannel::Alpha) => {
+                    matches!(candidate_channel, "alpha" | "beta" | "release")
+                }
+                Some(shroudforge_package::ModReleaseChannel::Beta) => {
+                    matches!(candidate_channel, "beta" | "release")
+                }
+                _ => candidate_channel == "release",
+            };
+            allowed
+                && game_version.is_none_or(|game| {
+                    version["game_versions"]
+                        .as_array()
+                        .is_some_and(|games| games.iter().any(|value| value.as_str() == Some(game)))
+                })
         })
-    }).or_else(|| versions.iter().find(|version| {
-        version["version_number"].as_str() == Some(installed_version)
-    }));
+        .or_else(|| {
+            versions
+                .iter()
+                .find(|version| version["version_number"].as_str() == Some(installed_version))
+        });
     Ok(latest.and_then(|version| {
         Some(CatalogModVersion {
             id: string_field(version, &["id"]),
@@ -193,7 +246,7 @@ fn lookup_catalog_mod_by_manifest_id(
     }))
 }
 
-fn fetch_catalog_mod_versions(
+pub(crate) fn fetch_catalog_mod_versions(
     client: &reqwest::blocking::Client,
     base: &str,
     project_id: &str,
@@ -201,17 +254,30 @@ fn fetch_catalog_mod_versions(
 ) -> Result<Vec<serde_json::Value>, String> {
     let mut versions = Vec::new();
     for offset in (0..10_000).step_by(100) {
-        let response = client.get(format!("{base}/v3/project/{project_id}/version"))
-            .query(&[("loaders", loaders), ("limit", "100"), ("offset", &offset.to_string()), ("include_changelog", "false")])
-            .send().map_err(|error| format!("Could not read ShroudEdit versions: {error}"))?;
+        let response = client
+            .get(format!("{base}/v3/project/{project_id}/version"))
+            .query(&[
+                ("loaders", loaders),
+                ("limit", "100"),
+                ("offset", &offset.to_string()),
+                ("include_changelog", "false"),
+            ])
+            .send()
+            .map_err(|error| format!("Could not read ShroudEdit versions: {error}"))?;
         if !response.status().is_success() {
-            return Err(format!("ShroudEdit version lookup returned HTTP {}", response.status()));
+            return Err(format!(
+                "ShroudEdit version lookup returned HTTP {}",
+                response.status()
+            ));
         }
-        let page = response.json::<Vec<serde_json::Value>>()
+        let page = response
+            .json::<Vec<serde_json::Value>>()
             .map_err(|error| format!("Invalid ShroudEdit versions response: {error}"))?;
         let count = page.len();
         versions.extend(page);
-        if count < 100 { return Ok(versions); }
+        if count < 100 {
+            return Ok(versions);
+        }
     }
     Err("ShroudEdit project has more than 10,000 versions".into())
 }
@@ -233,18 +299,22 @@ fn newer_catalog_version_for_registered_mod(
     game_version: Option<&str>,
 ) -> Result<Option<CatalogModVersion>, String> {
     let base = provider.base_url.trim_end_matches('/');
-    let loaders = serde_json::to_string(&["shroudforge", "eml"])
-        .map_err(|error| error.to_string())?;
+    let loaders =
+        serde_json::to_string(&["shroudforge", "eml"]).map_err(|error| error.to_string())?;
     let mut versions = fetch_catalog_mod_versions(client, base, project_id, &loaders)?;
     versions.sort_by(|left, right| {
-        right["date_published"].as_str().unwrap_or_default()
+        right["date_published"]
+            .as_str()
+            .unwrap_or_default()
             .cmp(left["date_published"].as_str().unwrap_or_default())
     });
     let position = versions.iter().position(|version| version["id"].as_str() == Some(installed_version_id))
         .ok_or_else(|| format!("Installed ShroudEdit version {installed_version_id} is no longer listed. Select an update manually."))?;
     let current = &versions[position];
     if current["version_number"].as_str() != Some(installed_version) {
-        return Err(format!("Installed mod version differs from ShroudEdit version {installed_version_id}. Select an update manually."));
+        return Err(format!(
+            "Installed mod version differs from ShroudEdit version {installed_version_id}. Select an update manually."
+        ));
     }
     let channel = current["version_type"].as_str().unwrap_or("release");
     let installed_semver = Version::parse(installed_version).ok();
@@ -255,14 +325,20 @@ fn newer_catalog_version_for_registered_mod(
             "beta" => matches!(candidate_channel, "beta" | "release"),
             _ => candidate_channel == "release",
         };
-        if !allowed || game_version.is_some_and(|game| {
-            !version["game_versions"].as_array().is_some_and(|games| games.iter().any(|value| value.as_str() == Some(game)))
-        }) {
+        if !allowed
+            || game_version.is_some_and(|game| {
+                !version["game_versions"]
+                    .as_array()
+                    .is_some_and(|games| games.iter().any(|value| value.as_str() == Some(game)))
+            })
+        {
             return None;
         }
         let number = version["version_number"].as_str()?;
         let candidate_semver = Version::parse(number).ok();
-        if !installed_semver.as_ref().zip(candidate_semver.as_ref())
+        if !installed_semver
+            .as_ref()
+            .zip(candidate_semver.as_ref())
             .is_some_and(|(current, candidate)| candidate >= current)
         {
             return None;
@@ -297,7 +373,15 @@ pub fn ensure_catalog_project_for_installed_mod(
         ))
         .build()
         .map_err(|error| error.to_string())?;
-    let Some(latest) = lookup_catalog_mod_by_manifest_id(&client, provider, mod_id, current_game_version(root).as_deref(), &manifest.version.to_string(), manifest.release_channel)? else {
+    let Some(latest) = lookup_catalog_mod_by_manifest_id(
+        &client,
+        provider,
+        mod_id,
+        current_game_version(root).as_deref(),
+        &manifest.version.to_string(),
+        manifest.release_channel,
+    )?
+    else {
         return Ok(None);
     };
     let current_version_id = latest.installed_version_id.unwrap_or_default();
@@ -368,29 +452,72 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
     let mut latest_updates = Vec::new();
     let mut failures = Vec::new();
     let mut checked = 0usize;
+    let pinned_mods = pack_pinned_mod_ids(root);
+    let mut protected = 0usize;
     let game_version = current_game_version(root);
     for installed in installed_mod_packages(root) {
+        if pinned_mods.contains(&installed.id) {
+            protected += 1;
+            continue;
+        }
         let result = if let Some((project_id, installed_version_id)) =
             registered_projects.get(&installed.id)
         {
             if installed_version_id.is_empty() {
-                lookup_catalog_mod_by_manifest_id(&client, &provider, &installed.id, game_version.as_deref(), &installed.version, installed.release_channel).and_then(|latest| {
-                    let Some(latest) = latest else { return Ok(None) };
+                lookup_catalog_mod_by_manifest_id(
+                    &client,
+                    &provider,
+                    &installed.id,
+                    game_version.as_deref(),
+                    &installed.version,
+                    installed.release_channel,
+                )
+                .and_then(|latest| {
+                    let Some(latest) = latest else {
+                        return Ok(None);
+                    };
                     if latest.project_id != *project_id {
-                        return Err(format!("Installed mod '{}' is linked to a different ShroudEdit project", installed.id));
+                        return Err(format!(
+                            "Installed mod '{}' is linked to a different ShroudEdit project",
+                            installed.id
+                        ));
                     }
-                    Ok(Some((project_id.clone(), latest.id, latest.installed_version_id.unwrap_or_default(), Some(latest.version_number))))
+                    Ok(Some((
+                        project_id.clone(),
+                        latest.id,
+                        latest.installed_version_id.unwrap_or_default(),
+                        Some(latest.version_number),
+                    )))
                 })
             } else {
                 newer_catalog_version_for_registered_mod(
-                    &client, &provider, project_id, installed_version_id,
-                    &installed.version, game_version.as_deref(),
-                ).map(|candidate| candidate.map(|candidate| (
-                    project_id.clone(), candidate.id, installed_version_id.clone(), Some(candidate.version_number)
-                )))
+                    &client,
+                    &provider,
+                    project_id,
+                    installed_version_id,
+                    &installed.version,
+                    game_version.as_deref(),
+                )
+                .map(|candidate| {
+                    candidate.map(|candidate| {
+                        (
+                            project_id.clone(),
+                            candidate.id,
+                            installed_version_id.clone(),
+                            Some(candidate.version_number),
+                        )
+                    })
+                })
             }
         } else {
-            match lookup_catalog_mod_by_manifest_id(&client, &provider, &installed.id, game_version.as_deref(), &installed.version, installed.release_channel) {
+            match lookup_catalog_mod_by_manifest_id(
+                &client,
+                &provider,
+                &installed.id,
+                game_version.as_deref(),
+                &installed.version,
+                installed.release_channel,
+            ) {
                 Ok(Some(latest)) => {
                     let installed_version_id = latest.installed_version_id.unwrap_or_default();
                     if let Err(error) = remember_catalog_install(
@@ -436,7 +563,11 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
                             .map(|version| version._version_number)
                     });
                     let is_newer = latest_version.as_deref().is_some_and(|latest| {
-                        catalog_candidate_is_newer(latest, &installed.version, !installed_version_id.is_empty())
+                        catalog_candidate_is_newer(
+                            latest,
+                            &installed.version,
+                            !installed_version_id.is_empty(),
+                        )
                     });
                     if is_newer {
                         latest_updates.push(serde_json::json!({
@@ -475,7 +606,9 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
                 mod_id,
                 title,
                 provider_value.clone(),
-                update["latestVersionId"].as_str().ok_or("update has no version ID")?,
+                update["latestVersionId"]
+                    .as_str()
+                    .ok_or("update has no version ID")?,
             ) {
                 Ok(true) => queued += 1,
                 Ok(false) => {}
@@ -485,6 +618,7 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
     }
     let result = serde_json::json!({
         "checked": checked,
+        "protected": protected,
         "available": latest_updates.len(),
         "queued": queued,
         "failed": failures.len(),
@@ -635,7 +769,11 @@ pub fn fetch_catalog(
         let version_id = optional_string_field(value, &["version_id", "latest_version_id"]);
         let version = version_id
             .as_ref()
-            .and_then(|id| version_summaries.get(id).map(|summary| summary.number.clone()))
+            .and_then(|id| {
+                version_summaries
+                    .get(id)
+                    .map(|summary| summary.number.clone())
+            })
             .or_else(|| optional_string_field(value, &["latest_version", "version"]));
         let environment = version_id
             .as_ref()
@@ -786,7 +924,12 @@ fn catalog_search_facets_for_type(
             (false, false) => &[],
         };
         if !values.is_empty() {
-            facets.push(values.iter().map(|value| format!("environment:{value}")).collect());
+            facets.push(
+                values
+                    .iter()
+                    .map(|value| format!("environment:{value}"))
+                    .collect(),
+            );
         }
     }
     facets
@@ -1036,12 +1179,21 @@ pub fn fetch_catalog_project(
             }))
         })
         .collect::<Vec<_>>();
-    let links = project.get("link_urls").or_else(|| project.get("links"))
+    let links = project
+        .get("link_urls")
+        .or_else(|| project.get("links"))
         .and_then(serde_json::Value::as_object)
-        .map(|links| links.iter().filter_map(|(name, value)| {
-            value.as_str().or_else(|| value.get("url").and_then(serde_json::Value::as_str))
-                .map(|url| (name.clone(), serde_json::Value::String(url.to_owned())))
-        }).collect::<serde_json::Map<String, serde_json::Value>>())
+        .map(|links| {
+            links
+                .iter()
+                .filter_map(|(name, value)| {
+                    value
+                        .as_str()
+                        .or_else(|| value.get("url").and_then(serde_json::Value::as_str))
+                        .map(|url| (name.clone(), serde_json::Value::String(url.to_owned())))
+                })
+                .collect::<serde_json::Map<String, serde_json::Value>>()
+        })
         .unwrap_or_default();
     let fields = project.get("fields");
     let game_versions = string_values(
@@ -1103,7 +1255,82 @@ pub fn fetch_catalog_project(
 
 pub fn read_catalog_install_registry(root: &Path) -> serde_json::Value {
     shroudforge_loader_config::config::read_document(root, crate::documents::CATALOG_STATE)
-        .unwrap_or_else(|_| serde_json::json!({ "schemaVersion": 1, "projects": {} }))
+        .unwrap_or_else(|_| serde_json::json!({ "schemaVersion": 1, "projects": {}, "packs": {} }))
+}
+
+pub fn remember_catalog_pack_install(
+    root: &Path,
+    project_id: &str,
+    pack: &InstalledCatalogPack,
+) -> Result<(), String> {
+    shroudforge_loader_config::config::update_state_section(root, "catalog", |stored| {
+        let mut registry = stored
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{},"packs":{}}));
+        if registry.get("packs").is_none() {
+            registry["packs"] = serde_json::json!({});
+        }
+        for member in &pack.mods {
+            let installed = &registry["projects"][member.project_id.as_str()];
+            if installed["versionId"].as_str() != Some(member.version_id.as_str())
+                || installed["modId"].as_str() != Some(member.mod_id.as_str())
+            {
+                return Err(format!(
+                    "modpack member '{}' is not installed at its pinned version",
+                    member.mod_id
+                ));
+            }
+        }
+        if let Some(packs) = registry["packs"].as_object() {
+            for (other_id, other) in packs {
+                if other_id == project_id {
+                    continue;
+                }
+                let other: InstalledCatalogPack = serde_json::from_value(other.clone())
+                    .map_err(|error| format!("invalid installed modpack receipt: {error}"))?;
+                for member in &pack.mods {
+                    if other.mods.iter().any(|existing| {
+                        existing.project_id == member.project_id
+                            && existing.version_id != member.version_id
+                    }) {
+                        return Err(format!(
+                            "mod '{}' is pinned to a different version by another modpack",
+                            member.mod_id
+                        ));
+                    }
+                }
+            }
+        }
+        registry["packs"][project_id] =
+            serde_json::to_value(pack).map_err(|error| error.to_string())?;
+        shroudforge_loader_config::config::validate_document(
+            root,
+            crate::documents::CATALOG_STATE,
+            &registry,
+        )?;
+        Ok(registry)
+    })
+}
+
+pub fn forget_catalog_pack_install(root: &Path, project_id: &str) -> Result<(), String> {
+    shroudforge_loader_config::config::update_state_section(root, "catalog", |stored| {
+        let mut registry = stored
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{},"packs":{}}));
+        if registry.get("packs").is_none() {
+            registry["packs"] = serde_json::json!({});
+        }
+        registry["packs"]
+            .as_object_mut()
+            .ok_or("invalid installed modpack registry")?
+            .remove(project_id);
+        shroudforge_loader_config::config::validate_document(
+            root,
+            crate::documents::CATALOG_STATE,
+            &registry,
+        )?;
+        Ok(registry)
+    })
 }
 
 pub fn catalog_installed_mod_ids(root: &Path) -> std::collections::HashSet<String> {
@@ -1157,7 +1384,7 @@ pub fn remember_catalog_install(
     shroudforge_loader_config::config::update_state_section(root, "catalog", |stored| {
         let mut registry = stored
             .cloned()
-            .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{}}));
+            .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{},"packs":{}}));
         registry["projects"][project_id] = serde_json::json!({"modId":mod_id,"versionId":version_id,"file":package.file_name().and_then(|value|value.to_str()).unwrap_or_default()});
         shroudforge_loader_config::config::validate_document(
             root,
@@ -1172,11 +1399,20 @@ pub fn forget_catalog_install(root: &Path, mod_id: &str) -> Result<(), String> {
     shroudforge_loader_config::config::update_state_section(root, "catalog", |stored| {
         let mut registry = stored
             .cloned()
-            .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{}}));
+            .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{},"packs":{}}));
         registry["projects"]
             .as_object_mut()
             .ok_or("invalid catalog install registry")?
             .retain(|_, value| value.get("modId").and_then(|value| value.as_str()) != Some(mod_id));
+        if let Some(packs) = registry["packs"].as_object_mut() {
+            packs.retain(|_, value| {
+                !value["mods"].as_array().is_some_and(|members| {
+                    members
+                        .iter()
+                        .any(|member| member["modId"].as_str() == Some(mod_id))
+                })
+            });
+        }
         shroudforge_loader_config::config::validate_document(
             root,
             crate::documents::CATALOG_STATE,
@@ -1191,7 +1427,9 @@ pub fn string_field(value: &serde_json::Value, names: &[&str]) -> String {
 }
 
 fn catalog_candidate_is_newer(candidate: &str, installed: &str, known_version_id: bool) -> bool {
-    Version::parse(installed).ok().zip(Version::parse(candidate).ok())
+    Version::parse(installed)
+        .ok()
+        .zip(Version::parse(candidate).ok())
         .is_some_and(|(current, next)| next > current || (known_version_id && next == current))
 }
 
@@ -1234,8 +1472,18 @@ mod tests {
     #[test]
     fn environment_filters_match_discover_side_choices() {
         let client = catalog_search_facets_for_type("mod", "all", "", "", &["client".into()]);
-        assert!(!client.last().unwrap().contains(&"environment:singleplayer_only".to_owned()));
-        assert!(!client.last().unwrap().contains(&"environment:server_only".to_owned()));
+        assert!(
+            !client
+                .last()
+                .unwrap()
+                .contains(&"environment:singleplayer_only".to_owned())
+        );
+        assert!(
+            !client
+                .last()
+                .unwrap()
+                .contains(&"environment:server_only".to_owned())
+        );
 
         let both = catalog_search_facets_for_type(
             "modpack",
@@ -1244,8 +1492,17 @@ mod tests {
             "",
             &["client".into(), "server".into()],
         );
-        assert!(both.last().unwrap().contains(&"environment:client_and_server".to_owned()));
-        assert!(!both.last().unwrap().contains(&"environment:client_only".to_owned()));
+        assert!(
+            both.last()
+                .unwrap()
+                .contains(&"environment:client_and_server".to_owned())
+        );
+        assert!(
+            !both
+                .last()
+                .unwrap()
+                .contains(&"environment:client_only".to_owned())
+        );
     }
 
     #[test]

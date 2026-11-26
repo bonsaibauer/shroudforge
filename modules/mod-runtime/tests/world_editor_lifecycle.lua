@@ -62,6 +62,27 @@ local function fixture(context, session, deny_unverified_features, is_server)
     local function ignore_log() end
     environment.shroudforge = {
         settings={get=function(name) return f.settings[name] end},
+        schematics={
+            list=function()
+                local items = {}
+                for path in pairs(f.files) do
+                    local name = path:match("^world%-editor/blueprints/([%w_-]+)%.sfbp$")
+                    if name then items[#items + 1] = {name=name, image=nil} end
+                end
+                table.sort(items, function(left, right) return left.name:lower() < right.name:lower() end)
+                return items
+            end,
+            read=function(name)
+                local contents = f.files["world-editor/blueprints/" .. name .. ".sfbp"]
+                if not contents then error("schematic does not exist: " .. name) end
+                return contents
+            end,
+            save=function(name, contents)
+                local path = "world-editor/blueprints/" .. name .. ".sfbp"
+                if f.files[path] then error("schematic already exists: " .. name) end
+                f.files[path] = contents
+            end,
+        },
         ui={on_action=function(name, action) f.actions[name] = action end},
         input={is_keybind_down=function() return false end,
             was_keybind_pressed=function() return false end,
@@ -111,7 +132,7 @@ local function fixture(context, session, deny_unverified_features, is_server)
             },
         },
     }
-    f.runtime, f.io = environment.runtime, environment.io
+    f.runtime, f.io, f.schematics = environment.runtime, environment.io, environment.shroudforge.schematics
     local loaded = {}
     environment.require = function(name)
         if loaded[name] then return loaded[name] end
@@ -696,7 +717,7 @@ capture_stopped(denied_capture, "terrain feature is unavailable immediately")
 
 local denied_export = fixture("direct", 81, false)
 denied_export.editor.selection_a, denied_export.editor.selection_b = {x=0, y=0, z=0}, {x=1, y=1, z=1}
-denied_export.io.export_exists = function() error("export unavailable") end
+denied_export.schematics.list = function() error("export unavailable") end
 denied_export.actions.captureAndSave()
 capture_stopped(denied_export, "blueprint export is unavailable")
 
@@ -878,10 +899,7 @@ local function network_capture(options)
     client.editor.selection_b=options.large and {x=31.5,y=7.5,z=31.5} or {x=1,y=1,z=1}
     if options.invalid then client.editor.selection_b.x=math.huge end
     if options.export_failure then
-        client.io.export=function(path,contents)
-            if path:find(".sfbp",1,true) then error("test export failure") end
-            client.files[path]=contents
-        end
+        client.schematics.save=function() error("test export failure") end
     end
     result.tick=function(count)
         for _=1,count do client.mod.on_update(0.1);server.mod.on_update(0.1) end

@@ -150,7 +150,9 @@ fn run_installed_post_install_maintenance(root: &std::path::Path) -> Result<(), 
 }
 
 #[cfg(windows)]
-pub(crate) use shroudforge_loader_config::update_queue_lock::{acquire_queue_worker_mutex, wait_for_queue_worker_mutex, QueueWorkerMutex};
+pub(crate) use shroudforge_loader_config::update_queue_lock::{
+    QueueWorkerMutex, acquire_queue_worker_mutex, wait_for_queue_worker_mutex,
+};
 
 #[cfg(windows)]
 fn run_queue_with_failure_handling(root: &std::path::Path) -> Result<(), String> {

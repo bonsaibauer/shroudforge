@@ -215,6 +215,42 @@ pub fn run_request(
             };
             result
         }),
+        "check-all-updates" => {
+            let mut errors = Vec::new();
+            for check in [
+                "check-system-update",
+                "check-mod-updates",
+                "check-schematic-updates",
+                "check-modpack-updates",
+            ] {
+                if let Err(error) =
+                    run_request(root, &serde_json::json!({"command":check,"manual":true}))
+                {
+                    errors.push(format!("{check}: {error}"));
+                }
+            }
+            if errors.is_empty() {
+                Ok(serde_json::json!({"successMessage":"updates.mods.checked"}))
+            } else {
+                Err(errors.join("; "))
+            }
+        }
+        "check-schematic-updates" | "check-modpack-updates" => {
+            let content_type = if command == "check-schematic-updates" {
+                "schematic"
+            } else {
+                "modpack"
+            };
+            mod_installation::check_catalog_content_updates::check_catalog_content_updates(
+                root,
+                content_type,
+                request["manual"].as_bool().unwrap_or(true),
+            )
+            .map(|mut result| {
+                result["successMessage"] = "updates.mods.checked".into();
+                result
+            })
+        }
         "install-system-update" => (|| {
             let release = checked_system_release(root)?;
             let version = request_string(&release, "version")?.to_owned();
@@ -288,6 +324,31 @@ pub fn run_request(
             let version_id = request.get("versionId").and_then(serde_json::Value::as_str);
             request_mod_update(root, &project_id, mod_id, title, provider_value, version_id)?;
             Ok(serde_json::json!({"message":format!("Update queued for {mod_id}.")}))
+        })(),
+        "update-schematic" | "update-modpack" => (|| {
+            let content_type = if command == "update-schematic" {
+                "schematic"
+            } else {
+                "modpack"
+            };
+            let provider = read_request_provider(request)?;
+            let provider_value = serde_json::to_value(provider)
+                .map_err(|error| format!("could not serialize catalog provider: {error}"))?;
+            let project_id = request_string(request, "projectId")?;
+            let version_id = request_string(request, "versionId")?;
+            let title = request
+                .get("title")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(project_id);
+            request_catalog_content_update(
+                root,
+                content_type,
+                project_id,
+                title,
+                provider_value,
+                version_id,
+            )?;
+            Ok(serde_json::json!({"queued":true,"message":"updates.queue.added"}))
         })(),
         "stage-system-update" => (|| {
             if shroudforge_loader_config::config::read_loader(root)?

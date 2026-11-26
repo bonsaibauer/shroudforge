@@ -11,6 +11,7 @@ import { Empty, Loading } from '../../ui-resources/show-empty-state'
 import { Icon } from '../../ui-resources/show-icon'
 import { EnvironmentBadge } from '../../ui-resources/show-environment-badge'
 import { PageHeader } from '../../ui-resources/show-page-header'
+import { postRequest } from '../../transport/ui/send-host-command'
 import { UpdaterAvailability } from './show-updater-availability'
 import { CatalogProjectPage } from './show-catalog-project'
 import type { ModInfo } from '../../modloader/ui/mod-types'
@@ -65,10 +66,10 @@ function filtersFromUrl(catalog?: Catalog): SearchFilters {
 }
 
 const discoverProjectTypes = [
-  { value: 'mod', label: 'Mods' },
-  { value: 'schematic', label: 'Schematics' },
-  { value: 'modpack', label: 'Modpacks' },
-  { value: 'server', label: 'Server' },
+  { value: 'mod', labelKey: 'discover.type.mods', singularKey: 'discover.type.mod' },
+  { value: 'schematic', labelKey: 'discover.type.schematics', singularKey: 'discover.type.schematic' },
+  { value: 'modpack', labelKey: 'discover.type.modpacks', singularKey: 'discover.type.modpack' },
+  { value: 'server', labelKey: 'discover.type.servers', singularKey: 'discover.type.server' },
 ] as const
 
 type ProjectTab = 'description' | 'versions' | 'gallery'
@@ -370,10 +371,11 @@ export function Discover({
     1,
     Math.ceil((catalog.total || 0) / (catalog.limit || filters.limit || 20)),
   )
-  const activeTypeLabel = discoverProjectTypes.find((type) => type.value === filters.projectType)?.label || 'Mods'
+  const activeType = discoverProjectTypes.find((type) => type.value === filters.projectType) || discoverProjectTypes[0]
+  const activeTypeLabel = t(activeType.labelKey)
   const searchPlaceholder = filters.projectType === 'mod'
     ? t('discover.placeholder')
-    : `${activeTypeLabel} …`
+    : t('discover.searchByType', { type: activeTypeLabel.toLowerCase() })
   const resultCount = catalog.total || catalog.items.length
 
   const installSelectedVersion = (requestedVersionId?: string) => {
@@ -398,12 +400,26 @@ export function Discover({
 
   return (
     <div className={`discover-page${selectedProjectId ? ' project-open' : ''}`}>
-      {!selectedProjectId && <>
       <PageHeader
         eyebrow={t('nav.modsManagement')}
         title={t('discover.title')}
         subtitle={t('discover.subtitle')}
+        actions={
+          <a
+            className="button ghost discover-explore-link"
+            href="https://shroudedit.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => {
+              event.preventDefault()
+              postRequest('open-url', { url: 'https://shroudedit.com' })
+            }}
+          >
+            {t('discover.exploreShroudEdit')}
+          </a>
+        }
       />
+      {!selectedProjectId && <>
       <UpdaterAvailability
         updaterAvailable={updaterAvailable}
         enabled={enabled}
@@ -433,7 +449,7 @@ export function Discover({
               )
             }
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -553,8 +569,11 @@ export function Discover({
         </div>
         <span className="discover-result-count">
           {filters.projectType === 'mod'
-            ? t('discover.results', { count: resultCount })
-            : `${new Intl.NumberFormat(locale).format(resultCount)} ${activeTypeLabel}`}
+            ? t(resultCount === 1 ? 'discover.result' : 'discover.results', { count: resultCount })
+            : t('discover.resultsByType', {
+                count: new Intl.NumberFormat(locale).format(resultCount),
+                type: t(resultCount === 1 ? activeType.singularKey : activeType.labelKey),
+              })}
         </span>
         {totalPages > 1 && (
           <nav className="discover-pagination" aria-label={t('discover.title')}>
@@ -702,9 +721,9 @@ export function Discover({
                         }}
                       >
                         {item.projectType === 'schematic'
-                          ? 'Import'
+                          ? t('schematics.import')
                           : item.projectType === 'modpack'
-                            ? 'Install pack'
+                            ? t('discover.detail.installPack')
                             : installed ? (update ? t('discover.status.updateButton') : t('mod.installed')) : t('common.install')}
                     </button>}
                     <div className="discover-row-meta">
@@ -739,7 +758,7 @@ export function Discover({
           text={catalog.state === 'ready'
             ? filters.projectType === 'mod'
               ? t('discover.empty.noResults')
-              : `No matching ${activeTypeLabel.toLowerCase()} found.`
+              : t('discover.empty.noResultsOther')
             : catalog.message || t('discover.empty.text')}
           icon="search"
         />
