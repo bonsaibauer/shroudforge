@@ -125,6 +125,23 @@ typedef struct SFOverlayTextureV1 {
  * provided by the caller. Same owner/resource_id/revision
  * identifies immutable content. The host copies/uploads only a new revision. */
 typedef struct SFOverlayRectangleV1 { int32_t x,y,width,height; uint32_t rgba; } SFOverlayRectangleV1;
+
+/* Optional shroudforge.overlay.scene v1, same owner/renderer as overlay V1-V3.
+ * submit copies a complete UTF-8 scene synchronously (max 8 MiB, 4096 draws).
+ * Empty object clears the scene. Rectangles, textures and fragment programs use
+ * the documented runtime.overlay.submit data contract. Id/revision are nonzero
+ * decimal strings. No callbacks enter Lua. A scene and native frame callback
+ * are mutually exclusive for an owner, returning BUSY when mixed.
+ * Invalid input leaves the previous scene intact. Revoke retires it, Drain
+ * waits for an already captured immutable scene before package teardown. */
+struct SFOverlayFrameV3;
+typedef struct SFOverlaySceneServiceV1 {
+    uint32_t size,version;
+    void* context;
+    int32_t (*submit_json)(void*,const uint8_t*,uint32_t);
+    /* Cached current target, map_frame=NULL. UNAVAILABLE until renderer ready. */
+    int32_t (*read_target)(void*,uint32_t,struct SFOverlayFrameV3*);
+} SFOverlaySceneServiceV1;
 typedef struct SFOverlayTextureCommandV1 {
     SFOverlayTextureV1 texture;
     uint32_t source_x,source_y,source_width,source_height;

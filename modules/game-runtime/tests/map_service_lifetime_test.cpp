@@ -1,4 +1,7 @@
 #include "map/serve_map_overlay.cpp"
+#include "map/read_map_snapshot_json.cpp"
+#include "graphics/read_overlay_scene.h"
+#include "graphics/shaders/embedded_shaders.h"
 #include "engine-hooks/owned_executable_span.h"
 #include "engine-hooks/owned_span_proof.h"
 #include <algorithm>
@@ -10,6 +13,20 @@
 #include <thread>
 namespace {unsigned checks{},enabled{},disabled{},callbacks{},graphics_started{};MapRuntime::SnapshotStore fixture;
 bool expect_disabled=true;
+unsigned scene_draws{};
+unsigned scene_program_draws{};
+std::int32_t scene_rectangles(void*,std::uint64_t,const SFOverlayRectangleV1* values,std::uint32_t count){
+    if(count!=1 || values[0].x!=20 || values[0].width!=100 || values[0].rgba!=0x3366ccff)return 1;
+    ++scene_draws;return 0;
+}
+std::int32_t scene_textures(void*,std::uint64_t,const SFOverlayTextureCommandV1*,std::uint32_t){return 0;}
+std::int32_t scene_textures_v2(void*,std::uint64_t,const SFOverlayTextureCommandV2*,std::uint32_t){return 0;}
+std::int32_t scene_programs(void*,std::uint64_t,const SFOverlayProgramCommandV1* values,std::uint32_t count){
+    if(count!=1 || values[0].shader.program_id!=UINT64_MAX || values[0].constant_bytes!=4 ||
+       static_cast<const std::uint8_t*>(values[0].constants)[0]!=37 || values[0].texture_count!=1 ||
+       values[0].textures[0].rgba[0]!=255 || values[0].shader.spirv[0]!=0x07230203)return 1;
+    ++scene_program_draws;return 0;
+}
 std::array<std::uint8_t,8> data_span_anchor{0x10,0x21,0x32,0x43,0x54,0x65,0x76,0x87};
 void check(bool value){++checks;if(!value){std::fprintf(stderr,"control lifetime check %u failed\n",checks);std::exit(1);}}
 std::uint32_t valid_verifier_rva{};
@@ -62,9 +79,11 @@ SnapshotStore& CapturedFrames(){return fixture;}
 std::int32_t EnableCapture(std::uint64_t,bool){++enabled;return SF_MAP_READY;}
 void DisableCapture(std::uint64_t){++disabled;}
 void UpdateCaptureSession(std::uint64_t,bool,bool,bool){}
+bool CapturePrepared(){return true;}
+std::string PreparationStatus(){return "fixture-ready";}
 bool HudKnown(std::uint64_t){return false;}bool HudGameplay(std::uint64_t){return false;}bool HudInputAllowed(std::uint64_t){return true;}
 }
-namespace OverlayRuntime {bool StartGraphics(){++graphics_started;return true;}void StopGraphics(){}void MaintainGraphics(){}SFOverlayStatusV1 GraphicsStatus(){return {sizeof(SFOverlayStatusV1),1,3};}}
+namespace OverlayRuntime {bool StartGraphics(){++graphics_started;return true;}bool GraphicsPrepared(){return true;}void StopGraphics(){}void MaintainGraphics(){}SFOverlayStatusV1 GraphicsStatus(){return {sizeof(SFOverlayStatusV1),1,3};}}
 extern "C" std::uint64_t __cdecl KfcRuntimeWorldSessionId(){return 0;}
 int main(){
     const std::uint8_t package[]{'l','a','t','e'},name[]{'s','h','r','o','u','d','f','o','r','g','e','.','o','v','e','r','l','a','y'};
@@ -281,6 +300,48 @@ int main(){
     check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),3,0)==6 && disabled==0);
     check(borrowed.session_generation==99 && map.release(map.context,lease)==0);
     check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),3,0)==0 && disabled==1);
+    // Lua's owned adapters use the SAME activation/service owner and retirement.
+    constexpr char scene_name[]="shroudforge.overlay.scene";
+    SFOverlaySceneServiceV1 scene{};
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),5,reinterpret_cast<const std::uint8_t*>(scene_name),sizeof(scene_name)-1,1,sizeof(scene),&scene)==0);
+    const std::string scene_json=R"({"rectangles":[{"x":20,"y":20,"width":100,"height":30,"rgba":862375167}]})";
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>(scene_json.data()),unsigned(scene_json.size()))==0);
+    SFOverlayEncoderV3 scene_encoder{{{sizeof(SFOverlayEncoderV3),3,nullptr,0,1,scene_rectangles,scene_textures},scene_textures_v2},scene_programs};
+    check(OverlayRuntime::Services().Dispatch(800,600,100,1,scene_encoder.base.base) && scene_draws==1);
+    const std::string invalid_scene=R"({"rectangles":[{"x":20,"y":20,"width":-1,"height":30,"rgba":1}]})";
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>(invalid_scene.data()),unsigned(invalid_scene.size()))==1);
+    check(OverlayRuntime::Services().Dispatch(800,600,100,1,scene_encoder.base.base) && scene_draws==2);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),5,name,sizeof(name),3,sizeof(table),&table)==0);
+    check(table.context==scene.context && table.register_frame(table.context,callback,nullptr,&registration)==6);
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>("{}"),2)==0);
+    check(OverlayRuntime::Services().Dispatch(800,600,100,1,scene_encoder.base.base) && scene_draws==2);
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),5)==0);
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>("{}"),2)==3);
+    check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),5,0)==0);
+    const nlohmann::json texture{{"id","1"},{"revision","1"},{"width",1},{"height",1},{"rgba",{255,0,0,255}}};
+    nlohmann::json program{{"id","18446744073709551615"},{"revision","1"},{"x",0},{"y",0},{"width",8},{"height",8},
+        {"spirv",std::vector<std::uint32_t>(std::begin(OverlayRuntime::Shaders::texture_frag),std::end(OverlayRuntime::Shaders::texture_frag))},
+        {"constants",{37,0,0,0}},{"textures",nlohmann::json::array({texture})}};
+    nlohmann::json program_scene{{"target_generation","1"},{"programs",nlohmann::json::array({program})}};
+    const auto copied_program=OverlayRuntime::OwnedOverlayScene::Read(program_scene);
+    program_scene["programs"][0]["constants"][0]=99;
+    program_scene["programs"][0]["textures"][0]["rgba"][0]=0;
+    check(copied_program->Draw(scene_encoder,800,600)==0 && scene_program_draws==1);
+    scene_encoder.base.base.device_generation=2;
+    check(copied_program->Draw(scene_encoder,800,600)==0 && scene_program_draws==1);
+    scene_encoder.base.base.device_generation=1;
+    program_scene["programs"][0]["spirv"].erase(program_scene["programs"][0]["spirv"].end()-1);
+    bool rejected_program{};try{OverlayRuntime::OwnedOverlayScene::Read(program_scene);}catch(...){rejected_program=true;}
+    check(rejected_program);
+    fixture.SetSession(99,true,false,true,GetTickCount64());
+    std::array<char,4> too_small{'x','x','x','x'};
+    const auto required=KfcRuntimeMapSnapshotJson(package,sizeof(package),6,0,0,too_small.data(),too_small.size());
+    check(required>too_small.size() && too_small[0]=='x' && too_small[3]=='x');
+    std::vector<char> owned_json(required);
+    check(KfcRuntimeMapSnapshotJson(package,sizeof(package),6,0,0,owned_json.data(),owned_json.size())==required && owned_json.back()==0);
+    const auto owned_frame=nlohmann::json::parse(owned_json.data());
+    check(owned_frame["service_status"]==0 && owned_frame["frame"]["session_generation"]=="99");
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),6)==0 && KfcRuntimeDrainMapOverlayServices(package,sizeof(package),6,0)==0);
     // Full bounded state must reject, rather than falsely acknowledge, an
     // unknown revocation it cannot durably record.
     for(std::uint64_t generation=100;OverlayRuntime::activations.size()<4096;++generation)

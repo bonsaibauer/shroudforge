@@ -11,7 +11,6 @@
 #include "graphics/shaders/embedded_program_shader.h"
 #include "graphics/validate_overlay_shader.h"
 #include "map/capture_game_map.h"
-#include "map/current_client_map_contract.h"
 #include "map/hud_visibility.h"
 #include <windows.h>
 #include <algorithm>
@@ -509,24 +508,24 @@ void __fastcall Destroy(void* handle,const void* allocator) {
     published_generation=++generation_counter;graphics_status=device->uncertain?7:3;graphics_reason=device->uncertain?SF_OVERLAY_REASON_PRESENT_UNCERTAIN:SF_OVERLAY_REASON_AWAIT_OBSERVED_CREATE;device->destroy(handle,allocator);devices.erase(device->handle);
 }
 }
-bool PrepareGraphicsBoot(bool demand) {
+bool PrepareGraphicsBoot(bool demand,bool optional) {
     std::lock_guard lock(render_mutex);if(boot_armed)return true;boot_demand=demand;
     if(!demand){BootUnavailable(SF_OVERLAY_REASON_BOOT_NOT_ARMED,"native overlay was not requested at startup; enable its package/service and restart");return true;}
     namespace Profile=KfcRuntimeCompatibility::EnshroudedClient;
     auto* image=reinterpret_cast<std::uint8_t*>(GetModuleHandleW(nullptr));
     const bool renderer_admitted=MapRuntime::InspectRendererImage({image,Profile::image_size},Profile::image_sha256).renderer;
     if(!renderer_admitted) {
-        BootUnavailable(SF_OVERLAY_REASON_BOOT_NOT_ARMED,"exact executable/renderer admission unavailable; boot resolver interception refused");return false;
+        BootUnavailable(SF_OVERLAY_REASON_BOOT_NOT_ARMED,"exact executable/renderer admission unavailable; boot resolver interception refused");return optional;
     }
     auto* cell=EngineHooks::FindNamedImport({image,Profile::image_size},"KERNEL32.dll","GetProcAddress");
     HMODULE pinned{};
     if(!cell || !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&PrepareGraphicsBoot),&pinned)) {
-        BootUnavailable(SF_OVERLAY_REASON_BOOT_MISSED,"GetProcAddress import coverage unavailable; restart with a supported boot path");return false;
+        BootUnavailable(SF_OVERLAY_REASON_BOOT_MISSED,"GetProcAddress import coverage unavailable; restart with a supported boot path");return optional;
     }
     // Do not chain a foreign resolver whose callback/module lifetime we do not own.
     const auto canonical=reinterpret_cast<std::uintptr_t>(&::GetProcAddress);
     if(*cell!=canonical) {
-        BootUnavailable(SF_OVERLAY_REASON_BOOT_MISSED,"GetProcAddress import is already owned by another interceptor; overlay boot refused");return false;
+        BootUnavailable(SF_OVERLAY_REASON_BOOT_MISSED,"GetProcAddress import is already owned by another interceptor; overlay boot refused");return optional;
     }
     boot_get_proc=::GetProcAddress;
     if(!EngineHooks::ReplaceImportPointer(cell,reinterpret_cast<std::uintptr_t>(boot_get_proc),reinterpret_cast<std::uintptr_t>(&BrokerGetProc))) {
@@ -534,6 +533,7 @@ bool PrepareGraphicsBoot(bool demand) {
     }
     boot_import=cell;boot_armed=true;graphics_admitted=true;graphics_reason=SF_OVERLAY_REASON_BOOT_MISSED;return true;
 }
+bool GraphicsPrepared(){std::lock_guard lock(render_mutex);return boot_armed && graphics_admitted;}
 bool StartGraphics() {
     std::lock_guard lock(render_mutex);if(active)return true;
     if(!graphics_admitted)return false;

@@ -333,6 +333,9 @@
     "servicePayloadSizeOffset": 32
   },
   "mapCapture": {
+    "execution": {
+      "unavailableReason": "legacy-iterator-extent-unproved"
+    },
   "id": "map-image-admission-v1",
   "readiness": "player-only",
   "guardChunkBytes": 1024,

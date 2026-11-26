@@ -48,6 +48,25 @@ int main() {
         check(map_selection.profile && map_selection.status == "ready");
         const auto selected_map_profile = map_selection.profile;
         const auto& model = *selected_map_profile;
+        if (std::string(build)=="26430625") {
+            check(model.execution && model.execution_status=="ready");
+            check(model.execution->iterator.query_bytes==0x840 && model.execution->hooks[0].original.size()==18);
+            check(model.execution->discovery_unavailable_reason=="discovery-position-layout-unproved");
+            auto malformed=profile;
+            malformed["mapCapture"]["execution"]["hooks"]["camera"]["original"]="9090909090";
+            auto rejected=KfcRuntimeCompatibility::ReadMapCaptureProfile(malformed);
+            check(rejected.profile && !rejected.profile->execution && rejected.profile->execution_status.starts_with("invalid-map-capture-execution:"));
+            malformed=profile;
+            malformed["mapCapture"]["execution"]["iterator"]["rowsOffset"]=0x840;
+            rejected=KfcRuntimeCompatibility::ReadMapCaptureProfile(malformed);
+            check(rejected.profile && !rejected.profile->execution);
+            malformed=profile;
+            malformed["mapCapture"]["execution"]["hooks"]["weather"]["targetRva"]=1;
+            rejected=KfcRuntimeCompatibility::ReadMapCaptureProfile(malformed);
+            check(rejected.profile && !rejected.profile->execution);
+        } else {
+            check(!model.execution && model.execution_status=="legacy-iterator-extent-unproved");
+        }
         std::vector<std::uint8_t> map_image(model.image_size);
         const auto image_base = reinterpret_cast<std::uintptr_t>(map_image.data());
         IMAGE_DOS_HEADER dos{}; dos.e_magic = IMAGE_DOS_SIGNATURE; dos.e_lfanew = 0x80;

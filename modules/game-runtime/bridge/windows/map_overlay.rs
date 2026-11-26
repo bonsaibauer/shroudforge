@@ -130,6 +130,106 @@ pub fn drain_map_overlay_services(package: &str, generation: u64, timeout: u32) 
     unsafe { (exports.drain)(package.as_ptr(), package.len() as u32, generation, timeout) }
 }
 
+pub fn map_overlay_status() -> Result<serde_json::Value, String> {
+    let call = provider()
+        .and_then(|p| p.map_overlay_status_json)
+        .ok_or("map/overlay status export unavailable")?;
+    super::provider::fetch_json(
+        |output, capacity| unsafe { call(output, capacity) },
+        64 * 1024,
+        super::provider::CATALOG_ERRORS,
+    )
+}
+pub fn map_overlay_operation_available(map: bool) -> bool {
+    let Some(p) = provider() else { return false };
+    if p.map_overlay.is_none()
+        || (map && p.map_snapshot_json.is_none())
+        || (!map && p.submit_overlay_scene_json.is_none())
+    {
+        return false;
+    }
+    map_overlay_status().is_ok_and(|status| {
+        status[if map {
+            "map_prepared"
+        } else {
+            "overlay_prepared"
+        }] == true
+    })
+}
+pub fn map_snapshot(
+    package: &str,
+    generation: u64,
+    expected_session: u64,
+    view: u32,
+) -> Result<serde_json::Value, String> {
+    if package.is_empty() || package.len() > 256 || generation == 0 {
+        return Err("invalid map package scope".into());
+    }
+    let p = provider().ok_or("map provider unavailable")?;
+    if p.map_overlay.is_none() {
+        return Err("map service retirement exports unavailable".into());
+    }
+    let call = p
+        .map_snapshot_json
+        .ok_or("map snapshot export unavailable")?;
+    let value = super::provider::fetch_json(
+        |output, capacity| unsafe {
+            call(
+                package.as_ptr(),
+                package.len() as u32,
+                generation,
+                expected_session,
+                view,
+                output,
+                capacity,
+            )
+        },
+        64 * 1024 * 1024,
+        super::provider::CATALOG_ERRORS,
+    )?;
+    if value["service_status"] != 0 {
+        return Err(format!(
+            "map service unavailable, status {}",
+            value["service_status"]
+        ));
+    }
+    value
+        .get("frame")
+        .cloned()
+        .ok_or("map snapshot response has no frame".into())
+}
+pub fn submit_overlay_scene(package: &str, generation: u64, json: &[u8]) -> Result<(), String> {
+    if package.is_empty()
+        || package.len() > 256
+        || generation == 0
+        || json.is_empty()
+        || json.len() > 8 * 1024 * 1024
+    {
+        return Err("invalid overlay scene input or package scope".into());
+    }
+    let p = provider().ok_or("overlay provider unavailable")?;
+    if p.map_overlay.is_none() {
+        return Err("overlay service retirement exports unavailable".into());
+    }
+    let call = p
+        .submit_overlay_scene_json
+        .ok_or("overlay scene export unavailable")?;
+    let status = unsafe {
+        call(
+            package.as_ptr(),
+            package.len() as u32,
+            generation,
+            json.as_ptr(),
+            json.len() as u32,
+        )
+    };
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(format!("overlay submission failed, status {status}"))
+    }
+}
+
 #[cfg(test)]
 mod map_overlay_tests {
     use super::*;

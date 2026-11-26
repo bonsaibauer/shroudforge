@@ -15,8 +15,10 @@ public:
     std::int32_t Query(std::uint64_t owner,const std::string& name,std::uint32_t version,std::uint32_t capacity,void* output);
     std::int32_t Revoke(std::uint64_t owner);
     std::int32_t Drain(std::uint64_t owner,std::uint32_t timeout_ms);
+    SFOverlayFrameV3 LastTarget();
     bool Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t now,std::uint64_t device_generation,const SFOverlayEncoderV1& encoder,const SFMapFrameV1* frame=nullptr,SFOverlayFrameV3 target={});
 private:
+    SFOverlayFrameV3 last_target_{};
     struct Owner;
     MapRuntime::SnapshotStore& frames_;
     std::mutex mutex_,dispatch_mutex_;
@@ -28,11 +30,15 @@ private:
     static std::int32_t Register(void*,SFOverlayFrameCallbackV1,void*,SFOverlayRegistrationV1*);
     static std::int32_t Unregister(void*,SFOverlayRegistrationV1);
     static std::int32_t Status(void*,std::uint32_t,SFOverlayStatusV1*);
+    static std::int32_t SubmitScene(void*,const std::uint8_t*,std::uint32_t);
+    static std::int32_t ReadTarget(void*,std::uint32_t,SFOverlayFrameV3*);
     static std::int32_t ExecutableSpanQuery(void*,const SFExecutableSpanQueryV1*,std::uint32_t,SFExecutableSpanResultV1*);
 };
 Registry& Services();
-bool PrepareGraphicsBoot(bool demand);
+// Optional absence is accepted only before any import publication is attempted.
+bool PrepareGraphicsBoot(bool demand,bool optional=false);
 bool StartGraphics();
+bool GraphicsPrepared();
 void StopGraphics();
 void TickServices();
 void ShutdownServices();

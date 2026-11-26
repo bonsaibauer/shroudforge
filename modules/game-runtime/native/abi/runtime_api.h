@@ -51,6 +51,23 @@ KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeRevokeMapOverlayServices(
     const uint8_t*, uint32_t, uint64_t);
 KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeDrainMapOverlayServices(
     const uint8_t*, uint32_t, uint64_t, uint32_t);
+/* Optional ABI12 owned snapshot adapter for the SAME leased map service.
+ * Package UTF-8 <=256 bytes, nonzero package generation, expected map-session
+ * generation 0 accepts current. Returns required UTF-8 bytes INCLUDING NUL.
+ * No output write unless capacity fits the complete document. Zero=failed.
+ * view 0=full, 1=environment, 2=HUD/session metadata. Maximum JSON is 64 MiB.
+ * Fog byte spans use lowercase tiles_hex plus byte_count. JSON service_status
+ * uses SF_NATIVE_STATUS values. Frame/view status uses
+ * SFMapStatusV1. uint64 identities/times are decimal strings without precision loss. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeMapSnapshotJson(
+    const uint8_t*, uint32_t, uint64_t, uint64_t, uint32_t, char*, size_t);
+/* Optional ABI12 adapter to shroudforge.overlay.scene v1. Same copied input,
+ * status values, ownership and retirement. See map_overlay_api.h. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeSubmitOverlaySceneJson(
+    const uint8_t*, uint32_t, uint64_t, const uint8_t*, uint32_t);
+/* Optional cached control-plane preparation/render status. Same complete JSON
+ * output convention. Does not activate a package or promise a captured view. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeMapOverlayStatusJson(char*, size_t);
 /* Optional ABI-12 selected-character cache. Returns required UTF-8 bytes
  * including NUL, or zero when unavailable. Copies only a complete name.
  * This getter never reads game memory or refreshes the cached selection. */

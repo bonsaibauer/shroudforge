@@ -63,6 +63,12 @@ namespace NativeIteratorExtent
         std::uintptr_t s6 = 0;
         NativeCounts counts{};
         std::uint64_t row_count = 0;
+        // Defaults preserve private value-planner fixtures. Production snapshots
+        // explicitly supply every extent and source offset from the profile.
+        std::uint64_t query_control_bytes = QueryControlBytes;
+        std::uint64_t p3_control_bytes = P3CountThroughEndBytes;
+        std::uint64_t p8_control_bytes = P8CountThroughEndBytes;
+        std::uint64_t query_copy_a = 0x7b0, query_copy_b = 0x4c0;
     };
 
     enum CopySourceIndex : std::size_t
@@ -189,10 +195,11 @@ namespace NativeIteratorExtent
     {
         IteratorExtentPlan plan{};
         Interval snapshotStorage{};
-        if (!MakeInterval(reinterpret_cast<std::uintptr_t>(&snapshot), sizeof(snapshot), snapshotStorage) ||
+        if (!snapshot.query_control_bytes || !snapshot.p3_control_bytes || !snapshot.p8_control_bytes ||
+            !MakeInterval(reinterpret_cast<std::uintptr_t>(&snapshot), sizeof(snapshot), snapshotStorage) ||
             !MakeInterval(snapshot.private_context_storage, PrivateContextBytes, plan.private_context_range) ||
             !MakeInterval(destination, static_cast<std::uint64_t>(actualCapacity), plan.destination_range) ||
-            !MakeInterval(snapshot.query, QueryControlBytes, plan.query_control_range) ||
+            !MakeInterval(snapshot.query, snapshot.query_control_bytes, plan.query_control_range) ||
             snapshot.row_count > MaximumNativeCursor || snapshot.cursor > MaximumNativeCursor ||
             snapshot.cursor > snapshot.row_count)
             return {};
@@ -219,10 +226,10 @@ namespace NativeIteratorExtent
             plan.init_prefix_ends[i + 1] = total;
         }
 
-        const auto p3ControlSize = (termBytes[3] < P3CountThroughEndBytes)
-            ? P3CountThroughEndBytes : termBytes[3];
-        const auto p8ControlSize = (termBytes[8] < P8CountThroughEndBytes)
-            ? P8CountThroughEndBytes : termBytes[8];
+        const auto p3ControlSize = (termBytes[3] < snapshot.p3_control_bytes)
+            ? snapshot.p3_control_bytes : termBytes[3];
+        const auto p8ControlSize = (termBytes[8] < snapshot.p8_control_bytes)
+            ? snapshot.p8_control_bytes : termBytes[8];
         if (!MakeInterval(snapshot.p3, p3ControlSize, plan.p3_control_range) ||
             !MakeInterval(snapshot.p8, p8ControlSize, plan.p8_control_range))
             return {};
@@ -231,9 +238,9 @@ namespace NativeIteratorExtent
             !MakeInterval(snapshot.s6, termBytes[6], plan.s6_source_range))
             return {};
         if (!MakeInterval(snapshot.p3, termBytes[3], plan.copy_source_ranges[P3Copy]) ||
-            !MakeOffsetInterval(snapshot.query, 0x7b0, termBytes[4],
+            !MakeOffsetInterval(snapshot.query, snapshot.query_copy_a, termBytes[4],
                 plan.copy_source_ranges[Q7F8Copy]) ||
-            !MakeOffsetInterval(snapshot.query, 0x4c0, termBytes[5],
+            !MakeOffsetInterval(snapshot.query, snapshot.query_copy_b, termBytes[5],
                 plan.copy_source_ranges[Q4C0Copy]) ||
             !MakeInterval(snapshot.s6, termBytes[6], plan.copy_source_ranges[S6Copy]) ||
             !MakeInterval(snapshot.p8, termBytes[8], plan.copy_source_ranges[P8Copy]))

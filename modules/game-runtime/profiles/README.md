@@ -182,8 +182,7 @@ shared engine-hook writer and lifecycle gates.
 The revision-one client files for builds 26082781 and 26430625 migrate the
 previous PR #116 HUD descriptions and all nine guard spans verbatim. Their
 source attribution remains in `native/map/SOURCE-NOTICE.txt`. This migration
-adds no new live validation or semantic approval flags. Other Map addresses,
-data readers and hook contracts still require their own profile migration.
+adds no new live validation or semantic approval flags. Other map execution data are described below in mapCapture.execution.
 
 `mapCapture` uses the same exact-image owner selection and immutable control-plane
 snapshot as `hudCapture`. It describes nine views: `player`, `renderer`, `markers`,
@@ -216,8 +215,22 @@ The two new, unpublished revision-one files in PR #116 retain all their HUD and
 previous profile data and now include all 188 former map guard spans (41191 bytes),
 81 image pointer relations and the existing system/enum checks. Source attribution
 remains in `native/map/SOURCE-NOTICE.txt`. Historical profile files stay unchanged.
-Hook targets, capture layouts and iterator/private reader ABIs still need their
-own migration. Image admission alone never enables those operations.
+The optional mapCapture.execution describes the known map-capture-checked-v1 ABI.
+It includes seven guarded hook sites, original bytes and CALL targets, guarded
+iterator/component lookup function RVAs, build-dependent record offsets and the
+native-iterator-extent-v1 control/copy extents. Readers validate all offsets and
+original/target relations against the same image guards. Generic machine-code
+calling conventions and known record decoding stay in reviewed native code.
+This is a bounded data description, not a programmable hook script.
+
+Execution may instead contain unavailableReason. The 26082781 candidate uses
+legacy-iterator-extent-unproved. Malformed or missing execution disables map
+capture without disabling renderer-only image validation. The 26430625 candidate
+explicitly marks discovery-position-layout-unproved under unavailableViews.
+No heuristic coordinate scanner or late installer remains. The diagnostic
+profileSelection.mapCaptureProfile.executionStatus reports admission separately
+from the overall profile, world presence and actual effect. These data migrate
+the existing PR contracts and do not create new live validation evidence.
 
 Discovery preserves `hudCapture` and `mapCapture` only when complete mapped-image equivalence
 has been established. A changed mapped image reports

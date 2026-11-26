@@ -17,6 +17,7 @@ pub(super) fn create_world(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<mlua::T
     let state = lua.app_data_ref::<AppState>().unwrap();
     super::player_input::read_building_cursor::publish_local_camera_layout(&state);
     let world = lua.create_table()?;
+    super::map_overlay::attach_world(lua, &world, r#mod)?;
     add_function_with_mod(
         lua,
         &world,

@@ -19,6 +19,7 @@ std::vector<unsigned> stopped;
 unsigned ticks{}, resource_initializations{};
 bool fail_tick{}, fail_stop{}, fail_initialization{}, hooks_ready{};
 bool held_entry_callback{};
+bool unsupported_map{};
 unsigned native_plugin_preparations{};
 std::vector<unsigned> prepared;
 struct ActivationProbe { bool revalidation_succeeds{}; unsigned revalidations{}, stops{}; };
@@ -44,11 +45,6 @@ bool __cdecl prepare_native_plugins_fixture() {
     prepared.push_back(9);
     return true;
 }
-bool entry_restored_fixture() {
-    check(!held_entry_callback);
-    prepared.push_back(10);
-    return true;
-}
 }
 namespace EcsRuntime {
 bool Initialize() { prepared.push_back(1); return true; }
@@ -72,10 +68,10 @@ void StopPreparingWriter() { stopped.push_back(1); if (fail_stop) throw 1; }
 
 namespace MapRuntime {
 void StopCapture() noexcept { stopped.push_back(3); }
-std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {prepared.push_back(2);return token.ValidForCurrentThread()?0:1;}
+std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {prepared.push_back(2);return token.ValidForCurrentThread()?(unsupported_map?SF_MAP_UNSUPPORTED_BUILD:SF_MAP_READY):SF_MAP_FAILED;}
 }
 namespace OverlayRuntime {
-bool PrepareGraphicsBoot(bool) {prepared.push_back(4);return true;}
+bool PrepareGraphicsBoot(bool,bool) {prepared.push_back(4);return true;}
 void TickServices() { if (fail_tick) throw 1; }
 void ShutdownServices() { stopped.push_back(4); }
 }
@@ -93,7 +89,7 @@ bool RunHeldEntryPreparation(const HeldEntryProof& proof, HeldEntryCallback call
 }
 extern "C" void __cdecl KfcRuntimeNetworkServiceShutdown() { stopped.push_back(5); }
 
-int main(int argc,char**) {
+int main(int argc,char** argv) {
     {
         SelectedStartup::PlanV2 plan;
         plan.services = SelectedStartup::Metadata;
@@ -118,11 +114,19 @@ int main(int argc,char**) {
             std::strcmp(denied.FailureStage(), "executable-span-revalidation") == 0);
     }
     if(argc>1) {
-        fail_initialization=true;
+        unsupported_map=std::strcmp(argv[1],"--unsupported-map")==0;
+        fail_initialization=!unsupported_map;
         SelectedStartup::PlanV2 plan;plan.services=SelectedStartup::Metadata|SelectedStartup::MapCapture;
         EngineHooks::HeldEntryProof proof;proof.parked_thread_id=123;
         proof.is_held=+[](std::uint32_t thread) noexcept{return thread==123;};
         unsigned completed=999;
+        if(unsupported_map){
+            check(KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==plan.services);
+            check(prepared==std::vector<unsigned>({1,2}));
+            check(KfcRuntimeActivateSelectedV1(&plan,&completed) && completed==plan.services);
+            KfcRuntimeShutdown();verify_stopped();
+            std::puts("PASS: unsupported optional map preserves framework startup and activation");return 0;
+        }
         check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==0);
         verify_stopped();
         check(prepared==std::vector<unsigned>{1});
@@ -177,18 +181,19 @@ int main(int argc,char**) {
     invalid=plan;invalid.process_role=SelectedStartup::DedicatedServer;
     check(!KfcRuntimePrepareSelectedV1(&invalid,&proof,nullptr,0,&completed));
     check(!KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==0 && prepared.empty());
-    check(KfcRuntimePrepareSelectedV2(&plan,&proof,stage_native_plugins_fixture,
+    check(!KfcRuntimePrepareSelectedV2(&plan,&proof,stage_native_plugins_fixture,
         prepare_native_plugins_fixture,&completed) &&
-        completed==plan.services);
-    check(prepared==std::vector<unsigned>({0,1,2,4,9}) && native_plugin_preparations==1 && !KfcRuntimeInitialize());
+        completed==0 && prepared.empty() && native_plugin_preparations==0);
+    plan.services&=~SelectedStartup::NativePluginPreentry;
+    check(KfcRuntimePrepareSelectedV1(&plan,&proof,nullptr,0,&completed) && completed==plan.services);
+    check(prepared==std::vector<unsigned>({1,2,4}) && native_plugin_preparations==0 && !KfcRuntimeInitialize());
     bool continuation_succeeded{};
     std::thread original_entry([&] {
-        continuation_succeeded = entry_restored_fixture() &&
-            KfcRuntimeActivateSelectedV1(&plan,&completed) && completed==plan.services;
+        continuation_succeeded = KfcRuntimeActivateSelectedV1(&plan,&completed) && completed==plan.services;
     });
     original_entry.join();
     check(continuation_succeeded);
-    check(prepared==std::vector<unsigned>({0,1,2,4,9,10}));
+    check(prepared==std::vector<unsigned>({1,2,4}));
     const auto selected_resources=resource_initializations;KfcRuntimeTick();check(resource_initializations==selected_resources);
     check(!KfcRuntimeActivateSelectedV1(&plan,&completed));
     stopped.clear();KfcRuntimeShutdown();verify_stopped();

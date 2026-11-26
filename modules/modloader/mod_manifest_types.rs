@@ -340,9 +340,6 @@ pub enum Capability {
     Patch,
     Runtime,
     RuntimeRegisterDll,
-    RuntimeEngineHooks,
-    RuntimeExecutableSpans,
-    RuntimeExecutableSpanValidation,
     RuntimeMap,
     RuntimeOverlay,
 }
@@ -359,9 +356,6 @@ impl Capability {
             self,
             Self::Runtime
                 | Self::RuntimeRegisterDll
-                | Self::RuntimeEngineHooks
-                | Self::RuntimeExecutableSpans
-                | Self::RuntimeExecutableSpanValidation
                 | Self::RuntimeMap
                 | Self::RuntimeOverlay
         )

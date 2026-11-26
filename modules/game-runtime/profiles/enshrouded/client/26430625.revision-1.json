@@ -350,6 +350,84 @@
   },
   "target": "enshrouded.exe",
   "mapCapture": {
+    "execution": {
+      "id": "map-capture-checked-v1",
+      "hooks": {
+        "camera": {
+          "kind": "entry-four-args-v1",
+          "rva": 2849024,
+          "original": "405557488dac24b8feffff4881ec48020000"
+        },
+        "waypoints": {
+          "kind": "entry-four-args-v1",
+          "rva": 3227648,
+          "original": "48895c241848896c2420"
+        },
+        "remote": {
+          "kind": "entry-four-args-v1",
+          "rva": 3265424,
+          "original": "48894c2408"
+        },
+        "clock": {
+          "kind": "entry-four-args-v1",
+          "rva": 2851040,
+          "original": "41564883ec6041b828000000488d542430"
+        },
+        "weather": {
+          "kind": "call-v1",
+          "rva": 3158440,
+          "original": "e823737a00",
+          "targetRva": 11183312
+        },
+        "fog": {
+          "kind": "call-v1",
+          "rva": 3196724,
+          "original": "e847600900",
+          "targetRva": 3811200
+        },
+        "world": {
+          "kind": "entry-four-args-v1",
+          "rva": 3163248,
+          "original": "4883ec3841b810000000488d542420"
+        }
+      },
+      "functions": {
+        "iterInitRva": 10255232,
+        "iterNextRva": 10233728,
+        "getWorldRva": 10222464,
+        "lookupRva": 10169168
+      },
+      "layout": {
+        "entityArrayOffset": 2096,
+        "entityStride": 16,
+        "remoteStride": 160,
+        "localIdOffset": 4,
+        "waypointPositionOffset": 8,
+        "clockValuesOffset": 40,
+        "customListOffset": 3762728,
+        "worldListOffset": 3598848,
+        "secondaryListOffset": 3926608,
+        "deathListOffset": 4090488,
+        "markerStride": 160
+      },
+      "iterator": {
+        "id": "native-iterator-extent-v1",
+        "queryBytes": 2112,
+        "indirectOffset": 192,
+        "sourceCountsOffset": 416,
+        "listCountsOffset": 1200,
+        "n5Offset": 1960,
+        "n4Offset": 2040,
+        "rowsOffset": 2104,
+        "p3CountOffset": 1024,
+        "p8CountOffset": 128,
+        "queryCopyAOffset": 1968,
+        "queryCopyBOffset": 1216
+      },
+      "unavailableViews": {
+        "discovery": "discovery-position-layout-unproved"
+      }
+    },
   "id": "map-image-admission-v1",
   "readiness": "all-views",
   "guardChunkBytes": 256,

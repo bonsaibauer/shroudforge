@@ -121,11 +121,11 @@ jobs:
         shell: pwsh
         run: .\dev\build\build_windows_bootstrap.ps1
 
-      - name: Check Windows bootstrap startup gating
+      - name: Check native runtime and bootstrap contracts
         shell: pwsh
         run: |
-          & pwsh -NoProfile -File modules/entrypoints/windows-bootstrap/tests/run.ps1
-          if ($LASTEXITCODE -ne 0) { throw 'Windows bootstrap tests failed.' }
+          & pwsh -NoProfile -File dev/tests/run_workspace_tests.ps1 -TestGroup Native
+          if ($LASTEXITCODE -ne 0) { throw 'Native runtime and bootstrap tests failed.' }
 
       - name: Save native build outputs
         uses: actions/upload-artifact@v7

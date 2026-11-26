@@ -49,6 +49,18 @@ pub(in crate::windows) fn provider() -> Option<&'static Provider> {
                     ))
                 } else {
                     Ok(Provider {
+                        map_snapshot_json: optional_symbol!(
+                            "KfcRuntimeMapSnapshotJson",
+                            MapSnapshotJson
+                        ),
+                        map_overlay_status_json: optional_symbol!(
+                            "KfcRuntimeMapOverlayStatusJson",
+                            Registry
+                        ),
+                        submit_overlay_scene_json: optional_symbol!(
+                            "KfcRuntimeSubmitOverlaySceneJson",
+                            SubmitOverlaySceneJson
+                        ),
                         publish_notification: optional_symbol!(
                             "KfcRuntimePublishNotificationV1",
                             PublishNotification

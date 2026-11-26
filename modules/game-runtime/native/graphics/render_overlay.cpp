@@ -1,4 +1,5 @@
 #include "graphics/render_overlay.h"
+#include "graphics/read_overlay_scene.h"
 #include "map/capture_game_map.h"
 #include "map/hud_visibility.h"
 #include <windows.h>
@@ -67,6 +68,7 @@ struct Registry::Owner {
 
     } gate;
     SFOverlayFrameCallbackV1 callback{};
+    std::shared_ptr<const OwnedOverlayScene> scene;
     void* callback_context{};
     std::unordered_map<std::uint64_t,MapRuntime::FrameLease> leases;
 };
@@ -86,9 +88,10 @@ std::uint64_t Registry::Open(const std::string& package,std::uint64_t generation
 std::int32_t Registry::Query(std::uint64_t id,const std::string& name,std::uint32_t version,std::uint32_t capacity,void* output) {
     if(version!=1 && !((version==2 || version==3) && name=="shroudforge.overlay")) return 2;
     if(!output) return 1;
-    if(name!="shroudforge.map" && name!="shroudforge.overlay" && name!=SF_EXECUTABLE_SPAN_SERVICE_NAME) return 4;
+    if(name!="shroudforge.map" && name!="shroudforge.overlay" && name!="shroudforge.overlay.scene" && name!=SF_EXECUTABLE_SPAN_SERVICE_NAME) return 4;
     const auto required=name=="shroudforge.map" ? sizeof(SFMapServiceV1) :
-        name==SF_EXECUTABLE_SPAN_SERVICE_NAME ? sizeof(SFExecutableSpanServiceV1) : sizeof(SFOverlayServiceV1);
+        name==SF_EXECUTABLE_SPAN_SERVICE_NAME ? sizeof(SFExecutableSpanServiceV1) :
+        name=="shroudforge.overlay.scene" ? sizeof(SFOverlaySceneServiceV1) : sizeof(SFOverlayServiceV1);
     if(capacity<required)return 5;
     if(name==SF_EXECUTABLE_SPAN_SERVICE_NAME && !WritableServiceOutput(output,required))
         return SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT;
@@ -102,8 +105,10 @@ std::int32_t Registry::Query(std::uint64_t id,const std::string& name,std::uint3
         owner->executable_span_thread=thread;
         SFExecutableSpanServiceV1 table{sizeof(table),SF_EXECUTABLE_SPAN_SERVICE_VERSION,owner.get(),ExecutableSpanQuery};
         std::memcpy(output,&table,sizeof(table));
+    } else if(name=="shroudforge.overlay.scene") {
+        SFOverlaySceneServiceV1 table{sizeof(table),1,owner.get(),SubmitScene,ReadTarget};std::memcpy(output,&table,sizeof(table));
     } else {
-        if(owner->overlay_version!=version && (owner->callback || owner->in_flight))return 6;
+        if(owner->overlay_version!=version && (owner->callback || owner->scene || owner->in_flight))return 6;
         owner->overlay_version=version;
         SFOverlayServiceV1 table{sizeof(table),version,owner.get(),Register,Unregister,Status}; std::memcpy(output,&table,sizeof(table));
     }
@@ -131,6 +136,7 @@ std::int32_t Registry::Release(void* context,SFMapFrameLeaseV1 lease) {
 std::int32_t Registry::Register(void* context,SFOverlayFrameCallbackV1 callback,void* data,SFOverlayRegistrationV1* registration) {
     if(!context || !callback || !registration) return 1; auto& owner=*static_cast<Owner*>(context);
     std::lock_guard lock(owner.mutex); if(owner.revoked) return 3;
+    if(owner.scene)return 6;
     if(owner.callback || owner.in_flight || owner.next_registration>=UINT32_MAX) return 1;
     owner.registration=(owner.id<<32)|++owner.next_registration; owner.callback=callback; owner.callback_context=data;
     *registration=owner.registration; return 0;
@@ -140,6 +146,30 @@ std::int32_t Registry::Unregister(void* context,SFOverlayRegistrationV1 registra
     std::lock_guard lock(owner.mutex); if(owner.registration!=registration) return 1;
     owner.callback=nullptr; owner.callback_context=nullptr;
     return owner.in_flight ? 6 : 0;
+}
+SFOverlayFrameV3 Registry::LastTarget(){std::lock_guard lock(mutex_);return last_target_;}
+std::int32_t Registry::ReadTarget(void* context,std::uint32_t capacity,SFOverlayFrameV3* output){
+    if(!context || !output || !WritableServiceOutput(output,sizeof(*output)))return 1;
+    if(capacity<sizeof(*output))return 5;
+    auto& owner=*static_cast<Owner*>(context);std::lock_guard lock(owner.mutex);if(owner.revoked)return 3;
+    const auto frame=owner.registry->LastTarget();const auto status=GraphicsStatus();
+    if(status.status || !frame.base.width || frame.base.device_generation!=status.device_generation)return 3;
+    *output=frame;return 0;
+}
+std::int32_t Registry::SubmitScene(void* context,const std::uint8_t* input,std::uint32_t size) {
+    if(!context || !input || !size)return 1;if(size>8u*1024u*1024u)return 10;
+    auto& owner=*static_cast<Owner*>(context);
+    {std::lock_guard lock(owner.mutex);if(owner.revoked)return 3;if(owner.callback)return 6;}
+    try {
+        std::vector<std::uint8_t> bytes(size);
+        if(!MapRuntime::ReadMemory(reinterpret_cast<std::uintptr_t>(input),bytes.data(),size))return 1;
+        const auto model=nlohmann::json::parse(bytes.begin(),bytes.end(),[&](int level,nlohmann::json::parse_event_t,nlohmann::json&){
+            if(level>16)throw std::runtime_error("scene nesting limit exceeded");return true;});
+        auto scene=OwnedOverlayScene::Read(model);
+        std::lock_guard lock(owner.mutex);if(owner.revoked)return 3;if(owner.callback)return 6;
+        owner.scene=scene->rectangles.empty() && scene->textures.empty() && scene->programs.empty()?nullptr:std::move(scene);
+        owner.overlay_version=3;return 0;
+    }catch(...){return 1;}
 }
 std::int32_t Registry::Status(void* context,std::uint32_t capacity,SFOverlayStatusV1* status) {
     if(!context || !status) return 1; if(capacity<sizeof(*status)) return 5;
@@ -179,7 +209,7 @@ std::int32_t Registry::ExecutableSpanQuery(void* context,const SFExecutableSpanQ
 }
 std::int32_t Registry::Revoke(std::uint64_t id) {
     auto owner=Find(id); if(!owner) return 0;
-    std::lock_guard lock(owner->mutex); owner->revoked=true; owner->gate.active.store(false,std::memory_order_release); owner->callback=nullptr; owner->callback_context=nullptr;
+    std::lock_guard lock(owner->mutex); owner->revoked=true; owner->gate.active.store(false,std::memory_order_release); owner->callback=nullptr; owner->callback_context=nullptr;owner->scene.reset();
     owner->changed.notify_all(); return 0;
 }
 std::int32_t Registry::Drain(std::uint64_t id,std::uint32_t timeout) {
@@ -195,9 +225,12 @@ bool Registry::Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t n
     {std::lock_guard lock(mutex_); for(const auto& [_,owner]:owners_) owners.push_back(owner);}
     auto lease=frames_.Acquire(0,now);
     auto& frame=target.base;frame={sizeof(frame),1,width,height,generation,supplied_frame ? supplied_frame : &lease.frame};
+    {std::lock_guard lock(mutex_);last_target_=target;last_target_.base.size=sizeof(target);last_target_.base.version=3;last_target_.base.map_frame=nullptr;}
     for(const auto& owner:owners) {
         SFOverlayFrameCallbackV1 callback{}; void* context{};
-        {std::lock_guard lock(owner->mutex); if(owner->revoked || !owner->callback) continue;
+        std::shared_ptr<const OwnedOverlayScene> scene;
+        {std::lock_guard lock(owner->mutex); if(owner->revoked || (!owner->callback && !owner->scene)) continue;
+            scene=owner->scene;
             ++owner->in_flight; callback=owner->callback; context=owner->callback_context;frame.version=owner->overlay_version;}
         auto& gate=owner->gate;gate.backend=input;gate.owner=owner->id;gate.thread=GetCurrentThreadId();gate.active.store(true,std::memory_order_release);
         gate.extended={};gate.programmable={};gate.limited=frame.version==3;gate.remaining=SF_OVERLAY_MAX_PROGRAM_DRAWS;
@@ -208,11 +241,11 @@ bool Registry::Dispatch(std::uint32_t width,std::uint32_t height,std::uint64_t n
         const SFOverlayEncoderV3 encoder{{{std::uint32_t(encoder_size),frame.version,&gate,owner->id,generation,Owner::EncoderGate::Rectangles,Owner::EncoderGate::Textures},Owner::EncoderGate::TexturesV2},Owner::EncoderGate::Programs};
         std::int32_t result=7;try{
             if((frame.version==1 || gate.extended.draw_textures_v2) && (frame.version!=3 || gate.programmable.draw_programs))
-                result=callback(context,&frame,&encoder.base.base);
+                result=scene?scene->Draw(encoder,width,height):callback(context,&frame,&encoder.base.base);
         }catch(...){}
         gate.active.store(false,std::memory_order_release);
         {std::lock_guard lock(owner->mutex); --owner->in_flight;
-            if(result!=0) {success=false;owner->revoked=true;owner->callback=nullptr;} owner->changed.notify_all();}
+            if(result!=0) {success=false;owner->revoked=true;owner->callback=nullptr;owner->scene.reset();} owner->changed.notify_all();}
     }
     return success;
 }

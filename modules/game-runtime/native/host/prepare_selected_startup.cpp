@@ -13,7 +13,7 @@
 namespace {
 SelectedStartup::State selected;
 constexpr unsigned public_services = SelectedStartup::Metadata | SelectedStartup::GenericHooks |
-    SelectedStartup::MapCapture | SelectedStartup::NativePluginPreentry | SelectedStartup::Graphics;
+    SelectedStartup::MapCapture | SelectedStartup::Graphics;
 struct Context {
     const EngineHooks::HeldEntryToken* token{};
     SelectedStartup::StageNativePlugins stage_native_plugins{};
@@ -32,8 +32,12 @@ SelectedStartup::Operations operations(Context& context) {
     return {&context,
         +[](void*,bool){return ProviderImplementation::initialize_provider(true);},
         +[](void*){return ProviderImplementation::provider_initialized.load() && EngineHooks::StartupReady();},
-        +[](void* value){const auto token=static_cast<Context*>(value)->token;return token && MapRuntime::PrepareCapture(*token)==SF_MAP_READY;},
-        +[](void*){return OverlayRuntime::PrepareGraphicsBoot(true);},
+        +[](void* value){const auto token=static_cast<Context*>(value)->token;if(!token)return false;
+            const auto status=MapRuntime::PrepareCapture(*token);
+            // Unsupported optional data publishes no hook. Actual publication
+            // failure must still fail startup rather than pretend completion.
+            return status==SF_MAP_READY || status==SF_MAP_UNSUPPORTED_BUILD;},
+        +[](void*){return OverlayRuntime::PrepareGraphicsBoot(true,true);},
         +[](void* value){const auto callback=static_cast<Context*>(value)->stage_native_plugins;return callback && callback();},
         +[](void* value){const auto callback=static_cast<Context*>(value)->native_plugins;return callback && callback();},
         +[](void*){return ExecutableSpanValidation::RevalidateAllRegistered();},

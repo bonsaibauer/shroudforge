@@ -5,12 +5,51 @@ tables for engine map snapshots and owner-scoped drawing. Packages query a
 table through the managed native host using their package identity and
 activation generation. The host allocates the owner token.
 
-These C service tables currently have no public Lua binding or corresponding
-entry in the runtime operations catalog. A manifest capability can request
-preparation for a Lua package, but does not create a Lua function. Shared Lua
-bindings, operation availability and generated API declarations remain part
-of the integration work tracked in
-[issue #149](https://github.com/bonsaibauer/shroudforge/issues/149).
+The same public services are available to Lua through the existing runtime API:
+
+| Lua API / runtime operation | Native adapter | Capability |
+| --- | --- | --- |
+| runtime.world.map.get | shroudforge.map v1 acquire/release | runtime + runtime-map |
+| runtime.world.environment.get | environment of the same map frame | runtime + runtime-map |
+| runtime.world.hud.get | flags of the same map frame | runtime + runtime-map |
+| runtime.overlay.submit / clear | shroudforge.overlay.scene v1 submit_json | runtime + runtime-overlay |
+| runtime.overlay.status | shared renderer status | runtime + runtime-overlay |
+
+The canonical function declarations, arguments and examples are in
+[runtime_map_overlay_api.lua](../../modules/mod-runtime/lua/shroudforge/v1/definitions/runtime_map_overlay_api.lua).
+Editor and website API data are generated from those declarations. Use
+runtime.has, runtime.require, runtime.status and runtime.get_operations for the
+same explicit access/availability contract. Active ingame client lifecycle and
+exact-profile startup preparation are required. Admission of the API is separate
+from each view's capture/freshness and renderer progress.
+
+Lua receives detached data. All uint64 identities, times and generations are
+decimal strings. A map session generation is separate from world.session_id and
+from the package activation generation. The latter stays internal and is shared
+by this package's Lua and native adapters. Fog tiles are copied as lowercase
+tiles_hex with byte_count, columns and rows, preserving the native tile order.
+The full snapshot JSON is bounded at 64 MiB. Environment/HUD reads omit the fog
+payload. Never interpret an unsupported, missing or stale view as real values.
+
+Copied scenes contain rectangles, textured quads and fragment programs, drawn in
+that order. Up to 4096 commands and 8 MiB JSON are accepted. Lua table conversion
+has the existing 100000-value structural limit. Larger descriptions may be UTF-8
+JSON strings. Input is copied before publication. Invalid input preserves the
+previous scene. Empty object clears the package's scene. Native frame callbacks
+and copied scenes are mutually exclusive per owner. No Lua executes on a Vulkan
+thread. Revoke/drain retires both adapters through the same owner.
+
+For copied fragment programs, read runtime.overlay.status().target (native scene
+table: read_target). Use its encoding/nits and copy device_generation into
+scene.target_generation. A changed target skips the entire programmable scene
+until resubmission. The cached target never contains a map pointer. Framebuffer
+dimensions and color metadata are observations, not a reserved future target.
+
+The existing reflected ClientPlayerInput camera/cursor path remains separate
+from the map camera-system snapshot. Their timing and source contracts differ.
+The map frame also separates player pose from camera pose. Identical coordinate
+encoding does not establish interchangeable data. These are concrete adapters,
+not another general ECS registry or world lifetime manager.
 
 A frame lease retains copied snapshot storage until release. Session changes
 invalidate its use in a new session without freeing borrowed storage. Revoke
@@ -63,9 +102,13 @@ named systems and image-relative pointer checks now also come from the optional
 `mapCapture` section of that same profile. Map admission retains its previous
 per-build completeness policy. Renderer-only admission checks its own view
 without requiring map named systems or capture activation. Both use the same
-bounded matcher. Hook targets, capture layouts and private reader contracts
-still await their profile migration. This internal change adds
-no public Lua function or native service-table entry.
+bounded matcher. The optional mapCapture.execution section now provides guarded hook targets,
+function RVAs, build-dependent offsets and checked iterator extents. The only
+installer runs at the framework held-entry boundary. API activation never
+installs late game hooks. Build 26082781 capture is explicitly unavailable with
+legacy-iterator-extent-unproved. The unproved discovery coordinate scanner and
+discovery hook are removed. Discovery is not advertised by active capture.
+Renderer/HUD image validation remains independently usable.
 
 Map capture and generic world hooks publish and restore executable relays
 through the same internal `engine-hooks/publish_engine_hook` implementation.
@@ -167,13 +210,15 @@ binary compatibility with earlier custom vertex stages is not provided.
 
 ## Startup requirements
 
-Packages request early preparation with `runtime-engine-hooks`, `runtime-map`
-or `runtime-overlay` in the existing manifest capability list. A native package
+Packages request early preparation with `runtime-map` or `runtime-overlay` in
+the existing manifest capability list. Ordinary `runtime` behavior retains its
+existing initialization. The draft engine-hooks and executable-span permissions
+are removed from the public manifest. A native package
 uses the ordinary approved DLL plan and registers callbacks through
 `ShroudforgeModNativeInit`. SDK `register_lifecycle` requests gameplay callbacks;
-`register_preentry_lifecycle` additionally requests Stage/Prepare before entry.
-Neither registration adds map or graphics demand. Those remain manifest
-capabilities. `Lifecycle=` and `Services=` INI keys are ignored. Capabilities
+the draft ABI4 preentry-registration slot is reserved and returns unsupported.
+Packages cannot request a second early callback lifecycle. Map and graphics
+demand remains in manifest capabilities. `Lifecycle=` and `Services=` INI keys are ignored. Capabilities
 request preparation and do not prove readiness or grant another owner's access.
 See [Native mod lifecycle](../modding/native-plugin-lifecycle.en.md) for the SDK
 registration and activation contract.
@@ -191,6 +236,10 @@ DLLs use the existing ordered process executor before provider preparation.
 Their selected binaries are retained with the other startup inputs. Actual
 foreign code changes still fail the affected operation's byte guards. Package
 inputs may live in the configured mod directory outside the installation.
+Missing optional map/renderer data before publication completes preparation
+without making that API available. Actual hook/import publication failure still
+fails startup. A requested/completed plan bit is not evidence of fresh map data
+or graphics readiness. The public API consults the provider's concrete status.
 Optional map/graphics preparation uses normal ECS initialization and does not
 add another write-permission fence. Existing world, owner, authority and write
 fault checks remain in force. Removed capabilities, unknown plan bits and

@@ -1,6 +1,84 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$defs": {
+    "mapCaptureHook": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "rva", "original"],
+      "properties": {
+        "kind": {"enum": ["entry-four-args-v1", "call-v1"]},
+        "rva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "targetRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "original": {"type": "string", "pattern": "^(?:[0-9a-f]{2}){5,32}$"}
+      }
+    },
+    "mapCaptureExecution": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["unavailableReason"],
+         "properties": {"unavailableReason": {"type": "string", "minLength": 1, "maxLength": 160}}},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["id", "hooks", "functions", "layout", "iterator", "unavailableViews"],
+          "properties": {
+            "id": {"const": "map-capture-checked-v1"},
+            "hooks": {
+              "type": "object", "additionalProperties": false,
+              "required": ["camera", "waypoints", "remote", "clock", "weather", "fog", "world"],
+              "properties": {
+                "camera": {"$ref": "#/$defs/mapCaptureHook"}, "waypoints": {"$ref": "#/$defs/mapCaptureHook"},
+                "remote": {"$ref": "#/$defs/mapCaptureHook"}, "clock": {"$ref": "#/$defs/mapCaptureHook"},
+                "weather": {"$ref": "#/$defs/mapCaptureHook"}, "fog": {"$ref": "#/$defs/mapCaptureHook"}, "world": {"$ref": "#/$defs/mapCaptureHook"}
+              }
+            },
+            "functions": {
+              "type": "object", "additionalProperties": false, "required": ["iterInitRva", "iterNextRva", "getWorldRva", "lookupRva"],
+              "properties": {
+                "iterInitRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+                "iterNextRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+                "getWorldRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+                "lookupRva": {"type": "integer", "minimum": 1, "maximum": 4294967295}
+              }
+            },
+            "layout": {
+              "type": "object", "additionalProperties": false,
+              "required": ["entityArrayOffset", "entityStride", "remoteStride", "localIdOffset", "waypointPositionOffset", "clockValuesOffset", "customListOffset", "worldListOffset", "secondaryListOffset", "deathListOffset", "markerStride"],
+              "properties": {
+                "entityArrayOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "entityStride": {"type": "integer", "minimum": 4, "maximum": 4096},
+                "remoteStride": {"type": "integer", "minimum": 4, "maximum": 4096},
+                "localIdOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "waypointPositionOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "clockValuesOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "customListOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "worldListOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "secondaryListOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "deathListOffset": {"type": "integer", "minimum": 0, "maximum": 67108864},
+                "markerStride": {"const": 160}
+              }
+            },
+            "iterator": {
+              "type": "object", "additionalProperties": false,
+              "required": ["id", "queryBytes", "indirectOffset", "sourceCountsOffset", "listCountsOffset", "n5Offset", "n4Offset", "rowsOffset", "p3CountOffset", "p8CountOffset", "queryCopyAOffset", "queryCopyBOffset"],
+              "properties": {
+                "id": {"const": "native-iterator-extent-v1"}, "queryBytes": {"type": "integer", "minimum": 32, "maximum": 65536},
+                "indirectOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "sourceCountsOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "listCountsOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "n5Offset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "n4Offset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "rowsOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "p3CountOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "p8CountOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "queryCopyAOffset": {"type": "integer", "minimum": 0, "maximum": 65535},
+                "queryCopyBOffset": {"type": "integer", "minimum": 0, "maximum": 65535}
+              }
+            },
+            "unavailableViews": {
+              "type": "object", "additionalProperties": false, "required": ["discovery"],
+              "properties": {"discovery": {"type": "string", "minLength": 1, "maxLength": 160}}
+            }
+          }
+        }
+      ]
+    },
     "mapSystem": {
       "type": "object", "additionalProperties": false, "required": ["descriptorRva", "callbackRva", "name"],
       "properties": {
@@ -63,6 +141,7 @@
       "required": ["id", "readiness", "guardChunkBytes", "deathsRequireWorld", "requiredSystems", "views"],
       "properties": {
         "id": {"const": "map-image-admission-v1"},
+        "execution": {"$ref": "#/$defs/mapCaptureExecution"},
         "readiness": {"enum": ["all-views", "player-only"]},
         "guardChunkBytes": {"enum": [256, 1024]},
         "deathsRequireWorld": {"type": "boolean"},

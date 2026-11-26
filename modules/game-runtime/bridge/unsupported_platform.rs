@@ -234,3 +234,15 @@ pub fn drain_map_overlay_services(_: &str, _: u64, _: u32) -> i32 {
 pub fn native_publish_notification(_: &str, _: &str, _: &str, _: u32) -> i32 {
     3
 }
+pub fn map_overlay_status() -> Result<serde_json::Value, String> {
+    Err("map/overlay requires Windows".into())
+}
+pub fn map_overlay_operation_available(_: bool) -> bool {
+    false
+}
+pub fn map_snapshot(_: &str, _: u64, _: u64, _: u32) -> Result<serde_json::Value, String> {
+    Err("map capture requires Windows".into())
+}
+pub fn submit_overlay_scene(_: &str, _: u64, _: &[u8]) -> Result<(), String> {
+    Err("overlay requires Windows".into())
+}

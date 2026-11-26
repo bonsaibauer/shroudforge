@@ -1,40 +1,21 @@
-# Native plugin lifecycle
+# Native mods through the existing loader and API
 
-Existing DLL Manager selections and `register_dll` libraries retain their
-process lifetime and optional DLL-to-Lua bridge. A manifest-backed runtime
-package registers managed callbacks through the existing native SDK. DLL
-selection stays with the DLL Manager, a data-only compatibility profile, the
-existing INI DLL declaration or the package-local `register_dll` call. For
-example, the existing DLL declaration remains:
+All DLLs use the same ordered process executor in `mod-runtime/native_dlls.rs`.
+Choose a package DLL in the DLL Manager, use an existing `[Plugin] Dll=` declaration,
+or call `loader.runtime.register_dll` from its package. Existing DLL Manager
+approval, activation, target, dependencies, library/chain mode and path rules apply.
+`Lifecycle=` and `Services=` INI keys are ignored. No other plugin loader exists.
+Ordinary DLLs retain their own startup and stay loaded until process exit.
 
-```ini
-[Plugin]
-Enabled=true
-Dll=bin/plugin.dll
-```
+A package DLL may export `ShroudforgeModNativeInit`, called once after loading
+on the existing DLL worker. The [SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
+lets it register functions which only its own Lua reaches through
+`shroudforge.native.call`. Registration supplies functions. It does not run
+gameplay callbacks or grant game access. Failed init withdraws registrations.
 
-Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`.
-Optional game services use the existing manifest capabilities. For example, a
-native map renderer adds `runtime-map` and `runtime-overlay` to that same list:
+## One optional activation contract
 
-```json
-"capabilities": ["runtime", "runtime-register-dll", "runtime-map", "runtime-overlay"]
-```
-
-The normal package plan derives map and graphics startup demand from these
-capabilities for both Lua and native consumers. No `Services=` list is used or
-required. Leftover `Lifecycle=` and `Services=` keys from the unpublished draft
-are ignored and grant no permission or startup demand. Actual SDK service queries still check
-the owning package, activation generation, capability and live provider support.
-
-Include the existing [mod native SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
-and export `ShroudforgeModNativeInit`. Mod bridge ABI 3 appends
-`register_lifecycle` to `ShroudforgeModHost`. During that one-time DLL
-initialization, pass it the DLL's V1 activation factory. ABI 4 appends
-`register_preentry_lifecycle` for a V2 factory that requires Stage/Prepare before
-game entry. Both registration calls use the same slot and registration window.
-Registering through either rejects another registration through either function.
-No second export is queried and no INI lifecycle version is interpreted.
+Use SDK host ABI >=3 and its `register_lifecycle` field for a V1 factory:
 
 ```c
 static SFNativeStatusV1 SF_NATIVE_CALL create_activation(
@@ -50,199 +31,82 @@ ShroudforgeModNativeInit(const ShroudforgeModHost *host)
 }
 ```
 
-`create_activation` validates the requested version, pointer and capacity before
-writing the callback table described in the SDK. It only supplies callbacks.
-The runtime calls it later on the activation owner thread. Returning an error
-or an invalid table prevents activation. Registering it does not start the mod
-or grant access to the game. Duplicate registration returns 3, registration
-outside DLL initialization returns 4, and invalid arguments return 2. The bridge
-withdraws both the factory and that DLL's Lua functions if DLL initialization
-fails. The factory is stored in the same process-owned DLL record as its load
-result. Reloading Lua does not rerun DLL initialization or factory registration.
+The factory validates ABI 1, output pointer and size before writing the table.
+The common runtime calls it later on its control thread. It supplies initialize,
+update, stop and shutdown callbacks, without running initialization in the factory.
+One DLL registration is accepted in its init window. Results: 1 registered,
+2 invalid argument, 3 duplicate, 4 window closed. A package has one callback owner.
+Helpers and ordinary DLLs keep their normal loading behavior.
 
-A DLL that needs the V2 pre-entry phases uses this alternative registration
-inside the same `ShroudforgeModNativeInit` export:
+ABI 1/2/3 SDK fields retain their offsets. ABI4's unpublished preentry-registration
+tail is reserved and always returns 0. Package Stage/Prepare/entry-restored
+callbacks and public executable-span approval services are not supported.
+Draft consumers must move game-specific hook requests to reviewed framework
+operations backed by profiles, then use the ordinary activation and service API.
+`ShroudForgePluginEntry` is not queried. No INI setting can opt into another lifecycle.
 
-```c
-if (!host || host->abi_version < 4u
-    || host->size < offsetof(ShroudforgeModHost, register_preentry_lifecycle)
-                    + sizeof(host->register_preentry_lifecycle)
-    || !host->register_preentry_lifecycle) return 0;
-return host->register_preentry_lifecycle(host, create_activation) == 1u;
-```
+## Shared package lifecycle
 
-That factory must supply the SDK's `SFNativePluginV2` table for requested ABI 2,
-including the required preparation callback. A V2 registration discovered later
-through a Lua DLL call cannot repeat startup preparation. The package reports a
-restart requirement without calling that late factory or its gameplay callbacks.
+`mod-runtime/ingame/` owns the dependency-aware package lifecycle for Lua and
+native callbacks. A native-only package with registered callbacks needs no dummy
+Lua script. A mixed package uses its ordinary Lua lifecycle table.
 
-The process-lifetime `ShroudforgeModHost` and activation-lifetime `SFNativeHostV1`
-have different lifetimes. The first registers the DLL's integration once. The
-second supplies settings, package reads and services to that activation's
-callbacks, with its package identity and generation. Its services expire when
-the activation is revoked and drained. Neither table is a separate loader.
+Activation creates one package generation, calls Lua on_load when present, then
+native initialize. Updates use the same traversal, due Lua on_update followed by
+native update. A failure uses the common package rollback. Live settings consume
+the same canonical package values. Disabled dependencies block both languages.
 
-Existing mod bridge ABI 1/2/3 fields retain their offsets and behavior. DLLs
-that register only Lua functions or do not use the optional init export keep
-their existing path. Consumers of the unpublished `native_plugin_api.h` draft
-must replace that include with this SDK and register their former
-`ShroudForgePluginEntry` implementation as a local factory through the existing
-init export. That old export is no longer queried. Draft V2 consumers must use
-the appended `register_preentry_lifecycle`, checking host ABI >= 4 and its field
-size, instead of `Lifecycle=shroudforge-v2`. The loader records the required
-callback version with the accepted factory in the existing process DLL record.
-It never probes a factory with speculative versions to discover its requirements.
+Cleanup calls Lua on_unload, restores automatic overrides, releases input
+reservations, revokes/drains any Lua-used map/overlay owner, then tears down the
+native activation. Native teardown revokes, drains, stops, shuts down and drains
+again. The package scope stays active for retryable cleanup until all steps
+finish. Incomplete cleanup suppresses regular updates and retains native code
+and context. It does not count as successful unload.
 
-The optional executable-span service uses the standalone
-[executable_span_api.h](../../modules/game-runtime/native/abi/executable_span_api.h)
-contract.
-The registered factory supplies a table. Initialization work belongs in its `initialize`
-callback. Lifecycle registration does not override the DLL Manager's file,
-target, approval, dependency or mode selection. Callback DLLs require library
-mode. One package can have one callback-owning DLL. Additional ordinary helper
-DLLs retain their declared modes. Duplicate aliases of the same canonical DLL
-reuse the same registration. Ambiguous callback owners are rejected.
+Lua and DLL service requests from the same activation share package identity and
+generation. An unused Lua API creates no service tombstone. A fresh activation
+gets a new generation and invokes the existing recorded factory, without loading
+or initializing the process DLL again. Old service tables stay revoked.
+Pending OS loads cannot be cancelled, but a cancelled activation cannot start
+later. Modules remain process-owned and mapped until exit.
 
-All DLL loads and optional `ShroudforgeModNativeInit` calls run on the existing
-ordered process worker in `native_dlls.rs`. Selected DLLs, Lua registrations and
-managed declarations share canonical-path deduplication and the same load
-result. The startup plan queues enabled managed DLLs in the original DLL order
-and waits for loading and SDK registration to finish before provider preparation.
-It holds the package and DLL inputs before loading, then derives required early
-phases from the accepted SDK registrations. Ordinary or V1-only plans without
-other early service demand continue through the existing normal startup path.
-The factory's callback table is then prepared on the activation owner thread.
-This preparation does not call its gameplay `initialize` callback.
-Settings and package asset reads use bounded UTF-8 byte spans.
-Short output buffers report the required size without partial writes. Paths
-are relative to the owning package, including for archived packages.
-DLL binaries use the existing resolver for installed, unpacked mod folders.
-The runtime does not extract another native package copy.
+The process-lifetime ShroudforgeModHost registers integration once. The
+activation-lifetime SFNativeHostV1 supplies bounded settings JSON, package-relative
+asset reads and query/revoke/drain services. It expires after teardown. All host
+control calls are owner-thread-only. Native drawing callbacks have the stricter
+renderer-thread/span contract documented in the map/overlay header. DLL workers
+must stop using activation host pointers before shutdown returns.
 
-## Common package activation
+## Common services and preparation
 
-`mod-runtime/ingame/` owns one dependency-aware package plan and one lifecycle
-traversal for Lua and native callbacks. A package with registered native callbacks
-can omit `src/mod.lua`. A mixed package uses its ordinary Lua lifecycle table.
-Neither form creates another mod scheduler or bypasses a blocked dependency.
+Declare `runtime` and the operation's capability in the ordinary mod.json.
+`runtime-map` requests shared map preparation, `runtime-overlay` requests shared
+graphics preparation, for Lua and native packages alike. A Lua call registering
+a DLL keeps its existing runtime-register-dll permission. No Services list or
+extra execution permission is added for internal preparation.
 
-Activation establishes the package's active scope, calls Lua `on_load` when
-present, and then calls native `initialize`. A start failure follows the same
-package rollback path. Native initialization failure also uses the SDK's existing
-revocation and drain rules before releasing or retaining its activation context.
+- shroudforge.map v1 exposes acquire/release on the same store as
+  runtime.world.map.get, runtime.world.environment.get and runtime.world.hud.get.
+- shroudforge.overlay v1/v2/v3 exposes synchronous native frame callbacks.
+  shroudforge.overlay.scene v1 accepts copied JSON scenes, exactly as
+  runtime.overlay.submit/clear. Both use one renderer and owner retirement.
+  Use either callbacks or a copied scene within one package generation.
+- shroudforge.keybinds v1 uses declared keybind settings and the same SDL,
+  focus, conflict and capture rules as shroudforge.input. No raw VK reader exists.
+- shroudforge.notifications v1 uses the notifications module's validation and
+  persisted feed, also used by Lua. In-game presentation is an optional output.
 
-During each runtime tick, the common traversal calls a due Lua `on_update` first,
-then native `update`. Native updates retain their per-tick cadence. Lua retains
-its declared `update_interval_ms` and skips missed periods without replay bursts.
-An error in either callback enters package cleanup through the same controller.
+The provider query/revoke/drain exports must all exist before a service table
+escapes. Native map/overlay queries enforce their concrete capability before
+forwarding. Static capability declarations never prove exact-build preparation,
+world presence, fresh capture or actual rendering. Check service and view status.
+Late graphics requests require restart when startup creation was not observed.
 
-Cleanup calls Lua `on_unload`, restores automatic runtime overrides, releases
-input reservations, and then stops the native activation. The package's active
-scope is cleared only after all cleanup succeeds. An incomplete cleanup keeps
-that scope for cleanup retries and suppresses all further regular Lua and native
-updates. Retained native context rejects reactivation and requires a process
-restart. A prepared activation that never started is discarded or rolled back
-without calling gameplay `initialize`.
+Only the framework prepares profile-bound hooks through its existing bootstrap
+held-entry boundary and shared publisher. Ordinary third-party DLLs are not
+globally banned, but foreign changes fail the affected operation's exact guards.
+Mod-specific presentation, zoom, composition and behavior stay in mod packages.
 
-Disable, reload, refresh rollback and process shutdown use these same package
-transitions. Native settings continue to consume the canonical package setting
-values. V2's pre-entry Stage/Prepare sequence remains a startup requirement and
-cannot be repeated by live reactivation or Lua reload.
-
-## Activation lifetime
-
-Each activation has a new owner generation. Shutdown revokes services, drains
-in-flight callbacks, stops the plugin, calls shutdown and drains again before
-releasing the activation. DLL code stays owned by the process executor until
-exit, including after an initialization error. A failed drain or callback also
-retains its owner context. The runtime reports that a restart is required.
-Plugins must stop their workers and release host pointers before returning from
-shutdown. A pending activation cancelled during disable cannot initialize later. Cancellation
-does not cancel an OS load already queued or release the process-owned module.
-When reactivation is supported, it reuses the recorded load and bridge result.
-A failed bridge initialization is never retried in the same process.
-
-A V1 activation that completed shutdown and both service drains releases its
-activation record. A later activation invokes the same registered factory with
-a fresh host context and generation, without loading or initializing the DLL
-again. Its previous service tables remain revoked. The factory must provide a
-valid context for each activation. Failed cleanup retains the activation and
-rejects reactivation with a restart-required error. V2 preparation still belongs
-to process startup and cannot be repeated in place.
-
-The executable-span validation registry retains drained generation tombstones
-so an old generation cannot be reused. It keeps at most 4,096 distinct package
-generations for the process lifetime. Once that limit is reached, queries for
-new validation-service generations return BUSY until the process restarts.
-
-Before starting the common DLL worker, the host pins its own runtime module for
-the process lifetime. Pending loads and retained callback contexts therefore
-remain backed by mapped code even after the bootstrap releases its reference.
-This also applies to plans containing only managed plugins.
-
-## Services
-
-- `shroudforge.keybinds` v1 reads the package's declared keybind settings. It
-  uses the same SDL input, focus, extra-modifier and capture-suppression rules
-  as `shroudforge.input`. The map service has no separate raw-key reader.
-- `shroudforge.notifications` v1 publishes bounded, package-namespaced notices.
-  Lua and native notices share the notifications module's validation and
-  persistence. The map/overlay service does not publish or store notices.
-  The persisted feed remains authoritative when an optional HUD presenter is
-  unavailable.
-- `shroudforge.executable-spans` v1 is a client-only, read-only query for a
-  bounded executable byte span in the main image. An enabled package needs
-  `runtime`, `runtime-register-dll` and `runtime-executable-spans`. The caller supplies both
-  the expected original bytes and its current observation; the host checks the
-  observation against executable, readable memory before returning
-  `UNCHANGED`, `VERIFIED_HOST_OWNED` or `FOREIGN_OR_UNAVAILABLE`. Invalid input
-  or a changed observation returns an error without writing the result. The
-  service never returns code bytes or addresses and never authorizes a patch or
-  proves quiescence.
-  Its framework publications and validation-service leases below use the same
-  native `engine-hooks/owned_span_proof` store. Camera registration is an adapter
-  into that store. Both routes share overlap checks, the process publication
-  budget and native session retirement. Retired or closed publications cannot
-  return `VERIFIED_HOST_OWNED`, including when closure occurs inside a verifier.
-- shroudforge.executable-span-validation v1 is a client-only, bounded
-  callback service for package-registered engine guards. It requires an enabled
-  package with `runtime`, `runtime-register-dll` and
-  `runtime-executable-span-validation`. The broader `runtime-engine-hooks`
-  permission remains valid for both span services.
-  Registrations are limited to 16 spans per package generation and 64 total;
-  callbacks must stay loaded until revoke and drain succeed. Callbacks can
-  run synchronously on any thread and must not call host services, retain
-  request pointers, or modify executable memory. The host compares the
-  registered prefix through a local buffer while preserving every guard
-  suffix byte-for-byte.
-  Version 2 adds a read-only lease for a prefix of an existing registration.
-  Acquire it during Stage. Callbacks may use the copied lease across threads.
-  Verification checks the observed span and its suffix against the live
-  owner generation. Revoking the package or retiring its generation invalidates
-  the lease. The host table retains its owner-thread restrictions.
-  A callback cannot approve a detour by returning its own nonzero identity.
-  `VERIFIED_OWNER` requires this registration's V2 owned-prefix lease, the
-  runtime's independently verified publication, and the exact lease identity.
-  The host repeats that proof check and rejects closure or retirement before
-  committing validation. V1 registrations without that lease can validate
-  unchanged bytes only. Neither service approves mod-owned engine hooks.
-- `shroudforge.map` v1 and `shroudforge.overlay` v1/v2/v3 are optional native-provider
-  services. Query their exact version and handle `UNAVAILABLE`. Host support
-  does not establish that a particular game build supplies the service.
-  Query, revoke and drain must all be exported before the bridge exposes this
-  capability. An incomplete provider cannot hand out a service table.
-  Overlay v3 adds bounded fragment programs; its drawing contract is documented
-  in [Native map and overlay services](../runtime/native-map-services.en.md).
-
-Gameplay controls and mod-specific compatibility adapters belong to mod packages.
-Neither a successful DLL load nor local tests establish game-build or server
-compatibility. Provider preparation must complete before the game entrypoint
-is released. `startup_services.rs` derives the demand from the existing resolved
-package plan and its manifest capabilities.
-
-## Validation
-
-Use the existing Rust unit-test targets. The native host tests use synthetic
-packages and callback tables; they do not load the game or require game files.
-The C header also supports ordinary C11 consumers. Test service revocation,
-owner identity and failure cleanup when adding a service or lifecycle change.
+See [Map/overlay and Lua API](../runtime/native-map-services.en.md) for data,
+limits, generation and drawing contracts. Synthetic tests do not establish live
+game, driver, multiplayer or server compatibility.

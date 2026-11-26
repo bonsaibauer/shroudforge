@@ -25,12 +25,8 @@ struct NativeCameraRecord {
         camera_transform{}, unknown7{}, unknown8{}, unknown9{};
 };
 static_assert(sizeof(NativeCameraRecord)==0x50);
-bool ReadLocalCamera(const NativeCameraRecord& record, std::uint32_t entity_id,
+bool ReadLocalCamera(const NativeCameraRecord& record, std::uint32_t entity_id, std::size_t local_id_offset,
     SFMapPoseV1& player, SFMapPoseV1& camera);
-// Internal cache discriminator only. Never exported, dereferenced after the
-// synchronous sample, or included in a package snapshot.
-struct DiscoveryIdentity {std::uintptr_t marker{},entity{};bool operator==(const DiscoveryIdentity&)const=default;};
-bool ReadDiscoveryMarker(std::uintptr_t record,SFMapMarkerV1& marker,bool& positioned,DiscoveryIdentity* identity=nullptr);
 bool ReadPingEvents(std::uintptr_t list, std::uint32_t excluded_sender, std::uint64_t now,
     std::vector<SFMapMarkerV1>& result);
 
@@ -45,6 +41,7 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken&) noexcept;
 void StopCapture() noexcept;
 // Retained control-plane evidence; does not query/mutate feature readiness.
 std::string PreparationStatus();
+bool CapturePrepared();
 bool ReadOwnedCameraEntryReplacement(std::span<const std::uint8_t> original,
     std::span<std::uint8_t> replacement) noexcept;
 void UpdateCaptureSession(std::uint64_t native_session, bool gameplay, bool menu, bool focused);

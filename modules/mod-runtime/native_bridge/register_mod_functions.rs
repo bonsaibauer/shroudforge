@@ -108,7 +108,7 @@ pub(crate) fn open_host(mod_id: &str, mod_directory: &Path) -> Result<&'static H
             register_function: host_register_function,
             read_local_camera: super::read_local_camera::host_read_local_camera,
             register_lifecycle: host_register_lifecycle,
-            register_preentry_lifecycle: host_register_preentry_lifecycle,
+            reserved_preentry_registration: host_reserved_preentry_registration,
         },
         mod_id: mod_id.to_owned(),
         accepting: AtomicBool::new(true),
@@ -148,11 +148,13 @@ unsafe extern "C" fn host_register_lifecycle(
     unsafe { register_lifecycle(host, factory, NativePluginMode::ShroudForgeV1) }
 }
 
-unsafe extern "C" fn host_register_preentry_lifecycle(
-    host: *const ModHost,
-    factory: Option<NativeLifecycleFactory>,
+unsafe extern "C" fn host_reserved_preentry_registration(
+    _host: *const ModHost,
+    _factory: Option<NativeLifecycleFactory>,
 ) -> u32 {
-    unsafe { register_lifecycle(host, factory, NativePluginMode::ShroudForgeV2) }
+    // Reserved ABI4 draft slot. Package code cannot install a second startup
+    // lifecycle. Framework preparation is derived from the common capabilities.
+    0
 }
 
 unsafe fn register_lifecycle(

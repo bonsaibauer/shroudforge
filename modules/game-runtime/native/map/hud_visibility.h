@@ -7,8 +7,6 @@ bool PreflightHudPreparation(std::uintptr_t image,std::size_t image_size);
 bool InstallPreparedHudHooks();
 bool ValidatePreparedHudActivation();
 bool ActivatePreparedHudVisibility();
-bool PreflightLegacyHudVisibility(std::uintptr_t image,std::size_t image_size);
-bool InstallPreflightedLegacyHudVisibility();
 // Preparation and this snapshot run under the Map capture control mutex.
 std::string HudPreparationStatus();
 void DisableHudVisibility();

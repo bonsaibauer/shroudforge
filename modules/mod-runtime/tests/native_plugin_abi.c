@@ -11,13 +11,9 @@ _Static_assert(SHROUDFORGE_MOD_NATIVE_ABI_VERSION == 4u, "extended mod bridge AB
 _Static_assert(sizeof(ShroudforgeModHost) == 64, "mod host layout");
 _Static_assert(offsetof(ShroudforgeModHost, read_local_camera) == 40, "stable ABI 2 tail");
 _Static_assert(offsetof(ShroudforgeModHost, register_lifecycle) == 48, "appended ABI 3 tail");
-_Static_assert(offsetof(ShroudforgeModHost, register_preentry_lifecycle) == 56, "appended ABI 4 tail");
+_Static_assert(offsetof(ShroudforgeModHost, reserved_preentry_registration) == 56, "reserved ABI 4 tail");
 _Static_assert(sizeof(SFNativePluginV1) == 48, "plugin layout");
 _Static_assert(offsetof(SFNativePluginV1, initialize) == 16, "initialize offset");
-_Static_assert(sizeof(SFNativePluginV2) == 72, "version 2 plugin layout");
-_Static_assert(offsetof(SFNativePluginV2, prepare_before_entry) == 48, "version 2 prepare offset");
-_Static_assert(offsetof(SFNativePluginV2, stage_before_entry) == 56, "version 2 stage offset");
-_Static_assert(offsetof(SFNativePluginV2, entry_restored) == 64, "version 2 restored offset");
 _Static_assert(sizeof(SFNativeHostV1) == 96, "host layout");
 _Static_assert(offsetof(SFNativeHostV1, package_generation) == 24, "generation offset");
 _Static_assert(offsetof(SFNativeHostV1, read_asset) == 64, "asset callback offset");
@@ -50,6 +46,8 @@ _Static_assert(sizeof(SFMapMarkerV1) == 88, "map marker layout");
 _Static_assert(offsetof(SFMapMarkerV1, icon_candidates) == 48, "marker candidates offset");
 _Static_assert(sizeof(SFMapServiceV1) == 32, "map service layout");
 _Static_assert(sizeof(SFOverlayServiceV1) == 40, "overlay service layout");
+_Static_assert(sizeof(SFOverlaySceneServiceV1) == 32, "copied scene uses same owner");
+_Static_assert(offsetof(SFOverlaySceneServiceV1, read_target) == 24, "scene target reader");
 _Static_assert(sizeof(SFOverlayEncoderV1) == 48, "overlay encoder layout");
 _Static_assert(sizeof(SFOverlayEncoderV2) == 56, "extended encoder layout");
 _Static_assert(sizeof(SFOverlayStatusV1) == 48, "overlay status layout");
@@ -80,6 +78,14 @@ static uint32_t SHROUDFORGE_MOD_NATIVE_CALL register_lifecycle(
     return 1u;
 }
 
+static uint32_t SHROUDFORGE_MOD_NATIVE_CALL reserved_registration(
+    const ShroudforgeModHost *host, ShroudforgeNativeLifecycleFactory factory)
+{
+    (void)host;
+    (void)factory;
+    return 0u;
+}
+
 int main(void)
 {
     ShroudforgeModHost host = {0};
@@ -89,9 +95,9 @@ int main(void)
     host.abi_version = SHROUDFORGE_MOD_NATIVE_ABI_VERSION;
     host.size = sizeof(host);
     host.register_lifecycle = register_lifecycle;
-    host.register_preentry_lifecycle = register_lifecycle;
+    host.reserved_preentry_registration = reserved_registration;
     if (ShroudforgeModNativeInit(&host) != 1 || !registered_factory) return 2;
     if (registered_factory(99u, 0u, NULL) != SF_NATIVE_STATUS_ABI_MISMATCH) return 3;
-    if (host.register_preentry_lifecycle(&host, lifecycle_factory) != 1u) return 4;
+    if (host.reserved_preentry_registration(&host, lifecycle_factory) != 0u) return 4;
     return 0;
 }

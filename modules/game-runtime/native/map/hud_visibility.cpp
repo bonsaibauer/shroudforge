@@ -146,17 +146,6 @@ bool ActivatePreparedHudVisibility() {
     hud_active = true;
     return true;
 }
-bool PreflightLegacyHudVisibility(std::uintptr_t image, std::size_t size) {
-    return !hud_prepared.load() && !hud_preflighted.load() && Preflight(image, size);
-}
-bool InstallPreflightedLegacyHudVisibility() {
-    const auto profile = hud_profile.load();
-    if (!profile || hud_prepared.load() || !hud_preflighted.load()) return false;
-    if (!InstallSharedCall(profile->call_rva, profile->renderer_rva, reinterpret_cast<void*>(&HudRender))) return false;
-    hud_preflighted = false;
-    hud_active = true;
-    return true;
-}
 void DisableHudVisibility() {
     hud_active = false;
     hud_preflighted = false;

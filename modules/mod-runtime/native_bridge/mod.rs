@@ -97,8 +97,8 @@ pub(crate) struct ModHost {
     // ABI 3. Registration only, during the existing DLL init export.
     pub register_lifecycle:
         unsafe extern "C" fn(*const ModHost, Option<NativeLifecycleFactory>) -> u32,
-    // ABI 4. Same registration owner, with the required pre-entry V2 phases.
-    pub register_preentry_lifecycle:
+    // Reserved ABI4 draft slot. Always unsupported, never stores a factory.
+    pub reserved_preentry_registration:
         unsafe extern "C" fn(*const ModHost, Option<NativeLifecycleFactory>) -> u32,
 }
 

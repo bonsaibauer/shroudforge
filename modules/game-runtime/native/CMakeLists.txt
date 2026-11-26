@@ -88,6 +88,7 @@ add_library(kfc-runtime SHARED
     map/admit_map_image.cpp
     map/hud_visibility.cpp
     map/serve_map_overlay.cpp
+    map/read_map_snapshot_json.cpp
     graphics/render_overlay.cpp
     engine-hooks/owned_executable_span.cpp engine-hooks/owned_span_proof.cpp
     graphics/vulkan_overlay.cpp
@@ -443,6 +444,7 @@ set_property(TARGET kfc-runtime-test-metadata-startup PROPERTY MSVC_RUNTIME_LIBR
 
 # These existing fixtures compile the real renderer as part of their source set.
 foreach(shader_consumer kfc-runtime kfc-runtime-test-overlay-gpu
+    kfc-runtime-test-map-service-lifetime
     kfc-runtime-test-prop-query kfc-runtime-test-ecs-read kfc-runtime-test-service
     kfc-runtime-test-world-context)
     target_link_libraries(${shader_consumer} PRIVATE shroudforge-overlay-shader)

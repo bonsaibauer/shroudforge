@@ -27,13 +27,12 @@ extern "C" {
  * give the Lua code access to other mods. ABI 2 adds one read-only game read
  * for the DLL, the local camera, under the same conditions as the Lua API.
  * ABI 3 appends activation registration to this same init connection.
- * ABI 4 appends registration for required pre-entry preparation. */
+ * ABI 4 retains a reserved draft tail. It grants no pre-entry lifecycle. */
 #define SHROUDFORGE_MOD_NATIVE_ABI_VERSION 4u
 
 #define SF_NATIVE_CALL SHROUDFORGE_MOD_NATIVE_CALL
 
 #define SF_NATIVE_PLUGIN_ABI_V1 1u
-#define SF_NATIVE_PLUGIN_ABI_V2 2u
 #define SF_NATIVE_HOST_ABI_V1 1u
 #define SF_NATIVE_MAX_SETTINGS_JSON_BYTES 65536u
 #define SF_NATIVE_MAX_ASSET_PATH_BYTES 1024u
@@ -42,6 +41,7 @@ extern "C" {
 #define SF_NATIVE_DRAIN_TIMEOUT_MS 250u
 #define SF_NATIVE_SERVICE_MAP_V1 "shroudforge.map"
 #define SF_NATIVE_SERVICE_OVERLAY_V1 "shroudforge.overlay"
+#define SF_NATIVE_SERVICE_OVERLAY_SCENE_V1 "shroudforge.overlay.scene"
 #define SF_NATIVE_SERVICE_KEYBINDS_V1 "shroudforge.keybinds"
 #define SF_NATIVE_SERVICE_NOTIFICATIONS_V1 "shroudforge.notifications"
 #define SF_NOTIFICATION_SERVICE_VERSION 1u
@@ -213,50 +213,17 @@ typedef struct SFNativePluginV1 {
     SFNativeShutdownFnV1 shutdown;
 } SFNativePluginV1;
 
-typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativePrepareBeforeEntryFnV2)(
-    void *plugin_context,
-    const SFNativeHostV1 *host);
-typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativeStageBeforeEntryFnV2)(
-    void *plugin_context,
-    const SFNativeHostV1 *host);
-typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativeEntryRestoredFnV2)(
-    void *plugin_context);
-
-/* V2 is requested by register_preentry_lifecycle. Its V1 prefix is byte-for-
- * byte the V1 table; preparation is required and the later phase callbacks
- * are optional. */
-typedef struct SFNativePluginV2 {
-    SFNativePluginV1 base;
-    SFNativePrepareBeforeEntryFnV2 prepare_before_entry;
-    SFNativeStageBeforeEntryFnV2 stage_before_entry;
-    SFNativeEntryRestoredFnV2 entry_restored;
-} SFNativePluginV2;
-
 /*
  * ABI and lifetime contract:
  * - The registered factory must reject unsupported requested_abi, NULL out_plugin, or an
  *   out_size smaller than the requested table before writing any byte. V1
- *   callers provide sizeof(SFNativePluginV1); V2 callers provide
- *   sizeof(SFNativePluginV2) through the stable V1 pointer declaration. V2
- *   implementations cast only after validating ABI, size, and pointer.
+ *   callers provide sizeof(SFNativePluginV1). Only ABI 1 is accepted.
  * - It negotiates the table only; callbacks are invoked by the host according
  *   to the declared lifecycle, after ordered DLL loading has completed.
- * - V2 stage_before_entry is optional and runs on the same bootstrap/runtime
- *   owner thread after factory negotiation and before framework preparation.
- *   The required prepare_before_entry runs on that thread after framework
- *   startup services are prepared. Both callbacks run inside the trusted
- *   held-entry preparation operation, without host locks held across plugin
- *   code. The host does not suspend peer threads. The
- *   optional entry_restored runs on the original entry thread after its bytes
- *   are restored and before the original entrypoint executes. That callback
- *   receives no host table and must not use owner-thread-bound host callbacks
- *   or retained host pointers.
- *   A service may explicitly issue a native read-only proof lease whose own
- *   contract permits arbitrary-thread use in this callback. That isolated
- *   lease is not permission to retain the host table or use other services.
- * - Optional V2 callbacks must be null when not used. The size-tagged V2 tail
- *   remains the extension point for later optional phases. The V1 prefix and
- *   registered factory signature remain unchanged.
+ * - Framework startup preparation belongs to the profile-backed runtime.
+ *   Packages declare runtime-map/runtime-overlay demand in mod.json and call
+ *   the shared services. There are no package Stage/Prepare callbacks or public
+ *   executable-span hook-approval services.
  * - The host table, package ID bytes, and package_context stay valid through
  *   initialize/update/stop/shutdown and the host's final service drain.
  * - The plugin must stop its worker threads and stop using every host pointer
@@ -389,13 +356,10 @@ struct ShroudforgeModHost {
     uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* register_lifecycle)(
         const ShroudforgeModHost* host, ShroudforgeNativeLifecycleFactory factory);
 
-    /* ABI 4. Registers a V2 factory requiring pre-entry preparation. V2 requires
-     * Prepare and may supply Stage/entry-restored callbacks. Shares register_lifecycle's window and single
-     * slot: registering through either function makes a second call return 3.
-     * Check abi_version >= 4 and size before accessing this appended field.
-     * Does not run a callback or grant access. Late V2 registration cannot
-     * repeat process startup and is rejected by the activation owner. */
-    uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* register_preentry_lifecycle)(
+    /* Reserved ABI4 draft tail. Always returns 0 (unsupported), never calls
+     * or registers a factory. Use register_lifecycle and common capabilities.
+     * Retained only so unpublished draft binaries fail explicitly. */
+    uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* reserved_preentry_registration)(
         const ShroudforgeModHost* host, ShroudforgeNativeLifecycleFactory factory);
 };
 

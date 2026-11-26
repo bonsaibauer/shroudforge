@@ -35,9 +35,15 @@ use crate::{
 pub(crate) const GAME_FILE_HANDLES_RELEASED: &str =
     "game asset files were released for the asset transaction";
 
+#[derive(Clone, Copy)]
+struct RuntimeActivation {
+    generation: u64,
+    map_overlay_used: bool,
+}
+
 pub struct AppState {
     pub(crate) runtime_configured: Cell<bool>,
-    runtime_active_mods: RefCell<HashSet<String>>,
+    runtime_active_mods: RefCell<HashMap<String, RuntimeActivation>>,
     runtime_effects: RefCell<HashMap<String, serde_json::Value>>,
     runtime_write_fault: RefCell<Option<(u64, String)>>,
     runtime_ownership:

@@ -13,10 +13,10 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
-static NEXT_NATIVE_PACKAGE_GENERATION: AtomicU64 = AtomicU64::new(1);
+static NEXT_RUNTIME_PACKAGE_GENERATION: AtomicU64 = AtomicU64::new(1);
 
-fn next_native_package_generation() -> u64 {
-    NEXT_NATIVE_PACKAGE_GENERATION
+pub(super) fn next_runtime_package_generation() -> u64 {
+    NEXT_RUNTIME_PACKAGE_GENERATION
         .fetch_add(1, Ordering::Relaxed)
         .max(1)
 }
@@ -527,7 +527,7 @@ pub(crate) fn load_selected_native_plugins(
                     return Err(error);
                 }
             };
-            let package_generation = next_native_package_generation();
+            let package_generation = next_runtime_package_generation();
             let metadata = NativePluginHostMetadata {
                 game_root: root.clone(),
                 package_id: mod_id.to_owned(),
@@ -1336,7 +1336,9 @@ impl AppState {
         if settings_json.len() > crate::session::native_plugin_abi::NATIVE_MAX_SETTINGS_JSON_BYTES {
             return Err("native plugin settings JSON exceeds 65536 bytes".into());
         }
-        let package_generation = next_native_package_generation();
+        let package_generation = self
+            .runtime_package_generation(&mod_id)
+            .unwrap_or_else(next_runtime_package_generation);
         let receiver = crate::native_dlls::queue_package_library(
             self.env.game_dir().as_std_path(),
             entry,
@@ -1567,7 +1569,7 @@ impl AppState {
             game_root: self.env.game_dir().as_std_path().to_path_buf(),
             package_id: mod_id.to_owned(),
             package: self.env.mod_registry().get(mod_id).unwrap().clone(),
-            package_generation: next_native_package_generation(),
+            package_generation: next_runtime_package_generation(),
             is_server: false,
             settings_json: b"{}".to_vec(),
             services: self.native_plugin_services.borrow().clone(),
@@ -1772,8 +1774,32 @@ impl AppState {
         }
     }
 
-    /// Stop one opted-in plugin. Legacy DLLs remain load-only and are retained
-    /// until process exit.
+    pub(crate) fn native_package_generation(&self, mod_id: &str) -> Option<u64> {
+        self.native_dlls
+            .borrow()
+            .iter()
+            .find_map(|dll| {
+                if dll.mod_id != mod_id {
+                    return None;
+                }
+                match &dll.module {
+                    NativeModule::Lifecycle(instance) => Some(instance.package_generation()),
+                    NativeModule::Retained {
+                        instance: Some(instance),
+                        ..
+                    } => Some(instance.package_generation()),
+                    _ => None,
+                }
+            })
+            .or_else(|| {
+                self.pending_native_dlls
+                    .borrow()
+                    .iter()
+                    .find(|dll| dll.mod_id == mod_id)
+                    .map(|dll| dll.package_generation)
+            })
+    }
+    /// Stop one opted-in plugin. Ordinary DLLs remain process resident.
     pub(crate) fn stop_native_plugin(&self, mod_id: &str) -> Result<bool, String> {
         let cancelled = {
             let mut pending = self.pending_native_dlls.borrow_mut();

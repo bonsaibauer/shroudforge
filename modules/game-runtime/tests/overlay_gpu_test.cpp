@@ -291,6 +291,10 @@ void GenericPrograms(){
 }
 }
 int main(int argc,char** argv){
+    const auto initial_status=graphics_status.load(),initial_reason=graphics_reason.load();const auto initial_demand=boot_demand;
+    check_named("unsupported optional graphics leave startup usable without arming interception",PrepareGraphicsBoot(true,true) && !GraphicsPrepared());
+    check_named("strict graphics preparation still reports an unsupported image",!PrepareGraphicsBoot(true) && !GraphicsPrepared());
+    graphics_status=initial_status;graphics_reason=initial_reason;boot_demand=initial_demand;
     check_named("graphics refuses activation without guarded startup admission",!StartGraphics());
     const auto extended_owner=Services().Open("overlay-v2-probe",2);
     SFOverlayServiceV1 extended_service{};

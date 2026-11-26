@@ -111,7 +111,7 @@ fn host_describes_the_owning_mod_and_its_abi() {
     assert_eq!(std::mem::offset_of!(ModHost, read_local_camera), 40);
     assert_eq!(std::mem::offset_of!(ModHost, register_lifecycle), 48);
     assert_eq!(
-        std::mem::offset_of!(ModHost, register_preentry_lifecycle),
+        std::mem::offset_of!(ModHost, reserved_preentry_registration),
         56
     );
     assert_eq!(size_of::<ModHost>(), 64);
@@ -161,8 +161,8 @@ fn lifecycle_registration_uses_the_existing_initialization_window() {
             3
         );
         assert_eq!(
-            ((*host).register_preentry_lifecycle)(host, Some(lifecycle_factory)),
-            3
+            ((*host).reserved_preentry_registration)(host, Some(lifecycle_factory)),
+            0
         );
     }
     assert!(
@@ -189,39 +189,26 @@ fn lifecycle_registration_uses_the_existing_initialization_window() {
 }
 
 #[test]
-fn preentry_registration_uses_the_same_slot_and_closed_window() {
+fn draft_preentry_registration_is_reserved_and_cannot_create_another_lifecycle() {
     let record = open_host("bridge.preentry", Path::new("mods/preentry")).unwrap();
     let host = record.host();
     unsafe {
-        assert_eq!(((*host).register_preentry_lifecycle)(host, None), 2);
+        assert_eq!(((*host).reserved_preentry_registration)(host, None), 0);
         assert_eq!(
-            ((*host).register_preentry_lifecycle)(host, Some(lifecycle_factory)),
-            1
+            ((*host).reserved_preentry_registration)(host, Some(lifecycle_factory)),
+            0
         );
         assert_eq!(
             ((*host).register_lifecycle)(host, Some(lifecycle_factory)),
-            3
-        );
-    }
-    let registration = close_registration(record, true).lifecycle_factory.unwrap();
-    assert!(matches!(registration.mode, NativePluginMode::ShroudForgeV2));
-    unsafe {
-        assert_eq!(
-            ((*host).register_preentry_lifecycle)(host, Some(lifecycle_factory)),
-            4
-        );
-    }
-    let record = open_host("bridge.preentry-failed", Path::new("mods/preentry-failed")).unwrap();
-    unsafe {
-        assert_eq!(
-            ((*record.host()).register_preentry_lifecycle)(record.host(), Some(lifecycle_factory)),
             1
         );
     }
-    assert!(
-        close_registration(record, false)
+    assert_eq!(
+        close_registration(record, true)
             .lifecycle_factory
-            .is_none()
+            .unwrap()
+            .mode,
+        NativePluginMode::ShroudForgeV1
     );
 }
 

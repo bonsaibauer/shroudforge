@@ -117,16 +117,18 @@ runs before native initialization. One traversal schedules due Lua updates and
 per-tick native updates. A failure in either uses the same retryable package
 cleanup. Lua unload and automatic override restoration precede native teardown,
 and the active scope remains until both finish. Native-only packages with
-registered callbacks need no empty Lua script. V2 Stage/Prepare remains a
-pre-entry requirement, separate from gameplay activation.
+registered callbacks need no empty Lua script. Lua and native map/overlay
+consumers share this activation generation and the same service owner.
 
-Mod bridge ABI 4 appends `register_preentry_lifecycle` to the same SDK host.
-It shares the ABI 3 activation registration's single slot and init window.
-The process DLL record retains the accepted factory and its callback version.
-`Lifecycle=` and `Services=` are not interpreted. DLL selection remains with
-the DLL Manager and service demand comes from the existing package plan.
-Startup holds code inputs before DLL loading, derives early phases from SDK
-registration, and retains ordinary startup when no additional phases are needed.
+Mod bridge ABI4 retains only a reserved unpublished-draft tail which returns
+unsupported. Packages cannot register Stage/Prepare callbacks or query hook
+approval services. Profile-bound framework preparation is internal to the
+existing bootstrap. Lifecycle and Services INI keys are not interpreted.
+Map/overlay preparation comes from the resolved package capability plan.
+Lua functions under runtime.world.map/environment/hud and runtime.overlay use
+the same native store/renderer as SDK adapters. Their canonical declarations
+generate the editor and website API documentation. No second loader, scheduler,
+input registry, notification feed or game-profile catalog is introduced.
 
 ## The two mod information files
 

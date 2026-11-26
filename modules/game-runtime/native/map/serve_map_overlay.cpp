@@ -72,14 +72,16 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeQueryMapOverlayService(const std:
         }
         const bool map_service=name=="shroudforge.map";
         const bool executable_span_service=name==SF_EXECUTABLE_SPAN_SERVICE_NAME;
-        const bool overlay_service=name=="shroudforge.overlay";
+        const bool scene_service=name=="shroudforge.overlay.scene";
+        const bool overlay_service=name=="shroudforge.overlay" || scene_service;
         if(!map_service && !executable_span_service && !overlay_service)return 4;
         if((map_service && version!=SF_MAP_SERVICE_VERSION) ||
             (executable_span_service && version!=SF_EXECUTABLE_SPAN_SERVICE_VERSION) ||
-            (overlay_service && version!=SF_OVERLAY_SERVICE_VERSION &&
+            (scene_service && version!=1) ||
+            (overlay_service && !scene_service && version!=SF_OVERLAY_SERVICE_VERSION &&
                 version!=SF_OVERLAY_EXTENDED_SERVICE_VERSION && version!=SF_OVERLAY_PROGRAMMABLE_SERVICE_VERSION))return 2;
         const auto required=map_service ? sizeof(SFMapServiceV1) :
-            executable_span_service ? sizeof(SFExecutableSpanServiceV1) : sizeof(SFOverlayServiceV1);
+            executable_span_service ? sizeof(SFExecutableSpanServiceV1) : scene_service ? sizeof(SFOverlaySceneServiceV1) : sizeof(SFOverlayServiceV1);
         if(capacity<required)return 5;
         if(!WritableServiceOutput(output,required))
             return executable_span_service ? SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT : 1;
@@ -114,7 +116,7 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeQueryMapOverlayService(const std:
                 if(operation==ActivationOperation::Capture)item->captured=true;
                 if(operation==ActivationOperation::Graphics)item->graphics=true;
                 const auto output_size=map_service ? sizeof(SFMapServiceV1) :
-                    executable_span_service ? sizeof(SFExecutableSpanServiceV1) : sizeof(SFOverlayServiceV1);
+                    executable_span_service ? sizeof(SFExecutableSpanServiceV1) : scene_service ? sizeof(SFOverlaySceneServiceV1) : sizeof(SFOverlayServiceV1);
                 std::memcpy(output,table.data(),output_size);
             } else {
                 cleanup_capture=operation==ActivationOperation::Capture;
@@ -144,6 +146,13 @@ KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeRevokeMapOverlayServices(const st
         found->second.revoked=true;const auto map_result=Services().Revoke(found->second.owner);
         return map_result ? map_result : span_result;
     }catch(...){return 7;}
+}
+KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeSubmitOverlaySceneJson(const std::uint8_t* package,std::uint32_t size,
+    std::uint64_t generation,const std::uint8_t* json,std::uint32_t json_size) {
+    constexpr char name[]="shroudforge.overlay.scene";SFOverlaySceneServiceV1 service{};
+    const auto status=KfcRuntimeQueryMapOverlayService(package,size,generation,
+        reinterpret_cast<const std::uint8_t*>(name),sizeof(name)-1,1,sizeof(service),&service);
+    return status?status:service.submit_json(service.context,json,json_size);
 }
 KFC_RUNTIME_API std::int32_t __cdecl KfcRuntimeDrainMapOverlayServices(const std::uint8_t* package,std::uint32_t size,std::uint64_t generation,std::uint32_t timeout) {
     using namespace OverlayRuntime;try {

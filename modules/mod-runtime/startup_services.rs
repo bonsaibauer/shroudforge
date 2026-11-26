@@ -110,7 +110,6 @@ fn inspect(
         let info = package.info();
         for capability in &info.capabilities {
             services |= match capability {
-                Capability::RuntimeEngineHooks => GENERIC_HOOKS,
                 Capability::RuntimeMap => MAP,
                 Capability::RuntimeOverlay => GRAPHICS,
                 _ => 0,
@@ -122,7 +121,7 @@ fn inspect(
         .iter()
         .any(|plugin| plugin.registration.mode == crate::session::NativePluginMode::ShroudForgeV2)
     {
-        services |= NATIVE_PLUGIN_PREENTRY;
+        return Err("Package pre-entry lifecycle callbacks are unsupported. Declare shared runtime capabilities and use the normal activation API".into());
     }
     let dll_plan = mod_loader::dll_manager::resolve_load_plan(root, server);
     // Only manifest-backed native runtime packages can request SDK phases.
@@ -636,48 +635,29 @@ mod tests {
     }
 
     #[test]
-    fn sdk_registration_requests_preentry_without_an_ini_lifecycle() {
-        static FACTORY_CALLS: std::sync::atomic::AtomicUsize =
-            std::sync::atomic::AtomicUsize::new(0);
+    fn package_sdk_cannot_request_a_second_preentry_lifecycle() {
         unsafe extern "C" fn factory(
             _: u32,
             _: u32,
             _: *mut crate::session::SFNativePluginV1,
         ) -> i32 {
-            FACTORY_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            2
+            panic!("reserved slot must never invoke a factory")
         }
         let fixture = Fixture::new(&["runtime", "runtime-register-dll"]);
         let package = fixture.0.join("mods/probe");
-        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
-        fixture.select_dll("probe", "probe.dll");
-        assert!(!package.join("native-plugin.ini").exists());
-        let entry = mod_loader::dll_manager::resolve_load_plan(&fixture.0, false)
-            .entries
-            .remove(0);
         let record = crate::native_bridge::open_host("probe", &package).unwrap();
         let host = record.host();
-        unsafe {
-            assert_eq!(
-                ((*host).register_preentry_lifecycle)(host, Some(factory)),
-                1
-            );
-        }
-        let registration = crate::native_bridge::close_registration(record, true)
-            .lifecycle_factory
-            .unwrap();
-        let mut plugins = vec![crate::native_dlls::RegisteredNativePlugin {
-            entry,
-            registration,
-        }];
-        let env = environment(&fixture.0).unwrap();
         assert_eq!(
-            inspect(&env, false, &plugins).unwrap().0,
-            NATIVE_PLUGIN_PREENTRY
+            unsafe { ((*host).reserved_preentry_registration)(host, Some(factory)) },
+            0
         );
-        plugins[0].registration.mode = crate::session::NativePluginMode::ShroudForgeV1;
-        assert_eq!(inspect(&env, false, &plugins).unwrap().0, 0);
-        assert_eq!(FACTORY_CALLS.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert!(
+            crate::native_bridge::close_registration(record, true)
+                .lifecycle_factory
+                .is_none()
+        );
+        let env = environment(&fixture.0).unwrap();
+        assert_eq!(inspect(&env, false, &[]).unwrap().0, 0);
     }
 
     #[test]
