@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Les mods supprimés et les sauvegardes de mise à jour apparaîtront ici.",
   "recycleBin.empty.title": "La corbeille est vide",
   "recycleBin.error": "Impossible de charger la corbeille.",
+  "recycleBin.loaded": "Corbeille chargée.",
   "recycleBin.files": "{count} fichiers",
   "recycleBin.loading": "Chargement de la corbeille…",
   "recycleBin.restore": "Restaurer",

@@ -10,6 +10,7 @@ pub(crate) struct UpdaterRequestResult {
     pub(crate) request_id: String,
     pub(crate) operation: String,
     pub(crate) subject: String,
+    pub(crate) report_result: bool,
     pub(crate) result: Result<serde_json::Value, String>,
 }
 
@@ -23,11 +24,17 @@ pub(crate) fn spawn(
 ) {
     let sender = sender.clone();
     std::thread::spawn(move || {
+        let mut request = request;
+        let report_result = request["reportResult"].as_bool().unwrap_or(true);
+        if let Some(object) = request.as_object_mut() {
+            object.remove("reportResult");
+        }
         let result = invoke(&root, &request);
         let _ = sender.send(UpdaterRequestResult {
             request_id,
             operation,
             subject,
+            report_result,
             result,
         });
     });

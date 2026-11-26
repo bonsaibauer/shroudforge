@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Mods を削除し、バックアップの更新がここに表示されます.",
   "recycleBin.empty.title": "ビンをリサイクルすることは空です",
   "recycleBin.error": "リサイクルビンをロードできません.",
+  "recycleBin.loaded": "ごみ箱を読み込みました。",
   "recycleBin.files": "{count}ファイル",
   "recycleBin.loading": "積み込みリサイクルビン..",
   "recycleBin.restore": "リストア",

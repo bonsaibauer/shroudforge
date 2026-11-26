@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Entfernte Mods und Update-Sicherige erscheinen da.",
   "recycleBin.empty.title": "De Abfallchübel isch leer",
   "recycleBin.error": "Abfallchübel konnte nöd glade werde.",
+  "recycleBin.loaded": "Abfallchübel glade.",
   "recycleBin.files": "{count} Dateie",
   "recycleBin.loading": "Abfallchübel wird grad glade …",
   "recycleBin.restore": "Widerherstelle",

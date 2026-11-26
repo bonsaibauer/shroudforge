@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "已删除的模组和更新备份将出现在此处。",
   "recycleBin.empty.title": "回收站为空",
   "recycleBin.error": "无法加载回收站。",
+  "recycleBin.loaded": "回收站已加载。",
   "recycleBin.files": "{count} 文件",
   "recycleBin.loading": "正在加载回收站…",
   "recycleBin.restore": "恢复",

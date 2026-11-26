@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Entfernte Mods und Update-Sicherungen erscheinen da.",
   "recycleBin.empty.title": "Im Mistkübel is nix drin",
   "recycleBin.error": "Mistkübel konnte ned gladn werdn.",
+  "recycleBin.loaded": "Mistkübel gladen.",
   "recycleBin.files": "{count} Dateien",
   "recycleBin.loading": "Mistkübel wird grad g laden …",
   "recycleBin.restore": "Wieda herstelln",

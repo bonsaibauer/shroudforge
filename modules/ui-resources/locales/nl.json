@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Verwijderde mods en updateback-ups worden hier weergegeven.",
   "recycleBin.empty.title": "Prullenbak is leeg",
   "recycleBin.error": "Kan de prullenbak niet laden.",
+  "recycleBin.loaded": "Prullenbak geladen.",
   "recycleBin.files": "{count} bestanden",
   "recycleBin.loading": "Prullenbak laden...",
   "recycleBin.restore": "Herstellen",

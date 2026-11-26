@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Le mod rimosse e i backup degli aggiornamenti verranno visualizzati qui.",
   "recycleBin.empty.title": "Il cestino è vuoto",
   "recycleBin.error": "Impossibile caricare il cestino.",
+  "recycleBin.loaded": "Cestino caricato.",
   "recycleBin.files": "{count} file",
   "recycleBin.loading": "Caricamento cestino...",
   "recycleBin.restore": "Ripristino",

@@ -729,7 +729,11 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             super::report_command_result::is_module_unavailable_warning(error)
                         });
                         let is_list = result.operation == "recycle-bin-list";
-                        if unavailable || !is_list || result.result.is_err() {
+                        if result.report_result
+                            || unavailable
+                            || !is_list
+                            || result.result.is_err()
+                        {
                             let (action, success_message) = match result.operation.as_str() {
                                 "recycle-bin-restore" => (
                                     "Restore recycle bin entry",
@@ -742,7 +746,14 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 "recycle-bin-empty" => {
                                     ("Empty recycle bin", "recycleBin.emptied")
                                 }
-                                _ => ("Load recycle bin", "recycleBin.error"),
+                                _ => (
+                                    "Load recycle bin",
+                                    if result.result.is_ok() {
+                                        "recycleBin.loaded"
+                                    } else {
+                                        "recycleBin.error"
+                                    },
+                                ),
                             };
                             let command_result = result
                                 .result

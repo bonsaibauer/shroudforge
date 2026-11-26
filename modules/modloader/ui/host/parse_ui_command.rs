@@ -41,6 +41,8 @@ pub(crate) struct UiCommand {
     pub(crate) locale: Option<String>,
     #[serde(default)]
     pub(crate) action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) report_result: Option<bool>,
     #[serde(default)]
     pub(crate) job_id: Option<String>,
     #[serde(default)]

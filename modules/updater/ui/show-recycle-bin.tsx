@@ -36,7 +36,7 @@ export function RecycleBin({
   enabled: boolean
 }) {
   const { t } = useI18n()
-  const [entries, setEntries] = useState<Entry[]>([])
+  const [entries, setEntries] = useState<Entry[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const pendingListRequestId = useRef<string | null>(null)
@@ -45,11 +45,12 @@ export function RecycleBin({
   const onCommand: UpdaterCommand = (command, payload) =>
     postRequest(command, payload)
 
-  const refresh = () => {
+  const refresh = (reportResult = true) => {
     if (!actionsEnabled) return
     setLoading(true)
     pendingListRequestId.current = postRequest('updater-request', {
       action: 'recycle-bin-list',
+      reportResult,
     })
   }
 
@@ -71,7 +72,7 @@ export function RecycleBin({
       if (result.requestId !== pendingActionRequestId.current) return
       pendingActionRequestId.current = null
       setBusy(null)
-      if (result.success) refresh()
+      if (result.success) refresh(false)
     }
     window.addEventListener('shroudforge-recycle-bin-list', receiveList)
     window.addEventListener('shroudforge-command-result', receiveCommandResult)
@@ -86,7 +87,7 @@ export function RecycleBin({
   }, [actionsEnabled])
 
   const restore = (entry: Entry) => {
-    if (!actionsEnabled) return
+    if (!actionsEnabled || loading || busy !== null) return
     setBusy(entry.id)
     pendingActionRequestId.current = postRequest('updater-request', {
       action: 'recycle-bin-restore',
@@ -95,7 +96,7 @@ export function RecycleBin({
   }
 
   const empty = () => {
-    if (!actionsEnabled) return
+    if (!actionsEnabled || loading || busy !== null) return
     if (!window.confirm(t('recycleBin.emptyConfirm'))) return
     setBusy('empty')
     pendingActionRequestId.current = postRequest('updater-request', {
@@ -104,7 +105,7 @@ export function RecycleBin({
   }
 
   const remove = (entry: Entry) => {
-    if (!actionsEnabled) return
+    if (!actionsEnabled || loading || busy !== null) return
     const name = entry.restoreModId || entry.reason
     if (!window.confirm(t('recycleBin.deleteConfirm', { name }))) return
     setBusy(`delete-${entry.id}`)
@@ -126,13 +127,17 @@ export function RecycleBin({
         }
         actions={
           <>
-            <button className="button secondary" onClick={refresh} disabled={!actionsEnabled || loading || busy !== null}>
+            <button
+              className="button secondary"
+              onClick={() => refresh()}
+              disabled={!actionsEnabled || loading || busy !== null}
+            >
               <Icon name="refresh" /> {t('common.refresh')}
             </button>
             <button
               className="button danger"
               onClick={empty}
-              disabled={!actionsEnabled || entries.length === 0 || busy !== null}
+              disabled={!actionsEnabled || !entries?.length || loading || busy !== null}
             >
               <Icon name="trash" /> {busy === 'empty' ? t('recycleBin.emptying') : t('recycleBin.empty')}
             </button>
@@ -146,9 +151,7 @@ export function RecycleBin({
       />
       {!actionsEnabled ? null : (
         <>
-          {loading ? (
-            <div className="card">{t('recycleBin.loading')}</div>
-          ) : entries.length === 0 ? (
+          {entries === null ? null : entries.length === 0 ? (
             <Empty
               title={t('recycleBin.empty.title')}
               text={t('recycleBin.empty.text')}
@@ -192,7 +195,7 @@ export function RecycleBin({
                       <button
                         className="button secondary"
                         onClick={() => restore(entry)}
-                        disabled={busy !== null}
+                        disabled={loading || busy !== null}
                       >
                         {busy === entry.id
                           ? t('recycleBin.restoring')
@@ -210,7 +213,7 @@ export function RecycleBin({
                     <button
                       className="button danger"
                       onClick={() => remove(entry)}
-                      disabled={busy !== null}
+                      disabled={loading || busy !== null}
                     >
                       {busy === `delete-${entry.id}`
                         ? t('recycleBin.deleting')

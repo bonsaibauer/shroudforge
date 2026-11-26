@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Removed mods and update backups will appear here.",
   "recycleBin.empty.title": "Recycle bin is empty",
   "recycleBin.error": "Could not load the recycle bin.",
+  "recycleBin.loaded": "Recycle bin loaded.",
   "recycleBin.files": "{count} files",
   "recycleBin.loading": "Loading recycle bin…",
   "recycleBin.restore": "Restore",

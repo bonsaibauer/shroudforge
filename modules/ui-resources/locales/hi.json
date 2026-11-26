@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "हटाए गए मॉड और अद्यतन बैकअप यहां दिखाई देंगे।.",
   "recycleBin.empty.title": "रीसायकल बिन खाली है",
   "recycleBin.error": "रीसायकल बिन लोड नहीं कर सका।.",
+  "recycleBin.loaded": "रीसायकल बिन लोड हुआ।",
   "recycleBin.files": "{count} फाइलें",
   "recycleBin.loading": "लोड हो रहा है ..",
   "recycleBin.restore": "स्टोर",

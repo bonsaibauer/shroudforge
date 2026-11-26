@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Aquí aparecerán los mods eliminados y las copias de seguridad de actualizaciones.",
   "recycleBin.empty.title": "La papelera está vacía",
   "recycleBin.error": "No se pudo cargar la papelera.",
+  "recycleBin.loaded": "Papelera cargada.",
   "recycleBin.files": "{count} archivos",
   "recycleBin.loading": "Cargando papelera…",
   "recycleBin.restore": "Restaurar",

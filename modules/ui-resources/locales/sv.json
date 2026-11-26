@@ -895,6 +895,7 @@
   "recycleBin.empty.text": "Ta bort mods och uppdatera säkerhetskopior visas här.",
   "recycleBin.empty.title": "Recycle bin är tomt",
   "recycleBin.error": "Kunde inte ladda recycle bin.",
+  "recycleBin.loaded": "Papperskorgen har lästs in.",
   "recycleBin.files": "{count} filer",
   "recycleBin.loading": "Loading recycle bin..",
   "recycleBin.restore": "Återställ",
