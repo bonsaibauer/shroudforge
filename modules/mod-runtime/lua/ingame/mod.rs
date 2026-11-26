@@ -27,6 +27,7 @@ pub(crate) mod access_named_service;
 pub(crate) mod ecs;
 pub(crate) mod functions;
 mod impact;
+mod map_overlay;
 pub(crate) mod overrides;
 pub(crate) mod player_input;
 pub(crate) mod prove_buffer_transform;
@@ -71,6 +72,7 @@ pub fn create(lua: &mlua::Lua, r#mod: Mod) -> mlua::Result<mlua::Table> {
         crate::env::runtime_overrides::create(lua, &r#mod)?,
     )?;
     table.raw_set("world", create_world(lua, &r#mod)?)?;
+    table.raw_set("overlay", map_overlay::create_overlay(lua, &r#mod)?)?;
     table.raw_set(
         "network",
         crate::env::runtime_networking::create(lua, &r#mod)?,

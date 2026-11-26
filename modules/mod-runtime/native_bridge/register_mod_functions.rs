@@ -28,6 +28,7 @@ pub(crate) struct HostRecord {
     host: ModHost,
     mod_id: String,
     accepting: AtomicBool,
+    lifecycle_factory: Mutex<Option<RegisteredLifecycle>>,
     _strings: [CString; 2],
 }
 
@@ -52,18 +53,17 @@ pub(super) unsafe fn record<'a>(host: *const ModHost) -> Option<&'a HostRecord> 
 }
 
 /// Calls the optional init export of a freshly loaded DLL on the native DLL
-/// worker. Returns whether the DLL takes part in the bridge.
+/// worker. Returns its accepted registrations for the process-owned DLL record.
 #[cfg(windows)]
 pub(crate) fn initialize(
     handle: isize,
     mod_id: Option<&str>,
     mod_directory: &Path,
-) -> Result<bool, String> {
+) -> Result<NativeRegistration, String> {
     use windows_sys::Win32::System::LibraryLoader::GetProcAddress;
 
-    let Some(export) = (unsafe { GetProcAddress(handle as _, INIT_EXPORT.as_ptr().cast()) })
-    else {
-        return Ok(false);
+    let Some(export) = (unsafe { GetProcAddress(handle as _, INIT_EXPORT.as_ptr().cast()) }) else {
+        return Ok(NativeRegistration::default());
     };
     let Some(mod_id) = mod_id else {
         return Err("The DLL exports ShroudforgeModNativeInit, but its folder has no mod.json. Native functions belong to a mod".into());
@@ -73,13 +73,16 @@ pub(crate) fn initialize(
     tracing::debug!(target: "shroudforge::dll_manager", mod_id,
         "Initializing the native bridge of a mod DLL");
     let accepted = unsafe { init(record.host()) } != 0;
-    close_registration(record, accepted);
+    let registration = close_registration(record, accepted);
     if !accepted {
-        return Err("ShroudforgeModNativeInit reported a failure. Its native functions are unavailable".into());
+        return Err(
+            "ShroudforgeModNativeInit reported a failure. Its native functions are unavailable"
+                .into(),
+        );
     }
     tracing::info!(target: "shroudforge::dll_manager", mod_id,
         functions = function_names(mod_id).len(), "Native bridge initialized");
-    Ok(true)
+    Ok(registration)
 }
 
 #[cfg(not(windows))]
@@ -87,8 +90,8 @@ pub(crate) fn initialize(
     _handle: isize,
     _mod_id: Option<&str>,
     _mod_directory: &Path,
-) -> Result<bool, String> {
-    Ok(false)
+) -> Result<NativeRegistration, String> {
+    Ok(NativeRegistration::default())
 }
 
 pub(crate) fn open_host(mod_id: &str, mod_directory: &Path) -> Result<&'static HostRecord, String> {
@@ -104,16 +107,19 @@ pub(crate) fn open_host(mod_id: &str, mod_directory: &Path) -> Result<&'static H
             log: host_log,
             register_function: host_register_function,
             read_local_camera: super::read_local_camera::host_read_local_camera,
+            register_lifecycle: host_register_lifecycle,
+            reserved_preentry_registration: host_reserved_preentry_registration,
         },
         mod_id: mod_id.to_owned(),
         accepting: AtomicBool::new(true),
+        lifecycle_factory: Mutex::new(None),
         _strings: [id, directory],
     })))
 }
 
 /// Ends the registration window. A failed initialization withdraws what
 /// this DLL registered, so Lua never calls into a DLL that gave up.
-pub(crate) fn close_registration(record: &'static HostRecord, keep: bool) {
+pub(crate) fn close_registration(record: &'static HostRecord, keep: bool) -> NativeRegistration {
     let mut functions = functions();
     record.accepting.store(false, Ordering::Release);
     if !keep {
@@ -122,6 +128,55 @@ pub(crate) fn close_registration(record: &'static HostRecord, keep: bool) {
             owned.retain(|_, registered| registered.host != host);
         }
     }
+    // Transfer the accepted factory into the existing DLL record. The closed
+    // registration window is not a second persistent factory registry.
+    let lifecycle_factory = record
+        .lifecycle_factory
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .take();
+    NativeRegistration {
+        connected: keep,
+        lifecycle_factory: if keep { lifecycle_factory } else { None },
+    }
+}
+
+unsafe extern "C" fn host_register_lifecycle(
+    host: *const ModHost,
+    factory: Option<NativeLifecycleFactory>,
+) -> u32 {
+    unsafe { register_lifecycle(host, factory, NativePluginMode::ShroudForgeV1) }
+}
+
+unsafe extern "C" fn host_reserved_preentry_registration(
+    _host: *const ModHost,
+    _factory: Option<NativeLifecycleFactory>,
+) -> u32 {
+    // Reserved ABI4 draft slot. Package code cannot install a second startup
+    // lifecycle. Framework preparation is derived from the common capabilities.
+    0
+}
+
+unsafe fn register_lifecycle(
+    host: *const ModHost,
+    factory: Option<NativeLifecycleFactory>,
+    mode: NativePluginMode,
+) -> u32 {
+    let (Some(record), Some(factory)) = (unsafe { record(host) }, factory) else {
+        return 2;
+    };
+    let mut registered = record
+        .lifecycle_factory
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if !record.accepting.load(Ordering::Acquire) {
+        return 4;
+    }
+    if registered.is_some() {
+        return 3;
+    }
+    *registered = Some(RegisteredLifecycle { factory, mode });
+    1
 }
 
 pub(crate) fn function_names(mod_id: &str) -> Vec<String> {

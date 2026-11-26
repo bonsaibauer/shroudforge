@@ -1,10 +1,8 @@
 #include "engine-hooks/scan_executable_signature.h"
-#include "engine-hooks/allocate_near_code.h"
-#include "engine-hooks/encode_relative_jump.h"
+#include "engine-hooks/publish_engine_hook.h"
 #include "engine-hooks/install_engine_hooks.h"
 #include "game-thread/game_thread_state.h"
 #include "engine-context/observe_entity_manager.h"
-#include "engine-hooks/write_executable_bytes.h"
 #include "profiles/game_profile.h"
 #include "engine-context/world_context.h"
 #include "player-input/sample_world_cursor.h"
@@ -22,12 +20,7 @@
 using namespace GameThreadImplementation;
 
 namespace {
-struct InstalledHook {
-    std::uintptr_t target{};
-    void* payload{};
-    std::vector<std::uint8_t> original;
-};
-std::vector<InstalledHook> hooks;
+std::vector<EngineHooks::PublishedEngineHook> hooks;
 
 bool supported_image(std::uint8_t*& base, std::size_t& size) {
     base = reinterpret_cast<std::uint8_t*>(GetModuleHandleW(nullptr));
@@ -135,44 +128,17 @@ bool install_hook(std::uint8_t* base, std::string_view signature,
         ? cursor_callback_code(callback, KfcRuntimeCompatibility::EnshroudedClient::world_cursor_capture_offset)
         : context_callback ? context_callback_code(callback) : callback_code(callback);
     payload.insert(payload.end(), original, original + original_size);
-    payload.push_back(0xe9);
-    const auto return_offset = payload.size();
-    payload.insert(payload.end(), 4, 0);
-    auto allocation = EngineHooks::AllocateNearCode(target, payload.size());
-    if (!allocation) return fail("near-allocation-failed");
-    std::int32_t return_jump{};
-    if (!EngineHooks::EncodeRelativeJump(reinterpret_cast<std::uintptr_t>(allocation) + return_offset - 1,
-        target + original_size, return_jump)) { VirtualFree(allocation, 0, MEM_RELEASE); return false; }
-    std::memcpy(payload.data() + return_offset, &return_jump, sizeof(return_jump));
-    std::memcpy(allocation, payload.data(), payload.size());
-    FlushInstructionCache(GetCurrentProcess(), allocation, payload.size());
-    std::vector<std::uint8_t> detour(original_size, 0x90);
-    detour[0] = 0xe9;
-    std::int32_t branch{};
-    if (!EngineHooks::EncodeRelativeJump(target, reinterpret_cast<std::uintptr_t>(allocation), branch)) {
-        VirtualFree(allocation, 0, MEM_RELEASE);
-        return false;
-    }
-    std::memcpy(detour.data() + 1, &branch, sizeof(branch));
-    bool installed = false;
-    for (unsigned attempt = 0; attempt < 8; ++attempt) {
-        // Revalidate originals on every attempt. An exiting thread or an occupied
-        // instruction may reject a snapshot; never relax those safety checks.
-        if (EngineHooks::WriteExecutableBytes(target, detour.data(), detour.size(), original)) { installed = true; break; }
-        if (std::memcmp(reinterpret_cast<void*>(target), original, original_size)) break;
-        Sleep(2);
-    }
-    if (!installed) {
-        VirtualFree(allocation, 0, MEM_RELEASE);
-        return fail("safe-code-write-rejected");
-    }
-    hooks.push_back(InstalledHook{target, allocation,
-        std::vector<std::uint8_t>(original, original + original_size)});
-    return true;
+    payload.insert(payload.end(), {0xe9,0,0,0,0});
+    EngineHooks::HookPublicationResult result;
+    if (EngineHooks::PublishEngineHook(hooks,target,{original,original_size},std::move(payload),false,result)) return true;
+    if (std::strcmp(result.reason,"near-allocation")==0) return fail("near-allocation-failed");
+    if (std::strcmp(result.reason,"executable-write-rejected")==0) return fail("safe-code-write-rejected");
+    return fail(result.reason);
 }
 }
 
 namespace EngineHooks {
+bool StartupReady() {return accepting.load(std::memory_order_acquire);}
 bool Install() {
     if (!hooks.empty()) return accepting.load(std::memory_order_acquire);
     // Published trampolines and their callbacks remain mapped until process exit.
@@ -233,14 +199,10 @@ void Uninstall() {
     accepting.store(false, std::memory_order_release);
     entity_context_hooks_ready.store(false, std::memory_order_release);
     WorldRuntime::SetCursorHookReady(false);
-    for (auto iterator = hooks.rbegin(); iterator != hooks.rend(); ++iterator) {
-        if (iterator->target && iterator->original.size() &&
-            EngineHooks::WriteExecutableBytes(iterator->target, iterator->original.data(), iterator->original.size()))
-            iterator->target = 0;
-        // A thread may still have a trampoline return address on its stack.
-        // Retain the small published allocation until process exit.
-    }
-    std::erase_if(hooks, [](const InstalledHook& hook) { return !hook.target; });
+    RestoreEngineHooks(hooks);
+    // A return address may still reference a relay. Its allocation stays mapped
+    // through process exit even after the restored receipt is discarded.
+    std::erase_if(hooks, [](const auto& hook) { return !hook.installed; });
     engine_thread.store(0, std::memory_order_release);
     entity_manager.store(0, std::memory_order_release);
     command_observed.store(false, std::memory_order_release);

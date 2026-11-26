@@ -13,8 +13,14 @@ impl Lifecycle {
         lua.app_data_ref::<AppState>()
             .unwrap()
             .set_runtime_mod_active(&self.id, true);
+        let native = || {
+            lua.app_data_ref::<AppState>()
+                .unwrap()
+                .activate_native_plugin(&self.id)
+                .map_err(mlua::Error::runtime)
+        };
         let Some(key) = self.load.as_ref() else {
-            return Ok(Ok(()));
+            return Ok(native());
         };
         let started = std::time::Instant::now();
         if diagnostics.is_some() {
@@ -33,7 +39,7 @@ impl Lifecycle {
                 tracing::debug!(target:"shroudforge::runtime",mod_id=%self.id,elapsed_ms=started.elapsed().as_millis(),"Runtime mod on_load completed");
             }
         }
-        Ok(result)
+        Ok(result.and_then(|()| native()))
     }
     pub(super) fn rollback_failed_activation(&mut self, lua: &mlua::Lua) -> mlua::Result<()> {
         self.try_unload(lua)?;

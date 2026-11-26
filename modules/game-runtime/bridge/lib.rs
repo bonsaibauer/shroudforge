@@ -14,3 +14,6 @@ pub use unsupported_platform::*;
 
 #[path = "building_input.rs"]
 pub mod player_input;
+
+mod notifications;
+pub use notifications::publish_notification;

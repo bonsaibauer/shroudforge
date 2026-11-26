@@ -1,0 +1,641 @@
+{
+  "profileRevision": 1,
+  "hudCapture": {
+    "id":  "hud-observation-v1",
+    "callRva":  12330170,
+    "rendererRva":  12909632,
+    "contextGlobalRva":  42067096,
+    "holderOffset":  208,
+    "playStateOffset":  56,
+    "screenOffset":  7384,
+    "maximumAgeMs":  500,
+    "minimumScreen":  1,
+    "maximumScreen":  53,
+    "gameplayScreen":  1,
+    "guardPolicy":  "exact",
+    "guards":  [
+                   {
+                       "guardRva":  12909632,
+                       "bytes":  "4c8bdc55498dabe8fdffff4881ec10030000"
+                   },
+                   {
+                       "guardRva":  12909650,
+                       "bytes":  "488b053fe8bc01488b88d0000000488b014885c00f84940e00004d8973c84c8b70384c89b5300200004d85f60f84740e00004d8963d8"
+                   },
+                   {
+                       "guardRva":  12909704,
+                       "bytes":  "4d8da6d81c0000410fb604244c8965803c330f84500e000084c00f84480e0000"
+                   },
+                   {
+                       "guardRva":  12328902,
+                       "bytes":  "488905cbc4c501"
+                   },
+                   {
+                       "guardRva":  12330217,
+                       "bytes":  "4c8925a8bfc501"
+                   },
+                   {
+                       "guardRva":  12329739,
+                       "bytes":  "410fb6470cffc883f8060f87a4010000488d15dedc43ff48988b8c825425bc004803caffe1"
+                   },
+                   {
+                       "guardRva":  12330324,
+                       "bytes":  "3023bc003a23bc004423bc004e23bc00bb23bc002824bc00ba24bc00"
+                   },
+                   {
+                       "guardRva":  12330170,
+                       "bytes":  "e881d70800e84c770b00"
+                   },
+                   {
+                       "guardRva":  14076000,
+                       "bytes":  "48890d311cab01c3"
+                   }
+               ]
+},
+  "schemaVersion": 1,
+  "id": "enshrouded-client-26082781",
+  "target": "enshrouded.exe",
+  "kfcFormat": 4,
+  "image": {
+    "sha256": "d64966e23b1a458ee6f147bcbceac0b577fa7e39a212f371287d8cc119817882",
+    "timestamp": 1792507660,
+    "size": 44163072
+  },
+  "ownerLayout": {
+    "rootObjectRva": 33447088,
+    "rootVtableRva": 30706704,
+    "clientPointerOffset": 600,
+    "clientVtableRva": 30706640,
+    "controllerPointerOffset": 217728,
+    "controllerVtableRva": 30707424,
+    "controllerClientBackPointerOffset": 40,
+    "controllerMainOwnerOffset": 440
+  },
+  "ecsReadLayout": {
+    "clientSceneOwnerOffset": 1584,
+    "sceneEntriesPointerOffset": 1248,
+    "sceneEntriesCountOffset": 1256,
+    "sceneEntriesCapacityOffset": 1264,
+    "sceneEntryStride": 144,
+    "sceneEntryContextOffset": 0,
+    "sceneEntryUuidOffset": 8,
+    "sceneEntryStateOffset": 24,
+    "sceneEntryReadyState": 5,
+    "maximumSceneEntries": 1024,
+    "mainExecutionOwnerOffset": 464,
+    "executionRegistryOwnerOffset": 2344,
+    "executionEntityManagerOffset": 14769600,
+    "entityManagerOwnerOffset": 0,
+    "entityManagerCount": 344,
+    "entityManagerTable": 392,
+    "entityManagerOccupancy": 336,
+    "entityManagerKeys": 368,
+    "entityId": 16,
+    "entityGeneration": 20,
+    "entityLayout": 24,
+    "entityStorage": 32,
+    "entityDefinitionPointer": 40,
+    "entityDefinitionUuidOffset": 0,
+    "entityRow": 48,
+    "componentBits": 0,
+    "componentOffsets": 132,
+    "componentStrides": 2692,
+    "maximumEntities": 1048576
+  },
+  "serviceLayout": {
+    "id": "engine-named-plain-services-v1",
+    "source": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "recordsPointerOffset": 7625128,
+    "recordCountOffset": 7625136,
+    "recordStride": 232,
+    "recordHashOffset": 160,
+    "recordNormalPointerOffset": 168,
+    "recordAlternatePointerOffset": 176,
+    "mapBitsOffset": 7625176,
+    "mapCapacityOffset": 7625184,
+    "mapKeysOffset": 7625208,
+    "mapValuesOffset": 7625232,
+    "mapCountOffset": 7625252,
+    "systemsOffset": 7625256,
+    "systemCountOffset": 14764584,
+    "systemStride": 7968,
+    "systemNormalBindingsOffset": 5904,
+    "systemAlternateBindingsOffset": 6936,
+    "systemNormalCountOffset": 6928,
+    "systemAlternateCountOffset": 7960,
+    "maximumRecords": 1024,
+    "maximumMapCapacity": 4096,
+    "maximumSystems": 2048,
+    "contracts": [
+      {
+        "key": "ecs::GameSettings",
+        "qualifiedType": "keen::ecs::GameSettings",
+        "qualifiedHash": 2298714128,
+        "size": 144,
+        "metadataRva": 24416672,
+        "registrySlotRva": 24139456,
+        "mutableSystemDescriptorRva": 31455936,
+        "mutableSystemFunctionRva": 2928592,
+        "plainData": true,
+        "scope": "host-world-shared"
+      }
+    ]
+  },
+  "systemDependencyLayout": {
+    "id": "ecs-system-dependencies-v1",
+    "source": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "recordBuilderRva": 10441888,
+    "accessSetPackRva": 9905520,
+    "compatibilityPredicateRva": 10082928,
+    "slots": [
+      {
+        "offset": 24,
+        "storageRole": "template",
+        "accessMode": "configuration-read",
+        "systemRecordMaskOffset": 208
+      },
+      {
+        "offset": 40,
+        "storageRole": "template",
+        "accessMode": "configuration-read",
+        "systemRecordMaskOffset": 288
+      },
+      {
+        "offset": 56,
+        "storageRole": "runtime",
+        "accessMode": "read",
+        "systemRecordMaskOffset": 48
+      },
+      {
+        "offset": 72,
+        "storageRole": "runtime",
+        "accessMode": "read",
+        "systemRecordMaskOffset": 128
+      },
+      {
+        "offset": 88,
+        "storageRole": "runtime",
+        "accessMode": "write",
+        "systemRecordMaskOffset": 736
+      },
+      {
+        "offset": 104,
+        "storageRole": "runtime",
+        "accessMode": "write",
+        "systemRecordMaskOffset": 816
+      }
+    ]
+  },
+  "resourceLayout": {
+    "mainActiveContextOffset": 4707552,
+    "contextItemRegistryOffset": 15888,
+    "itemRegistryServiceOffset": 8,
+    "itemRegistryHandleOffset": 16,
+    "itemRegistryResourcePointerOffset": 32,
+    "itemIdMap": {
+      "id": "original-item-id-map-v1",
+      "source": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+      "registry": "g38_items::ItemRegistry",
+      "targetType": "keen::ItemInfo",
+      "targetHash": 3050211173,
+      "targetSize": 2088,
+      "itemIdOffset": 0,
+      "guidOffset": 4,
+      "mapOffset": 56,
+      "headerSize": 96,
+      "bitsPointerOffset": 8,
+      "capacityOffset": 16,
+      "keysPointerOffset": 40,
+      "valuesPointerOffset": 64,
+      "countOffset": 84,
+      "partIndex": 0,
+      "maximumCapacity": 1048576,
+      "maximumProbes": 256
+    },
+    "resourceServiceReaderOffset": 8,
+    "resourceServiceIdCallbackOffset": 2008,
+    "resourceServiceIdCallbackRva": 17195344,
+    "resourceServiceHandleCallbackOffset": 2024,
+    "resourceServiceHandleCallbackRva": 17194080,
+    "resourceServiceChunkTableOffset": 48,
+    "resourceServiceChunkCountOffset": 88,
+    "readerMetadataOffset": 96,
+    "metadataMapOffset": 72,
+    "map": {
+      "bucketRel32Offset": 0,
+      "bucketCountOffset": 4,
+      "keysRel32Offset": 8,
+      "keyCountOffset": 12,
+      "valuesRel32Offset": 16,
+      "valueCountOffset": 20,
+      "headerSize": 24,
+      "bucketStride": 8,
+      "keyStride": 32,
+      "resourceKeySize": 24,
+      "valueStride": 8
+    },
+    "valueEntry": {
+      "resourceOffsetOffset": 0,
+      "packedSizeOffset": 4,
+      "chunkIndexOffset": 7,
+      "sizeMask": 16777215
+    },
+    "chunkEntry": {
+      "stride": 16,
+      "basePointerOffset": 0,
+      "sizeOffset": 8
+    },
+    "maximumEntries": 1048576,
+    "maximumChunks": 65536,
+    "maximumResourceBytes": 268435456
+  },
+  "provenance": {
+    "status": "read-validated",
+    "resourceReadValidated": true,
+    "itemIdMapValidated": true,
+    "itemIdMapEvidence": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "ecsReadValidated": true,
+    "ecsAuthorityReadValidated": true,
+    "systemDependenciesValidated": true,
+    "servicePlainDataValidated": true,
+    "servicePlainDataEvidence": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "ecsOwnerChain": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "source": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "ownerChain": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "ecsWriteGateValidated": true,
+    "ecsChangeTrackingValidated": true,
+    "ecsWriteGateEvidence": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "ecsChangeTrackingEvidence": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "attributeCalculationEvidence": "docs/evidence/runtime/2026-10-23-attribute-interpreter-26082781.de.md",
+    "resourceAtomicScalarWriteValidated": true,
+    "resourceAtomicScalarWriteEvidence": "docs/evidence/runtime/2026-10-21-world-editor-native-operations.de.md",
+    "limitations": [
+      "Exact executable identity required. No structural fallback.",
+      "Owner, lifetime, Scene, registry, resource and tracking contracts were rederived for build 26082781 and inspected read-only in PID 26184. Runtime repeats ownership checks under the original guards.",
+      "Resource scalar writes require the original KfcResourceContent lifetime, stable Reader and private bulk. A scalar operation is not a multi-field transaction or gameplay acknowledgement.",
+      "ECS component writes require original authority and Scene gates, exact membership and snapshot checks, and zero A/B tracking bits. Structural validation does not prove gameplay effect.",
+      "Registered destroy resolves its callback by the original full name and validates its exact queue effect. Completion requires confirmed entity absence in the same session. No fixed operation dispatch RVA is admitted.",
+      "One Lua destroy of the user-designated test chest completed in PID 31676 with confirmed entity absence in the same session 5 and visual user confirmation. Save-reload persistence was not tested. Spawn, exact terrain writing and native Undo remain unavailable.",
+      "Attribute command interpreter semantics were revalidated against fresh KFC4 resources for build 26082781 with 2,112 isolated original-engine vectors. In-game effects remain subject to live verification."
+    ]
+  },
+  "ecsWriteLayout": {
+    "phaseValidated": true,
+    "phasePolicy": "untracked-components",
+    "id": "ecs-native-thread-scene-gate-v1",
+    "enabled": true,
+    "threadRegistryLockRva": 42072528,
+    "threadRegistryEntriesRva": 42072536,
+    "threadRegistryCountRva": 42078680,
+    "threadRegistryCapacity": 256,
+    "threadRegistryEntryStride": 24,
+    "registryEntryHandleOffset": 0,
+    "registryEntryNamePointerOffset": 8,
+    "registryEntryNameLengthOffset": 16,
+    "threadInlineNameOffset": 32,
+    "sceneThreadOffset": 8,
+    "threadNamePointerOffset": 0,
+    "threadNameLengthOffset": 8,
+    "threadNameCapacityOffset": 16,
+    "threadNameCapacity": 64,
+    "threadHandleOffset": 96,
+    "threadContextOffset": 120,
+    "threadStopOffset": 128,
+    "threadCallbackOffset": 136,
+    "threadCallbackRva": 14924496,
+    "threadName": "GameServer",
+    "sceneContextOffset": 160,
+    "sceneLockOffset": 1496,
+    "sceneStateOffset": 1291,
+    "sceneRunningState": 1,
+    "executionModeOffset": 14769608,
+    "executionAuthorityMode": 0,
+    "maximumWriteBytes": 65536,
+    "changeTrackerRva": 10254096,
+    "changeTrackerBytes": "48895c240848896c2410488974241848897c242041564883ec304d8b5020498bf0",
+    "changeTrackerContextOffset": 15450160,
+    "changeTrackerRegistryAOffset": 400,
+    "changeTrackerRegistryBOffset": 560,
+    "changeTrackerManagerOffset": 656,
+    "changeTrackerQueueBOffset": 320,
+    "maximumTrackingQueueCapacity": 1048576
+  },
+  "attributeCalculationModel": "attribute-command-v1",
+  "resourceWriteLayout": {
+    "id": "resource-atomic-scalar-v1",
+    "enabled": true,
+    "serviceThreadOffset": 296,
+    "threadName": "KfcResourceContent",
+    "threadCallbackRva": 17173136,
+    "serviceInitializedOffset": 1956,
+    "serviceInitializedValue": 1,
+    "servicePayloadPointerOffset": 24,
+    "servicePayloadSizeOffset": 32
+  },
+  "mapCapture": {
+    "execution": {
+      "unavailableReason": "legacy-iterator-extent-unproved"
+    },
+  "id": "map-image-admission-v1",
+  "readiness": "player-only",
+  "guardChunkBytes": 1024,
+  "deathsRequireWorld": true,
+  "requiredSystems": [],
+  "views": {
+    "player": {
+      "guards": [
+        {
+          "guardRva": 2829152,
+          "bytes": "405557488dac24b8feffff4881ec4802000041b850000000488d542460488bf9e81b96700041b850000000488d542460488bcfe8c842700084c00f848f070000"
+        },
+        {
+          "guardRva": 10207648,
+          "bytes": "48895c241055565741544155415641574883ec604c8b09488bd9488bfa410fb6"
+        },
+        {
+          "guardRva": 10186336,
+          "bytes": "40574883ec204c8b01488bfa8b41084c8bc9493b8030080000750832c04883c4205fc3410fb680b0040000498d887004000048895c24384533db410fb798ba04"
+        },
+        {
+          "guardRva": 10175024,
+          "bytes": "8b41084c8bc285c075068902488bc2c38d50ff488b014803d2488b8828080000"
+        },
+        {
+          "guardRva": 3887072,
+          "bytes": "394a040f94c0c3cccccccccccccccccc48895c240848897c241055488bec4883"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31474832,
+          "name": "player_camera_transform",
+          "callbackRva": 2829152
+        },
+        {
+          "descriptorRva": 31515648,
+          "name": "player_waypoints_ui",
+          "callbackRva": 3205904
+        }
+      ],
+      "pointers": []
+    },
+    "renderer": {
+      "guards": [
+        {
+          "guardRva": 16598560,
+          "bytes": "4c89442418488954241048894c2408"
+        },
+        {
+          "guardRva": 16601715,
+          "bytes": "488b4628488d55908bb8340e0000488b88d00d00004803ff488b4608488b0cf9488b80a0050000ffd04533c0"
+        },
+        {
+          "guardRva": 16649184,
+          "bytes": "40555356574154415541564157488bec4883ec58488b4178488d1dc1e5db0048"
+        },
+        {
+          "guardRva": 16661491,
+          "bytes": "4c8d0de6c1db00c68778050000014d8bc6488d4d50488bd7e8d0aaffff4c8d0de1c1db00488987800500004d8bc6488d4d50488bd7e8b3aaffff4c8d0ddcc1db00488987880500004d8bc6488d4d50488bd7e896aaffff4c8d0dd7c1db00488987900500004d8bc6488d4d50488bd7e879aaffff4c8d0dd2c1db004889879805"
+        },
+        {
+          "guardRva": 16664980,
+          "bytes": "895d404c8b6d5048897778498bf4410f"
+        }
+      ],
+      "systems": [],
+      "pointers": []
+    },
+    "markers": {
+      "guards": [
+        {
+          "guardRva": 3243648,
+          "bytes": "48894c2408555357415441554157488dac24a8feffff4881ec5802000041b898000000488d542420e8f3426a00488b542460488b5c2430488995980100000fb7"
+        },
+        {
+          "guardRva": 3245269,
+          "bytes": "00488b7c2450488b08e8edbe6900488bd0488d4df0458bce4c8bc7e80bed6800"
+        },
+        {
+          "guardRva": 3873936,
+          "bytes": "8d42ff3dfe03000077194c8d0c8049c1e10543391401750b438b4401048901488bc1c3c70100000000488bc1c3cccccc8d42ff3dfe030000771d4c8d0c8049c1"
+        },
+        {
+          "guardRva": 10175440,
+          "bytes": "488b4130c3"
+        },
+        {
+          "guardRva": 3205904,
+          "bytes": "48895c241848896c242056574155415641574883ec6041b830000000488d5424304c8bf1e867d66a004c8b6c244033ed4939adc84246000f86a100000033f690498b9dc0424600498b0e488b7c24488b1c1ee869586a00488bd0488d4c2420448bcb4c8bc7e886866900488b104885d27455803a00488b442440488b88c04246"
+        },
+        {
+          "guardRva": 3206032,
+          "bytes": "007438807c31680074160f104a08f20f1042180f114c3150f20f11443160eb270f1042080f11443150f20f104a18f20f114c3160c644316801eb0c807c3168007405c64431680048ffc54881c640020000493badc84246000f8262ffffff4c8b7c2458410fb747406685c0750433dbeb0b8d58ff48c1e30b49035f30418b4718"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31474832,
+          "name": "player_camera_transform",
+          "callbackRva": 2829152
+        },
+        {
+          "descriptorRva": 31515648,
+          "name": "player_waypoints_ui",
+          "callbackRva": 3205904
+        },
+        {
+          "descriptorRva": 31538688,
+          "name": "update_ui_data",
+          "callbackRva": 3243648
+        }
+      ],
+      "pointers": []
+    },
+    "clock": {
+      "guards": [
+        {
+          "guardRva": 2831168,
+          "bytes": "41564883ec6041b828000000488d5424304c8bf1e8478e7000488b4c2440e8dd88bd00488b5424488882d01c0000488b"
+        },
+        {
+          "guardRva": 15252544,
+          "bytes": "488b4148483b41287c09483b41307d03b001c332c0"
+        },
+        {
+          "guardRva": 15155950,
+          "bytes": "48b900004f91944e0000"
+        },
+        {
+          "guardRva": 15378866,
+          "bytes": "48894748"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31475296,
+          "name": "player_daytime_ui",
+          "callbackRva": 2831168
+        },
+        {
+          "descriptorRva": 31491616,
+          "name": "client_update_daytime",
+          "callbackRva": 3155888
+        }
+      ],
+      "pointers": []
+    },
+    "weather": {
+      "guards": [
+        {
+          "guardRva": 3135904,
+          "bytes": "4055574154488dac2480feffff4881ec8002000041b890000000488d55504c8be1e8dae76b00488b7d70498bcc8b7f048bd7e819fe690084c00f84e106000048"
+        },
+        {
+          "guardRva": 3136750,
+          "bytes": "0f104424304c8d442460488b9590000000f20f104c2440488d4c24484c8bc80f29442460f20f114c2470e813f87900"
+        },
+        {
+          "guardRva": 11130160,
+          "bytes": "488bc4488958184889480855565741544155415641574881ec200100000f2970"
+        },
+        {
+          "guardRva": 11131499,
+          "bytes": "f30f11070f28c2f30f114f04f3410f59c4f30f114708f3440f116f0c488b4c24584885c9740e4d85"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31479136,
+          "name": "ambient_effects",
+          "callbackRva": 3135904
+        }
+      ],
+      "pointers": [],
+      "enumTable": {
+        "tableRva": 29087776,
+        "entryStride": 40,
+        "namePointerOffset": 0,
+        "valueOffset": 16,
+        "names": [
+          "Clear",
+          "Rain",
+          "Snow",
+          "Blizzard"
+        ]
+      }
+    },
+    "fog": {
+      "guards": [
+        {
+          "guardRva": 3174880,
+          "bytes": "40574883ec6041b830000000488d542420488bf9e8a74f6b0041b83000000048"
+        },
+        {
+          "guardRva": 3174978,
+          "bytes": "488bd38b08e894dd0a0084c07459"
+        },
+        {
+          "guardRva": 3175040,
+          "bytes": "10488b442428f30f59c6f30f59cef30f11842480000000f30f118c2484000000f30f1010e887510900"
+        },
+        {
+          "guardRva": 3783168,
+          "bytes": "488b4208488901488b421848894108488b42204889411048"
+        },
+        {
+          "guardRva": 3785844,
+          "bytes": "f3440f104104f3440f5c4204f3"
+        },
+        {
+          "guardRva": 3786192,
+          "bytes": "48c1e10a49034e18"
+        },
+        {
+          "guardRva": 20684508,
+          "bytes": "0000003e"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31500640,
+          "name": "fog_of_war",
+          "callbackRva": 3174880
+        }
+      ],
+      "pointers": []
+    },
+    "world": {
+      "guards": [
+        {
+          "guardRva": 3141600,
+          "bytes": "4883ec3841b810000000488d542420e8acd16b00488b44242833c948898808ea3600488988806a3e0048898858ea3b004883c438c3cccccccccccccccccccccc"
+        },
+        {
+          "guardRva": 3158951,
+          "bytes": "4c89bf306a3900e8bd48b700488b184885db0f84750100004889b42480000000488db7286a39004c89a4249000000049bc25232284e49cf2cb4c8974245849be"
+        },
+        {
+          "guardRva": 3134688,
+          "bytes": "40534883ec20488b5108488bd948ffc2483b5110761d488b41184885c0740c48f7da41b001ffd084c0750833c04883c4205bc3488b430833d2488d0c80488b0348c1e1054803c133c94889501048895018488950204889505048895058488948"
+        },
+        {
+          "guardRva": 3214512,
+          "bytes": "40554154488d6c24b84881ec4801000041b870000000488d5424304c8be1e8cd"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31482832,
+          "name": "clear_map_markers_for_ui",
+          "callbackRva": 3141600
+        },
+        {
+          "descriptorRva": 31495184,
+          "name": "custom_map_markers_ui",
+          "callbackRva": 3158880
+        },
+        {
+          "descriptorRva": 31521136,
+          "name": "replicate_map_markers_for_ui",
+          "callbackRva": 3214512
+        }
+      ],
+      "pointers": []
+    },
+    "deaths": {
+      "guards": [
+        {
+          "guardRva": 3214512,
+          "bytes": "40554154488d6c24b84881ec4801000041b870000000488d5424304c8be1e8cdb46a0041b870000000c7442420a1d78a65488d542430c744242421288b4c498bccc7442428a908c2f2c744242cf93fd96fe85a616a0084c00f845f07000048899c246001000041b950ea3b004889bc24380100004c89ac24300100004c8b6c24284c89b4242801000049beb3010000000100004c89bc242001000049bf25232284e49cf2cb0f29b424100100000f57f60f29bc2400010000f30f103d50300a01440f298424f0000000f3440f1005f64c0a014889b42440010000660f1f440000488b4424584885c074098038000f8460060000488b442450488b50104c8b4018488bca488b050ec01f0148330dffbf1f014933c0480bc80f8436060000488b0524c01f01488bca48330d12c01f014933c0480bc8750a48394d800f8413060000488b05f1bf1f01488bca48330ddfbf1f014933c0480bc87507b9786a3e00eb1d488b05c1bf1f01b900ea3600483315adbf1f014933c0480bd0490f44c948034d90e8aac6feff488bf04885c00f84c1050000c6404800488b4424384885c00f848a000000486308448b580485c975054533c0eb044c8d04084533d24d85db746e4c8b3531bf1f014c8b3d22bf1f01488b1d33bf1f01488b3d24bf1f010f1f4000498b104d8b4808488bca498bc14933cf4933c6480bc8741d4833d74c33cb490b"
+        }
+      ],
+      "systems": [],
+      "pointers": []
+    },
+    "discovery": {
+      "guards": [
+        {
+          "guardRva": 4280640,
+          "bytes": "40554156488d6c24b14881ecb800000041b850000000488d55e74c8bf1e83e705a0041b850000000488d55e7498bcee8ec1c5a0084c00f84580200004889b424"
+        },
+        {
+          "guardRva": 4280724,
+          "bytes": "488b4d27e8d3c2ad00488b4d1f0fb7f04885c974220fb655194c8b4d0f4c8b4507885424280fb755176689542420488b55ffe815245b00488b45f7663970100f84c90100004c8b45ef418338000f84bb010000488b55274c8d4d77488d4dcfc7"
+        },
+        {
+          "guardRva": 4281250,
+          "bytes": "41b850000000488d55e7498bcee8ac1a5a0084c00f85"
+        }
+      ],
+      "systems": [
+        {
+          "descriptorRva": 31368992,
+          "name": "knowledge_query_mapmarker_visibility",
+          "callbackRva": 4280640
+        }
+      ],
+      "pointers": []
+    }
+  }
+}
+}

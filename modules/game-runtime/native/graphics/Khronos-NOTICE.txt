@@ -1,0 +1,19 @@
+Vulkan creation ABI declarations
+
+vulkan_boot_api.h follows the documented x64 ABI and numeric constants in
+KhronosGroup/Vulkan-Headers v1.4.321, include/vulkan/vulkan_core.h:
+https://github.com/KhronosGroup/Vulkan-Headers/blob/v1.4.321/include/vulkan/vulkan_core.h
+Copyright 2015-2025 The Khronos Group Inc. SPDX-License-Identifier: Apache-2.0.
+The Apache 2.0 license is retained alongside this notice in Khronos-Apache-2.0.txt.
+The host renderer otherwise retains its pinned Minimap test.4 MIT provenance
+in ../map/SOURCE-NOTICE.txt. This is not a game/driver acceptance statement.
+
+Programmable fragment validation statically links the validator target from
+KhronosGroup/SPIRV-Tools v2025.5, commit
+262bdab48146c937467f826699a40da0fdfc0f1a, with SPIRV-Headers commit
+b824a462d4256d720bebb40e78b9eb8f78bbb305, as pinned by that release's DEPS:
+https://github.com/KhronosGroup/SPIRV-Tools/blob/262bdab48146c937467f826699a40da0fdfc0f1a/DEPS
+Their Apache-2.0 licenses are embedded in the runtime's SPIRV_TOOLS_LICENSE
+and SPIRV_HEADERS_LICENSE resources. No optimizer or validator executable is
+distributed or invoked by the runtime. The restricted overlay interface check
+is separate from Khronos' complete Vulkan validation.

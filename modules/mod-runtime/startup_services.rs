@@ -1,0 +1,790 @@
+//! Host-owned selected startup. Package declarations express demand, not readiness.
+use mod_loader::{Capability, ModEnvironment};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::BTreeSet,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
+};
+
+pub const METADATA: u32 = 1;
+pub const GENERIC_HOOKS: u32 = 2;
+pub const MAP: u32 = 4;
+pub const NATIVE_PLUGIN_PREENTRY: u32 = 8;
+pub const GRAPHICS: u32 = 16;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlanV2 {
+    pub struct_bytes: u32,
+    pub version: u32,
+    pub services: u32,
+    pub process_role: u32,
+    pub opt_ins: u32,
+    pub reserved: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Phase {
+    Admitted,
+    Taken,
+    Committed,
+    Creating,
+    Running,
+    Failed,
+}
+
+struct Input {
+    path: PathBuf,
+    digest: [u8; 32],
+    // On Windows this reference denies replacement and writes through native loading.
+    _lease: fs::File,
+}
+
+struct Admission {
+    root: PathBuf,
+    plan: PlanV2,
+    environment: ModEnvironment,
+    identity: serde_json::Value,
+    inputs: Vec<Input>,
+    plugins: Vec<crate::native_dlls::RegisteredNativePlugin>,
+    phase: Phase,
+}
+
+static ADMISSION: OnceLock<Mutex<Option<Admission>>> = OnceLock::new();
+fn state() -> &'static Mutex<Option<Admission>> {
+    ADMISSION.get_or_init(|| Mutex::new(None))
+}
+
+fn canonical(root: &Path) -> Result<PathBuf, String> {
+    // Reject junctions/symlinks before canonicalization can hide their identity.
+    for path in root.ancestors() {
+        let metadata = fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            if metadata.file_attributes() & 0x400 != 0 {
+                return Err("Startup path contains a reparse point".into());
+            }
+        }
+        if metadata.file_type().is_symlink() {
+            return Err("Startup path contains a symbolic link".into());
+        }
+    }
+    fs::canonicalize(root).map_err(|e| e.to_string())
+}
+
+fn environment(root: &Path) -> Result<ModEnvironment, String> {
+    let root = root.to_str().ok_or("Startup root is not UTF-8")?;
+    ModEnvironment::load(root).map_err(|e| format!("Startup package discovery failed: {e:?}"))
+}
+
+fn package_code(path: &Path, package_root: &Path) -> bool {
+    // Only executable inputs and the authored manifest are immutable here.
+    // extended.mod.json and [Plugin] declarations have parsed identity below;
+    // other package data belongs to the mod and may be writable during init.
+    path == package_root.join("mod.json")
+        || path
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|extension| {
+                ["lua", "luac", "dll", "exe"]
+                    .iter()
+                    .any(|code| extension.eq_ignore_ascii_case(code))
+            })
+}
+
+fn inspect(
+    env: &ModEnvironment,
+    server: bool,
+    plugins: &[crate::native_dlls::RegisteredNativePlugin],
+) -> Result<(u32, serde_json::Value, BTreeSet<PathBuf>), String> {
+    let root = env.game_dir().as_std_path();
+    let (packages, issues) = env.plan_report(server, crate::API_VERSION);
+    let mut services = 0;
+    let mut manifest_identity = Vec::new();
+    let mut files = BTreeSet::new();
+    for package in &packages {
+        let info = package.info();
+        for capability in &info.capabilities {
+            services |= match capability {
+                Capability::RuntimeMap => MAP,
+                Capability::RuntimeOverlay => GRAPHICS,
+                _ => 0,
+            };
+        }
+        manifest_identity.push(serde_json::to_value(info).map_err(|e| e.to_string())?);
+    }
+    if plugins
+        .iter()
+        .any(|plugin| plugin.registration.mode == crate::session::NativePluginMode::ShroudForgeV2)
+    {
+        return Err("Package pre-entry lifecycle callbacks are unsupported. Declare shared runtime capabilities and use the normal activation API".into());
+    }
+    let dll_plan = mod_loader::dll_manager::resolve_load_plan(root, server);
+    // Only manifest-backed native runtime packages can request SDK phases.
+    // Ordinary DLL-only plans retain their established startup route.
+    let may_register_callbacks = dll_plan.entries.iter().any(|entry| {
+        packages.iter().any(|package| {
+            entry.mod_id.as_deref() == Some(package.info().id.as_str())
+                && package
+                    .info()
+                    .capabilities
+                    .contains(&Capability::RuntimeRegisterDll)
+        })
+    });
+    if services == 0 && !may_register_callbacks {
+        return Ok((0, serde_json::Value::Null, files));
+    }
+    for package in &packages {
+        let package_root = package.fs().root().as_std_path().to_path_buf();
+        if package_root.is_file() {
+            files.insert(package_root);
+        } else {
+            for item in walkdir::WalkDir::new(&package_root).follow_links(false) {
+                let item = item.map_err(|e| e.to_string())?;
+                if item.file_type().is_symlink() {
+                    return Err("Selected package contains a symbolic link".into());
+                }
+                if item.file_type().is_file() && package_code(item.path(), &package_root) {
+                    files.insert(item.into_path());
+                }
+            }
+        }
+    }
+    for plugin in plugins {
+        let package = packages
+            .iter()
+            .find(|p| plugin.entry.mod_id.as_deref() == Some(p.info().id.as_str()))
+            .ok_or("Approved native plugin is absent from the executable package plan")?;
+        if !package
+            .info()
+            .capabilities
+            .contains(&Capability::RuntimeRegisterDll)
+        {
+            return Err("Native service consumer lacks runtime-register-dll capability".into());
+        }
+        files.insert(plugin.entry.path.clone());
+    }
+    if services != 0 && (!issues.is_empty() || !dll_plan.issues.is_empty()) {
+        return Err("Selected startup has unresolved package or DLL selections".into());
+    }
+    if server && services & (MAP | GRAPHICS) != 0 {
+        return Err("Client map and graphics services cannot start in a server process".into());
+    }
+    // Include ordinary DLL-only packages as well as manifest-backed packages.
+    // The same ordered executor loads these retained inputs before preparation.
+    files.extend(dll_plan.entries.iter().map(|entry| entry.path.clone()));
+    let dll_identity = mod_loader::dll_manager::load_plan_identity(&dll_plan);
+    // Profiles can provide virtual Lua/package files outside the physical mod
+    // directory. Bind their contents as well as the resolved manifests.
+    let profiles =
+        mod_loader::mod_profiles::read_profiles(root).map_err(|errors| errors.join("; "))?;
+    let identity =
+        serde_json::json!({"packages":manifest_identity,"dlls":dll_identity,"profiles":profiles});
+    Ok((services, identity, files))
+}
+
+impl Admission {
+    fn capture(root: &Path, server: bool) -> Result<Option<Self>, String> {
+        let root = canonical(root)?;
+        let environment = environment(&root)?;
+        let (services, identity, mut paths) = inspect(&environment, server, &[])?;
+        if services == 0 && paths.is_empty() {
+            return Ok(None);
+        }
+        paths.insert(root.join("shroudforge/kfc-runtime.dll"));
+        let mods_root = canonical(&shroudforge_loader_config::paths::mods_dir(&root))?;
+        let mut inputs = Vec::new();
+        for path in paths {
+            let path = canonical(&path)?;
+            if !path.starts_with(&root) && !path.starts_with(&mods_root) {
+                return Err(
+                    "Startup input escapes the installation and configured mod directory".into(),
+                );
+            }
+            let mut options = fs::OpenOptions::new();
+            options.read(true);
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::OpenOptionsExt;
+                options.share_mode(1);
+            }
+            let mut lease = options
+                .open(&path)
+                .map_err(|e| format!("Could not retain startup input {}: {e}", path.display()))?;
+            let mut hash = Sha256::new();
+            let mut buffer = [0u8; 65536];
+            loop {
+                let count = lease.read(&mut buffer).map_err(|e| e.to_string())?;
+                if count == 0 {
+                    break;
+                }
+                hash.update(&buffer[..count]);
+            }
+            inputs.push(Input {
+                path,
+                digest: hash.finalize().into(),
+                _lease: lease,
+            });
+        }
+        let admitted = Self {
+            root,
+            plan: PlanV2 {
+                struct_bytes: 24,
+                version: 2,
+                services: services | METADATA,
+                process_role: if server { 2 } else { 1 },
+                opt_ins: 0,
+                reserved: 0,
+            },
+            environment,
+            identity,
+            inputs,
+            plugins: Vec::new(),
+            phase: Phase::Admitted,
+        };
+        admitted.verify()?;
+        Ok(Some(admitted))
+    }
+    fn verify(&self) -> Result<(), String> {
+        let (services, identity, paths) = inspect(
+            &environment(&self.root)?,
+            self.plan.process_role == 2,
+            &self.plugins,
+        )?;
+        if services | METADATA != self.plan.services || identity != self.identity {
+            return Err("Selected startup composition changed; restart is required".into());
+        }
+        let mut expected: BTreeSet<_> = paths
+            .iter()
+            .map(|p| canonical(p))
+            .collect::<Result<_, _>>()?;
+        expected.insert(canonical(&self.root.join("shroudforge/kfc-runtime.dll"))?);
+        if expected != self.inputs.iter().map(|i| i.path.clone()).collect() {
+            return Err("Selected startup file membership changed".into());
+        }
+        // Windows leases prevent mutations; this also checks non-Windows fixtures.
+        for input in &self.inputs {
+            let mut file = fs::File::open(&input.path).map_err(|e| e.to_string())?;
+            let mut hash = Sha256::new();
+            let mut buffer = [0u8; 65536];
+            loop {
+                let count = file.read(&mut buffer).map_err(|e| e.to_string())?;
+                if count == 0 {
+                    break;
+                }
+                hash.update(&buffer[..count]);
+            }
+            if <[u8; 32]>::from(hash.finalize()) != input.digest {
+                return Err("Selected startup input bytes changed".into());
+            }
+        }
+        Ok(())
+    }
+    fn transition(&mut self, root: &Path, from: Phase, to: Phase) -> Result<(), String> {
+        let result = (|| {
+            if self.phase == Phase::Failed || self.phase != from || canonical(root)? != self.root {
+                return Err("Selected startup phase or root differs".into());
+            }
+            self.verify()?;
+            Ok(())
+        })();
+        self.phase = if result.is_ok() { to } else { Phase::Failed };
+        result
+    }
+}
+
+/// Called after asset preparation, before any native loading. A selected plan
+/// never falls back to legacy startup after admission or native preparation fails.
+pub fn prepare(root: &Path, server: bool) -> Result<bool, String> {
+    let Some(admission) = Admission::capture(root, server)? else {
+        return Ok(false);
+    };
+    let dll_identity = admission.identity["dlls"].clone();
+    let staging_environment = admission.environment.clone();
+    {
+        let mut current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        if current.is_some() {
+            return Err("Selected startup was already admitted".into());
+        }
+        *current = Some(admission);
+    }
+    if let Err(error) = crate::native_dlls::prepare_selected_startup(root, server, &dll_identity) {
+        fail_admission();
+        return Err(error);
+    }
+    let refreshed = (|| -> Result<(PlanV2, bool), String> {
+        let plugins = crate::native_dlls::registered_native_plugins(root, server)?;
+        let mut admitted = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let admission = admitted
+            .as_mut()
+            .ok_or("Startup admission is unavailable")?;
+        let (services, identity, _) = inspect(&admission.environment, server, &plugins)?;
+        if identity != admission.identity {
+            return Err("Startup package identity changed during native registration".into());
+        }
+        admission.plan.services = services | METADATA;
+        admission.plugins = plugins;
+        admission.verify()?;
+        Ok((admission.plan, services != 0))
+    })();
+    let (plan, selected) = match refreshed {
+        Ok(plan) => plan,
+        Err(error) => {
+            fail_admission();
+            return Err(error);
+        }
+    };
+    if !selected {
+        // An ordinary/V1-only plan needs no additional provider preparation.
+        // Loading and SDK registration already used the common executor.
+        *state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")? = None;
+        return Ok(false);
+    }
+    if plan.services & NATIVE_PLUGIN_PREENTRY != 0
+        && let Err(error) =
+            crate::session::load_selected_native_plugins(root, server, &staging_environment)
+    {
+        fail_admission();
+        return Err(error);
+    }
+    Ok(true)
+}
+
+fn fail_admission() {
+    if let Ok(mut state) = state().lock()
+        && let Some(admission) = state.as_mut()
+    {
+        admission.phase = Phase::Failed;
+    }
+}
+
+/// Called by the trusted provider operation during its held-entry preparation.
+/// No proof or held-entry token crosses this Rust/native plugin boundary.
+pub fn stage_native_plugins_before_entry() -> Result<bool, String> {
+    let (root, server) = {
+        let current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let Some(admission) = current.as_ref() else {
+            return Err("No admitted selected startup".into());
+        };
+        if admission.phase != Phase::Taken || admission.plan.services & NATIVE_PLUGIN_PREENTRY == 0
+        {
+            return Err("Selected startup has no native pre-entry staging demand".into());
+        }
+        (admission.root.clone(), admission.plan.process_role == 2)
+    };
+    crate::session::stage_selected_native_plugins_before_entry(&root, server)?;
+    Ok(true)
+}
+
+pub fn prepare_native_plugins_before_entry() -> Result<bool, String> {
+    let (root, server) = {
+        let current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let Some(admission) = current.as_ref() else {
+            return Err("No admitted selected startup".into());
+        };
+        if admission.phase != Phase::Taken || admission.plan.services & NATIVE_PLUGIN_PREENTRY == 0
+        {
+            return Err("Selected startup has no native pre-entry preparation demand".into());
+        }
+        (admission.root.clone(), admission.plan.process_role == 2)
+    };
+    crate::session::prepare_selected_native_plugins(&root, server)?;
+    Ok(true)
+}
+
+/// Runs the bounded opaque-context continuation after the entry bytes have been
+/// restored. This dispatcher is called serially on the original entry thread.
+pub fn dispatch_native_plugins_entry_restored() -> bool {
+    crate::session::dispatch_selected_native_plugins_entry_restored()
+}
+
+pub fn take(root: &Path) -> Result<Option<PlanV2>, String> {
+    let mut state = state()
+        .lock()
+        .map_err(|_| "Startup admission lock poisoned")?;
+    let Some(admission) = state.as_mut() else {
+        return Ok(None);
+    };
+    admission.transition(root, Phase::Admitted, Phase::Taken)?;
+    Ok(Some(admission.plan))
+}
+pub fn commit(root: &Path, completed: u32) -> Result<(), String> {
+    let mut state = state()
+        .lock()
+        .map_err(|_| "Startup admission lock poisoned")?;
+    let admission = state.as_mut().ok_or("No admitted startup")?;
+
+    if completed != admission.plan.services {
+        admission.phase = Phase::Failed;
+        return Err("Native startup completed a different service mask".into());
+    }
+    admission.transition(root, Phase::Taken, Phase::Committed)
+}
+pub fn before_create(root: &Path) -> Result<Option<ModEnvironment>, String> {
+    let mut state = state()
+        .lock()
+        .map_err(|_| "Startup admission lock poisoned")?;
+    let Some(admission) = state.as_mut() else {
+        return Ok(None);
+    };
+    admission.transition(root, Phase::Committed, Phase::Creating)?;
+    Ok(Some(admission.environment.clone()))
+}
+pub fn after_create(success: bool) -> Result<(), String> {
+    let selected_v2 = {
+        let mut current = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let Some(admission) = current.as_mut() else {
+            return Ok(());
+        };
+        let selected_v2 = admission.plan.services & NATIVE_PLUGIN_PREENTRY != 0;
+        let identity = (admission.root.clone(), admission.plan.process_role == 2);
+        admission.phase = if success && admission.phase == Phase::Creating {
+            Phase::Running
+        } else {
+            Phase::Failed
+        };
+        // Startup-only package leases no longer block runtime settings.
+        admission.inputs.clear();
+        selected_v2.then_some(identity)
+    };
+    if let Some((root, server)) = selected_v2 {
+        if success && crate::session::selected_native_plugins_adopted(&root, server) {
+            return crate::session::finalize_selected_native_plugins_entry_restored(&root, server);
+        }
+        let _ = crate::session::finalize_selected_native_plugins_entry_restored(&root, server);
+        crate::session::discard_staged_native_plugins(&root, server);
+        if success {
+            return Err(
+                "Runtime creation completed without adopting the selected V2 native plugins".into(),
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    struct Fixture(PathBuf);
+    impl Fixture {
+        fn new(capabilities: &[&str]) -> Self {
+            let root =
+                std::env::temp_dir().join(format!("sf-selected-startup-{}", uuid::Uuid::new_v4()));
+            let package = root.join("mods/probe");
+            fs::create_dir_all(&package).unwrap();
+            fs::create_dir_all(root.join("shroudforge")).unwrap();
+            fs::write(
+                root.join("shroudforge/kfc-runtime.dll"),
+                b"inert fixture; never loaded",
+            )
+            .unwrap();
+            fs::write(
+                package.join("mod.json"),
+                serde_json::to_vec(&serde_json::json!({
+                    "id":"probe","name":"Probe","version":"1.0.0","capabilities":capabilities
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            fs::write(
+                package.join("extended.mod.json"),
+                br#"{"schemaVersion":1,"enabled":true,"targets":["client"]}"#,
+            )
+            .unwrap();
+            Self(root)
+        }
+
+        fn select_dll(&self, directory: &str, path: &str) {
+            let mut config = shroudforge_loader_config::config::read_loader_defaults().unwrap();
+            config["modules"]["dllManager"]["enabled"] = true.into();
+            config["modules"]["dllManager"]["profiles"] = serde_json::json!([{
+                "id":"fixture-native-plugin",
+                "packageDirectory":directory,
+                "name":"Fixture native plugin",
+                "target":"client",
+                "enabled":true,
+                "approved":true,
+                "files":[{"path":path,"mode":"library"}]
+            }]);
+            let config_path = shroudforge_loader_config::paths::loader_config(&self.0);
+            fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+            fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn selected_startup_uses_actual_package_demand_and_refuses_changed_inputs() {
+        let legacy = Fixture::new(&["runtime"]);
+        assert!(Admission::capture(&legacy.0, false).unwrap().is_none());
+        let fixture = Fixture::new(&["runtime-map", "runtime-overlay"]);
+        let config = fixture.0.join("mods/probe/config.ini");
+        let log = fixture.0.join("mods/probe/runtime.log");
+        fs::write(&config, b"[Settings]\nValue=1\n").unwrap();
+        fs::write(&log, b"old log").unwrap();
+        let mut admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        // Existing mod-owned outputs remain writable before initialization.
+        fs::write(&config, b"[Settings]\nValue=2\n").unwrap();
+        fs::write(&log, b"initialized").unwrap();
+        fs::write(
+            fixture.0.join("mods/probe/extended.mod.json"),
+            b"{ \"schemaVersion\":1, \"enabled\":true, \"targets\":[\"client\"] }\n",
+        )
+        .unwrap();
+        assert_eq!(admission.plan.services, METADATA | MAP | GRAPHICS);
+        assert!(
+            admission
+                .transition(&fixture.0, Phase::Admitted, Phase::Taken)
+                .is_ok()
+        );
+        fs::write(fixture.0.join("mods/probe/new.lua"), b"return nil").unwrap();
+        assert!(
+            admission
+                .transition(&fixture.0, Phase::Taken, Phase::Committed)
+                .is_err()
+        );
+        assert_eq!(admission.phase, Phase::Failed);
+        assert!(
+            admission
+                .transition(&fixture.0, Phase::Failed, Phase::Committed)
+                .is_err()
+        );
+        let fixture = Fixture::new(&["runtime-map"]);
+        let mut admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        let profiles = shroudforge_loader_config::paths::mod_profiles_dir(&fixture.0);
+        fs::create_dir_all(&profiles).unwrap();
+        fs::write(
+            profiles.join("probe.json"),
+            br#"{
+            "schemaVersion":1,"id":"probe","packageDirectory":"probe","name":"Probe",
+            "packageFiles":{"src/mod.lua":"return {}"}
+        }"#,
+        )
+        .unwrap();
+        assert!(
+            admission
+                .transition(&fixture.0, Phase::Admitted, Phase::Taken)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn obsolete_ini_services_cannot_request_map_or_graphics_preparation() {
+        let fixture = Fixture::new(&["runtime", "runtime-register-dll"]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fs::write(package.join("native-plugin.ini"),
+            b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\nServices=shroudforge.map,shroudforge.overlay\n"
+        ).unwrap();
+        fixture.select_dll("probe", "probe.dll");
+        assert_eq!(
+            Admission::capture(&fixture.0, false)
+                .unwrap()
+                .unwrap()
+                .plan
+                .services,
+            METADATA
+        );
+    }
+
+    #[test]
+    fn native_map_and_graphics_demand_comes_from_the_existing_manifest_plan() {
+        let fixture = Fixture::new(&[
+            "runtime",
+            "runtime-register-dll",
+            "runtime-map",
+            "runtime-overlay",
+        ]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fs::write(
+            package.join("native-plugin.ini"),
+            b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\n",
+        )
+        .unwrap();
+        fixture.select_dll("probe", "probe.dll");
+        let mut admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        assert_eq!(admission.plan.services, METADATA | MAP | GRAPHICS);
+        // The obsolete INI field has no second identity or demand authority.
+        fs::write(package.join("native-plugin.ini"),
+            b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\nServices=unknown,shroudforge.overlay\n"
+        ).unwrap();
+        admission
+            .transition(&fixture.0, Phase::Admitted, Phase::Taken)
+            .unwrap();
+    }
+
+    #[test]
+    fn package_sdk_cannot_request_a_second_preentry_lifecycle() {
+        unsafe extern "C" fn factory(
+            _: u32,
+            _: u32,
+            _: *mut crate::session::SFNativePluginV1,
+        ) -> i32 {
+            panic!("reserved slot must never invoke a factory")
+        }
+        let fixture = Fixture::new(&["runtime", "runtime-register-dll"]);
+        let package = fixture.0.join("mods/probe");
+        let record = crate::native_bridge::open_host("probe", &package).unwrap();
+        let host = record.host();
+        assert_eq!(
+            unsafe { ((*host).reserved_preentry_registration)(host, Some(factory)) },
+            0
+        );
+        assert!(
+            crate::native_bridge::close_registration(record, true)
+                .lifecycle_factory
+                .is_none()
+        );
+        let env = environment(&fixture.0).unwrap();
+        assert_eq!(inspect(&env, false, &[]).unwrap().0, 0);
+    }
+
+    #[test]
+    fn ini_lifecycle_cannot_request_preentry_preparation() {
+        let fixture = Fixture::new(&["runtime-register-dll"]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(
+            package.join("native-plugin.ini"),
+            b"[Plugin]\nEnabled=true\nDll=probe.dll\nLifecycle=shroudforge-v2\n",
+        )
+        .unwrap();
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fixture.select_dll("probe", "probe.dll");
+
+        let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        assert_eq!(admission.plan.services, METADATA);
+        assert_eq!(admission.plan.process_role, 1);
+    }
+
+    #[test]
+    fn startup_rejects_wrong_root_and_phase_but_retains_ordinary_dll_inputs() {
+        let fixture = Fixture::new(&["runtime-map"]);
+        let other = Fixture::new(&["runtime-map"]);
+        for (root, from) in [(&other.0, Phase::Admitted), (&fixture.0, Phase::Committed)] {
+            let mut admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+            assert!(admission.transition(root, from, Phase::Creating).is_err());
+        }
+        let ordinary = fixture.0.join("mods/ordinary");
+        fs::create_dir_all(&ordinary).unwrap();
+        fs::write(
+            ordinary.join("native-plugin.ini"),
+            b"[Plugin]\nEnabled=true\nDll=original.dll\n",
+        )
+        .unwrap();
+        fs::write(ordinary.join("original.dll"), b"must never execute").unwrap();
+        let plan = mod_loader::dll_manager::resolve_load_plan(&fixture.0, false);
+        assert_eq!(plan.entries.len(), 1);
+        assert!(plan.issues.is_empty());
+        let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
+        assert!(
+            admission
+                .inputs
+                .iter()
+                .any(|input| input.path == canonical(&ordinary.join("original.dll")).unwrap())
+        );
+        drop(admission);
+        // Without a runtime DLL capability or other early demand, an ordinary
+        // DLL retains the normal route without additional admission.
+        let manifest = fixture.0.join("mods/probe/mod.json");
+        fs::write(
+            manifest,
+            br#"{"id":"probe","name":"Probe","version":"1.0.0","capabilities":["runtime"]}"#,
+        )
+        .unwrap();
+        assert!(Admission::capture(&fixture.0, false).unwrap().is_none());
+    }
+
+    #[test]
+    fn startup_retains_configured_external_mod_inputs_and_rejects_retargeting() {
+        let installation = Fixture::new(&[]);
+        let external = Fixture::new(&["runtime-map"]);
+        let mut config = shroudforge_loader_config::config::read_loader_defaults().unwrap();
+        config["paths"]["mods"] = external
+            .0
+            .join("mods")
+            .to_string_lossy()
+            .into_owned()
+            .into();
+        let config_path = shroudforge_loader_config::paths::loader_config(&installation.0);
+        fs::create_dir_all(config_path.parent().unwrap()).unwrap();
+        fs::write(&config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+        let mut admission = Admission::capture(&installation.0, false).unwrap().unwrap();
+        let manifest = canonical(&external.0.join("mods/probe/mod.json")).unwrap();
+        assert!(admission.inputs.iter().any(|input| input.path == manifest));
+        assert!(!manifest.starts_with(&admission.root));
+        admission
+            .transition(&installation.0, Phase::Admitted, Phase::Taken)
+            .unwrap();
+        config["paths"]["mods"] = serde_json::Value::Null;
+        fs::write(config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+        assert!(
+            admission
+                .transition(&installation.0, Phase::Taken, Phase::Committed)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn removed_capability_cannot_enter_the_executable_package_plan() {
+        let fixture = Fixture::new(&["runtime-first-person"]);
+        let env = environment(&fixture.0).unwrap();
+        assert!(!env.mod_registry().contains_key("probe"));
+        assert!(env.plan(false, crate::API_VERSION).is_empty());
+    }
+
+    #[test]
+    fn selected_startup_public_sequence_commits_once_before_create_without_loading_code() {
+        let fixture = Fixture::new(&[]);
+        let profiles = shroudforge_loader_config::paths::mod_profiles_dir(&fixture.0);
+        fs::create_dir_all(&profiles).unwrap();
+        fs::write(
+            profiles.join("probe.json"),
+            br#"{
+            "schemaVersion":1,"id":"probe","packageDirectory":"probe","name":"Probe",
+            "modJson":{"capabilities":["runtime-map"]},
+            "packageFiles":{"src/mod.lua":"return {}"}
+        }"#,
+        )
+        .unwrap();
+        assert!(prepare(&fixture.0, false).unwrap());
+        let plan = take(&fixture.0).unwrap().unwrap();
+        assert_eq!(plan.services, METADATA | MAP);
+        commit(&fixture.0, plan.services).unwrap();
+        let env = before_create(&fixture.0).unwrap().unwrap();
+        assert!(env.mod_registry().contains_key("probe"));
+        let mut script = String::new();
+        env.mod_registry()["probe"]
+            .fs()
+            .read_file("src/mod.lua")
+            .unwrap()
+            .read_to_string(&mut script)
+            .unwrap();
+        assert_eq!(script, "return {}");
+        after_create(true).unwrap();
+        assert!(before_create(&fixture.0).is_err());
+        assert!(take(&fixture.0).is_err());
+        // Clear only this test-owned singleton; ordinary DLL executor was never started.
+        *state().lock().unwrap() = None;
+    }
+}

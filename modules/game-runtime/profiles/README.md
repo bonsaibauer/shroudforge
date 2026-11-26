@@ -29,6 +29,26 @@ New client profiles use `<SteamBuildId>.json` and the ID
 `enshrouded-client-<SteamBuildId>`. The name covers the complete validated data
 connection. Individual read and write capabilities are specified by the profile.
 
+An additive contract for an already shipped exact image is a separate complete
+`<SteamBuildId>.revision-<N>.json` file with the same stable `id` and a positive
+`profileRevision`. The historical file is revision zero and stays byte-identical.
+The shared installed-catalog reader selects the unique highest revision before
+execution/resource selection and discovery. Schema, target, KFC format and the
+entire image identity must agree within that ID. Files are never merged.
+Missing old sections are not inherited. Duplicate highest revisions remain
+ambiguous. Invalid revisions or conflicting identities exclude that ID and
+block discovery for that read, preventing fallback to an older baseline.
+Unversioned duplicates retain their existing ambiguity. Launcher IDs do not
+change. Resource status `profileSelection.selectedSource` reports the selected
+file path and revision. Revisions grant no additional engine permissions.
+
+The developer capture action is an explicit review input, not a runtime profile
+selector. If several complete files match its executable, choose one with its
+existing `-ClientBaselineProfile` or `-ServerBaselineProfile` option. For exact
+matches, the supplied file must be one of those exact matches. It does not
+duplicate the native catalog's automatic revision policy. Unknown-image review
+continues to use the existing explicit baseline or unambiguous newest baseline.
+
 | Section | Meaning |
 | --- | --- |
 | `schemaVersion`, `id`, `target` | Profile format version, stable launcher selection ID, and executable name. |
@@ -36,6 +56,8 @@ connection. Individual read and write capabilities are specified by the profile.
 | `image` | Executable identity: PE timestamp, image size in bytes, and optional SHA-256. |
 | `allowStructuralRevalidation` | Whether automatic selection may try this execution profile when executable identity differs within the same KFC format. Manual selection also requires the same KFC format. |
 | `ownerLayout` | Exact-image original singleton, client and controller ownership shared by ResourceService and ECS readers. |
+| `hudCapture` | Optional `hud-observation-v1` description for the existing engine HUD observer. Exact-image UI chain, renderer CALL, guards and observation limits. Does not enable Map, Overlay or arbitrary DLL hooks. |
+| `mapCapture` | Optional `map-image-admission-v1` dependency descriptions shared by map admission and renderer-only admission. Static image checks, never activation or permission to invoke game code. |
 | `ecsReadLayout` | Validated original execution-owner, registry-owner and entity-manager relation plus entity storage offsets. Enables stable reads independently of hooks, with `provenance.ecsReadValidated=true`. |
 | `resourceLayout` | Original ItemRegistry pointer, ResourceService callbacks used only for validation, resource index and chunk layouts. |
 | `resourceWriteLayout` | Exact-image, separately validated content-worker lifetime and private bulk scalar CAS. Requires resourceAtomicScalarWriteValidated and its evidence. Uses the shared thread registry fields in ecsWriteLayout. |
@@ -136,6 +158,86 @@ candidate `functionRva` only supports an inspectable partial function binding.
 
 Do not add fields to only one build profile without updating
 `profile.schema.json`, the native profile reader, and the profile generator.
+
+`hudCapture` is parsed only from the exact-image owner profile selected through
+the existing resource/read-owner path. Its `callRva` must have an original E8
+relative CALL guard targeting `rendererRva`. `contextGlobalRva` is the root
+pointer. The observer follows `context + holderOffset`, dereferences the holder,
+reads `state + playStateOffset`, then reads one byte at `play + screenOffset`.
+`minimumScreen`, `maximumScreen`, `gameplayScreen` and `maximumAgeMs` bound the
+observation. No pointer is exported. The render callback retains an immutable
+copy of the selected contract across forwarding and logical shutdown.
+
+Each guard has `guardRva` and lowercase hexadecimal `bytes` (1–64 bytes).
+There must be 2–32 non-overlapping, image-bounded guards, including the renderer
+entry and complete original CALL. All guards remain mandatory. `guardPolicy`
+is either `exact`, or `runtime-owned-prefix` to use the existing independently
+verified runtime prefix proofs. It does not accept a mod's ownership claim.
+Only an independently verified framework-owned CALL may normalize its first
+five bytes. Following instructions remain guarded. An absent or malformed
+optional HUD description makes HUD capture unavailable without disabling
+unrelated resource or ECS operations. Hook publication still uses the existing
+shared engine-hook writer and lifecycle gates.
+
+The revision-one client files for builds 26082781 and 26430625 migrate the
+previous PR #116 HUD descriptions and all nine guard spans verbatim. Their
+source attribution remains in `native/map/SOURCE-NOTICE.txt`. This migration
+adds no new live validation or semantic approval flags. Other map execution data are described below in mapCapture.execution.
+
+`mapCapture` uses the same exact-image owner selection and immutable control-plane
+snapshot as `hudCapture`. It describes nine views: `player`, `renderer`, `markers`,
+`clock`, `weather`, `fog`, `world`, `deaths` and `discovery`. Every view contains
+`guards`, `systems` and `pointers`. Guards have `guardRva` and lowercase hex
+`bytes`. Systems have `descriptorRva`, `name` and `callbackRva`. Pointers have
+`addressRva` and `targetRva` and must equal the actual loaded image base plus
+the target. They are not wildcarded. The weather view may additionally specify
+`enumTable` with `tableRva`, `entryStride`, `namePointerOffset`, `valueOffset`
+and ordered `names` whose original numeric values must equal their indices.
+
+`requiredSystems` preserves the map-wide dependencies. `readiness` is either
+`all-views` or `player-only`, retaining the previous build-specific completeness
+policy. `deathsRequireWorld` retains the previous death-view dependency.
+`guardChunkBytes` preserves either 256-byte chunks or the legacy whole-guard
+1024-byte maximum. Differences larger than 512 bytes cannot use runtime prefix
+normalization. All original bytes and original named-system identity checks
+remain mandatory for the requested view. Per-view guards are limited to 4096
+spans, each 1–65536 bytes, with a 4 MiB aggregate byte budget. Legacy whole guards
+remain limited to 1024 bytes. Contradictory overlapping guards are rejected.
+Malformed optional descriptions disable only the affected image service.
+The existing resource status reports parsing under
+`profileSelection.mapCaptureProfile` (`parsed` and `status`). This is static
+profile information, not map/renderer activation, World readiness or permission.
+
+Renderer-only admission checks exact identity and the renderer's own dependencies,
+independently of map-wide named systems and map activation. It uses the same
+matcher and profile. This does not create a second graphics profile catalog.
+The two new, unpublished revision-one files in PR #116 retain all their HUD and
+previous profile data and now include all 188 former map guard spans (41191 bytes),
+81 image pointer relations and the existing system/enum checks. Source attribution
+remains in `native/map/SOURCE-NOTICE.txt`. Historical profile files stay unchanged.
+The optional mapCapture.execution describes the known map-capture-checked-v1 ABI.
+It includes seven guarded hook sites, original bytes and CALL targets, guarded
+iterator/component lookup function RVAs, build-dependent record offsets and the
+native-iterator-extent-v1 control/copy extents. Readers validate all offsets and
+original/target relations against the same image guards. Generic machine-code
+calling conventions and known record decoding stay in reviewed native code.
+This is a bounded data description, not a programmable hook script.
+
+Execution may instead contain unavailableReason. The 26082781 candidate uses
+legacy-iterator-extent-unproved. Malformed or missing execution disables map
+capture without disabling renderer-only image validation. The 26430625 candidate
+explicitly marks discovery-position-layout-unproved under unavailableViews.
+No heuristic coordinate scanner or late installer remains. The diagnostic
+profileSelection.mapCaptureProfile.executionStatus reports admission separately
+from the overall profile, world presence and actual effect. These data migrate
+the existing PR contracts and do not create new live validation evidence.
+
+Discovery preserves `hudCapture` and `mapCapture` only when complete mapped-image equivalence
+has been established. A changed mapped image reports
+`hud-capture-rebase-not-supported` or `map-capture-rebase-not-supported`, publishes no beta and cannot be approved by
+the ECS live-layout prover. `generate-profile` likewise rejects such a baseline
+instead of copying or dropping its HUD contract. A complete HUD rebaser remains
+required before those profiles support automatic discovery across code changes.
 
 Server `runtime.world.context.active` uses ABI `actor-world-context` with an
 instruction guard and store-validation offset. It intentionally has no client

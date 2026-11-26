@@ -55,11 +55,12 @@ pub fn create_reader_with_extension(
     }
 }
 
-pub fn create_writer(
+pub fn create_writer_with_policy(
     dir: &Path,
     file_name: &str,
     type_registry: &Rc<TypeRegistry>,
     ref_file: &Rc<KFCFile>,
+    preserve_current: bool,
 ) -> Result<KFCWriter<Rc<KFCFile>, Rc<TypeRegistry>>, ()> {
     let writer = match KFCWriter::new_incremental_with_options(
         dir,
@@ -67,7 +68,8 @@ pub fn create_writer(
         ref_file.clone(),
         type_registry.clone(),
         KFCWriteOptions {
-            overwrite_containers: true,
+            overwrite_containers: !preserve_current,
+            append_after_resource_file: preserve_current,
             ..Default::default()
         },
     ) {

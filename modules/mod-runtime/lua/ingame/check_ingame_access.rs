@@ -11,6 +11,12 @@ pub(super) fn has_capability(r#mod: &Mod, capability: Capability) -> bool {
 
 pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
     match feature {
+        value
+            if super::map_overlay::map_operation(value)
+                || super::map_overlay::overlay_operation(value) =>
+        {
+            runtime_denial_reason(state, r#mod, value).is_none()
+        }
         "game.assets.write" => {
             state.has_feature(AppFeatures::PATCH) && has_capability(r#mod, Capability::Patch)
         }
@@ -78,7 +84,9 @@ pub(crate) fn available(state: &AppState, r#mod: &Mod, feature: &str) -> bool {
                 && runtime_provider::world_operation_available(feature)
                 && runtime_provider::world_context_active()
         }
-        "runtime.world.cursor.get" | "runtime.world.building.input" | "runtime.world.voxel.read" => {
+        "runtime.world.cursor.get"
+        | "runtime.world.building.input"
+        | "runtime.world.voxel.read" => {
             state.phase() == RuntimePhase::Ingame
                 && state.api().has_runtime(feature)
                 && has_capability(r#mod, Capability::Runtime)
@@ -192,6 +200,16 @@ pub(super) fn operation_status(
         );
     }
     let availability = state.api().runtime(&feature);
+    if super::map_overlay::map_operation(feature) || super::map_overlay::overlay_operation(feature)
+    {
+        return availability_to_lua(
+            lua,
+            match runtime_denial_reason(&state, r#mod, feature) {
+                Some(reason) => Availability::Unavailable { reason },
+                None => Availability::Available,
+            },
+        );
+    }
     if feature == "runtime.is_main_menu"
         && matches!(availability, Availability::Available)
         && runtime_provider::is_main_menu().is_none()
@@ -258,33 +276,34 @@ pub(super) fn operation_status(
             },
         );
     }
-    let world_ready =
-        if feature == "runtime.world.cursor.get" || feature == "runtime.world.building.input"
-            || feature == "runtime.world.voxel.read" {
-            runtime_provider::world_operation_available(&feature)
-        } else if feature == "runtime.world.voxel.grid_spec" {
-            runtime_provider::world_operation_available("runtime.world.voxel.read")
-        } else if feature == "runtime.world.entity.set_scale" {
-            runtime_provider::world_entity_query_props_ready()
-                && runtime_provider::can_write_component("keen::ecs::CurrentTransform")
-        } else if feature == "runtime.world.entity.destroy" || feature == "runtime.world.entity.spawn" {
-            runtime_provider::world_operation_available(&feature)
-                && runtime_provider::world_entity_query_props_ready()
-        } else if feature == "runtime.world.entity.query_props"
-            || feature == "runtime.world.entity.query_props_in_bounds"
-            || feature == "runtime.world.entity.register_prop_recipes"
-            || feature == "runtime.world.entity.get_transform"
-        {
-            runtime_provider::world_entity_query_props_ready()
-        } else if feature.starts_with("runtime.world.entity.") {
-            runtime_provider::world_operation_available(&feature)
-                && runtime_provider::world_entity_context_ready()
-        } else if feature.starts_with("runtime.world.") {
-            runtime_provider::world_operation_available(&feature)
-                && runtime_provider::world_context_active()
-        } else {
-            true
-        };
+    let world_ready = if feature == "runtime.world.cursor.get"
+        || feature == "runtime.world.building.input"
+        || feature == "runtime.world.voxel.read"
+    {
+        runtime_provider::world_operation_available(&feature)
+    } else if feature == "runtime.world.voxel.grid_spec" {
+        runtime_provider::world_operation_available("runtime.world.voxel.read")
+    } else if feature == "runtime.world.entity.set_scale" {
+        runtime_provider::world_entity_query_props_ready()
+            && runtime_provider::can_write_component("keen::ecs::CurrentTransform")
+    } else if feature == "runtime.world.entity.destroy" || feature == "runtime.world.entity.spawn" {
+        runtime_provider::world_operation_available(&feature)
+            && runtime_provider::world_entity_query_props_ready()
+    } else if feature == "runtime.world.entity.query_props"
+        || feature == "runtime.world.entity.query_props_in_bounds"
+        || feature == "runtime.world.entity.register_prop_recipes"
+        || feature == "runtime.world.entity.get_transform"
+    {
+        runtime_provider::world_entity_query_props_ready()
+    } else if feature.starts_with("runtime.world.entity.") {
+        runtime_provider::world_operation_available(&feature)
+            && runtime_provider::world_entity_context_ready()
+    } else if feature.starts_with("runtime.world.") {
+        runtime_provider::world_operation_available(&feature)
+            && runtime_provider::world_context_active()
+    } else {
+        true
+    };
     if feature.starts_with("runtime.world.")
         && matches!(availability, Availability::Available)
         && !world_ready
@@ -377,6 +396,14 @@ pub(super) fn availability_to_lua(
 
 pub(super) fn has_capability_for_feature(r#mod: &Mod, feature: &str) -> bool {
     match feature {
+        value if super::map_overlay::map_operation(value) => {
+            has_capability(r#mod, Capability::Runtime)
+                && has_capability(r#mod, Capability::RuntimeMap)
+        }
+        value if super::map_overlay::overlay_operation(value) => {
+            has_capability(r#mod, Capability::Runtime)
+                && has_capability(r#mod, Capability::RuntimeOverlay)
+        }
         "game.assets.write" => has_capability(r#mod, Capability::Patch),
         "export" => has_capability(r#mod, Capability::Export),
         value if value.starts_with("runtime.") => has_capability(r#mod, Capability::Runtime),
@@ -402,6 +429,27 @@ pub(crate) fn runtime_denial_reason(
         return Some(
             "runtime API access is available only while this mod's lifecycle is active".into(),
         );
+    }
+    if super::map_overlay::map_operation(feature) || super::map_overlay::overlay_operation(feature)
+    {
+        if !has_capability_for_feature(r#mod, feature) {
+            return Some(format!(
+                "missing {} capability",
+                if super::map_overlay::map_operation(feature) {
+                    "runtime-map"
+                } else {
+                    "runtime-overlay"
+                }
+            ));
+        }
+        if !state.is_client() {
+            return Some("map/overlay APIs require a client process".into());
+        }
+        if !runtime_provider::map_overlay_operation_available(super::map_overlay::map_operation(
+            feature,
+        )) {
+            return Some("map/overlay service was not prepared for this exact profile at startup, or its optional provider adapter is unavailable".into());
+        }
     }
     if matches!(feature, "runtime.ecs.write" | "runtime.assets.write") {
         if let Some(reason) = state.runtime_write_fault() {

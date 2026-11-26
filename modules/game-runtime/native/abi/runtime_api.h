@@ -24,10 +24,50 @@ extern "C" {
 #define KFC_RUNTIME_ABI_VERSION 12u
 KFC_RUNTIME_API uint32_t KFC_RUNTIME_CALL KfcRuntimeAbi(void);
 KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeInitialize(void);
+/* Optional ABI12 pre-entry cache: required hook publication only. No World,
+ * player, prop/cursor or feature-service readiness is implied. */
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimeStartupReady(void);
+/* Optional ABI-12 bootstrap control: 0 disabled, 1 declared enabled overlay demand. */
+KFC_RUNTIME_API bool KFC_RUNTIME_CALL KfcRuntimePrepareOverlay(unsigned demand);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeTick(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeShutdown(void);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeStatus(char* buffer, size_t capacity);
 KFC_RUNTIME_API void KFC_RUNTIME_CALL KfcRuntimeDiagnostics(char* buffer, size_t capacity);
+/* Optional ABI12 best-effort notice mirror: UTF-8 id/title/message,
+ * max 256/120/512 bytes, level 0 info/1 success/2 warning/3 error/4 update.
+ * Returns enqueue status, never proof of display. Existing graphics only. */
+#if defined(__cplusplus)
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimePublishNotificationV1(
+    const uint8_t*,uint32_t,const uint8_t*,uint32_t,const uint8_t*,uint32_t,uint32_t) noexcept;
+#else
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimePublishNotificationV1(
+    const uint8_t*,uint32_t,const uint8_t*,uint32_t,const uint8_t*,uint32_t,uint32_t);
+#endif
+/* Optional owner-scoped map/overlay services. ABI12 is unchanged. The trusted
+ * host establishes package authority; all queried tables are bounded copies. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeQueryMapOverlayService(
+    const uint8_t*, uint32_t, uint64_t, const uint8_t*, uint32_t, uint32_t, uint32_t, void*);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeRevokeMapOverlayServices(
+    const uint8_t*, uint32_t, uint64_t);
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeDrainMapOverlayServices(
+    const uint8_t*, uint32_t, uint64_t, uint32_t);
+/* Optional ABI12 owned snapshot adapter for the SAME leased map service.
+ * Package UTF-8 <=256 bytes, nonzero package generation, expected map-session
+ * generation 0 accepts current. Returns required UTF-8 bytes INCLUDING NUL.
+ * No output write unless capacity fits the complete document. Zero=failed.
+ * view 0=full, 1=environment, 2=HUD/session metadata. Maximum JSON is 64 MiB.
+ * Fog byte spans use lowercase tiles_hex plus byte_count. JSON service_status
+ * uses SF_NATIVE_STATUS values. Frame/view status uses
+ * SFMapStatusV1. uint64 identities/times are decimal strings without precision loss. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeMapSnapshotJson(
+    const uint8_t*, uint32_t, uint64_t, uint64_t, uint32_t, char*, size_t);
+/* Optional ABI12 adapter to shroudforge.overlay.scene v1. Same copied input,
+ * status values, ownership and retirement. See map_overlay_api.h. */
+KFC_RUNTIME_API int32_t KFC_RUNTIME_CALL KfcRuntimeSubmitOverlaySceneJson(
+    const uint8_t*, uint32_t, uint64_t, const uint8_t*, uint32_t);
+/* Optional cached control-plane preparation/render status. Same complete JSON
+ * output convention. Does not activate a package or promise a captured view. */
+KFC_RUNTIME_API size_t KFC_RUNTIME_CALL KfcRuntimeMapOverlayStatusJson(char*, size_t);
 /* Optional ABI-12 selected-character cache. Returns required UTF-8 bytes
  * including NUL, or zero when unavailable. Copies only a complete name.
  * This getter never reads game memory or refreshes the cached selection. */

@@ -93,7 +93,9 @@
           "patch",
           "export",
           "runtime",
-          "runtime-register-dll"
+          "runtime-register-dll",
+          "runtime-map",
+          "runtime-overlay"
         ]
       }
     }

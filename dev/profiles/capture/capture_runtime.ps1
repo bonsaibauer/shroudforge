@@ -75,7 +75,18 @@ print(json.dumps(dict(image=pe.identity(), kfcFormat=build_version(pe)[1])))
         $_.Document.image.size -eq $identity.image.size
     } | ForEach-Object { $_.File })
     if ($matchingProfiles.Count -gt 1) {
-        throw "$kind has multiple exact profiles: $($matchingProfiles.FullName -join ', '). Resolve the ambiguity before capturing."
+        # Capture is an explicit review action, not a second runtime catalog
+        # selector. Reuse the existing baseline option to name one complete
+        # exact revision, without reproducing native revision precedence here.
+        $baseline = if ($kind -eq 'client') { $ClientBaselineProfile } else { $ServerBaselineProfile }
+        if (!$baseline) {
+            throw "$kind has multiple exact profile files: $($matchingProfiles.FullName -join ', '). Choose the complete review profile with -ClientBaselineProfile or -ServerBaselineProfile."
+        }
+        $explicit = (Resolve-Path -LiteralPath $baseline).Path
+        $matchingProfiles = @($matchingProfiles | Where-Object { $_.FullName -eq $explicit })
+        if ($matchingProfiles.Count -ne 1) {
+            throw "$kind explicit review profile must be one of the exact image matches"
+        }
     }
     $selectedProfile = $null
     $selectionReason = 'no-exact-profile-or-explicit-baseline'

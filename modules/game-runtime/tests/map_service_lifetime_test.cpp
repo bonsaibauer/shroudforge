@@ -1,0 +1,371 @@
+#include "map/serve_map_overlay.cpp"
+#include "map/read_map_snapshot_json.cpp"
+#include "graphics/read_overlay_scene.h"
+#include "graphics/shaders/embedded_shaders.h"
+#include "engine-hooks/owned_executable_span.h"
+#include "engine-hooks/owned_span_proof.h"
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <array>
+#include <cstring>
+#include <thread>
+namespace {unsigned checks{},enabled{},disabled{},callbacks{},graphics_started{};MapRuntime::SnapshotStore fixture;
+bool expect_disabled=true;
+unsigned scene_draws{};
+unsigned scene_program_draws{};
+std::int32_t scene_rectangles(void*,std::uint64_t,const SFOverlayRectangleV1* values,std::uint32_t count){
+    if(count!=1 || values[0].x!=20 || values[0].width!=100 || values[0].rgba!=0x3366ccff)return 1;
+    ++scene_draws;return 0;
+}
+std::int32_t scene_textures(void*,std::uint64_t,const SFOverlayTextureCommandV1*,std::uint32_t){return 0;}
+std::int32_t scene_textures_v2(void*,std::uint64_t,const SFOverlayTextureCommandV2*,std::uint32_t){return 0;}
+std::int32_t scene_programs(void*,std::uint64_t,const SFOverlayProgramCommandV1* values,std::uint32_t count){
+    if(count!=1 || values[0].shader.program_id!=UINT64_MAX || values[0].constant_bytes!=4 ||
+       static_cast<const std::uint8_t*>(values[0].constants)[0]!=37 || values[0].texture_count!=1 ||
+       values[0].textures[0].rgba[0]!=255 || values[0].shader.spirv[0]!=0x07230203)return 1;
+    ++scene_program_draws;return 0;
+}
+std::array<std::uint8_t,8> data_span_anchor{0x10,0x21,0x32,0x43,0x54,0x65,0x76,0x87};
+void check(bool value){++checks;if(!value){std::fprintf(stderr,"control lifetime check %u failed\n",checks);std::exit(1);}}
+std::uint32_t valid_verifier_rva{};
+std::array<std::uint8_t,8> valid_verifier_original{},valid_verifier_replacement{};
+unsigned valid_verifier_calls{};
+bool original_proof_sample=true,close_during_verification{};
+ExecutableSpanValidation::Registry* proof_registry{};
+std::int32_t callback(void*,const SFOverlayFrameV1* frame,const SFOverlayEncoderV1*){
+    check(frame->map_frame && frame->map_frame->status==(expect_disabled?SF_MAP_DISABLED:SF_MAP_READY));
+    ++callbacks;return 0;}}
+__declspec(noinline) int span_anchor_unmodified(){return 0x1357;}
+__declspec(noinline) int span_anchor_owned(){return 0x2468;}
+__declspec(noinline) int span_anchor_unregistered_foreign(){return 0x579B;}
+__declspec(noinline) int span_anchor_invalid_relay(){return 0x369A;}
+__declspec(noinline) int span_anchor_stale_owner(){return 0x48AC;}
+__declspec(noinline) int span_anchor_shared_publication(){return 0x5ABD;}
+bool SF_EXECUTABLE_SPAN_CALL verify_fixture_owned(std::uint32_t rva,const std::uint8_t* original,
+    const std::uint8_t* replacement,std::uint32_t count) noexcept {
+    ++valid_verifier_calls;
+    if(close_during_verification)EngineHooks::ExecutableProofs().Close();
+    return rva==valid_verifier_rva && count==valid_verifier_original.size() && original && replacement &&
+        !std::memcmp(original,valid_verifier_original.data(),count) &&
+        !std::memcmp(replacement,valid_verifier_replacement.data(),count);
+}
+bool SF_EXECUTABLE_SPAN_CALL verify_fixture_unavailable(std::uint32_t,const std::uint8_t*,const std::uint8_t*,std::uint32_t) noexcept {
+    return false;
+}
+// Model preparation's original sample without patching this test executable.
+bool ReadProofSample(std::uint32_t rva,std::uint8_t* out,std::size_t size) noexcept {
+    if(!out || rva!=valid_verifier_rva || size!=valid_verifier_original.size())return false;
+    const auto& bytes=original_proof_sample ? valid_verifier_original : valid_verifier_replacement;
+    std::memcpy(out,bytes.data(),size);return true;
+}
+bool ProofStage() noexcept{return true;}
+bool ProofCallbackExecutable(SFExecutableSpanValidationCallbackV1 callback) noexcept{return callback!=nullptr;}
+bool PinProofFixture() noexcept{return true;}
+int32_t DispatchProof(void* context,const SFExecutableSpanProofQueryV1* query,
+    std::uint32_t capacity,SFExecutableSpanProofResultV1* out){
+    return proof_registry->ValidateProof(context,query,capacity,out);
+}
+int32_t RefuseGuard(void*,const SFExecutableSpanValidationRequestV1*,SFExecutableSpanValidationResponseV1*){return 1;}
+struct SharedWitness {std::uint64_t retire{};};
+bool VerifyShared(const void* context) noexcept {
+    const auto& witness=*static_cast<const SharedWitness*>(context);
+    if(witness.retire)EngineHooks::ExecutableProofs().Retire(witness.retire);
+    return true;
+}
+namespace MapRuntime {
+SnapshotStore& CapturedFrames(){return fixture;}
+std::int32_t EnableCapture(std::uint64_t,bool){++enabled;return SF_MAP_READY;}
+void DisableCapture(std::uint64_t){++disabled;}
+void UpdateCaptureSession(std::uint64_t,bool,bool,bool){}
+bool CapturePrepared(){return true;}
+std::string PreparationStatus(){return "fixture-ready";}
+bool HudKnown(std::uint64_t){return false;}bool HudGameplay(std::uint64_t){return false;}bool HudInputAllowed(std::uint64_t){return true;}
+}
+namespace OverlayRuntime {bool StartGraphics(){++graphics_started;return true;}bool GraphicsPrepared(){return true;}void StopGraphics(){}void MaintainGraphics(){}SFOverlayStatusV1 GraphicsStatus(){return {sizeof(SFOverlayStatusV1),1,3};}}
+extern "C" std::uint64_t __cdecl KfcRuntimeWorldSessionId(){return 0;}
+int main(){
+    const std::uint8_t package[]{'l','a','t','e'},name[]{'s','h','r','o','u','d','f','o','r','g','e','.','o','v','e','r','l','a','y'};
+    SFExecutableSpanServiceV1 span_service{};
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),8,
+        reinterpret_cast<const std::uint8_t*>(SF_EXECUTABLE_SPAN_SERVICE_NAME),
+        static_cast<std::uint32_t>(std::strlen(SF_EXECUTABLE_SPAN_SERVICE_NAME)),
+        SF_EXECUTABLE_SPAN_SERVICE_VERSION,sizeof(span_service),
+        reinterpret_cast<SFExecutableSpanServiceV1*>(1))==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),8,
+        reinterpret_cast<const std::uint8_t*>(SF_EXECUTABLE_SPAN_VALIDATION_SERVICE_V1),
+        static_cast<std::uint32_t>(std::strlen(SF_EXECUTABLE_SPAN_VALIDATION_SERVICE_V1)),
+        SF_EXECUTABLE_SPAN_VALIDATION_VERSION_V1,sizeof(SFExecutableSpanValidationServiceV1),
+        reinterpret_cast<SFExecutableSpanValidationServiceV1*>(1))==1);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),8,
+        reinterpret_cast<const std::uint8_t*>(SF_EXECUTABLE_SPAN_SERVICE_NAME),
+        static_cast<std::uint32_t>(std::strlen(SF_EXECUTABLE_SPAN_SERVICE_NAME)),
+        SF_EXECUTABLE_SPAN_SERVICE_VERSION,sizeof(span_service),&span_service)==SF_EXECUTABLE_SPAN_STATUS_OK);
+    check(span_service.size==sizeof(span_service) && span_service.version==SF_EXECUTABLE_SPAN_SERVICE_VERSION &&
+        span_service.context && span_service.query_main_image_span && enabled==0 && graphics_started==0);
+    const auto make_request=[](const void* address,const std::array<std::uint8_t,8>& expected,
+        const std::array<std::uint8_t,8>& observed) {
+        SFExecutableSpanQueryV1 request{};request.size=sizeof(request);request.version=SF_EXECUTABLE_SPAN_SERVICE_VERSION;
+        const auto base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
+        const auto target=reinterpret_cast<std::uintptr_t>(address);
+        check(target>=base && target-base<=UINT32_MAX);
+        request.rva=static_cast<std::uint32_t>(target-base);request.byte_count=8;
+        std::copy(expected.begin(),expected.end(),request.expected_original);
+        std::copy(observed.begin(),observed.end(),request.observed_current);return request;
+    };
+    const auto sample=[](const void* address){std::array<std::uint8_t,8> bytes{};std::memcpy(bytes.data(),address,bytes.size());return bytes;};
+    const auto query_span=[&](const SFExecutableSpanQueryV1& request,SFExecutableSpanResultV1& result) {
+        return span_service.query_main_image_span(span_service.context,&request,sizeof(result),&result);
+    };
+
+    const auto original_live=sample(reinterpret_cast<const void*>(&span_anchor_unmodified));
+    auto unchanged_request=make_request(reinterpret_cast<const void*>(&span_anchor_unmodified),original_live,original_live);
+    SFExecutableSpanResultV1 span_result{sizeof(span_result),0xA5A5A5A5};
+    check(query_span(unchanged_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.size==sizeof(span_result) && span_result.classification==SF_EXECUTABLE_SPAN_UNCHANGED);
+
+    auto maximum_request=unchanged_request;maximum_request.byte_count=SF_EXECUTABLE_SPAN_MAX_BYTES;
+    std::memcpy(maximum_request.expected_original,reinterpret_cast<const void*>(&span_anchor_unmodified),
+        SF_EXECUTABLE_SPAN_MAX_BYTES);
+    std::memcpy(maximum_request.observed_current,maximum_request.expected_original,SF_EXECUTABLE_SPAN_MAX_BYTES);
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(maximum_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.size==sizeof(span_result) && span_result.classification==SF_EXECUTABLE_SPAN_UNCHANGED);
+
+    auto oversized_request=maximum_request;oversized_request.byte_count=SF_EXECUTABLE_SPAN_MAX_BYTES+1;
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(oversized_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT &&
+        span_result.size==sizeof(span_result) && span_result.classification==0xA5A5A5A5);
+
+    valid_verifier_rva=make_request(reinterpret_cast<const void*>(&span_anchor_owned),{},{}).rva;
+    valid_verifier_replacement=sample(reinterpret_cast<const void*>(&span_anchor_owned));
+    valid_verifier_original=valid_verifier_replacement;valid_verifier_original[0]^=0xFF;
+    ExecutableSpanValidation::Registry validation(ReadProofSample,ProofStage,ProofCallbackExecutable,
+        &EngineHooks::ExecutableProofs(),PinProofFixture,DispatchProof,{});
+    proof_registry=&validation;
+    SFExecutableSpanValidationServiceV2 validation_service{};
+    check(validation.Query("shared-proof",42,2,sizeof(validation_service),&validation_service)==0);
+    SFExecutableSpanRegistrationV1 span_registration{sizeof(span_registration),1,valid_verifier_rva,8,{}};
+    std::memcpy(span_registration.expected,valid_verifier_original.data(),8);span_registration.callback=RefuseGuard;
+    check(validation_service.base.register_span(validation_service.base.context,&span_registration)==0);
+    SFExecutableSpanProofBindingV1 binding{sizeof(binding),1,valid_verifier_rva,8,8,0,{}};
+    std::memcpy(binding.expected,valid_verifier_original.data(),8);
+    SFExecutableSpanProofLeaseV1 proof_lease{};
+    check(validation_service.acquire_owned_prefix_lease(validation_service.base.context,&binding,sizeof(proof_lease),&proof_lease)==0);
+    original_proof_sample=false;
+    check(EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
+        valid_verifier_replacement,verify_fixture_owned));
+    check(EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
+        valid_verifier_replacement,verify_fixture_owned));
+    auto overlapping_original=valid_verifier_original,overlapping_replacement=valid_verifier_replacement;
+    check(!EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva+1,overlapping_original,overlapping_replacement,
+        verify_fixture_owned));
+    auto owned_request=make_request(reinterpret_cast<const void*>(&span_anchor_owned),valid_verifier_original,valid_verifier_replacement);
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(owned_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED && valid_verifier_calls==1);
+
+    // The adapter's publication is visible to the existing lease implementation.
+    SFExecutableSpanProofQueryV1 proof_query{sizeof(proof_query),1,1,8,{}};
+    std::memcpy(proof_query.observed_current,valid_verifier_replacement.data(),8);
+    SFExecutableSpanProofResultV1 proof_result{};
+    check(proof_lease.validate(proof_lease.context,&proof_query,sizeof(proof_result),&proof_result)==0 &&
+        proof_result.classification==SF_EXECUTABLE_SPAN_PROOF_VERIFIED_HOST_OWNED);
+    const auto adopted_identity=proof_result;
+
+    // Conversely, direct common publication is visible to the C service.
+    const auto shared_live=sample(reinterpret_cast<const void*>(&span_anchor_shared_publication));
+    auto shared_original=shared_live;shared_original[0]^=0xFF;
+    const auto shared_request=make_request(reinterpret_cast<const void*>(&span_anchor_shared_publication),shared_original,shared_live);
+    auto shared_witness=std::make_shared<SharedWitness>();
+    auto& proofs=EngineHooks::ExecutableProofs();
+    check(proofs.Publish(shared_request.rva,shared_original,shared_live,shared_witness,VerifyShared));
+    check(query_span(shared_request,span_result)==0 && span_result.classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED);
+    check(!EngineHooks::PublishOwnedExecutableSpan(shared_request.rva+1,shared_original,shared_live,verify_fixture_owned));
+    check(!EngineHooks::PublishOwnedExecutableSpan(shared_request.rva,shared_original,shared_live,verify_fixture_owned));
+    check(!proofs.Publish(valid_verifier_rva,valid_verifier_original,valid_verifier_replacement,shared_witness,VerifyShared));
+    {
+        std::lock_guard lock(proofs.Gate());
+        const auto record=proofs.FindLocked(proofs.SessionLocked(),shared_request.rva,shared_original);
+        check(record!=nullptr);shared_witness->retire=record->serial;
+    }
+    check(query_span(shared_request,span_result)==0 && span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+
+    auto stale_observation=owned_request;stale_observation.observed_current[0]^=0x01;
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(stale_observation,span_result)==SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE &&
+        span_result.size==sizeof(span_result) && span_result.classification==0xA5A5A5A5);
+
+    auto partial_overlap=owned_request;partial_overlap.rva+=1;partial_overlap.byte_count=4;
+    std::copy(valid_verifier_original.begin()+1,valid_verifier_original.begin()+5,partial_overlap.expected_original);
+    std::copy(valid_verifier_replacement.begin()+1,valid_verifier_replacement.begin()+5,partial_overlap.observed_current);
+    span_result={sizeof(span_result),0};
+    check(query_span(partial_overlap,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+
+    const auto foreign_live=sample(reinterpret_cast<const void*>(&span_anchor_invalid_relay));
+    auto foreign_expected=foreign_live;foreign_expected[0]^=0xFF;
+    const auto foreign_request=make_request(reinterpret_cast<const void*>(&span_anchor_invalid_relay),foreign_expected,foreign_live);
+    check(EngineHooks::PublishOwnedExecutableSpan(foreign_request.rva,foreign_expected,foreign_live,
+        verify_fixture_unavailable));
+    span_result={sizeof(span_result),0};
+    check(query_span(foreign_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+
+    const auto unregistered_live=sample(reinterpret_cast<const void*>(&span_anchor_unregistered_foreign));
+    auto unregistered_expected=unregistered_live;unregistered_expected[0]^=0xFF;
+    const auto unregistered_foreign=make_request(reinterpret_cast<const void*>(&span_anchor_unregistered_foreign),
+        unregistered_expected,unregistered_live);
+    span_result={sizeof(span_result),0};
+    check(query_span(unregistered_foreign,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+
+    const auto stale_live=sample(reinterpret_cast<const void*>(&span_anchor_stale_owner));
+    auto stale_expected=stale_live;stale_expected[0]^=0xFF;
+    const auto stale_owner_request=make_request(reinterpret_cast<const void*>(&span_anchor_stale_owner),stale_expected,stale_live);
+    check(EngineHooks::PublishOwnedExecutableSpan(stale_owner_request.rva,stale_expected,stale_live,
+        verify_fixture_unavailable));
+    span_result={sizeof(span_result),0};
+    check(query_span(stale_owner_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+
+    auto invalid_request=unchanged_request;invalid_request.byte_count=0;
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(invalid_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT &&
+        span_result.size==sizeof(span_result) && span_result.classification==0xA5A5A5A5);
+    invalid_request=unchanged_request;invalid_request.rva=UINT32_MAX;
+    check(query_span(invalid_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT &&
+        span_result.size==sizeof(span_result) && span_result.classification==0xA5A5A5A5);
+    IMAGE_DOS_HEADER dos{};IMAGE_NT_HEADERS64 nt{};SIZE_T header_bytes{};
+    const auto main_image=GetModuleHandleW(nullptr);
+    check(main_image && ReadProcessMemory(GetCurrentProcess(),main_image,&dos,sizeof(dos),&header_bytes) &&
+        header_bytes==sizeof(dos) && dos.e_magic==IMAGE_DOS_SIGNATURE && dos.e_lfanew>0);
+    const auto nt_address=reinterpret_cast<const std::uint8_t*>(main_image)+dos.e_lfanew;
+    header_bytes=0;
+    check(ReadProcessMemory(GetCurrentProcess(),nt_address,&nt,sizeof(nt),&header_bytes) &&
+        header_bytes==sizeof(nt) && nt.Signature==IMAGE_NT_SIGNATURE && nt.OptionalHeader.SizeOfImage>0);
+    invalid_request=unchanged_request;invalid_request.rva=nt.OptionalHeader.SizeOfImage;
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(invalid_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT &&
+        span_result.classification==0xA5A5A5A5);
+    const auto data_live=sample(data_span_anchor.data());
+    const auto data_request=make_request(data_span_anchor.data(),data_live,data_live);
+    check(query_span(data_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE &&
+        span_result.size==sizeof(span_result) && span_result.classification==0xA5A5A5A5);
+    check(span_service.query_main_image_span(span_service.context,nullptr,sizeof(span_result),&span_result)==
+        SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT && span_result.classification==0xA5A5A5A5);
+    check(span_service.query_main_image_span(span_service.context,&unchanged_request,sizeof(span_result)-1,&span_result)==
+        SF_EXECUTABLE_SPAN_STATUS_BUFFER_TOO_SMALL && span_result.classification==0xA5A5A5A5);
+    check(span_service.query_main_image_span(span_service.context,&unchanged_request,sizeof(span_result),
+        reinterpret_cast<SFExecutableSpanResultV1*>(1))==SF_EXECUTABLE_SPAN_STATUS_INVALID_ARGUMENT);
+
+    SFExecutableSpanServiceV1 short_table{0x11111111,0x22222222,reinterpret_cast<void*>(3),nullptr};
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),9,
+        reinterpret_cast<const std::uint8_t*>(SF_EXECUTABLE_SPAN_SERVICE_NAME),
+        static_cast<std::uint32_t>(std::strlen(SF_EXECUTABLE_SPAN_SERVICE_NAME)),
+        SF_EXECUTABLE_SPAN_SERVICE_VERSION,sizeof(short_table)-1,&short_table)==SF_EXECUTABLE_SPAN_STATUS_BUFFER_TOO_SMALL &&
+        short_table.size==0x11111111 && short_table.version==0x22222222 && short_table.context==reinterpret_cast<void*>(3));
+    auto wrong_thread_status=SF_EXECUTABLE_SPAN_STATUS_OK;span_result={sizeof(span_result),0xA5A5A5A5};
+    std::thread worker([&]{wrong_thread_status=query_span(owned_request,span_result);});worker.join();
+    check(wrong_thread_status==SF_EXECUTABLE_SPAN_STATUS_WRONG_THREAD && span_result.classification==0xA5A5A5A5);
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),8)==SF_EXECUTABLE_SPAN_STATUS_OK);
+    span_result={sizeof(span_result),0xA5A5A5A5};
+    check(query_span(owned_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE && span_result.classification==0xA5A5A5A5);
+
+    SFOverlayServiceV1 table{};table.version=123;
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),1)==0);
+    const auto late_query=KfcRuntimeQueryMapOverlayService(package,sizeof(package),1,name,sizeof(name),1,sizeof(table),&table);
+    if(late_query==0){SFOverlayRegistrationV1 late{};table.register_frame(table.context,callback,nullptr,&late);}
+    check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),1,0)==0);
+    OverlayRuntime::Services().Dispatch(800,600,100,1,SFOverlayEncoderV1{});
+    check(late_query==3 && table.version==123 && enabled==0 && callbacks==0);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),2,name,sizeof(name),1,sizeof(table),&table)==0 && enabled==0);
+    SFOverlayRegistrationV1 registration{};check(table.register_frame(table.context,callback,nullptr,&registration)==0);
+    OverlayRuntime::Services().Dispatch(800,600,100,1,SFOverlayEncoderV1{});check(callbacks==1 && enabled==0);
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),2)==0);
+    SFOverlayRegistrationV1 rejected{};check(table.register_frame(table.context,callback,nullptr,&rejected)==3);
+    OverlayRuntime::Services().Dispatch(800,600,100,1,SFOverlayEncoderV1{});check(callbacks==1);
+    check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),2,0)==0 && disabled==0);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),2,name,sizeof(name),1,sizeof(table),&table)==3);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),3,name,sizeof(name),1,sizeof(table),&table)==0 && enabled==0);
+    const std::string map_name="shroudforge.map";SFMapServiceV1 map{};
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),3,reinterpret_cast<const std::uint8_t*>(map_name.data()),unsigned(map_name.size()),1,sizeof(map),&map)==0 && enabled==1);
+    fixture.SetAdmission(SF_MAP_FEATURE_PLAYER);fixture.SetSession(99,true,false,true,GetTickCount64());expect_disabled=false;
+    SFMapFrameV1 borrowed{};SFMapFrameLeaseV1 lease{};
+    check(map.acquire(map.context,99,sizeof(borrowed),&borrowed,&lease)==0 && borrowed.status==SF_MAP_READY && borrowed.session_generation==99);
+    check(table.register_frame(table.context,callback,nullptr,&registration)==0);
+    OverlayRuntime::Services().Dispatch(800,600,100,1,SFOverlayEncoderV1{});check(callbacks==2);
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),3)==0);
+    check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),3,0)==6 && disabled==0);
+    check(borrowed.session_generation==99 && map.release(map.context,lease)==0);
+    check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),3,0)==0 && disabled==1);
+    // Lua's owned adapters use the SAME activation/service owner and retirement.
+    constexpr char scene_name[]="shroudforge.overlay.scene";
+    SFOverlaySceneServiceV1 scene{};
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),5,reinterpret_cast<const std::uint8_t*>(scene_name),sizeof(scene_name)-1,1,sizeof(scene),&scene)==0);
+    const std::string scene_json=R"({"rectangles":[{"x":20,"y":20,"width":100,"height":30,"rgba":862375167}]})";
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>(scene_json.data()),unsigned(scene_json.size()))==0);
+    SFOverlayEncoderV3 scene_encoder{{{sizeof(SFOverlayEncoderV3),3,nullptr,0,1,scene_rectangles,scene_textures},scene_textures_v2},scene_programs};
+    check(OverlayRuntime::Services().Dispatch(800,600,100,1,scene_encoder.base.base) && scene_draws==1);
+    const std::string invalid_scene=R"({"rectangles":[{"x":20,"y":20,"width":-1,"height":30,"rgba":1}]})";
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>(invalid_scene.data()),unsigned(invalid_scene.size()))==1);
+    check(OverlayRuntime::Services().Dispatch(800,600,100,1,scene_encoder.base.base) && scene_draws==2);
+    check(KfcRuntimeQueryMapOverlayService(package,sizeof(package),5,name,sizeof(name),3,sizeof(table),&table)==0);
+    check(table.context==scene.context && table.register_frame(table.context,callback,nullptr,&registration)==6);
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>("{}"),2)==0);
+    check(OverlayRuntime::Services().Dispatch(800,600,100,1,scene_encoder.base.base) && scene_draws==2);
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),5)==0);
+    check(scene.submit_json(scene.context,reinterpret_cast<const std::uint8_t*>("{}"),2)==3);
+    check(KfcRuntimeDrainMapOverlayServices(package,sizeof(package),5,0)==0);
+    const nlohmann::json texture{{"id","1"},{"revision","1"},{"width",1},{"height",1},{"rgba",{255,0,0,255}}};
+    nlohmann::json program{{"id","18446744073709551615"},{"revision","1"},{"x",0},{"y",0},{"width",8},{"height",8},
+        {"spirv",std::vector<std::uint32_t>(std::begin(OverlayRuntime::Shaders::texture_frag),std::end(OverlayRuntime::Shaders::texture_frag))},
+        {"constants",{37,0,0,0}},{"textures",nlohmann::json::array({texture})}};
+    nlohmann::json program_scene{{"target_generation","1"},{"programs",nlohmann::json::array({program})}};
+    const auto copied_program=OverlayRuntime::OwnedOverlayScene::Read(program_scene);
+    program_scene["programs"][0]["constants"][0]=99;
+    program_scene["programs"][0]["textures"][0]["rgba"][0]=0;
+    check(copied_program->Draw(scene_encoder,800,600)==0 && scene_program_draws==1);
+    scene_encoder.base.base.device_generation=2;
+    check(copied_program->Draw(scene_encoder,800,600)==0 && scene_program_draws==1);
+    scene_encoder.base.base.device_generation=1;
+    program_scene["programs"][0]["spirv"].erase(program_scene["programs"][0]["spirv"].end()-1);
+    bool rejected_program{};try{OverlayRuntime::OwnedOverlayScene::Read(program_scene);}catch(...){rejected_program=true;}
+    check(rejected_program);
+    fixture.SetSession(99,true,false,true,GetTickCount64());
+    std::array<char,4> too_small{'x','x','x','x'};
+    const auto required=KfcRuntimeMapSnapshotJson(package,sizeof(package),6,0,0,too_small.data(),too_small.size());
+    check(required>too_small.size() && too_small[0]=='x' && too_small[3]=='x');
+    std::vector<char> owned_json(required);
+    check(KfcRuntimeMapSnapshotJson(package,sizeof(package),6,0,0,owned_json.data(),owned_json.size())==required && owned_json.back()==0);
+    const auto owned_frame=nlohmann::json::parse(owned_json.data());
+    check(owned_frame["service_status"]==0 && owned_frame["frame"]["session_generation"]=="99");
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),6)==0 && KfcRuntimeDrainMapOverlayServices(package,sizeof(package),6,0)==0);
+    // Full bounded state must reject, rather than falsely acknowledge, an
+    // unknown revocation it cannot durably record.
+    for(std::uint64_t generation=100;OverlayRuntime::activations.size()<4096;++generation)
+        OverlayRuntime::activations.emplace(std::make_pair(std::string("capacity"),generation),OverlayRuntime::Activation{});
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),4)!=0);
+    check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),1)==0);
+    // Closure inside the native verifier precedes the observation API's commit.
+    close_during_verification=true;
+    check(EngineHooks::QueryMainImageExecutableSpan(owned_request,span_result)==0 &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+    close_during_verification=false;
+    check(!EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
+        valid_verifier_replacement,verify_fixture_owned));
+    proof_result=adopted_identity;
+    check(proof_lease.validate(proof_lease.context,&proof_query,sizeof(proof_result),&proof_result)!=0 &&
+        !std::memcmp(&proof_result,&adopted_identity,sizeof(proof_result)));
+    {std::lock_guard lock(proofs.Gate());check(proofs.BeginStageLocked()>1);}
+    check(EngineHooks::QueryMainImageExecutableSpan(owned_request,span_result)==0 &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+    check(EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
+        valid_verifier_replacement,verify_fixture_owned));
+    check(EngineHooks::QueryMainImageExecutableSpan(owned_request,span_result)==0 &&
+        span_result.classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED);
+    check(proof_lease.validate(proof_lease.context,&proof_query,sizeof(proof_result),&proof_result)!=0);
+    check(validation.Revoke("shared-proof",42)==0 && validation.Drain("shared-proof",42,0)==0);
+    std::printf("PASS: %u actual native service terminal-revocation checks\n",checks);
+}

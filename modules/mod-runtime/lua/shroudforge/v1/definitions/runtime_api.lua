@@ -9,6 +9,7 @@
 --- @field is_client boolean True when this mod runs in a player client process.
 --- @field is_server boolean True when this mod runs in a Dedicated Server process.
 --- @field player RuntimePlayerApi Cached local character selection from the main menu.
+--- @field overlay RuntimeOverlayApi Copied drawing descriptions using the shared native renderer.
 --- @field network RuntimeNetworkApi Steam Networking Messages P2P channel on the current client or dedicated-server process.
 --- @field services RuntimeServicesApi Reflected views of original named engine DI services with independently validated plain-data storage contracts.
 --- @field impact RuntimeImpactApi Checked semantic calls to original named Impact operations.

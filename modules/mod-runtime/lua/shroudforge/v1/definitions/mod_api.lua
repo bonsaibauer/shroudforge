@@ -43,6 +43,10 @@ function shroudforge_ui.toggle_modloader() end
 shroudforge_notifications = {}
 
 --- Publish or update a notice in the player's Modloader news feed.
+--- Uses the shared publication path for Lua and native callers. The feed stores
+--- info for success/update and warn for warning. An optional in-game presenter
+--- retains the requested visual category. Missing presentation does not fail a
+--- successfully stored notice.
 --- This does not distribute the notice to other players.
 --- @param notice ShroudForgeNotification
 function shroudforge_notifications.publish(notice) end

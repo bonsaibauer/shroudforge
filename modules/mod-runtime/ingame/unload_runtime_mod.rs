@@ -15,6 +15,12 @@ impl Lifecycle {
         crate::env::shroudforge::release_input_reservations(&self.id);
         callback?;
         cleanup?;
+        if let Some(state) = lua.app_data_ref::<crate::session::AppState>() {
+            state.retire_runtime_services(&self.id).map_err(mlua::Error::runtime)?;
+            state
+                .stop_native_plugin(&self.id)
+                .map_err(mlua::Error::runtime)?;
+        }
         self.cleanup_pending = false;
         self.active = false;
         Ok(())

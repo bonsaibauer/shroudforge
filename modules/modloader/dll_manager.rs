@@ -121,7 +121,6 @@ pub fn is_excluded_dll_name(root: &Path, path: &str) -> bool {
 fn file_name(path: &str) -> &str {
     path.rsplit(['/', '\\']).next().unwrap_or(path)
 }
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DllCandidate {
@@ -358,7 +357,9 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
             .filter(|id| !id.is_empty());
         let profile =
             mod_profiles::select_profile(&profiles, &directory, mod_id.as_deref(), selected);
-        let (ini_state, declared_dll) = read_plugin_ini(&package);
+        let plugin_declaration = read_plugin_ini_declaration(&package);
+        let ini_state = plugin_declaration.state.as_str();
+        let declared_dll = plugin_declaration.dll.clone();
         let mut issues = Vec::new();
         if selected.is_some_and(|id| id != "none") && profile.is_none() {
             issues.push("Selected compatibility profile was not found".into());
@@ -567,13 +568,40 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
     (candidates, plan)
 }
 
+/// The DLL Manager owns the interpretation of existing INI DLL declarations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PluginIniState {
+    #[default]
+    Missing,
+    Invalid,
+    Disabled,
+    Enabled,
+}
+
+impl PluginIniState {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Missing => "missing",
+            Self::Invalid => "invalid",
+            Self::Disabled => "disabled",
+            Self::Enabled => "enabled",
+        }
+    }
+
+    pub const fn is_enabled(self) -> bool {
+        matches!(self, Self::Enabled)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PluginIniDeclaration {
+    pub state: PluginIniState,
+    pub dll: Option<String>,
+}
+
 /// Only [Plugin] is consumed. Other INI sections belong to the mod.
-pub fn read_plugin_ini(package: &Path) -> (&'static str, Option<String>) {
-    let text = match fs::read_to_string(package.join("native-plugin.ini")) {
-        Ok(text) => text,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return ("missing", None),
-        Err(_) => return ("invalid", None),
-    };
+/// Duplicate or malformed declarations fail closed.
+pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
     let (mut section, mut found, mut enabled, mut dll, mut invalid) =
         (false, false, None, None, false);
     for line in text
@@ -597,8 +625,9 @@ pub fn read_plugin_ini(package: &Path) -> (&'static str, Option<String>) {
             invalid = true;
             continue;
         };
+        let key = key.trim();
         let value = value.trim().trim_matches(['"', '\'']);
-        if key.trim().eq_ignore_ascii_case("enabled") {
+        if key.eq_ignore_ascii_case("enabled") {
             invalid |= enabled.is_some();
             enabled = match value.to_ascii_lowercase().as_str() {
                 "1" | "true" | "yes" | "on" => Some(true),
@@ -608,18 +637,44 @@ pub fn read_plugin_ini(package: &Path) -> (&'static str, Option<String>) {
                     None
                 }
             };
-        } else if key.trim().eq_ignore_ascii_case("dll") {
+        } else if key.eq_ignore_ascii_case("dll") {
             invalid |= dll.is_some();
-            dll = Some(value.replace('\\', "/"));
+            let path = value.replace('\\', "/");
+            dll = Some(path);
         }
     }
-    if !found || invalid || (enabled != Some(false) && dll.as_deref().is_none_or(str::is_empty)) {
-        ("invalid", dll)
+
+    let state = if !found
+        || invalid
+        || (enabled != Some(false) && dll.as_deref().is_none_or(str::is_empty))
+    {
+        PluginIniState::Invalid
     } else if enabled == Some(false) {
-        ("disabled", dll)
+        PluginIniState::Disabled
     } else {
-        ("enabled", dll)
+        PluginIniState::Enabled
+    };
+
+    PluginIniDeclaration { state, dll }
+}
+
+pub fn read_plugin_ini_declaration(package: &Path) -> PluginIniDeclaration {
+    match fs::read_to_string(package.join("native-plugin.ini")) {
+        Ok(text) => parse_plugin_ini(&text),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            PluginIniDeclaration::default()
+        }
+        Err(_) => PluginIniDeclaration {
+            state: PluginIniState::Invalid,
+            ..PluginIniDeclaration::default()
+        },
     }
+}
+
+/// Return the existing status/DLL tuple for UI and compatibility callers.
+pub fn read_plugin_ini(package: &Path) -> (&'static str, Option<String>) {
+    let declaration = read_plugin_ini_declaration(package);
+    (declaration.state.as_str(), declaration.dll)
 }
 
 pub fn chain_load_entries(root: &Path) -> Vec<CandidateLoadEntry> {
@@ -857,4 +912,64 @@ pub fn resolve_package_dll_path(
         return Err("DLL is outside its installed mod folder".into());
     }
     Ok(path)
+}
+
+#[cfg(test)]
+mod plugin_ini_tests {
+    use super::*;
+
+    #[test]
+    fn ordinary_enabled_dll_keeps_existing_defaults() {
+        let declaration = parse_plugin_ini("[Plugin]\nDll=bin\\sample.dll\n");
+        assert_eq!(declaration.state, PluginIniState::Enabled);
+        assert_eq!(declaration.dll.as_deref(), Some("bin/sample.dll"));
+    }
+
+    #[test]
+    fn explicit_disabled_declaration_needs_no_dll() {
+        let declaration = parse_plugin_ini("[Plugin]\nEnabled=false\n");
+        assert_eq!(declaration.state, PluginIniState::Disabled);
+        assert!(declaration.dll.is_none());
+    }
+
+    #[test]
+    fn malformed_and_duplicate_plugin_declarations_are_invalid() {
+        for text in [
+            "[Other]\nDll=sample.dll",
+            "[Plugin]\nEnabled=maybe\nDll=sample.dll",
+            "[Plugin]\nDll=one.dll\nDll=two.dll",
+            "[Plugin]\nEnabled=true\nEnabled=false\nDll=sample.dll",
+            "[Plugin]\nmalformed",
+        ] {
+            assert_eq!(
+                parse_plugin_ini(text).state,
+                PluginIniState::Invalid,
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn draft_lifecycle_and_service_keys_do_not_change_dll_selection() {
+        let ordinary = parse_plugin_ini("[Plugin]\nDll=bin/sample.dll\n");
+        assert_eq!(ordinary.state, PluginIniState::Enabled);
+        for value in ["shroudforge-v1", "shroudforge-v2", "other-v9"] {
+            let draft = parse_plugin_ini(&format!(
+                "[Plugin]\nDll=bin/sample.dll\nLifecycle={value}\nServices=shroudforge.overlay\n"
+            ));
+            assert_eq!(draft, ordinary);
+        }
+        assert_eq!(
+            parse_plugin_ini("[Plugin]\nEnabled=false\n").state,
+            PluginIniState::Disabled
+        );
+        for text in [
+            "[Other]\nDll=a.dll",
+            "[Plugin]\nEnabled=maybe\nDll=a.dll",
+            "[Plugin]\nDll=a.dll\nDll=b.dll",
+            "[Plugin]\nmalformed",
+        ] {
+            assert_eq!(parse_plugin_ini(text).state, PluginIniState::Invalid);
+        }
+    }
 }

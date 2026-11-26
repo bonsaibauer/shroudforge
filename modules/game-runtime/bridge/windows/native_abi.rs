@@ -140,7 +140,22 @@ pub(super) type WorldEntityFinish = unsafe extern "C" fn(bool, *mut u32) -> bool
 pub(super) type RuntimePatchAvailable = unsafe extern "C" fn(*const c_char) -> bool;
 pub(super) type RuntimePatchSetEnabled =
     unsafe extern "C" fn(*const c_char, bool, *mut u32) -> bool;
+pub(super) type QueryMapOverlayService =
+    unsafe extern "C" fn(*const u8, u32, u64, *const u8, u32, u32, u32, *mut c_void) -> i32;
+pub(super) type RevokeMapOverlayServices = unsafe extern "C" fn(*const u8, u32, u64) -> i32;
+pub(super) type DrainMapOverlayServices = unsafe extern "C" fn(*const u8, u32, u64, u32) -> i32;
+pub(super) type PublishNotification =
+    unsafe extern "C" fn(*const u8, u32, *const u8, u32, *const u8, u32, u32) -> i32;
+pub(super) type MapSnapshotJson =
+    unsafe extern "C" fn(*const u8, u32, u64, u64, u32, *mut c_char, usize) -> usize;
+pub(super) type SubmitOverlaySceneJson =
+    unsafe extern "C" fn(*const u8, u32, u64, *const u8, u32) -> i32;
 pub(super) struct Provider {
+    pub(super) map_snapshot_json: Option<MapSnapshotJson>,
+    pub(super) map_overlay_status_json: Option<Registry>,
+    pub(super) submit_overlay_scene_json: Option<SubmitOverlaySceneJson>,
+    pub(super) publish_notification: Option<PublishNotification>,
+    pub(super) map_overlay: Option<super::map_overlay::MapOverlayExports>,
     pub(super) configure: Configure,
     pub(super) ready: Ready,
     pub(super) prop_query_ready: Option<Ready>,

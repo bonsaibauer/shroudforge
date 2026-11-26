@@ -47,6 +47,24 @@ pub fn is_capture_active() -> bool {
     false
 }
 
+/// Shared focus policy for Lua and native mod input queries.
+pub fn is_process_focused() -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::{
+            System::Threading::GetCurrentProcessId,
+            UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
+        };
+        let foreground = unsafe { GetForegroundWindow() };
+        if foreground.is_null() { return false; }
+        let mut process_id = 0;
+        unsafe { GetWindowThreadProcessId(foreground, &mut process_id) };
+        process_id == unsafe { GetCurrentProcessId() }
+    }
+    #[cfg(not(windows))]
+    { false }
+}
+
 pub fn take_captured_hotkey() -> Option<Hotkey> {
     #[cfg(windows)]
     return windows::CAPTURE.lock().ok()?.pending.take();

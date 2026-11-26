@@ -6,6 +6,9 @@ impl IngameRuntime {
             if !active_ids.iter().any(|id| id == &item.id) || item.cleanup_pending {
                 continue;
             }
+            if item.active {
+                continue;
+            }
             if let Err(error) = item
                 .activate_runtime_mod(&self.runner.lua, None)
                 .and_then(|result| result)

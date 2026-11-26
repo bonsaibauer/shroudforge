@@ -73,6 +73,8 @@ bool Initialize() {
             return false;
         }
         selected_profile = std::move(selection.profile);
+        const auto source = installed.profile_sources.find(selected_profile.at("id").get<std::string>());
+        if (source != installed.profile_sources.end()) profile_selection["selectedSource"] = *source;
         selected = parse_layout(selected_profile);
     } catch (const std::exception& error) {
         profile_status = std::string("resource-profile-error:") + error.what();
@@ -84,6 +86,10 @@ bool Initialize() {
         return false;
     }
     publish_attribute_model(selected_profile);
+    const auto map_contract = EngineContext::ConfiguredMapCaptureProfile();
+    profile_selection["mapCaptureProfile"] = {{"parsed", bool(map_contract.profile)}, {"status", map_contract.status}};
+    if(map_contract.profile) profile_selection["mapCaptureProfile"]["executionStatus"]=map_contract.profile->execution_status;
+    if(map_contract.profile && map_contract.profile->execution)profile_selection["mapCaptureProfile"]["unavailableViews"]={{"discovery",map_contract.profile->execution->discovery_unavailable_reason}};
     active_layout = std::move(selected);
     profile_loaded = true;
     profile_status = active_layout.profile_id + ":exact-image-resource-service";

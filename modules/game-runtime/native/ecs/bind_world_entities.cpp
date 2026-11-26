@@ -1,4 +1,6 @@
 #include "ecs/component_operation.h"
+#include "ecs/entity_session.h"
+#include "ecs/initialize_metadata.h"
 #include "ecs/building_prop_query_state.h"
 #include "ecs/registry/component_discovery_state.h"
 #include "engine-context/observe_entity_manager.h"
@@ -168,19 +170,9 @@ bool MarkSessionWriteUncertain(std::uint64_t expected_session, const char* reaso
 }
 
 bool Initialize() {
-    const bool execution_profile = KfcRuntimeCompatibility::EnshroudedClient::Load();
-    image_base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
-    if (!image_base) return false;
-    const auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(image_base);
-    if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
-    const auto nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(image_base + dos->e_lfanew);
-    if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
-    image_size = nt->OptionalHeader.SizeOfImage;
-    stop_requested.store(false, std::memory_order_release);
-    if (execution_profile) EngineHooks::Install();
     // Metadata discovery remains available when a build lacks proven native
     // execution adapters. Original-owner entity reads do not authorize writes.
-    return true;
+    return InitializeMetadata(true, image_base, image_size, stop_requested);
 }
 
 void Tick() {

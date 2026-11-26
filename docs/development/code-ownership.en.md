@@ -109,7 +109,26 @@ The manifest access declarations are **patch**, **export**, **runtime**, and **r
 
 Runtime mods have separate Lua environments. The loader selects a matching profile automatically or uses the player's selected profile. When the detected build differs, it reports a warning and enables operations that resolve against the live executable. When a mod stops, the loader asks it to clean up and releases its runtime handles.
 
-Native DLL handles are process-owned. `modules/modloader/dll_manager.rs` detects installed native components and resolves INI declarations, local selections, compatibility profiles and `dinput8-chain.ini` into one ordered plan. Chain entries must resolve inside a direct installed mod package. `mod_profiles.rs` reads data-only mod adapters independently of installed files. Manifest overlays preserve existing capabilities and add profile capabilities without duplicates. `modules/mod-runtime/native_dlls.rs` owns loading, canonical path deduplication, DirectInput provider registration and status. Ordinary DLLs own their internal startup. A DLL that belongs to a mod may also export `ShroudforgeModNativeInit` (`modules/mod-runtime/native_bridge/shroudforge_mod_native.h`): the loader calls it once after the load and the DLL registers functions that only the same mod's Lua code reaches through `shroudforge.native`. The bridge grants no game access. The bootstrap prepares this plan before releasing the game entrypoint. DLLs stay loaded until process exit, so changed native selections require a game restart. Reading the inventory never executes DLLs or rewrites mod files.
+Native DLL handles are process-owned. `modules/modloader/dll_manager.rs` detects installed native components and resolves INI declarations, local selections, compatibility profiles and `dinput8-chain.ini` into one ordered plan. Chain entries must resolve inside a direct installed mod package. `mod_profiles.rs` reads data-only mod adapters independently of installed files. Manifest overlays preserve existing capabilities and add profile capabilities without duplicates. `modules/mod-runtime/native_dlls.rs` owns loading, canonical path deduplication, DirectInput provider registration and status. Ordinary DLLs own their internal startup. A DLL that belongs to a mod may also export `ShroudforgeModNativeInit` (`modules/mod-runtime/native_bridge/shroudforge_mod_native.h`): the loader calls it once after the load and the DLL registers functions that only the same mod's Lua code reaches through `shroudforge.native`. Mod bridge ABI 3 appends optional lifecycle-factory registration to the same host table and stores its accepted factory in that DLL's process record. The runtime validates its callback table later on the activation owner thread. No second plugin export is queried. Registration grants no game access. Activation-scoped host services retain their existing package, thread and generation checks. The bootstrap prepares this plan before releasing the game entrypoint. DLLs stay loaded until process exit, so changed native selections require a game restart. Reading the inventory never executes DLLs or rewrites mod files.
+
+Managed native callbacks participate in `modules/mod-runtime/ingame/`'s existing
+package lifecycle. The common dependency plan controls activation. Lua `on_load`
+runs before native initialization. One traversal schedules due Lua updates and
+per-tick native updates. A failure in either uses the same retryable package
+cleanup. Lua unload and automatic override restoration precede native teardown,
+and the active scope remains until both finish. Native-only packages with
+registered callbacks need no empty Lua script. Lua and native map/overlay
+consumers share this activation generation and the same service owner.
+
+Mod bridge ABI4 retains only a reserved unpublished-draft tail which returns
+unsupported. Packages cannot register Stage/Prepare callbacks or query hook
+approval services. Profile-bound framework preparation is internal to the
+existing bootstrap. Lifecycle and Services INI keys are not interpreted.
+Map/overlay preparation comes from the resolved package capability plan.
+Lua functions under runtime.world.map/environment/hud and runtime.overlay use
+the same native store/renderer as SDK adapters. Their canonical declarations
+generate the editor and website API documentation. No second loader, scheduler,
+input registry, notification feed or game-profile catalog is introduced.
 
 ## The two mod information files
 
@@ -225,6 +244,24 @@ The module guide is [modules/README.md](../../modules/README.md). Public entry p
 The native C++ runtime is built and shipped with the loader. It is not a separate player download. The Windows bridge checks the runtime interface version before using it.
 
 A **profile** is reviewed information for a particular Enshrouded build and target, such as the client. It tells supported native operations which game structures to use. Approved profiles are under **modules/game-runtime/profiles/** and are shipped as JSON files in the configured **runtime/profiles/** directory. Both native readers use this external catalog, without embedded profile copies.
+
+`native/engine-hooks/publish_engine_hook.*` owns executable relay publication
+and guarded reverse restoration for both generic world hooks and map capture.
+Their existing runtime owners keep separate receipt batches and control locks
+because activation and retirement differ. The common publisher owns allocation,
+read/execute protection, relative branches and the checked executable writer.
+Publication never grants game-build approval or held-entry qualification.
+Restoration refuses foreign replacement bytes and retains the affected receipt.
+Published relay allocations remain mapped until process exit.
+
+`modules/game-runtime/native/engine-hooks/owned_span_proof.*` owns the single
+process publication store for native executable-span evidence. Camera
+publication through `owned_executable_span.*`, direct shared-call publication,
+the C observation service and activation proof leases use that same store.
+`owned_executable_span.*` retains the bounded main-image reader and its C-facing
+classification adapter. The package validation registry owns registrations,
+leases and revoke/drain, without keeping a second publication collection.
+Neither API grants a mod authority to install an engine hook.
 
 `modules/game-runtime/native/impact/` owns typed adapters for separately admitted original Impact operations and resolves their callbacks by registered name. `native/ecs/resolve_entity_command_queue.*` validates the original queue and its ownership for those adapters. `native/building/remove_building_prop.cpp` connects entity destruction to the existing ABI and confirms completion through the session-bound entity reader. Queue submission and confirmed world effects are distinct results. The Lua availability policy lives in `modules/mod-runtime/lua/ingame/check_ingame_access.rs`.
 

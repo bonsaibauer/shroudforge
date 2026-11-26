@@ -21,6 +21,10 @@ bool Configure(const nlohmann::json& profile, std::string& error) {
         Layout layout;
         layout.image_size = image_size;
         layout.dedicated_server = image_target == "enshrouded_server.exe";
+        // Optional HUD errors do not disable unrelated resource/ECS contracts.
+        // Exact image admission above remains mandatory for this snapshot.
+        auto hud_capture = KfcRuntimeCompatibility::ReadHudCaptureProfile(profile);
+        auto map_capture = KfcRuntimeCompatibility::ReadMapCaptureProfile(profile);
         auto offset = [](const nlohmann::json& object, const char* key, std::size_t maximum = 0x4000000) {
             const auto value = object.at(key).get<std::size_t>();
             if (value > maximum) throw std::runtime_error(std::string("engine owner offset out of range: ") + key);
@@ -278,6 +282,8 @@ bool Configure(const nlohmann::json& profile, std::string& error) {
         active_layout = layout;
         system_dependency_layout = std::move(dependencies);
         service_layout = std::move(services);
+        hud_capture_selection = std::move(hud_capture);
+        map_capture_selection = std::move(map_capture);
         configured = true;
         error.clear();
         return true;
