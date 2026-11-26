@@ -382,10 +382,41 @@ bool Registry::Invoke(Owner* owner, const Span& span, const std::uint8_t* observ
         std::array<std::uint8_t, MaxGuardBytes> after{};
         const bool stable = reader_ && reader_(span.rva, after.data(), guard_size) &&
             std::memcmp(before.data(), after.data(), guard_size) == 0;
-        const bool response_valid = callback_status == 0 &&
+        bool response_valid = callback_status == 0 &&
             ValidResponse(response, span, before.data());
 
+        // A package assertion is not authority over changed engine bytes.
+        // Resolve the same registration's existing native proof lease and
+        // independently check its witness and identity. No callback runs under
+        // either lifetime lock.
+        ProofLease* proof_lease{};
+        if (response_valid && response.result == SF_EXECUTABLE_SPAN_VALIDATION_VERIFIED_OWNER) {
+            {
+                std::lock_guard lock(mutex_);
+                for (const auto& lease : proof_leases_)
+                    if (lease->owner == owner && SameSpan(lease->span, span)) {
+                        proof_lease = lease.get();
+                        break;
+                    }
+            }
+            SFExecutableSpanProofQueryV1 query{sizeof(query), 1, phase, span.byte_count, {}};
+            std::memcpy(query.observed_current, before.data(), span.byte_count);
+            SFExecutableSpanProofResultV1 proof{};
+            response_valid = proof_lease &&
+                ValidateProof(proof_lease, &query, sizeof(proof), &proof) == Ok &&
+                proof.classification == SF_EXECUTABLE_SPAN_PROOF_VERIFIED_HOST_OWNED &&
+                !std::memcmp(proof.owner_identity, response.owner_identity, sizeof(proof.owner_identity));
+        }
+
+        std::unique_lock<std::mutex> proof_gate;
+        if (proof_lease) proof_gate = std::unique_lock(proofs_->Gate());
         std::lock_guard lock(mutex_);
+        if (proof_lease) {
+            const auto record = proofs_->FindLocked(proof_lease->session, span.rva,
+                {span.expected.data(), proof_lease->prefix});
+            response_valid = response_valid && proof_lease->live && record &&
+                record->serial == proof_lease->adopted;
+        }
         const bool live = owner && owner->registry == this && !owner->revoked &&
             owner->generation != 0 && owner->in_flight != 0 &&
             std::any_of(owner->spans.begin(), owner->spans.end(),

@@ -5,6 +5,13 @@ tables for engine map snapshots and owner-scoped drawing. Packages query a
 table through the managed native host using their package identity and
 activation generation. The host allocates the owner token.
 
+These C service tables currently have no public Lua binding or corresponding
+entry in the runtime operations catalog. A manifest capability can request
+preparation for a Lua package, but does not create a Lua function. Shared Lua
+bindings, operation availability and generated API declarations remain part
+of the integration work tracked in
+[issue #149](https://github.com/bonsaibauer/shroudforge/issues/149).
+
 A frame lease retains copied snapshot storage until release. Session changes
 invalidate its use in a new session without freeing borrowed storage. Revoke
 prevents new acquisitions and callbacks; drain waits for existing work before
@@ -139,10 +146,15 @@ binary compatibility with earlier custom vertex stages is not provided.
 ## Startup requirements
 
 Packages request early preparation with `runtime-engine-hooks`, `runtime-map`
-or `runtime-overlay`. Enabled managed native declarations for `shroudforge.map`
-and `shroudforge.overlay` contribute the same demand. They require ordinary
-DLL Manager approval and `runtime-register-dll` permission. Declarations request
-preparation and do not prove readiness or grant another owner's service access.
+or `runtime-overlay` in the existing manifest capability list. A native package
+uses the ordinary approved DLL plan and registers callbacks through
+`ShroudforgeModNativeInit`. SDK `register_lifecycle` requests gameplay callbacks;
+`register_preentry_lifecycle` additionally requests Stage/Prepare before entry.
+Neither registration adds map or graphics demand. Those remain manifest
+capabilities. `Lifecycle=` and `Services=` INI keys are ignored. Capabilities
+request preparation and do not prove readiness or grant another owner's access.
+See [Native mod lifecycle](../modding/native-plugin-lifecycle.en.md) for the SDK
+registration and activation contract.
 
 The loader binds selected packages, parsed compatibility-profile contents,
 ordered DLL entries and retained executable inputs before preparation. Authored
@@ -165,7 +177,8 @@ nonzero opt-ins must fail closed rather than silently select a partial plan.
 ## Validation
 
 Existing adjacent Rust tests exercise discovery, changed executable inputs,
-mixed-DLL refusal and admission phases. Native CMake fixtures use synthetic
+ordinary and managed DLL selection, SDK registration and admission phases.
+Native CMake fixtures use synthetic
 snapshots, callback owners, PE headers and GPU dispatch without game code.
 The C consumer checks SDK layouts. GPU terminal-swap and terminal-device cases
 run in separate processes. The bootstrap fixture exercises restored-entry

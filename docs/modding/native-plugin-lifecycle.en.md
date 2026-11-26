@@ -23,8 +23,8 @@ native map renderer adds `runtime-map` and `runtime-overlay` to that same list:
 
 The normal package plan derives map and graphics startup demand from these
 capabilities for both Lua and native consumers. No `Services=` list is used or
-required. Leftover `Lifecycle=` and `Services=` keys from the unpublished draft are ignored and
-grants no permission or startup demand. Actual SDK service queries still check
+required. Leftover `Lifecycle=` and `Services=` keys from the unpublished draft
+are ignored and grant no permission or startup demand. Actual SDK service queries still check
 the owning package, activation generation, capability and live provider support.
 
 Include the existing [mod native SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
@@ -200,7 +200,7 @@ This also applies to plans containing only managed plugins.
   service never returns code bytes or addresses and never authorizes a patch or
   proves quiescence.
 - shroudforge.executable-span-validation v1 is a client-only, bounded
-  callback service for package-owned engine guards. It requires an enabled
+  callback service for package-registered engine guards. It requires an enabled
   package with `runtime`, `runtime-register-dll` and
   `runtime-executable-span-validation`. The broader `runtime-engine-hooks`
   permission remains valid for both span services.
@@ -215,6 +215,12 @@ This also applies to plans containing only managed plugins.
   Verification checks the observed span and its suffix against the live
   owner generation. Revoking the package or retiring its generation invalidates
   the lease. The host table retains its owner-thread restrictions.
+  A callback cannot approve a detour by returning its own nonzero identity.
+  `VERIFIED_OWNER` requires this registration's V2 owned-prefix lease, the
+  runtime's independently verified publication, and the exact lease identity.
+  The host repeats that proof check and rejects closure or retirement before
+  committing validation. V1 registrations without that lease can validate
+  unchanged bytes only. Neither service approves mod-owned engine hooks.
 - `shroudforge.map` v1 and `shroudforge.overlay` v1/v2/v3 are optional native-provider
   services. Query their exact version and handle `UNAVAILABLE`. Host support
   does not establish that a particular game build supplies the service.

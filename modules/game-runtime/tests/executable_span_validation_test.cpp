@@ -35,7 +35,7 @@ struct CallbackState {
     std::uint64_t generation{};
     std::atomic<unsigned> calls{};
     std::atomic<std::uint32_t> phase{};
-    std::atomic<std::uint32_t> result{SF_EXECUTABLE_SPAN_VALIDATION_VERIFIED_OWNER};
+    std::atomic<std::uint32_t> result{SF_EXECUTABLE_SPAN_VALIDATION_UNCHANGED};
     std::atomic<bool> malformed{};
     std::atomic<bool> refuse{};
     std::atomic<bool> mutate{};
@@ -119,24 +119,28 @@ void abi_query_and_registration() {
     check.That(!Register(registry, "second", 2, Base + 1, 1, state));
 }
 
-void normalizes_only_registered_prefix() {
+void package_assertion_cannot_normalize_changed_prefix() {
     code.fill(0);
     code[0] = 0x11; code[1] = 0x22; code[2] = 0x33; code[3] = 0x44;
     auto registry = MakeRegistry();
     CallbackState state{};
+    state.result = SF_EXECUTABLE_SPAN_VALIDATION_VERIFIED_OWNER;
     check.That(Register(registry, "owner", 3, Base, 2, state));
     const std::uint8_t expected[]{0x11,0x22,0x33,0x44};
     code[0] = 0x90; code[1] = 0x90;
     const std::uint8_t observed[]{0x90,0x90,0x33,0x44};
     std::uint8_t identity[32]{};
-    check.That(registry.ValidateGuard(Base, expected, observed, sizeof(observed),
+    identity[0] = 0x5A;
+    check.That(!registry.ValidateGuard(Base, expected, observed, sizeof(observed),
         SF_EXECUTABLE_SPAN_PHASE_NORMALIZE, identity));
-    check.That(identity[0] == 0xA7 && state.calls == 1);
+    check.That(identity[0] == 0x5A && state.calls == 1);
+    check.That(!registry.RevalidateAllRegistered());
+    check.That(state.calls == 2);
     std::array<std::uint8_t, sizeof(observed)> suffix_changed{};
     std::memcpy(suffix_changed.data(), observed, sizeof(observed)); suffix_changed[3] ^= 1;
     check.That(!registry.ValidateGuard(Base, expected, suffix_changed.data(), sizeof(suffix_changed),
         SF_EXECUTABLE_SPAN_PHASE_NORMALIZE, identity));
-    check.That(state.calls == 1);
+    check.That(state.calls == 2);
 }
 
 void phases_reject_malformed_unchanged_and_toctou() {
@@ -219,7 +223,7 @@ int RunOwnedSpanProofTests();
 
 int main() {
     abi_query_and_registration();
-    normalizes_only_registered_prefix();
+    package_assertion_cannot_normalize_changed_prefix();
     phases_reject_malformed_unchanged_and_toctou();
     revalidation_runs_even_for_unchanged_bytes_and_revocation_drains();
     revalidation_rejects_callback_refusal();

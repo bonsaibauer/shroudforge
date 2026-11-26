@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 /*
- * Read-only validation for a package-owned executable entry prefix. This
+ * Read-only validation for a package-registered executable entry prefix. This
  * service exposes no arbitrary code-read API, installs no patch, and returns
  * no code bytes or addresses through its service table. Its callback receives
  * only the bounded sample for the span that the same package registered. The
@@ -28,9 +28,12 @@
  * remainder is zero. Response reserved fields and unused identity bytes must
  * be zero where specified below. UNCHANGED is accepted only when the host has
  * independently confirmed observed == expected, and its identity must be all
- * zero. VERIFIED_OWNER carries only an opaque nonzero identity; it authorizes
- * the host to substitute its copied expected prefix in a local comparison
- * buffer. Consumers that compare before/after samples must require matching
+ * zero. VERIFIED_OWNER must carry the identity of this registration's V2
+ * owned-prefix proof lease. The host independently revalidates that lease
+ * against its own published witness before substituting the copied expected
+ * prefix in a local comparison buffer. A package assertion alone never
+ * authorizes changed bytes. V1 registrations without a V2 lease can validate
+ * only unchanged bytes. Consumers comparing before/after samples require matching
  * owner identities. The suffix of any engine guard is still compared
  * byte-for-byte and is never normalized by this service.
  *

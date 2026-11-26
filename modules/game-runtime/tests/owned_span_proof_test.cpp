@@ -37,7 +37,8 @@ struct Fixture {
     std::array<std::uint8_t,512> code{};
     std::array<std::uint8_t,10> original{};
     std::array<std::uint8_t,5> replacement{0xe8,0x81,0x42,0,0};
-    bool stage{true},readable{true};
+    bool stage{true},readable{true},assert_owner{};
+    std::array<std::uint8_t,32> asserted_identity{};
     unsigned reads{},mutate_read{};
     EngineHooks::OwnedSpanProofs proofs;
     ExecutableSpanValidation::Registry registry;
@@ -93,6 +94,11 @@ int32_t Callback(void* c,const SFExecutableSpanValidationRequestV1* q,SFExecutab
     auto& f=*active;const auto index=*static_cast<unsigned*>(c);f.order[f.calls++]=index;
     SFExecutableSpanValidationResponseV1 result{sizeof(result),1,SF_EXECUTABLE_SPAN_VALIDATION_UNCHANGED,0,{}};
     if(index==f.descriptor){
+        if(f.assert_owner){
+            result.result=SF_EXECUTABLE_SPAN_VALIDATION_VERIFIED_OWNER;
+            std::memcpy(result.owner_identity,f.asserted_identity.data(),32);
+            *r=result;return 0;
+        }
         SFExecutableSpanProofQueryV1 request{sizeof(request),1,q->phase,q->byte_count,{}};
         std::memcpy(request.observed_current,q->observed,q->byte_count);
         SFExecutableSpanProofResultV1 proof{};
@@ -120,6 +126,33 @@ void PendingAndAllDescriptors(){
         CHECK(f.registry.ValidateGuard(f.Rva(),f.original.data(),f.code.data()+16*f.descriptor,10,phase,identity));
         CHECK(std::memcmp(identity,a.owner_identity,32)==0);}
 }
+void PackageAssertionsRequireTheSameLiveHostProof(){
+    Fixture f;f.Register();f.assert_owner=true;f.asserted_identity[0]=0xa7;
+    auto validate=[&]{
+        std::array<std::uint8_t,32> identity{};identity.fill(0xa5);
+        const auto before=identity;
+        const bool accepted=f.registry.ValidateGuard(f.Rva(),f.original.data(),
+            f.code.data()+16*f.descriptor,10,SF_EXECUTABLE_SPAN_PHASE_NORMALIZE,identity.data());
+        if(!accepted)CHECK(identity==before);
+        return accepted;
+    };
+    f.code[16*f.descriptor]^=0x40;
+    CHECK(!validate()); // No lease, even with an otherwise valid callback response.
+    std::memcpy(f.code.data()+16*f.descriptor,f.original.data(),10);
+    f.Acquire();f.code[16*f.descriptor]^=0x40;
+    CHECK(!validate()); // A lease without a native publication is no authority.
+    f.Publish();
+    CHECK(!validate()); // A live publication does not authorize an invented identity.
+    SFExecutableSpanProofResultV1 proof{};CHECK(f.Query(proof)==0);
+    std::memcpy(f.asserted_identity.data(),proof.owner_identity,32);
+    CHECK(validate());CHECK(f.registry.RevalidateAllRegistered());
+    f.asserted_identity[31]^=1;CHECK(!validate());f.asserted_identity[31]^=1;
+    f.witness->valid=false;CHECK(!validate());f.witness->valid=true;
+    std::shared_ptr<const EngineHooks::OwnedSpanProofs::Record> record;
+    {std::lock_guard lock(f.proofs.Gate());record=f.proofs.FindLocked(1,f.Rva(),{f.original.data(),5});}
+    CHECK(record!=nullptr);f.proofs.Retire(record->serial);
+    CHECK(!validate());CHECK(!f.registry.RevalidateAllRegistered());
+}
 void RefusalsAndRetirement(){
     Fixture f;f.Register();f.Acquire();SFExecutableSpanProofResultV1 out;std::memset(&out,0xa5,sizeof(out));auto before=out;
     auto q=f.Request();q.observed_current[31]=1;CHECK(f.lease.validate(f.lease.context,&q,sizeof(out),&out)==1);
@@ -137,10 +170,12 @@ void RefusalsAndRetirement(){
     std::memcpy(f.code.data()+16*f.descriptor,f.original.data(),10);
     CHECK(f.Query(out)!=0);std::memcpy(f.code.data()+16*f.descriptor,f.replacement.data(),5);CHECK(f.Query(out)!=0);
 }
-void CloseAndDrain(bool package){
+void CloseAndDrain(bool package,bool guard=false){
     Fixture f;f.Register();f.Acquire();f.Publish();f.witness->block=true;
     SFExecutableSpanProofResultV1 out;std::memset(&out,0xa5,sizeof(out));const auto before=out;int status{};
-    std::thread query([&]{status=f.Query(out);});
+    std::thread query([&]{status=guard ?
+        (f.registry.ValidateGuard(f.Rva(),f.original.data(),f.code.data()+16*f.descriptor,10,
+            SF_EXECUTABLE_SPAN_PHASE_NORMALIZE) ? 0 : 3) : f.Query(out);});
     {std::unique_lock lock(f.witness->mutex);CHECK(f.witness->changed.wait_for(lock,std::chrono::seconds(3),[&]{return f.witness->entered;}));}
     if(package)CHECK(f.registry.Revoke("fixture",7)==0);
     else {
@@ -200,7 +235,9 @@ int RunOwnedSpanProofTests() {
     static_assert(sizeof(SFExecutableSpanProofLeaseV1)==24);
     static_assert(sizeof(SFExecutableSpanProofQueryV1)==48);
     static_assert(sizeof(SFExecutableSpanProofResultV1)==48);
-    PendingAndAllDescriptors();RefusalsAndRetirement();CloseAndDrain(true);CloseAndDrain(false);
+    PendingAndAllDescriptors();PackageAssertionsRequireTheSameLiveHostProof();
+    RefusalsAndRetirement();CloseAndDrain(true);CloseAndDrain(false);
+    CloseAndDrain(true,true);CloseAndDrain(false,true);
     BudgetsAndIdentity();NativeWitnessPredicates();
     std::printf("Owned span proof: %d checks, %d failures\n",checks,failures);return failures?1:0;
 }
