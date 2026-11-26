@@ -36,6 +36,9 @@ pub(super) fn run_inner(
         shroudforge_api::API_VERSION,
     )
     .map_err(LoaderError::Pregame)?;
+    // The record of the last pass goes before the files it describes change.
+    shroudforge_game_assets::prepared_stamp::forget(game_directory, file_name)
+        .map_err(LoaderError::Pregame)?;
     shroudforge_loader_config::config::write_document(
         game_directory,
         shroudforge_game_assets::documents::APPLIED,
@@ -44,6 +47,8 @@ pub(super) fn run_inner(
         }),
     )
     .map_err(LoaderError::Pregame)?;
+    // What the pass's mods use in the export folder, for the record of the pass.
+    let export_touches = shroudforge_game_assets::prepared_stamp::ExportTouches::default();
     let apply_result = (|| -> Result<Vec<serde_json::Value>, LoaderError> {
         shroudforge_game_assets::transaction::recover(game_directory, file_name)
             .map_err(|error| LoaderError::Pregame(error.to_string()))?;
@@ -90,6 +95,7 @@ pub(super) fn run_inner(
                         patch: true,
                         export: export_enabled,
                         export_dir: None,
+                        export_touches: Some(export_touches.clone()),
                         phase: shroudforge_api::RuntimePhase::Pregame,
                         ..Default::default()
                     },
@@ -109,6 +115,7 @@ pub(super) fn run_inner(
                         patch: true,
                         export: export_enabled,
                         export_dir: None,
+                        export_touches: Some(export_touches.clone()),
                         ..Default::default()
                     },
                 },
@@ -144,6 +151,24 @@ pub(super) fn run_inner(
             return Err(error);
         }
     };
+    // What this pass left, so that the next start can skip an unchanged pass. Without the record
+    // the next start applies again. While exports are on, every pregame package can use the export
+    // API (it checks the switch, not the package's `export` capability), so what the pass used
+    // there is recorded with or without a pregame exporter.
+    let exports = shroudforge_loader_config::paths::export_dir(game_directory);
+    if let Err(error) = shroudforge_game_assets::prepared_stamp::record(
+        game_directory,
+        file_name,
+        &shroudforge_game_assets::prepared_stamp::PassInputs {
+            fingerprint: &fingerprint,
+            exports_enabled: export_enabled,
+            exporters: export_enabled.then_some(exports.as_path()),
+        },
+        &export_touches,
+    ) {
+        tracing::warn!(target: "shroudforge::startup", target = file_name, %error,
+            "Could not record the asset pass; the next start applies the asset mods again");
+    }
     shroudforge_loader_config::config::write_document(game_directory, shroudforge_game_assets::documents::APPLIED, &serde_json::json!({
         "schemaVersion": 1, "status": "applied", "phase": phase, "target": file_name,
         "fingerprint": fingerprint,

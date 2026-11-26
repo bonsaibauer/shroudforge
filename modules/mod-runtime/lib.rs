@@ -127,6 +127,10 @@ pub struct RunOptions {
     pub export_dir: Option<PathBuf>,
     /// Execution phase. This changes availability, never the public API shape.
     pub phase: RuntimePhase,
+    /// Notes every path a pregame pass's mods use through the export API, for the loader's record
+    /// of the pass (`shroudforge_game_assets::prepared_stamp`). Read in the pregame phase only:
+    /// runtime mods' exports while the game runs are not the pass's.
+    pub export_touches: Option<shroudforge_game_assets::prepared_stamp::ExportTouches>,
 }
 
 #[derive(Debug, Clone)]

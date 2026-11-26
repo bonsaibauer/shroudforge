@@ -48,6 +48,8 @@ impl IngameRuntime {
                     export: export_enabled,
                     export_dir: None,
                     phase: RuntimePhase::Ingame,
+                    // runtime mods' exports are not the pregame pass's
+                    export_touches: None,
                 },
             },
             &CacheDiff::new_dirty(),
