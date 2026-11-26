@@ -846,7 +846,7 @@
   "updates.none.title": "Aucune mise à jour du système",
   "recycleBin.automaticCleanup": "Nettoyage automatique",
   "recycleBin.manualCleanup": "Suppression manuelle",
-  "recycleBin.empty": "Vider la corbeille",
+  "recycleBin.empty": "Vider",
   "recycleBin.emptyConfirm": "Supprimer définitivement tous les éléments de la corbeille ?",
   "recycleBin.delete": "Supprimer",
   "recycleBin.deleteConfirm": "Supprimer définitivement « {name} » ?",

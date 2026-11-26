@@ -846,7 +846,7 @@
   "updates.none.title": "Keine Systemupdates",
   "recycleBin.automaticCleanup": "Automatische Bereinigung",
   "recycleBin.manualCleanup": "Manuell löschen",
-  "recycleBin.empty": "Papierkorb leeren",
+  "recycleBin.empty": "Leeren",
   "recycleBin.emptyConfirm": "Alle Einträge im Papierkorb dauerhaft löschen?",
   "recycleBin.delete": "Löschen",
   "recycleBin.deleteConfirm": "Eintrag „{name}“ dauerhaft löschen?",

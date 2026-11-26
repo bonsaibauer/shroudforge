@@ -846,7 +846,7 @@
   "updates.none.title": "No hay actualizaciones del sistema",
   "recycleBin.automaticCleanup": "Limpieza automática",
   "recycleBin.manualCleanup": "Eliminación manual",
-  "recycleBin.empty": "Vaciar papelera",
+  "recycleBin.empty": "Vaciar",
   "recycleBin.emptyConfirm": "¿Eliminar permanentemente todos los elementos de la papelera?",
   "recycleBin.delete": "Eliminar",
   "recycleBin.deleteConfirm": "¿Eliminar «{name}» permanentemente?",

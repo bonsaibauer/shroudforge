@@ -846,7 +846,7 @@
   "updates.none.title": "システムアップデートなし",
   "recycleBin.automaticCleanup": "自動クリーンアップ",
   "recycleBin.manualCleanup": "マニュアル削除",
-  "recycleBin.empty": "空のリサイクルビン",
+  "recycleBin.empty": "空にする",
   "recycleBin.emptyConfirm": "ゴミ箱内のすべての項目を永久に削除しますか?",
   "recycleBin.delete": "削除",
   "recycleBin.deleteConfirm": "「{name}」を永久に削除しますか?",

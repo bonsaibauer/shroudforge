@@ -846,7 +846,7 @@
   "updates.none.title": "Nessun aggiornamento di sistema",
   "recycleBin.automaticCleanup": "Pulizia automatica",
   "recycleBin.manualCleanup": "Eliminazione manuale",
-  "recycleBin.empty": "Svuota cestino",
+  "recycleBin.empty": "Svuota",
   "recycleBin.emptyConfirm": "Eliminare definitivamente tutti gli elementi nel cestino?",
   "recycleBin.delete": "Elimina",
   "recycleBin.deleteConfirm": "Eliminare definitivamente “{name}”?",

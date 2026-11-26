@@ -846,7 +846,7 @@
   "updates.none.title": "无系统更新",
   "recycleBin.automaticCleanup": "自动清理",
   "recycleBin.manualCleanup": "手动删除",
-  "recycleBin.empty": "清空回收站",
+  "recycleBin.empty": "清空",
   "recycleBin.emptyConfirm": "永久删除回收站中的所有项目？",
   "recycleBin.delete": "删除",
   "recycleBin.deleteConfirm": "永久删除“{name}”？",

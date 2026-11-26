@@ -846,7 +846,7 @@
   "updates.none.title": "कोई सिस्टम अपडेट नहीं",
   "recycleBin.automaticCleanup": "स्वचालित सफाई",
   "recycleBin.manualCleanup": "मैनुअल हटाने",
-  "recycleBin.empty": "खाली रीसायकल बिन",
+  "recycleBin.empty": "खाली करें",
   "recycleBin.emptyConfirm": "प्रत्येक आइटम को रीसायकल बिन में स्थायी रूप से हटा दें?",
   "recycleBin.delete": "डिलीट",
   "recycleBin.deleteConfirm": "स्थायी रूप से \"{name}\" को हटा दें?",

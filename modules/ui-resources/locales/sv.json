@@ -846,7 +846,7 @@
   "updates.none.title": "Inga systemuppdateringar",
   "recycleBin.automaticCleanup": "Automatisk rengöring",
   "recycleBin.manualCleanup": "Manuell borttagning",
-  "recycleBin.empty": "Tomma återvinnings bin",
+  "recycleBin.empty": "Töm",
   "recycleBin.emptyConfirm": "Ta bort varje objekt i återvinningsfacket?",
   "recycleBin.delete": "Delete",
   "recycleBin.deleteConfirm": "Ta bort permanent \"{name}\"?",

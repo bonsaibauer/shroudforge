@@ -846,7 +846,7 @@
   "updates.none.title": "No system updates",
   "recycleBin.automaticCleanup": "Automatic cleanup",
   "recycleBin.manualCleanup": "Manual deletion",
-  "recycleBin.empty": "Empty recycle bin",
+  "recycleBin.empty": "Empty",
   "recycleBin.emptyConfirm": "Permanently delete every item in the recycle bin?",
   "recycleBin.delete": "Delete",
   "recycleBin.deleteConfirm": "Permanently delete “{name}”?",

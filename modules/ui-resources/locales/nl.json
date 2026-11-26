@@ -846,7 +846,7 @@
   "updates.none.title": "Geen systeemupdates",
   "recycleBin.automaticCleanup": "Automatisch opschonen",
   "recycleBin.manualCleanup": "Handmatig verwijderen",
-  "recycleBin.empty": "Prullenbak legen",
+  "recycleBin.empty": "Leegmaken",
   "recycleBin.emptyConfirm": "Elk item in de prullenbak definitief verwijderen?",
   "recycleBin.delete": "Verwijderen",
   "recycleBin.deleteConfirm": "“{name}” permanent verwijderen?",

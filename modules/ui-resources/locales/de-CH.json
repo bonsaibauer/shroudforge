@@ -846,7 +846,7 @@
   "updates.none.title": "Kei Systemupdates",
   "recycleBin.automaticCleanup": "Automatische Bereinigung",
   "recycleBin.manualCleanup": "Manuell lösche",
-  "recycleBin.empty": "Abfallchübel leere",
+  "recycleBin.empty": "Leeren",
   "recycleBin.emptyConfirm": "Alli Iiträg im Abfallchübel für immer lösche?",
   "recycleBin.delete": "Lösche",
   "recycleBin.deleteConfirm": "Iitrag „{name}“ dauerhaft lösche?",

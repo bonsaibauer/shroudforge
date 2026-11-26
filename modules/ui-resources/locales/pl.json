@@ -846,7 +846,7 @@
   "updates.none.title": "Brak aktualizacji systemu",
   "recycleBin.automaticCleanup": "Automatyczne czyszczenie",
   "recycleBin.manualCleanup": "Ręczne usuwanie",
-  "recycleBin.empty": "Pusty pojemnik do recyklingu",
+  "recycleBin.empty": "Opróżnij",
   "recycleBin.emptyConfirm": "Na stałe usunąć wszystkie przedmioty w koszu na recykling?",
   "recycleBin.delete": "Usuń",
   "recycleBin.deleteConfirm": "Na stałe usunąć \"{name}\"?",

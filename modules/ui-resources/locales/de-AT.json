@@ -846,7 +846,7 @@
   "updates.none.title": "Ka Systemupdates",
   "recycleBin.automaticCleanup": "Automatische Bereinigung",
   "recycleBin.manualCleanup": "Manuell löschn",
-  "recycleBin.empty": "Mistkübel ausleeren",
+  "recycleBin.empty": "Leeren",
   "recycleBin.emptyConfirm": "Olle Einträg im Mistkübel für immer löschn?",
   "recycleBin.delete": "Löschn",
   "recycleBin.deleteConfirm": "Eintrag „{name}“ dauerhaft löschn?",
