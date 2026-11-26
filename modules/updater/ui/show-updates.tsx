@@ -8,7 +8,7 @@ import { SystemUpdate } from './show-system-update'
 import { UpdateQueuePanel } from './show-update-queue'
 import type { UpdaterCommand, UpdaterViewData } from './update-types'
 import { UpdaterAvailability } from './show-updater-availability'
-import { SystemInstallationActions } from './show-system-installation-actions'
+import { useSystemInstallationActions } from './show-system-installation-actions'
 
 export function Updates({
   data,
@@ -72,6 +72,16 @@ export function Updates({
       item.version === data.release.latestVersion &&
       !['complete', 'cancelled', 'error'].includes(item.state),
   )
+  const installationActions = useSystemInstallationActions({
+    selectedRoot: data.installationRoot || '',
+    rootSelected: data.installationRootSelected !== false,
+    updaterAvailable,
+    installationDetected: data.release.installationDetected === true,
+    latestVersion: data.release.latestVersion,
+    backupManagement: data.backupManagement,
+    queue,
+    onCommand,
+  })
   return (
     <>
       <PageHeader
@@ -79,28 +89,23 @@ export function Updates({
         title={t('updates.title')}
         subtitle={t('updates.subtitle')}
         actions={
-          <button
-            className="button"
-            onClick={() =>
-              onCommand(tab === 'mods' ? 'check-mod-updates' : 'check-updates')
-            }
-            disabled={!actionsEnabled || checking}
-          >
-            <Icon name="refresh" />
-            {checking ? t('updates.checking') : t('updates.check')}
-          </button>
+          <>
+            {installationActions.repairAction}
+            <button
+              className="button"
+              onClick={() =>
+                onCommand(tab === 'mods' ? 'check-mod-updates' : 'check-updates')
+              }
+              disabled={!actionsEnabled || checking}
+            >
+              <Icon name="refresh" />
+              {checking ? t('updates.checking') : t('updates.check')}
+            </button>
+            {installationActions.uninstallAction}
+          </>
         }
       />
-      <SystemInstallationActions
-        selectedRoot={data.installationRoot || ''}
-        rootSelected={data.installationRootSelected !== false}
-        updaterAvailable={updaterAvailable}
-        installationDetected={data.release.installationDetected === true}
-        latestVersion={data.release.latestVersion}
-        backupManagement={data.backupManagement}
-        queue={queue}
-        onCommand={onCommand}
-      />
+      {installationActions.options}
       {commandError && !commandErrorAlreadyShown && (
         <p
           className={moduleUnavailable ? 'notice warning' : 'notice error'}

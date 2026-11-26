@@ -472,3 +472,53 @@ body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-g
     --sf-header-gap: 6px;
   }
 }
+
+.updater-uninstall-overlay { z-index: 100; }
+.updater-uninstall-modal { width: min(620px, 100%); }
+.shell.server-target-active .updater-uninstall-modal {
+  background: linear-gradient(145deg, #152429, #0b1418);
+}
+.updater-uninstall-modal > header small { color: var(--sf-gold); }
+.updater-uninstall-modal .modal-body { display: grid; gap: 12px; }
+.updater-uninstall-safety {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(231,169,86,.24);
+  border-radius: 10px;
+  color: var(--sf-muted);
+  background: rgba(231,169,86,.055);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.updater-uninstall-section {
+  min-width: 0;
+  margin: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--sf-line);
+  border-radius: 11px;
+  background: var(--sf-glass);
+}
+.updater-uninstall-section h3 {
+  margin: 0 0 9px;
+  color: var(--sf-text);
+  font-size: 12px;
+}
+.updater-uninstall-section > .settings-module-description { margin: 8px 0 0 23px; }
+.updater-uninstall-data-options > legend { margin: 0 0 8px; padding: 0 5px; font-size: 12px; }
+.updater-uninstall-data-options > .settings-module-description { margin: 0 0 10px; }
+.updater-uninstall-data-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.updater-uninstall-data-choices .updater-uninstall-option {
+  min-height: 48px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--sf-line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.025);
+  line-height: 1.35;
+}
+.updater-uninstall-modal > footer { justify-content: flex-end; gap: 8px; }
+@media (max-width: 560px) {
+  .updater-uninstall-overlay { padding: 12px; }
+  .updater-uninstall-data-choices { grid-template-columns: 1fr; }
+  .updater-uninstall-data-choices .updater-uninstall-option { min-height: 36px; }
+}
