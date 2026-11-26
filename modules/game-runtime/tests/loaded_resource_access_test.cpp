@@ -368,6 +368,12 @@ int main() {
     check(!EngineContext::ConfiguredHudCaptureProfile().profile &&
         EngineContext::ConfiguredHudCaptureProfile().status.starts_with("invalid-hud-capture-profile:"));
     check(EngineContext::Configure(owner_profile, reason));
+    auto invalid_optional_map = owner_profile;
+    invalid_optional_map["mapCapture"] = "malformed";
+    check(EngineContext::Configure(invalid_optional_map, reason));
+    check(!EngineContext::ConfiguredMapCaptureProfile().profile &&
+        EngineContext::ConfiguredMapCaptureProfile().status.starts_with("invalid-map-capture-profile:"));
+    check(EngineContext::Configure(owner_profile, reason));
 
     Layout layout;
     layout.profile_id = "private-fixture";

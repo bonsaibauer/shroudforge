@@ -1,5 +1,53 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "mapSystem": {
+      "type": "object", "additionalProperties": false, "required": ["descriptorRva", "callbackRva", "name"],
+      "properties": {
+        "descriptorRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "callbackRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "name": {"type": "string", "minLength": 1, "maxLength": 95}
+      }
+    },
+    "mapView": {
+      "type": "object", "additionalProperties": false, "required": ["guards", "systems", "pointers"],
+      "properties": {
+        "guards": {
+          "type": "array", "minItems": 1, "maxItems": 4096,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["guardRva", "bytes"],
+            "properties": {
+              "guardRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+              "bytes": {"type": "string", "pattern": "^(?:[0-9a-f]{2}){1,65536}$"}
+            }
+          }
+        },
+        "systems": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/mapSystem"}},
+        "pointers": {
+          "type": "array", "maxItems": 4096,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["addressRva", "targetRva"],
+            "properties": {
+              "addressRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+              "targetRva": {"type": "integer", "minimum": 1, "maximum": 4294967295}
+            }
+          }
+        },
+        "enumTable": {
+          "type": "object", "additionalProperties": false,
+          "required": ["tableRva", "entryStride", "namePointerOffset", "valueOffset", "names"],
+          "properties": {
+            "tableRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+            "entryStride": {"type": "integer", "minimum": 8, "maximum": 4096},
+            "namePointerOffset": {"type": "integer", "minimum": 0, "maximum": 4088},
+            "valueOffset": {"type": "integer", "minimum": 0, "maximum": 4088},
+            "names": {"type": "array", "minItems": 1, "maxItems": 32,
+              "items": {"type": "string", "minLength": 1, "maxLength": 95}}
+          }
+        }
+      }
+    }
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,6 +58,28 @@
     "image"
   ],
   "properties": {
+    "mapCapture": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "readiness", "guardChunkBytes", "deathsRequireWorld", "requiredSystems", "views"],
+      "properties": {
+        "id": {"const": "map-image-admission-v1"},
+        "readiness": {"enum": ["all-views", "player-only"]},
+        "guardChunkBytes": {"enum": [256, 1024]},
+        "deathsRequireWorld": {"type": "boolean"},
+        "requiredSystems": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/mapSystem"}},
+        "views": {
+          "type": "object", "additionalProperties": false,
+          "required": ["player", "renderer", "markers", "clock", "weather", "fog", "world", "deaths", "discovery"],
+          "properties": {
+            "player": {"$ref": "#/$defs/mapView"}, "renderer": {"$ref": "#/$defs/mapView"},
+            "markers": {"$ref": "#/$defs/mapView"}, "clock": {"$ref": "#/$defs/mapView"},
+            "weather": {"$ref": "#/$defs/mapView"}, "fog": {"$ref": "#/$defs/mapView"},
+            "world": {"$ref": "#/$defs/mapView"}, "deaths": {"$ref": "#/$defs/mapView"},
+            "discovery": {"$ref": "#/$defs/mapView"}
+          }
+        }
+      }
+    },
     "schemaVersion": {
       "enum": [1, 2]
     },

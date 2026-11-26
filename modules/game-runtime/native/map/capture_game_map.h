@@ -6,7 +6,6 @@
 namespace EngineHooks {class HeldEntryToken;}
 
 namespace MapRuntime {
-inline constexpr char CurrentClientSha256[] = "d64966e23b1a458ee6f147bcbceac0b577fa7e39a212f371287d8cc119817882";
 struct MapImageAdmission {
     std::uint32_t status{SF_MAP_UNSUPPORTED_BUILD};
     bool player{}, markers{}, clock{}, weather{}, fog{}, world{}, deaths{}, discovery{}, renderer{};
@@ -17,6 +16,9 @@ struct MapImageAdmission {
 };
 MapImageAdmission InspectMapImage(std::span<const std::uint8_t> image,
     std::string_view exact_file_sha256, bool capability_allowed);
+// Renderer admission uses only its own profile dependencies, independent of
+// map named systems and capture activation. It publishes no hook or service.
+MapImageAdmission InspectRendererImage(std::span<const std::uint8_t> image, std::string_view exact_file_sha256);
 
 struct NativeCameraRecord {
     std::uintptr_t unknown0{}, unknown1{}, player_transform{}, local_player{}, unknown4{}, unknown5{},

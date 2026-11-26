@@ -17,10 +17,10 @@ identity. Historical files remain unchanged. Invalid or conflicting revisions
 block discovery instead of selecting an older baseline. See the
 [profile format](../game-runtime/profiles/README.md).
 
-The optional `hudCapture` contract is preserved only for complete mapped-image
-equivalence. Changed mapped images report `hud-capture-rebase-not-supported`.
+The optional `hudCapture` and `mapCapture` contracts are preserved only for complete mapped-image
+equivalence. Changed mapped images report `hud-capture-rebase-not-supported` or `map-capture-rebase-not-supported`.
 The canonical rebaser, automatic discovery and standalone report tool cannot
-replace HUD guard bytes or private UI offsets with an ECS live-layout proof.
+replace image guard bytes or private offsets with an ECS live-layout proof.
 
 ## Automatic path
 

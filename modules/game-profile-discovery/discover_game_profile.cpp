@@ -562,9 +562,11 @@ Result Prepare(const fs::path& executable_path, const fs::path& profile_director
             Log(game_root, 'D', "Rebasing profile addresses, reflected layouts, hooks, and resource contracts from the exact original images");
             static_complete = Detail::RebaseProfile(source, current, baseline, generated, rebase);
             log_evidence(game_root, "Static profile rebase", rebase, true);
-            if (!static_complete && rebase.value("reason", std::string{}) == "hud-capture-rebase-not-supported") {
+            const auto rebase_reason = rebase.value("reason", std::string{});
+            if (!static_complete && (rebase_reason == "hud-capture-rebase-not-supported" ||
+                                    rebase_reason == "map-capture-rebase-not-supported")) {
                 result.diagnostics["state"] = "unresolved";
-                result.diagnostics["reason"] = "hud-capture-rebase-not-supported";
+                result.diagnostics["reason"] = rebase_reason;
                 result.diagnostics["comparison"] = std::move(comparison);
                 result.diagnostics["rebase"] = std::move(rebase);
                 write_diagnostics_report(result, game_root, cache_directory, identity);

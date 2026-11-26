@@ -5,8 +5,7 @@
 #include "profiles/game_profile.h"
 #include "map/current_client_map_contract.h"
 #include "map/native_iterator_snapshot.h"
-#include "map/client_5d9ef2f1_marker_pins.h"
-#include "map/client_5d9ef2f1_optional_pins.h"
+#include "engine-context/engine_owners.h"
 #include "engine-hooks/publish_engine_hook.h"
 #include "engine-hooks/held_entry_preparation.h"
 #include "engine-hooks/owned_executable_span.h"
@@ -22,121 +21,6 @@
 #include <unordered_set>
 
 namespace MapRuntime {
-struct ImageReader {
-    std::span<const std::uint8_t> bytes;
-    bool Match(std::size_t rva, const void* expected, std::size_t size) const {
-        if (rva > bytes.size() || size > bytes.size()-rva || size > 1024) return false;
-        std::uint8_t actual[1024]{};
-        if(!ReadMemory(reinterpret_cast<std::uintptr_t>(bytes.data()+rva),actual,size))return false;
-        if(!std::memcmp(actual,expected,size))return true;
-        if(rva>UINT32_MAX || size>512)return false;
-        return ExecutableSpanValidation::Services().ValidateGuard(static_cast<std::uint32_t>(rva),
-            static_cast<const std::uint8_t*>(expected),actual,size,
-            SF_EXECUTABLE_SPAN_PHASE_NORMALIZE);
-    }
-    bool Named(std::size_t rva, const char* name, std::size_t function) const {
-        std::uintptr_t descriptor[3]{}; char actual[96]{}; const auto length=std::strlen(name)+1;
-        const auto base=reinterpret_cast<std::uintptr_t>(bytes.data());
-        return rva <= bytes.size() && sizeof(descriptor) <= bytes.size()-rva && length <= sizeof(actual) &&
-            ReadMemory(base+rva,descriptor,sizeof(descriptor)) && descriptor[0] >= base &&
-            descriptor[0]-base <= bytes.size() && length <= bytes.size()-(descriptor[0]-base) &&
-            descriptor[1] == length-1 && descriptor[2] == base+function &&
-            ReadMemory(descriptor[0],actual,length) && !std::memcmp(actual,name,length);
-    }
-};
-}
-#include "map/test4_guard_tables.h"
-
-namespace MapRuntime {
-static MapImageAdmission InspectMapImageImpl(std::span<const std::uint8_t> bytes, std::string_view sha, bool permitted) {
-    MapImageAdmission result;
-    if (!permitted) { result.failure_reason="capability-denied"; result.status=SF_MAP_CAPABILITY_DENIED; return result; }
-    if (Current5d9ef2f1::Selected(sha)) {
-        result.failure_reason="image-header";
-        if(bytes.size()!=Current5d9ef2f1::ImageSize)return result;
-        IMAGE_DOS_HEADER dos{};IMAGE_NT_HEADERS64 nt{};
-        const auto base=reinterpret_cast<std::uintptr_t>(bytes.data());
-        if(!ReadMemory(base,&dos,sizeof(dos)) || dos.e_magic!=IMAGE_DOS_SIGNATURE || dos.e_lfanew<0 ||
-           std::size_t(dos.e_lfanew)>bytes.size()-sizeof(nt) || !ReadMemory(base+dos.e_lfanew,&nt,sizeof(nt)) ||
-           nt.Signature!=IMAGE_NT_SIGNATURE || nt.FileHeader.Machine!=IMAGE_FILE_MACHINE_AMD64 ||
-           nt.OptionalHeader.Magic!=IMAGE_NT_OPTIONAL_HDR64_MAGIC || nt.FileHeader.TimeDateStamp!=Current5d9ef2f1::Timestamp ||
-           nt.OptionalHeader.SizeOfImage!=bytes.size())return result;
-        const ImageReader image{bytes};
-        for(const auto& row:Current5d9ef2f1::Systems)if(!image.Named(row.descriptor,row.name,row.callback)){
-            result.failure_reason="named-system";result.failure_rva=row.descriptor;return result;
-        }
-        result.failure_reason="none";
-        // Exact full dependency spans; fixed chunks avoid truncating long pins.
-        const auto match=[&](std::size_t rva,const std::uint8_t* expected,std::size_t length){
-            if(rva>bytes.size() || length>bytes.size()-rva)return false;
-            for(std::size_t offset=0;offset<length;){
-                const auto count=(std::min)(std::size_t(256),length-offset);
-                bool matches=image.Match(rva+offset,expected+offset,count);
-
-                if(!matches){
-                    if(!result.failure_rva){
-                        result.failure_rva=rva+offset;result.failure_reason="guard-read";
-                        std::uint8_t actual[256]{};
-                        if(ReadMemory(base+rva+offset,actual,count)){
-                            result.failure_reason="guard-bytes";
-                            for(std::size_t i=0;i<count;++i)if(actual[i]!=expected[offset+i]){
-                                result.failure_rva+=i;result.expected_byte=expected[offset+i];result.observed_byte=actual[i];break;
-                            }
-                        }
-                    }
-                    return false;
-                }offset+=count;
-            }return true;
-        };
-        using namespace MapClient5d9ef2f1;
-        result.player=MatchPins(CameraPins,match);result.renderer=MatchPins(RendererPins,match);
-        result.markers=MatchMarkers(base,match);result.clock=MatchOptionalClock(base,match);
-        result.weather=MatchOptionalWeather(base,match);result.fog=MatchOptionalFog(base,match);
-        result.world=MatchOptionalWorld(base,match);result.deaths=MatchOptionalDeath(base,match);
-        result.discovery=MatchOptionalVisibility(base,match);
-        if(result.player && result.renderer && result.markers && result.clock && result.weather && result.fog &&
-           result.world && result.deaths && result.discovery)result.status=SF_MAP_READY;
-        return result;
-    }
-    if (sha != CurrentClientSha256 || bytes.size() != 44163072) return result;
-    IMAGE_DOS_HEADER dos{}; IMAGE_NT_HEADERS64 nt{};
-    const auto base=reinterpret_cast<std::uintptr_t>(bytes.data());
-    if (!ReadMemory(base,&dos,sizeof(dos)) || dos.e_magic != IMAGE_DOS_SIGNATURE || dos.e_lfanew < 0 ||
-        std::size_t(dos.e_lfanew) > bytes.size()-sizeof(nt) || !ReadMemory(base+dos.e_lfanew,&nt,sizeof(nt)) ||
-        nt.Signature != IMAGE_NT_SIGNATURE || nt.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 ||
-        nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC || nt.FileHeader.TimeDateStamp != 1792507660 ||
-        nt.OptionalHeader.SizeOfImage != bytes.size()) return result;
-    const ImageReader image{bytes};
-    const bool named=image.Named(0x1e04490,"player_camera_transform",0x2b2b60) &&
-        image.Named(0x1e0e400,"player_waypoints_ui",0x30eb10);
-    result.player=named && Test4Guards::Camera(image);
-    result.renderer=Test4Guards::Renderer(image);
-    result.markers=named && image.Named(0x1e13e00,"update_ui_data",0x317e80) && Test4Guards::Markers(image);
-    result.clock=image.Named(0x1e04660,"player_daytime_ui",0x2b3340) &&
-        image.Named(0x1e08620,"client_update_daytime",0x3027b0) && Test4Guards::Clock(image);
-    result.weather=image.Named(0x1e05560,"ambient_effects",0x2fd9a0) && Test4Guards::Weather(image);
-    if (result.weather) {
-        const char* names[]{"Clear","Rain","Snow","Blizzard"};
-        for (std::uint64_t i=0;i<4;++i) {
-            std::uintptr_t name{}; std::uint64_t value{}; char actual[9]{};
-            const auto entry=base+0x1bbd820+i*0x28, length=std::strlen(names[i])+1;
-            if (!ReadMemory(entry,&name,8) || name < base || name-base > bytes.size() || length > bytes.size()-(name-base) ||
-                !ReadMemory(entry+0x10,&value,8) || value != i || !ReadMemory(name,actual,length) ||
-                std::memcmp(actual,names[i],length)) result.weather=false;
-        }
-    }
-    result.fog=image.Named(0x1e0a960,"fog_of_war",0x3071e0) && Test4Guards::Fog(image);
-    result.world=image.Named(0x1e063d0,"clear_map_markers_for_ui",0x2fefe0) &&
-        image.Named(0x1e09410,"custom_map_markers_ui",0x303360) &&
-        image.Named(0x1e0f970,"replicate_map_markers_for_ui",0x310cb0) && Test4Guards::World(image);
-    result.deaths=result.world && Test4Guards::Death(image);
-    result.discovery=image.Named(0x1dea720,"knowledge_query_mapmarker_visibility",0x415140) && Test4Guards::Visibility(image);
-    if (result.player) result.status=SF_MAP_READY;
-    return result;
-}
-MapImageAdmission InspectMapImage(std::span<const std::uint8_t> bytes,std::string_view sha,bool permitted) {
-    return InspectMapImageImpl(bytes,sha,permitted);
-}
 std::uint32_t MapImageAdmission::Features() const {
     return (player ? SF_MAP_FEATURE_PLAYER : 0) | (markers ? SF_MAP_FEATURE_MARKERS : 0) |
         (fog ? SF_MAP_FEATURE_FOG : 0) | ((clock || weather) ? SF_MAP_FEATURE_ENVIRONMENT : 0) |
@@ -222,6 +106,14 @@ std::uintptr_t image_base{};
 IterInit iter_init{}; IterNext iter_next{}; GetWorld get_world{}; Lookup lookup{};
 WeatherSample weather_sample{}; FogUpdate fog_update{};
 MapImageAdmission admission;
+// Retained with published camera proofs. Never fetch profile files or allocate
+// control-plane metadata while validating an executable replacement.
+std::shared_ptr<const KfcRuntimeCompatibility::MapCaptureProfile> map_profile;
+const KfcRuntimeCompatibility::MapCaptureProfile::Guard* CameraGuard() {
+    if (map_profile) for (const auto& guard : map_profile->views[0].guards)
+        if (guard.rva == Current5d9ef2f1::Camera && guard.bytes.size() >= 18) return &guard;
+    return nullptr;
+}
 std::uint64_t source_session{}, next_generation{};
 std::uint64_t preparation_generation{};
 std::uint64_t capture_enable_generation{};
@@ -540,9 +432,8 @@ bool ReadOwnedCameraEntryReplacement(std::span<const std::uint8_t> original,
         if(original.size()!=18 || replacement.size()!=18 || !original.data() || !replacement.data() ||
            !current_client_capture() || !image_base || image_base>UINTPTR_MAX-Current5d9ef2f1::CameraResume)return false;
         const auto target=image_base+Current5d9ef2f1::Camera;
-        const MapClient5d9ef2f1::Pin* selected=nullptr;
-        for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)selected=&pin;
-        if(!selected || selected->size<18 || std::memcmp(original.data(),selected->bytes,18))return false;
+        const auto* selected=CameraGuard();
+        if(!selected || std::memcmp(original.data(),selected->bytes.data(),18))return false;
         for(const auto& hook:hooks)if(hook.target==target){
             if(!hook.installed || !hook.publicationQualified || !hook.residentOwner || !hook.allocation ||
                hook.original.size()!=18 || hook.replacement.size()!=18 || hook.relay.size()<57 || hook.relay.size()>128 ||
@@ -622,12 +513,13 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         ~ProofPreparation(){if(!ready)EngineHooks::ExecutableProofs().Close();}
     } proof_preparation{proof_ready};
     try {
+        auto selected_map = EngineContext::ConfiguredMapCaptureProfile();
         std::unique_lock control(control_mutex);
         preparation_step="preconditions";preparation_reason="none";preparation_result=SF_MAP_FAILED;
         if(!token.ValidForCurrentThread()){preparation_reason="invalid-token";return SF_MAP_FAILED;}
         if(preparation==Preparation::Ready){
             std::array<std::uint8_t,18> original{},replacement{};
-            for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
+            if(const auto* guard=CameraGuard())std::memcpy(original.data(),guard->bytes.data(),18);
             preparation_step="owned-camera-readback";
             const bool owned=ReadOwnedCameraEntryReplacement(original,replacement);
             preparation_reason=owned?(executable_span_published?"none":"owned-span-unavailable"):"owned-camera-rejected";
@@ -637,6 +529,8 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         if(preparation!=Preparation::Unprepared || accepting || !hooks.empty()){preparation_reason="prior-preparation-or-publication";return SF_MAP_FAILED;}
         namespace Profile=KfcRuntimeCompatibility::EnshroudedClient;
         if(!current_client_capture() || Profile::image_size!=Current5d9ef2f1::ImageSize){preparation_reason="image-identity";preparation_result=SF_MAP_UNSUPPORTED_BUILD;return SF_MAP_UNSUPPORTED_BUILD;}
+        map_profile = std::move(selected_map.profile);
+        if(!CameraGuard()){preparation_reason="map-capture-profile-unavailable";preparation_result=SF_MAP_UNSUPPORTED_BUILD;return SF_MAP_UNSUPPORTED_BUILD;}
         preparation=Preparation::Preparing;
         executable_span_published=false;
         image_base=reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
@@ -645,7 +539,7 @@ std::int32_t PrepareCapture(const EngineHooks::HeldEntryToken& token) noexcept {
         preparation_step="image-admission";
         const auto image=std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(image_base),Profile::image_size);
         control.unlock();
-        auto candidate=InspectMapImageImpl(image,Profile::image_sha256,true);
+        auto candidate=InspectMapImage(image,Profile::image_sha256,true);
         const bool hud_preflight=candidate.status==SF_MAP_READY && PreflightHudPreparation(image_base,Profile::image_size);
         control.lock();
         if(attempt!=preparation_generation || preparation!=Preparation::Preparing){
@@ -744,7 +638,7 @@ std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
         reinterpret_cast<LPCWSTR>(&EnableCapture),&pinned)) {capture_enable_in_progress=false;return SF_MAP_FAILED;}
     if(current){
         std::array<std::uint8_t,18> original{},replacement{};
-        for(const auto& pin:MapClient5d9ef2f1::CameraPins)if(pin.rva==Current5d9ef2f1::Camera)std::memcpy(original.data(),pin.bytes,18);
+        if(const auto* guard=CameraGuard())std::memcpy(original.data(),guard->bytes.data(),18);
         if(!ReadOwnedCameraEntryReplacement(original,replacement) || !ActivatePreparedHudVisibility()){
             DisableHudVisibility();capture_enable_in_progress=false;return SF_MAP_FAILED;
         }

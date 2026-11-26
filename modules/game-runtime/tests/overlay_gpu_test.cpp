@@ -9,6 +9,7 @@ using namespace OverlayRuntime;
 // This graphics-only fixture has no selected engine profile or game process.
 namespace EngineContext {
 KfcRuntimeCompatibility::HudCaptureSelection ConfiguredHudCaptureProfile() { return {}; }
+KfcRuntimeCompatibility::MapCaptureSelection ConfiguredMapCaptureProfile() { return {}; }
 }
 namespace {
 unsigned checks{},queries{},destroys{},copies{},barriers{},idle_waits{};int fence_result{};bool device_destroyed{};

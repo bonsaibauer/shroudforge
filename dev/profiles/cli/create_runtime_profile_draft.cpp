@@ -16,8 +16,8 @@ int generate_command(int argc, char** argv) {
     }
     try {
         auto profile = json::parse(std::ifstream(base_path));
-        if (profile.contains("hudCapture")) {
-            std::cerr << "generate-profile cannot rebase hudCapture guard bytes and UI layouts. Use an explicitly reviewed complete profile copy for the new image\n";
+        if (profile.contains("hudCapture") || profile.contains("mapCapture")) {
+            std::cerr << "generate-profile cannot rebase HUD/mapCapture guard bytes and private layouts. Use an explicitly reviewed complete profile copy for the new image\n";
             return 2;
         }
         if (kfc_format_text == "4" && profile.contains("ownerLayout")) profile["schemaVersion"] = 2;

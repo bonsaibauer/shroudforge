@@ -1597,7 +1597,7 @@ bool RebaseProfile(const Image& source_image, const Image& target_image, const j
         {"fields", json::array()}, {"unresolved", json::array()},
         {"targetProfileRead", false}, {"gameplayEffectsTested", false}};
     try {
-        if (baseline.contains("hudCapture")) {
+        if (baseline.contains("hudCapture") || baseline.contains("mapCapture")) {
             rebased = baseline;
             json comparison;
             if (Equivalent(source_image, target_image, comparison)) {
@@ -1608,9 +1608,10 @@ bool RebaseProfile(const Image& source_image, const Image& target_image, const j
             }
             // Also covers the standalone report tool. Neither an ECS layout proof
             // nor an unresolved field override can establish this byte contract.
-            evidence["reason"] = "hud-capture-rebase-not-supported";
-            evidence["unresolved"].push_back({{"path", "/hudCapture"},
-                {"reason", "HUD control-flow guards and UI layout need complete proof"}});
+            const bool map = baseline.contains("mapCapture");
+            evidence["reason"] = map ? "map-capture-rebase-not-supported" : "hud-capture-rebase-not-supported";
+            evidence["unresolved"].push_back({{"path", map ? "/mapCapture" : "/hudCapture"},
+                {"reason", "Image guards and private layouts need complete proof"}});
             return false;
         }
         const Pe source(source_image), target(target_image);

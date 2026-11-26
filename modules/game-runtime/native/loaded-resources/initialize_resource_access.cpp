@@ -86,6 +86,8 @@ bool Initialize() {
         return false;
     }
     publish_attribute_model(selected_profile);
+    const auto map_contract = EngineContext::ConfiguredMapCaptureProfile();
+    profile_selection["mapCaptureProfile"] = {{"parsed", bool(map_contract.profile)}, {"status", map_contract.status}};
     active_layout = std::move(selected);
     profile_loaded = true;
     profile_status = active_layout.profile_id + ":exact-image-resource-service";

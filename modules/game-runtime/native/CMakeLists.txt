@@ -85,6 +85,7 @@ file(CONFIGURE OUTPUT "${runtime_license_rc}" CONTENT "@runtime_license_content@
 add_library(kfc-runtime SHARED
     map/read_map_frame.cpp
     map/capture_game_map.cpp
+    map/admit_map_image.cpp
     map/hud_visibility.cpp
     map/serve_map_overlay.cpp
     graphics/render_overlay.cpp
@@ -161,6 +162,7 @@ add_library(kfc-runtime SHARED
     profiles/select_game_profile.cpp
     profiles/read_installed_profiles.cpp
     profiles/read_hud_capture_profile.cpp
+    profiles/read_map_capture_profile.cpp
     loaded-resources/select_resource_profile.cpp
     profiles/identify_game_image.cpp
     profiles/read_game_profile.cpp
@@ -196,7 +198,7 @@ endif()
 add_executable(kfc-runtime-test-resource EXCLUDE_FROM_ALL
     ../tests/loaded_resource_access_test.cpp engine-context/resolve_engine_owners.cpp engine-context/resolve_registered_scene.cpp
     engine-context/configure_engine_layout.cpp engine-context/hold_resource_lifetime.cpp engine-context/lock_scene_access.cpp
-    profiles/read_installed_profiles.cpp profiles/read_hud_capture_profile.cpp loaded-resources/select_resource_profile.cpp)
+    profiles/read_installed_profiles.cpp profiles/read_hud_capture_profile.cpp profiles/read_map_capture_profile.cpp loaded-resources/select_resource_profile.cpp)
 target_include_directories(kfc-runtime-test-resource PRIVATE
     "${generated_dir}" "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/loaded-resources" "${CMAKE_CURRENT_SOURCE_DIR}/engine-context"
@@ -370,7 +372,7 @@ set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY
 # Inert fixtures exercise the same owners and renderer as the native provider.
 add_executable(kfc-runtime-test-map-frame EXCLUDE_FROM_ALL
     ../tests/map_frame_test.cpp ../tests/executable_span_validation_held_entry_fixture.cpp
-    map/read_map_frame.cpp profiles/read_hud_capture_profile.cpp)
+    map/read_map_frame.cpp map/admit_map_image.cpp profiles/read_hud_capture_profile.cpp profiles/read_map_capture_profile.cpp)
 target_compile_definitions(kfc-runtime-test-map-frame PRIVATE
     SHROUDFORGE_TEST_PROFILE_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/../profiles")
 add_executable(kfc-runtime-test-executable-span-validation EXCLUDE_FROM_ALL
@@ -399,6 +401,7 @@ add_executable(kfc-runtime-test-map-service-lifetime EXCLUDE_FROM_ALL
     engine-hooks/owned_executable_span.cpp)
 add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
+    map/admit_map_image.cpp
     map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp
     engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp
     engine-hooks/publish_engine_hook.cpp

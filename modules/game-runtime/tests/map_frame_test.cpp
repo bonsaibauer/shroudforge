@@ -2,6 +2,7 @@
 #include "map/hud_visibility.cpp"
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include "profiles/read_map_capture_profile.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -12,11 +13,13 @@
 
 namespace {
 KfcRuntimeCompatibility::HudCaptureSelection hud_selection;
+KfcRuntimeCompatibility::MapCaptureSelection map_selection;
 std::vector<std::uint8_t> hud_memory;
 bool retained_call_owned{};
 }
 namespace EngineContext {
 KfcRuntimeCompatibility::HudCaptureSelection ConfiguredHudCaptureProfile() { return hud_selection; }
+KfcRuntimeCompatibility::MapCaptureSelection ConfiguredMapCaptureProfile() { return map_selection; }
 }
 namespace MapRuntime {
 bool SharedCallOwned(std::size_t, std::size_t, void*) { return retained_call_owned; }
@@ -40,6 +43,128 @@ int main() {
     for (const char* build : {"26430625", "26082781"}) {
         const auto path = std::string(SHROUDFORGE_TEST_PROFILE_DIRECTORY) + "/enshrouded/client/" + build + ".revision-1.json";
         const auto profile = nlohmann::json::parse(std::ifstream(path));
+        map_selection = KfcRuntimeCompatibility::ReadMapCaptureProfile(profile);
+        if (!map_selection.profile) std::fprintf(stderr, "map profile error: %s\n", map_selection.status.c_str());
+        check(map_selection.profile && map_selection.status == "ready");
+        const auto selected_map_profile = map_selection.profile;
+        const auto& model = *selected_map_profile;
+        std::vector<std::uint8_t> map_image(model.image_size);
+        const auto image_base = reinterpret_cast<std::uintptr_t>(map_image.data());
+        IMAGE_DOS_HEADER dos{}; dos.e_magic = IMAGE_DOS_SIGNATURE; dos.e_lfanew = 0x80;
+        IMAGE_NT_HEADERS64 nt{}; nt.Signature = IMAGE_NT_SIGNATURE; nt.FileHeader.Machine = IMAGE_FILE_MACHINE_AMD64;
+        nt.FileHeader.TimeDateStamp = model.timestamp; nt.OptionalHeader.Magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+        nt.OptionalHeader.SizeOfImage = model.image_size;
+        put(map_image, 0, dos); put(map_image, 0x80, nt);
+        for (const auto& view : model.views) for (const auto& guard : view.guards)
+            std::memcpy(map_image.data() + guard.rva, guard.bytes.data(), guard.bytes.size());
+        std::size_t strings = model.image_size - 8192;
+        const auto string_pointer = [&](const std::string& text) {
+            const auto at = strings;
+            strings += text.size() + 1;
+            check(strings <= map_image.size());
+            bool clear = true;
+            for (const auto& view : model.views) for (const auto& guard : view.guards)
+                clear &= strings <= guard.rva || at >= guard.rva + guard.bytes.size();
+            check(clear);
+            std::memcpy(map_image.data() + at, text.c_str(), text.size() + 1);
+            return image_base + at;
+        };
+        const auto named = [&](const KfcRuntimeCompatibility::MapCaptureProfile::System& system) {
+            put(map_image, system.descriptor, string_pointer(system.name));
+            put(map_image, system.descriptor + 8, std::uint64_t(system.name.size()));
+            put(map_image, system.descriptor + 16, image_base + system.callback);
+        };
+        for (const auto& system : model.required_systems) named(system);
+        for (const auto& view : model.views) {
+            for (const auto& system : view.systems) named(system);
+            for (const auto& pointer : view.pointers) put(map_image, pointer.address, image_base + pointer.target);
+            if (view.enumeration) {
+                const auto& table = *view.enumeration;
+                for (std::size_t i = 0; i < table.names.size(); ++i) {
+                    put(map_image, table.rva + i * table.stride + table.name_offset, string_pointer(table.names[i]));
+                    put(map_image, table.rva + i * table.stride + table.value_offset, std::uint64_t(i));
+                }
+            }
+        }
+        auto admitted = MapRuntime::InspectMapImage(map_image, model.image_sha256, true);
+        if (admitted.status != SF_MAP_READY) std::fprintf(stderr, "image admission error: %s at %zu\n", admitted.failure_reason, admitted.failure_rva);
+        check(admitted.status == SF_MAP_READY && admitted.player && admitted.renderer && admitted.markers &&
+              admitted.clock && admitted.weather && admitted.fog && admitted.world && admitted.discovery && admitted.deaths);
+        check(MapRuntime::InspectMapImage(map_image, model.image_sha256, false).status == SF_MAP_CAPABILITY_DENIED);
+        check(MapRuntime::InspectMapImage(map_image, std::string(64, '0'), true).status == SF_MAP_UNSUPPORTED_BUILD);
+        check(MapRuntime::InspectMapImage({map_image.data(), 10}, model.image_sha256, true).status == SF_MAP_UNSUPPORTED_BUILD);
+        check(MapRuntime::InspectRendererImage(map_image, model.image_sha256).renderer);
+        const auto renderer_rva = model.views[1].guards[0].rva;
+        map_image[renderer_rva] ^= 1;
+        check(!MapRuntime::InspectRendererImage(map_image, model.image_sha256).renderer);
+        check(MapRuntime::InspectMapImage(map_image, model.image_sha256, true).status ==
+            (model.all_views ? SF_MAP_UNSUPPORTED_BUILD : SF_MAP_READY));
+        map_image[renderer_rva] ^= 1;
+        const auto descriptor = model.required_systems.empty() ? model.views[0].systems[0].descriptor : model.required_systems[0].descriptor;
+        std::uintptr_t callback{};
+        std::memcpy(&callback, map_image.data() + descriptor + 16, sizeof(callback));
+        put(map_image, descriptor + 16, std::uintptr_t{});
+        check(MapRuntime::InspectMapImage(map_image, model.image_sha256, true).status == SF_MAP_UNSUPPORTED_BUILD);
+        check(MapRuntime::InspectRendererImage(map_image, model.image_sha256).renderer);
+        put(map_image, descriptor + 16, callback);
+        for (const auto& view : model.views) if (!view.pointers.empty()) {
+            const auto pointer = view.pointers[0];
+            put(map_image, pointer.address, std::uintptr_t{});
+            check(MapRuntime::InspectMapImage(map_image, model.image_sha256, true).status == SF_MAP_UNSUPPORTED_BUILD);
+            put(map_image, pointer.address, image_base + pointer.target);
+            break;
+        }
+        if (model.views[4].enumeration) {
+            const auto& table = *model.views[4].enumeration;
+            put(map_image, table.rva + table.value_offset, std::uint64_t(99));
+            const auto wrong_enum = MapRuntime::InspectMapImage(map_image, model.image_sha256, true);
+            check(!wrong_enum.weather && wrong_enum.status == SF_MAP_READY);
+            check(MapRuntime::InspectRendererImage(map_image, model.image_sha256).renderer);
+            put(map_image, table.rva + table.value_offset, std::uint64_t{});
+            for (unsigned kind = 0; kind < 6; ++kind) {
+                auto malformed = profile;
+                auto& value = malformed["mapCapture"]["views"]["weather"]["enumTable"];
+                switch (kind) {
+                case 0: value["entryStride"] = 7; break;
+                case 1: value["namePointerOffset"] = 33; break;
+                case 2: value["valueOffset"] = -1; break;
+                case 3: value["tableRva"] = model.image_size - 1; break;
+                case 4: value["names"] = nlohmann::json::array(); break;
+                case 5: value["names"][0] = std::string("Clear\0Hidden", 12); break;
+                }
+                check(!KfcRuntimeCompatibility::ReadMapCaptureProfile(malformed).profile);
+            }
+        }
+        for (unsigned kind = 0; kind < 19; ++kind) {
+            auto malformed = profile;
+            auto& value = malformed["mapCapture"];
+            auto& player = value["views"]["player"];
+            switch (kind) {
+            case 0: value["id"] = "unknown"; break;
+            case 1: value["guardChunkBytes"] = 512; break;
+            case 2: value["readiness"] = "trust-mod"; break;
+            case 3: value["deathsRequireWorld"] = 1; break;
+            case 4: value["views"].erase("renderer"); break;
+            case 5: player["guards"][0]["bytes"] = "zz"; break;
+            case 6: player["guards"][0]["bytes"] = "0"; break;
+            case 7: player["guards"][0]["bytes"] = std::string(131074, '0'); break;
+            case 8: player["guards"][0]["guardRva"] = model.image_size; break;
+            case 9: player["guards"][0]["guardRva"] = -1; break;
+            case 10: player["guards"][0]["guardRva"] = 1.25; break;
+            case 11: player["guards"] = nlohmann::json::array(); break;
+            case 12: player["pointers"] = {{{"addressRva", model.image_size - 7}, {"targetRva", 1}}}; break;
+            case 13: player["pointers"] = {{{"addressRva", 0x1000}, {"targetRva", model.image_size}}}; break;
+            case 14: player["systems"] = {{{"descriptorRva", 0x1000}, {"callbackRva", 0x2000}, {"name", std::string(96, 'x')}}}; break;
+            case 15: player["systems"] = {{{"descriptorRva", model.image_size - 23}, {"callbackRva", 0x2000}, {"name", "x"}}}; break;
+            case 16: value["unknown"] = true; break;
+            case 17: malformed["target"] = "enshrouded_server.exe"; break;
+            case 18: { auto conflicting = player["guards"][0]; conflicting["bytes"] = "00"; player["guards"].push_back(conflicting); break; }
+            }
+            const auto rejected = KfcRuntimeCompatibility::ReadMapCaptureProfile(malformed);
+            check(!rejected.profile && rejected.status.starts_with("invalid-map-capture-profile:"));
+        }
+        map_selection = {};
+        check(!MapRuntime::InspectRendererImage(map_image, model.image_sha256).renderer);
         hud_selection = KfcRuntimeCompatibility::ReadHudCaptureProfile(profile);
         check(hud_selection.profile && hud_selection.status == "ready");
         const auto selected = hud_selection.profile;

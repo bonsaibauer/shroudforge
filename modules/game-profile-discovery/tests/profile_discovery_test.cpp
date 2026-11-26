@@ -416,34 +416,34 @@ void changed_current_identity_is_not_cached() {
         "retained diagnostic report explains the identity rejection");
 }
 
-void hud_contract_is_preserved_only_for_equivalent_images() {
+void image_guard_contract_is_preserved_only_for_equivalent_images(const char* contract, const char* reason) {
     Fixture fixture;
     fixture.cache_source();
     fixture.baseline["profileRevision"] = 1;
-    fixture.baseline["hudCapture"] = {{"id", "hud-observation-v1"}, {"callRva", 0x1000},
+    fixture.baseline[contract] = {{"id", std::string_view(contract) == "hudCapture" ? "hud-observation-v1" : "map-image-admission-v1"}, {"callRva", 0x1000},
         {"screenOffset", 7384}, {"guards", {{{"guardRva", 0x1000}, {"bytes", "c3"}}}}};
     const auto equivalent = fixture.run();
-    check(equivalent.profile && equivalent.profile->at("hudCapture") == fixture.baseline.at("hudCapture"),
-        "mapped-image equivalence preserves the entire HUD description");
+    check(equivalent.profile && equivalent.profile->at(contract) == fixture.baseline.at(contract),
+        "mapped-image equivalence preserves the entire optional image guard description");
     json candidate, evidence;
     const auto source = Detail::ReadImage(fixture.source_path, false);
     check(Detail::RebaseProfile(source, Detail::ReadImage(fixture.target_path), fixture.baseline, candidate, evidence) &&
-        candidate.at("hudCapture") == fixture.baseline.at("hudCapture"),
+        candidate.at(contract) == fixture.baseline.at(contract),
         "standalone canonical rebaser also requires complete mapped-image equivalence");
     auto changed = pe(201);
     changed[0x410] = 0x90;
     fixture.set_target(changed);
     check(!Detail::RebaseProfile(source, Detail::ReadImage(fixture.target_path), fixture.baseline, candidate, evidence) &&
-        evidence.at("reason") == "hud-capture-rebase-not-supported" &&
+        evidence.at("reason") == reason &&
         !evidence.at("unresolved")[0].contains("after"),
-        "standalone rebase cannot turn HUD control-flow guards into an overridable ECS layout candidate");
+        "standalone rebase cannot turn image guards into an overridable ECS layout candidate");
     const auto unresolved = fixture.run();
     check(!unresolved.profile && unresolved.diagnostics.at("state") == "unresolved" &&
-        unresolved.diagnostics.at("reason") == "hud-capture-rebase-not-supported",
-        "even otherwise harmless code changes need a complete HUD rebase proof");
+        unresolved.diagnostics.at("reason") == reason,
+        "even otherwise harmless code changes need a complete optional guard rebase proof");
     const auto repeated = fixture.run();
-    check(!repeated.profile && repeated.diagnostics.at("reason") == "hud-capture-rebase-not-supported",
-        "a later live ECS proof cannot admit unproved HUD bytes or private UI offsets");
+    check(!repeated.profile && repeated.diagnostics.at("reason") == reason,
+        "a later live ECS proof cannot admit unproved image bytes or private offsets");
 }
 
 void malformed_certificate_extent_is_rejected() {
@@ -477,7 +477,8 @@ int main() {
         existing_beta_is_never_overwritten_with_different_content();
         changed_current_identity_is_not_cached();
         malformed_certificate_extent_is_rejected();
-        hud_contract_is_preserved_only_for_equivalent_images();
+        image_guard_contract_is_preserved_only_for_equivalent_images("hudCapture", "hud-capture-rebase-not-supported");
+        image_guard_contract_is_preserved_only_for_equivalent_images("mapCapture", "map-capture-rebase-not-supported");
         std::cout << "Game profile discovery fixture checks passed\n";
         return 0;
     } catch (const std::exception& error) {

@@ -58,8 +58,13 @@ selected external exact-image owner profile as resource/ECS access. There is
 no HUD-specific profile catalog or compiled per-build address switch. The
 existing shared hook publisher still owns the renderer CALL. See the
 [profile format](../../modules/game-runtime/profiles/README.md) for revisions,
-guard policies, diagnostics and discovery limits. Other Map capture addresses
-and byte tables still await their profile migration. This internal change adds
+guard policies, diagnostics and discovery limits. Map image dependency bytes,
+named systems and image-relative pointer checks now also come from the optional
+`mapCapture` section of that same profile. Map admission retains its previous
+per-build completeness policy. Renderer-only admission checks its own view
+without requiring map named systems or capture activation. Both use the same
+bounded matcher. Hook targets, capture layouts and private reader contracts
+still await their profile migration. This internal change adds
 no public Lua function or native service-table entry.
 
 Map capture and generic world hooks publish and restore executable relays

@@ -57,6 +57,7 @@ continues to use the existing explicit baseline or unambiguous newest baseline.
 | `allowStructuralRevalidation` | Whether automatic selection may try this execution profile when executable identity differs within the same KFC format. Manual selection also requires the same KFC format. |
 | `ownerLayout` | Exact-image original singleton, client and controller ownership shared by ResourceService and ECS readers. |
 | `hudCapture` | Optional `hud-observation-v1` description for the existing engine HUD observer. Exact-image UI chain, renderer CALL, guards and observation limits. Does not enable Map, Overlay or arbitrary DLL hooks. |
+| `mapCapture` | Optional `map-image-admission-v1` dependency descriptions shared by map admission and renderer-only admission. Static image checks, never activation or permission to invoke game code. |
 | `ecsReadLayout` | Validated original execution-owner, registry-owner and entity-manager relation plus entity storage offsets. Enables stable reads independently of hooks, with `provenance.ecsReadValidated=true`. |
 | `resourceLayout` | Original ItemRegistry pointer, ResourceService callbacks used only for validation, resource index and chunk layouts. |
 | `resourceWriteLayout` | Exact-image, separately validated content-worker lifetime and private bulk scalar CAS. Requires resourceAtomicScalarWriteValidated and its evidence. Uses the shared thread registry fields in ecsWriteLayout. |
@@ -184,9 +185,43 @@ source attribution remains in `native/map/SOURCE-NOTICE.txt`. This migration
 adds no new live validation or semantic approval flags. Other Map addresses,
 data readers and hook contracts still require their own profile migration.
 
-Discovery preserves `hudCapture` only when complete mapped-image equivalence
+`mapCapture` uses the same exact-image owner selection and immutable control-plane
+snapshot as `hudCapture`. It describes nine views: `player`, `renderer`, `markers`,
+`clock`, `weather`, `fog`, `world`, `deaths` and `discovery`. Every view contains
+`guards`, `systems` and `pointers`. Guards have `guardRva` and lowercase hex
+`bytes`. Systems have `descriptorRva`, `name` and `callbackRva`. Pointers have
+`addressRva` and `targetRva` and must equal the actual loaded image base plus
+the target. They are not wildcarded. The weather view may additionally specify
+`enumTable` with `tableRva`, `entryStride`, `namePointerOffset`, `valueOffset`
+and ordered `names` whose original numeric values must equal their indices.
+
+`requiredSystems` preserves the map-wide dependencies. `readiness` is either
+`all-views` or `player-only`, retaining the previous build-specific completeness
+policy. `deathsRequireWorld` retains the previous death-view dependency.
+`guardChunkBytes` preserves either 256-byte chunks or the legacy whole-guard
+1024-byte maximum. Differences larger than 512 bytes cannot use runtime prefix
+normalization. All original bytes and original named-system identity checks
+remain mandatory for the requested view. Per-view guards are limited to 4096
+spans, each 1–65536 bytes, with a 4 MiB aggregate byte budget. Legacy whole guards
+remain limited to 1024 bytes. Contradictory overlapping guards are rejected.
+Malformed optional descriptions disable only the affected image service.
+The existing resource status reports parsing under
+`profileSelection.mapCaptureProfile` (`parsed` and `status`). This is static
+profile information, not map/renderer activation, World readiness or permission.
+
+Renderer-only admission checks exact identity and the renderer's own dependencies,
+independently of map-wide named systems and map activation. It uses the same
+matcher and profile. This does not create a second graphics profile catalog.
+The two new, unpublished revision-one files in PR #116 retain all their HUD and
+previous profile data and now include all 188 former map guard spans (41191 bytes),
+81 image pointer relations and the existing system/enum checks. Source attribution
+remains in `native/map/SOURCE-NOTICE.txt`. Historical profile files stay unchanged.
+Hook targets, capture layouts and iterator/private reader ABIs still need their
+own migration. Image admission alone never enables those operations.
+
+Discovery preserves `hudCapture` and `mapCapture` only when complete mapped-image equivalence
 has been established. A changed mapped image reports
-`hud-capture-rebase-not-supported`, publishes no beta and cannot be approved by
+`hud-capture-rebase-not-supported` or `map-capture-rebase-not-supported`, publishes no beta and cannot be approved by
 the ECS live-layout prover. `generate-profile` likewise rejects such a baseline
 instead of copying or dropping its HUD contract. A complete HUD rebaser remains
 required before those profiles support automatic discovery across code changes.
