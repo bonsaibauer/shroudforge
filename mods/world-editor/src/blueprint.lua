@@ -1,5 +1,5 @@
 -- Blueprint format, rotation and coordinate calculations.
-local sfbp = require("sfbp_v7")
+local sfbp_v8 = require("sfbp_v8")
 
 return function(editor)
     function editor.rotation_turns()
@@ -333,59 +333,44 @@ return function(editor)
         return region, nil, grid
     end
 
-    function editor.blueprint_path(name)
+    function editor.valid_blueprint_name(name)
         name = name or editor.setting("blueprintName")
         if name == "" or not name:match("^[%w_-]+$") then
             return nil, "blueprint name may contain only letters, digits, underscores, and hyphens"
         end
-        return "world-editor/blueprints/" .. name .. ".sfbp"
+        return name
     end
 
     function editor.encode_blueprint(source)
         if not source then return nil, "no blueprint data is active" end
-        local region, values = source.region, source.cells
-        local extent = source.extent
-        local body = {sfbp.marker,
-            region.rotationAxis or "y", table.concat(extent, ","), source.hasVoxels and "voxel" or "props",
-            source.hasVoxels and table.concat({region.sx, region.sy, region.sz}, ",") or "-",
-            source.hasVoxels and table.concat(source.voxelOffset, ",") or "-",
-            source.hasVoxels and table.concat(source.cellSize, ",") or "-",
-            source.hasVoxels and table.concat(values, ",") or "-",
-            source.hasVoxels and table.concat(source.coverage, ",") or "-",
-            tostring(#(source.props or {}))}
-        for _, prop in ipairs(source.props or {}) do
-            body[#body + 1] = table.concat({prop.itemId, prop.x, prop.y, prop.z,
-                prop.qx, prop.qy, prop.qz, prop.qw, prop.sx, prop.sy, prop.sz,
-                prop.templateUuidHighHex, prop.templateUuidLowHex}, ",")
-        end
-        local content = table.concat(body, "\n")
-        if #content > editor.maximum_blueprint_bytes then
-            return nil, "blueprint exceeds the 256 MiB file limit"
-        end
-        return content
+        return sfbp_v8.encode(editor, source)
     end
 
     function editor.load_blueprint_content(name, supplied_content)
         name = name or editor.setting("blueprintName")
-        local path, reason = editor.blueprint_path(name)
-        if not path then shroudforge.log.warn("World Editor: " .. reason); return end
+        local valid_name, reason = editor.valid_blueprint_name(name)
+        if not valid_name then shroudforge.log.warn("World Editor: " .. reason); return end
         local content = supplied_content
         if content == nil then
-            local ok, read_content = pcall(io.read_export_to_string, path)
+            local ok, read_content = pcall(shroudforge.schematics.read, name)
             if not ok then
-                shroudforge.log.warn("World Editor could not load blueprint (enable export and verify the file): " .. tostring(read_content))
+                shroudforge.log.warn("World Editor could not load schematic through the Modloader API: " .. tostring(read_content))
                 return
             end
             content = read_content
         end
-        local blueprint, cell_count, prop_count = sfbp.decode(editor, content)
+        if type(content) ~= "string" or #content > editor.maximum_blueprint_bytes then
+            shroudforge.log.warn("World Editor: blueprint exceeds the 256 MiB file limit")
+            return
+        end
+        local blueprint, cell_count, prop_count = sfbp_v8.decode(editor, content)
         if not blueprint then return end
         editor.clipboard = blueprint
         editor.selection_a, editor.selection_b = nil, nil
         editor.placement_preview = nil
         editor.active_blueprint_name = name
         editor.editor_stage = "selected"
-        editor.set_editor_message("selected", "Blueprint " .. name .. " loaded and selected. Press {{keybind:pasteAtCursor}} to place it. Open Manage to add a cover from F12 screenshots.")
+        editor.set_editor_message("selected", "Blueprint " .. name .. " loaded and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the Modloader Schematics library.")
         shroudforge.log.info(editor.format_keybind_hint(string.format("World Editor loaded blueprint '%s' (%d cells, %d props). It is selected and ready for {{keybind:pasteAtCursor}} placement.", editor.active_blueprint_name, cell_count, prop_count)))
         return true
     end

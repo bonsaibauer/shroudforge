@@ -13,8 +13,6 @@ pub fn run_module() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(windows)]
-mod blueprint_covers;
-#[cfg(windows)]
 mod blueprint_library;
 #[cfg(windows)]
 mod log_editor_action;

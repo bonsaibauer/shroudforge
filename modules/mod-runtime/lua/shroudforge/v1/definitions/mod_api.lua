@@ -164,6 +164,7 @@ function shroudforge_native.functions() end
 --- @field notifications ShroudForgeNotifications Publish notices in the local Modloader feed.
 --- @field i18n ShroudForgeI18n Read mod-authored text from the locale catalogs.
 --- @field contents ShroudForgeContents Read game content ranges asynchronously. Each request is limited to 32 MiB, with at most four outstanding reads per runtime.
+--- @field schematics ShroudForgeSchematics Manage the local SFBP library in the configured Modloader export folder. Requires the mod's export permission and the Schematics module to be enabled.
 --- @field native ShroudForgeNative Call functions registered by this mod's own native DLLs. Available since ShroudForge 1.8.0.
 shroudforge = {}
 
@@ -186,6 +187,56 @@ shroudforge.contents = {}
 --- @param params {hash: any, start: integer?, count: integer?}
 --- @return ShroudForgeContentReadJob
 function shroudforge.contents.read(params) end
+
+--- @class ShroudForgeSchematic
+--- @field name string Validated local schematic name without its `.sfbp` extension.
+--- @field image string|nil PNG cover data URL, or nil when no cover is available.
+--- @field source string `local` or `shroudedit`.
+--- @field project_id string|nil Discover project ID when imported from ShroudEdit.
+--- @field version_id string|nil Discover version ID when imported from ShroudEdit.
+--- @field valid boolean Whether the file has a supported SFBP header.
+--- @field size integer File size in bytes.
+--- @field modified_at integer Unix timestamp of the file modification time.
+
+--- @class ShroudForgeSchematics
+shroudforge.schematics = {}
+
+--- Lists the Schematics available in the Modloader library.
+--- @return ShroudForgeSchematic[]
+function shroudforge.schematics.list() end
+
+--- Reads a validated schematic as a binary Lua string.
+--- @param name string Schematic name without a path or extension.
+--- @return string
+function shroudforge.schematics.read(name) end
+
+--- Saves a valid SFBP binary string using a new name in the managed library.
+--- @param name string Schematic name without a path or extension.
+--- @param data string SFBP binary data.
+function shroudforge.schematics.save(name, data) end
+
+--- Renames a schematic and its covers and metadata.
+--- @param name string Current schematic name.
+--- @param new_name string New schematic name.
+function shroudforge.schematics.rename(name, new_name) end
+
+--- Duplicates a schematic and its covers under a new name.
+--- @param name string Current schematic name.
+--- @param new_name string New schematic name.
+function shroudforge.schematics.duplicate(name, new_name) end
+
+--- Deletes a schematic and its associated covers and metadata.
+--- @param name string Schematic name.
+function shroudforge.schematics.delete(name) end
+
+--- Saves a PNG or JPEG cover, normalizes it to PNG and creates a thumbnail.
+--- @param name string Schematic name.
+--- @param data string PNG or JPEG image bytes.
+function shroudforge.schematics.set_cover(name, data) end
+
+--- Restores the previous cover after set_cover, when an undo copy exists.
+--- @param name string Schematic name.
+function shroudforge.schematics.undo_cover(name) end
 
 --- Language the player chose for ShroudForge in the Modloader, such as `"en"`,
 --- `"de"`, `"fr"` or a regional variant such as `"de-AT"`; `"en"` when the

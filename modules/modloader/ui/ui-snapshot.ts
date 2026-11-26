@@ -10,6 +10,8 @@ import { DEFAULT_UI_TARGET_SETTINGS } from '../../loader-config/ui/module-visibi
 import type { ModInfo } from './mod-types'
 import type { DiagnosticStatus } from '../../runtime-diagnostics/ui/diagnostic-status'
 import type { Notice } from '../../notifications/ui/notification-types'
+import type { SchematicInfo } from '../../schematics/ui/schematic-types'
+export type { SchematicInfo } from '../../schematics/ui/schematic-types'
 
 export type RuntimeProblemCode =
   | 'profile-unavailable'
@@ -72,6 +74,9 @@ export type Snapshot = {
   gameVersion: string
   version: string
   mods: ModInfo[]
+  schematics: SchematicInfo[]
+  schematicsEnabled: boolean
+  schematicsPath: string
   hotkeyConflicts: Array<{
     firstId: string
     secondId: string
@@ -223,6 +228,9 @@ export const empty: Snapshot = {
   gameVersion: '',
   version: '1.0.0',
   mods: [],
+  schematics: [],
+  schematicsEnabled: true,
+  schematicsPath: '',
   hotkeyConflicts: [],
   activity: [],
   notices: [],

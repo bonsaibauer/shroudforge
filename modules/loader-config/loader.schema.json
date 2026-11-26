@@ -758,6 +758,13 @@
           },
           "additionalProperties": false
         },
+        "schematics": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
         "network": {
           "type": "object",
           "properties": {
@@ -1204,13 +1211,14 @@
     },
     "uiTargetModules": {
       "type": "object",
-      "required": ["modDetection", "dllManager", "debugConsole", "worldEditor", "modloaderUi", "wiki", "network", "runtimeDiagnostics", "gameProfileDiscovery", "updates"],
+      "required": ["modDetection", "dllManager", "debugConsole", "worldEditor", "modloaderUi", "schematics", "wiki", "network", "runtimeDiagnostics", "gameProfileDiscovery", "updates"],
       "properties": {
         "modDetection": { "type": "boolean" },
         "dllManager": { "type": "boolean" },
         "debugConsole": { "type": "boolean" },
         "worldEditor": { "type": "boolean" },
         "modloaderUi": { "type": "boolean" },
+        "schematics": { "type": "boolean" },
         "wiki": { "type": "boolean" },
         "network": { "type": "boolean" },
         "runtimeDiagnostics": { "type": "boolean" },

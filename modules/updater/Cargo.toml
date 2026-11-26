@@ -22,6 +22,7 @@ parking_lot = "0.12"
 serde.workspace = true
 serde_json.workspace = true
 shroudforge-package.workspace = true
+shroudforge-schematics.workspace = true
 shroudforge-window-management.workspace = true
 shroudforge-release-feed.workspace = true
 shroudforge-ui-resources.workspace = true

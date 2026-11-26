@@ -165,6 +165,7 @@ pub(crate) fn save_setting_to(
                 | "refreshIntervalMinutes"
         ),
         "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
+        "schematics" => key == "enabled",
         "network" => matches!(key, "enabled" | "serverSteamId" | "allowedClientSteamIds"),
         "gameProfileDiscovery" => key == "enabled",
         "runtimeDiagnostics" => matches!(

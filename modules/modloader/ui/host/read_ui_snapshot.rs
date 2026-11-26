@@ -154,6 +154,14 @@ pub(crate) fn read_ui_snapshot(
         version,
         notices: shroudforge_news::read_notifications(root, &notification_mods),
         mods,
+        schematics: shroudforge_schematics::schematic_library::list(root).unwrap_or_default(),
+        schematics_enabled: central
+            .pointer("/modules/schematics/enabled")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true),
+        schematics_path: shroudforge_schematics::schematic_library::directory(root)
+            .to_string_lossy()
+            .into_owned(),
         hotkey_conflicts,
         activity: read_activity(root, remote_target == "server").unwrap_or_default(),
         news_templates: shroudforge_news::read(root)
@@ -304,5 +312,5 @@ fn read_update_queue(root: &std::path::Path) -> serde_json::Value {
 }
 
 pub(crate) fn default_catalog_state() -> serde_json::Value {
-    serde_json::json!({"state":"idle","query":"","message":null,"items":[]})
+    serde_json::json!({"state":"idle","query":"","loader":"shroudforge","category":"","gameVersion":"","sort":"relevance","page":1,"limit":20,"total":0,"message":null,"items":[],"categories":[],"gameVersions":[],"detail":null,"detailState":"idle","detailError":null})
 }

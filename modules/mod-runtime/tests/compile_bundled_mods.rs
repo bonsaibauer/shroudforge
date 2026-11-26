@@ -54,6 +54,10 @@ fn world_editor_preserves_blueprints_and_blocks_unavailable_world_changes() -> m
         }
     }
     lua.globals().set("world_editor_sources", sources)?;
+    lua.globals().set(
+        "world_editor_v8_fixture",
+        include_str!("../../../mods/world-editor/schemas/8/manifest.example.json"),
+    )?;
     let extension: serde_json::Value =
         serde_json::from_str(include_str!("../../../mods/world-editor/extended.mod.json")).unwrap();
     let settings = lua.create_table()?;

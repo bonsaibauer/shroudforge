@@ -30,13 +30,8 @@ local expected_settings = {
 for name, value in pairs(expected_settings) do equal(world_editor_settings[name], value, "setting " .. name) end
 for name in pairs(world_editor_settings) do assert(expected_settings[name] ~= nil, "unexpected setting " .. name) end
 
--- A literal V7 file is the compatibility oracle. The UUID halves exceed exact
--- double precision, and nonuniform scale must survive without numeric UUID casts.
-local blueprint_file = table.concat({
-    "SHROUDFORGE_WORLD_BLUEPRINT_V7", "y", "1,0.5,1.5", "voxel", "2,1,3",
-    "-0.5,0,0.5", "0.5,0.5,0.5", "10,20,0,40,0,60", "2,2,1,2,0,2", "1",
-    "42,0.25,0.5,0.75,0,0,0,1,0.5,1.25,2,fedcba9876543210,0123456789abcdef",
-}, "\n")
+-- Independent JSON fixture contains exact UUID strings and nonuniform scale.
+local blueprint_file = assert(world_editor_v8_fixture)
 
 local unavailable = {
     ["runtime.world.voxel.read"]=true, ["runtime.world.voxel.write"]=true,
@@ -135,7 +130,7 @@ local function fixture(context, session, deny_unverified_features, is_server)
     f.mod.on_load()
     if is_server then f.editor.load_blueprint("fixture") else f.actions.selectBlueprint("fixture") end
     equal(f.editor.active_blueprint_name, "fixture", "blueprint loaded through UI action")
-    assert(f.editor.clipboard, "the literal V7 blueprint must be accepted")
+    assert(f.editor.clipboard, "the literal format 8 blueprint must be accepted")
     for name, value in pairs(world_editor_settings) do equal(f.editor.setting(name), value, "editor setting " .. name) end
     return f
 end
@@ -153,9 +148,35 @@ equal(prop.itemId, 42, "decoded prop item")
 equal(prop.templateUuidHighHex, "fedcba9876543210", "UUID high")
 equal(prop.templateUuidLowHex, "0123456789abcdef", "UUID low including leading zero")
 sequence({prop.sx, prop.sy, prop.sz}, {0.5, 1.25, 2}, "decoded prop scale")
-equal(f.editor.encode_blueprint(captured), blueprint_file, "V7 wire compatibility")
+local encoded_v8 = assert(f.editor.encode_blueprint(captured))
+assert(encoded_v8:find('"formatVersion":8', 1, true), "new exports use JSON format 8")
+equal(f.files["world-editor/blueprints/fixture.sfbp"], blueprint_file, "loading retains the original JSON file")
+assert(f.editor.load_blueprint_content("json-fixture", world_editor_v8_fixture), "independent V8 fixture loads")
+equal(f.editor.encode_blueprint(f.editor.clipboard), encoded_v8, "independent JSON preserves the same complete data")
+assert(f.editor.load_blueprint_content("roundtrip", encoded_v8), "V8 export loads")
+equal(f.editor.clipboard.props[1].templateUuidLowHex, "0123456789abcdef", "V8 preserves UUID strings")
+local valid_clipboard = f.editor.clipboard
+for _, invalid_json in ipairs({
+    "SHROUDFORGE_WORLD_BLUEPRINT_V7\ny\n1,1,1\nprops\n-\n-\n-\n-\n-\n0",
+    encoded_v8:gsub('"formatVersion":8', '"formatVersion":9', 1),
+    encoded_v8:gsub('"formatVersion":8', '"formatVersion":8,"formatVersion":8', 1),
+    encoded_v8:gsub('"formatVersion":8', '"unexpected":true,"formatVersion":8', 1),
+    encoded_v8:gsub('"dimensions":%[2,1,3%]', '"dimensions":[2,1,4]', 1),
+    encoded_v8:gsub('"rotation":%[0,0,0,1%]', '"rotation":[0,0,0,0]', 1),
+    encoded_v8:gsub('"extent":%[1,0.5,1.5%]', '"extent":[1e999,0.5,1.5]', 1),
+    encoded_v8:gsub('"props":%[', '"props":[null,', 1),
+    encoded_v8 .. "{}",
+}) do
+    assert(not f.editor.load_blueprint_content("invalid", invalid_json), "invalid V8 input must be rejected")
+    equal(f.editor.clipboard, valid_clipboard, "invalid import cannot replace the clipboard")
+end
+local props_only = '{"formatVersion":8,"rotationAxis":"y","extent":[1,1,1],"props":[]}'
+assert(f.editor.load_blueprint_content("empty-props", props_only), "empty props-only V8 loads")
+equal(f.editor.clipboard.hasVoxels, false, "props-only V8 has no voxel channel")
+assert(f.editor.encode_blueprint(f.editor.clipboard):find('"props":[]', 1, true), "empty props serialize as an array")
+f.editor.clipboard = captured
 f.actions.saveBlueprint()
-equal(f.files["world-editor/blueprints/my_blueprint.sfbp"], blueprint_file, "UI save preserves V7 content")
+equal(f.files["world-editor/blueprints/my_blueprint.sfbp"], encoded_v8, "UI save writes format 8")
 
 -- Seen from above, +90 degrees around Y maps the three original X=1 cells
 -- into the first new Z row, followed by the three original X=0 cells.
@@ -176,7 +197,7 @@ near(rotated_prop.qw, math.sqrt(0.5), "rotated prop quaternion W")
 sequence({rotated_prop.sx, rotated_prop.sy, rotated_prop.sz}, {0.5, 1.25, 2}, "rotation preserves prop scale")
 equal(rotated_prop.templateUuidHighHex, prop.templateUuidHighHex, "rotation preserves UUID high")
 equal(rotated_prop.templateUuidLowHex, prop.templateUuidLowHex, "rotation preserves UUID low")
-equal(f.editor.encode_blueprint(captured), blueprint_file, "rotation does not alter the captured blueprint")
+equal(f.editor.encode_blueprint(captured), encoded_v8, "rotation does not alter the captured blueprint")
 
 local mutation_actions = {"pasteVoxels", "pasteAtCursor", "spawnEntity", "placeEntity",
     "destroyEntity", "destroySelectedProp", "undoVoxels"}
@@ -729,7 +750,7 @@ cache_ready.mod.on_update(0.1)
 equal(cache_reads(), 3, "original cache is polled on later updates")
 equal(cache_ready.editor.pending_world_action, nil, "completed cache clears retry")
 equal(cache_ready.editor.process_progress.state, "complete", "complete cache finishes F8")
-assert(cache_ready.files["world-editor/blueprints/capture-1.sfbp"], "complete cache saves the V7 blueprint")
+assert(cache_ready.files["world-editor/blueprints/capture-1.sfbp"], "complete cache saves the format 8 blueprint")
 
 local compatible_cache = cache_capture(2, nil, "voxel read is waiting for the Scene gate or original cache readiness")
 assert(compatible_cache.editor.pending_world_action, "installed ABI-12 bridge pending remains compatible")
@@ -758,7 +779,7 @@ equal(grid_reads(), 3, "grid is retried on later updates and then cached")
 equal(grid_cell_reads(), 1, "terrain is read once after metadata becomes ready")
 equal(grid_ready.editor.pending_world_action, nil, "ready grid completes its retry")
 equal(grid_ready.editor.process_progress.state, "complete", "ready grid finishes F8")
-assert(grid_ready.files["world-editor/blueprints/capture-1.sfbp"], "ready grid saves the V7 blueprint")
+assert(grid_ready.files["world-editor/blueprints/capture-1.sfbp"], "ready grid saves the format 8 blueprint")
 
 local grid_timeout, grid_timeout_cells = cache_capture(1, math.huge)
 grid_timeout.mod.on_update(5)
@@ -932,7 +953,7 @@ do
     assert(client.start_paste(peer,online_file,{anchor={0,0,0},turns=1,voxelMode="replace",targetPropMode="keep"}))
     for _=1,10 do client.tick(0.1);server.tick(0.1) end
     equal(paste_calls,1,"F7 dispatches exactly once through shared multi-chunk framing")
-    equal(paste_content,online_file,"F7 framing preserves the complete V7 file")
+    equal(paste_content,online_file,"F7 framing preserves the complete format 8 file")
     assert(results.paste and results.paste[1],"F7 still receives confirmation")
     assert(client.start_undo(peer,results.paste[2]))
     for _=1,5 do client.tick(0.1);server.tick(0.1) end

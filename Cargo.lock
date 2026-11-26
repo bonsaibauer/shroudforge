@@ -3810,6 +3810,7 @@ dependencies = [
  "shroudforge-package",
  "shroudforge-runtime-bridge",
  "shroudforge-runtime-diagnostics",
+ "shroudforge-schematics",
  "shroudforge-steam-networking",
  "thiserror 2.0.20",
  "tracing",
@@ -3947,6 +3948,7 @@ dependencies = [
  "shroudforge-player-name",
  "shroudforge-release-feed",
  "shroudforge-runtime-diagnostics",
+ "shroudforge-schematics",
  "shroudforge-steam-networking",
  "shroudforge-ui-resources",
  "shroudforge-window-management",
@@ -4036,6 +4038,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "shroudforge-schematics"
+version = "1.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "image",
+ "jsonschema",
+ "mlua",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shroudforge-loader-config",
+]
+
+[[package]]
 name = "shroudforge-steam-networking"
 version = "1.0.0"
 dependencies = [
@@ -4079,6 +4095,7 @@ dependencies = [
  "shroudforge-news",
  "shroudforge-package",
  "shroudforge-release-feed",
+ "shroudforge-schematics",
  "shroudforge-ui-resources",
  "shroudforge-window-management",
  "tao",

@@ -10,7 +10,6 @@ pub(crate) enum Command {
     OpenModSettings,
     Drag,
     Action { action: String, value: String },
-    Manager(bool),
     LibraryExpanded { expanded: bool, height: u32 },
 }
 
@@ -46,8 +45,6 @@ pub(crate) fn parse_editor_message(body: &str) -> Option<Command> {
                 "minimize" => Command::Minimize,
                 "open-mod-settings" => Command::OpenModSettings,
                 "drag" => Command::Drag,
-                "manager-open" => Command::Manager(true),
-                "manager-close" => Command::Manager(false),
                 "library-expand" => Command::LibraryExpanded {
                     expanded: value["expanded"].as_bool().unwrap_or(false),
                     height: value["height"].as_u64().unwrap_or(DEFAULT_HEIGHT as u64) as u32,

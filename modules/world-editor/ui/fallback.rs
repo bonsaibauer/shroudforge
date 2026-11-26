@@ -104,70 +104,19 @@ r#"(() => {{
                                             badge.className = 'card-state';
                                             badge.textContent = active ? 'ACTIVE' : '';
                                             card.append(thumb, label, badge);
-                                            card.onclick = event => {{
-                                                clearTimeout(window.__sfFallbackCardClickTimer);
-                                                if (event.detail >= 2) {{
-                                                    window.__worldEditorManageSelected?.(blueprint.name);
-                                                    return;
-                                                }}
-                                                window.__sfFallbackCardClickTimer = setTimeout(() => window.ipc?.postMessage(JSON.stringify({{kind:'action', action:'selectBlueprint', value:blueprint.name}})), 260);
-                                            }};
+                                            card.onclick = () => window.ipc?.postMessage(JSON.stringify({{kind:'action', action:'selectBlueprint', value:blueprint.name}}));
                                             list.append(card);
                                         }}
                                     }}
-                                    if (typeof window.__worldEditorManageSelected !== 'function') {{
-                                        window.__worldEditorManageSelected = name => {{
-                                            const current = window.__sfPendingState || state;
-                                            const target = current.blueprints.find(item => item.name === name) || current.blueprints.find(item => item.name === current.selected);
-                                            if (!target) {{
-                                                const help = document.getElementById('help');
-                                                if (help) help.textContent = 'Select a saved blueprint before opening its manager.';
-                                                return;
-                                            }}
-                                            if (current.selected !== target.name) window.ipc?.postMessage(JSON.stringify({{kind:'action', action:'selectBlueprint', value:target.name}}));
-                                            const panel = document.getElementById('manage');
-                                            if (!panel) return;
-                                            const esc = value => String(value).replace(/[&<>"']/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[ch]));
-                                            panel.innerHTML = `<div class="manage-head"><div><strong>Manage blueprint · ${{esc(target.name)}}</strong><p>Take a Steam screenshot with F12, then select it here. You can also browse another folder.</p></div><button id="fallbackDone">Back to library</button></div><div class="manage-actions"><input id="fallbackRename" maxlength="64" aria-label="Blueprint name"><button id="fallbackRenameButton">Rename</button><button id="fallbackDuplicateButton">Duplicate as…</button><button class="danger" id="fallbackDeleteButton">Delete blueprint</button></div><div class="screenshot-toolbar"><span id="fallbackFolder">Finding screenshots…</span><button id="fallbackBrowse">Choose folder…</button><button id="fallbackReload">Reload screenshots</button><button id="fallbackUse" disabled>Use selected screenshot</button><button id="fallbackUndo" hidden>Undo cover change</button></div><div id="fallbackQueue" class="screenshot-queue"><div class="screenshot-empty">Loading screenshots…</div></div>`;
-                                            panel.classList.add('show');
-                                            const send = (kind, fields = {{}}) => window.ipc?.postMessage(JSON.stringify({{kind, ...fields}}));
-                                            const action = (id, value = '') => send('action', {{action:id, value}});
-                                            const input = panel.querySelector('#fallbackRename');
-                                            input.value = target.name;
-                                            let selectedShot = null;
-                                            const refresh = () => action('refreshScreenshots', target.name);
-                                            send('manager-open'); refresh();
-                                            panel.querySelector('#fallbackDone').onclick = () => {{ panel.classList.remove('show'); send('manager-close'); }};
-                                            panel.querySelector('#fallbackBrowse').onclick = () => action('browseScreenshots', target.name);
-                                            panel.querySelector('#fallbackReload').onclick = refresh;
-                                            panel.querySelector('#fallbackUse').onclick = () => selectedShot && action('applyScreenshot', target.name + String.fromCharCode(9) + selectedShot.path);
-                                            panel.querySelector('#fallbackUndo').onclick = () => action('undoScreenshot', target.name);
-                                            panel.querySelector('#fallbackRenameButton').onclick = () => input.value.trim() && action('renameLibraryBlueprint', target.name + String.fromCharCode(9) + input.value.trim());
-                                            panel.querySelector('#fallbackDuplicateButton').onclick = () => input.value.trim() && action('duplicateLibraryBlueprint', target.name + String.fromCharCode(9) + input.value.trim());
-                                            panel.querySelector('#fallbackDeleteButton').onclick = () => window.confirm(`Delete blueprint “${{target.name}}” and its image?`) && action('deleteLibraryBlueprint', target.name);
-                                            window.__sfFallbackSelectedShot = shot => {{ selectedShot = shot; panel.querySelector('#fallbackUse').disabled = !shot; }};
-                                        }};
-                                    }}
-                                    if (typeof window.__worldEditorScreenshots !== 'function') window.__worldEditorScreenshots = data => {{
-                                        const panel = document.getElementById('manage');
-                                        if (!panel?.classList.contains('show')) return;
-                                        panel.querySelector('#fallbackFolder').textContent = data.folder || 'Screenshot folder unavailable';
-                                        panel.querySelector('#fallbackUndo').hidden = !data.canUndo;
-                                        const queue = panel.querySelector('#fallbackQueue'); queue.replaceChildren();
-                                        if (!data.screenshots.length) {{ const empty = document.createElement('div'); empty.className = 'screenshot-empty'; empty.textContent = 'No SVG, PNG, JPG, or JPEG images found. Choose another folder, or take a Steam screenshot with F12 and reload.'; queue.append(empty); return; }}
-                                        for (const shot of data.screenshots) {{ const item = document.createElement('button'); item.className = 'screenshot-item'; const image = document.createElement('img'); image.src = shot.thumbnail; image.alt = ''; const label = document.createElement('span'); label.textContent = shot.name; const date = document.createElement('small'); date.textContent = new Date(shot.modified * 1000).toLocaleString(); item.append(image, label, date); item.onclick = () => {{ queue.querySelectorAll('.screenshot-item').forEach(node => node.classList.remove('selected')); item.classList.add('selected'); window.__sfFallbackSelectedShot?.(shot); }}; queue.append(item); }}
-                                    }};
-                                    if (typeof window.__worldEditorScreenshotApplied !== 'function') window.__worldEditorScreenshotApplied = undone => {{ const help = document.getElementById('help'); if (help) help.textContent = undone ? 'Previous screenshot cover restored.' : 'Screenshot cover updated.'; }};
-                                    if (typeof window.__worldEditorScreenshotError !== 'function') window.__worldEditorScreenshotError = message => {{ const help = document.getElementById('help'); if (help) help.textContent = `Screenshot update failed: ${{message}}`; }};
                                     if (window.__worldEditorUpdate !== undefined && typeof window.__worldEditorUpdate !== 'function') console.error('World Editor UI entrypoint is unavailable');
                                     if (typeof window.__worldEditorUpdate !== 'function' && !window.__sfWorldEditorFallbackEvents) {{
                                         window.__sfWorldEditorFallbackEvents = true;
                                         document.addEventListener('click', event => {{
-                                            const target = event.target instanceof Element ? event.target.closest('#close, #minimize, #manageButton, #expandLibrary') : null;
+                                            const target = event.target instanceof Element ? event.target.closest('#close, #minimize, #expandLibrary') : null;
                                             if (!target || !window.ipc || typeof window.ipc.postMessage !== 'function') return;
                                             if (target.id === 'close') window.ipc.postMessage(JSON.stringify({{kind:'hide'}}));
                                             if (target.id === 'minimize') window.ipc.postMessage(JSON.stringify({{kind:'minimize'}}));
-                                            if (target.id === 'manageButton') window.__worldEditorManageSelected?.();
+
                                             if (target.id === 'expandLibrary') {{
                                                 const expanded = !document.getElementById('cards')?.classList.contains('expanded');
                                                 const list = document.getElementById('cards');

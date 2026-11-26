@@ -19,6 +19,7 @@ export const TARGET_UI_MODULES = [
   'debugConsole',
   'worldEditor',
   'modloaderUi',
+  'schematics',
   'wiki',
   'network',
   'runtimeDiagnostics',

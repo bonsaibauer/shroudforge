@@ -139,12 +139,6 @@
       "maxLength": 64,
       "label": "Persistent blueprint name"
     },
-    "blueprintNewName": {
-      "value": "my_blueprint_copy",
-      "minLength": 1,
-      "maxLength": 64,
-      "label": "New name for rename or duplicate"
-    },
     "pasteVoxelMode": {
       "value": "replace",
       "options": {
@@ -320,7 +314,7 @@
     },
     {
       "label": "Blueprint creation",
-      "description": "Capture voxel-and-prop or props-only blueprints and manage saved blueprints.",
+      "description": "Capture voxel-and-prop or props-only blueprints and save them in the Modloader Schematics library.",
       "tab": true,
       "settings": [
         "sourceX",
@@ -330,7 +324,6 @@
         "sizeY",
         "sizeZ",
         "blueprintName",
-        "blueprintNewName",
         "maximumCopyableProps"
       ],
       "actions": [
@@ -381,24 +374,8 @@
         },
         {
           "id": "refreshBlueprintLibrary",
-          "label": "Refresh blueprint folder",
+          "label": "Refresh Schematics library",
           "style": "secondary"
-        },
-        {
-          "id": "renameLibraryBlueprint",
-          "label": "Rename blueprint to new name",
-          "style": "secondary"
-        },
-        {
-          "id": "duplicateLibraryBlueprint",
-          "label": "Duplicate blueprint to new name",
-          "style": "secondary"
-        },
-        {
-          "id": "deleteLibraryBlueprint",
-          "label": "Delete blueprint and image",
-          "style": "danger",
-          "confirm": "Delete the named blueprint and its image from the export folder?"
         }
       ]
     },

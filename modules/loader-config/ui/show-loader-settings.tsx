@@ -352,6 +352,21 @@ export function SettingsPage({
               onChange={changeExportEnabled}
             />
             <p className="hint">{t('settings.exports.hint')}</p>
+            <SettingsRow
+              label={t('settings.exports.schematicsPath')}
+              detail={t('settings.exports.schematicsPathHint')}
+              control={
+                <div className="storage-path-row">
+                  <input value={data.schematicsPath} readOnly title={data.schematicsPath} />
+                  <button
+                    className="button ghost"
+                    onClick={() => postRequest('open-path', { key: 'schematics' })}
+                  >
+                    {t('settings.paths.open')}
+                  </button>
+                </div>
+              }
+            />
           </Card>
           <GamefileBackupManagement data={data} />
         </>

@@ -61,6 +61,7 @@ enum Action {
     MigrateLegacyBackups,
     MigrateLegacyUpdateFiles,
     MigrateLegacyMods,
+    MigrateLegacySchematics,
     MigrateLegacyEventLevels,
     MigrateLegacyToggleKeys,
     MigrateModuleTargetVisibility,
@@ -76,6 +77,7 @@ impl Action {
             Self::MigrateLegacyBackups
                 | Self::MigrateLegacyUpdateFiles
                 | Self::MigrateLegacyMods
+                | Self::MigrateLegacySchematics
                 | Self::MigrateLegacyEventLevels
                 | Self::MigrateLegacyToggleKeys
                 | Self::MigrateModuleTargetVisibility
@@ -86,7 +88,7 @@ impl Action {
 }
 
 // Key required jobs by ID so multiple JSON jobs can share a generic action.
-const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 11] = [
+const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 12] = [
     (
         Trigger::BeforeUpdate,
         "migration.legacy-update-backups",
@@ -110,6 +112,12 @@ const REQUIRED_MIGRATIONS: [(Trigger, &str, Action, u32); 11] = [
         "migration.notification-event-levels",
         Action::MigrateLegacyEventLevels,
         2,
+    ),
+    (
+        Trigger::AfterInstall,
+        "migration.schematics-library-directory",
+        Action::MigrateLegacySchematics,
+        1,
     ),
     (
         Trigger::AfterInstall,
@@ -197,6 +205,10 @@ const DEFAULT_JOBS: &[(&str, &str)] = &[
     (
         "migrate-legacy-event-levels.json",
         include_str!("migrate-legacy-event-levels.json"),
+    ),
+    (
+        "migrate-legacy-schematics.json",
+        include_str!("migrate-legacy-schematics.json"),
     ),
     (
         "migrate-debug-console-log-settings.json",
@@ -475,6 +487,11 @@ pub(crate) fn execute(root: &Path, item: &serde_json::Value) -> Result<(), Strin
             migrate_legacy_update_files(root)?;
         }
         Action::MigrateLegacyMods => migrate_legacy_mods(root)?,
+        Action::MigrateLegacySchematics => {
+            shroudforge_schematics::schematic_library::migrate_legacy_directory(root, || {
+                crate::check_update_cancelled(root)
+            })?;
+        }
         Action::MigrateLegacyEventLevels => migrate_legacy_event_levels(root)?,
         Action::MigrateLegacyToggleKeys => migrate_legacy_toggle_keys(root)?,
         Action::MigrateModuleTargetVisibility => {
@@ -505,6 +522,7 @@ fn action_from_item(item: &serde_json::Value) -> Result<Action, String> {
         Some("MigrateLegacyBackups") => Ok(Action::MigrateLegacyBackups),
         Some("MigrateLegacyUpdateFiles") => Ok(Action::MigrateLegacyUpdateFiles),
         Some("MigrateLegacyMods") => Ok(Action::MigrateLegacyMods),
+        Some("MigrateLegacySchematics") => Ok(Action::MigrateLegacySchematics),
         Some("MigrateLegacyEventLevels") => Ok(Action::MigrateLegacyEventLevels),
         Some("MigrateLegacyToggleKeys") => Ok(Action::MigrateLegacyToggleKeys),
         Some("MigrateModuleTargetVisibility") => Ok(Action::MigrateModuleTargetVisibility),
@@ -718,6 +736,7 @@ fn migrate_legacy_update_files(root: &Path) -> Result<usize, String> {
             root,
             &provider,
             project_id,
+            request["versionId"].as_str(),
             update_mod_id,
             queue_item_id,
         )?;

@@ -1263,6 +1263,79 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             &webview,
                             &mut next_refresh,
                         ),
+                        Command::ManageSchematic(action, id, value, request_id) => {
+                            use base64::Engine as _;
+                            let result = (|| -> Result<(), String> {
+                                match action.as_str() {
+                                    "import" => {
+                                        let encoded = value.as_str().ok_or("Schematic data is missing")?;
+                                        let encoded = encoded.rsplit_once(',').map_or(encoded, |(_, data)| data);
+                                        let bytes = base64::engine::general_purpose::STANDARD
+                                            .decode(encoded)
+                                            .map_err(|error| format!("Schematic data is invalid: {error}"))?;
+                                        shroudforge_schematics::schematic_library::save(
+                                            &arguments.root,
+                                            &id,
+                                            &bytes,
+                                        )
+                                    }
+                                    "rename" => {
+                                        shroudforge_schematics::schematic_library::rename(
+                                            &arguments.root,
+                                            &id,
+                                            value
+                                                .as_str()
+                                                .ok_or("New schematic name is missing")?,
+                                        )
+                                    }
+                                    "duplicate" => {
+                                        shroudforge_schematics::schematic_library::duplicate(
+                                            &arguments.root,
+                                            &id,
+                                            value
+                                                .as_str()
+                                                .ok_or("New schematic name is missing")?,
+                                        )
+                                    }
+                                    "delete" => shroudforge_schematics::schematic_library::delete(
+                                        &arguments.root,
+                                        &id,
+                                    ),
+                                    "set-cover" => {
+                                        let encoded =
+                                            value.as_str().ok_or("Cover image data is missing")?;
+                                        let encoded = encoded.rsplit_once(',').map_or(encoded, |(_, data)| data);
+                                        let bytes = base64::engine::general_purpose::STANDARD
+                                            .decode(encoded)
+                                            .map_err(|error| format!("Cover image data is invalid: {error}"))?;
+                                        shroudforge_schematics::schematic_library::set_cover(
+                                            &arguments.root,
+                                            &id,
+                                            &bytes,
+                                        )
+                                    }
+                                    "undo-cover" => {
+                                        shroudforge_schematics::schematic_library::undo_cover(
+                                            &arguments.root,
+                                            &id,
+                                        )
+                                    }
+                                    _ => Err("Unsupported Schematics action".into()),
+                                }
+                            })();
+                            report_command_result(
+                                &arguments.root,
+                                &webview,
+                                &request_id,
+                                "Schematics",
+                                &action,
+                                result,
+                                "schematics.updated",
+                                None,
+                                false,
+                            );
+                            next_refresh = Instant::now();
+                        }
                         Command::UpdaterRequest(operation, subject, request_id, mut request) => {
                             if operation == "check-system-update" {
                                 if let Ok(mut release) = release_state.lock() {

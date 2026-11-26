@@ -22,6 +22,7 @@ modules/                       # Product modules and application entrypoints
   entrypoints/                # Loader application and Windows DLL entrypoints
   modloader/                  # Find, read, check and configure mods
     ui/                       # Modloader window and its views
+  schematics/                 # Local SFBP library, validation, Lua API bridge and library view
   player-name/                # Resolve the Modloader name from the published native runtime cache
   updater/                    # Check, download and install updates
     ui/                       # Its update views
@@ -128,6 +129,8 @@ An EML package may not have **extended.mod.json**. `ensure_eml_extension.rs` cre
 
 Lua declarations and mod execution belong to **modules/mod-runtime/lua/**. EML v1 and ShroudForge v1 keep their versioned contracts. Runtime calls use the standalone **modules/game-runtime/bridge/** crate. The transport module owns its own Lua transport binding. These boundaries keep the same public mod API.
 
+**modules/schematics/** owns SFBP validation, local library file operations, catalog-import metadata, legacy blueprint migration, the Schematics library view and the Lua API bridge implementation. The Modloader host supplies UI requests and the updater supplies verified catalog bytes. **modules/mod-runtime/lua/** registers the module-owned bridge in the public ShroudForge API. The World Editor Lua package calls that API and does not access schematic files itself. The module enabled setting is stored with the other module preferences in **modules/loader-config/**.
+
 The [API reference](https://bonsaibauer.github.io/shroudforge/en/#api) is generated from the current function definitions. EML v1 keeps its established names and behavior. A breaking change to the ShroudForge API requires affected mods to be updated.
 
 Shortcuts use SDL3 scancodes and mouse button numbers in one setting string,
@@ -173,6 +176,7 @@ A file contains the implementation of the action named by that file. Related hel
 | Find installed mods | `modules/modloader/find_installed_mods.rs` |
 | Provide the selected character name to Lua and the Modloader | `modules/game-runtime/native/main-menu/resolve_character_selection.cpp` derives the original selected-entry/name contract from the existing menu builder. `manage_native_main_menu.cpp` observes changes during its existing UI callback and owns copied name bytes. The optional ABI, Rust bridge and `runtime.player.name()` read that cache. The existing runtime status publication carries the same value to `modules/player-name/lib.rs`, which applies the Modloader manual/default-name policy without process access or a reader thread. |
 | Read a mod's information and locale catalogs | `modules/modloader/read_mod_manifest.rs`, `modules/modloader/read_mod_locale_catalogs.rs`, `modules/modloader/resolve_mod_locale.rs` |
+| Manage the local SFBP library, validate files, migrate legacy exports or change its Lua API bridge | `modules/schematics/` |
 | Save mod settings | `modules/modloader/save_mod_settings.rs` |
 | Parse SDL scancode shortcuts, observe keyboard input, or edit the shared shortcut field | `modules/hotkeys/` |
 | Check declared module and mod shortcut conflicts | `modules/modloader/check_hotkey_conflicts.rs` |

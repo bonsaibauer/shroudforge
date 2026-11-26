@@ -26,6 +26,7 @@ import { compatibilityNavigationStatus } from './show-compatibility'
 import type { CompatibilityTab } from './show-compatibility'
 import { PageZoomProvider } from '../../ui-resources/show-page-header'
 import { FeatureBanner } from '../../ui-resources/show-feature-banner'
+import { Segmented } from '../../ui-resources/choose-segment'
 import { Icon } from '../../ui-resources/show-icon'
 import type { TranslationKey } from '../../ui-resources/i18n'
 import { DEFAULT_WIKI_CATEGORY } from '../../wiki/mediawiki-api'
@@ -53,6 +54,7 @@ export function App() {
   const { t, setLocale } = useI18n()
   const [data, setData] = useState<Snapshot>(empty)
   const [page, setPage] = useState<PageId>('news')
+  const [installedTab, setInstalledTab] = useState<'mods' | 'schematics'>('mods')
   const [selectedMod, setSelectedMod] = useState<string | null>(null)
   const [selectedWikiArticle, setSelectedWikiArticle] = useState<string | null>(null)
   const [wikiCategory, setWikiCategory] = useState(DEFAULT_WIKI_CATEGORY)
@@ -418,6 +420,22 @@ export function App() {
     setSelectedWikiArticle(null)
     setPage(next)
   }
+  const changeInstalledTab = (tab: 'mods' | 'schematics') => {
+    if (
+      tab === 'schematics' &&
+      !(settings.modulePreferences?.schematics?.enabled ?? data.schematicsEnabled)
+    ) return
+    setInstalledTab(tab)
+    if (tab === 'schematics') setSelectedMod(null)
+  }
+  useEffect(() => {
+    if (
+      !(settings.modulePreferences?.schematics?.enabled ?? data.schematicsEnabled) &&
+      installedTab === 'schematics'
+    ) {
+      setInstalledTab('mods')
+    }
+  }, [data.schematicsEnabled, installedTab, settings.modulePreferences?.schematics?.enabled])
   const openWikiArticle = (articleId: string) =>
     navigateToWiki({ type: 'article', articleId })
   const openWikiCategory = (category: string) =>
@@ -444,6 +462,7 @@ export function App() {
     else if (action.kind === 'open-mod' && action.target) {
       if (activeData.mods.some((mod) => mod.id === action.target) && pageVisible('installed')) {
         setSelectedWikiArticle(null)
+        setInstalledTab('mods')
         setPage('installed')
         setSelectedMod(action.target)
       } else navigate('installed')
@@ -606,13 +625,16 @@ export function App() {
                 onClick={() => navigate('recycle-bin')}
               />}
             </NavGroup>
-            {pageVisible('installed') && <NavGroup className="nav-group-mods" title={t('nav.mods')}>
+            {pageVisible('installed') && page === 'installed' && installedTab === 'mods' && <NavGroup className="nav-group-mods" title={t('nav.mods')}>
               <div className="sidebar-mods">
                 {displayedMods.map((mod) => (
                   <button
                     key={mod.id}
                     className={`nav-item ${activeMod?.id === mod.id ? 'active' : ''}`}
-                    onClick={() => setSelectedMod(mod.id)}
+                    onClick={() => {
+                      setInstalledTab('mods')
+                      setSelectedMod(mod.id)
+                    }}
                   >
                     <ModIcon mod={mod} variant="nav" />
                     <span>{mod.name}</span>
@@ -701,13 +723,27 @@ export function App() {
               </FeatureBanner>
             )}
             {activeMod ? (
-              <ModPage
-                key={activeMod.id}
-                mod={activeMod}
-                status={activeData.configuration?.modStates?.[activeMod.id]}
-                dependencyStates={activeData.configuration?.modStates || {}}
-                remoteTarget={remoteTarget}
-              />
+              <>
+                {page === 'installed' && (
+                  <Segmented
+                    value={installedTab}
+                    onChange={(value) => changeInstalledTab(value as 'mods' | 'schematics')}
+                    items={[
+                      ['mods', t('nav.mods')],
+                      ...((settings.modulePreferences?.schematics?.enabled ?? activeData.schematicsEnabled)
+                        ? ([['schematics', t('installed.tab.schematics')]] as [string, string][])
+                        : []),
+                    ]}
+                  />
+                )}
+                <ModPage
+                  key={activeMod.id}
+                  mod={activeMod}
+                  status={activeData.configuration?.modStates?.[activeMod.id]}
+                  dependencyStates={activeData.configuration?.modStates || {}}
+                  remoteTarget={remoteTarget}
+                />
+              </>
             ) : (
               <Page
                 id={page}
@@ -730,6 +766,8 @@ export function App() {
                 onUpdaterCommand={postRequest}
                 compatibilityTab={compatibilityTab}
                 setCompatibilityTab={setCompatibilityTab}
+                installedTab={installedTab}
+                setInstalledTab={changeInstalledTab}
                 serverAdminAuthenticated={serverAdminAuthenticated}
               />
             )}

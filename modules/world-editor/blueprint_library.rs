@@ -6,7 +6,6 @@ use crate::panel_layout::MAX_WIDTH;
 use crate::panel_layout::MIN_HEIGHT;
 use crate::panel_layout::MIN_WIDTH;
 use crate::panel_layout::TOP_OFFSET;
-use base64::Engine as _;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
@@ -52,7 +51,6 @@ pub(crate) struct ViewState {
 
 pub(crate) fn view_state(root: &Path) -> Result<ViewState, Box<dyn std::error::Error>> {
     let exports = shroudforge_loader_config::paths::export_dir(root);
-    let directory = exports.join("world-editor/blueprints");
     let mut process_state = "idle".to_owned();
     let mut process_operation = String::new();
     let mut process_phase = String::new();
@@ -69,11 +67,21 @@ pub(crate) fn view_state(root: &Path) -> Result<ViewState, Box<dyn std::error::E
     let mut panel_height = DEFAULT_HEIGHT;
     let mut panel_position_x = -1;
     let mut panel_position_y = TOP_OFFSET as u32;
+    let mut blueprints = Vec::new();
     if let Ok(contents) = fs::read_to_string(exports.join("world-editor/editor-state.txt")) {
         for line in contents.lines() {
             if let Some(value) = line.strip_prefix("keybind.") {
                 if let Some((key, binding)) = value.split_once('=') {
                     applied_keybinds.insert(key.to_owned(), binding.to_owned());
+                }
+            } else if let Some(value) = line.strip_prefix("blueprint.") {
+                if let Some((name, image)) = value.split_once('=') {
+                    if valid_blueprint_name(name) && image.starts_with("data:image/png;base64,") {
+                        blueprints.push(BlueprintCard {
+                            name: name.to_owned(),
+                            image: Some(image.to_owned()),
+                        });
+                    }
                 }
             } else if let Some(value) = line.strip_prefix("processState=") {
                 process_state = value.to_owned();
@@ -132,40 +140,6 @@ pub(crate) fn view_state(root: &Path) -> Result<ViewState, Box<dyn std::error::E
         })
         .map(|binding| binding.label())
         .unwrap_or_default();
-    let mut blueprints = Vec::new();
-    if let Ok(entries) = fs::read_dir(directory) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path
-                .extension()
-                .and_then(|value| value.to_str())
-                .is_some_and(|value| value.eq_ignore_ascii_case("sfbp"))
-            {
-                let Some(name) = path.file_stem().and_then(|value| value.to_str()) else {
-                    continue;
-                };
-                if !valid_blueprint_name(name) {
-                    continue;
-                }
-                let image_path = path.with_file_name(format!("{name}.thumb.png"));
-                let image_path = if image_path.is_file() {
-                    image_path
-                } else {
-                    path.with_extension("png")
-                };
-                let image = fs::read(image_path).ok().map(|bytes| {
-                    format!(
-                        "data:image/png;base64,{}",
-                        base64::engine::general_purpose::STANDARD.encode(bytes)
-                    )
-                });
-                blueprints.push(BlueprintCard {
-                    name: name.to_owned(),
-                    image,
-                });
-            }
-        }
-    }
     blueprints.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
     Ok(ViewState {
         keybinds,

@@ -39,6 +39,8 @@ export function Page({
   onUpdaterCommand,
   compatibilityTab,
   setCompatibilityTab,
+  installedTab,
+  setInstalledTab,
   serverAdminAuthenticated,
 }: {
   id: PageId
@@ -61,6 +63,8 @@ export function Page({
   onUpdaterCommand: UpdaterCommand
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
+  installedTab: 'mods' | 'schematics'
+  setInstalledTab(tab: 'mods' | 'schematics'): void
   serverAdminAuthenticated: boolean
 }) {
   const wikiPreferences = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
@@ -88,7 +92,17 @@ export function Page({
       />
     )
   if (id === 'installed')
-    return <Installed mods={data.mods} select={selectMod} />
+    return (
+      <Installed
+        mods={data.mods}
+        schematics={data.schematics}
+        schematicsPath={data.schematicsPath}
+        schematicsEnabled={settings.modulePreferences?.schematics?.enabled ?? data.schematicsEnabled}
+        select={selectMod}
+        tab={installedTab}
+        setTab={setInstalledTab}
+      />
+    )
   if (id === 'updates')
     return (
       <Updates

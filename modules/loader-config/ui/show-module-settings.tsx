@@ -106,6 +106,7 @@ export function AdvancedSettingsEditor({
     debugConsole: 'settings.modules.debugConsole.title',
     worldEditor: 'settings.modules.worldEditor.title',
     modloaderUi: 'settings.modules.modloaderUi.title',
+    schematics: 'settings.modules.schematics.title',
     wiki: 'settings.modules.serverTargetVisibility.moduleWiki',
     network: 'settings.modules.network.title',
     runtimeDiagnostics: 'settings.modules.runtimeDiagnostics.title',
@@ -281,7 +282,7 @@ export function ModulePreferencesEditor({
     visible: boolean,
   ) => postRequest('set-window-visibility', { module, visible })
   const moduleEnabled = (module: string) =>
-    prefs[module]?.enabled ?? (module === 'debugConsole' || module === 'wiki')
+    prefs[module]?.enabled ?? (module === 'debugConsole' || module === 'wiki' || module === 'schematics')
   const serverTargetSelected = prefs.modloaderUi?.remoteTarget === 'server'
   const target = serverTargetSelected ? 'server' : 'client'
   const targetUi = resolveUiTargetSettings(settings.targetUi)
@@ -325,7 +326,7 @@ export function ModulePreferencesEditor({
         change={change}
       />}
       <div className="settings-module-list">
-        {(['debugConsole', 'worldEditor', 'modloaderUi', 'wiki', 'runtimeDiagnostics'] as const)
+        {(['debugConsole', 'worldEditor', 'modloaderUi', 'schematics', 'wiki', 'runtimeDiagnostics'] as const)
           .filter(visibleInTarget)
           .map((module) => (
           <Card key={module} title={t(`settings.modules.${module}.title`)}>

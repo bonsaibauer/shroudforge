@@ -21,6 +21,28 @@ pub fn create(lua: &mlua::Lua, r#mod: &Mod) -> mlua::Result<Table> {
     table.raw_set("version", env!("CARGO_PKG_VERSION"))?;
     table.raw_set("clock", lua.create_function(|_, ()| Ok(read_monotonic_clock()))?)?;
     table.raw_set("contents", super::read_game_content::create(lua)?)?;
+    let can_export = r#mod
+        .info()
+        .capabilities
+        .contains(&mod_loader::Capability::Export);
+    let authorize_schematics = lua.create_function(move |lua, ()| {
+        let state = lua
+            .app_data_ref::<crate::env::AppState>()
+            .ok_or_else(|| mlua::Error::runtime("runtime state is unavailable"))?;
+        if !can_export || !state.has_feature(crate::env::AppFeatures::EXPORT) {
+            return Err(mlua::Error::runtime("schematic export access is disabled"));
+        }
+        Ok(state
+            .env()
+            .game_dir()
+            .as_std_path()
+            .to_string_lossy()
+            .into_owned())
+    })?;
+    table.raw_set(
+        "schematics",
+        shroudforge_schematics::lua_api::create(lua, authorize_schematics)?,
+    )?;
     table.raw_set("mod_id", r#mod.info().id.as_str())?;
 
     let log = lua.create_table()?;

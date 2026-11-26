@@ -1,0 +1,102 @@
+.schematic-library-path {
+  margin: 0 0 1rem;
+  overflow: hidden;
+  color: var(--muted, #8993a5);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schematic-cover-input {
+  display: none;
+}
+
+.schematic-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.schematic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.schematic-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  background: var(--surface-raised, rgba(255, 255, 255, 0.025));
+}
+
+.schematic-cover {
+  display: grid;
+  height: 150px;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(142, 109, 255, 0.2), rgba(42, 53, 73, 0.75));
+  color: var(--muted, #a7b0c0);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.schematic-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.schematic-card-content {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.9rem;
+}
+
+.schematic-card-content h3 {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schematic-origin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  margin: 0;
+  color: var(--muted, #a7b0c0);
+  font-size: 0.8rem;
+}
+
+.schematic-origin small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schematic-invalid {
+  margin: 0;
+  color: var(--danger, #f08484);
+  font-size: 0.8rem;
+}
+
+.schematic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.schematic-actions .button {
+  min-height: 30px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 600px) {
+  .schematic-grid {
+    grid-template-columns: 1fr;
+  }
+}

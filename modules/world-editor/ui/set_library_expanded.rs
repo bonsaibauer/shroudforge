@@ -9,7 +9,6 @@ pub(crate) fn set_library_expanded(
     height: u32,
     library_expanded: &mut bool,
     library_expanded_height: &mut u32,
-    manager_open: bool,
     window: &tao::window::Window,
     arguments: &Arguments,
     panel_width: u32,
@@ -19,20 +18,18 @@ pub(crate) fn set_library_expanded(
 ) {
     *library_expanded = expanded;
     *library_expanded_height = height.clamp(DEFAULT_HEIGHT, 720);
-    if !manager_open {
-        let height = if *library_expanded {
-            *library_expanded_height as f64
-        } else {
-            panel_height as f64
-        };
-        set_fixed_size(window, panel_width, height);
-        window.set_inner_size(LogicalSize::new(panel_width as f64, height));
-        position_window(
-            &window,
-            arguments.game_pid,
-            panel_width as f64,
-            panel_position_x,
-            panel_position_y,
-        );
-    }
+    let height = if *library_expanded {
+        *library_expanded_height as f64
+    } else {
+        panel_height as f64
+    };
+    set_fixed_size(window, panel_width, height);
+    window.set_inner_size(LogicalSize::new(panel_width as f64, height));
+    position_window(
+        window,
+        arguments.game_pid,
+        panel_width as f64,
+        panel_position_x,
+        panel_position_y,
+    );
 }

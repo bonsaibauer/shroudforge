@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "migration.schematics-library-directory",
+  "revision": 1,
+  "name": "Move legacy blueprints into the Schematics library",
+  "description": "Safely moves World Editor blueprint files, covers, and previews into the Modloader Schematics export folder.",
+  "trigger": "after-install",
+  "repeatable": false,
+  "action": "migrate-legacy-schematics"
+}

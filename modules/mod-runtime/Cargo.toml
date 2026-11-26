@@ -18,6 +18,7 @@ shroudforge-runtime-diagnostics = { path = "../runtime-diagnostics" }
 shroudforge-steam-networking = { path = "../transport" }
 shroudforge-game-assets = { path = "../game-files" }
 shroudforge-compatibility = { path = "../game-runtime/compatibility" }
+shroudforge-schematics = { workspace = true, features = ["lua-api"] }
 kfc = { path = "../../kfc-parser/crates/kfc", features = ["resource", "content"] }
 mod-loader = { package = "shroudforge-package", path = "../modloader" }
 

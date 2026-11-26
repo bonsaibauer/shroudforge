@@ -1,0 +1,41 @@
+ShroudForge blueprint format 8
+Schema: https://shroudforge.net/schemas/sfbp/8/manifest.schema.json
+Extension: .sfbp
+Encoding: UTF-8 JSON object without a byte order mark
+
+Exports and imports exclusively use formatVersion 8. Earlier line-based
+formats are unsupported. Renaming a file does not convert it into format 8.
+
+The schema defines the complete document. Unknown fields and duplicate object
+keys are rejected. All numbers must be finite. JSON null is not a substitute
+for an omitted voxel channel. A blueprint without voxels must have a strictly
+positive extent on all axes. With voxels the extent may be zero on an axis.
+
+Voxel dimensions are positive integers with a product at most 65,536. Cells
+and coverage each contain exactly that many entries. X varies fastest, then Y,
+then Z. The zero-based index is x + sizeX * (y + sizeY * z).
+Coverage 0 preserves a target cell, 1 is empty, and 2 is occupied. Occupied
+cells must have a nonzero value. Values under coverage 0 or 1 normalize to zero
+when loaded. Offset is relative to the world-space blueprint anchor, and
+cellSize retains the original positive size on every axis.
+
+Prop positions are relative to the anchor. Rotation is a quaternion in x,y,z,w
+order with a finite squared norm at least 1e-12. Scale retains each axis,
+including nonuniform scaling. Template UUID halves are hexadecimal strings of
+1 to 16 digits. They cannot both be zero and never pass through floating point.
+No process-local entity handle is serialized. Item IDs are unsigned 32-bit
+integers greater than zero. Placement requires a current recipe for each item.
+
+Local files are limited to 256 MiB. Online transfers retain their 32 MiB limit.
+The format allows at most 1,000,000 props. The World Editor also enforces the
+configured per-blueprint prop limit, which defaults to 60,000. Upload services
+may impose a smaller transport limit without changing this format.
+
+JSON Schema cannot enforce dimensions multiplied across fields, matching array
+lengths, coverage/value relations, quaternion norm, UUID pair validity or live
+placement recipes. Readers must perform these checks after schema validation.
+The example is a structural fixture. Item 42 and its template are illustrative,
+not a guarantee that a corresponding placement recipe exists in a live game.
+
+The format number is independent of Modloader release versions. Future incompatible changes require a new
+formatVersion and a new numeric directory under /schemas/sfbp/.

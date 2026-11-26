@@ -13,6 +13,7 @@ members = [
     "modules/debug-console",
     "modules/modloader",
     "modules/modloader/ui",
+    "modules/schematics",
     "modules/updater",
     "modules/updater/release-feed",
     "modules/runtime-diagnostics",
@@ -37,6 +38,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 thiserror = "2.0"
 semver = { version = "1.0", features = ["serde"] }
 shroudforge-package = { path = "modules/modloader" }
+shroudforge-schematics = { path = "modules/schematics" }
 
 shroudforge-loader-config = { path = "modules/loader-config" }
 shroudforge-logging = { path = "modules/logging" }

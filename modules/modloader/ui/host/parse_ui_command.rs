@@ -107,6 +107,7 @@ pub(crate) enum Command {
     SetWindowVisibility(String, bool, String),
     SaveLanguage(String, String),
     RunModAction(String, String, String),
+    ManageSchematic(String, String, serde_json::Value, String),
     UpdaterRequest(String, String, String, serde_json::Value),
     SetNewsRead(Vec<String>, bool, bool, String),
     Diagnostics(String, Option<String>, String),
@@ -246,6 +247,24 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
         "run-mod-action" => match (value.mod_id, value.action) {
             (Some(id), Some(action)) => {
                 Command::RunModAction(id, action, value.request_id.unwrap_or_default())
+            }
+            _ => return None,
+        },
+        "manage-schematic" => match (value.action, value.id) {
+            (Some(action), Some(id))
+                if matches!(
+                    action.as_str(),
+                    "import" | "rename" | "duplicate" | "delete" | "set-cover" | "undo-cover"
+                )
+                    && shroudforge_schematics::schematic_library::valid_name(&id)
+                    && value.value.to_string().len() <= 96 * 1024 * 1024 =>
+            {
+                Command::ManageSchematic(
+                    action,
+                    id,
+                    value.value,
+                    value.request_id.unwrap_or_default(),
+                )
             }
             _ => return None,
         },

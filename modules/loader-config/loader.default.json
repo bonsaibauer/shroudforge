@@ -27,6 +27,7 @@
             "debugConsole": true,
             "worldEditor": true,
             "modloaderUi": true,
+            "schematics": true,
             "wiki": true,
             "network": true,
             "runtimeDiagnostics": true,
@@ -53,6 +54,7 @@
             "debugConsole": true,
             "worldEditor": true,
             "modloaderUi": true,
+            "schematics": true,
             "wiki": false,
             "network": true,
             "runtimeDiagnostics": true,
@@ -295,6 +297,9 @@
     }
   },
   "modules": {
+    "schematics": {
+      "enabled": true
+    },
     "modDetection": {
       "enabled": true,
       "tolerateUnknownManifestFields": true

@@ -8,7 +8,6 @@ use super::read_editor_arguments::arguments;
 use super::render_editor_document::render_editor_document;
 use super::run_blueprint_action::run_blueprint_action;
 use super::set_library_expanded::set_library_expanded;
-use super::set_manager_open::set_manager_open;
 use super::watch_editor_state::watch_editor_state;
 use crate::blueprint_library::empty_state;
 use crate::blueprint_library::view_state;
@@ -116,7 +115,6 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
     let mut panel_height = initial_state.panel_height;
     let mut panel_position_x = initial_state.panel_position_x;
     let mut panel_position_y = initial_state.panel_position_y;
-    let mut manager_open = false;
     let mut library_expanded = false;
     let mut library_expanded_height = initial_state.panel_height;
     let mut module_enabled = preferences["enabled"] != false;
@@ -197,8 +195,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                         Command::Drag => {}
-                        Command::Manager(open) => set_manager_open(open, &mut manager_open, &window, &arguments, panel_width, panel_height, panel_position_x, panel_position_y, library_expanded, library_expanded_height),
-                        Command::LibraryExpanded { expanded, height } => set_library_expanded(expanded, height, &mut library_expanded, &mut library_expanded_height, manager_open, &window, &arguments, panel_width, panel_height, panel_position_x, panel_position_y),
+                        Command::LibraryExpanded { expanded, height } => set_library_expanded(expanded, height, &mut library_expanded, &mut library_expanded_height, &window, &arguments, panel_width, panel_height, panel_position_x, panel_position_y),
                         Command::Action { action, value } => {
                             match shroudforge_loader_config::config::read_loader(&arguments.root) {
                                 Ok(config)
@@ -252,9 +249,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                             .as_bool()
                             .unwrap_or(window_visible);
                         if window_visible {
-                            let height = if manager_open {
-                                560.0
-                            } else if library_expanded {
+                            let height = if library_expanded {
                                 library_expanded_height as f64
                             } else {
                                 panel_height as f64
@@ -332,9 +327,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                     let was_visible = window_visible;
                     window_visible = !window_visible;
                     if window_visible {
-                        let height = if manager_open {
-                            560.0
-                        } else if library_expanded {
+                        let height = if library_expanded {
                             library_expanded_height as f64
                         } else {
                             panel_height as f64
@@ -395,9 +388,7 @@ pub(crate) fn run_module() -> Result<(), Box<dyn std::error::Error>> {
                             panel_height = state.panel_height;
                             panel_position_x = state.panel_position_x;
                             panel_position_y = state.panel_position_y;
-                            let height = if manager_open {
-                                560.0
-                            } else if library_expanded {
+                            let height = if library_expanded {
                                 library_expanded_height as f64
                             } else {
                                 panel_height as f64
