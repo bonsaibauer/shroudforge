@@ -13,7 +13,7 @@ pub fn run(game_directory: impl AsRef<Path>) -> Result<(), LoaderError> {
     ensure_game_stopped(file_name)?;
     ensure_original_gamefiles(game_directory, file_name);
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
-    if already_applied(game_directory, file_name)? && !export_pass_needed {
+    if already_applied(game_directory, file_name, export_pass_needed)? {
         // The prepared KFC files remain in place. A match means the requested
         // asset mods are already applied, not that they were skipped.
         tracing::debug!(

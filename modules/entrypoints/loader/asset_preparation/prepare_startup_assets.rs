@@ -55,7 +55,7 @@ pub(crate) fn run_startup(game_directory: impl AsRef<Path>) -> Result<(), Loader
     let lock_path = shroudforge_loader_config::paths::startup_asset_lock(game_directory);
     let _lease = startup_asset_lease(&lock_path)?;
     let export_pass_needed = export_pass_needed(game_directory, file_name)?;
-    if already_applied(game_directory, file_name)? && !export_pass_needed {
+    if already_applied(game_directory, file_name, export_pass_needed)? {
         // Enshrouded will load the already-prepared KFC data during startup.
         tracing::debug!(
             "Startup KFC assets are already prepared for this game and mod configuration; no rewrite is needed"

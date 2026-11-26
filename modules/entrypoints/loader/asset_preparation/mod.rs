@@ -5,6 +5,8 @@ mod lock_startup_assets;
 mod parse_game_assets;
 mod prepare_game_assets;
 mod prepare_startup_assets;
+#[cfg(test)]
+mod prepared_pass_reuse_tests;
 mod recover_failed_startup_assets;
 mod require_game_stopped;
 mod select_game_target;
@@ -31,5 +33,7 @@ fn format_report(report: &shroudforge_package::ModEnvironmentErrorReport) -> Str
         .join("; ")
 }
 
+#[cfg(test)]
+mod test_game;
 #[cfg(test)]
 mod tests;

@@ -75,6 +75,8 @@ pub struct AppConfig {
 
     feature_flags: AppFeatures,
     export_dir: PathBuf,
+    // what the pregame pass uses in the export folder (RunOptions::export_touches)
+    export_touches: Option<shroudforge_game_assets::prepared_stamp::ExportTouches>,
 }
 
 bitflags! {
@@ -116,6 +118,14 @@ impl AppState {
     #[inline]
     pub fn export_dir(&self) -> &PathBuf {
         &self.config.export_dir
+    }
+
+    /// The pregame pass's note of what it uses in the export folder, if the loader asked for one.
+    #[inline]
+    pub fn export_touches(
+        &self,
+    ) -> Option<&shroudforge_game_assets::prepared_stamp::ExportTouches> {
+        self.config.export_touches.as_ref()
     }
 
     #[inline]

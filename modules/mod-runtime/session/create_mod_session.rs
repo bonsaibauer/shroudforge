@@ -81,6 +81,9 @@ impl AppState {
 
         let config = AppConfig {
             export_dir,
+            export_touches: options
+                .export_touches
+                .filter(|_| phase == RuntimePhase::Pregame),
 
             is_server,
             phase,
