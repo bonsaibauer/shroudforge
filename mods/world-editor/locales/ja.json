@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "永続的なブループリント名"
     },
-    "blueprintNewName": {
-      "label": "名前変更または重複のための新しい名前"
-    },
     "pasteVoxelMode": {
       "label": "ボクセル モード",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "ブループリント フォルダーを更新します"
-        },
-        "renameLibraryBlueprint": {
-          "label": "ブループリントの名前を新しい名前に変更します"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "ブループリントを新しい名前で複製します"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "ブループリントとイメージを削除",
-          "confirm": "名前付きブループリントとそのイメージをエクスポート フォルダーから削除しますか?"
         }
       }
     },

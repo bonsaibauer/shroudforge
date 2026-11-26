@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Beständigt ritningsnamn"
     },
-    "blueprintNewName": {
-      "label": "Nytt namn för att byta namn eller duplicera"
-    },
     "pasteVoxelMode": {
       "label": "Voxelläge",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Uppdatera ritningsmappen"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Byt namn på ritningen till nytt namn"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Duplicera ritning till nytt namn"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Ta bort ritning och bild",
-          "confirm": "Ta bort den namngivna ritningen och dess bild från exportmappen?"
         }
       }
     },

@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Persistent blueprint name"
     },
-    "blueprintNewName": {
-      "label": "New name for rename or duplicate"
-    },
     "pasteVoxelMode": {
       "label": "Voxel mode",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Refresh blueprint folder"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Rename blueprint to new name"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Duplicate blueprint to new name"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Delete blueprint and image",
-          "confirm": "Delete the named blueprint and its image from the export folder?"
         }
       }
     },

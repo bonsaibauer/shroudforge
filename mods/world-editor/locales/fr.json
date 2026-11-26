@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Nom de plan persistant"
     },
-    "blueprintNewName": {
-      "label": "Nouveau nom à renommer ou à dupliquer"
-    },
     "pasteVoxelMode": {
       "label": "Mode Voxel",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Actualiser le dossier de plans"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Renommer le plan avec un nouveau nom"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Dupliquer le plan sous un nouveau nom"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Supprimer le plan et l'image",
-          "confirm": "Supprimer le plan nommé et son image du dossier d'exportation ?"
         }
       }
     },

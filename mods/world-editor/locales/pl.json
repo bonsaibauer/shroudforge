@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Stała nazwa planu"
     },
-    "blueprintNewName": {
-      "label": "Nowa nazwa do zmiany nazwy lub duplikatu"
-    },
     "pasteVoxelMode": {
       "label": "Tryb woksela",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Odśwież folder planów"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Zmień nazwę projektu na nową"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Zduplikuj projekt pod nową nazwą"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Usuń projekt i obraz",
-          "confirm": "Usunąć nazwany projekt i jego obraz z folderu eksportu?"
         }
       }
     },

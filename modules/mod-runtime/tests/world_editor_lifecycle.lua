@@ -20,7 +20,7 @@ local expected_settings = {
     resetEditor="SDL:63", pasteAtCursor="SDL:64", captureAndSave="SDL:65",
     panelWidth=1180, panelHeight=190, panelPositionX=-1, panelPositionY=92,
     maximumCopyableProps=60000, sourceX=0, sourceY=0, sourceZ=0,
-    sizeX=8, sizeY=8, sizeZ=8, blueprintName="my_blueprint", blueprintNewName="my_blueprint_copy",
+    sizeX=8, sizeY=8, sizeZ=8, blueprintName="my_blueprint",
     pasteVoxelMode="replace", targetPropMode="keep", targetX=0, targetY=0, targetZ=0,
     targetWorldX=0, targetWorldY=0, targetWorldZ=0, rotationQuarterTurns=0, rotationAxis="y",
     entityHandle=0, templateUuidHigh="0000000000000000", templateUuidLow="0000000000000000",

@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Dauerhafter Bauplanname"
     },
-    "blueprintNewName": {
-      "label": "Neuer Name zum Umbenennen oder Duplizieren"
-    },
     "pasteVoxelMode": {
       "label": "Voxelmodus",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Bauplanordner aktualisieren"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Bauplan in neuen Namen umbenennen"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Bauplan unter neuem Namen duplizieren"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Bauplan und Bild löschen",
-          "confirm": "Den benannten Bauplan und sein Bild aus dem Exportordner löschen?"
         }
       }
     },

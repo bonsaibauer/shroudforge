@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "持久蓝图名称"
     },
-    "blueprintNewName": {
-      "label": "重命名或重复的新名称"
-    },
     "pasteVoxelMode": {
       "label": "体素模式",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "刷新蓝图文件夹"
-        },
-        "renameLibraryBlueprint": {
-          "label": "将蓝图重命名为新名称"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "复制蓝图至新名称"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "删除蓝图和图像",
-          "confirm": "从导出文件夹中删除指定的蓝图及其图像吗？"
         }
       }
     },

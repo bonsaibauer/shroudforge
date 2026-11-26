@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Persistente blauwdruknaam"
     },
-    "blueprintNewName": {
-      "label": "Nieuwe naam voor hernoemen of dupliceren"
-    },
     "pasteVoxelMode": {
       "label": "Voxel-modus",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Blauwdrukmap vernieuwen"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Hernoem de blauwdruk naar een nieuwe naam"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Dupliceer blauwdruk naar nieuwe naam"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Blauwdruk en afbeelding verwijderen",
-          "confirm": "De genoemde blueprint en de bijbehorende afbeelding uit de exportmap verwijderen?"
         }
       }
     },

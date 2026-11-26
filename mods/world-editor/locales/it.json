@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "Nome del progetto persistente"
     },
-    "blueprintNewName": {
-      "label": "Nuovo nome da rinominare o duplicare"
-    },
     "pasteVoxelMode": {
       "label": "Modalità Voxel",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "Aggiorna la cartella del progetto"
-        },
-        "renameLibraryBlueprint": {
-          "label": "Rinomina il progetto con un nuovo nome"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "Progetto duplicato con il nuovo nome"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "Elimina progetto e immagine",
-          "confirm": "Eliminare il progetto denominato e la relativa immagine dalla cartella di esportazione?"
         }
       }
     },

@@ -59,9 +59,6 @@
     "blueprintName": {
       "label": "स्थायी ब्लूप्रिंट नाम"
     },
-    "blueprintNewName": {
-      "label": "नाम बदलने या डुप्लिकेट के लिए नया नाम"
-    },
     "pasteVoxelMode": {
       "label": "वोक्सेल मोड",
       "options": {
@@ -212,16 +209,6 @@
         },
         "refreshBlueprintLibrary": {
           "label": "ब्लूप्रिंट फ़ोल्डर को ताज़ा करें"
-        },
-        "renameLibraryBlueprint": {
-          "label": "ब्लूप्रिंट का नाम बदलकर नया नाम रखें"
-        },
-        "duplicateLibraryBlueprint": {
-          "label": "नए नाम का डुप्लिकेट ब्लूप्रिंट"
-        },
-        "deleteLibraryBlueprint": {
-          "label": "ब्लूप्रिंट और छवि हटाएं",
-          "confirm": "निर्यात फ़ोल्डर से नामित ब्लूप्रिंट और उसकी छवि हटाएं?"
         }
       }
     },
