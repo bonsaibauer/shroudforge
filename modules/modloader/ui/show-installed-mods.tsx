@@ -40,7 +40,7 @@ export function Installed({
         value={visibleTab}
         onChange={(value) => setTab(value as 'mods' | 'schematics')}
         items={[
-          ['mods', t('nav.mods')],
+          ['mods', t('installed.tab.mods')],
           ...(schematicsEnabled
             ? ([['schematics', t('installed.tab.schematics')]] as [string, string][])
             : []),

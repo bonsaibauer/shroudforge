@@ -314,6 +314,7 @@
   "installed.empty.text": "已安装ShroudForge 模组会自动出现在此处。",
   "installed.empty.title": "未安装模组",
   "installed.subtitle": "本地模组及其可管理设置。",
+  "installed.tab.mods": "Mods",
   "installed.tab.schematics": "Schematics",
   "schematics.import": "导入",
   "schematics.importNamePrompt": "示意图名称",

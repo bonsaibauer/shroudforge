@@ -314,6 +314,7 @@
   "installed.empty.text": "Geïnstalleerd ShroudForge-mods verschijnen hier automatisch.",
   "installed.empty.title": "Geen mods geïnstalleerd",
   "installed.subtitle": "Lokale mods en hun beheerbare instellingen.",
+  "installed.tab.mods": "Mods",
   "installed.tab.schematics": "Schematics",
   "schematics.import": "Importeren",
   "schematics.importNamePrompt": "Naam van schematic",

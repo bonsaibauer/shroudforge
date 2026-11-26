@@ -731,7 +731,7 @@ export function App() {
                     value={installedTab}
                     onChange={(value) => changeInstalledTab(value as 'mods' | 'schematics')}
                     items={[
-                      ['mods', t('nav.mods')],
+                      ['mods', t('installed.tab.mods')],
                       ...((settings.modulePreferences?.schematics?.enabled ?? activeData.schematicsEnabled)
                         ? ([['schematics', t('installed.tab.schematics')]] as [string, string][])
                         : []),

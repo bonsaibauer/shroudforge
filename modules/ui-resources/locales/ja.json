@@ -314,6 +314,7 @@
   "installed.empty.text": "インストールされたShroudForge modsは自動的に表示されます.",
   "installed.empty.title": "インストールされていないMOD",
   "installed.subtitle": "ローカルMODと管理可能な設定.",
+  "installed.tab.mods": "Mods",
   "installed.tab.schematics": "Schematics",
   "schematics.import": "インポート",
   "schematics.importNamePrompt": "スケマティック名",

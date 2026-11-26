@@ -314,6 +314,7 @@
   "installed.empty.text": "Zainstalowane mody ShroudForge pojawiają się tutaj automatycznie.",
   "installed.empty.title": "Brak zainstalowanych modów",
   "installed.subtitle": "Lokalne mody i ich ustawienia.",
+  "installed.tab.mods": "Mods",
   "installed.tab.schematics": "Schematics",
   "schematics.import": "Importuj",
   "schematics.importNamePrompt": "Nazwa schematu",
