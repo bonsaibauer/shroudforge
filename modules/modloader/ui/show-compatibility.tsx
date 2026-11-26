@@ -400,18 +400,12 @@ export function Compatibility({
           ? 'neutral'
           : 'ok'
     return (
-      <section className="settings-module compatibility-section" key={id}>
-        <header>
-          <div>
-            <h3>{title}</h3>
-            <p className="hint">{description}</p>
-          </div>
-          <CompatibilityStatusBadge status={state} />
-        </header>
+      <Card key={id} title={title} actions={<CompatibilityStatusBadge status={state} />}>
+        <p className="hint settings-module-description">{description}</p>
         <div className="settings-options">
           {rows.map((row) => <CompatibilityRow key={row.id} row={row} />)}
         </div>
-      </section>
+      </Card>
     )
   }
   const tabItems: Array<[string, ReactNode]> = []
@@ -739,7 +733,7 @@ export function Compatibility({
               })}
             </span>
           </section>
-          <div className="settings-module-list compatibility-sections">
+          <div className="settings-module-list compatibility-sections compatibility-engine-sections">
             {renderSection(
               'game',
               t('compatibility.section.game'),
