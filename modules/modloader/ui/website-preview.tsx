@@ -4,6 +4,7 @@ import { Card } from '../../ui-resources/show-card'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { HeaderLink } from '../../ui-resources/show-header-link'
 import { Icon } from '../../ui-resources/show-icon'
+import { EnvironmentBadge } from '../../ui-resources/show-environment-badge'
 import { PageHeader } from '../../ui-resources/show-page-header'
 import { SettingSwitch } from '../../ui-resources/edit-setting'
 import { I18nProvider, useI18n } from '../../ui-resources/i18n'
@@ -168,6 +169,21 @@ function makeModInfo(manifest: JsonObject, extended: JsonObject): ModInfo {
   const settingValues = Object.fromEntries(
     settings.map(setting => [setting.key, setting.default]),
   )
+  const targets = Array.isArray(extended.targets)
+    ? extended.targets.filter((item): item is string => typeof item === 'string')
+    : []
+  const environment = targets.length === 1 && !['client', 'server'].includes(targets[0])
+    ? targets[0]
+    : undefined
+  const target = environment
+    ? ['client_only', 'singleplayer_only'].includes(environment)
+      ? 'client'
+      : ['server_only', 'dedicated_server_only'].includes(environment)
+        ? 'server'
+        : 'client, server'
+    : targets.includes('server')
+      ? targets.includes('client') ? 'client, server' : 'server'
+      : 'client'
   return {
     revision: 'website-preview',
     id: typeof manifest.id === 'string' ? manifest.id : 'example.mod',
@@ -175,9 +191,8 @@ function makeModInfo(manifest: JsonObject, extended: JsonObject): ModInfo {
     version: typeof manifest.version === 'string' ? manifest.version : '1.0.0',
     dependencies,
     ecosystem: extended.launcher === 'EML' ? 'EML' : 'SF',
-    target: Array.isArray(extended.targets)
-      ? extended.targets.filter(item => typeof item === 'string').join(', ') || 'client'
-      : 'client',
+    target,
+    environment,
     asset: capabilities.includes('patch') || capabilities.includes('export'),
     runtime: capabilities.includes('runtime'),
     description:
@@ -251,12 +266,6 @@ function ModSettingsPreview({
       : activeGroup
         ? [activeGroup]
         : []
-  const target =
-    mod.target === 'client'
-      ? 'Client'
-      : mod.target === 'server'
-        ? 'Server'
-        : 'Client, Server'
   const visibleLinks = linkOrder.flatMap(key => {
     const definition = linkDefinitions[key] as LinkDefinition | undefined
     const url = mod.links?.[key]
@@ -363,7 +372,7 @@ function ModSettingsPreview({
                 {t(mod.ecosystem === 'SF' ? 'mod.ecosystem.sf' : 'mod.ecosystem.eml')}
               </span>
               <span className="mod-info-badge version"><Icon name="version" />{mod.version}</span>
-              <span className="mod-info-badge target"><Icon name={mod.target === 'server' ? 'server' : 'client'} />{target}</span>
+              <EnvironmentBadge environment={mod.environment} target={mod.target} />
               {mod.asset && <span className="mod-info-badge asset"><Icon name="blueprint" />{t('mod.type.asset')}</span>}
               {mod.runtime && <span className="mod-info-badge runtime"><Icon name="bolt" />{t('mod.type.runtime')}</span>}
               {mod.license && <span className="mod-info-badge license">{mod.license}</span>}

@@ -4083,9 +4083,11 @@ name = "shroudforge-updater"
 version = "1.0.0"
 dependencies = [
  "fs2",
+ "jsonschema",
  "mod-loader-bridge",
  "parking_lot",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2 0.10.9",

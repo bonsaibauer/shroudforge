@@ -21,6 +21,8 @@ fs2 = "0.4"
 parking_lot = "0.12"
 serde.workspace = true
 serde_json.workspace = true
+semver.workspace = true
+jsonschema = { version = "0.33", default-features = false }
 shroudforge-package.workspace = true
 shroudforge-schematics.workspace = true
 shroudforge-window-management.workspace = true

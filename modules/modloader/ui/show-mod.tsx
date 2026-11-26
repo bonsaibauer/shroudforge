@@ -5,6 +5,7 @@ import { LinkDefinition } from './ui-snapshot'
 import { Card } from '../../ui-resources/show-card'
 import { HeaderLink } from '../../ui-resources/show-header-link'
 import { Icon } from '../../ui-resources/show-icon'
+import { EnvironmentBadge } from '../../ui-resources/show-environment-badge'
 import { PageHeader } from '../../ui-resources/show-page-header'
 import { SettingSwitch } from '../../ui-resources/edit-setting'
 import { ModIcon } from './show-mod-icon'
@@ -103,12 +104,6 @@ export function ModPage({
           ? 'mod.mode.waitingWorld'
           : `mod.mode.${stateCode}`,
   )
-  const target =
-    mod.target === 'client'
-      ? 'Client'
-      : mod.target === 'server'
-        ? 'Server'
-        : 'Client, Server'
   const visibleLinks = linkOrder.flatMap((key) => {
     const definition = linkDefinitions[key],
       url = mod.links?.[key]
@@ -246,10 +241,7 @@ export function ModPage({
               <Icon name="version" />
               {mod.version}
             </span>
-            <span className="mod-info-badge target">
-              <Icon name={mod.target === 'server' ? 'server' : 'client'} />
-              {target}
-            </span>
+            <EnvironmentBadge environment={mod.environment} target={mod.target} />
             {mod.asset && (
               <span className="mod-info-badge asset">
                 <Icon name="blueprint" />

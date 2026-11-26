@@ -25,6 +25,8 @@ const EXTENDED_MOD_FIELDS: &[&str] = &[
     "schemaVersion",
     "enabled",
     "targets",
+    "releaseChannel",
+    "gameVersions",
     "launcher",
     "links",
     "changelog",
@@ -133,7 +135,19 @@ pub fn parse_manifest_with_extension(
         // Mods remain disabled until activation is explicitly persisted. This
         // also keeps EML packages without an extension safe by default.
         .unwrap_or(false);
+    let environment = extension
+        .get("targets")
+        .and_then(Value::as_array)
+        .filter(|targets| targets.len() == 1)
+        .and_then(|targets| targets[0].as_str())
+        .filter(|target| !matches!(*target, "client" | "server"))
+        .map(|target| {
+            serde_json::from_value::<crate::ModManifestEnvironment>(json!(target))
+                .map_err(|error| format!("invalid detailed environment: {error}"))
+        })
+        .transpose()?;
     let target = match extension.get("targets").and_then(Value::as_array) {
+        Some(_) if environment.is_some() => environment.expect("present").process_target(),
         Some(targets) => {
             let client = targets.iter().any(|value| value == "client");
             let server = targets.iter().any(|value| value == "server");
@@ -204,6 +218,15 @@ pub fn parse_manifest_with_extension(
         "target".into(),
         serde_json::to_value(target).map_err(|error| error.to_string())?,
     );
+    if let Some(environment) = environment {
+        object.insert("environment".into(), json!(environment));
+    }
+    if let Some(channel) = extension.get("releaseChannel") {
+        object.insert("releaseChannel".into(), channel.clone());
+    }
+    if let Some(game_versions) = extension.get("gameVersions") {
+        object.insert("gameVersions".into(), game_versions.clone());
+    }
     object.insert("settingValues".into(), Value::Object(effective));
     object.insert("groups".into(), json!(groups));
     object.insert("presets".into(), json!(presets));

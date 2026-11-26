@@ -135,6 +135,10 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
                 .and_then(|value| value.as_str())
                 .unwrap_or("client, server")
                 .into(),
+            environment: value
+                .get("environment")
+                .and_then(|value| value.as_str())
+                .map(str::to_owned),
             asset,
             runtime,
             description: value

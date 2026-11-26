@@ -81,6 +81,7 @@ export type ModInfo = {
   dependencies: ModDependencyInfo[]
   ecosystem: 'EML' | 'SF'
   target: string
+  environment?: string
   asset: boolean
   runtime: boolean
   description?: string

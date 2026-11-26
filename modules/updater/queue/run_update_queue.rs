@@ -207,6 +207,7 @@ pub(crate) fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
                     "queueItemId":id,
                     "operation":item["operation"],
                     "projectId":payload["projectId"],
+                    "versionId":payload["versionId"],
                     "modId":payload["modId"],
                     "provider":payload["provider"]
                 });
@@ -218,12 +219,18 @@ pub(crate) fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
                 let update_mod_id = (item["operation"] == "update")
                     .then(|| payload["modId"].as_str())
                     .flatten();
-                crate::mod_installation::install::install_mod_from_catalog(
+                crate::mod_installation::install::install_catalog_content(
                     root,
                     &provider,
                     project_id,
+                    payload["versionId"].as_str(),
                     update_mod_id,
                     id,
+                    if item["operation"] == "update" {
+                        "mod"
+                    } else {
+                        payload["contentType"].as_str().unwrap_or("mod")
+                    },
                 )
                 .map(|_| ())
             }

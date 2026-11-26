@@ -1,0 +1,16 @@
+{
+  "$schema": "https://shroudforge.net/schemas/sfpack/1/manifest.schema.json",
+  "formatVersion": 1,
+  "game": "enshrouded",
+  "name": "My Enshrouded Modpack",
+  "versionId": "1.0.0",
+  "summary": "Template. Replace the example IDs, checksum and game version with real ShroudEdit metadata.",
+  "gameVersions": ["REPLACE"],
+  "mods": [
+    {
+      "projectId": "PROJECTID",
+      "versionId": "VERSIONID",
+      "sha512": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

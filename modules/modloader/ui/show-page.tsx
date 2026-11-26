@@ -14,7 +14,7 @@ import { ActivityPage } from '../../logging/ui/show-activity'
 import { Compatibility } from './show-compatibility'
 import type { CompatibilityTab } from './show-compatibility'
 import { RecycleBin } from '../../updater/ui/show-recycle-bin'
-import type { UpdaterCommand } from '../../updater/ui/update-types'
+import type { ModUpdate, UpdaterCommand } from '../../updater/ui/update-types'
 import { WikiPage } from '../../wiki/ui/show-wiki'
 import { ServerManagement } from './show-server-management'
 
@@ -90,6 +90,9 @@ export function Page({
         catalog={data.catalog}
         updaterAvailable={data.release.updaterAvailable === true}
         enabled={data.settings.modulePreferences?.updates?.enabled === true}
+        installedMods={data.mods.map(({ id, version }) => ({ id, version }))}
+        modUpdates={(data.settings.modulePreferences?.updates?.mods?.latestUpdates || []) as ModUpdate[]}
+        gameVersion={data.gameVersion}
         onCommand={onUpdaterCommand}
       />
     )

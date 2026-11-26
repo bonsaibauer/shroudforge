@@ -251,6 +251,17 @@ async function validate() {
   }
   await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
   const schemaNames = ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"];
+  const packSchema = JSON.parse(await readRequired("schemas/sfpack/1/manifest.schema.json"));
+  const packExample = JSON.parse(await readRequired("schemas/sfpack/1/manifest.example.json"));
+  assert(packSchema.$id === "https://shroudforge.net/schemas/sfpack/1/manifest.schema.json", "The modpack format must retain its permanent schema URL.");
+  assert(packExample.$schema === packSchema.$id && packExample.formatVersion === 1, "The example must reference the published modpack schema.");
+  assert((await readRequired("schemas/sfpack/1/format.txt")).includes("shroudforge.index.json"), "The modpack archive contract must be published.");
+  assert(schemaHtml.includes('href="/schemas/sfpack/1/manifest.schema.json"'), "The schema catalog must link to the modpack schema.");
+  const blueprintSchema = JSON.parse(await readRequired("schemas/sfbp/8/manifest.schema.json"));
+  const blueprintExample = JSON.parse(await readRequired("schemas/sfbp/8/manifest.example.json"));
+  assert(blueprintSchema.$id === "https://shroudforge.net/schemas/sfbp/8/manifest.schema.json" && blueprintExample.$schema === blueprintSchema.$id && blueprintExample.formatVersion === 8, "Blueprint format 8 must publish its JSON schema and matching example.");
+  assert(schemaHtml.includes('href="https://shroudforge.net/schemas/sfbp/8/manifest.schema.json"') || schemaHtml.includes(`/schemas/sfbp/8/manifest.schema.json`), "The schema catalog must expose blueprint format 8.");
+  assert((await readRequired("schemas/sfbp/8/format.txt")).includes("formatVersion 8"), "The blueprint format 8 semantic contract must be published.");
   const snapshotDirectory = path.resolve(import.meta.dirname, "../schema-snapshots");
   const versions = (await fs.readdir(snapshotDirectory, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name);
   assert(versions.includes(repositoryVersion), "The current versioned schema snapshot is missing.");

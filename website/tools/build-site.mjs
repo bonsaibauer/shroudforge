@@ -319,14 +319,22 @@ async function build() {
     await fs.writeFile(path.join(versionDirectory, schema.name), schema.contents, "utf8");
   }
   const blueprintSchemaDirectory = path.join(schemasDirectory, "sfbp");
+  const modpackSchemaDirectory = path.join(schemasDirectory, "sfpack", "1");
+  await fs.mkdir(modpackSchemaDirectory, { recursive: true });
+  for (const name of ["manifest.schema.json", "format.txt", "manifest.example.json"]) {
+    const source = path.join(repositoryDirectory, "modules", "updater", "mod-installation", "schemas", "sfpack", "1", name);
+    const stat = await fs.lstat(source);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Modpack schema must be a regular file: ${source}`);
+    await fs.copyFile(source, path.join(modpackSchemaDirectory, name));
+  }
   await fs.mkdir(blueprintSchemaDirectory, { recursive: true });
-  for (const [source, name] of [
-    [path.join(repositoryDirectory, "mods", "world-editor", "schemas", "v7.txt"), "v7.txt"],
-    [path.join(repositoryDirectory, "mods", "world-editor", "src", "sfbp_v7.lua"), "v7.lua"],
-  ]) {
+  const blueprintV8Directory = path.join(blueprintSchemaDirectory, "8");
+  await fs.mkdir(blueprintV8Directory, { recursive: true });
+  for (const name of ["manifest.schema.json", "manifest.example.json", "format.txt"]) {
+    const source = path.join(repositoryDirectory, "mods", "world-editor", "schemas", "8", name);
     const stat = await fs.lstat(source);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Blueprint schema must be a regular file: ${source}`);
-    await fs.copyFile(source, path.join(blueprintSchemaDirectory, name));
+    await fs.copyFile(source, path.join(blueprintV8Directory, name));
   }
   const toolDirectory = path.join(outputDirectory, modSettingsRelativePath);
   await fs.mkdir(toolDirectory, { recursive: true });

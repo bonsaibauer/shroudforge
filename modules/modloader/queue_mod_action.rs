@@ -7,7 +7,7 @@ use std::time::UNIX_EPOCH;
 
 /// Queue a declared action for the runtime attached to this installation.
 pub fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<(), String> {
-    if !valid_identifier(id) || !valid_identifier(action) {
+    if !crate::package_lookup::valid_mod_identifier(id) || !valid_identifier(action) {
         return Err("invalid mod action".into());
     }
     let package = find_mod_package(root, id).ok_or("mod package not found")?;

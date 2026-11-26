@@ -1,0 +1,53 @@
+ShroudForge Modpack v1
+Schema: https://shroudforge.net/schemas/sfpack/1/manifest.schema.json
+Media type: application/x-shroudforge-modpack+zip
+Extension: .sfpack
+
+The ZIP contains exactly one regular file named shroudforge.index.json at its
+root. Stored and Deflate compression are supported. Encrypted entries, symbolic
+links, directory entries, additional files, and duplicate entries are rejected.
+The complete archive and the uncompressed UTF-8 manifest are each limited to
+1 MiB. The manifest must validate against the JSON Schema above.
+
+Each mod entry identifies an existing ShroudEdit project by its API project ID
+(not its slug or its local mod.json ID), a fixed API version ID, and the SHA-512
+of a ZIP published on that version. One project may occur only once. A version
+must belong to the specified project and support ShroudForge or EML. Every game
+version advertised by the pack must be supported by every referenced mod.
+All referenced versions must be publicly available. Nested packs, schematics,
+servers, private attachments, arbitrary download URLs, and paths are not part
+of v1. Native components may be contained inside valid referenced mod packages
+and remain subject to the normal ShroudForge package validation rules.
+
+The list must include all required transitive mod dependencies. A dependency
+pinned to a version must match that exact version. Project-only dependencies
+must have a matching project in the list. Incompatible dependencies are rejected.
+Optional dependencies are installed only when explicitly listed in the pack.
+No installer may silently replace a pinned version with a newer release.
+
+Upload validation must resolve every project/version/hash reference and check
+compatibility and dependency closure. JSON Schema alone cannot check the catalog.
+The upload's version number and game versions must match the manifest. The
+manifest determines the embedded-dependency records displayed by ShroudEdit.
+
+Installation downloads the pack, verifies its catalog checksum, reads this
+manifest, repeats catalog validation, and verifies the selected ZIP hashes.
+Each ZIP is installed through the normal mod-package validation and storage
+pipeline. The pack never writes arbitrary files into the game directory or
+changes saves, credentials, global loader settings, or unrelated installed mods.
+An existing installation at a different pinned mod version must be reported as
+a conflict before changes unless an explicit update transaction is available.
+Successful installation is recorded only after all listed mods are present.
+On failure or cancellation, newly installed packages are recovered through the
+existing recycle-bin mechanism. A partial installation is never reported as
+complete. Existing matching packages are retained and are not rolled back.
+
+The format version is independent of ShroudForge release numbers. Once v1 is
+published, incompatible changes require a new schema URL and formatVersion.
+Legacy .mrpack files are not .sfpack files. Renaming the extension is insufficient.
+
+Authoring
+Create the manifest using the schema, choose the IDs and SHA-512 values from
+ShroudEdit version metadata, and ZIP that one file at the archive root. Name the
+archive with the .sfpack extension. The example JSON is a structural template.
+Replace its example IDs, checksum and game version with real catalog values.

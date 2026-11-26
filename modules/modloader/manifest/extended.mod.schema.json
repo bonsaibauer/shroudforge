@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://shroudforge.net/schemas/1.8.0/extended.mod.schema.json",
+  "$id": "https://shroudforge.net/schemas/1.8.2/extended.mod.schema.json",
   "title": "ShroudForge mod extension",
   "type": "object",
   "additionalProperties": false,
@@ -10,11 +10,28 @@
     "schemaVersion": { "const": 1 },
     "enabled": { "type": "boolean" },
     "targets": {
-      "description": "Processes this mod runs in. Legacy EML packages without targets default to client and server. ShroudForge packages default to client.",
+      "description": "Legacy process targets or exactly one detailed environment choice. Legacy EML packages without targets default to client and server. ShroudForge packages default to client.",
+      "oneOf": [
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "enum": ["client", "server"] }
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "enum": ["client_only", "server_only", "dedicated_server_only", "client_and_server", "server_only_client_optional", "client_only_server_optional", "client_or_server_prefers_both", "client_or_server", "singleplayer_only"] }
+        }
+      ]
+    },
+    "releaseChannel": { "enum": ["release", "beta", "alpha"] },
+    "gameVersions": {
       "type": "array",
-      "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["client", "server"] }
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 }
     },
     "launcher": {
       "description": "Launcher that originally identified this mod. Omit for ShroudForge mods. Use EML to preserve EML provenance.",

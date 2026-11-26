@@ -51,3 +51,7 @@ pub fn valid_identifier(value: &str) -> bool {
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
 }
+
+pub fn valid_mod_identifier(value: &str) -> bool {
+    value.len() <= 64 && valid_identifier(value)
+}

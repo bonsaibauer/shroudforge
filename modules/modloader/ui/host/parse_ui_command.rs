@@ -22,6 +22,22 @@ pub(crate) struct UiCommand {
     #[serde(default)]
     pub(crate) query: Option<String>,
     #[serde(default)]
+    pub(crate) loader: Option<String>,
+    #[serde(default)]
+    pub(crate) category: Option<String>,
+    #[serde(default)]
+    pub(crate) game_version: Option<String>,
+    #[serde(default)]
+    pub(crate) project_type: Option<String>,
+    #[serde(default)]
+    pub(crate) content_type: Option<String>,
+    #[serde(default)]
+    pub(crate) sort: Option<String>,
+    #[serde(default)]
+    pub(crate) page: Option<usize>,
+    #[serde(default)]
+    pub(crate) limit: Option<usize>,
+    #[serde(default)]
     pub(crate) locale: Option<String>,
     #[serde(default)]
     pub(crate) action: Option<String>,
@@ -49,6 +65,8 @@ pub(crate) struct UiCommand {
     pub(crate) target: Option<String>,
     #[serde(default)]
     pub(crate) project_id: Option<String>,
+    #[serde(default)]
+    pub(crate) version_id: Option<String>,
     #[serde(default)]
     pub(crate) title: Option<String>,
     #[serde(default)]
@@ -345,6 +363,11 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
             "Backup Management".into(),
         ),
         "search-catalog" => ("search-catalog", "search-catalog", value.query.clone()?),
+        "load-catalog-project" => (
+            "load-catalog-project",
+            "load-catalog-project",
+            value.project_id.clone()?,
+        ),
         "install-mod" => ("install-mod", "install-mod", value.project_id.clone()?),
         "update-mod" => ("update-mod", "update-mod", value.mod_id.clone()?),
         "remove-mod" => ("remove-mod", "recycle-mod", value.mod_id.clone()?),

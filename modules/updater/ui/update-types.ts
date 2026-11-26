@@ -73,19 +73,102 @@ export type UpdateQueue = {
 export type CatalogItem = {
   id: string
   slug: string
+  projectType: 'mod' | 'schematic' | 'modpack' | 'server'
+  projectTypes: string[]
   name: string
   summary: string
   iconUrl?: string
-  author?: string
-  downloads?: number
-  version?: string
+  author?: string | null
+  downloads?: number | null
+  follows?: number | null
+  version?: string | null
+  environment?: string | null
+  dateModified?: string | null
+  latestVersionId?: string | null
+  loaders: string[]
+  categories: string[]
+  gameVersions: string[]
+  gallery: string[]
+  installedModId?: string
 }
 
 export type Catalog = {
   state: string
   query: string
+  projectType?: string
+  loader?: string
+  category?: string
+  gameVersion?: string
+  sort?: string
+  page?: number
+  limit?: number
+  total?: number
   message?: string
   items: CatalogItem[]
+  categories?: string[]
+  gameVersions?: string[]
+  projectTypes?: string[]
+  detail?: CatalogProject | null
+  detailState?: string
+  detailError?: string | null
+}
+
+export type CatalogProject = {
+  id: string
+  slug: string
+  projectTypes: string[]
+  name: string
+  summary: string
+  description: string
+  downloads?: number
+  follows?: number
+  author?: string
+  dateModified?: string
+  dateCreated?: string
+  iconUrl?: string
+  links: Record<string, string | null | undefined>
+  loaders: string[]
+  categories: string[]
+  gameVersions: string[]
+  gallery: CatalogGalleryImage[]
+  versionsCount: number
+  versions: CatalogProjectVersion[]
+  dependencies: Array<{ id: string; name: string; summary: string }>
+  schematic?: Record<string, unknown> | null
+  enshroudedMod?: Record<string, unknown> | null
+  enshroudedServer?: Record<string, unknown> | null
+  installedModId?: string
+}
+
+export type CatalogGalleryImage = {
+  url: string
+  rawUrl: string
+  title: string
+  description: string
+  created: string
+}
+
+export type CatalogProjectVersion = {
+  id: string
+  name: string
+  versionNumber: string
+  published: string
+  changelog: string
+  versionType: string
+  environment?: string
+  downloads?: number
+  loaders: string[]
+  gameVersions: string[]
+  projectTypes: string[]
+  files: Array<{
+    id?: string
+    filename?: string
+    url?: string
+    primary?: boolean
+    size?: number
+    hashes?: Record<string, string>
+  }>
+  dependencies: Array<Record<string, unknown>>
 }
 
 export type ModUpdate = {

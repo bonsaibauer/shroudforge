@@ -21,7 +21,11 @@ const schemaDefinitions = [
 	},
 ]
 
-const blueprintVersions = ['7']
+const blueprintVersions = ['8']
+
+function blueprintSchemaPath(version) {
+	return `/schemas/sfbp/${version}/manifest.schema.json`
+}
 
 function renderSchemaCard(version, schema, siteUrl) {
 	const url = new URL(`/schemas/${version}/${schema.file}`, siteUrl).href
@@ -51,7 +55,7 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 			<div class="schema-grid">${schemaDefinitions.map(schema => renderSchemaCard(version, schema, siteUrl)).join('')}</div>
 		</section>`).join('')
 	const manifestSchemaUrl = new URL(`/schemas/${currentVersion}/manifest.schema.json`, siteUrl).href
-	const blueprintSchemaUrl = new URL(`/schemas/sfbp/v${blueprintVersions[0]}.txt`, siteUrl).href
+	const blueprintSchemaUrl = new URL(blueprintSchemaPath(blueprintVersions[0]), siteUrl).href
 	const sourceUrl = config.repository ? `https://github.com/${config.repository}/tree/${currentVersion}/modules/modloader/manifest` : '#'
 	return `<!doctype html>
 <html lang="en" data-theme="light">
@@ -87,15 +91,24 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 				<div class="schema-manifest-example"><span>Example for <code>mod.json</code></span><code class="schema-url-value" data-schema-manifest-example>"$schema": "${escapeHtml(manifestSchemaUrl)}"</code></div>
 				${versionSections}
 			</section>
+			<section class="schema-reference panel" aria-labelledby="modpack-reference-title">
+				<header class="tool-section-heading"><div><span class="eyebrow">MODPACK FORMAT V1</span><h2 id="modpack-reference-title">ShroudForge modpacks</h2><p>A <code>.sfpack</code> archive contains <code>shroudforge.index.json</code> with pinned ShroudEdit project IDs, version IDs and SHA-512 checksums.</p></div></header>
+				<div class="schema-grid"><article class="schema-card panel">
+					<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">{ }</span><div><h3>ShroudForge Modpack v1</h3><code>shroudforge.index.json</code></div></div>
+					<p>The JSON Schema validates the manifest. The format specification also defines archive limits, catalog validation and installation requirements. Example IDs must be replaced with real ShroudEdit metadata.</p>
+					<div class="schema-card-actions"><a class="schema-action-link" href="/schemas/sfpack/1/manifest.schema.json" target="_blank" rel="noopener">Open JSON Schema</a><a class="schema-action-link" href="/schemas/sfpack/1/format.txt">Format specification</a><a class="schema-action-link" href="/schemas/sfpack/1/manifest.example.json" download>Example manifest</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(new URL('/schemas/sfpack/1/manifest.schema.json', siteUrl).href)}">Copy URL</button></div>
+					<output class="schema-copy-status" aria-live="polite"></output>
+				</article></div>
+			</section>
 			<section class="schema-reference panel" aria-labelledby="blueprint-reference-title">
-				<header class="tool-section-heading"><div><span class="eyebrow">FILE FORMAT REFERENCE</span><h2 id="blueprint-reference-title">World Editor blueprints</h2><p>Open or download the specification for this line-based blueprint format.</p></div><label class="preview-version-picker schema-version-picker"><span>Blueprint version</span><select data-blueprint-version aria-label="Blueprint version">${blueprintVersions.map(version => `<option value="${escapeHtml(version)}" ${version === blueprintVersions[0] ? 'selected' : ''}>${escapeHtml(version)}</option>`).join('')}</select></label></header>
+				<header class="tool-section-heading"><div><span class="eyebrow">FILE FORMAT REFERENCE</span><h2 id="blueprint-reference-title">World Editor blueprints</h2><p>Blueprints use JSON format 8. Copy the schema URL into your editor to validate a .sfbp file.</p></div><label class="preview-version-picker schema-version-picker"><span>Blueprint version</span><select data-blueprint-version aria-label="Blueprint version">${blueprintVersions.map(version => `<option value="${escapeHtml(version)}" ${version === blueprintVersions[0] ? 'selected' : ''}>${escapeHtml(version)}</option>`).join('')}</select></label></header>
 				<div class="schema-manifest-example"><span>Blueprint specification URL</span><code class="schema-url-value" data-blueprint-url>${escapeHtml(blueprintSchemaUrl)}</code></div>
 				${blueprintVersions.map(version => {
-					const url = new URL(`/schemas/sfbp/v${version}.txt`, siteUrl).href
+					const url = new URL(blueprintSchemaPath(version), siteUrl).href
 					return `<section class="schema-version-section" data-blueprint-version-section="${escapeHtml(version)}" aria-label="Blueprint format version ${escapeHtml(version)}" ${version === blueprintVersions[0] ? '' : 'hidden'}><div class="schema-grid"><article class="schema-card panel">
 						<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">BP</span><div><h3>Blueprint format</h3><code>.sfbp</code></div></div>
-						<p>File structure, field constraints and examples. The linked Lua implementation validates blueprints on load.</p>
-						<div class="schema-card-actions"><a class="schema-action-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open specification</a><a class="schema-action-link" href="${escapeHtml(url)}" download>Download</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(url)}">Copy URL</button><a class="schema-action-link" href="${escapeHtml(new URL(`/schemas/sfbp/v${version}.lua`, siteUrl).href)}" target="_blank" rel="noopener">Validation code</a></div>
+						<p>JSON Schema for .sfbp files. Readers also validate voxel counts, coverage, transforms and placement recipes.</p>
+						<div class="schema-card-actions"><a class="schema-action-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open JSON Schema</a><a class="schema-action-link" href="${escapeHtml(url)}" download>Download</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(url)}">Copy URL</button><a class="schema-action-link" href="/schemas/sfbp/${version}/format.txt">Format specification</a><a class="schema-action-link" href="/schemas/sfbp/${version}/manifest.example.json" download>Example blueprint</a></div>
 						<output class="schema-copy-status" aria-live="polite"></output>
 					</article></div></section>`
 				}).join('')}

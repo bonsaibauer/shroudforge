@@ -42,6 +42,8 @@ Für die aktuelle Repository-Version prüft der Build, dass der Snapshot mit dem
 
 Das zeilenbasierte World-Editor-Format ist kein JSON. Seine unabhängig vom Modloader versionierte Spezifikation liegt unter `mods/world-editor/schemas/v7.txt`. Der Website-Build veröffentlicht sie unter `/schemas/sfbp/v7.txt` und die beim Laden verwendete Lua-Prüfung aus `mods/world-editor/src/sfbp_v7.lua` unter `/schemas/sfbp/v7.lua`. Bei einer neuen Formatversion bleiben die V7-Dateien unter ihren festen URLs erhalten.
 
+Das eigenständig versionierte Modpackformat `.sfpack` liegt unter `modules/updater/mod-installation/schemas/sfpack/`. Der Website-Build veröffentlicht das JSON-Schema, den Archivvertrag und eine ausdrücklich als Vorlage gekennzeichnete Beispielmanifestdatei unter `/schemas/sfpack/`. `v1.schema.json` ist der kanonische Vertrag für `shroudforge.index.json`. ShroudEdit verwendet einen eingecheckten, identischen Snapshot zur Uploadprüfung. Die API prüft zusätzlich Projekt- und Versionszugehörigkeit, Prüfsummen, Kompatibilität und vollständige Abhängigkeiten. Ein veröffentlichtes Schema wird bei inkompatiblen Änderungen durch eine neue Formatversion ergänzt.
+
 ## Veröffentlichung im bestehenden Releaseablauf
 
 Der vorhandene Workflow `.github/workflows/build.yml` wird weiterhin manuell auf einem Versions-Branch wie `1.0.0` gestartet. Nach dem vollständig erfolgreichen Job `publish` ruft der zusätzliche Job `website` den wiederverwendbaren Workflow `website-deploy.yml` auf. Build-, Scan-, Paket- und Releasefreigaben bleiben Bestandteil des bisherigen Ablaufs.

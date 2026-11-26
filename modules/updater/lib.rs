@@ -24,6 +24,11 @@ pub use mod_installation_requests::*;
 
 mod download_response_body;
 
+#[path = "mod-installation/install_catalog_schematic.rs"]
+mod install_catalog_schematic;
+#[path = "mod-installation/read_modpack.rs"]
+mod read_modpack;
+
 #[path = "windows/entry.rs"]
 mod windows_entry;
 pub use windows_entry::*;
@@ -230,16 +235,21 @@ pub fn run_request(
                     serde_json::from_value::<provider_config::CatalogProviderConfig>(value)
                         .map_err(|error| format!("invalid catalog provider: {error}"))
                 })?;
-            let query = request
-                .get("query")
-                .and_then(serde_json::Value::as_str)
-                .ok_or("catalog search request is missing its query")?
-                .trim()
-                .chars()
-                .take(100)
-                .collect::<String>();
-            let items = mod_installation::catalog::fetch_catalog(&provider, &query)?;
-            Ok(serde_json::json!({"query":query,"items":items}))
+            let search =
+                serde_json::from_value::<mod_installation::catalog::CatalogSearchParameters>(
+                    request.clone(),
+                )
+                .map_err(|error| format!("invalid catalog search filters: {error}"))?;
+            let result = mod_installation::catalog::fetch_catalog(root, &provider, search)?;
+            serde_json::to_value(result).map_err(|error| error.to_string())
+        })(),
+        "load-catalog-project" => (|| {
+            if !update_check::updates_enabled(root) {
+                return Err(UPDATE_MODULE_DISABLED_MESSAGE.into());
+            }
+            let provider = read_request_provider(request)?;
+            let project_id = request_string(request, "projectId")?;
+            mod_installation::catalog::fetch_catalog_project(root, &provider, project_id)
         })(),
         "install-mod" => (|| {
             let provider = read_request_provider(request)?;
@@ -250,23 +260,31 @@ pub fn run_request(
                 .get("title")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or(project_id);
-            request_mod_install(root, project_id, title, provider)?;
+            let version_id = request.get("versionId").and_then(serde_json::Value::as_str);
+            let content_type = request
+                .get("contentType")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("mod");
+            request_mod_install(root, project_id, title, provider, version_id, content_type)?;
             Ok(
                 serde_json::json!({"message":format!("Mod installation for {project_id} added to the update queue.")}),
             )
         })(),
         "update-mod" => (|| {
             let provider = read_request_provider(request)?;
-            let provider = serde_json::to_value(provider)
+            let provider_value = serde_json::to_value(&provider)
                 .map_err(|error| format!("could not serialize catalog provider: {error}"))?;
             let mod_id = request_string(request, "modId")?;
             let title = request
                 .get("title")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or(mod_id);
-            let project_id = mod_installation::catalog::catalog_project_for_mod(root, mod_id)
-                .ok_or("This mod is not registered as a ShroudEdit installation.")?;
-            request_mod_update(root, &project_id, mod_id, title, provider)?;
+            let project_id = mod_installation::catalog::ensure_catalog_project_for_installed_mod(
+                root, &provider, mod_id,
+            )?
+            .ok_or("No ShroudEdit project was found for this mod ID.")?;
+            let version_id = request.get("versionId").and_then(serde_json::Value::as_str);
+            request_mod_update(root, &project_id, mod_id, title, provider_value, version_id)?;
             Ok(serde_json::json!({"message":format!("Update queued for {mod_id}.")}))
         })(),
         "stage-system-update" => (|| {

@@ -10,7 +10,7 @@ pub(crate) fn run_blueprint_action(
     webview: &wry::WebView,
     next_refresh: &mut Instant,
 ) {
-    let result = dispatch_action(&arguments.root, &action, &value).map(|()| None);
+    let result = dispatch_action(&arguments.root, &action, &value);
     match result {
         Ok(_) => *next_refresh = Instant::now(),
         Err(error) => {

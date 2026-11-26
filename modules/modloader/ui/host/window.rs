@@ -647,19 +647,14 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                     if result.operation == "search-catalog" {
                         match result.result {
                             Ok(value) => {
-                                let items = value["items"]
-                                    .as_array()
-                                    .map(|items| serde_json::Value::Array(items.clone()))
-                                    .unwrap_or_else(|| serde_json::json!([]));
                                 if let Ok(mut catalog) = catalog_state.lock() {
+                                    *catalog = value;
                                     catalog["state"] = "ready".into();
-                                    catalog["query"] = result.subject.into();
-                                    catalog["message"] = if items.as_array().is_some_and(Vec::is_empty) {
-                                        "No matching ShroudForge mods found.".into()
+                                    catalog["message"] = if catalog["items"].as_array().is_some_and(Vec::is_empty) {
+                                        "No matching ShroudEdit mods found.".into()
                                     } else {
                                         serde_json::Value::Null
                                     };
-                                    catalog["items"] = items;
                                 }
                             }
                             Err(error) => {
@@ -685,6 +680,24 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                     None,
                                     false,
                                 );
+                            }
+                        }
+                        next_refresh = Instant::now();
+                        continue;
+                    }
+                    if result.operation == "load-catalog-project" {
+                        if let Ok(mut catalog) = catalog_state.lock() {
+                            match result.result {
+                                Ok(detail) => {
+                                    catalog["detail"] = detail;
+                                    catalog["detailState"] = "ready".into();
+                                    catalog["detailError"] = serde_json::Value::Null;
+                                }
+                                Err(error) => {
+                                    catalog["detail"] = serde_json::Value::Null;
+                                    catalog["detailState"] = "error".into();
+                                    catalog["detailError"] = error.into();
+                                }
                             }
                         }
                         next_refresh = Instant::now();
@@ -1337,6 +1350,24 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             next_refresh = Instant::now();
                         }
                         Command::UpdaterRequest(operation, subject, request_id, mut request) => {
+                            if request["command"] == "search-catalog" {
+                                if let Ok(mut catalog) = catalog_state.lock() {
+                                    catalog["state"] = "loading".into();
+                                    catalog["query"] = request["query"].clone();
+                                    catalog["loader"] = request["loader"].clone();
+                                    catalog["category"] = request["category"].clone();
+                                    catalog["gameVersion"] = request["gameVersion"].clone();
+                                    catalog["sort"] = request["sort"].clone();
+                                    catalog["page"] = request["page"].clone();
+                                    catalog["limit"] = request["limit"].clone();
+                                    catalog["message"] = serde_json::Value::Null;
+                                }
+                            } else if request["command"] == "load-catalog-project" {
+                                if let Ok(mut catalog) = catalog_state.lock() {
+                                    catalog["detailState"] = "loading".into();
+                                    catalog["detailError"] = serde_json::Value::Null;
+                                }
+                            }
                             if operation == "check-system-update" {
                                 if let Ok(mut release) = release_state.lock() {
                                     release["state"] = "checking".into();
@@ -1345,7 +1376,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             }
                             if matches!(
                                 request["command"].as_str(),
-                                Some("search-catalog" | "install-mod" | "update-mod")
+                                Some("search-catalog" | "load-catalog-project" | "install-mod" | "update-mod")
                             ) {
                                 request["provider"] = active_provider.clone();
                             }

@@ -29,6 +29,12 @@ pub struct ModManifest {
     #[serde(default)]
     pub target: ModTarget,
     #[serde(default)]
+    pub environment: Option<ModManifestEnvironment>,
+    #[serde(default, rename = "releaseChannel")]
+    pub release_channel: Option<ModReleaseChannel>,
+    #[serde(default, rename = "gameVersions")]
+    pub game_versions: Vec<String>,
+    #[serde(default)]
     pub changelog: Vec<String>,
     #[serde(default)]
     pub links: ModLinks,
@@ -145,6 +151,46 @@ impl ModTarget {
             (Self::Client, false) | (Self::Server, true) | (Self::ClientServer, _)
         )
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModManifestEnvironment {
+    ClientOnly,
+    ServerOnly,
+    DedicatedServerOnly,
+    ClientAndServer,
+    ServerOnlyClientOptional,
+    ClientOnlyServerOptional,
+    ClientOrServerPrefersBoth,
+    ClientOrServer,
+    SingleplayerOnly,
+}
+
+impl ModManifestEnvironment {
+    pub fn process_target(self) -> ModTarget {
+        match self {
+            Self::ClientOnly | Self::SingleplayerOnly => ModTarget::Client,
+            Self::ServerOnly | Self::DedicatedServerOnly => ModTarget::Server,
+            _ => ModTarget::ClientServer,
+        }
+    }
+
+    pub fn requires_client(self) -> bool {
+        matches!(self, Self::ClientAndServer | Self::ClientOnlyServerOptional)
+    }
+
+    pub fn requires_server(self) -> bool {
+        matches!(self, Self::ClientAndServer | Self::ServerOnlyClientOptional)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ModReleaseChannel {
+    Release,
+    Beta,
+    Alpha,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

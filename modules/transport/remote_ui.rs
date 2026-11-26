@@ -409,6 +409,7 @@ fn compatibility_mod_inventory(root: &Path) -> Result<Vec<mod_loader::ClientModV
             version: manifest.version.to_string(),
             enabled: manifest.enabled,
             target: manifest.target,
+            environment: manifest.environment,
         });
     }
     Ok(mods)

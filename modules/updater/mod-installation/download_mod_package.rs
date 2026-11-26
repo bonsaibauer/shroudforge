@@ -178,6 +178,30 @@ pub fn download_catalog_version(
         .map_err(|error| format!("Invalid mod.json: {error}"))?;
     shroudforge_package::validate_manifest(&manifest)
         .map_err(|error| format!("Invalid mod manifest: {error}"))?;
+    let project_slug = crate::install_catalog_mod::catalog_project_slug(
+        client, provider, &resolved.project_id,
+    )?;
+    if manifest.id != project_slug {
+        return Err(format!(
+            "mod.json ID '{}' differs from ShroudEdit project slug '{}'",
+            manifest.id, project_slug
+        ));
+    }
+    if manifest.version.to_string() != version._version_number {
+        return Err(format!(
+            "mod.json version '{}' differs from published version '{}'",
+            manifest.version, version._version_number
+        ));
+    }
+    if let Some(game_version) = crate::mod_installation::catalog::current_game_version(root)
+        && !manifest.game_versions.is_empty()
+        && !manifest.game_versions.contains(&game_version)
+    {
+        return Err(format!(
+            "Mod '{}' does not support installed game version {game_version}",
+            manifest.id
+        ));
+    }
     if update_mod_id.is_none() && find_mod_package(root, &manifest.id).is_some() {
         return Err(format!("Mod '{}' is already installed", manifest.name));
     }

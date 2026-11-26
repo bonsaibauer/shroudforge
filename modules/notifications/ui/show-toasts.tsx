@@ -89,11 +89,11 @@ export function Toasts({
     <div className="toast-stack" aria-live="polite">
       {showErrors && (
         <div role="alert" className="settings-save-message persistent error">
+          <div className="toast-message-label">
+            <span className="state-pill neutral">ERROR</span>
+          </div>
           <div className="toast-message-content">
-            <div className="toast-message-heading">
-              <strong>{t('settings.configuration.title')}</strong>
-              <span className="state-pill neutral">ERROR</span>
-            </div>
+            <strong>{t('settings.configuration.title')}</strong>
             {errors?.map((error, index) => (
               <p key={error || index}>{error}</p>
             ))}
@@ -113,11 +113,11 @@ export function Toasts({
           role={message.level === 'error' ? 'alert' : 'status'}
           className={`settings-save-message ${message.level === 'error' ? 'error' : message.level === 'warn' ? 'warning' : 'success'}`}
         >
+          <div className="toast-message-label">
+            <EcosystemBadge ecosystem={message.ecosystem} />
+            <span className="state-pill neutral">{message.level.toUpperCase()}</span>
+          </div>
           <div className="toast-message-content">
-            <div className="toast-message-heading">
-              <EcosystemBadge ecosystem={message.ecosystem} />
-              <span className="state-pill neutral">{message.level.toUpperCase()}</span>
-            </div>
             <div className="toast-message-text">{message.message}</div>
           </div>
           <button

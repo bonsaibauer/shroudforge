@@ -2,6 +2,8 @@ use crate::ModTarget;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
+use crate::ModManifestEnvironment;
+
 const MAX_REPORT_MODS: usize = 512;
 const MAX_REPORT_PROBLEMS: usize = 128;
 const MAX_VERSION_BYTES: usize = 128;
@@ -14,6 +16,8 @@ pub struct ClientModVersion {
     pub version: String,
     pub enabled: bool,
     pub target: ModTarget,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<ModManifestEnvironment>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +59,7 @@ impl ClientCompatibilityReport {
         }
         let mut ids = HashSet::with_capacity(self.mods.len());
         for item in &self.mods {
-            if !crate::package_lookup::valid_identifier(&item.id)
+            if !crate::package_lookup::valid_mod_identifier(&item.id)
                 || !ids.insert(item.id.as_str())
                 || item.version.trim().is_empty()
                 || item.version.len() > MAX_VERSION_BYTES
@@ -78,7 +82,7 @@ impl ClientCompatibilityReport {
                 || problem
                     .mod_id
                     .as_deref()
-                    .is_some_and(|id| !crate::package_lookup::valid_identifier(id))
+                    .is_some_and(|id| !crate::package_lookup::valid_mod_identifier(id))
             {
                 return Err("invalid problem in compatibility report");
             }
@@ -273,8 +277,11 @@ fn compare_report(
                 }
             }
             _ if server_active
-                && server_mod.target.supports_process(false)
-                && client_mod.is_none_or(|item| item.target.supports_process(false)) =>
+                && server_mod.environment.map_or_else(
+                    || server_mod.target.supports_process(false),
+                    ModManifestEnvironment::requires_client,
+                )
+                && !client_active =>
             {
                 issues.push(issue(
                     "mod-missing-client",
@@ -293,7 +300,13 @@ fn compare_report(
         let client_active = client_mod.enabled && client_mod.target.supports_process(false);
         let server_active =
             server_mod.is_some_and(|item| item.enabled && item.target.supports_process(true));
-        if client_active && client_mod.target.supports_process(true) && !server_active {
+        if client_active
+            && client_mod.environment.map_or_else(
+                || client_mod.target.supports_process(true),
+                ModManifestEnvironment::requires_server,
+            )
+            && !server_active
+        {
             issues.push(issue(
                 "mod-missing-server",
                 Some(id),

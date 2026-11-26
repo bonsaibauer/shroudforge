@@ -52,6 +52,18 @@ export const iconPaths: Record<string, React.ReactNode> = {
       <path d="M20.8 8.7c0 5.5-8.8 11-8.8 11s-8.8-5.5-8.8-11A4.7 4.7 0 0 1 12 6.1a4.7 4.7 0 0 1 8.8 2.6Z" />
     </>
   ),
+  download: (
+    <>
+      <path d="M12 3v12m-5-5 5 5 5-5" />
+      <path d="M5 17v3h14v-3" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
+      <path d="M3 3v5h5m4-1v5l3 2" />
+    </>
+  ),
   patreon: (
     <>
       <circle cx="15" cy="8" r="5" />

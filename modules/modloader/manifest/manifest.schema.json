@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://shroudforge.net/schemas/1.8.0/manifest.schema.json",
+  "$id": "https://shroudforge.net/schemas/1.8.2/manifest.schema.json",
   "title": "EML mod manifest",
   "type": "object",
   "additionalProperties": false,
@@ -13,7 +13,7 @@
     "id": {
       "type": "string",
       "pattern": "^[A-Za-z0-9._-]+$",
-      "maxLength": 80
+      "maxLength": 64
     },
     "name": {
       "type": "string",
@@ -22,6 +22,7 @@
     },
     "version": {
       "type": "string",
+      "maxLength": 32,
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$"
     },
     "description": {
@@ -67,7 +68,7 @@
             "description": "Exact id from the dependency mod's mod.json.",
             "type": "string",
             "pattern": "^[A-Za-z0-9._-]+$",
-            "maxLength": 80
+            "maxLength": 64
           },
           "version": {
             "description": "SemVer version requirement, for example ^1.2.0 or >=1.2.0, <2.0.0.",

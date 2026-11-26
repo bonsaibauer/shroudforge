@@ -138,7 +138,7 @@ pub fn read_manifest_path(root: &Path, package: &Path) -> Result<ModManifest, St
 }
 
 pub fn valid_id(id: &str) -> bool {
-    crate::package_lookup::valid_identifier(id) && id != "." && id != ".."
+    crate::package_lookup::valid_mod_identifier(id) && id != "." && id != ".."
 }
 
 #[cfg(test)]
