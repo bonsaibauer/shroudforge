@@ -5,6 +5,9 @@ export type SchematicInfo = {
   projectId: string | null
   versionId: string | null
   valid: boolean
+  formatVersion: number | null
+  convertible: boolean
+  validationError: string | null
   size: number
   modifiedAt: number
 }

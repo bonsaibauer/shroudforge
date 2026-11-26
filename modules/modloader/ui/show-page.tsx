@@ -102,6 +102,7 @@ export function Page({
         mods={data.mods}
         schematics={data.schematics}
         schematicsPath={data.schematicsPath}
+        schematicConversionMode={settings.modulePreferences?.schematics?.conversionMode ?? 'automatic'}
         schematicsEnabled={settings.modulePreferences?.schematics?.enabled ?? data.schematicsEnabled}
         select={selectMod}
         tab={installedTab}

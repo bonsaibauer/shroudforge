@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { postRequest } from '../../transport/ui/send-host-command'
 import type { SchematicInfo } from './schematic-types'
 import { useI18n } from '../../ui-resources/i18n'
@@ -14,16 +14,35 @@ function formatSize(size: number) {
 export function InstalledSchematics({
   schematics,
   path,
+  conversionMode,
 }: {
   schematics: SchematicInfo[]
   path: string
+  conversionMode: 'manual' | 'automatic'
 }) {
   const { t } = useI18n()
   const coverInput = useRef<HTMLInputElement>(null)
   const schematicInput = useRef<HTMLInputElement>(null)
   const [coverTarget, setCoverTarget] = useState<string | null>(null)
+  const automaticRequestKey = useRef('')
   const manage = (action: string, id: string, value?: string) =>
     postRequest('manage-schematic', { action, id, value })
+  useEffect(() => {
+    if (conversionMode !== 'automatic') {
+      automaticRequestKey.current = ''
+      return
+    }
+    const key = schematics
+      .filter((schematic) => schematic.convertible)
+      .map((schematic) => `${schematic.name}:${schematic.modifiedAt}`)
+      .join('|')
+    if (!key || key === automaticRequestKey.current) return
+    automaticRequestKey.current = key
+    postRequest('updater-request', {
+      action: 'convert-automatic-schematics',
+      reportResult: false,
+    })
+  }, [conversionMode, schematics])
   const rename = (schematic: SchematicInfo) => {
     const name = window.prompt(t('schematics.namePrompt'), schematic.name)?.trim()
     if (name) manage('rename', schematic.name, name)
@@ -122,7 +141,11 @@ export function InstalledSchematics({
                 {schematic.image ? (
                   <img src={schematic.image} alt="" />
                 ) : (
-                  <span>SFBP</span>
+                  <span>
+                    {schematic.formatVersion === null
+                      ? t('schematics.versionUnknown')
+                      : t('schematics.version', { version: String(schematic.formatVersion) })}
+                  </span>
                 )}
               </div>
               <div className="schematic-card-content">
@@ -132,8 +155,29 @@ export function InstalledSchematics({
                   {schematic.projectId && <small>{schematic.projectId}{schematic.versionId ? ` · ${schematic.versionId}` : ''}</small>}
                   <small>{formatSize(schematic.size)}</small>
                 </p>
-                {!schematic.valid && <p className="schematic-invalid">{t('schematics.invalid')}</p>}
+                {schematic.convertible ? (
+                  <p className="schematic-invalid" title={schematic.validationError ?? undefined}>
+                    {t('schematics.outdated', {
+                      version: String(schematic.formatVersion ?? 7),
+                    })}
+                  </p>
+                ) : !schematic.valid ? (
+                  <p className="schematic-invalid" title={schematic.validationError ?? undefined}>
+                    {t('schematics.invalid')}
+                  </p>
+                ) : null}
                 <div className="schematic-actions">
+                  {schematic.convertible && (
+                    <button
+                      className="button secondary"
+                      onClick={() => postRequest('updater-request', {
+                        action: 'convert-schematic',
+                        id: schematic.name,
+                      })}
+                    >
+                      {t('schematics.convert')}
+                    </button>
+                  )}
                   <button className="button ghost" onClick={() => rename(schematic)}>{t('schematics.rename')}</button>
                   <button className="button ghost" onClick={() => duplicate(schematic)}>{t('schematics.duplicate')}</button>
                   <button className="button ghost" onClick={() => chooseCover(schematic.name)}>{t('schematics.cover')}</button>

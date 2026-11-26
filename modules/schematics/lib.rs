@@ -1,3 +1,4 @@
+pub mod convert_schematic_v7;
 pub mod schematic_library;
 pub mod validate_schematic_v8;
 

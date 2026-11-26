@@ -43,13 +43,25 @@ pub struct SchematicInfo {
     pub project_id: Option<String>,
     pub version_id: Option<String>,
     pub valid: bool,
+    pub format_version: Option<u32>,
+    pub convertible: bool,
+    pub validation_error: Option<String>,
     pub size: u64,
     pub modified_at: u64,
 }
 
-static VALIDATION_CACHE: LazyLock<Mutex<HashMap<PathBuf, (u64, Option<SystemTime>, bool)>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
+static VALIDATION_CACHE: LazyLock<
+    Mutex<
+        HashMap<
+            PathBuf,
+            (
+                u64,
+                Option<SystemTime>,
+                crate::convert_schematic_v7::Inspection,
+            ),
+        >,
+    >,
+> = LazyLock::new(|| Mutex::new(HashMap::new()));
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SchematicMetadata {
@@ -111,6 +123,7 @@ pub fn list(root: &Path) -> Result<Vec<SchematicInfo>, String> {
         if !valid_name(name) {
             continue;
         }
+        let inspection = cached_inspection(&path, &file_metadata);
         let metadata_record = read_metadata(&directory, name);
         let image = read_preview(&directory, name);
         let modified_at = file_metadata
@@ -133,8 +146,10 @@ pub fn list(root: &Path) -> Result<Vec<SchematicInfo>, String> {
             version_id: metadata_record
                 .as_ref()
                 .and_then(|value| value.version_id.clone()),
-            valid: file_metadata.len() <= MAX_SCHEMATIC_BYTES
-                && cached_is_valid(&path, &file_metadata),
+            valid: inspection.valid,
+            format_version: inspection.format_version,
+            convertible: inspection.convertible,
+            validation_error: inspection.validation_error,
             size: file_metadata.len(),
             modified_at,
         });
@@ -170,7 +185,61 @@ pub fn save(root: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
         return Err("A schematic with that name already exists".into());
     }
     write_new_file(&destination, bytes)?;
+    clear_validation_cache(&destination);
     Ok(())
+}
+
+/// Imports a library file while leaving the public Lua save contract on the current format.
+pub fn import_schematic(root: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
+    crate::require_enabled(root)?;
+    validate_name(name)?;
+    if bytes.is_empty() || bytes.len() as u64 > MAX_SCHEMATIC_BYTES {
+        return Err("Schematic has an unsupported file size".into());
+    }
+    let inspection = crate::convert_schematic_v7::inspect(bytes);
+    if !inspection.valid && !inspection.convertible {
+        return Err(format!(
+            "Schematic cannot be imported: {}",
+            inspection
+                .validation_error
+                .unwrap_or_else(|| "unrecognized SFBP format".into())
+        ));
+    }
+    let directory = ensure_directory(root)?;
+    let destination = schematic_path(&directory, name);
+    if destination.exists() {
+        return Err("A schematic with that name already exists".into());
+    }
+    write_new_file(&destination, bytes)?;
+    clear_validation_cache(&destination);
+    Ok(())
+}
+
+pub fn restore_recycled_schematic(
+    root: &Path,
+    original_name: &str,
+    bytes: &[u8],
+) -> Result<String, String> {
+    crate::require_enabled(root)?;
+    validate_name(original_name)?;
+    let inspection = crate::convert_schematic_v7::inspect(bytes);
+    if !inspection.convertible || inspection.format_version != Some(7) {
+        return Err("Recycle-bin entry is not a valid SFBP v7 schematic".into());
+    }
+    let directory = ensure_directory(root)?;
+    let target_name = if path_exists(&schematic_path(&directory, original_name))? {
+        let suffix = "_v7";
+        let base = format!(
+            "{}{}",
+            &original_name[..original_name.len().min(64 - suffix.len())],
+            suffix
+        );
+        unique_name(&directory, &base)
+    } else {
+        original_name.to_owned()
+    };
+    import_schematic(root, &target_name, bytes)?;
+    Ok(target_name)
 }
 
 pub fn rename(root: &Path, old_name: &str, new_name: &str) -> Result<(), String> {
@@ -204,6 +273,8 @@ pub fn rename(root: &Path, old_name: &str, new_name: &str) -> Result<(), String>
         }
         moved.push((source, destination));
     }
+    clear_validation_cache(&schematic_path(&directory, old_name));
+    clear_validation_cache(&schematic_path(&directory, new_name));
     Ok(())
 }
 
@@ -249,6 +320,7 @@ pub fn duplicate(root: &Path, name: &str, new_name: &str) -> Result<(), String> 
         }
         return Err(error);
     }
+    clear_validation_cache(&destination);
     Ok(())
 }
 
@@ -274,6 +346,7 @@ pub fn delete(root: &Path, name: &str) -> Result<(), String> {
         }
     }
     if errors.is_empty() {
+        clear_validation_cache(&source);
         Ok(())
     } else {
         Err(errors.join(". "))
@@ -528,7 +601,7 @@ pub fn migrate_legacy_directory(
         for (source, target, _) in &files {
             verify_identical_files(source, target)?;
         }
-        for (source, target, suffix) in files.iter().filter(|(_, _, suffix)| *suffix != ".sfbp") {
+        for (source, target, _) in files.iter().filter(|(_, _, suffix)| *suffix != ".sfbp") {
             check_cancelled()?;
             verify_identical_files(source, target)?;
             fs::remove_file(source)
@@ -601,30 +674,39 @@ fn validate_schematic_bytes(bytes: &[u8]) -> Result<(), String> {
     crate::validate_schematic_v8::validate(bytes).map(|_| ())
 }
 
-fn validate_schematic_file(path: &Path) -> Result<(), String> {
-    let mut file =
-        File::open(path).map_err(|error| format!("Could not open schematic: {error}"))?;
-    let mut bytes = Vec::new();
-    Read::by_ref(&mut file)
-        .take(MAX_SCHEMATIC_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|error| format!("Could not validate schematic: {error}"))?;
-    validate_schematic_bytes(&bytes)
-}
-
-fn cached_is_valid(path: &Path, metadata: &fs::Metadata) -> bool {
+fn cached_inspection(
+    path: &Path,
+    metadata: &fs::Metadata,
+) -> crate::convert_schematic_v7::Inspection {
     let modified = metadata.modified().ok();
     let length = metadata.len();
     if let Ok(cache) = VALIDATION_CACHE.lock()
-        && let Some((cached_length, cached_modified, valid)) = cache.get(path)
+        && let Some((cached_length, cached_modified, inspection)) = cache.get(path)
         && *cached_length == length
         && *cached_modified == modified
     {
-        return *valid;
+        return inspection.clone();
     }
-    let valid = validate_schematic_file(path).is_ok();
+    let inspection = if length > MAX_SCHEMATIC_BYTES {
+        crate::convert_schematic_v7::Inspection {
+            format_version: None,
+            valid: false,
+            convertible: false,
+            validation_error: Some("Schematic exceeds the 256 MiB size limit".into()),
+        }
+    } else {
+        match fs::read(path) {
+            Ok(bytes) => crate::convert_schematic_v7::inspect(&bytes),
+            Err(error) => crate::convert_schematic_v7::Inspection {
+                format_version: None,
+                valid: false,
+                convertible: false,
+                validation_error: Some(format!("Could not read schematic: {error}")),
+            },
+        }
+    };
     if let Ok(mut cache) = VALIDATION_CACHE.lock() {
-        cache.insert(path.to_path_buf(), (length, modified, valid));
+        cache.insert(path.to_path_buf(), (length, modified, inspection.clone()));
         if cache.len() > 2048
             && let Some(oldest) = cache
                 .keys()
@@ -634,7 +716,13 @@ fn cached_is_valid(path: &Path, metadata: &fs::Metadata) -> bool {
             cache.remove(&oldest);
         }
     }
-    valid
+    inspection
+}
+
+fn clear_validation_cache(path: &Path) {
+    if let Ok(mut cache) = VALIDATION_CACHE.lock() {
+        cache.remove(path);
+    }
 }
 
 fn ensure_directory(root: &Path) -> Result<PathBuf, String> {

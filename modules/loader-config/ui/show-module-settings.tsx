@@ -274,6 +274,7 @@ export function ModulePreferencesEditor({
     ...worldEditorSettingsFields,
     ['modloaderUi', 'toggleKey', 'settings.modules.field.hotkey'],
     ['modloaderUi', 'refreshMilliseconds', 'settings.modules.field.refresh'],
+    ['schematics', 'conversionMode', 'settings.modules.schematics.conversionMode', ['automatic', 'manual']],
     ['wiki', 'itemsPerPage', 'wiki.itemsPerPage', WIKI_PAGE_SIZE_OPTIONS.map(String)],
     ['wiki', 'refreshIntervalMinutes', 'settings.modules.field.wikiRefreshMinutes'],
   ]
@@ -368,6 +369,11 @@ export function ModulePreferencesEditor({
                   {t('settings.modules.debugConsole.popupHint')}
                 </p>
               )}
+              {module === 'schematics' && (
+                <p className="hint settings-module-hint">
+                  {t('settings.modules.schematics.conversionModeHint')}
+                </p>
+              )}
               {fields
                 .filter(
                   (field) =>
@@ -408,6 +414,10 @@ export function ModulePreferencesEditor({
                                 ? t(
                                     `settings.modules.debugConsole.popupMode.${option}` as TranslationKey,
                                   )
+                                : key === 'conversionMode'
+                                  ? t(
+                                      `settings.modules.schematics.conversionMode.${option}` as TranslationKey,
+                                    )
                                 : option}
                             </option>
                           ))}

@@ -761,7 +761,8 @@
         "schematics": {
           "type": "object",
           "properties": {
-            "enabled": { "type": "boolean" }
+            "enabled": { "type": "boolean" },
+            "conversionMode": { "type": "string", "enum": ["manual", "automatic"] }
           },
           "additionalProperties": false
         },

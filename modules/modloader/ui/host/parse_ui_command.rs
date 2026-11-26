@@ -274,9 +274,13 @@ pub(crate) fn parse_ui_command(value: UiCommand, desktop: bool, server: bool) ->
             (Some(action), Some(id))
                 if matches!(
                     action.as_str(),
-                    "import" | "rename" | "duplicate" | "delete" | "set-cover" | "undo-cover"
-                )
-                    && shroudforge_schematics::schematic_library::valid_name(&id)
+                    "import"
+                        | "rename"
+                        | "duplicate"
+                        | "delete"
+                        | "set-cover"
+                        | "undo-cover"
+                ) && shroudforge_schematics::schematic_library::valid_name(&id)
                     && value.value.to_string().len() <= 96 * 1024 * 1024 =>
             {
                 Command::ManageSchematic(
@@ -381,7 +385,12 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
                     | "recycle-bin-restore"
                     | "recycle-bin-delete"
                     | "recycle-bin-empty"
-            ) || (matches!(action, "recycle-bin-restore" | "recycle-bin-delete")
+                    | "convert-schematic"
+                    | "convert-automatic-schematics"
+            ) || (matches!(
+                action,
+                "recycle-bin-restore" | "recycle-bin-delete" | "convert-schematic"
+            )
                 && value.id.is_none())
             {
                 return None;

@@ -724,16 +724,17 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             }
                         }
                     }
-                    if result.operation.starts_with("recycle-bin-") {
+                    if result.operation.starts_with("recycle-bin-")
+                        || matches!(
+                            result.operation.as_str(),
+                            "convert-schematic" | "convert-automatic-schematics"
+                        )
+                    {
                         let unavailable = result.result.as_ref().err().is_some_and(|error| {
                             super::report_command_result::is_module_unavailable_warning(error)
                         });
                         let is_list = result.operation == "recycle-bin-list";
-                        if result.report_result
-                            || unavailable
-                            || !is_list
-                            || result.result.is_err()
-                        {
+                        if result.report_result || unavailable || result.result.is_err() {
                             let (action, success_message) = match result.operation.as_str() {
                                 "recycle-bin-restore" => (
                                     "Restore recycle bin entry",
@@ -745,6 +746,12 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                 ),
                                 "recycle-bin-empty" => {
                                     ("Empty recycle bin", "recycleBin.emptied")
+                                }
+                                "convert-schematic" => {
+                                    ("Convert schematic", "schematics.updated")
+                                }
+                                "convert-automatic-schematics" => {
+                                    ("Convert schematics", "schematics.updated")
                                 }
                                 _ => (
                                     "Load recycle bin",
@@ -1297,7 +1304,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                         let bytes = base64::engine::general_purpose::STANDARD
                                             .decode(encoded)
                                             .map_err(|error| format!("Schematic data is invalid: {error}"))?;
-                                        shroudforge_schematics::schematic_library::save(
+                                        shroudforge_schematics::schematic_library::import_schematic(
                                             &arguments.root,
                                             &id,
                                             &bytes,

@@ -298,7 +298,8 @@
   },
   "modules": {
     "schematics": {
-      "enabled": true
+      "enabled": true,
+      "conversionMode": "automatic"
     },
     "modDetection": {
       "enabled": true,

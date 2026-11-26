@@ -3,12 +3,20 @@ use crate::validate_update_paths::{installed_path, validate_release_path};
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use shroudforge_loader_config::runtime_status::runtime_is_active;
-use std::{fs, path::Path};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    sync::{LazyLock, Mutex},
+    time::SystemTime,
+};
 
 #[cfg(windows)]
 use std::os::windows::fs::MetadataExt;
 
 const DEFAULT_RETENTION_DAYS: u64 = 30;
+static AUTOMATIC_SCHEMATIC_ATTEMPTS: LazyLock<Mutex<HashMap<PathBuf, (u64, Option<SystemTime>)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg(windows)]
 fn acquire_operation_lock(root: &Path) -> Result<crate::QueueWorkerMutex, String> {
@@ -60,6 +68,8 @@ struct EntryManifest {
     restore_mod_id: Option<String>,
     #[serde(default)]
     restore_root_files: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    restore_schematic_name: Option<String>,
     #[serde(default)]
     catalog_project_id: Option<String>,
     #[serde(default)]
@@ -77,6 +87,7 @@ struct StoredFile {
 struct RestoreOptions {
     mod_id: Option<String>,
     root_files: bool,
+    schematic_name: Option<String>,
     catalog_entry: Option<(String, String)>,
     paths: Option<Vec<String>>,
 }
@@ -165,6 +176,7 @@ pub(crate) fn preserve_update_files_with_progress_and_cancel(
             RestoreOptions {
                 mod_id: None,
                 root_files: true,
+                schematic_name: None,
                 catalog_entry: None,
                 paths: Some(paths.to_vec()),
             },
@@ -172,6 +184,201 @@ pub(crate) fn preserve_update_files_with_progress_and_cancel(
         Ok(files.clone())
     })();
     result.map_err(|error| remove_failed_entry(Some(root), &entry, error))
+}
+
+pub(crate) fn convert_schematic_to_latest(root: &Path, name: &str) -> Result<(), String> {
+    let _operation_lock = acquire_operation_lock(root)?;
+    ensure_queue_idle(
+        root,
+        "schematics cannot be converted while an update is running",
+    )?;
+    if !shroudforge_schematics::schematic_library::valid_name(name) {
+        return Err("invalid schematic name".into());
+    }
+    let schematic = shroudforge_schematics::schematic_library::list(root)?
+        .into_iter()
+        .find(|schematic| schematic.name == name)
+        .ok_or("schematic was not found")?;
+    if schematic.valid {
+        return Ok(());
+    }
+    if !schematic.convertible || schematic.format_version != Some(7) {
+        return Err(schematic
+            .validation_error
+            .unwrap_or_else(|| "schematic cannot be converted to the latest format".into()));
+    }
+
+    let library = shroudforge_schematics::schematic_library::directory(root);
+    let source = library.join(format!("{name}.sfbp"));
+    let source_metadata = fs::symlink_metadata(&source)
+        .map_err(|error| format!("could not inspect schematic: {error}"))?;
+    if source_metadata.file_type().is_symlink() || !source_metadata.is_file() {
+        return Err("schematic must be a regular file".into());
+    }
+    if source_metadata.len() > shroudforge_schematics::validate_schematic_v8::MAX_BYTES as u64 {
+        return Err("schematic exceeds the 256 MiB size limit".into());
+    }
+    let original =
+        fs::read(&source).map_err(|error| format!("could not read schematic: {error}"))?;
+    let inspection = shroudforge_schematics::convert_schematic_v7::inspect(&original);
+    if !inspection.convertible || inspection.format_version != Some(7) {
+        return Err(inspection
+            .validation_error
+            .unwrap_or_else(|| "schematic changed before conversion".into()));
+    }
+    let converted = shroudforge_schematics::convert_schematic_v7::convert_v7_to_v8(&original)?;
+
+    let id = format!("schematic-v7-{}", unique_stamp());
+    let entry = shroudforge_loader_config::paths::recycle_bin_dir(root).join(&id);
+    let files = entry.join("files");
+    fs::create_dir_all(entry.parent().ok_or("recycle-bin entry has no parent")?)
+        .map_err(|error| error.to_string())?;
+    fs::create_dir(&entry)
+        .map_err(|error| format!("could not create recycle-bin entry {id}: {error}"))?;
+    let saved = files.join(format!("{name}.sfbp"));
+    let prepared = (|| {
+        fs::create_dir(&files).map_err(|error| error.to_string())?;
+        let relative = format!("{name}.sfbp");
+        let before = stored_file_with_cancellation(&source, &relative, None)?;
+        let copied = copy_verified_file(&source, &saved, &relative)?;
+        if copied != before || stored_file_with_cancellation(&source, &relative, None)? != before {
+            return Err("schematic changed while it was moved to the recycle bin".into());
+        }
+        fs::remove_file(&source)
+            .map_err(|error| format!("could not move v7 schematic to the recycle bin: {error}"))?;
+        write_manifest(
+            root,
+            &entry,
+            &id,
+            &format!("SFBP v7 from {name}"),
+            vec![copied],
+            RestoreOptions {
+                mod_id: None,
+                root_files: false,
+                schematic_name: Some(name.to_owned()),
+                catalog_entry: None,
+                paths: None,
+            },
+        )
+    })();
+    if let Err(error) = prepared {
+        let recovery = if saved.exists() && !source.exists() {
+            restore_recycled_schematic_file(&saved, &source, &format!("{name}.sfbp"))
+        } else {
+            Ok(())
+        };
+        return match recovery {
+            Ok(()) => {
+                let _ = fs::remove_dir_all(&entry);
+                Err(error)
+            }
+            Err(recovery_error) => {
+                if let Ok(record) =
+                    stored_file_with_cancellation(&saved, &format!("{name}.sfbp"), None)
+                {
+                    let _ = write_manifest(
+                        root,
+                        &entry,
+                        &id,
+                        &format!("SFBP v7 from {name}"),
+                        vec![record],
+                        RestoreOptions {
+                            mod_id: None,
+                            root_files: false,
+                            schematic_name: Some(name.to_owned()),
+                            catalog_entry: None,
+                            paths: None,
+                        },
+                    );
+                }
+                Err(format!(
+                    "{error}. The original v7 file remains in recycle-bin entry {id}: {recovery_error}"
+                ))
+            }
+        };
+    }
+
+    if let Err(error) = shroudforge_schematics::schematic_library::save(root, name, &converted) {
+        if source.exists() {
+            return Err(format!(
+                "conversion failed and the original v7 file remains in recycle-bin entry {id}: {error}"
+            ));
+        }
+        match restore_recycled_schematic_file(&saved, &source, &format!("{name}.sfbp")) {
+            Ok(()) => {
+                let _ = fs::remove_dir_all(&entry);
+                return Err(error);
+            }
+            Err(recovery_error) => {
+                return Err(format!(
+                    "{error}. The original v7 file remains recoverable in recycle-bin entry {id}: {recovery_error}"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn convert_automatic_schematics(root: &Path) -> Result<(), String> {
+    let config = shroudforge_loader_config::config::read_loader(root)?;
+    if config
+        .pointer("/modules/schematics/conversionMode")
+        .and_then(serde_json::Value::as_str)
+        != Some("automatic")
+    {
+        return Ok(());
+    }
+    let schematics = shroudforge_schematics::schematic_library::list(root)?;
+    let library = shroudforge_schematics::schematic_library::directory(root);
+    let mut errors = Vec::new();
+    for schematic in schematics.iter().filter(|item| item.convertible) {
+        let path = library.join(format!("{}.sfbp", schematic.name));
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(metadata) => metadata,
+            Err(_) => continue,
+        };
+        let signature = (metadata.len(), metadata.modified().ok());
+        if AUTOMATIC_SCHEMATIC_ATTEMPTS
+            .lock()
+            .ok()
+            .and_then(|attempts| attempts.get(&path).cloned())
+            .is_some_and(|previous| previous == signature)
+        {
+            continue;
+        }
+        if let Err(error) = convert_schematic_to_latest(root, &schematic.name) {
+            errors.push(format!("{}: {error}", schematic.name));
+            if !error.contains("while an update is running")
+                && !error.contains("already running")
+                && let Ok(mut attempts) = AUTOMATIC_SCHEMATIC_ATTEMPTS.lock()
+            {
+                attempts.insert(path, signature);
+                if attempts.len() > 2048 {
+                    attempts.clear();
+                }
+            }
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join(". "))
+    }
+}
+
+fn restore_recycled_schematic_file(
+    saved: &Path,
+    destination: &Path,
+    relative: &str,
+) -> Result<(), String> {
+    if destination.exists() {
+        return Err("schematic path is occupied and cannot be rolled back".into());
+    }
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    copy_verified_file(saved, destination, relative)?;
+    fs::remove_file(saved).map_err(|error| error.to_string())
 }
 
 pub(crate) fn preserve_directory(
@@ -314,6 +521,7 @@ fn preserve_directory_with_restore(
             RestoreOptions {
                 mod_id: restore_mod_id.map(str::to_owned),
                 root_files: false,
+                schematic_name: None,
                 catalog_entry,
                 paths: None,
             },
@@ -535,6 +743,7 @@ fn migrate_legacy_directory(
                 RestoreOptions {
                     mod_id: restore_mod_id,
                     root_files: restore_root_files,
+                    schematic_name: None,
                     catalog_entry: None,
                     paths: None,
                 },
@@ -616,7 +825,9 @@ pub(crate) fn list_entries(root: &Path) -> Result<Vec<serde_json::Value>, String
                     .files
                     .iter()
                     .fold(0u64, |total, file| total.saturating_add(file.size)),
-                can_restore: manifest.restore_mod_id.is_some() || manifest.restore_root_files,
+                can_restore: manifest.restore_mod_id.is_some()
+                    || manifest.restore_root_files
+                    || manifest.restore_schematic_name.is_some(),
                 restore_mod_id: manifest.restore_mod_id,
             })
             .map_err(|error| error.to_string())?,
@@ -846,6 +1057,8 @@ pub(crate) fn restore_entry(root: &Path, id: &str) -> Result<(), String> {
         restore_mod_entry(root, &entry, &saved, &manifest, mod_id)
     } else if manifest.restore_root_files {
         restore_root_files_entry(root, &entry, &saved, &manifest)
+    } else if let Some(name) = manifest.restore_schematic_name.as_deref() {
+        restore_schematic_entry(root, &entry, &saved, &manifest, name)
     } else {
         Err("this recycle-bin entry cannot be restored".into())
     }
@@ -1127,6 +1340,34 @@ fn apply_root_files(
     Ok(())
 }
 
+fn restore_schematic_entry(
+    root: &Path,
+    entry: &Path,
+    saved: &Path,
+    manifest: &EntryManifest,
+    original_name: &str,
+) -> Result<(), String> {
+    if manifest.files.len() != 1 || manifest.files[0].path != format!("{original_name}.sfbp") {
+        return Err("recycle-bin schematic entry failed its integrity check".into());
+    }
+    let saved_file = saved.join(format!("{original_name}.sfbp"));
+    let metadata = fs::symlink_metadata(&saved_file).map_err(|error| error.to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("recycle-bin schematic is not a regular file".into());
+    }
+    if metadata.len() > shroudforge_schematics::validate_schematic_v8::MAX_BYTES as u64 {
+        return Err("recycle-bin schematic exceeds the 256 MiB size limit".into());
+    }
+    let bytes = fs::read(&saved_file).map_err(|error| error.to_string())?;
+    shroudforge_schematics::schematic_library::restore_recycled_schematic(
+        root,
+        original_name,
+        &bytes,
+    )?;
+    fs::remove_dir_all(entry)
+        .map_err(|error| format!("schematic restored but recycle-bin entry remains: {error}"))
+}
+
 fn read_manifest(entry: &Path) -> Result<EntryManifest, String> {
     let metadata = fs::symlink_metadata(entry).map_err(|error| error.to_string())?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
@@ -1139,6 +1380,15 @@ fn read_manifest(entry: &Path) -> Result<EntryManifest, String> {
     if manifest.schema_version != 1
         || entry.file_name().and_then(|name| name.to_str()) != Some(manifest.id.as_str())
         || validate_entry_id(&manifest.id).is_err()
+        || manifest
+            .restore_schematic_name
+            .as_deref()
+            .is_some_and(|name| {
+                !shroudforge_schematics::schematic_library::valid_name(name)
+                    || manifest.restore_mod_id.is_some()
+                    || manifest.restore_root_files
+                    || !manifest.restore_paths.is_empty()
+            })
     {
         return Err("recycle-bin manifest does not match its entry".into());
     }
@@ -1335,6 +1585,7 @@ fn write_manifest(
         restore_paths,
         restore_mod_id: restore.mod_id,
         restore_root_files: restore.root_files,
+        restore_schematic_name: restore.schematic_name,
         catalog_project_id: restore.catalog_entry.as_ref().map(|entry| entry.0.clone()),
         catalog_version_id: restore.catalog_entry.map(|entry| entry.1),
     };
@@ -1566,6 +1817,66 @@ fn log(root: &Path, level: char, message: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const V7_PROPS: &[u8] = b"SHROUDFORGE_WORLD_BLUEPRINT_V7\ny\n1,1,1\nprops\n-\n-\n-\n-\n-\n1\n42,0.5,0.5,0.5,0,0,0,1,1,1,1,FEDCBA9876543210,0123456789ABCDEF";
+
+    fn create_v7_schematic(root: &Path) -> PathBuf {
+        let directory = shroudforge_schematics::schematic_library::directory(root);
+        fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("old_building.sfbp");
+        fs::write(&path, V7_PROPS).unwrap();
+        path
+    }
+
+    #[test]
+    fn schematic_conversion_moves_v7_to_recycle_bin_and_restores_it_separately() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let original = create_v7_schematic(root);
+
+        convert_schematic_to_latest(root, "old_building").unwrap();
+
+        let converted = fs::read(&original).unwrap();
+        assert!(shroudforge_schematics::validate_schematic_v8::validate(&converted).is_ok());
+        let entries = list_entries(root).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["canRestore"], true);
+        let id = entries[0]["id"].as_str().unwrap();
+        let saved = shroudforge_loader_config::paths::recycle_bin_dir(root)
+            .join(id)
+            .join("files/old_building.sfbp");
+        assert_eq!(fs::read(saved).unwrap(), V7_PROPS);
+
+        restore_entry(root, id).unwrap();
+
+        assert_eq!(fs::read(&original).unwrap(), converted);
+        let restored =
+            shroudforge_schematics::schematic_library::directory(root).join("old_building_v7.sfbp");
+        assert_eq!(fs::read(restored).unwrap(), V7_PROPS);
+        assert!(list_entries(root).unwrap().is_empty());
+    }
+
+    #[test]
+    fn automatic_schematic_conversion_uses_the_same_recycle_bin_entry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let original = create_v7_schematic(root);
+        shroudforge_loader_config::config::update_loader(root, |config| {
+            config["modules"]["schematics"]["conversionMode"] = "automatic".into();
+            Ok(())
+        })
+        .unwrap();
+
+        convert_automatic_schematics(root).unwrap();
+        convert_automatic_schematics(root).unwrap();
+
+        assert!(shroudforge_schematics::schematic_library::list(root).unwrap()[0].valid);
+        assert!(
+            shroudforge_schematics::validate_schematic_v8::validate(&fs::read(original).unwrap())
+                .is_ok()
+        );
+        assert_eq!(list_entries(root).unwrap().len(), 1);
+    }
 
     #[test]
     fn cancellation_during_legacy_folder_removal_restores_the_source() {

@@ -14,6 +14,7 @@ export function Installed({
   mods,
   schematics,
   schematicsPath,
+  schematicConversionMode,
   schematicsEnabled,
   select,
   tab,
@@ -22,6 +23,7 @@ export function Installed({
   mods: ModInfo[]
   schematics: SchematicInfo[]
   schematicsPath: string
+  schematicConversionMode: 'manual' | 'automatic'
   schematicsEnabled: boolean
   select(id: string): void
   tab: 'mods' | 'schematics'
@@ -50,6 +52,7 @@ export function Installed({
         <InstalledSchematics
           schematics={schematics}
           path={schematicsPath}
+          conversionMode={schematicConversionMode}
         />
       ) : (
         <Card flush>

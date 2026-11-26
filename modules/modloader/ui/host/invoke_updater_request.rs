@@ -49,7 +49,13 @@ fn invoke(root: &Path, request: &serde_json::Value) -> Result<serde_json::Value,
     if !updates_enabled
         && !matches!(
             request["command"].as_str(),
-            Some("queue-latest-installation" | "queue-uninstall" | "start-update-queue")
+            Some(
+                "queue-latest-installation"
+                    | "queue-uninstall"
+                    | "start-update-queue"
+                    | "convert-schematic"
+                    | "convert-automatic-schematics"
+            )
         )
     {
         return Err("Updates module is disabled in Settings. The update service is unavailable until it is enabled.".into());

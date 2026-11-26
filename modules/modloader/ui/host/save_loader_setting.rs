@@ -165,7 +165,7 @@ pub(crate) fn save_setting_to(
                 | "refreshIntervalMinutes"
         ),
         "worldEditor" => matches!(key, "enabled" | "toggleKey" | "refreshMilliseconds"),
-        "schematics" => key == "enabled",
+        "schematics" => matches!(key, "enabled" | "conversionMode"),
         "network" => matches!(key, "enabled" | "serverSteamId" | "allowedClientSteamIds"),
         "gameProfileDiscovery" => key == "enabled",
         "runtimeDiagnostics" => matches!(
@@ -186,6 +186,12 @@ pub(crate) fn save_setting_to(
     };
     if !module_setting_valid {
         return Err("unsupported module setting".into());
+    }
+    if module == "schematics"
+        && key == "conversionMode"
+        && !matches!(setting.as_str(), Some("manual" | "automatic"))
+    {
+        return Err("schematic conversion mode must be manual or automatic".into());
     }
     if module == "updates"
         && key == "enabled"
@@ -360,5 +366,37 @@ mod tests {
             .is_err()
         );
         assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    #[test]
+    fn schematics_conversion_mode_accepts_manual_or_automatic_only() {
+        let root = tempfile::tempdir().unwrap();
+        for mode in ["manual", "automatic"] {
+            save_setting(
+                root.path(),
+                "module",
+                Some("schematics"),
+                "conversionMode",
+                &json!(mode),
+            )
+            .unwrap();
+            let saved = shroudforge_loader_config::config::read_loader(root.path()).unwrap();
+            assert_eq!(saved["modules"]["schematics"]["conversionMode"], mode);
+        }
+        let path = shroudforge_loader_config::paths::loader_config(root.path());
+        let before = std::fs::read(&path).unwrap();
+        for invalid in [json!("always"), json!(true), serde_json::Value::Null] {
+            assert!(
+                save_setting(
+                    root.path(),
+                    "module",
+                    Some("schematics"),
+                    "conversionMode",
+                    &invalid,
+                )
+                .is_err()
+            );
+            assert_eq!(std::fs::read(&path).unwrap(), before);
+        }
     }
 }

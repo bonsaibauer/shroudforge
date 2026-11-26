@@ -150,6 +150,8 @@ pub fn run_request(
             | "queue-uninstall"
             | "start-update-queue"
             | "recycle-game-asset-backups"
+            | "convert-schematic"
+            | "convert-automatic-schematics"
     ) && let Err(error) = updates_module_status(root)
     {
         let disabled = error == UPDATE_MODULE_DISABLED_MESSAGE;
@@ -404,6 +406,14 @@ pub fn run_request(
             recycle_bin::recycle_game_asset_backups(root, target)
                 .map(|entry| serde_json::json!({"entry":entry}))
         }
+        "convert-schematic" => {
+            let name = request_string(request, "id")?;
+            recycle_bin::convert_schematic_to_latest(root, name).map(
+                |()| serde_json::json!({"converted":true,"successMessage":"schematics.updated"}),
+            )
+        }
+        "convert-automatic-schematics" => recycle_bin::convert_automatic_schematics(root)
+            .map(|()| serde_json::json!({"converted":true})),
         "recycle-bin-list" => (|| {
             let entries = recycle_bin::list_entries(root)?;
             Ok(serde_json::json!({"entries": entries}))
