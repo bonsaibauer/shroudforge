@@ -62,6 +62,7 @@
   "wiki.categories": "Kategorien",
   "wiki.loadFailed": "De Wiki-Seiten ham ned laden können. Bitte probier's no amoi.",
   "wiki.openOnline": "Wiki öffnen",
+  "wiki.openInTab": "Im Wiki-Tab öffnen",
   "wiki.refresh": "Wiki aktualisieren",
   "wiki.clearCache": "Cache löschen",
   "wiki.refreshSucceeded": "Wiki-Daten aktualisiert.",

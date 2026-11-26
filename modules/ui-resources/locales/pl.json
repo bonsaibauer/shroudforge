@@ -62,6 +62,7 @@
   "wiki.categories": "Kategorie",
   "wiki.loadFailed": "Nie udało się wczytać stron wiki. Spróbuj ponownie.",
   "wiki.openOnline": "Otwórz wiki",
+  "wiki.openInTab": "Otwórz w karcie Wiki",
   "wiki.refresh": "Odśwież wiki",
   "wiki.clearCache": "Wyczyść pamięć podręczną",
   "wiki.refreshSucceeded": "Dane wiki zostały zaktualizowane.",

@@ -62,6 +62,7 @@
   "wiki.categories": "श्रेणियाँ",
   "wiki.loadFailed": "विकी पेज लोड नहीं किए जा सके। कृपया फिर से कोशिश करें।",
   "wiki.openOnline": "विकी खोलें",
+  "wiki.openInTab": "Wiki टैब में खोलें",
   "wiki.refresh": "विकी अपडेट करें",
   "wiki.clearCache": "कैश हटाएँ",
   "wiki.refreshSucceeded": "विकी डेटा अपडेट हो गया।",

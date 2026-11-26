@@ -29,6 +29,7 @@ export function Page({
   wikiCategory,
   selectWikiArticle,
   openWikiArticle,
+  openWikiHelpArticle,
   openWikiCategory,
   unread,
   read,
@@ -53,6 +54,7 @@ export function Page({
   wikiCategory: string
   selectWikiArticle(articleId: string | null): void
   openWikiArticle(articleId: string): void
+  openWikiHelpArticle?(articleId: string): void
   openWikiCategory(category: string): void
   unread: NewsItem[]
   read: string[]
@@ -137,6 +139,7 @@ export function Page({
       <Compatibility
         data={data}
         wikiModuleSettings={wikiModuleSettings}
+        openWikiHelpArticle={openWikiHelpArticle}
         openWikiCategory={openWikiCategory}
         news={news}
         openNews={openNews}
@@ -171,7 +174,7 @@ export function Page({
       />
     )
   return (
-    <SettingsPage data={data} settings={settings} setSettings={setSettings}
+    <SettingsPage data={data} settings={settings} setSettings={setSettings} openWikiHelpArticle={openWikiHelpArticle}
       openWikiCategory={openWikiCategory} notifyCommandResult={notifyCommandResult} />
   )
 }

@@ -62,6 +62,7 @@
   "wiki.categories": "Categorie",
   "wiki.loadFailed": "Impossibile caricare le pagine del wiki. Riprova.",
   "wiki.openOnline": "Apri il wiki",
+  "wiki.openInTab": "Apri nella scheda Wiki",
   "wiki.refresh": "Aggiorna il wiki",
   "wiki.clearCache": "Svuota cache",
   "wiki.refreshSucceeded": "Dati del wiki aggiornati.",

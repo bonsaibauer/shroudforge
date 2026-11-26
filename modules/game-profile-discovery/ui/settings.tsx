@@ -7,11 +7,13 @@ export function GameProfileDiscoverySettings({
   enabled,
   onChange,
   wikiModuleSettings,
+  openWikiHelpArticle,
   openWikiCategory,
 }: {
   enabled: boolean
   onChange(enabled: boolean): void
   wikiModuleSettings?: WikiModuleSettings
+  openWikiHelpArticle?(articleId: string): void
   openWikiCategory(category: string): void
 }) {
   const { t } = useI18n()
@@ -31,7 +33,7 @@ export function GameProfileDiscoverySettings({
         {t('settings.modules.gameProfileDiscovery.restartHint')}
       </p>
       <WikiHelp articleId="game-profile-discovery" compact moduleSettings={wikiModuleSettings}
-        onOpenCategory={openWikiCategory} />
+        onOpenCategory={openWikiCategory} onOpenWikiArticle={openWikiHelpArticle} />
     </>
   )
 }

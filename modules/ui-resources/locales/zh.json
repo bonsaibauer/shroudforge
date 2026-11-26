@@ -62,6 +62,7 @@
   "wiki.categories": "分类",
   "wiki.loadFailed": "无法加载 Wiki 页面。请重试。",
   "wiki.openOnline": "打开 Wiki",
+  "wiki.openInTab": "在 Wiki 标签页中打开",
   "wiki.refresh": "更新 Wiki",
   "wiki.clearCache": "清除缓存",
   "wiki.refreshSucceeded": "Wiki 数据已更新。",

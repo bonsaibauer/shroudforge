@@ -19,12 +19,14 @@ export function SettingsPage({
   data,
   settings,
   setSettings,
+  openWikiHelpArticle,
   openWikiCategory,
   notifyCommandResult,
 }: {
   data: Snapshot
   settings: Settings
   setSettings(v: Settings): void
+  openWikiHelpArticle?(articleId: string): void
   openWikiCategory(category: string): void
   notifyCommandResult(result: CommandResult): void
 }) {
@@ -321,6 +323,7 @@ export function SettingsPage({
               enabled={modulePreferences.gameProfileDiscovery?.enabled !== false}
               onChange={changeProfileDiscovery}
               wikiModuleSettings={data.uiVanilla ? { ...modulePreferences.wiki, enabled: false } : modulePreferences.wiki}
+              openWikiHelpArticle={openWikiHelpArticle}
               openWikiCategory={openWikiCategory}
             />
           </Card>

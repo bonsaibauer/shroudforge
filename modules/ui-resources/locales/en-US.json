@@ -62,6 +62,7 @@
   "wiki.categories": "Categories",
   "wiki.loadFailed": "Wiki pages could not be loaded. Please try again.",
   "wiki.openOnline": "Open wiki",
+  "wiki.openInTab": "Open in Wiki tab",
   "wiki.refresh": "Refresh wiki",
   "wiki.clearCache": "Clear cache",
   "wiki.refreshSucceeded": "Wiki data updated.",

@@ -23,6 +23,7 @@ export function TopBar({
   onRemoteAdminLogin,
   onRemoteTargetChange,
   onOpenWikiCategory,
+  onOpenWikiArticle,
   showChirper,
   isWikiPage,
   unread,
@@ -44,6 +45,7 @@ export function TopBar({
   onRemoteAdminLogin(password: string): void
   onRemoteTargetChange(target: 'client' | 'server'): void
   onOpenWikiCategory(category: string): void
+  onOpenWikiArticle?(articleId: string): void
   showChirper: boolean
   isWikiPage: boolean
   unread: number
@@ -66,6 +68,7 @@ export function TopBar({
       compact
       moduleSettings={serverAdminWikiSettings}
       onOpenCategory={onOpenWikiCategory}
+      onOpenWikiArticle={onOpenWikiArticle}
     />
   )
   useEffect(() => {

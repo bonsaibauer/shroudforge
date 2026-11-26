@@ -438,6 +438,7 @@ export function App() {
   }, [data.schematicsEnabled, installedTab, settings.modulePreferences?.schematics?.enabled])
   const openWikiArticle = (articleId: string) =>
     navigateToWiki({ type: 'article', articleId })
+  const openWikiHelpArticle = pageVisible('wiki', wikiTarget()) ? openWikiArticle : undefined
   const openWikiCategory = (category: string) =>
     navigateToWiki({ type: 'category', category })
   const openCompatibility = (tab: CompatibilityTab) => {
@@ -512,6 +513,7 @@ export function App() {
         }}
         onRemoteTargetChange={changeRemoteTarget}
         onOpenWikiCategory={openWikiCategory}
+        onOpenWikiArticle={openWikiHelpArticle}
         showChirper={pageVisible('news')}
         isWikiPage={page === 'wiki'}
         unread={unread.length}
@@ -756,6 +758,7 @@ export function App() {
                 wikiCategory={wikiCategory}
                 selectWikiArticle={setSelectedWikiArticle}
                 openWikiArticle={openWikiArticle}
+                openWikiHelpArticle={openWikiHelpArticle}
                 openWikiCategory={openWikiCategory}
                 unread={unread}
                 read={read[remoteTarget]}

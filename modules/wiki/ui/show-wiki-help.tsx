@@ -16,11 +16,12 @@ function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCategory }: {
+export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCategory, onOpenWikiArticle }: {
   articleId: string
   compact?: boolean
   moduleSettings?: WikiModuleSettings
   onOpenCategory(category: string): void
+  onOpenWikiArticle?(articleId: string): void
 }) {
   const { t, locale } = useI18n()
   const apiSettings = resolveWikiApiSettings(moduleSettings)
@@ -133,15 +134,30 @@ export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCat
   }
   const currentArticle = articleReference === `${articleId}:${locale}` ? article : undefined
   if (!apiSettings.enabled) return null
-  if (!currentArticle) return failed ? <>
-    <p className="hint" role="alert">{t('wiki.unavailable')}</p>
-    <button type="button" className="button ghost" onClick={retryHelp}>{t('updater.retry')}</button>
-  </> : null
-  if (!visible) return <button type="button" className="button ghost wiki-help-trigger"
-    aria-label={t('wiki.openGuide', { title: currentArticle.title })} title={t('wiki.openGuide', { title: currentArticle.title })}
-    onClick={() => showHelp(true, true)}>
-    <Icon name="wiki" />{!compact && t('wiki.showGuide')}
+  const openInWikiTabButton = onOpenWikiArticle && <button type="button" className="button ghost"
+    onClick={() => onOpenWikiArticle(articleId)}>
+    <Icon name="wiki" />{t('wiki.openInTab')}
   </button>
+  if (!currentArticle) {
+    if (failed) return <>
+      <p className="hint" role="alert">{t('wiki.unavailable')}</p>
+      <div className="wiki-help-compact-actions">
+        {openInWikiTabButton}
+        <button type="button" className="button ghost" onClick={retryHelp}>{t('updater.retry')}</button>
+      </div>
+    </>
+    return openInWikiTabButton
+      ? <div className="wiki-help-compact-actions">{openInWikiTabButton}</div>
+      : null
+  }
+  if (!visible) return <div className="wiki-help-compact-actions">
+    <button type="button" className="button ghost wiki-help-trigger"
+      aria-label={t('wiki.openGuide', { title: currentArticle.title })} title={t('wiki.openGuide', { title: currentArticle.title })}
+      onClick={() => showHelp(true, true)}>
+      <Icon name="wiki" />{!compact && t('wiki.showGuide')}
+    </button>
+    {openInWikiTabButton}
+  </div>
   return <section className="wiki-help">
     <WikiArticle article={currentArticle} expanded={expanded} onSelectCategory={onOpenCategory}>
       <div className="feature-banner-actions">
@@ -150,6 +166,7 @@ export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCat
           {t(expanded ? 'wiki.collapseGuide' : 'wiki.showGuide')}
         </button>
         <button type="button" className="button ghost" onClick={() => showHelp(false, expanded)}>{t('wiki.hideGuide')}</button>
+        {openInWikiTabButton}
       </div>
     </WikiArticle>
     {refreshFailed && <>

@@ -122,6 +122,7 @@ export type CompatibilityRowData = {
 export function Compatibility({
   data,
   wikiModuleSettings,
+  openWikiHelpArticle,
   openWikiCategory,
   news,
   openNews,
@@ -132,6 +133,7 @@ export function Compatibility({
 }: {
   data: Snapshot
   wikiModuleSettings?: WikiModuleSettings
+  openWikiHelpArticle?(articleId: string): void
   openWikiCategory(category: string): void
   news: NewsItem[]
   openNews(): void
@@ -494,7 +496,7 @@ export function Compatibility({
       />}
       {activeTab === 'mod-detection' && (
         <div className="settings-module-list compatibility-sections">
-          {showWikiHelp && <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
+          {showWikiHelp && <WikiHelp articleId="mod-detection" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} onOpenWikiArticle={openWikiHelpArticle} />}
           <Card title={t('compatibility.modDetection.title')}>
             <p className="hint settings-module-description">
               {t('compatibility.modDetection.description')}
@@ -547,11 +549,11 @@ export function Compatibility({
           </Card>
         </div>
       )}
-      {activeTab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} showWikiHelp={showWikiHelp} />}
-      {activeTab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} openWikiCategory={openWikiCategory} />}
+      {activeTab === 'dll-manager' && <DllManagerPanel data={data} wikiModuleSettings={wikiModuleSettings} openWikiHelpArticle={openWikiHelpArticle} openWikiCategory={openWikiCategory} showWikiHelp={showWikiHelp} />}
+      {activeTab === 'hotkeys' && <Hotkeys data={data} wikiModuleSettings={wikiModuleSettings} openWikiHelpArticle={openWikiHelpArticle} openWikiCategory={openWikiCategory} />}
       {activeTab === 'dependencies' && (
         <div className="settings-module-list compatibility-sections">
-          {showWikiHelp && <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
+          {showWikiHelp && <WikiHelp articleId="dependencies" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} onOpenWikiArticle={openWikiHelpArticle} />}
           <section className="settings-module compatibility-section">
             <header>
               <div>
@@ -695,7 +697,7 @@ export function Compatibility({
       )}
       {activeTab === 'engine' && (
         <>
-          {showWikiHelp && <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
+          {showWikiHelp && <WikiHelp articleId="engine" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} onOpenWikiArticle={openWikiHelpArticle} />}
           <section className={`compatibility-summary ${overall}`}>
             <span className={`compatibility-summary-icon ${overall}`}>
               <Icon
@@ -809,9 +811,10 @@ function normalizedDllNames(names: unknown): string[] {
     : []
 }
 
-function DllManagerPanel({ data, wikiModuleSettings, openWikiCategory, showWikiHelp }: {
+function DllManagerPanel({ data, wikiModuleSettings, openWikiHelpArticle, openWikiCategory, showWikiHelp }: {
   data: Snapshot
   wikiModuleSettings?: WikiModuleSettings
+  openWikiHelpArticle?(articleId: string): void
   openWikiCategory(category: string): void
   showWikiHelp: boolean
 }) {
@@ -874,7 +877,7 @@ function DllManagerPanel({ data, wikiModuleSettings, openWikiCategory, showWikiH
 
   return (
     <div className="settings-module-list compatibility-sections dll-manager">
-      {showWikiHelp && <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} />}
+      {showWikiHelp && <WikiHelp articleId="dll-manager" moduleSettings={wikiModuleSettings} onOpenCategory={openWikiCategory} onOpenWikiArticle={openWikiHelpArticle} />}
       <Card title={t('compatibility.dllManager.title')}>
         <p className="hint settings-module-description">{t('compatibility.dllManager.description')}</p>
         <ModuleEnabledRow label={t('settings.modules.field.active')} enabled={enabled} onChange={(value) => {

@@ -62,6 +62,7 @@
   "wiki.categories": "Categorieën",
   "wiki.loadFailed": "Wiki-pagina's konden niet worden geladen. Probeer het opnieuw.",
   "wiki.openOnline": "Wiki openen",
+  "wiki.openInTab": "Openen in Wiki-tabblad",
   "wiki.refresh": "Wiki vernieuwen",
   "wiki.clearCache": "Cache wissen",
   "wiki.refreshSucceeded": "Wiki-gegevens bijgewerkt.",

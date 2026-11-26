@@ -62,6 +62,7 @@
   "wiki.categories": "カテゴリ",
   "wiki.loadFailed": "Wiki ページを読み込めませんでした。もう一度お試しください。",
   "wiki.openOnline": "Wiki を開く",
+  "wiki.openInTab": "Wiki タブで開く",
   "wiki.refresh": "Wiki を更新",
   "wiki.clearCache": "キャッシュを削除",
   "wiki.refreshSucceeded": "Wiki のデータを更新しました。",
