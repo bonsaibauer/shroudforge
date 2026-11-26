@@ -154,6 +154,7 @@ add_library(kfc-runtime SHARED
     engine-hooks/scan_executable_signature.cpp
     engine-hooks/allocate_near_code.cpp
     engine-hooks/install_engine_hooks.cpp
+    engine-hooks/publish_engine_hook.cpp
     engine-hooks/write_executable_bytes.cpp
     engine-context/observe_entity_manager.cpp
     patches/set_runtime_patch.cpp
@@ -396,6 +397,7 @@ add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     ../tests/overlay_gpu_test.cpp map/read_map_frame.cpp map/capture_game_map.cpp
     map/hud_visibility.cpp graphics/render_overlay.cpp graphics/notification_overlay.cpp
     engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp
+    engine-hooks/publish_engine_hook.cpp
     engine-hooks/owned_executable_span.cpp)
 foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-lifetime kfc-runtime-test-overlay-gpu)
     target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -405,9 +407,12 @@ foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-life
     set_property(TARGET ${test_target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endforeach()
 
-add_executable(kfc-runtime-test-executable-write EXCLUDE_FROM_ALL ../tests/executable_write_test.cpp)
+add_executable(kfc-runtime-test-executable-write EXCLUDE_FROM_ALL
+    ../tests/executable_write_test.cpp engine-hooks/publish_engine_hook.cpp
+    engine-hooks/write_executable_bytes.cpp engine-hooks/allocate_near_code.cpp)
 target_include_directories(kfc-runtime-test-executable-write PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(kfc-runtime-test-executable-write PRIVATE cxx_std_20)
+target_compile_definitions(kfc-runtime-test-executable-write PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 set_property(TARGET kfc-runtime-test-executable-write PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_executable(kfc-runtime-test-service-lifecycle EXCLUDE_FROM_ALL ../tests/runtime_service_lifecycle_test.cpp)
 target_include_directories(kfc-runtime-test-service-lifecycle PRIVATE ${prop_test_includes})

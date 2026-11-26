@@ -49,5 +49,4 @@ void UpdateCaptureSession(std::uint64_t native_session, bool gameplay, bool menu
 SnapshotStore& CapturedFrames();
 bool InstallSharedCall(std::size_t rva,std::size_t target,void* callback);
 bool SharedCallOwned(std::size_t rva,std::size_t target,void* callback);
-bool InstallSharedEntry(std::size_t rva,std::span<const std::uint8_t> expected,void* callback);
 }

@@ -7,9 +7,7 @@
 #include "map/native_iterator_snapshot.h"
 #include "map/client_5d9ef2f1_marker_pins.h"
 #include "map/client_5d9ef2f1_optional_pins.h"
-#include "engine-hooks/allocate_near_code.h"
-#include "engine-hooks/encode_relative_jump.h"
-#include "engine-hooks/write_executable_bytes.h"
+#include "engine-hooks/publish_engine_hook.h"
 #include "engine-hooks/held_entry_preparation.h"
 #include "engine-hooks/owned_executable_span.h"
 #include "engine-hooks/owned_span_proof.h"
@@ -240,13 +238,7 @@ struct CaptureEnableReservation {
 std::vector<SFMapMarkerV1> pings;
 struct DiscoveryEntry {DiscoveryIdentity identity;SFMapMarkerV1 value;};
 std::vector<DiscoveryEntry> discoveries;
-struct InstalledCapture {
-    std::uintptr_t target{};std::vector<std::uint8_t> original,replacement,relay;
-    std::uintptr_t allocation{};bool installed{};
-    // Only the qualified held publisher may establish these fields.
-    bool publicationQualified{};HMODULE residentOwner{};
-};
-std::vector<InstalledCapture> hooks;
+std::vector<EngineHooks::PublishedEngineHook> hooks;
 enum class Preparation { Unprepared,Preparing,Ready,Failed };
 Preparation preparation{Preparation::Unprepared};
 bool preparingCapture{};
@@ -257,8 +249,11 @@ unsigned preparation_writer_failure{};
 DWORD preparation_windows_error{};
 bool executable_span_published{};
 std::int32_t preparation_result=SF_MAP_UNSUPPORTED_BUILD;
-bool publication_failure(const char* reason,DWORD error=0) {
-    preparation_reason=reason;preparation_windows_error=error;return false;
+bool publication_result(std::size_t rva,const EngineHooks::HookPublicationResult& result,bool published) {
+    preparation_rva=rva;preparation_writer_failure=result.writer_failure;
+    preparation_windows_error=result.windows_error;
+    if(!published)preparation_reason=result.reason;
+    return published;
 }
 
 template<class T> bool read(std::uintptr_t address, T& out) { return ReadMemory(address,&out,sizeof(out)); }
@@ -467,59 +462,15 @@ void __fastcall discovery_callback(void* record,void*) noexcept {
         if(throttle(last_discovery,now,100)){std::vector<SFMapMarkerV1> visible;visible.reserve(discoveries.size());for(const auto& item:discoveries)visible.push_back(item.value);store.PublishMarkers(Collection::Discovery,generation,std::move(visible),now);}
     }catch(...){}
 }
-// Capture uses the existing owner/primitives. Published thunks and the pinned
-// callback module remain mapped after restoration, including partial failure.
-bool publish_hook(std::uintptr_t target,std::span<const std::uint8_t> original,
-    std::vector<std::uint8_t> payload,bool call) {
-    preparation_rva=target-image_base;
-    preparation_writer_failure=0;preparation_windows_error=0;
-    if (original.size()<5 || original.size()>32) return publication_failure("hook-extent");
-    auto* allocation=static_cast<std::uint8_t*>(EngineHooks::AllocateNearCode(target,payload.size()));
-    if (!allocation) return publication_failure("near-allocation",GetLastError());
-    if (!call) {
-        std::int32_t back{};
-        if (!EngineHooks::EncodeRelativeJump(reinterpret_cast<std::uintptr_t>(allocation)+payload.size()-5,target+original.size(),back)) {
-            VirtualFree(allocation,0,MEM_RELEASE); return publication_failure("return-jump-range");
-        }
-        std::memcpy(payload.data()+payload.size()-4,&back,4);
-    }
-    std::memcpy(allocation,payload.data(),payload.size()); DWORD previous{};
-    if (!VirtualProtect(allocation,payload.size(),PAGE_EXECUTE_READ,&previous)) { const auto error=GetLastError();VirtualFree(allocation,0,MEM_RELEASE);return publication_failure("relay-protection",error); }
-    if(!FlushInstructionCache(GetCurrentProcess(),allocation,payload.size())) {const auto error=GetLastError();VirtualFree(allocation,0,MEM_RELEASE);return publication_failure("relay-cache-flush",error);}
-    InstalledCapture hook; hook.allocation=reinterpret_cast<std::uintptr_t>(allocation);hook.relay=payload;hook.target=target; hook.original.assign(original.begin(),original.end());
-    hook.replacement.assign(original.size(),0x90); hook.replacement[0]=call ? 0xe8 : 0xe9;
-    std::int32_t displacement{};
-    if (!EngineHooks::EncodeRelativeJump(target,reinterpret_cast<std::uintptr_t>(allocation),displacement)) {
-        VirtualFree(allocation,0,MEM_RELEASE); return publication_failure("entry-jump-range");
-    }
-    std::memcpy(hook.replacement.data()+1,&displacement,4);
-    hooks.push_back(std::move(hook)); auto& stored=hooks.back();
-    if (!EngineHooks::ReplaceExecutableBytes(target,stored.original.data(),stored.replacement.data(),stored.original.size())) {
-        // The transaction restored the preimage before returning false.
-        preparation_writer_failure=EngineHooks::LastExecutableWriteFailure();
-        VirtualFree(allocation,0,MEM_RELEASE); hooks.pop_back(); return publication_failure("executable-write-rejected");
-    }
-    stored.installed=true; return true;
-}
 bool entry_hook(std::size_t rva,std::span<const std::uint8_t> original,void* callback) {
-    std::vector<std::uint8_t> code{0x48,0x83,0xec,0x48,0x48,0x89,0x4c,0x24,0x20,
-        0x48,0x89,0x54,0x24,0x28,0x4c,0x89,0x44,0x24,0x30,0x4c,0x89,0x4c,0x24,0x38,0x48,0xb8};
-    const auto handler=reinterpret_cast<std::uintptr_t>(callback);
-    for (unsigned i=0;i<8;++i) code.push_back(std::uint8_t(handler>>(i*8)));
-    code.insert(code.end(),{0xff,0xd0,0x48,0x8b,0x4c,0x24,0x20,0x48,0x8b,0x54,0x24,0x28,
-        0x4c,0x8b,0x44,0x24,0x30,0x4c,0x8b,0x4c,0x24,0x38,0x48,0x83,0xc4,0x48});
-    code.insert(code.end(),original.begin(),original.end()); code.insert(code.end(),{0xe9,0,0,0,0});
-    return publish_hook(image_base+rva,original,std::move(code),false);
+    EngineHooks::HookPublicationResult result;
+    const auto published=EngineHooks::PublishEntryHook(hooks,image_base+rva,original,callback,result);
+    return publication_result(rva,result,published);
 }
 bool call_hook(std::size_t rva,std::size_t original_target,void* callback) {
-    std::uint8_t original[5]{}; std::int32_t offset{};
-    preparation_rva=rva;
-    if (!ReadMemory(image_base+rva,original,5) || original[0]!=0xe8) return publication_failure("call-preimage");
-    std::memcpy(&offset,original+1,4);
-    if (std::int64_t(rva)+5+offset != std::int64_t(original_target)) return publication_failure("call-target");
-    std::vector<std::uint8_t> relay{0xff,0x25,0,0,0,0}; const auto handler=reinterpret_cast<std::uintptr_t>(callback);
-    for (unsigned i=0;i<8;++i) relay.push_back(std::uint8_t(handler>>(i*8)));
-    return publish_hook(image_base+rva,original,std::move(relay),true);
+    EngineHooks::HookPublicationResult result;
+    const auto published=EngineHooks::PublishCallHook(hooks,image_base+rva,image_base+original_target,callback,result);
+    return publication_result(rva,result,published);
 }
 bool ReadCallProof(std::uintptr_t source,void* output,std::size_t size) noexcept {
     return ReadMemory(source,output,size);
@@ -572,11 +523,13 @@ bool discovery_hook() {
     code.insert(code.end(),{0x48,0x8d,0x4d,0xe7,0x4c,0x89,0xf2,0xff,0xd0,0x48,0x8b,0x4c,0x24,0x20,
         0x48,0x8b,0x54,0x24,0x28,0x4c,0x8b,0x44,0x24,0x30,0x4c,0x8b,0x4c,0x24,0x38,0x48,0x83,0xc4,0x50});
     code.insert(code.end(),std::begin(original),std::end(original));code.insert(code.end(),{0xe9,0,0,0,0});
-    return publish_hook(image_base+(current_client_capture()?Current5d9ef2f1::Discovery:0x4153a2),original,std::move(code),false);
+    const auto rva=current_client_capture()?Current5d9ef2f1::Discovery:0x4153a2;
+    EngineHooks::HookPublicationResult result;
+    const auto published=EngineHooks::PublishEngineHook(hooks,image_base+rva,original,std::move(code),false,result);
+    return publication_result(rva,result,published);
 }
 void restore_hooks() {
-    for (auto it=hooks.rbegin();it!=hooks.rend();++it) if (it->installed &&
-        EngineHooks::ReplaceExecutableBytes(it->target,it->replacement.data(),it->original.data(),it->original.size())) it->installed=false;
+    EngineHooks::RestoreEngineHooks(hooks);
 }
 }
 SnapshotStore& CapturedFrames() { return store; }
@@ -639,9 +592,6 @@ void StopCapture() noexcept {
 }
 
 
-bool InstallSharedEntry(std::size_t rva,std::span<const std::uint8_t> expected,void* callback) {
-    std::lock_guard lock(control_mutex);return accepting.load() && callback && entry_hook(rva,expected,callback);
-}
 bool InstallSharedCall(std::size_t rva,std::size_t target,void* callback) {
     std::lock_guard lock(control_mutex);return (accepting.load() || preparingCapture) && callback && call_hook(rva,target,callback);
 }
@@ -814,10 +764,8 @@ std::int32_t EnableCapture(std::uint64_t owner,bool capability) {
     const auto marker_hooks_start=hooks.size();
     admission.markers=admission.markers && entry_hook(0x30eb10,waypoint,reinterpret_cast<void*>(&waypoints_callback)) &&
         entry_hook(0x317e80,remote,reinterpret_cast<void*>(&remote_callback));
-    if (!admission.markers) for (auto i=marker_hooks_start;i<hooks.size();++i) {
-        auto& hook=hooks[i];
-        if (hook.installed && EngineHooks::ReplaceExecutableBytes(hook.target,hook.replacement.data(),hook.original.data(),hook.original.size())) hook.installed=false;
-        if (hook.installed) { restore_hooks(); capture_enable_in_progress=false; return SF_MAP_FAILED; }
+    if (!admission.markers && !EngineHooks::RestoreEngineHooks(std::span(hooks).subspan(marker_hooks_start))) {
+        restore_hooks();capture_enable_in_progress=false;return SF_MAP_FAILED;
     }
     constexpr std::uint8_t clock[]{0x41,0x56,0x48,0x83,0xec,0x60,0x41,0xb8,0x28,0,0,0,0x48,0x8d,0x54,0x24,0x30};
     admission.clock=admission.clock && entry_hook(0x2b3340,clock,reinterpret_cast<void*>(&clock_callback));

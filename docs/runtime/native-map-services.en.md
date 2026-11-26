@@ -53,6 +53,14 @@ guards and a trusted assertion that the game entrypoint remains held. It only
 normalizes independently verified framework-owned patches. Foreign detours
 are unsupported and refused; no mod identity, version or hash can admit one.
 
+Map capture and generic world hooks publish and restore executable relays
+through the same internal `engine-hooks/publish_engine_hook` implementation.
+Their owning runtime domains retain separate receipt batches for their existing
+activation and stop boundaries. Restoration compares the exact installed bytes
+before writing originals, including generic hook cleanup. A refused restoration
+retains ownership. Published relays stay mapped after restoration. This is an
+internal runtime action and adds no hook-installation API for mod packages.
+
 Metadata identity is independent of generic execution-hook readiness. A
 read-only metadata request does not permit component writes. Generic hooks
 still require their actual readiness and original write checks. Metadata and

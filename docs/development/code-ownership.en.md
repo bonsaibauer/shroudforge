@@ -243,6 +243,15 @@ The native C++ runtime is built and shipped with the loader. It is not a separat
 
 A **profile** is reviewed information for a particular Enshrouded build and target, such as the client. It tells supported native operations which game structures to use. Approved profiles are under **modules/game-runtime/profiles/** and are shipped as JSON files in the configured **runtime/profiles/** directory. Both native readers use this external catalog, without embedded profile copies.
 
+`native/engine-hooks/publish_engine_hook.*` owns executable relay publication
+and guarded reverse restoration for both generic world hooks and map capture.
+Their existing runtime owners keep separate receipt batches and control locks
+because activation and retirement differ. The common publisher owns allocation,
+read/execute protection, relative branches and the checked executable writer.
+Publication never grants game-build approval or held-entry qualification.
+Restoration refuses foreign replacement bytes and retains the affected receipt.
+Published relay allocations remain mapped until process exit.
+
 `modules/game-runtime/native/engine-hooks/owned_span_proof.*` owns the single
 process publication store for native executable-span evidence. Camera
 publication through `owned_executable_span.*`, direct shared-call publication,
