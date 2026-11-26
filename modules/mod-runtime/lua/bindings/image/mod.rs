@@ -8,6 +8,9 @@ use crate::{
     lua::{Either, FunctionArgs, LuaError},
 };
 
+pub(crate) mod encode_in_strips;
+#[cfg(test)]
+mod encode_in_strips_tests;
 mod image;
 mod image_format;
 mod pixel_format;
@@ -98,7 +101,8 @@ fn lua_encode_texture(_: &mlua::Lua, args: FunctionArgs) -> mlua::Result<Buffer>
     let required_bytes = kfc::content::image::size_of_format(format, width, height);
     let mut encoded = vec![0u8; required_bytes];
 
-    kfc::content::image::encode(format, width, height, image.inner(), &mut encoded)
+    // in a pregame pass, block-compressed formats on several threads, with the same bytes
+    encode_in_strips::encode_texture(format, width, height, image.inner(), &mut encoded)
         .map_err(|e| LuaError::generic(format!("failed to encode image: {e}",)))?;
 
     Ok(Buffer::wrap(encoded))

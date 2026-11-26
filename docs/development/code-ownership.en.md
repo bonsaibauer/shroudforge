@@ -199,6 +199,7 @@ A file contains the implementation of the action named by that file. Related hel
 | Run update requests and versioned maintenance jobs | `modules/updater/lib.rs` (`run_request`), `modules/updater/maintenance_jobs.rs`, and the feature implementations under `modules/updater/` |
 | Start in-game mod execution | `modules/mod-runtime/ingame/start_ingame_runtime.rs` |
 | Run update callbacks | `modules/mod-runtime/ingame/update_mod_callbacks.rs` |
+| Encode a pregame pass's block-compressed textures on several threads | `modules/mod-runtime/lua/bindings/image/encode_in_strips.rs`, thread count set in `modules/mod-runtime/startup/run_startup_mods.rs` |
 | Read original game-file backup status | `modules/game-files/originals/read_original_backups.rs` |
 | Capture original game files | `modules/game-files/originals/capture_original_game_files.rs` |
 | Restore verified original game files | `modules/game-files/originals/restore_original_game_files.rs` |

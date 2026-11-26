@@ -42,4 +42,4 @@ winres.workspace = true
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
-kfc = { path = "../../../kfc-parser/crates/kfc", features = ["resource"] }
+kfc = { path = "../../../kfc-parser/crates/kfc", features = ["resource", "content"] }
