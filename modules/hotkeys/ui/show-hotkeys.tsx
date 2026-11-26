@@ -136,26 +136,31 @@ export function Hotkeys({ data, wikiModuleSettings, openWikiCategory }: {
           })}
         </div>
         {!rows.length && <p className="hint">{t('hotkeys.empty')}</p>}
-        {data.settings.protectedHotkeys ? <div className="settings-options">
-          <p className="hint settings-module-description">Protected hotkeys</p>
-          <p className="hint settings-module-description">
-            Edit these rules in shroudforge/config/modloader-config.json.
-          </p>
+      </Card>
+      {data.settings.protectedHotkeys ? <Card title={t('hotkeys.policyTitle')}>
+        <p className="hint settings-module-description">{t('hotkeys.policySource')}</p>
+        <div className="settings-module-list">
           {([
             ['Confirm', 'confirm', data.settings.protectedHotkeys.confirm],
             ['Cancel', 'cancel', data.settings.protectedHotkeys.cancel],
-          ] as const).map(([title, action, keys]) => keys.length > 0 && <div key={action}>
-            <p className="hint settings-module-description">{title}</p>
-            {keys.map((key) => <SettingsRow
-              key={key.scancode}
-              label={key.label}
-              detail={key.text.replace(/\{key\}/g, key.label)}
-              rowClass={`hotkey-policy-${action}`}
-              control={<span aria-hidden="true">{key.emoji}</span>}
-            />)}
-          </div>)}
-        </div> : null}
-      </Card>
+          ] as const).map(([title, action, keys]) => keys.length > 0 && (
+            <section className="settings-module" key={action}>
+              <header>
+                <div><h3>{title}</h3></div>
+              </header>
+              <div className="settings-options">
+                {keys.map((key) => <SettingsRow
+                  key={key.scancode}
+                  label={key.label}
+                  detail={key.text.replace(/\{key\}/g, key.label)}
+                  rowClass={`hotkey-policy-${action}`}
+                  control={<span aria-hidden="true">{key.emoji}</span>}
+                />)}
+              </div>
+            </section>
+          ))}
+        </div>
+      </Card> : null}
     </div>
   )
 }
