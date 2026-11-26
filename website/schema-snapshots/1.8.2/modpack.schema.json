@@ -1,0 +1,61 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://dev.shroudforge.net/schemas/1.8.2/modpack.schema.json",
+	"title": "ShroudForge modpack manifest",
+	"description": "The modpack.json file at the root of a .sfpack ZIP. Archive and ShroudEdit catalog checks are defined in format.txt.",
+	"type": "object",
+	"additionalProperties": false,
+	"required": ["id", "name", "version", "gameVersions", "mods"],
+	"properties": {
+		"$schema": { "type": "string" },
+		"id": { "$ref": "#/$defs/projectSlug" },
+		"name": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "\\S" },
+		"version": { "$ref": "#/$defs/version" },
+		"description": { "type": "string", "maxLength": 2000 },
+		"authors": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+		"license": { "type": ["string", "null"] },
+		"gameVersions": {
+			"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true,
+			"items": { "type": "string", "minLength": 1, "maxLength": 64 }
+		},
+		"mods": {
+			"type": "array", "minItems": 1, "maxItems": 256,
+			"items": { "oneOf": [
+				{ "$ref": "#/$defs/bundled" },
+				{ "$ref": "#/$defs/catalog" },
+				{ "$ref": "#/$defs/external" }
+			] }
+		}
+	},
+	"$defs": {
+		"projectSlug": { "type": "string", "minLength": 3, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$" },
+		"modId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$" },
+		"version": { "type": "string", "maxLength": 32, "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$" },
+		"optional": { "type": "boolean", "default": false },
+		"bundled": {
+			"type": "object", "additionalProperties": false, "required": ["path"],
+			"properties": {
+				"path": { "type": "string", "pattern": "^mods/[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$" },
+				"optional": { "$ref": "#/$defs/optional" }
+			}
+		},
+		"catalog": {
+			"type": "object", "additionalProperties": false, "required": ["id", "version"],
+			"properties": {
+				"id": { "$ref": "#/$defs/projectSlug" },
+				"version": { "$ref": "#/$defs/version" },
+				"optional": { "$ref": "#/$defs/optional" }
+			}
+		},
+		"external": {
+			"type": "object", "additionalProperties": false, "required": ["id", "version", "url", "sha512"],
+			"properties": {
+				"id": { "$ref": "#/$defs/modId" },
+				"version": { "$ref": "#/$defs/version" },
+				"url": { "type": "string", "pattern": "^https://[^/]+/", "maxLength": 2048 },
+				"sha512": { "type": "string", "pattern": "^[a-f0-9]{128}$" },
+				"optional": { "$ref": "#/$defs/optional" }
+			}
+		}
+	}
+}

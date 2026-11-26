@@ -251,12 +251,12 @@ async function validate() {
   }
   await validateLocalLinks(schemaTags, siteUrl, "schemas/index.html");
   const schemaNames = ["manifest.schema.json", "extended.mod.schema.json", "mod-locale.schema.json"];
-  const packSchema = JSON.parse(await readRequired("schemas/sfpack/1/manifest.schema.json"));
-  const packExample = JSON.parse(await readRequired("schemas/sfpack/1/manifest.example.json"));
-  assert(packSchema.$id === "https://shroudforge.net/schemas/sfpack/1/manifest.schema.json", "The modpack format must retain its permanent schema URL.");
-  assert(packExample.$schema === packSchema.$id && packExample.formatVersion === 1, "The example must reference the published modpack schema.");
-  assert((await readRequired("schemas/sfpack/1/format.txt")).includes("shroudforge.index.json"), "The modpack archive contract must be published.");
-  assert(schemaHtml.includes('href="/schemas/sfpack/1/manifest.schema.json"'), "The schema catalog must link to the modpack schema.");
+  const packSchema = JSON.parse(await readRequired("schemas/1.8.2/modpack.schema.json"));
+  const packExample = JSON.parse(await readRequired("schemas/1.8.2/modpack.example.json"));
+  assert(packSchema.$id === `${siteUrl}/schemas/1.8.2/modpack.schema.json`, "The modpack schema URL must match its published location.");
+  assert(packExample.$schema === packSchema.$id && packExample.id && !('formatVersion' in packExample), "The example must reference the published modpack schema.");
+  assert((await readRequired("schemas/1.8.2/format.txt")).includes("modpack.json"), "The modpack archive contract must be published.");
+  assert(schemaHtml.includes('href="/schemas/1.8.2/modpack.schema.json"'), "The schema catalog must link to the modpack schema.");
   const blueprintSchema = JSON.parse(await readRequired("schemas/sfbp/8/manifest.schema.json"));
   const blueprintExample = JSON.parse(await readRequired("schemas/sfbp/8/manifest.example.json"));
   assert(blueprintSchema.$id === "https://shroudforge.net/schemas/sfbp/8/manifest.schema.json" && blueprintExample.$schema === blueprintSchema.$id && blueprintExample.formatVersion === 8, "Blueprint format 8 must publish its JSON schema and matching example.");

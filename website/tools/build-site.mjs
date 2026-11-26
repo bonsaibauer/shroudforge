@@ -87,7 +87,7 @@ async function readSchemaSnapshots(siteUrl, currentVersion) {
 
   const published = [];
   for (const version of versions) {
-    for (const name of schemaNames) {
+    for (const name of version === "1.8.2" ? [...schemaNames, "modpack.schema.json"] : schemaNames) {
       const file = path.join(schemaSnapshotDirectory, version, name);
       const stat = await fs.lstat(file);
       if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Schema snapshot must be a regular file: ${path.relative(websiteDirectory, file)}`);
@@ -319,13 +319,20 @@ async function build() {
     await fs.writeFile(path.join(versionDirectory, schema.name), schema.contents, "utf8");
   }
   const blueprintSchemaDirectory = path.join(schemasDirectory, "sfbp");
-  const modpackSchemaDirectory = path.join(schemasDirectory, "sfpack", "1");
-  await fs.mkdir(modpackSchemaDirectory, { recursive: true });
-  for (const name of ["manifest.schema.json", "format.txt", "manifest.example.json"]) {
-    const source = path.join(repositoryDirectory, "modules", "updater", "mod-installation", "schemas", "sfpack", "1", name);
+  const modpackSchemaDirectory = path.join(schemasDirectory, "1.8.2");
+  for (const name of ["format.txt", "modpack.example.json"]) {
+    const source = path.join(repositoryDirectory, "modules", "modloader", "manifest", name === "format.txt" ? "modpack.format.txt" : name);
     const stat = await fs.lstat(source);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Modpack schema must be a regular file: ${source}`);
-    await fs.copyFile(source, path.join(modpackSchemaDirectory, name));
+    const contents = await fs.readFile(source, "utf8");
+    const schemaUrl = new URL("/schemas/1.8.2/modpack.schema.json", siteUrl).href;
+    if (name === "modpack.example.json") {
+      const example = JSON.parse(contents);
+      example.$schema = schemaUrl;
+      await fs.writeFile(path.join(modpackSchemaDirectory, name), `${JSON.stringify(example, null, 2)}\n`, "utf8");
+    } else {
+      await fs.writeFile(path.join(modpackSchemaDirectory, name), contents.replaceAll("https://dev.shroudforge.net/schemas/1.8.2/modpack.schema.json", schemaUrl), "utf8");
+    }
   }
   await fs.mkdir(blueprintSchemaDirectory, { recursive: true });
   const blueprintV8Directory = path.join(blueprintSchemaDirectory, "8");

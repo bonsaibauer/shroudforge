@@ -1,0 +1,21 @@
+{
+	"$schema": "https://dev.shroudforge.net/schemas/1.8.2/modpack.schema.json",
+	"id": "survival-pack",
+	"name": "Survival Pack",
+	"version": "1.0.0",
+	"description": "An Enshrouded modpack.",
+	"authors": ["Pack author"],
+	"license": "MIT",
+	"gameVersions": ["REPLACE"],
+	"mods": [
+		{ "path": "mods/bundled-mod" },
+		{ "id": "catalog-mod", "version": "1.2.0" },
+		{
+			"id": "external-mod",
+			"version": "2.3.0",
+			"url": "https://example.com/external-mod.zip",
+			"sha512": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			"optional": true
+		}
+	]
+}

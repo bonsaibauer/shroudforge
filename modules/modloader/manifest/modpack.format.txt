@@ -1,0 +1,36 @@
+ShroudForge modpack archive
+Modloader version: 1.8.2
+Schema: https://dev.shroudforge.net/schemas/1.8.2/modpack.schema.json
+Media type: application/x-shroudforge-modpack+zip
+Extension: .sfpack
+
+A .sfpack is a ZIP with exactly one modpack.json at its root. Every other
+regular file must be inside a bundled mod directory named by a mods[].path
+entry. Each path names an entire archive directory, including its descendants.
+Stored and Deflate compression are supported. Duplicate names, encryption,
+symbolic links, absolute paths, traversal, and undeclared files are rejected.
+Archive paths must also use portable filename components without Windows device
+names, reserved characters, or trailing spaces and dots.
+ShroudEdit accepts at most 95 MiB compressed, 10,000 ZIP entries, 512 MiB
+uncompressed, and 1 MiB for each JSON manifest.
+
+modpack.json.id is the ShroudEdit project slug. version is the published pack
+version number. gameVersions must equal the published game versions. The
+manifest has no formatVersion field because this contract replaces the former
+index-only .sfpack format directly.
+
+Each mods item has exactly one of these forms:
+- {"path":"mods/<folder>"}: the complete mod folder is bundled in the ZIP.
+- {"id":"<project slug>","version":"<exact version>"}: a ShroudEdit mod.
+- {"id":"<mod id>","version":"<exact version>","url":"https://...","sha512":"<hash>"}: an external mod archive.
+optional defaults to false for every form. A bundled mod.json, when present,
+must be valid and its id must match the folder name. Native mod folders may
+omit mod.json. The same mod identity may occur only once in the pack.
+
+ShroudEdit resolves catalog slugs and exact listed versions of approved mod
+projects, verifies package type and game compatibility, and derives catalog
+dependencies from them. It validates external URLs and hash syntax without
+claiming to have verified the remote bytes. ZIP and catalog validation are both
+mandatory in addition to JSON Schema validation.
+An installer must compare downloaded external bytes with the declared SHA-512
+before using them.

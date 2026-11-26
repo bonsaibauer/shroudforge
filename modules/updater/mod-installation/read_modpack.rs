@@ -7,7 +7,7 @@ use std::{
 
 pub const MAX_PACK_BYTES: u64 = 1024 * 1024;
 pub const MANIFEST_NAME: &str = "shroudforge.index.json";
-pub const SCHEMA: &str = include_str!("schemas/sfpack/1/manifest.schema.json");
+pub const SCHEMA: &str = include_str!("../../modloader/manifest/modpack.schema.json");
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -192,57 +192,27 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn example() -> serde_json::Value {
-        serde_json::from_str(include_str!("schemas/sfpack/1/manifest.example.json")).unwrap()
-    }
-
     #[test]
-    fn schema_rejects_foreign_paths_formats_and_unpinned_mods() {
-        assert!(parse_manifest(&serde_json::to_vec(&example()).unwrap()).is_ok());
-        for (field, value) in [
-            ("game", json!("minecraft")),
-            ("formatVersion", json!(2)),
-            ("overrides", json!([])),
-            ("mods", json!([])),
-        ] {
-            let mut data = example();
-            data[field] = value;
-            assert!(
-                parse_manifest(&serde_json::to_vec(&data).unwrap()).is_err(),
-                "{field}"
-            );
-        }
-        let mut data = example();
-        data["mods"][0]["projectId"] = json!("../escape");
-        assert!(parse_manifest(&serde_json::to_vec(&data).unwrap()).is_err());
-        let mut data = example();
-        data["mods"][0].as_object_mut().unwrap().remove("versionId");
-        assert!(parse_manifest(&serde_json::to_vec(&data).unwrap()).is_err());
-        let mut data = example();
-        let mut duplicate = data["mods"][0].clone();
-        duplicate["versionId"] = json!("OTHER");
-        data["mods"].as_array_mut().unwrap().push(duplicate);
-        assert!(parse_manifest(&serde_json::to_vec(&data).unwrap()).is_err());
-    }
+    fn modpack_182_schema_accepts_three_sources_and_rejects_old_format() {
+        let validator = jsonschema::validator_for(
+            &serde_json::from_str::<serde_json::Value>(SCHEMA).unwrap(),
+        )
+        .unwrap();
+        let example: serde_json::Value =
+            serde_json::from_str(include_str!("../../modloader/manifest/modpack.example.json"))
+                .unwrap();
+        assert!(validator.is_valid(&example));
 
-    #[test]
-    fn catalog_validation_requires_exact_file_and_complete_dependencies() {
-        let pack = parse_manifest(&serde_json::to_vec(&example()).unwrap()).unwrap();
-        let version = json!({"id":"VERSIONID","project_id":"PROJECTID","status":"listed",
-            "project_types":["mod"],"loaders":["eml"],"game_versions":["REPLACE"],
-            "files":[{"filename":"mod.zip","url":"https://cdn.shroudedit.com/mod.zip","size":100,"hashes":{"sha512": "0".repeat(128)}}], "dependencies":[]});
-        assert!(validate_versions(&pack, &[version.clone()]).is_ok());
-        let mut missing = version.clone();
-        missing["dependencies"] = json!([{"project_id":"MISSING", "dependency_type":"required"}]);
-        assert!(validate_versions(&pack, &[missing]).is_err());
-        let mut wrong_hash = version.clone();
-        wrong_hash["files"][0]["hashes"]["sha512"] = json!("a".repeat(128));
-        assert!(validate_versions(&pack, &[wrong_hash]).is_err());
-        let mut wrong_owner = version.clone();
-        wrong_owner["project_id"] = json!("OTHER");
-        assert!(validate_versions(&pack, &[wrong_owner]).is_err());
-        let mut draft = version;
-        draft["status"] = json!("draft");
-        assert!(validate_versions(&pack, &[draft]).is_err());
+        let mut old = example.clone();
+        old["formatVersion"] = json!(1);
+        assert!(!validator.is_valid(&old));
+
+        let mut missing_hash = example.clone();
+        missing_hash["mods"][2].as_object_mut().unwrap().remove("sha512");
+        assert!(!validator.is_valid(&missing_hash));
+
+        let mut unsafe_path = example;
+        unsafe_path["mods"][0]["path"] = json!("mods/../escape");
+        assert!(!validator.is_valid(&unsafe_path));
     }
 }

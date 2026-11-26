@@ -92,11 +92,11 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 				${versionSections}
 			</section>
 			<section class="schema-reference panel" aria-labelledby="modpack-reference-title">
-				<header class="tool-section-heading"><div><span class="eyebrow">MODPACK FORMAT V1</span><h2 id="modpack-reference-title">ShroudForge modpacks</h2><p>A <code>.sfpack</code> archive contains <code>shroudforge.index.json</code> with pinned ShroudEdit project IDs, version IDs and SHA-512 checksums.</p></div></header>
+				<header class="tool-section-heading"><div><span class="eyebrow">MODPACK FORMAT</span><h2 id="modpack-reference-title">ShroudForge modpacks</h2><p>A <code>.sfpack</code> archive contains <code>modpack.json</code> and may bundle complete mod folders, reference ShroudEdit mods, or name external mod downloads.</p></div></header>
 				<div class="schema-grid"><article class="schema-card panel">
-					<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">{ }</span><div><h3>ShroudForge Modpack v1</h3><code>shroudforge.index.json</code></div></div>
-					<p>The JSON Schema validates the manifest. The format specification also defines archive limits, catalog validation and installation requirements. Example IDs must be replaced with real ShroudEdit metadata.</p>
-					<div class="schema-card-actions"><a class="schema-action-link" href="/schemas/sfpack/1/manifest.schema.json" target="_blank" rel="noopener">Open JSON Schema</a><a class="schema-action-link" href="/schemas/sfpack/1/format.txt">Format specification</a><a class="schema-action-link" href="/schemas/sfpack/1/manifest.example.json" download>Example manifest</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(new URL('/schemas/sfpack/1/manifest.schema.json', siteUrl).href)}">Copy URL</button></div>
+					<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">{ }</span><div><h3>ShroudForge modpack</h3><code>modpack.json</code></div></div>
+					<p>The JSON Schema validates the manifest. The format specification defines ZIP and catalog checks. The example illustrates all three mod sources.</p>
+					<div class="schema-card-actions"><a class="schema-action-link" href="/schemas/1.8.2/modpack.schema.json" target="_blank" rel="noopener">Open JSON Schema</a><a class="schema-action-link" href="/schemas/1.8.2/format.txt">Format specification</a><a class="schema-action-link" href="/schemas/1.8.2/modpack.example.json" download>Example manifest</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(new URL('/schemas/1.8.2/modpack.schema.json', siteUrl).href)}">Copy URL</button></div>
 					<output class="schema-copy-status" aria-live="polite"></output>
 				</article></div>
 			</section>
