@@ -715,48 +715,51 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         let unavailable = result.result.as_ref().err().is_some_and(|error| {
                             super::report_command_result::is_module_unavailable_warning(error)
                         });
-                        if unavailable {
-                            if let Some(error) = result.result.as_ref().err() {
-                                report_command_result(
-                                    &arguments.root,
-                                    &webview,
-                                    &result.request_id,
-                                    "Updates",
-                                    "Recycle bin",
-                                    Err(error.clone()),
-                                    "recycleBin.error",
-                                    None,
-                                    false,
-                                );
-                            }
+                        let is_list = result.operation == "recycle-bin-list";
+                        if unavailable || !is_list || result.result.is_err() {
+                            let (action, success_message) = match result.operation.as_str() {
+                                "recycle-bin-restore" => (
+                                    "Restore recycle bin entry",
+                                    "recycleBin.restored",
+                                ),
+                                "recycle-bin-delete" => (
+                                    "Delete recycle bin entry",
+                                    "recycleBin.deleted",
+                                ),
+                                "recycle-bin-empty" => {
+                                    ("Empty recycle bin", "recycleBin.emptied")
+                                }
+                                _ => ("Load recycle bin", "recycleBin.error"),
+                            };
+                            let command_result = result
+                                .result
+                                .as_ref()
+                                .map(|_| ())
+                                .map_err(|error| error.clone());
+                            report_command_result(
+                                &arguments.root,
+                                &webview,
+                                &result.request_id,
+                                "Updates",
+                                action,
+                                command_result,
+                                success_message,
+                                None,
+                                false,
+                            );
                         }
-                        let payload = if unavailable {
-                            serde_json::json!({
-                                "requestId": result.request_id,
-                                "action": result.operation,
-                                "success": false,
-                                "skipped": true
-                            })
-                        } else {
-                            match result.result {
-                                Ok(value) => serde_json::json!({
+                        if is_list && !unavailable {
+                            if let Ok(value) = result.result {
+                                let payload = serde_json::json!({
                                     "requestId": result.request_id,
-                                    "action": result.operation,
-                                    "success": true,
-                                    "value": value
-                                }),
-                                Err(error) => serde_json::json!({
-                                    "requestId": result.request_id,
-                                    "action": result.operation,
-                                    "success": false,
-                                    "error": error
-                                }),
+                                    "entries": value["entries"].clone()
+                                });
+                                if let Ok(payload) = serde_json::to_string(&payload) {
+                                    let _ = webview.evaluate_script(&format!(
+                                        "window.dispatchEvent(new CustomEvent('shroudforge-recycle-bin-list',{{detail:{payload}}}));"
+                                    ));
+                                }
                             }
-                        };
-                        if let Ok(payload) = serde_json::to_string(&payload) {
-                            let _ = webview.evaluate_script(&format!(
-                                "window.dispatchEvent(new CustomEvent('shroudforge-recycle-bin-result',{{detail:{payload}}}));"
-                            ));
                         }
                         continue;
                     }
