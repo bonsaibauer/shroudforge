@@ -1,6 +1,8 @@
 mod apply_asset_mods;
 mod capture_original_game_files;
 mod check_asset_preparation;
+#[cfg(test)]
+mod encode_pass_tests;
 mod lock_startup_assets;
 mod parse_game_assets;
 mod prepare_game_assets;
@@ -31,5 +33,7 @@ fn format_report(report: &shroudforge_package::ModEnvironmentErrorReport) -> Str
         .join("; ")
 }
 
+#[cfg(test)]
+mod test_game;
 #[cfg(test)]
 mod tests;

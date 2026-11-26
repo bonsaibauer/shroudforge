@@ -6,6 +6,7 @@ pub(crate) mod game;
 #[path = "hash_bytes.rs"]
 mod hasher;
 mod image;
+pub(crate) use image::encode_in_strips;
 #[path = "integer_operations.rs"]
 mod integer;
 mod io;

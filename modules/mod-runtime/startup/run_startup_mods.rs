@@ -1,7 +1,10 @@
 use crate::{
     API_VERSION, RunArgs, ShroudForgeApi,
     cache::{CacheDiff, FileStateCache},
-    env::{AppFeatures, AppState},
+    env::{
+        AppFeatures, AppState,
+        encode_in_strips::{EncodeThreads, encode_threads},
+    },
     logging::debug,
     runner::LuaModRunner,
 };
@@ -21,6 +24,17 @@ fn run_with_api(
     mut args: RunArgs,
 ) -> anyhow::Result<()> {
     debug!("Running lua with options: {:?}", args);
+
+    // A pregame pass encodes block-compressed textures on several threads (the same bytes), and
+    // puts the count back when it ends. The strip encode never waits for a helper thread to start,
+    // so a caller under the Windows loader lock only encodes serially.
+    let _encode_threads = (args.options.phase == crate::RuntimePhase::Pregame).then(|| {
+        let threads = EncodeThreads::for_pregame_pass();
+        tracing::info!(target: "shroudforge::startup", threads = encode_threads(),
+            "Block-compressed textures are encoded on {} thread(s) ({} overrides)",
+            encode_threads(), crate::ENCODE_THREADS_VARIABLE);
+        threads
+    });
 
     // check cache if files have changed
 

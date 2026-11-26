@@ -143,6 +143,10 @@ pub use startup::manage_asset_baseline::{
     backup_companion_file, create_working_kfc_backup, restore, working_baseline_is_incompatible,
 };
 pub use startup::run_startup_mods::{run, run_with_local_schema};
+// Block-compressed textures of a pregame pass are encoded on several threads.
+pub use env::encode_in_strips::{
+    THREADS_VARIABLE as ENCODE_THREADS_VARIABLE, textures_encoded_in_strips,
+};
 
 #[cfg(test)]
 use runtime::Lifecycle;
