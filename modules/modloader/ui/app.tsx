@@ -627,7 +627,7 @@ export function App() {
                 onClick={() => navigate('recycle-bin')}
               />}
             </NavGroup>
-            {pageVisible('installed') && page === 'installed' && <NavGroup className="nav-group-mods" title={t('nav.mods')}>
+            {pageVisible('installed') && <NavGroup className="nav-group-mods" title={t('nav.mods')}>
               <div className="sidebar-mods">
                 {displayedMods.map((mod) => (
                   <button
