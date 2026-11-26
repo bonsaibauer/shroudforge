@@ -387,7 +387,7 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .server-admin-overlay{z-index:100}
 .server-admin-modal{width:min(480px,100%)}
 .server-admin-modal .modal-body{display:grid;gap:14px}
-.server-admin-modal .wiki-help-trigger{box-sizing:border-box;display:grid;place-items:center;flex:0 0 83px;width:83px;height:44px;min-height:44px;padding:0;margin:0}
+.server-admin-modal .wiki-help-trigger{box-sizing:border-box;display:grid;place-items:center;flex:0 0 83px;width:83px;height:36px;min-height:36px;padding:0;margin:0}
 .server-admin-visual{overflow:hidden;border:1px solid var(--sf-line);border-radius:14px;background:#0b1418;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
 .server-admin-visual svg{display:block;width:100%;height:auto}
 .server-admin-modal .modal-body>p{margin:0;color:var(--sf-muted);font-size:12px;line-height:1.5}
