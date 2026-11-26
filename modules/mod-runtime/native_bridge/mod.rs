@@ -12,19 +12,25 @@ mod read_local_camera;
 #[path = "register_mod_functions.rs"]
 mod registration;
 
-pub(crate) use crate::session::NativeLifecycleFactory;
+pub(crate) use crate::session::{NativeLifecycleFactory, NativePluginMode};
 pub(crate) use access::{has_game_access, set_game_access};
 pub(crate) use call::{NativeArgument, NativeResult, call};
 #[cfg(test)]
 pub(crate) use registration::{close_registration, open_host};
 pub(crate) use registration::{function_names, initialize};
 
-pub(crate) const ABI_VERSION: u32 = 3;
+pub(crate) const ABI_VERSION: u32 = 4;
+
+#[derive(Clone, Copy)]
+pub(crate) struct RegisteredLifecycle {
+    pub(crate) factory: NativeLifecycleFactory,
+    pub(crate) mode: NativePluginMode,
+}
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct NativeRegistration {
     pub(crate) connected: bool,
-    pub(crate) lifecycle_factory: Option<NativeLifecycleFactory>,
+    pub(crate) lifecycle_factory: Option<RegisteredLifecycle>,
 }
 pub(crate) const MAX_RESULTS: usize = 32;
 /// Camera: position x, y, z in meters, orientation x, y, z, w, fovY, aspect.
@@ -90,6 +96,9 @@ pub(crate) struct ModHost {
     pub read_local_camera: unsafe extern "C" fn(*const ModHost, *mut f64, usize) -> u32,
     // ABI 3. Registration only, during the existing DLL init export.
     pub register_lifecycle:
+        unsafe extern "C" fn(*const ModHost, Option<NativeLifecycleFactory>) -> u32,
+    // ABI 4. Same registration owner, with the required pre-entry V2 phases.
+    pub register_preentry_lifecycle:
         unsafe extern "C" fn(*const ModHost, Option<NativeLifecycleFactory>) -> u32,
 }
 

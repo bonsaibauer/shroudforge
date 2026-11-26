@@ -120,6 +120,14 @@ and the active scope remains until both finish. Native-only packages with
 registered callbacks need no empty Lua script. V2 Stage/Prepare remains a
 pre-entry requirement, separate from gameplay activation.
 
+Mod bridge ABI 4 appends `register_preentry_lifecycle` to the same SDK host.
+It shares the ABI 3 activation registration's single slot and init window.
+The process DLL record retains the accepted factory and its callback version.
+`Lifecycle=` and `Services=` are not interpreted. DLL selection remains with
+the DLL Manager and service demand comes from the existing package plan.
+Startup holds code inputs before DLL loading, derives early phases from SDK
+registration, and retains ordinary startup when no additional phases are needed.
+
 ## The two mod information files
 
 - **mod.json** follows the EML format. It contains the mod's identity, version, dependencies, and permissions.

@@ -121,18 +121,6 @@ pub fn is_excluded_dll_name(root: &Path, path: &str) -> bool {
 fn file_name(path: &str) -> &str {
     path.rsplit(['/', '\\']).next().unwrap_or(path)
 }
-fn normalize_dll_path(path: &str) -> String {
-    path.trim_start_matches("./")
-        .replace('\\', "/")
-        .to_ascii_lowercase()
-}
-fn is_v2_declaration(declaration: &PluginIniDeclaration) -> bool {
-    declaration
-        .lifecycle
-        .as_deref()
-        .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DllCandidate {
@@ -260,13 +248,11 @@ pub fn resolve_load_plan(root: &Path, is_server: bool) -> DllLoadPlan {
                     selection.enabled
                         && selection.approved
                         && selection.target.applies_to(is_server)
-                        && (is_v2_declaration(&read_plugin_ini_declaration(
-                            &crate::paths::mods_dir(root).join(&entry.package_directory),
-                        )) || selection
+                        && selection
                             .compatibility_profile
                             .as_deref()
                             .filter(|id| !id.is_empty() && *id != "none")
-                            .is_none_or(|id| profiles.iter().any(|profile| profile.id == id)))
+                            .is_none_or(|id| profiles.iter().any(|profile| profile.id == id))
                 },
             )
     });
@@ -374,7 +360,6 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
         let plugin_declaration = read_plugin_ini_declaration(&package);
         let ini_state = plugin_declaration.state.as_str();
         let declared_dll = plugin_declaration.dll.clone();
-        let v2_declared = is_v2_declaration(&plugin_declaration);
         let mut issues = Vec::new();
         if selected.is_some_and(|id| id != "none") && profile.is_none() {
             issues.push("Selected compatibility profile was not found".into());
@@ -446,46 +431,10 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
                 .or_else(|| profile.map(|profile| profile.target))
                 .unwrap_or_default(),
         );
-        let selection_active = if v2_declared {
-            selection.is_none_or(|selection| selection.enabled && selection.approved)
-        } else {
-            selection.is_none_or(|selection| selection.enabled && selection.approved)
-                && selected.is_none_or(|id| id == "none" || profile.is_some())
-        };
-        let v2_selection_conflict = if v2_declared {
-            selection.is_some_and(|selection| {
-                selection.files.iter().any(|file| {
-                    file.mode != DllLoadMode::Library
-                        || declared_dll.as_deref().is_none_or(|declared| {
-                            normalize_dll_path(&file.path) != normalize_dll_path(declared)
-                        })
-                })
-            })
-        } else {
-            false
-        };
-        if v2_declared {
-            // A V2 shim owns this package's native load plan. Compatibility
-            // catalog/profile files remain visible but cannot replace it.
-            source = "ini";
-            if let Some(selection) = selection {
-                load_target = selection.target;
-            } else if let Some(profile) = profile {
-                load_target = profile.target;
-            }
-            if v2_selection_conflict {
-                issues.push("DLL selection conflicts with the V2 native plugin declaration".into());
-            } else if plugin_declaration.state == PluginIniState::Enabled {
-                if let Some(path) = declared_dll.clone() {
-                    files.push(DllProfileFile {
-                        path,
-                        mode: DllLoadMode::Library,
-                    });
-                }
-            } else if plugin_declaration.state == PluginIniState::Invalid {
-                issues.push("native-plugin.ini has an invalid [Plugin] declaration".into());
-            }
-        } else if let Some(selection) = selection.filter(|selection| !selection.files.is_empty()) {
+        let selection_active = selection
+            .is_none_or(|selection| selection.enabled && selection.approved)
+            && selected.is_none_or(|id| id == "none" || profile.is_some());
+        if let Some(selection) = selection.filter(|selection| !selection.files.is_empty()) {
             files = selection.files.clone();
             load_target = selection.target;
         } else if let Some(profile) = profile.filter(|profile| !profile.files.is_empty()) {
@@ -518,26 +467,6 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
         };
         if active && effective_target.is_none() && !files.is_empty() {
             issues.push("DLL selection target conflicts with the mod manifest target".into());
-        }
-        if active && v2_declared && plugin_declaration.state == PluginIniState::Invalid {
-            plan.issues.push((
-                DllPlanIssue {
-                    status_id: format!("dll:{}:ini", directory.to_ascii_lowercase()),
-                    detail: "native-plugin.ini has an invalid V2 [Plugin] declaration".into(),
-                },
-                load_target,
-            ));
-        }
-        if active && v2_declared && v2_selection_conflict {
-            plan.issues.push((
-                DllPlanIssue {
-                    status_id: format!("dll:{}:selection", directory.to_ascii_lowercase()),
-                    detail:
-                        "DLL file or mode selection conflicts with the V2 native plugin declaration"
-                            .into(),
-                },
-                load_target,
-            ));
         }
         if active && source == "manual" && files.is_empty() && ini_state == "invalid" {
             if let Some(target) = effective_target {
@@ -639,8 +568,7 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
     (candidates, plan)
 }
 
-/// The parser owns the single interpretation of native-plugin.ini used by the
-/// DLL Manager and the runtime lifecycle adapter.
+/// The DLL Manager owns the interpretation of existing INI DLL declarations.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PluginIniState {
     #[default]
@@ -669,29 +597,13 @@ impl PluginIniState {
 pub struct PluginIniDeclaration {
     pub state: PluginIniState,
     pub dll: Option<String>,
-    pub declared_dlls: Vec<String>,
-    pub lifecycle: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PluginLoadDisposition {
-    Ordinary,
-    ShroudForgeV1,
-    ShroudForgeV2,
 }
 
 /// Only [Plugin] is consumed. Other INI sections belong to the mod.
 /// Duplicate or malformed declarations fail closed.
 pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
-    let (
-        mut section,
-        mut found,
-        mut enabled,
-        mut dll,
-        mut declared_dlls,
-        mut lifecycle,
-        mut invalid,
-    ) = (false, false, None, None, Vec::new(), None, false);
+    let (mut section, mut found, mut enabled, mut dll, mut invalid) =
+        (false, false, None, None, false);
     for line in text
         .lines()
         .map(|line| line.trim().trim_start_matches('\u{feff}'))
@@ -728,11 +640,7 @@ pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
         } else if key.eq_ignore_ascii_case("dll") {
             invalid |= dll.is_some();
             let path = value.replace('\\', "/");
-            declared_dlls.push(path.clone());
             dll = Some(path);
-        } else if key.eq_ignore_ascii_case("lifecycle") {
-            invalid |= lifecycle.is_some();
-            lifecycle = Some(value.to_owned());
         }
     }
 
@@ -747,12 +655,7 @@ pub fn parse_plugin_ini(text: &str) -> PluginIniDeclaration {
         PluginIniState::Enabled
     };
 
-    PluginIniDeclaration {
-        state,
-        dll,
-        declared_dlls,
-        lifecycle,
-    }
+    PluginIniDeclaration { state, dll }
 }
 
 pub fn read_plugin_ini_declaration(package: &Path) -> PluginIniDeclaration {
@@ -768,95 +671,12 @@ pub fn read_plugin_ini_declaration(package: &Path) -> PluginIniDeclaration {
     }
 }
 
-/// Return parsed metadata only when the selected file is named by the declaration.
-pub fn selected_plugin_ini_declaration(
-    root: &Path,
-    directory: &str,
-    selected_path: &Path,
-) -> Result<Option<PluginIniDeclaration>, String> {
-    let (declaration, selected) = read_selected_plugin(root, directory, selected_path)?;
-    Ok(selected.then_some(declaration))
-}
-
-/// Read the package declaration once and report whether it names this DLL.
-pub fn read_selected_plugin(
-    root: &Path,
-    directory: &str,
-    selected_path: &Path,
-) -> Result<(PluginIniDeclaration, bool), String> {
-    let package = crate::paths::mods_dir(root).join(directory);
-    let declaration = read_plugin_ini_declaration(&package);
-    let selected = selected_path
-        .canonicalize()
-        .map_err(|error| format!("could not resolve selected DLL path: {error}"))?;
-    let package = package
-        .canonicalize()
-        .map_err(|error| format!("could not resolve DLL package path: {error}"))?;
-    let selected_relative = selected
-        .strip_prefix(&package)
-        .map_err(|_| "selected DLL is outside its package".to_owned())?
-        .to_string_lossy()
-        .replace('\\', "/")
-        .to_ascii_lowercase();
-    let is_declared = declaration
-        .declared_dlls
-        .iter()
-        .any(|declared| normalize_dll_path(declared) == selected_relative);
-    Ok((declaration, is_declared))
-}
-
-/// Classify an entry using the one canonical INI parser and the exact selected
-/// file path. This is shared by bootstrap and runtime registration routes.
-pub fn classify_selected_plugin_dll(
-    root: &Path,
-    directory: &str,
-    selected_path: &Path,
-) -> Result<PluginLoadDisposition, String> {
-    let (declaration, selected) = read_selected_plugin(root, directory, selected_path)?;
-    classify_plugin_load(&declaration, selected)
-}
 /// Return the existing status/DLL tuple for UI and compatibility callers.
 pub fn read_plugin_ini(package: &Path) -> (&'static str, Option<String>) {
     let declaration = read_plugin_ini_declaration(package);
     (declaration.state.as_str(), declaration.dll)
 }
 
-/// Classify the exact selected DLL. V1 and ordinary declarations preserve the
-/// profile path; a V2 declaration owns its package plan and refuses other DLLs.
-pub fn classify_plugin_load(
-    declaration: &PluginIniDeclaration,
-    selected_is_declared_dll: bool,
-) -> Result<PluginLoadDisposition, String> {
-    if !selected_is_declared_dll {
-        if is_v2_declaration(declaration) {
-            return Err(
-                "A V2 native plugin declaration owns its package DLL plan; other DLLs cannot be loaded"
-                    .into(),
-            );
-        }
-        return Ok(PluginLoadDisposition::Ordinary);
-    }
-    match declaration.state {
-        PluginIniState::Missing => Ok(PluginLoadDisposition::Ordinary),
-        PluginIniState::Invalid => {
-            Err("native-plugin.ini has an invalid [Plugin] declaration".into())
-        }
-        PluginIniState::Disabled | PluginIniState::Enabled => {
-            match declaration.lifecycle.as_deref() {
-                None => Ok(PluginLoadDisposition::Ordinary),
-                Some(lifecycle) if lifecycle.eq_ignore_ascii_case("shroudforge-v1") => {
-                    Ok(PluginLoadDisposition::ShroudForgeV1)
-                }
-                Some(lifecycle) if lifecycle.eq_ignore_ascii_case("shroudforge-v2") => {
-                    Ok(PluginLoadDisposition::ShroudForgeV2)
-                }
-                Some(lifecycle) => {
-                    Err(format!("unsupported native plugin lifecycle '{lifecycle}'"))
-                }
-            }
-        }
-    }
-}
 pub fn chain_load_entries(root: &Path) -> Vec<CandidateLoadEntry> {
     let mut plan = DllLoadPlan::default();
     append_chain(root, &mut plan);
@@ -1103,21 +923,13 @@ mod plugin_ini_tests {
         let declaration = parse_plugin_ini("[Plugin]\nDll=bin\\sample.dll\n");
         assert_eq!(declaration.state, PluginIniState::Enabled);
         assert_eq!(declaration.dll.as_deref(), Some("bin/sample.dll"));
-        assert_eq!(declaration.lifecycle, None);
-        assert_eq!(
-            classify_plugin_load(&declaration, true).unwrap(),
-            PluginLoadDisposition::Ordinary
-        );
     }
 
     #[test]
     fn explicit_disabled_declaration_needs_no_dll() {
-        let declaration = parse_plugin_ini("[Plugin]\nEnabled = false\n");
+        let declaration = parse_plugin_ini("[Plugin]\nEnabled=false\n");
         assert_eq!(declaration.state, PluginIniState::Disabled);
-        assert_eq!(
-            classify_plugin_load(&declaration, true).unwrap(),
-            PluginLoadDisposition::Ordinary
-        );
+        assert!(declaration.dll.is_none());
     }
 
     #[test]
@@ -1127,7 +939,6 @@ mod plugin_ini_tests {
             "[Plugin]\nEnabled=maybe\nDll=sample.dll",
             "[Plugin]\nDll=one.dll\nDll=two.dll",
             "[Plugin]\nEnabled=true\nEnabled=false\nDll=sample.dll",
-            "[Plugin]\nDll=sample.dll\nLifecycle=shroudforge-v1\nLifecycle=shroudforge-v1",
             "[Plugin]\nmalformed",
         ] {
             assert_eq!(
@@ -1139,236 +950,26 @@ mod plugin_ini_tests {
     }
 
     #[test]
-    fn unsupported_lifecycle_fails_closed_for_its_declared_dll() {
-        let declaration =
-            parse_plugin_ini("[Plugin]\nEnabled=true\nDll=sample.dll\nLifecycle=other-v9\n");
-        assert_eq!(declaration.state, PluginIniState::Enabled);
-        assert!(
-            classify_plugin_load(&declaration, true)
-                .unwrap_err()
-                .contains("unsupported native plugin lifecycle")
-        );
-        assert_eq!(
-            classify_plugin_load(&declaration, false).unwrap(),
-            PluginLoadDisposition::Ordinary
-        );
-    }
-
-    #[test]
-    fn disabled_lifecycle_plugin_stays_managed_and_cannot_fall_back() {
-        let declaration =
-            parse_plugin_ini("[Plugin]\nEnabled=false\nDll=sample.dll\nLifecycle=shroudforge-v1\n");
-        assert_eq!(declaration.state, PluginIniState::Disabled);
-        assert_eq!(
-            classify_plugin_load(&declaration, true).unwrap(),
-            PluginLoadDisposition::ShroudForgeV1
-        );
-    }
-    #[test]
-    fn obsolete_services_key_does_not_change_dll_selection() {
-        let ordinary = parse_plugin_ini("[Plugin]\nDll=sample.dll\nServices=shroudforge.overlay\n");
-        assert_eq!(ordinary, parse_plugin_ini("[Plugin]\nDll=sample.dll\n"));
-        assert_eq!(
-            classify_plugin_load(&ordinary, true).unwrap(),
-            PluginLoadDisposition::Ordinary
-        );
-
-        let opted_in = parse_plugin_ini(
-            "[Plugin]\nEnabled=yes\nDll=sample.dll\nLifecycle=ShroudForge-V1\nServices=shroudforge.overlay, shroudforge.map\n",
-        );
-        assert_eq!(opted_in.state, PluginIniState::Enabled);
-        assert_eq!(
-            classify_plugin_load(&opted_in, true).unwrap(),
-            PluginLoadDisposition::ShroudForgeV1
-        );
-        assert_eq!(
-            opted_in,
-            parse_plugin_ini("[Plugin]\nEnabled=yes\nDll=sample.dll\nLifecycle=ShroudForge-V1\n")
-        );
-    }
-
-    #[test]
-    fn v2_lifecycle_is_managed_and_unsupported_versions_still_fail_closed() {
-        let opted_in = parse_plugin_ini(
-            "[Plugin]\nEnabled=true\nDll=bin/provider.dll\nLifecycle=ShroudForge-V2\n",
-        );
-        assert_eq!(opted_in.state, PluginIniState::Enabled);
-        assert_eq!(
-            classify_plugin_load(&opted_in, true).unwrap(),
-            PluginLoadDisposition::ShroudForgeV2
-        );
-
-        let disabled = parse_plugin_ini(
-            "[Plugin]\nEnabled=false\nDll=bin/provider.dll\nLifecycle=ShroudForge-V2\n",
-        );
-        assert_eq!(
-            classify_plugin_load(&disabled, true).unwrap(),
-            PluginLoadDisposition::ShroudForgeV2
-        );
-
-        let unknown =
-            parse_plugin_ini("[Plugin]\nDll=bin/provider.dll\nLifecycle=ShroudForge-V3\n");
-        assert!(
-            classify_plugin_load(&unknown, true)
-                .unwrap_err()
-                .contains("unsupported native plugin lifecycle")
-        );
-    }
-}
-
-#[cfg(test)]
-mod v2_dll_planner_tests {
-    use super::*;
-
-    struct Fixture(PathBuf);
-
-    impl Fixture {
-        fn new() -> Self {
-            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-            let nonce = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let root =
-                std::env::temp_dir().join(format!("sf-v2-dll-plan-{}-{nonce}", std::process::id()));
-            fs::create_dir_all(&root).unwrap();
-            let fixture = Self(root);
-            fixture.package(
-                "[Plugin]\nEnabled=true\nDll=shim.dll\nLifecycle=shroudforge-v2\n",
-                "creative-profile",
-            );
-            fixture
+    fn draft_lifecycle_and_service_keys_do_not_change_dll_selection() {
+        let ordinary = parse_plugin_ini("[Plugin]\nDll=bin/sample.dll\n");
+        assert_eq!(ordinary.state, PluginIniState::Enabled);
+        for value in ["shroudforge-v1", "shroudforge-v2", "other-v9"] {
+            let draft = parse_plugin_ini(&format!(
+                "[Plugin]\nDll=bin/sample.dll\nLifecycle={value}\nServices=shroudforge.overlay\n"
+            ));
+            assert_eq!(draft, ordinary);
         }
-
-        fn package(&self, declaration: &str, profile_id: &str) {
-            let package = self.0.join("mods/creative");
-            fs::create_dir_all(&package).unwrap();
-            fs::write(package.join("native-plugin.ini"), declaration).unwrap();
-            fs::write(package.join("shim.dll"), b"shim").unwrap();
-            fs::write(package.join("catalog.dll"), b"catalog").unwrap();
-            fs::write(
-                package.join("mod.json"),
-                r#"{"id":"creative","name":"Creative","version":"1.0.0","capabilities":["runtime-register-dll"]}"#,
-            )
-            .unwrap();
-            fs::write(
-                package.join("extended.mod.json"),
-                r#"{"schemaVersion":1,"enabled":true,"targets":["client","server"],"settings":{}}"#,
-            )
-            .unwrap();
-
-            let catalog = shroudforge_loader_config::paths::mod_profiles_dir(&self.0);
-            fs::create_dir_all(&catalog).unwrap();
-            fs::write(
-                catalog.join(format!("{profile_id}.json")),
-                serde_json::to_vec(&serde_json::json!({
-                    "schemaVersion": 1,
-                    "id": profile_id,
-                    "modId": "creative",
-                    "packageDirectory": "creative",
-                    "name": "Catalog profile",
-                    "target": "both",
-                    "files": [{ "path": "catalog.dll", "mode": "library" }]
-                }))
-                .unwrap(),
-            )
-            .unwrap();
-        }
-
-        fn select(&self, target: DllProfileTarget, approved: bool, files: Value) {
-            shroudforge_loader_config::config::update_loader(&self.0, |config| {
-                config["modules"]["dllManager"]["profiles"] = serde_json::json!([{
-                    "id": "creative",
-                    "packageDirectory": "creative",
-                    "name": "Creative",
-                    "target": match target {
-                        DllProfileTarget::Client => "client",
-                        DllProfileTarget::Server => "server",
-                        DllProfileTarget::Both => "both",
-                    },
-                    "enabled": true,
-                    "approved": approved,
-                    "compatibilityProfile": "creative-profile",
-                    "files": files
-                }]);
-                Ok(())
-            })
-            .unwrap();
-        }
-    }
-
-    impl Drop for Fixture {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.0);
-        }
-    }
-
-    fn planned_paths(root: &Path, server: bool) -> Vec<String> {
-        resolve_load_plan(root, server)
-            .entries
-            .into_iter()
-            .map(|entry| {
-                entry
-                    .path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect()
-    }
-
-    #[test]
-    fn v2_declaration_overrides_catalog_but_keeps_selection_target_and_approval() {
-        let fixture = Fixture::new();
-        fixture.select(DllProfileTarget::Server, true, serde_json::json!([]));
-
-        assert!(planned_paths(&fixture.0, false).is_empty());
-        assert_eq!(planned_paths(&fixture.0, true), ["shim.dll"]);
-
-        fixture.select(DllProfileTarget::Server, false, serde_json::json!([]));
-        assert!(planned_paths(&fixture.0, true).is_empty());
-
-        fs::remove_file(
-            shroudforge_loader_config::paths::mod_profiles_dir(&fixture.0)
-                .join("creative-profile.json"),
-        )
-        .unwrap();
-        fixture.select(DllProfileTarget::Server, true, serde_json::json!([]));
-        assert_eq!(planned_paths(&fixture.0, true), ["shim.dll"]);
-    }
-
-    #[test]
-    fn v2_explicit_catalog_file_conflict_fails_closed_without_profile_fallback() {
-        let fixture = Fixture::new();
-        fixture.select(
-            DllProfileTarget::Client,
-            true,
-            serde_json::json!([{ "path": "catalog.dll", "mode": "library" }]),
+        assert_eq!(
+            parse_plugin_ini("[Plugin]\nEnabled=false\n").state,
+            PluginIniState::Disabled
         );
-
-        let plan = resolve_load_plan(&fixture.0, false);
-        assert!(plan.entries.is_empty());
-        assert!(plan.issues.iter().any(|issue| {
-            issue.status_id == "dll:creative:selection"
-                && issue
-                    .detail
-                    .contains("conflicts with the V2 native plugin declaration")
-        }));
-    }
-
-    #[test]
-    fn disabled_v2_declaration_does_not_fall_back_to_catalog_profile() {
-        let fixture = Fixture::new();
-        fs::write(
-            fixture.0.join("mods/creative/native-plugin.ini"),
-            "[Plugin]\nEnabled=false\nDll=shim.dll\nLifecycle=shroudforge-v2\n",
-        )
-        .unwrap();
-
-        let candidate = discover_dll_candidates(&fixture.0)
-            .into_iter()
-            .find(|candidate| candidate.package_directory == "creative")
-            .unwrap();
-        assert_eq!(candidate.source, "ini");
-        assert!(candidate.load_entries.is_empty());
-        assert!(planned_paths(&fixture.0, false).is_empty());
+        for text in [
+            "[Other]\nDll=a.dll",
+            "[Plugin]\nEnabled=maybe\nDll=a.dll",
+            "[Plugin]\nDll=a.dll\nDll=b.dll",
+            "[Plugin]\nmalformed",
+        ] {
+            assert_eq!(parse_plugin_ini(text).state, PluginIniState::Invalid);
+        }
     }
 }

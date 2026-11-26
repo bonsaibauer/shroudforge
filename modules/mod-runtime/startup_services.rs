@@ -49,6 +49,7 @@ struct Admission {
     environment: ModEnvironment,
     identity: serde_json::Value,
     inputs: Vec<Input>,
+    plugins: Vec<crate::native_dlls::RegisteredNativePlugin>,
     phase: Phase,
 }
 
@@ -98,6 +99,7 @@ fn package_code(path: &Path, package_root: &Path) -> bool {
 fn inspect(
     env: &ModEnvironment,
     server: bool,
+    plugins: &[crate::native_dlls::RegisteredNativePlugin],
 ) -> Result<(u32, serde_json::Value, BTreeSet<PathBuf>), String> {
     let root = env.game_dir().as_std_path();
     let (packages, issues) = env.plan_report(server, crate::API_VERSION);
@@ -116,21 +118,25 @@ fn inspect(
         }
         manifest_identity.push(serde_json::to_value(info).map_err(|e| e.to_string())?);
     }
-    let (_, plugins, native_issues) = crate::native_dlls::selected_startup_plugins(root, server);
-    for plugin in &plugins {
-        if plugin.declaration.state.is_enabled() {
-            if plugin
-                .declaration
-                .lifecycle
-                .as_deref()
-                .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
-            {
-                services |= NATIVE_PLUGIN_PREENTRY;
-            }
-        }
+    if plugins
+        .iter()
+        .any(|plugin| plugin.registration.mode == crate::session::NativePluginMode::ShroudForgeV2)
+    {
+        services |= NATIVE_PLUGIN_PREENTRY;
     }
-    // Existing packages without selected service demand retain legacy startup.
-    if services == 0 {
+    let dll_plan = mod_loader::dll_manager::resolve_load_plan(root, server);
+    // Only manifest-backed native runtime packages can request SDK phases.
+    // Ordinary DLL-only plans retain their established startup route.
+    let may_register_callbacks = dll_plan.entries.iter().any(|entry| {
+        packages.iter().any(|package| {
+            entry.mod_id.as_deref() == Some(package.info().id.as_str())
+                && package
+                    .info()
+                    .capabilities
+                    .contains(&Capability::RuntimeRegisterDll)
+        })
+    });
+    if services == 0 && !may_register_callbacks {
         return Ok((0, serde_json::Value::Null, files));
     }
     for package in &packages {
@@ -149,7 +155,7 @@ fn inspect(
             }
         }
     }
-    for plugin in &plugins {
+    for plugin in plugins {
         let package = packages
             .iter()
             .find(|p| plugin.entry.mod_id.as_deref() == Some(p.info().id.as_str()))
@@ -163,13 +169,12 @@ fn inspect(
         }
         files.insert(plugin.entry.path.clone());
     }
-    if !issues.is_empty() || native_issues {
+    if services != 0 && (!issues.is_empty() || !dll_plan.issues.is_empty()) {
         return Err("Selected startup has unresolved package or DLL selections".into());
     }
     if server && services & (MAP | GRAPHICS) != 0 {
         return Err("Client map and graphics services cannot start in a server process".into());
     }
-    let dll_plan = mod_loader::dll_manager::resolve_load_plan(root, server);
     // Include ordinary DLL-only packages as well as manifest-backed packages.
     // The same ordered executor loads these retained inputs before preparation.
     files.extend(dll_plan.entries.iter().map(|entry| entry.path.clone()));
@@ -178,17 +183,8 @@ fn inspect(
     // directory. Bind their contents as well as the resolved manifests.
     let profiles =
         mod_loader::mod_profiles::read_profiles(root).map_err(|errors| errors.join("; "))?;
-    let declarations: Vec<_> = plugins
-        .iter()
-        .map(|plugin| {
-            let declaration = &plugin.declaration;
-            serde_json::json!({"path":plugin.entry.path,"state":declaration.state.as_str(),
-            "dll":declaration.dll,"dlls":declaration.declared_dlls,
-            "lifecycle":declaration.lifecycle})
-        })
-        .collect();
-    let identity = serde_json::json!({"packages":manifest_identity,"dlls":dll_identity,
-        "profiles":profiles,"declarations":declarations});
+    let identity =
+        serde_json::json!({"packages":manifest_identity,"dlls":dll_identity,"profiles":profiles});
     Ok((services, identity, files))
 }
 
@@ -196,8 +192,8 @@ impl Admission {
     fn capture(root: &Path, server: bool) -> Result<Option<Self>, String> {
         let root = canonical(root)?;
         let environment = environment(&root)?;
-        let (services, identity, mut paths) = inspect(&environment, server)?;
-        if services == 0 {
+        let (services, identity, mut paths) = inspect(&environment, server, &[])?;
+        if services == 0 && paths.is_empty() {
             return Ok(None);
         }
         paths.insert(root.join("shroudforge/kfc-runtime.dll"));
@@ -248,14 +244,18 @@ impl Admission {
             environment,
             identity,
             inputs,
+            plugins: Vec::new(),
             phase: Phase::Admitted,
         };
         admitted.verify()?;
         Ok(Some(admitted))
     }
     fn verify(&self) -> Result<(), String> {
-        let (services, identity, paths) =
-            inspect(&environment(&self.root)?, self.plan.process_role == 2)?;
+        let (services, identity, paths) = inspect(
+            &environment(&self.root)?,
+            self.plan.process_role == 2,
+            &self.plugins,
+        )?;
         if services | METADATA != self.plan.services || identity != self.identity {
             return Err("Selected startup composition changed; restart is required".into());
         }
@@ -304,7 +304,6 @@ pub fn prepare(root: &Path, server: bool) -> Result<bool, String> {
     let Some(admission) = Admission::capture(root, server)? else {
         return Ok(false);
     };
-    let plan = admission.plan;
     let dll_identity = admission.identity["dlls"].clone();
     let staging_environment = admission.environment.clone();
     {
@@ -319,6 +318,38 @@ pub fn prepare(root: &Path, server: bool) -> Result<bool, String> {
     if let Err(error) = crate::native_dlls::prepare_selected_startup(root, server, &dll_identity) {
         fail_admission();
         return Err(error);
+    }
+    let refreshed = (|| -> Result<(PlanV2, bool), String> {
+        let plugins = crate::native_dlls::registered_native_plugins(root, server)?;
+        let mut admitted = state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")?;
+        let admission = admitted
+            .as_mut()
+            .ok_or("Startup admission is unavailable")?;
+        let (services, identity, _) = inspect(&admission.environment, server, &plugins)?;
+        if identity != admission.identity {
+            return Err("Startup package identity changed during native registration".into());
+        }
+        admission.plan.services = services | METADATA;
+        admission.plugins = plugins;
+        admission.verify()?;
+        Ok((admission.plan, services != 0))
+    })();
+    let (plan, selected) = match refreshed {
+        Ok(plan) => plan,
+        Err(error) => {
+            fail_admission();
+            return Err(error);
+        }
+    };
+    if !selected {
+        // An ordinary/V1-only plan needs no additional provider preparation.
+        // Loading and SDK registration already used the common executor.
+        *state()
+            .lock()
+            .map_err(|_| "Startup admission lock poisoned")? = None;
+        return Ok(false);
     }
     if plan.services & NATIVE_PLUGIN_PREENTRY != 0
         && let Err(error) =
@@ -567,7 +598,14 @@ mod tests {
             b"[Plugin]\nDll=probe.dll\nLifecycle=shroudforge-v1\nServices=shroudforge.map,shroudforge.overlay\n"
         ).unwrap();
         fixture.select_dll("probe", "probe.dll");
-        assert!(Admission::capture(&fixture.0, false).unwrap().is_none());
+        assert_eq!(
+            Admission::capture(&fixture.0, false)
+                .unwrap()
+                .unwrap()
+                .plan
+                .services,
+            METADATA
+        );
     }
 
     #[test]
@@ -598,7 +636,52 @@ mod tests {
     }
 
     #[test]
-    fn v2_plugin_alone_admits_the_held_native_preentry_service() {
+    fn sdk_registration_requests_preentry_without_an_ini_lifecycle() {
+        static FACTORY_CALLS: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        unsafe extern "C" fn factory(
+            _: u32,
+            _: u32,
+            _: *mut crate::session::SFNativePluginV1,
+        ) -> i32 {
+            FACTORY_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            2
+        }
+        let fixture = Fixture::new(&["runtime", "runtime-register-dll"]);
+        let package = fixture.0.join("mods/probe");
+        fs::write(package.join("probe.dll"), b"inert fixture; never loaded").unwrap();
+        fixture.select_dll("probe", "probe.dll");
+        assert!(!package.join("native-plugin.ini").exists());
+        let entry = mod_loader::dll_manager::resolve_load_plan(&fixture.0, false)
+            .entries
+            .remove(0);
+        let record = crate::native_bridge::open_host("probe", &package).unwrap();
+        let host = record.host();
+        unsafe {
+            assert_eq!(
+                ((*host).register_preentry_lifecycle)(host, Some(factory)),
+                1
+            );
+        }
+        let registration = crate::native_bridge::close_registration(record, true)
+            .lifecycle_factory
+            .unwrap();
+        let mut plugins = vec![crate::native_dlls::RegisteredNativePlugin {
+            entry,
+            registration,
+        }];
+        let env = environment(&fixture.0).unwrap();
+        assert_eq!(
+            inspect(&env, false, &plugins).unwrap().0,
+            NATIVE_PLUGIN_PREENTRY
+        );
+        plugins[0].registration.mode = crate::session::NativePluginMode::ShroudForgeV1;
+        assert_eq!(inspect(&env, false, &plugins).unwrap().0, 0);
+        assert_eq!(FACTORY_CALLS.load(std::sync::atomic::Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn ini_lifecycle_cannot_request_preentry_preparation() {
         let fixture = Fixture::new(&["runtime-register-dll"]);
         let package = fixture.0.join("mods/probe");
         fs::write(
@@ -610,7 +693,7 @@ mod tests {
         fixture.select_dll("probe", "probe.dll");
 
         let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
-        assert_eq!(admission.plan.services, METADATA | NATIVE_PLUGIN_PREENTRY);
+        assert_eq!(admission.plan.services, METADATA);
         assert_eq!(admission.plan.process_role, 1);
     }
 
@@ -630,10 +713,9 @@ mod tests {
         )
         .unwrap();
         fs::write(ordinary.join("original.dll"), b"must never execute").unwrap();
-        let (entries, plugins, issues) =
-            crate::native_dlls::selected_startup_plugins(&fixture.0, false);
-        assert_eq!(entries.len(), 1);
-        assert!(plugins.is_empty() && !issues);
+        let plan = mod_loader::dll_manager::resolve_load_plan(&fixture.0, false);
+        assert_eq!(plan.entries.len(), 1);
+        assert!(plan.issues.is_empty());
         let admission = Admission::capture(&fixture.0, false).unwrap().unwrap();
         assert!(
             admission
@@ -642,8 +724,8 @@ mod tests {
                 .any(|input| input.path == canonical(&ordinary.join("original.dll")).unwrap())
         );
         drop(admission);
-        // Without selected service demand, the same ordinary DLL stays on the
-        // existing data-driven loading path; it is never executed by this test.
+        // Without a runtime DLL capability or other early demand, an ordinary
+        // DLL retains the normal route without additional admission.
         let manifest = fixture.0.join("mods/probe/mod.json");
         fs::write(
             manifest,

@@ -28,7 +28,7 @@ pub(crate) struct HostRecord {
     host: ModHost,
     mod_id: String,
     accepting: AtomicBool,
-    lifecycle_factory: Mutex<Option<NativeLifecycleFactory>>,
+    lifecycle_factory: Mutex<Option<RegisteredLifecycle>>,
     _strings: [CString; 2],
 }
 
@@ -108,6 +108,7 @@ pub(crate) fn open_host(mod_id: &str, mod_directory: &Path) -> Result<&'static H
             register_function: host_register_function,
             read_local_camera: super::read_local_camera::host_read_local_camera,
             register_lifecycle: host_register_lifecycle,
+            register_preentry_lifecycle: host_register_preentry_lifecycle,
         },
         mod_id: mod_id.to_owned(),
         accepting: AtomicBool::new(true),
@@ -144,6 +145,21 @@ unsafe extern "C" fn host_register_lifecycle(
     host: *const ModHost,
     factory: Option<NativeLifecycleFactory>,
 ) -> u32 {
+    unsafe { register_lifecycle(host, factory, NativePluginMode::ShroudForgeV1) }
+}
+
+unsafe extern "C" fn host_register_preentry_lifecycle(
+    host: *const ModHost,
+    factory: Option<NativeLifecycleFactory>,
+) -> u32 {
+    unsafe { register_lifecycle(host, factory, NativePluginMode::ShroudForgeV2) }
+}
+
+unsafe fn register_lifecycle(
+    host: *const ModHost,
+    factory: Option<NativeLifecycleFactory>,
+    mode: NativePluginMode,
+) -> u32 {
     let (Some(record), Some(factory)) = (unsafe { record(host) }, factory) else {
         return 2;
     };
@@ -157,7 +173,7 @@ unsafe extern "C" fn host_register_lifecycle(
     if registered.is_some() {
         return 3;
     }
-    *registered = Some(factory);
+    *registered = Some(RegisteredLifecycle { factory, mode });
     1
 }
 

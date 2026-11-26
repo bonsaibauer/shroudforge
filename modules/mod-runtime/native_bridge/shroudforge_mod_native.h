@@ -26,8 +26,9 @@ extern "C" {
  * functions its own DLLs registered, through shroudforge.native. It does not
  * give the Lua code access to other mods. ABI 2 adds one read-only game read
  * for the DLL, the local camera, under the same conditions as the Lua API.
- * ABI 3 appends lifecycle registration to this same init connection. */
-#define SHROUDFORGE_MOD_NATIVE_ABI_VERSION 3u
+ * ABI 3 appends activation registration to this same init connection.
+ * ABI 4 appends registration for required pre-entry preparation. */
+#define SHROUDFORGE_MOD_NATIVE_ABI_VERSION 4u
 
 #define SF_NATIVE_CALL SHROUDFORGE_MOD_NATIVE_CALL
 
@@ -221,7 +222,7 @@ typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativeStageBeforeEntryFnV2)(
 typedef SFNativeStatusV1(SF_NATIVE_CALL *SFNativeEntryRestoredFnV2)(
     void *plugin_context);
 
-/* V2 is requested only by Lifecycle=shroudforge-v2. Its V1 prefix is byte-for-
+/* V2 is requested by register_preentry_lifecycle. Its V1 prefix is byte-for-
  * byte the V1 table; preparation is required and the later phase callbacks
  * are optional. */
 typedef struct SFNativePluginV2 {
@@ -371,7 +372,7 @@ struct ShroudforgeModHost {
     uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* read_local_camera)(
         const ShroudforgeModHost* host, double* output, size_t count);
 
-    /* ABI 3. Registers this DLL's optional activation callback factory.
+    /* ABI 3. Registers this DLL's optional V1 activation callback factory.
      * Only during ShroudforgeModNativeInit. One registration per DLL.
      * No activation or game call runs here. The runtime invokes the factory
      * later on its owner thread, validates its size/version/callback table,
@@ -386,6 +387,15 @@ struct ShroudforgeModHost {
      * 4 registration closed. Failed DLL init withdraws this registration.
      * Check abi_version >= 3 and size before accessing this appended field. */
     uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* register_lifecycle)(
+        const ShroudforgeModHost* host, ShroudforgeNativeLifecycleFactory factory);
+
+    /* ABI 4. Registers a V2 factory requiring pre-entry preparation. V2 requires
+     * Prepare and may supply Stage/entry-restored callbacks. Shares register_lifecycle's window and single
+     * slot: registering through either function makes a second call return 3.
+     * Check abi_version >= 4 and size before accessing this appended field.
+     * Does not run a callback or grant access. Late V2 registration cannot
+     * repeat process startup and is rejected by the activation owner. */
+    uint32_t (SHROUDFORGE_MOD_NATIVE_CALL* register_preentry_lifecycle)(
         const ShroudforgeModHost* host, ShroudforgeNativeLifecycleFactory factory);
 };
 

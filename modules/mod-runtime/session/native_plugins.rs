@@ -1,16 +1,17 @@
 use super::*;
+use crate::native_bridge::RegisteredLifecycle;
 use crate::session::native_plugin_abi::{
-    NativeLifecycleFactory, NativePluginHostMetadata, NativePluginInstance, NativePluginMode,
+    NativePluginHostMetadata, NativePluginInstance, NativePluginMode,
 };
 use mod_loader::Capability;
-use mod_loader::dll_manager::{DllLoadMode, PluginLoadDisposition};
+use mod_loader::dll_manager::DllLoadMode;
+use std::cell::RefCell;
 use std::path::PathBuf as NativePathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::{
     Arc, Mutex, OnceLock,
     atomic::{AtomicU64, Ordering},
 };
-use std::{cell::RefCell, io::Read};
 
 static NEXT_NATIVE_PACKAGE_GENERATION: AtomicU64 = AtomicU64::new(1);
 
@@ -26,7 +27,7 @@ struct StagedNativePlugin {
     path: NativePathBuf,
     package_directory: String,
     package_root: NativePathBuf,
-    declaration: mod_loader::dll_manager::PluginIniDeclaration,
+    registration: RegisteredLifecycle,
     package: Mod,
     settings_json: Vec<u8>,
     package_generation: u64,
@@ -405,17 +406,10 @@ pub(crate) fn load_selected_native_plugins(
     let mut plugins = Vec::new();
     let stage_result = (|| {
         let root = canonical_native_path(root)?;
-        let selected = crate::native_dlls::deferred_native_plugins(&root, is_server)?;
+        let selected = crate::native_dlls::registered_native_plugins(&root, is_server)?;
         let selected_v2: Vec<_> = selected
             .into_iter()
-            .filter(|plugin| {
-                plugin.declaration.state.is_enabled()
-                    && plugin
-                        .declaration
-                        .lifecycle
-                        .as_deref()
-                        .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
-            })
+            .filter(|plugin| plugin.registration.mode == NativePluginMode::ShroudForgeV2)
             .collect();
         if selected_v2.is_empty() {
             return Err("Selected V2 pre-entry demand has no enabled native plugin".into());
@@ -455,7 +449,6 @@ pub(crate) fn load_selected_native_plugins(
                 .to_string_lossy()
                 .into_owned();
             if !package_root.is_dir()
-                || !package_root.starts_with(&root)
                 || !package_directory.eq_ignore_ascii_case(&plugin.entry.package_directory)
             {
                 return Err("Selected V2 package root or folder identity changed".into());
@@ -473,19 +466,13 @@ pub(crate) fn load_selected_native_plugins(
                     "Selected V2 package manifest no longer matches startup admission".into(),
                 );
             }
-            let declaration = read_native_plugin_declaration(&package)?
-                .ok_or("Selected V2 package no longer has native-plugin.ini")?;
-            if declaration.metadata != plugin.declaration
-                || native_plugin_mode(&declaration.metadata)? != NativePluginMode::ShroudForgeV2
-                || !declaration.metadata.state.is_enabled()
-            {
-                return Err("Selected V2 native plugin declaration changed before staging".into());
-            }
-            let relative_path = declaration
-                .metadata
-                .dll
-                .as_deref()
-                .ok_or("Selected V2 native plugin does not name a DLL")?;
+            let relative_path = plugin
+                .entry
+                .path
+                .strip_prefix(&package_root)
+                .map_err(|_| "Selected native DLL escapes its package")?
+                .to_str()
+                .ok_or("Selected native DLL path is not UTF-8")?;
             let selected_path = mod_loader::dll_manager::resolve_package_dll_path(
                 &root,
                 &package_directory,
@@ -528,7 +515,7 @@ pub(crate) fn load_selected_native_plugins(
                     })?;
             let entry = match super::native_plugin_abi::lifecycle_factory_for_mode(
                 NativePluginMode::ShroudForgeV2,
-                || loaded,
+                || loaded.map(|registration| registration.factory),
             ) {
                 Ok(Some(entry)) => entry,
                 Ok(None) => {
@@ -566,7 +553,7 @@ pub(crate) fn load_selected_native_plugins(
                 path,
                 package_directory,
                 package_root,
-                declaration: declaration.metadata,
+                registration: plugin.registration,
                 package,
                 settings_json,
                 package_generation,
@@ -880,50 +867,6 @@ fn set_selected_native_plugins_failed() {
     });
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct RuntimeNativePluginDeclaration {
-    metadata: mod_loader::dll_manager::PluginIniDeclaration,
-}
-
-fn read_native_plugin_declaration(
-    target_mod: &Mod,
-) -> Result<Option<RuntimeNativePluginDeclaration>, String> {
-    let config_path = camino::Utf8Path::new("native-plugin.ini");
-    let mut filesystem = target_mod.fs();
-    if !filesystem.is_file(config_path) {
-        return Ok(None);
-    }
-    let mut config = String::new();
-    filesystem
-        .read_file(config_path)
-        .map_err(|error| format!("could not read native-plugin.ini: {error}"))?
-        .read_to_string(&mut config)
-        .map_err(|error| format!("could not decode native-plugin.ini: {error}"))?;
-    let metadata = mod_loader::dll_manager::parse_plugin_ini(&config);
-    Ok(Some(RuntimeNativePluginDeclaration { metadata }))
-}
-
-fn native_plugin_mode(
-    metadata: &mod_loader::dll_manager::PluginIniDeclaration,
-) -> Result<NativePluginMode, String> {
-    match metadata.state {
-        mod_loader::dll_manager::PluginIniState::Missing => Ok(NativePluginMode::LegacyLoadOnly),
-        mod_loader::dll_manager::PluginIniState::Invalid => {
-            Err("native-plugin.ini has an invalid [Plugin] declaration".into())
-        }
-        mod_loader::dll_manager::PluginIniState::Disabled
-        | mod_loader::dll_manager::PluginIniState::Enabled => match metadata.lifecycle.as_deref() {
-            None => Ok(NativePluginMode::LegacyLoadOnly),
-            Some(lifecycle) if lifecycle.eq_ignore_ascii_case("shroudforge-v1") => {
-                Ok(NativePluginMode::ShroudForgeV1)
-            }
-            Some(lifecycle) if lifecycle.eq_ignore_ascii_case("shroudforge-v2") => {
-                Ok(NativePluginMode::ShroudForgeV2)
-            }
-            Some(lifecycle) => Err(format!("unsupported native plugin lifecycle '{lifecycle}'")),
-        },
-    }
-}
 impl NativePluginMode {
     fn is_lifecycle_managed(self) -> bool {
         matches!(self, Self::ShroudForgeV1 | Self::ShroudForgeV2)
@@ -1031,20 +974,13 @@ impl AppState {
                 "V2 native plugin service owner changed between preparation and adoption".into(),
             );
         }
-        let selected = crate::native_dlls::deferred_native_plugins(
+        let selected = crate::native_dlls::registered_native_plugins(
             self.env.game_dir().as_std_path(),
             self.is_server(),
         )?;
         let selected_v2: Vec<_> = selected
             .iter()
-            .filter(|plugin| {
-                plugin.declaration.state.is_enabled()
-                    && plugin
-                        .declaration
-                        .lifecycle
-                        .as_deref()
-                        .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
-            })
+            .filter(|plugin| plugin.registration.mode == NativePluginMode::ShroudForgeV2)
             .collect();
         if selected_v2.len() != batch.plugins.len() {
             return Err("Selected V2 native plugin count changed before runtime adoption".into());
@@ -1057,17 +993,19 @@ impl AppState {
                 || selected.entry.mod_id.as_deref() != Some(staged.mod_id.as_str())
                 || selected.entry.package_directory != staged.package_directory
                 || selected.entry.mode != DllLoadMode::Library
-                || !selected.declaration.eq(&staged.declaration)
+                || selected.registration.mode != staged.registration.mode
+                || selected.registration.factory as usize != staged.registration.factory as usize
                 || !same_native_path(&selected.entry.path, &staged.path)
             {
                 return Err("Selected V2 native plugin identity changed before adoption".into());
             }
-            let authorized = crate::native_dlls::authorize_deferred_plugin(
+            let authorized = crate::native_dlls::authorize_registered_plugin(
                 self.env.game_dir().as_std_path(),
                 self.is_server(),
                 &staged.entry,
             )?;
-            if authorized.declaration != staged.declaration
+            if authorized.registration.mode != staged.registration.mode
+                || authorized.registration.factory as usize != staged.registration.factory as usize
                 || !same_native_path(&authorized.entry.path, &staged.path)
             {
                 return Err("V2 plugin no longer matches DLL Manager's selected entry".into());
@@ -1182,116 +1120,72 @@ impl AppState {
         }
     }
 
-    pub(crate) fn load_native_dll_declaration(
+    pub(crate) fn prepare_native_plugin_callbacks(
         &self,
         target_mod: &Mod,
-        authorized: &crate::native_dlls::DeferredNativePlugin,
+        authorized: &crate::native_dlls::RegisteredNativePlugin,
     ) -> Result<bool, String> {
-        let root = self.env.game_dir().as_std_path();
-        let current = crate::native_dlls::authorize_deferred_plugin(
-            root,
+        let current = crate::native_dlls::authorize_registered_plugin(
+            self.env.game_dir().as_std_path(),
             self.is_server(),
             &authorized.entry,
         )?;
-        if current.declaration != authorized.declaration {
-            return Err(
-                "Lifecycle plugin declaration changed after DLL Manager authorization".into(),
-            );
+        if current.registration.mode != authorized.registration.mode
+            || current.registration.factory as usize != authorized.registration.factory as usize
+        {
+            return Err("Native SDK registration changed after DLL plan authorization".into());
         }
         if authorized.entry.mod_id.as_deref() != Some(target_mod.info().id.as_str()) {
-            return Err(
-                "DLL Manager lifecycle selection does not match the runtime package".into(),
-            );
-        }
-        let package_directory = target_mod
-            .fs()
-            .root()
-            .file_name()
-            .unwrap_or_default()
-            .to_owned();
-        if !package_directory.eq_ignore_ascii_case(&authorized.entry.package_directory) {
-            return Err("DLL Manager lifecycle selection does not match the package folder".into());
-        }
-        if !self.has_feature(AppFeatures::RUNTIME_DLL) {
-            return Err(
-                "ShroudForge native plugin lifecycle is unavailable in this execution phase".into(),
-            );
-        }
-        let Some(declaration) = read_native_plugin_declaration(target_mod)? else {
-            return Err("Authorized lifecycle plugin no longer has native-plugin.ini".into());
-        };
-        if declaration.metadata != authorized.declaration {
-            return Err("native-plugin.ini changed after DLL Manager authorization".into());
-        }
-        if !declaration.metadata.state.is_enabled() {
-            self.report_runtime_effect(
-                &target_mod.info().id,
-                "disabled",
-                "ShroudForge native plugin is disabled in native-plugin.ini",
-            );
-            return Ok(false);
-        }
-        let mode = native_plugin_mode(&declaration.metadata)?;
-        if !mode.is_lifecycle_managed() {
-            return Err(
-                "Authorized native plugin no longer declares a ShroudForge lifecycle".into(),
-            );
+            return Err("Native SDK registration belongs to a different package".into());
         }
         self.validate_native_plugin_package(target_mod)?;
-        let relative_path = declaration
-            .metadata
-            .dll
-            .as_deref()
-            .ok_or_else(|| "native-plugin.ini does not name a DLL".to_owned())?;
-        let selected = mod_loader::dll_manager::resolve_package_dll_path(
-            root,
-            &package_directory,
-            &mod_loader::dll_manager::DllProfileFile {
-                path: relative_path.to_owned(),
-                mode: DllLoadMode::Library,
-            },
-        )?;
-        if selected != authorized.entry.path {
-            return Err("DLL Manager lifecycle path no longer matches native-plugin.ini".into());
-        }
-        if mode == NativePluginMode::ShroudForgeV2 {
-            if let Some(dll) = self.native_dlls.borrow().iter().find(|dll| {
-                dll.mod_id == target_mod.info().id && dll.mode() == NativePluginMode::ShroudForgeV2
-            }) {
+        if authorized.registration.mode == NativePluginMode::ShroudForgeV2 {
+            if let Some(dll) = self
+                .native_dlls
+                .borrow()
+                .iter()
+                .find(|dll| dll.mod_id == target_mod.info().id && dll.is_lifecycle_managed())
+            {
                 if matches!(&dll.module, NativeModule::Lifecycle(_)) {
                     return Ok(true);
                 }
-                return Err(
-                    "V2 native plugin is retained or stopped; process restart is required".into(),
-                );
+                return Err("V2 activation remains retained; process restart is required".into());
             }
-            return Err("V2 native plugin was not adopted from pre-entry startup".into());
+            return Err("V2 callbacks were not adopted from pre-entry preparation".into());
         }
-        self.queue_mod_native_dll(target_mod, relative_path, mode, authorized.entry.clone())?;
+        let package_root = canonical_native_path(target_mod.fs().root().as_std_path())?;
+        let relative = authorized
+            .entry
+            .path
+            .strip_prefix(&package_root)
+            .map_err(|_| "Native DLL is outside its package")?
+            .to_str()
+            .ok_or("Native DLL path is not UTF-8")?;
+        self.queue_mod_native_dll(
+            target_mod,
+            relative,
+            authorized.registration.mode,
+            authorized.entry.clone(),
+        )?;
         Ok(true)
     }
 
     fn prepare_native_plugin(&self, mod_id: &str) -> Result<bool, String> {
+        if !crate::native_dlls::package_has_registered_lifecycle(mod_id) {
+            return Ok(false);
+        }
         let Some(target_mod) = self.env.mod_registry().get(mod_id) else {
             return Ok(false);
         };
-        let Some(declaration) = read_native_plugin_declaration(target_mod)? else {
-            return Ok(false);
-        };
-        if !native_plugin_mode(&declaration.metadata)?.is_lifecycle_managed() {
-            return Ok(false);
-        }
-        let plugins = crate::native_dlls::deferred_native_plugins(
+        let Some(plugin) = crate::native_dlls::registered_native_plugins(
             self.env.game_dir().as_std_path(),
             self.is_server(),
-        )?;
-        let Some(plugin) = plugins
-            .into_iter()
-            .find(|plugin| plugin.entry.mod_id.as_deref() == Some(mod_id))
-        else {
+        )?
+        .into_iter()
+        .find(|plugin| plugin.entry.mod_id.as_deref() == Some(mod_id)) else {
             return Ok(false);
         };
-        self.load_native_dll_declaration(target_mod, &plugin)
+        self.prepare_native_plugin_callbacks(target_mod, &plugin)
     }
 
     pub(super) fn validate_native_plugin_package(&self, target_mod: &Mod) -> Result<(), String> {
@@ -1354,21 +1248,6 @@ impl AppState {
             return Err("The DLL Manager selection targets a different game process".into());
         }
         let relative_path = normalize_plugin_path(relative_path);
-        let metadata = read_native_plugin_declaration(target_mod)?;
-        let selected_is_declared = metadata.as_ref().is_some_and(|declaration| {
-            declaration
-                .metadata
-                .declared_dlls
-                .iter()
-                .any(|dll| normalize_plugin_path(dll) == relative_path)
-        });
-        let disposition = match metadata.as_ref() {
-            Some(declaration) => mod_loader::dll_manager::classify_plugin_load(
-                &declaration.metadata,
-                selected_is_declared,
-            )?,
-            None => PluginLoadDisposition::Ordinary,
-        };
         let selected = mod_loader::dll_manager::resolve_package_dll_path(
             self.env.game_dir().as_std_path(),
             &package_directory,
@@ -1391,47 +1270,12 @@ impl AppState {
             mode: DllLoadMode::Library,
             source: "Lua register_dll".into(),
         };
-        match disposition {
-            PluginLoadDisposition::ShroudForgeV1 | PluginLoadDisposition::ShroudForgeV2 => {
-                let declaration = metadata.expect("managed declaration was parsed");
-                if !declaration.metadata.state.is_enabled() {
-                    self.report_runtime_effect(
-                        &target_mod.info().id,
-                        "disabled",
-                        "ShroudForge native plugin is disabled in native-plugin.ini",
-                    );
-                    return Ok(());
-                }
-                let mode = native_plugin_mode(&declaration.metadata)?;
-                if !mode.is_lifecycle_managed() {
-                    return Err("Unsupported native plugin lifecycle cannot be loaded".into());
-                }
-                self.validate_native_plugin_package(target_mod)?;
-                let authorized = crate::native_dlls::authorize_deferred_plugin(
-                    self.env.game_dir().as_std_path(),
-                    self.is_server(),
-                    &entry,
-                )?;
-                if declaration.metadata != authorized.declaration {
-                    return Err("native-plugin.ini changed after DLL Manager authorization".into());
-                }
-                if mode == NativePluginMode::ShroudForgeV2 {
-                    if self
-                        .native_dlls
-                        .borrow()
-                        .iter()
-                        .any(|dll| dll.mod_id == target_mod.info().id && dll.mode() == mode)
-                    {
-                        return Ok(());
-                    }
-                    return Err("V2 native plugin must be staged by selected startup".into());
-                }
-                self.queue_mod_native_dll(target_mod, &relative_path, mode, authorized.entry)?;
-            }
-            PluginLoadDisposition::Ordinary => {
-                crate::native_dlls::queue(self.env.game_dir().as_std_path(), entry)?;
-            }
-        }
+        self.queue_mod_native_dll(
+            target_mod,
+            &relative_path,
+            NativePluginMode::LegacyLoadOnly,
+            entry,
+        )?;
         self.poll_native_dll_loads();
         Ok(())
     }
@@ -1442,33 +1286,6 @@ impl AppState {
         mode: NativePluginMode,
         entry: mod_loader::dll_manager::DllLoadEntry,
     ) -> Result<(), String> {
-        if let Some(declaration) = read_native_plugin_declaration(target_mod)?
-            && declaration
-                .metadata
-                .lifecycle
-                .as_deref()
-                .is_some_and(|lifecycle| lifecycle.eq_ignore_ascii_case("shroudforge-v2"))
-        {
-            let declared_path = declaration
-                .metadata
-                .dll
-                .as_deref()
-                .map(normalize_plugin_path);
-            let requested_path = normalize_plugin_path(relative_path);
-            if declared_path.as_deref() != Some(requested_path.as_str()) {
-                return Err(
-                    "A V2 native plugin declaration owns this package's DLLs; other DLLs cannot be queued"
-                        .into(),
-                );
-            }
-            if mode != NativePluginMode::ShroudForgeV2 {
-                return Err(
-                    "A V2 native plugin DLL cannot be queued through an ordinary or V1 load path"
-                        .into(),
-                );
-            }
-            return Err("V2 native plugins are loaded only through selected startup".into());
-        }
         if !self.has_feature(AppFeatures::RUNTIME_DLL) {
             return Err("native DLL loading is unavailable in this execution phase".into());
         }
@@ -1598,10 +1415,10 @@ impl AppState {
 
     fn finish_native_library_load(
         &self,
-        item: PendingNativeDll,
-        registered_factory: Option<NativeLifecycleFactory>,
+        mut item: PendingNativeDll,
+        registered_factory: Option<RegisteredLifecycle>,
     ) {
-        if item.mode == NativePluginMode::LegacyLoadOnly {
+        if item.mode == NativePluginMode::LegacyLoadOnly && registered_factory.is_none() {
             self.native_dlls.borrow_mut().push(NativeDll {
                 mod_id: item.mod_id.clone(),
                 path: item.path.clone(),
@@ -1617,6 +1434,27 @@ impl AppState {
             );
             return;
         }
+        if let Some(registration) = registered_factory {
+            item.mode = registration.mode;
+            if item.mode == NativePluginMode::ShroudForgeV2 {
+                self.native_dlls.borrow_mut().push(NativeDll {
+                    mod_id: item.mod_id.clone(),
+                    path: item.path,
+                    mode: item.mode,
+                    module: NativeModule::Retained {
+                        instance: None,
+                        stage: "missing pre-entry preparation",
+                        status: crate::session::native_plugin_abi::NATIVE_STATUS_UNAVAILABLE,
+                    },
+                });
+                self.report_runtime_effect(
+                    &item.mod_id,
+                    "retained",
+                    "Native V2 registration requires process startup preparation. Restart the game",
+                );
+                return;
+            }
+        }
         match self.pending_plugin_is_current(&item) {
             Ok(true) => {}
             Ok(false) => {
@@ -1630,7 +1468,7 @@ impl AppState {
             }
         }
         let factory = match super::native_plugin_abi::lifecycle_factory_for_mode(item.mode, || {
-            registered_factory
+            registered_factory.map(|registration| registration.factory)
         }) {
             Ok(Some(factory)) => factory,
             Ok(None) => {
@@ -1698,17 +1536,6 @@ impl AppState {
         {
             return Ok(false);
         }
-        let Some(declaration) = read_native_plugin_declaration(&item.package)? else {
-            return Ok(false);
-        };
-        if !declaration.metadata.state.is_enabled()
-            || native_plugin_mode(&declaration.metadata)? != item.mode
-            || declaration.metadata.dll.as_deref().is_none_or(|dll| {
-                normalize_plugin_path(dll) != normalize_plugin_path(&item.package_relative_path)
-            })
-        {
-            return Ok(false);
-        }
         let package_directory = package_root
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
@@ -1721,24 +1548,7 @@ impl AppState {
                 mode: DllLoadMode::Library,
             },
         )?;
-        let entry = mod_loader::dll_manager::DllLoadEntry {
-            status_id: format!(
-                "dll:{}:{}",
-                package_directory.to_ascii_lowercase(),
-                normalize_plugin_path(&item.package_relative_path)
-            ),
-            mod_id: Some(item.mod_id.clone()),
-            package_directory,
-            path: selected,
-            mode: DllLoadMode::Library,
-            source: "native-plugin.ini".into(),
-        };
-        let authorized = crate::native_dlls::authorize_deferred_plugin(
-            self.env.game_dir().as_std_path(),
-            self.is_server(),
-            &entry,
-        )?;
-        Ok(authorized.declaration == declaration.metadata)
+        Ok(selected == item.path)
     }
     pub(crate) fn native_plugin_has_callbacks(&self, mod_id: &str) -> bool {
         self.native_dlls
@@ -1776,24 +1586,27 @@ impl AppState {
             .native_dlls
             .borrow()
             .iter()
-            .any(|dll| dll.mod_id == mod_id)
+            .any(|dll| dll.mod_id == mod_id && dll.is_lifecycle_managed())
         {
             true
         } else {
             self.prepare_native_plugin(mod_id)?
         };
         self.poll_native_dll_loads();
-        if self
+        let pending = self
             .pending_native_dlls
             .borrow()
             .iter()
-            .any(|dll| dll.mod_id == mod_id)
-        {
+            .any(|dll| dll.mod_id == mod_id && dll.mode.is_lifecycle_managed());
+        if pending {
             return Err("Native DLL initialization has not completed; restart the process after correcting its startup selection".into());
         }
         let mut instance = {
             let mut dlls = self.native_dlls.borrow_mut();
-            let Some(dll) = dlls.iter_mut().find(|dll| dll.mod_id == mod_id) else {
+            let Some(dll) = dlls
+                .iter_mut()
+                .find(|dll| dll.mod_id == mod_id && dll.is_lifecycle_managed())
+            else {
                 if expected {
                     let effects = self.runtime_effects.borrow();
                     let detail = effects
@@ -1804,7 +1617,7 @@ impl AppState {
                 }
                 return Ok(());
             };
-            if dll.is_active() || matches!(&dll.module, NativeModule::LegacyLoadOnly) {
+            if dll.is_active() {
                 return Ok(());
             }
             match std::mem::replace(&mut dll.module, NativeModule::Transitioning) {
@@ -1921,18 +1734,16 @@ impl AppState {
         mod_id: &str,
         setting_values: &serde_json::Value,
     ) -> Result<(), String> {
-        let pending_index = self
+        let pending = self
             .pending_native_dlls
             .borrow()
             .iter()
-            .position(|pending| {
-                pending.mod_id == mod_id && pending.mode == NativePluginMode::ShroudForgeV1
-            });
+            .any(|pending| pending.mod_id == mod_id);
         let active =
             self.native_dlls.borrow().iter().any(|dll| {
                 dll.mod_id == mod_id && matches!(&dll.module, NativeModule::Lifecycle(_))
             });
-        if pending_index.is_none() && !active {
+        if !pending && !active {
             return Ok(());
         }
         let settings_json = serde_json::to_vec(setting_values)
@@ -1940,11 +1751,19 @@ impl AppState {
         if settings_json.len() > crate::session::native_plugin_abi::NATIVE_MAX_SETTINGS_JSON_BYTES {
             return Err("native plugin settings JSON exceeds 65536 bytes".into());
         }
-        if let Some(index) = pending_index {
-            self.pending_native_dlls.borrow_mut()[index].settings_json = settings_json.clone();
+        for pending in self
+            .pending_native_dlls
+            .borrow_mut()
+            .iter_mut()
+            .filter(|pending| pending.mod_id == mod_id)
+        {
+            pending.settings_json = settings_json.clone();
         }
         let mut dlls = self.native_dlls.borrow_mut();
-        let Some(dll) = dlls.iter_mut().find(|dll| dll.mod_id == mod_id) else {
+        let Some(dll) = dlls
+            .iter_mut()
+            .find(|dll| dll.mod_id == mod_id && dll.is_lifecycle_managed())
+        else {
             return Ok(());
         };
         match &mut dll.module {
@@ -2136,7 +1955,7 @@ fn is_duplicate_request(
 fn cancel_pending_plugin_load(pending: &mut Vec<PendingNativeDll>, mod_id: &str) -> bool {
     let mut cancelled = false;
     pending.retain(|item| {
-        let remove = item.mod_id == mod_id && item.mode == NativePluginMode::ShroudForgeV1;
+        let remove = item.mod_id == mod_id;
         cancelled |= remove;
         !remove
     });
@@ -2197,7 +2016,7 @@ pub(super) struct PendingNativeDll {
 
 fn loaded_process_library(
     result: crate::native_dlls::ProcessLibraryResult,
-) -> Result<Option<NativeLifecycleFactory>, NativeLibraryLoadError> {
+) -> Result<Option<RegisteredLifecycle>, NativeLibraryLoadError> {
     match (result.handle, result.initialization) {
         (Some(_), Ok(_)) => Ok(result.lifecycle_factory),
         (Some(_), Err(detail)) => Err(NativeLibraryLoadError::Bridge { detail }),
@@ -2419,6 +2238,127 @@ mod tests {
     };
 
     #[test]
+    fn ordinary_helpers_do_not_hide_or_delay_the_package_callback_owner() {
+        let fixture = crate::session::asset_tests::Fixture::with_capabilities(&[
+            "runtime",
+            "runtime-register-dll",
+        ]);
+        let probe = Arc::new(std::sync::Mutex::new(
+            crate::session::NativeLifecycleTestState::default(),
+        ));
+        let state = fixture
+            .lua
+            .app_data_ref::<crate::session::AppState>()
+            .unwrap();
+        state.attach_native_lifecycle_fixture("fixture", probe.clone());
+        state.native_dlls.borrow_mut().insert(
+            0,
+            super::NativeDll {
+                mod_id: "fixture".into(),
+                path: fixture.root.join("mods/fixture/helper.dll"),
+                mode: NativePluginMode::LegacyLoadOnly,
+                module: super::NativeModule::LegacyLoadOnly,
+            },
+        );
+        let (_pending_sender, receiver) = mpsc::channel();
+        state
+            .pending_native_dlls
+            .borrow_mut()
+            .push(PendingNativeDll {
+                mod_id: "fixture".into(),
+                path: fixture.root.join("mods/fixture/pending.dll"),
+                package_relative_path: "pending.dll".into(),
+                mode: NativePluginMode::LegacyLoadOnly,
+                package: state.env().mod_registry().get("fixture").unwrap().clone(),
+                package_generation: 2,
+                settings_json: b"{}".to_vec(),
+                queued_at: Instant::now(),
+                warned_stall: false,
+                receiver,
+            });
+        state
+            .update_native_plugin_settings("fixture", &serde_json::json!({"visible":false}))
+            .unwrap();
+        assert_eq!(
+            state.pending_native_dlls.borrow()[0].settings_json,
+            br#"{"visible":false}"#
+        );
+        state.activate_native_plugin("fixture").unwrap();
+        state.update_native_plugin("fixture", 0.016).unwrap();
+        state
+            .update_native_plugin_settings("fixture", &serde_json::json!({"visible":true}))
+            .unwrap();
+        assert_eq!(
+            state.pending_native_dlls.borrow()[0].settings_json,
+            br#"{"visible":true}"#
+        );
+        state.stop_native_plugin("fixture").unwrap();
+        assert_eq!(
+            probe.lock().unwrap().events,
+            [
+                "native.load",
+                "native.update",
+                "native.stop",
+                "native.shutdown"
+            ]
+        );
+        assert!(state.pending_native_dlls.borrow().is_empty());
+        assert!(!state.native_plugin_has_callbacks("fixture"));
+        assert_eq!(state.native_dll_state("fixture"), Some("loaded"));
+    }
+
+    #[test]
+    fn late_preentry_registration_is_retained_without_calling_its_factory() {
+        static FACTORY_CALLS: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+        unsafe extern "C" fn factory(
+            _: u32,
+            _: u32,
+            _: *mut crate::session::SFNativePluginV1,
+        ) -> i32 {
+            FACTORY_CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            2
+        }
+        let fixture = crate::session::asset_tests::Fixture::with_capabilities(&[
+            "runtime",
+            "runtime-register-dll",
+        ]);
+        let state = fixture
+            .lua
+            .app_data_ref::<crate::session::AppState>()
+            .unwrap();
+        let (_, receiver) = mpsc::channel();
+        let item = PendingNativeDll {
+            mod_id: "fixture".into(),
+            path: fixture.root.join("mods/fixture/late.dll"),
+            package_relative_path: "late.dll".into(),
+            mode: NativePluginMode::LegacyLoadOnly,
+            package: state.env().mod_registry().get("fixture").unwrap().clone(),
+            package_generation: 1,
+            settings_json: b"{}".to_vec(),
+            queued_at: Instant::now(),
+            warned_stall: false,
+            receiver,
+        };
+        state.finish_native_library_load(
+            item,
+            Some(crate::native_bridge::RegisteredLifecycle {
+                factory,
+                mode: NativePluginMode::ShroudForgeV2,
+            }),
+        );
+        assert_eq!(state.native_dll_state("fixture"), Some("retained"));
+        assert!(state.activate_native_plugin("fixture").is_err());
+        assert_eq!(FACTORY_CALLS.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert!(
+            state
+                .stop_native_plugin("fixture")
+                .unwrap_err()
+                .contains("missing pre-entry preparation")
+        );
+    }
+
+    #[test]
     fn retained_activation_cannot_report_a_successful_reactivation() {
         let fixture = crate::session::asset_tests::Fixture::new();
         let path = fixture.root.join("mods/fixture/retained.dll");
@@ -2545,8 +2485,10 @@ mod tests {
         ];
 
         assert!(cancel_pending_plugin_load(&mut pending, "example"));
-        assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].mode, NativePluginMode::LegacyLoadOnly);
+        assert!(
+            pending.is_empty(),
+            "unknown SDK registrations must also be cancelled before activation"
+        );
         assert!(
             root.exists(),
             "cancelling an activation does not remove its package inputs"

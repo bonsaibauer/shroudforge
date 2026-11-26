@@ -36,8 +36,9 @@ The available game types depend on the compatibility profile selected for the in
 Managed native callbacks use the same `ingame/` package activation, dependency
 checks, update traversal and retryable cleanup as Lua callbacks. A native-only
 runtime package needs no empty Lua entrypoint. DLL loading and one-time SDK
-registration remain process-owned in `native_dlls.rs`. The callback lifecycle and
-its remaining draft selection fields are documented in
+registration remain process-owned in `native_dlls.rs`. Callback versions and
+pre-entry requirements are registered through that SDK without additional INI
+selection fields. The callback contract is documented in
 [Native plugin lifecycle](../../docs/modding/native-plugin-lifecycle.en.md).
 
 ## Read a setting in Lua

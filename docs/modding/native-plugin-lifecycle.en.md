@@ -2,13 +2,15 @@
 
 Existing DLL Manager selections and `register_dll` libraries retain their
 process lifetime and optional DLL-to-Lua bridge. A manifest-backed runtime
-package can opt into managed callbacks with `native-plugin.ini`:
+package registers managed callbacks through the existing native SDK. DLL
+selection stays with the DLL Manager, a data-only compatibility profile, the
+existing INI DLL declaration or the package-local `register_dll` call. For
+example, the existing DLL declaration remains:
 
 ```ini
 [Plugin]
 Enabled=true
 Dll=bin/plugin.dll
-Lifecycle=shroudforge-v1
 ```
 
 Declare `runtime-register-dll` and `runtime` capabilities in `mod.json`.
@@ -21,15 +23,18 @@ native map renderer adds `runtime-map` and `runtime-overlay` to that same list:
 
 The normal package plan derives map and graphics startup demand from these
 capabilities for both Lua and native consumers. No `Services=` list is used or
-required. A leftover `Services=` key from the unpublished draft is ignored and
+required. Leftover `Lifecycle=` and `Services=` keys from the unpublished draft are ignored and
 grants no permission or startup demand. Actual SDK service queries still check
 the owning package, activation generation, capability and live provider support.
 
-Include
-the existing [mod native SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
+Include the existing [mod native SDK](../../modules/mod-runtime/native_bridge/shroudforge_mod_native.h)
 and export `ShroudforgeModNativeInit`. Mod bridge ABI 3 appends
 `register_lifecycle` to `ShroudforgeModHost`. During that one-time DLL
-initialization, pass it the DLL's lifecycle factory. No second export is queried.
+initialization, pass it the DLL's V1 activation factory. ABI 4 appends
+`register_preentry_lifecycle` for a V2 factory that requires Stage/Prepare before
+game entry. Both registration calls use the same slot and registration window.
+Registering through either rejects another registration through either function.
+No second export is queried and no INI lifecycle version is interpreted.
 
 ```c
 static SFNativeStatusV1 SF_NATIVE_CALL create_activation(
@@ -38,7 +43,8 @@ static SFNativeStatusV1 SF_NATIVE_CALL create_activation(
 SHROUDFORGE_MOD_NATIVE_EXPORT int32_t SHROUDFORGE_MOD_NATIVE_CALL
 ShroudforgeModNativeInit(const ShroudforgeModHost *host)
 {
-    if (!host || host->abi_version < 3u || host->size < sizeof(*host)
+    if (!host || host->abi_version < 3u
+        || host->size < offsetof(ShroudforgeModHost, register_lifecycle) + sizeof(host->register_lifecycle)
         || !host->register_lifecycle) return 0;
     return host->register_lifecycle(host, create_activation) == 1u;
 }
@@ -54,36 +60,57 @@ withdraws both the factory and that DLL's Lua functions if DLL initialization
 fails. The factory is stored in the same process-owned DLL record as its load
 result. Reloading Lua does not rerun DLL initialization or factory registration.
 
+A DLL that needs the V2 pre-entry phases uses this alternative registration
+inside the same `ShroudforgeModNativeInit` export:
+
+```c
+if (!host || host->abi_version < 4u
+    || host->size < offsetof(ShroudforgeModHost, register_preentry_lifecycle)
+                    + sizeof(host->register_preentry_lifecycle)
+    || !host->register_preentry_lifecycle) return 0;
+return host->register_preentry_lifecycle(host, create_activation) == 1u;
+```
+
+That factory must supply the SDK's `SFNativePluginV2` table for requested ABI 2,
+including the required preparation callback. A V2 registration discovered later
+through a Lua DLL call cannot repeat startup preparation. The package reports a
+restart requirement without calling that late factory or its gameplay callbacks.
+
 The process-lifetime `ShroudforgeModHost` and activation-lifetime `SFNativeHostV1`
 have different lifetimes. The first registers the DLL's integration once. The
 second supplies settings, package reads and services to that activation's
 callbacks, with its package identity and generation. Its services expire when
 the activation is revoked and drained. Neither table is a separate loader.
 
-Existing mod bridge ABI 1/2 fields retain their offsets and behavior. DLLs
+Existing mod bridge ABI 1/2/3 fields retain their offsets and behavior. DLLs
 that register only Lua functions or do not use the optional init export keep
 their existing path. Consumers of the unpublished `native_plugin_api.h` draft
 must replace that include with this SDK and register their former
 `ShroudForgePluginEntry` implementation as a local factory through the existing
-init export. That old export is no longer queried. The additional `Lifecycle`
-declaration shown above still selects callback preparation in this intermediate
-PR state. Its removal is tracked in
-[issue #149](https://github.com/bonsaibauer/shroudforge/issues/149). The callbacks
-already participate in the common package lifecycle described below.
+init export. That old export is no longer queried. Draft V2 consumers must use
+the appended `register_preentry_lifecycle`, checking host ABI >= 4 and its field
+size, instead of `Lifecycle=shroudforge-v2`. The loader records the required
+callback version with the accepted factory in the existing process DLL record.
+It never probes a factory with speculative versions to discover its requirements.
 
 The optional executable-span service uses the standalone
 [executable_span_api.h](../../modules/game-runtime/native/abi/executable_span_api.h)
 contract.
 The registered factory supplies a table. Initialization work belongs in its `initialize`
-callback. A DLL with an invalid explicit lifecycle declaration is rejected,
-including through a profile or Lua registration. It cannot fall back to an
-ordinary load. Other DLLs in the same package retain their selected load mode.
+callback. Lifecycle registration does not override the DLL Manager's file,
+target, approval, dependency or mode selection. Callback DLLs require library
+mode. One package can have one callback-owning DLL. Additional ordinary helper
+DLLs retain their declared modes. Duplicate aliases of the same canonical DLL
+reuse the same registration. Ambiguous callback owners are rejected.
 
 All DLL loads and optional `ShroudforgeModNativeInit` calls run on the existing
 ordered process worker in `native_dlls.rs`. Selected DLLs, Lua registrations and
 managed declarations share canonical-path deduplication and the same load
 result. The startup plan queues enabled managed DLLs in the original DLL order
 and waits for loading and SDK registration to finish before provider preparation.
+It holds the package and DLL inputs before loading, then derives required early
+phases from the accepted SDK registrations. Ordinary or V1-only plans without
+other early service demand continue through the existing normal startup path.
 The factory's callback table is then prepared on the activation owner thread.
 This preparation does not call its gameplay `initialize` callback.
 Settings and package asset reads use bounded UTF-8 byte spans.

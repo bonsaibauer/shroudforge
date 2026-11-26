@@ -1,10 +1,7 @@
 //! Process-owned execution of the DLL Manager's load plan and Lua registrations.
 //! Native hooks outlive Lua sessions. Handles are deliberately retained until exit.
 
-use mod_loader::dll_manager::{
-    DllLoadEntry, DllLoadMode, PluginIniDeclaration, PluginLoadDisposition, classify_plugin_load,
-    read_selected_plugin,
-};
+use mod_loader::dll_manager::{DllLoadEntry, DllLoadMode};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::{Path, PathBuf},
@@ -16,25 +13,18 @@ const STARTUP_LOAD_TIMEOUT: Duration = Duration::from_secs(15);
 static APPLIED_PLAN: OnceLock<AppliedPlan> = OnceLock::new();
 
 #[derive(Clone)]
-pub(crate) struct DeferredNativePlugin {
+pub(crate) struct RegisteredNativePlugin {
     pub(crate) entry: DllLoadEntry,
-    pub(crate) declaration: PluginIniDeclaration,
+    pub(crate) registration: crate::native_bridge::RegisteredLifecycle,
 }
 
 struct AppliedPlan {
     root_key: String,
     is_server: bool,
     identity: serde_json::Value,
-    entries: Vec<DeferredNativePlugin>,
-    rejected_entries: Vec<RejectedNativePlugin>,
+    entries: Vec<DllLoadEntry>,
 }
 
-#[derive(Clone)]
-struct RejectedNativePlugin {
-    entry: DllLoadEntry,
-    declaration: Option<PluginIniDeclaration>,
-    detail: String,
-}
 static EXECUTOR: OnceLock<Result<Executor, String>> = OnceLock::new();
 
 pub(crate) struct NativeDllStatus {
@@ -71,7 +61,7 @@ impl Record {
 pub(crate) struct ProcessLibraryResult {
     pub(crate) handle: Option<isize>,
     pub(crate) initialization: Result<bool, String>,
-    pub(crate) lifecycle_factory: Option<crate::native_bridge::NativeLifecycleFactory>,
+    pub(crate) lifecycle_factory: Option<crate::native_bridge::RegisteredLifecycle>,
 }
 
 struct LoadRequest {
@@ -139,6 +129,7 @@ fn executor() -> Result<&'static Executor, String> {
                             record.state = state_name;
                             record.detail = detail;
                             let result = ProcessLibraryResult { handle, initialization: result, lifecycle_factory };
+                            record.session_owned |= result.lifecycle_factory.is_some();
                             record.complete(result);
                         }
                         completed.notify_all();
@@ -189,7 +180,26 @@ pub(crate) fn manager_enabled(root: &Path) -> Result<bool, String> {
         .unwrap_or(true))
 }
 
-pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> {
+pub(crate) fn queue(root: &Path, entry: DllLoadEntry) -> Result<(), String> {
+    if let Some(plan) = APPLIED_PLAN.get() {
+        if plan.root_key != root_key(root)? {
+            return Err("DLL Manager startup plan belongs to a different game directory".into());
+        }
+    }
+    queue_process_library(root, entry)
+}
+
+fn queue_process_library(root: &Path, entry: DllLoadEntry) -> Result<(), String> {
+    queue_package_library(root, entry, false).map(drop)
+}
+
+/// All package and selected requests share the same authorization checks and
+/// ordered executor. A cached load never grants missing package permissions.
+pub(crate) fn queue_package_library(
+    root: &Path,
+    mut entry: DllLoadEntry,
+    session_owned: bool,
+) -> Result<mpsc::Receiver<ProcessLibraryResult>, String> {
     if !manager_enabled(root)? {
         return Err(
             "DLL Manager is disabled. Enable it and restart the game to load native DLLs".into(),
@@ -216,45 +226,6 @@ pub(crate) fn queue(root: &Path, mut entry: DllLoadEntry) -> Result<(), String> 
     if !entry.path.is_file() {
         return Err("The selected native DLL is not a regular file".into());
     }
-    let (declaration, selected) =
-        read_selected_plugin(root, &entry.package_directory, &entry.path)?;
-    let disposition = classify_plugin_load(&declaration, selected)?;
-    if let Some(plan) = APPLIED_PLAN.get() {
-        if plan.root_key != root_key(root)? {
-            return Err("DLL Manager startup plan belongs to a different game directory".into());
-        }
-        ensure_prepared_entry_unchanged(plan, &entry, selected.then_some(&declaration))?;
-    }
-    match disposition {
-        PluginLoadDisposition::Ordinary => {}
-        PluginLoadDisposition::ShroudForgeV1 | PluginLoadDisposition::ShroudForgeV2 => {
-            if entry.mode != DllLoadMode::Library {
-                return Err("Lifecycle-managed plugins require library loading mode".into());
-            }
-            if !is_authorized_deferred_entry(root, &entry)? {
-                return Err(
-                    "Lifecycle-managed plugin is not present in the current approved DLL Manager plan. Enable and approve its package selection, then restart the game".into(),
-                );
-            }
-            tracing::debug!(target: "shroudforge::dll_manager", dll = %entry.path.display(),
-                "Deferring lifecycle plugin initialization to its runtime owner");
-            return Ok(());
-        }
-    }
-    queue_process_library(root, entry)
-}
-
-fn queue_process_library(root: &Path, entry: DllLoadEntry) -> Result<(), String> {
-    queue_package_library(root, entry, false).map(drop)
-}
-
-/// An already authorized package request uses the same ordered executor as the
-/// DLL Manager. This does not grant selection or lifecycle permissions.
-pub(crate) fn queue_package_library(
-    root: &Path,
-    entry: DllLoadEntry,
-    session_owned: bool,
-) -> Result<mpsc::Receiver<ProcessLibraryResult>, String> {
     queue_package_library_on(executor()?, root, entry, session_owned)
 }
 
@@ -335,17 +306,6 @@ fn root_key(root: &Path) -> Result<String, String> {
     })
 }
 
-fn same_entry(left: &DllLoadEntry, right: &DllLoadEntry) -> bool {
-    left.status_id == right.status_id
-        && left.mod_id == right.mod_id
-        && left
-            .package_directory
-            .eq_ignore_ascii_case(&right.package_directory)
-        && left.path == right.path
-        && left.mode == right.mode
-        && left.source == right.source
-}
-
 fn same_selected_path(left: &DllLoadEntry, right: &DllLoadEntry) -> bool {
     left.status_id == right.status_id
         && left.mod_id == right.mod_id
@@ -356,196 +316,107 @@ fn same_selected_path(left: &DllLoadEntry, right: &DllLoadEntry) -> bool {
         && left.mode == right.mode
 }
 
-fn same_plan_path(left: &DllLoadEntry, right: &DllLoadEntry) -> bool {
-    left.status_id == right.status_id
-        && left.mod_id == right.mod_id
-        && left
-            .package_directory
-            .eq_ignore_ascii_case(&right.package_directory)
-        && left.path == right.path
-}
-
-fn ensure_prepared_entry_unchanged(
-    plan: &AppliedPlan,
-    entry: &DllLoadEntry,
-    declaration: Option<&PluginIniDeclaration>,
-) -> Result<(), String> {
-    if let Some(prepared) = plan
-        .entries
-        .iter()
-        .find(|prepared| same_plan_path(&prepared.entry, entry))
-    {
-        if prepared.entry.mode != entry.mode || declaration != Some(&prepared.declaration) {
-            return Err(
-                "Lifecycle plugin selection or declaration changed after startup preparation; restart the game".into(),
-            );
-        }
-    }
-    if let Some(rejected) = plan
-        .rejected_entries
-        .iter()
-        .find(|rejected| same_plan_path(&rejected.entry, entry))
-    {
-        return Err(format!(
-            "Native plugin was rejected during startup and cannot fall back to ordinary loading: {}",
-            rejected.detail
-        ));
-    }
-    Ok(())
-}
-
-fn rejected_plan_matches(
-    current: &[RejectedNativePlugin],
-    prepared: &[RejectedNativePlugin],
-) -> bool {
-    current.len() == prepared.len()
-        && current.iter().all(|candidate| {
-            prepared.iter().any(|original| {
-                same_entry(&candidate.entry, &original.entry)
-                    && candidate.declaration == original.declaration
-                    && candidate.detail == original.detail
-            })
-        })
-}
-
-fn deferred_plan_authorizes(
-    plan: &AppliedPlan,
-    root_key: &str,
-    is_server: bool,
-    identity: &serde_json::Value,
-    entry: &DllLoadEntry,
-) -> bool {
-    plan.root_key == root_key
-        && plan.is_server == is_server
-        && &plan.identity == identity
-        && plan
-            .entries
-            .iter()
-            .any(|candidate| same_selected_path(&candidate.entry, entry))
-}
-fn classify_plan_entries(
-    root: &Path,
-    entries: Vec<DllLoadEntry>,
-) -> (
-    Vec<DllLoadEntry>,
-    Vec<DeferredNativePlugin>,
-    Vec<RejectedNativePlugin>,
-    Vec<mod_loader::dll_manager::DllPlanIssue>,
-) {
-    let (mut ordinary, mut deferred, mut rejected, mut issues) =
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-    for entry in entries {
-        let (declaration, detail) =
-            match read_selected_plugin(root, &entry.package_directory, &entry.path) {
-                Ok((declaration, selected)) => {
-                    let detail = match classify_plugin_load(&declaration, selected) {
-                        Ok(PluginLoadDisposition::Ordinary) => {
-                            ordinary.push(entry);
-                            continue;
-                        }
-                        Ok(_) if entry.mode == DllLoadMode::Library => {
-                            deferred.push(DeferredNativePlugin { entry, declaration });
-                            continue;
-                        }
-                        Ok(_) => {
-                            "Lifecycle-managed plugins require library loading mode".to_owned()
-                        }
-                        Err(detail) => detail,
-                    };
-                    (selected.then_some(declaration), detail)
-                }
-                Err(detail) => (None, detail),
-            };
-        issues.push(mod_loader::dll_manager::DllPlanIssue {
-            status_id: entry.status_id.clone(),
-            detail: detail.clone(),
-        });
-        rejected.push(RejectedNativePlugin {
-            entry,
-            declaration,
-            detail,
-        });
-    }
-    (ordinary, deferred, rejected, issues)
-}
-
-/// Inspect the approved selection without loading a DLL or starting a worker.
-pub(crate) fn selected_startup_plugins(
+/// Accepted SDK registrations from the one process-owned DLL plan.
+/// No DLL is loaded or factory called while reading this metadata.
+pub(crate) fn registered_native_plugins(
     root: &Path,
     is_server: bool,
-) -> (Vec<DllLoadEntry>, Vec<DeferredNativePlugin>, bool) {
-    let plan = mod_loader::dll_manager::resolve_load_plan(root, is_server);
-    let (ordinary, plugins, rejected, issues) = classify_plan_entries(root, plan.entries);
-    (
-        ordinary,
-        plugins,
-        !plan.issues.is_empty() || !rejected.is_empty() || !issues.is_empty(),
-    )
-}
-
-pub(crate) fn deferred_native_plugins(
-    root: &Path,
-    is_server: bool,
-) -> Result<Vec<DeferredNativePlugin>, String> {
-    let plan = APPLIED_PLAN
-        .get()
-        .ok_or_else(|| "DLL Manager startup plan has not been applied".to_owned())?;
+) -> Result<Vec<RegisteredNativePlugin>, String> {
+    let Some(plan) = APPLIED_PLAN.get() else {
+        return Ok(Vec::new());
+    };
     if plan.root_key != root_key(root)? || plan.is_server != is_server {
         return Err(
             "DLL Manager startup plan belongs to a different process or game directory".into(),
         );
     }
-
     let current = mod_loader::dll_manager::resolve_load_plan(root, is_server);
     if mod_loader::dll_manager::load_plan_identity(&current) != plan.identity {
-        return Err("DLL Manager selection changed after startup preparation; restart the game before loading native plugins".into());
+        return Err(
+            "DLL Manager selection changed after startup preparation; restart the game".into(),
+        );
     }
-    let (_, current_deferred, current_rejected, _) = classify_plan_entries(root, current.entries);
-    if current_deferred.len() != plan.entries.len()
-        || current_deferred
-            .iter()
-            .zip(&plan.entries)
-            .any(|(current, original)| {
-                !same_entry(&current.entry, &original.entry)
-                    || current.declaration != original.declaration
-            })
-    {
-        return Err("A lifecycle plugin declaration changed after startup preparation; restart the game before loading native plugins".into());
-    }
-    if !rejected_plan_matches(&current_rejected, &plan.rejected_entries) {
-        return Err("A rejected native plugin declaration changed after startup preparation; restart the game before loading native plugins".into());
-    }
-    Ok(plan.entries.clone())
+    let Some(Ok(executor)) = EXECUTOR.get() else {
+        return Ok(Vec::new());
+    };
+    let state = executor
+        .shared
+        .0
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    collect_registered_plugins(&plan.entries, &state)
 }
 
-pub(crate) fn authorize_deferred_plugin(
+fn collect_registered_plugins(
+    entries: &[DllLoadEntry],
+    state: &State,
+) -> Result<Vec<RegisteredNativePlugin>, String> {
+    let mut packages = HashMap::new();
+    let mut plugins = Vec::new();
+    for entry in entries {
+        let Some(registration) = state
+            .records
+            .get(&path_key(&entry.path))
+            .and_then(|record| record.result.as_ref())
+            .filter(|result| result.initialization.is_ok())
+            .and_then(|result| result.lifecycle_factory)
+        else {
+            continue;
+        };
+        if entry.mode != DllLoadMode::Library {
+            return Err("SDK lifecycle callbacks require library loading mode".into());
+        }
+        let id = entry
+            .mod_id
+            .as_ref()
+            .ok_or("SDK lifecycle callbacks require a manifest-backed package")?;
+        if let Some(previous) = packages.insert(id, path_key(&entry.path)) {
+            if previous == path_key(&entry.path) {
+                continue;
+            }
+            return Err(format!(
+                "Package '{id}' registered lifecycle callbacks from more than one DLL"
+            ));
+        }
+        plugins.push(RegisteredNativePlugin {
+            entry: entry.clone(),
+            registration,
+        });
+    }
+    Ok(plugins)
+}
+
+pub(crate) fn package_has_registered_lifecycle(mod_id: &str) -> bool {
+    let Some(Ok(executor)) = EXECUTOR.get() else {
+        return false;
+    };
+    executor
+        .shared
+        .0
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .records
+        .values()
+        .any(|record| {
+            record.mod_id.as_deref() == Some(mod_id)
+                && record
+                    .result
+                    .as_ref()
+                    .is_some_and(|result| result.lifecycle_factory.is_some())
+        })
+}
+
+pub(crate) fn authorize_registered_plugin(
     root: &Path,
     is_server: bool,
     entry: &DllLoadEntry,
-) -> Result<DeferredNativePlugin, String> {
-    deferred_native_plugins(root, is_server)?
+) -> Result<RegisteredNativePlugin, String> {
+    registered_native_plugins(root, is_server)?
         .into_iter()
         .find(|candidate| same_selected_path(&candidate.entry, entry))
         .ok_or_else(|| {
-            "Lifecycle-managed plugin is not in the current approved DLL Manager plan".into()
+            "Native callback registration is not in the current approved DLL plan".into()
         })
-}
-fn is_authorized_deferred_entry(root: &Path, entry: &DllLoadEntry) -> Result<bool, String> {
-    let Some(plan) = APPLIED_PLAN.get() else {
-        return Ok(false);
-    };
-    let key = root_key(root)?;
-    if key != plan.root_key {
-        return Ok(false);
-    }
-    let _ = deferred_native_plugins(root, plan.is_server)?;
-    Ok(deferred_plan_authorizes(
-        plan,
-        &key,
-        plan.is_server,
-        &plan.identity,
-        entry,
-    ))
 }
 /// Called while the bootstrap holds the game entrypoint, outside the loader lock.
 /// File errors remain local to their DLL. A worker that never finishes must not
@@ -592,35 +463,14 @@ fn apply_resolved_plan(
     let enabled = manager_enabled(root)?;
     let root_key = root_key(root)?;
     let identity = mod_loader::dll_manager::load_plan_identity(&plan);
-    let mut issues = plan.issues;
-    let ordered = plan.entries.clone();
-    let (ordinary, deferred, rejected_entries, classified_issues) =
-        classify_plan_entries(root, plan.entries);
-    let scheduled: Vec<_> = ordered
-        .into_iter()
-        .filter_map(|entry| {
-            if ordinary
-                .iter()
-                .any(|candidate| same_entry(candidate, &entry))
-            {
-                Some((entry, false))
-            } else if deferred.iter().any(|candidate| {
-                candidate.declaration.state.is_enabled() && same_entry(&candidate.entry, &entry)
-            }) {
-                Some((entry, true))
-            } else {
-                None
-            }
-        })
-        .collect();
-    issues.extend(classified_issues);
+    let issues = plan.issues;
+    let entries = plan.entries;
     if APPLIED_PLAN
         .set(AppliedPlan {
             root_key,
             is_server,
             identity,
-            entries: deferred,
-            rejected_entries,
+            entries: entries.clone(),
         })
         .is_err()
     {
@@ -630,7 +480,7 @@ fn apply_resolved_plan(
         tracing::info!(target: "shroudforge::dll_manager", "DLL Manager is disabled. Native DLL loading is skipped");
         return Ok(());
     }
-    if scheduled.is_empty() && issues.is_empty() {
+    if entries.is_empty() && issues.is_empty() {
         return Ok(());
     }
     let executor = executor()?;
@@ -645,13 +495,9 @@ fn apply_resolved_plan(
             .issues
             .insert(issue.status_id, issue.detail);
     }
-    for (entry, managed) in scheduled {
+    for entry in entries {
         let status_id = entry.status_id.clone();
-        let queued = if managed {
-            queue_package_library(root, entry, true).map(drop)
-        } else {
-            queue(root, entry)
-        };
+        let queued = queue(root, entry);
         if let Err(error) = queued {
             tracing::error!(target: "shroudforge::dll_manager", %status_id, %error,
                 "Native DLL could not be scheduled");
@@ -858,9 +704,8 @@ pub(crate) fn load_library(
         Err("Native DLL loading is available only on Windows".into()),
     )
 }
-
 #[cfg(test)]
-mod managed_plugin_plan_tests {
+mod process_plan_tests {
     use super::*;
 
     unsafe extern "C" fn test_lifecycle_factory(
@@ -880,6 +725,95 @@ mod managed_plugin_plan_tests {
             },
             receiver,
         )
+    }
+
+    #[test]
+    fn package_and_selected_requests_share_manager_approval_and_exclusion_checks() {
+        for scenario in ["disabled", "unapproved", "excluded"] {
+            let fixture = Fixture::new();
+            fixture.package("denied", "", &["plugin.dll"]);
+            let mut config = shroudforge_loader_config::config::read_loader_defaults().unwrap();
+            match scenario {
+                "disabled" => config["modules"]["dllManager"]["enabled"] = false.into(),
+                "unapproved" => {
+                    config["modules"]["dllManager"]["profiles"] = serde_json::json!([{
+                        "id":"denied", "packageDirectory":"denied", "name":"Denied", "target":"client",
+                        "enabled":true, "approved":false, "files":[{"path":"plugin.dll", "mode":"library"}]
+                    }])
+                }
+                _ => {
+                    config["modules"]["dllManager"]["excludedDllNames"] =
+                        serde_json::json!(["plugin.dll"])
+                }
+            }
+            let path = shroudforge_loader_config::paths::loader_config(&fixture.0);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, serde_json::to_vec(&config).unwrap()).unwrap();
+            let entry = fixture.entry("denied", "plugin.dll", DllLoadMode::Library);
+            let error = queue_package_library(&fixture.0, entry, true)
+                .err()
+                .unwrap();
+            assert!(
+                error.contains(match scenario {
+                    "disabled" => "DLL Manager is disabled",
+                    "unapproved" => "not confirmed",
+                    _ => "excluded",
+                }),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn sdk_metadata_is_read_once_per_canonical_dll_and_rejects_ambiguous_package_owners() {
+        let fixture = Fixture::new();
+        fixture.package("sdk", "", &["one.dll", "two.dll"]);
+        let one = fixture.entry("sdk", "one.dll", DllLoadMode::Library);
+        let two = fixture.entry("sdk", "two.dll", DllLoadMode::Library);
+        // Build the same process records through a live controlled queue.
+        let (executor, work) = controlled_executor();
+        for entry in [&one, &two] {
+            let _ = queue_package_library_on(&executor, &fixture.0, entry.clone(), false).unwrap();
+            let request = work.recv().unwrap();
+            executor
+                .shared
+                .0
+                .lock()
+                .unwrap()
+                .records
+                .get_mut(&request.key)
+                .unwrap()
+                .complete(ProcessLibraryResult {
+                    handle: Some(42),
+                    initialization: Ok(true),
+                    lifecycle_factory: Some(crate::native_bridge::RegisteredLifecycle {
+                        factory: test_lifecycle_factory,
+                        mode: crate::session::NativePluginMode::ShroudForgeV2,
+                    }),
+                });
+        }
+        let state = executor.shared.0.lock().unwrap();
+        let registrations =
+            collect_registered_plugins(&[one.clone(), one.clone()], &state).unwrap();
+        assert_eq!(registrations.len(), 1);
+        assert!(matches!(
+            registrations[0].registration.mode,
+            crate::session::NativePluginMode::ShroudForgeV2
+        ));
+        assert!(
+            collect_registered_plugins(&[one.clone(), two], &state)
+                .err()
+                .unwrap()
+                .contains("more than one DLL")
+        );
+        let mut wrong_mode = one;
+        wrong_mode.mode = DllLoadMode::Dinput8;
+        assert!(
+            collect_registered_plugins(&[wrong_mode], &state)
+                .err()
+                .unwrap()
+                .contains("library loading mode")
+        );
     }
 
     #[test]
@@ -910,14 +844,17 @@ mod managed_plugin_plan_tests {
             record.complete(ProcessLibraryResult {
                 handle: Some(42),
                 initialization: Ok(true),
-                lifecycle_factory: Some(test_lifecycle_factory),
+                lifecycle_factory: Some(crate::native_bridge::RegisteredLifecycle {
+                    factory: test_lifecycle_factory,
+                    mode: crate::session::NativePluginMode::ShroudForgeV1,
+                }),
             });
         }
         for result in [ordinary.recv().unwrap(), managed.recv().unwrap()] {
             assert_eq!(result.handle, Some(42));
             assert_eq!(result.initialization, Ok(true));
             assert!(std::ptr::fn_addr_eq(
-                result.lifecycle_factory.unwrap(),
+                result.lifecycle_factory.unwrap().factory,
                 test_lifecycle_factory as crate::native_bridge::NativeLifecycleFactory
             ));
         }
@@ -925,7 +862,7 @@ mod managed_plugin_plan_tests {
         let replay = replay.recv().unwrap();
         assert_eq!(replay.handle, Some(42));
         assert!(std::ptr::fn_addr_eq(
-            replay.lifecycle_factory.unwrap(),
+            replay.lifecycle_factory.unwrap().factory,
             test_lifecycle_factory as crate::native_bridge::NativeLifecycleFactory
         ));
         assert!(
@@ -1045,226 +982,5 @@ mod managed_plugin_plan_tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.0);
         }
-    }
-
-    #[test]
-    fn managed_plan_entry_is_deferred_and_never_queued_as_ordinary() {
-        let fixture = Fixture::new();
-        fixture.package(
-            "managed",
-            "[Plugin]\nEnabled=true\nDll=bin/plugin.dll\nLifecycle=shroudforge-v1\n",
-            &["bin/plugin.dll", "bin/other.dll"],
-        );
-        let plugin = fixture.entry("managed", "bin/plugin.dll", DllLoadMode::Library);
-        let other = fixture.entry("managed", "bin/other.dll", DllLoadMode::Library);
-
-        let (ordinary, deferred, _rejected, issues) =
-            classify_plan_entries(&fixture.0, vec![plugin.clone(), other.clone()]);
-
-        assert!(issues.is_empty());
-        assert_eq!(ordinary.len(), 1);
-        assert!(same_entry(&ordinary[0], &other));
-        assert_eq!(deferred.len(), 1);
-        assert!(same_entry(&deferred[0].entry, &plugin));
-    }
-
-    #[test]
-    fn v2_package_rejects_undeclared_dll_from_plan_and_direct_queue() {
-        let fixture = Fixture::new();
-        fixture.package(
-            "v2-owned",
-            "[Plugin]\nEnabled=true\nDll=plugin.dll\nLifecycle=shroudforge-v2\n",
-            &["plugin.dll", "other.dll"],
-        );
-        let other = fixture.entry("v2-owned", "other.dll", DllLoadMode::Library);
-
-        let (ordinary, deferred, rejected, issues) =
-            classify_plan_entries(&fixture.0, vec![other.clone()]);
-
-        assert!(ordinary.is_empty());
-        assert!(deferred.is_empty());
-        assert_eq!(rejected.len(), 1);
-        assert_eq!(issues.len(), 1);
-        assert!(issues[0].detail.contains("V2 native plugin declaration"));
-        assert!(
-            queue(&fixture.0, other)
-                .unwrap_err()
-                .contains("V2 native plugin declaration")
-        );
-    }
-
-    #[test]
-    fn disabled_declared_lifecycle_entry_remains_managed() {
-        let fixture = Fixture::new();
-        fixture.package(
-            "disabled",
-            "[Plugin]\nEnabled=false\nDll=plugin.dll\nLifecycle=shroudforge-v1\n",
-            &["plugin.dll"],
-        );
-        let plugin = fixture.entry("disabled", "plugin.dll", DllLoadMode::Library);
-
-        let (ordinary, deferred, rejected, issues) =
-            classify_plan_entries(&fixture.0, vec![plugin]);
-
-        assert!(ordinary.is_empty());
-        assert!(rejected.is_empty());
-        assert!(issues.is_empty());
-        assert_eq!(deferred.len(), 1);
-        assert!(!deferred[0].declaration.state.is_enabled());
-    }
-
-    #[test]
-    fn malformed_declared_plugin_is_rejected_without_ordinary_fallback() {
-        let fixture = Fixture::new();
-        fixture.package(
-            "malformed",
-            "[Plugin]\nEnabled=true\nDll=plugin.dll\nDll=other.dll\nLifecycle=shroudforge-v1\n",
-            &["plugin.dll", "other.dll"],
-        );
-        let plugin = fixture.entry("malformed", "plugin.dll", DllLoadMode::Library);
-
-        let (ordinary, deferred, rejected, issues) =
-            classify_plan_entries(&fixture.0, vec![plugin]);
-
-        assert!(ordinary.is_empty());
-        assert!(deferred.is_empty());
-        assert_eq!(rejected.len(), 1);
-        assert_eq!(issues.len(), 1);
-        assert!(issues[0].detail.contains("invalid [Plugin] declaration"));
-    }
-
-    #[test]
-    fn unsupported_lifecycle_creates_plan_error_without_ordinary_fallback() {
-        let fixture = Fixture::new();
-        fixture.package(
-            "unsupported",
-            "[Plugin]\nEnabled=true\nDll=plugin.dll\nLifecycle=other-v9\n",
-            &["plugin.dll"],
-        );
-        let plugin = fixture.entry("unsupported", "plugin.dll", DllLoadMode::Library);
-
-        let (ordinary, deferred, rejected, issues) =
-            classify_plan_entries(&fixture.0, vec![plugin]);
-
-        assert!(ordinary.is_empty());
-        assert!(deferred.is_empty());
-        assert_eq!(rejected.len(), 1);
-        assert_eq!(issues.len(), 1);
-        assert!(
-            issues[0]
-                .detail
-                .contains("unsupported native plugin lifecycle")
-        );
-        assert!(rejected[0].declaration.is_some());
-    }
-
-    #[test]
-    fn rejected_lifecycle_cannot_downgrade_to_ordinary_after_preparation() {
-        let fixture = Fixture::new();
-        let package = fixture.package(
-            "unsupported",
-            "[Plugin]\nEnabled=true\nDll=plugin.dll\nLifecycle=other-v9\n",
-            &["plugin.dll"],
-        );
-        let plugin = fixture.entry("unsupported", "plugin.dll", DllLoadMode::Library);
-        let (_, _, prepared_rejected, _) = classify_plan_entries(&fixture.0, vec![plugin.clone()]);
-        assert_eq!(prepared_rejected.len(), 1);
-        let prepared_plan = AppliedPlan {
-            root_key: root_key(&fixture.0).unwrap(),
-            is_server: false,
-            identity: serde_json::Value::Null,
-            entries: Vec::new(),
-            rejected_entries: prepared_rejected.clone(),
-        };
-
-        std::fs::write(
-            package.join("native-plugin.ini"),
-            "[Plugin]\nEnabled=true\nDll=plugin.dll\n",
-        )
-        .unwrap();
-        let (ordinary, _, current_rejected, _) =
-            classify_plan_entries(&fixture.0, vec![plugin.clone()]);
-
-        assert_eq!(ordinary.len(), 1);
-        assert!(current_rejected.is_empty());
-        assert!(!rejected_plan_matches(
-            &current_rejected,
-            &prepared_rejected
-        ));
-        let current_declaration = mod_loader::dll_manager::selected_plugin_ini_declaration(
-            &fixture.0,
-            &plugin.package_directory,
-            &plugin.path,
-        )
-        .unwrap();
-        assert!(
-            ensure_prepared_entry_unchanged(&prepared_plan, &plugin, current_declaration.as_ref(),)
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn deferred_authority_requires_exact_root_process_plan_and_selected_path() {
-        let fixture = Fixture::new();
-        fixture.package(
-            "managed",
-            "[Plugin]\nEnabled=true\nDll=plugin.dll\nLifecycle=shroudforge-v1\n",
-            &["plugin.dll", "other.dll"],
-        );
-        let selected = fixture.entry("managed", "plugin.dll", DllLoadMode::Library);
-        let denied = fixture.entry("managed", "other.dll", DllLoadMode::Library);
-        let identity = serde_json::json!([{
-            "statusId": selected.status_id.clone(),
-            "path": selected.path.to_string_lossy(),
-            "mode": selected.mode
-        }]);
-        let plan = AppliedPlan {
-            root_key: root_key(&fixture.0).unwrap(),
-            is_server: false,
-            identity: identity.clone(),
-            entries: vec![DeferredNativePlugin {
-                entry: selected.clone(),
-                declaration: mod_loader::dll_manager::read_plugin_ini_declaration(
-                    &fixture.0.join("mods/managed"),
-                ),
-            }],
-            rejected_entries: Vec::new(),
-        };
-
-        assert!(deferred_plan_authorizes(
-            &plan,
-            &root_key(&fixture.0).unwrap(),
-            false,
-            &identity,
-            &selected,
-        ));
-        assert!(!deferred_plan_authorizes(
-            &plan,
-            &root_key(&fixture.0).unwrap(),
-            true,
-            &identity,
-            &selected,
-        ));
-        assert!(!deferred_plan_authorizes(
-            &plan,
-            "another-game-root",
-            false,
-            &identity,
-            &selected,
-        ));
-        assert!(!deferred_plan_authorizes(
-            &plan,
-            &root_key(&fixture.0).unwrap(),
-            false,
-            &serde_json::Value::Null,
-            &selected,
-        ));
-        assert!(!deferred_plan_authorizes(
-            &plan,
-            &root_key(&fixture.0).unwrap(),
-            false,
-            &identity,
-            &denied,
-        ));
     }
 }

@@ -18,7 +18,7 @@ pub(super) fn load_native_plugins(
         errors.insert("dll-manager".into(), error.into());
     }
 
-    match crate::native_dlls::deferred_native_plugins(
+    match crate::native_dlls::registered_native_plugins(
         env.game_dir().as_std_path(),
         state.is_server(),
     ) {
@@ -43,7 +43,7 @@ pub(super) fn load_native_plugins(
                     errors.insert(mod_id.to_owned(), error.into());
                     continue;
                 };
-                match state.load_native_dll_declaration(target_mod, &plugin) {
+                match state.prepare_native_plugin_callbacks(target_mod, &plugin) {
                     Ok(true) => {
                         tracing::debug!(target: "shroudforge::runtime", mod_id,
                             "Authorized native plugin queued for lifecycle initialization");
@@ -57,7 +57,7 @@ pub(super) fn load_native_plugins(
                         state.report_runtime_effect(
                             mod_id,
                             "disabled",
-                            "ShroudForge native plugin is disabled in native-plugin.ini",
+                            "Native callback package is disabled",
                         );
                     }
                     Err(error) => {

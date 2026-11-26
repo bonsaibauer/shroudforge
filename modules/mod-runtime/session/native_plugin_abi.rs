@@ -580,7 +580,11 @@ impl NativePluginInstance {
     }
 
     pub(crate) fn update_settings_json(&self, settings_json: Vec<u8>) -> Result<(), String> {
-        if self.state != NativePluginInstanceState::Active {
+        // V1 has not handed out its host before initialize. Keep its inputs
+        // current while a DLL loads. V2's captured pre-entry inputs stay fixed.
+        if self.state != NativePluginInstanceState::Active
+            && (self.is_v2 || self.state != NativePluginInstanceState::New)
+        {
             return Err("native plugin is not active".into());
         }
         self.host_context.update_settings_json(settings_json)
@@ -1556,7 +1560,8 @@ mod tests {
         let activation = |generation| {
             let mut metadata = package.metadata(generation);
             metadata.services = services.clone();
-            NativePluginInstance::load(registration.lifecycle_factory.unwrap(), metadata).unwrap()
+            NativePluginInstance::load(registration.lifecycle_factory.unwrap().factory, metadata)
+                .unwrap()
         };
         let query = |instance: &NativePluginInstance| {
             let name = NATIVE_SERVICE_MAP_V1.as_bytes();
@@ -1605,7 +1610,7 @@ mod tests {
             crate::native_bridge::open_host("example", &package.root.join("mods/example")).unwrap();
         let host = record.host();
         assert_eq!(
-            unsafe { ((*host).register_lifecycle)(host, Some(bounded_v2_entry)) },
+            unsafe { ((*host).register_preentry_lifecycle)(host, Some(bounded_v2_entry)) },
             1
         );
         let registration = crate::native_bridge::close_registration(record, true);
@@ -1614,7 +1619,7 @@ mod tests {
             "DLL initialization only registers the factory"
         );
         let mut instance = NativePluginInstance::load_with_mode(
-            registration.lifecycle_factory.unwrap(),
+            registration.lifecycle_factory.unwrap().factory,
             metadata,
             NativePluginMode::ShroudForgeV2,
         )

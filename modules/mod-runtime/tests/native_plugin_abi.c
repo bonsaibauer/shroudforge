@@ -7,10 +7,11 @@
 
 /* Match the Rust host layouts from an ordinary x64 C plugin consumer. */
 _Static_assert(KFC_RUNTIME_ABI_VERSION == 12u, "stable runtime ABI");
-_Static_assert(SHROUDFORGE_MOD_NATIVE_ABI_VERSION == 3u, "extended mod bridge ABI");
-_Static_assert(sizeof(ShroudforgeModHost) == 56, "mod host layout");
+_Static_assert(SHROUDFORGE_MOD_NATIVE_ABI_VERSION == 4u, "extended mod bridge ABI");
+_Static_assert(sizeof(ShroudforgeModHost) == 64, "mod host layout");
 _Static_assert(offsetof(ShroudforgeModHost, read_local_camera) == 40, "stable ABI 2 tail");
 _Static_assert(offsetof(ShroudforgeModHost, register_lifecycle) == 48, "appended ABI 3 tail");
+_Static_assert(offsetof(ShroudforgeModHost, register_preentry_lifecycle) == 56, "appended ABI 4 tail");
 _Static_assert(sizeof(SFNativePluginV1) == 48, "plugin layout");
 _Static_assert(offsetof(SFNativePluginV1, initialize) == 16, "initialize offset");
 _Static_assert(sizeof(SFNativePluginV2) == 72, "version 2 plugin layout");
@@ -88,7 +89,9 @@ int main(void)
     host.abi_version = SHROUDFORGE_MOD_NATIVE_ABI_VERSION;
     host.size = sizeof(host);
     host.register_lifecycle = register_lifecycle;
+    host.register_preentry_lifecycle = register_lifecycle;
     if (ShroudforgeModNativeInit(&host) != 1 || !registered_factory) return 2;
     if (registered_factory(99u, 0u, NULL) != SF_NATIVE_STATUS_ABI_MISMATCH) return 3;
+    if (host.register_preentry_lifecycle(&host, lifecycle_factory) != 1u) return 4;
     return 0;
 }
