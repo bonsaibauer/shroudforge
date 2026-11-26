@@ -7,6 +7,8 @@ mod prepare_game_assets;
 mod prepare_startup_assets;
 mod recover_failed_startup_assets;
 mod require_game_stopped;
+#[cfg(test)]
+mod same_pass_content_tests;
 mod select_game_target;
 
 use apply_asset_mods::run_inner;
@@ -31,5 +33,7 @@ fn format_report(report: &shroudforge_package::ModEnvironmentErrorReport) -> Str
         .join("; ")
 }
 
+#[cfg(test)]
+mod test_game;
 #[cfg(test)]
 mod tests;

@@ -319,6 +319,12 @@ impl AppState {
         Ok(guid)
     }
 
+    /// Whether `guid` is a blob created earlier in this pass or one of the game's header, as EML's
+    /// `has_content` answers `game.assets.get_content`.
+    pub fn has_content(&self, guid: &ContentHash) -> bool {
+        self.new_contents.borrow().contains_key(guid) || self.ref_file.contents().contains_key(guid)
+    }
+
     pub fn get_content(&self, guid: &ContentHash) -> mlua::Result<Option<Vec<u8>>> {
         if let Some(value) = self.new_contents.borrow().get(guid) {
             // OPTIMIZE: cloning here can be quite expensive
