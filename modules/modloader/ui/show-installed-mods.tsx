@@ -32,7 +32,7 @@ export function Installed({
   return (
     <>
       <PageHeader
-        eyebrow={visibleTab === 'schematics' ? t('installed.tab.schematics') : t('nav.mods')}
+        eyebrow={t('nav.modsManagement')}
         title={t('installed.title')}
         subtitle={t('installed.subtitle')}
       />

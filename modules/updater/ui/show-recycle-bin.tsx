@@ -117,7 +117,7 @@ export function RecycleBin({
   return (
     <>
       <PageHeader
-        eyebrow={t('nav.mods')}
+        eyebrow={t('nav.modsManagement')}
         title={t('recycleBin.title')}
         subtitle={
           automaticCleanup

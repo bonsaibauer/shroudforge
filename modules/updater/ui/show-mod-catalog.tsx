@@ -35,7 +35,7 @@ export function Discover({
   return (
     <>
       <PageHeader
-        eyebrow={t('nav.mods')}
+        eyebrow={t('nav.modsManagement')}
         title={t('discover.title')}
         subtitle={t('discover.subtitle')}
       />

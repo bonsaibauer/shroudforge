@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { logUiEvent } from '../../logging/ui/log-ui-event'
 import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
@@ -51,6 +52,7 @@ export function WikiPage({
   const [languageFilter, setLanguageFilter] = useState('auto')
   const [itemsPerPage, setItemsPerPage] = useState(apiSettings.itemsPerPage)
   const [currentPage, setCurrentPage] = useState(1)
+  const [topPaginationTarget, setTopPaginationTarget] = useState<HTMLElement | null>(null)
   const [categories, setCategories] = useState(() => readCachedWikiCategories()?.categories || [])
   const [listRetryAttempt, setListRetryAttempt] = useState(0)
   const [articleRetryAttempt, setArticleRetryAttempt] = useState(0)
@@ -83,6 +85,10 @@ export function WikiPage({
   const opened = useRef(false)
   const refreshingList = useRef(false)
   const lastArticleFailure = useRef('')
+
+  useEffect(() => {
+    setTopPaginationTarget(document.getElementById('wiki-pagination-top'))
+  }, [])
 
   useEffect(() => {
     setItemsPerPage(apiSettings.itemsPerPage)
@@ -410,7 +416,30 @@ export function WikiPage({
     setArticleRetryAttempt((attempt) => attempt + 1)
   }
 
+  const showPagination =
+    apiSettings.enabled && !selected && hasLoadedPages && visiblePages.length > 0
+  const renderPagination = () => (
+    <nav className="wiki-pagination" aria-label={t('wiki.pagination')}>
+      <label className="wiki-page-size">
+        <span>{t('wiki.itemsPerPage')}</span>
+        <select value={itemsPerPage} onChange={(event) => changeItemsPerPage(event.currentTarget.value)}>
+          {WIKI_PAGE_SIZE_OPTIONS.map((option) => <option value={option} key={option}>{option}</option>)}
+        </select>
+      </label>
+      <div className="wiki-page-controls">
+        <button type="button" className="button ghost" aria-label={t('wiki.previousPage')}
+          disabled={displayedPage <= 1 || loadingPages || refreshingPages}
+          onClick={() => setCurrentPage(displayedPage - 1)}>‹</button>
+        <span aria-live="polite">{t('wiki.pageIndicator', { current: displayedPage, total: pageCount })}</span>
+        <button type="button" className="button ghost" aria-label={t('wiki.nextPage')}
+          disabled={displayedPage >= pageCount || loadingPages || refreshingPages}
+          onClick={() => setCurrentPage(displayedPage + 1)}>›</button>
+      </div>
+    </nav>
+  )
+
   return <>
+    {showPagination && topPaginationTarget && createPortal(renderPagination(), topPaginationTarget)}
     <PageHeader eyebrow={t('nav.modloader')} title={t('nav.wiki')} subtitle={t('wiki.subtitle')}
       actions={<WikiActions
         notifyCommandResult={notifyCommandResult}
@@ -462,24 +491,7 @@ export function WikiPage({
           <Icon name="wiki" />
         </button>)}
       </div>
-      {hasLoadedPages && visiblePages.length > 0 && <nav className="wiki-pagination"
-        aria-label={t('wiki.pagination')}>
-        <label className="wiki-page-size">
-          <span>{t('wiki.itemsPerPage')}</span>
-          <select value={itemsPerPage} onChange={(event) => changeItemsPerPage(event.currentTarget.value)}>
-            {WIKI_PAGE_SIZE_OPTIONS.map((option) => <option value={option} key={option}>{option}</option>)}
-          </select>
-        </label>
-        <div className="wiki-page-controls">
-          <button type="button" className="button ghost" aria-label={t('wiki.previousPage')}
-            disabled={displayedPage <= 1 || loadingPages || refreshingPages}
-            onClick={() => setCurrentPage(displayedPage - 1)}>‹</button>
-          <span aria-live="polite">{t('wiki.pageIndicator', { current: displayedPage, total: pageCount })}</span>
-          <button type="button" className="button ghost" aria-label={t('wiki.nextPage')}
-            disabled={displayedPage >= pageCount || loadingPages || refreshingPages}
-            onClick={() => setCurrentPage(displayedPage + 1)}>›</button>
-        </div>
-      </nav>}
+      {showPagination && renderPagination()}
       {listFailed && <><p className="hint" role="alert">{t('wiki.loadFailed')}</p>
         <button type="button" className="button ghost" onClick={retryList}>{t('updater.retry')}</button></>}
       {!listFailed && hasLoadedPages && visiblePages.length === 0 && <p className="hint">{t('wiki.empty')}</p>}

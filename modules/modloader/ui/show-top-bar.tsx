@@ -134,7 +134,10 @@ export function TopBar({
           onClick={onChirper}
         />}
       </nav>
-      <LanguageMenu />
+      <div className="wiki-pagination-anchor">
+        <LanguageMenu />
+        <div className="wiki-pagination-portal" id="wiki-pagination-top" />
+      </div>
       <ModeBadge
         mode={data.mode}
         connected={data.connected}

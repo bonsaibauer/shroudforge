@@ -75,7 +75,7 @@ export function Updates({
   return (
     <>
       <PageHeader
-        eyebrow={t('nav.mods')}
+        eyebrow={t('nav.modsManagement')}
         title={t('updates.title')}
         subtitle={t('updates.subtitle')}
         actions={
