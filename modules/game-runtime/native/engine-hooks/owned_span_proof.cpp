@@ -20,24 +20,27 @@ bool OwnedSpanProofs::SessionLiveLocked(std::uint64_t session) const noexcept {
 bool OwnedSpanProofs::LiveLocked(const std::shared_ptr<const Record>& record) const noexcept {
     return record && record->live && SessionLiveLocked(record->session);
 }
-std::shared_ptr<const OwnedSpanProofs::Record> OwnedSpanProofs::FindLocked(
-        std::uint64_t session,std::uint32_t rva,std::span<const std::uint8_t> original) const noexcept {
-    if (!SessionLiveLocked(session) || original.empty() || original.size()>32) return {};
+std::shared_ptr<const OwnedSpanProofs::Record> OwnedSpanProofs::FindRangeLocked(
+        std::uint64_t session,std::uint32_t rva,std::size_t count,bool& conflict) const noexcept {
+    conflict=false;
+    if (!SessionLiveLocked(session) || !count || count>32 || rva>UINT32_MAX-count) return {};
     std::shared_ptr<const Record> exact;
     for (const auto& record:records_) {
         if (!record->live || record->session!=session) continue;
-        const auto end=std::uint64_t(rva)+original.size();
+        const auto end=std::uint64_t(rva)+count;
         const auto other_end=std::uint64_t(record->rva)+record->count;
         if (rva>=other_end || record->rva>=end) continue;
-        if (exact || record->rva!=rva || record->count!=original.size() ||
-            std::memcmp(record->original.data(),original.data(),original.size())) return {};
+        if (exact || record->rva!=rva || record->count!=count) {conflict=true;return {};}
         exact=record;
     }
     return exact;
 }
-bool OwnedSpanProofs::ReserveLegacyLocked() noexcept {
-    if (ever_records_>=limits_.records) return false;
-    ++ever_records_; return true;
+std::shared_ptr<const OwnedSpanProofs::Record> OwnedSpanProofs::FindLocked(
+        std::uint64_t session,std::uint32_t rva,std::span<const std::uint8_t> original) const noexcept {
+    bool conflict{};
+    const auto exact=FindRangeLocked(session,rva,original.size(),conflict);
+    return exact && original.data() &&
+        !std::memcmp(exact->original.data(),original.data(),original.size()) ? exact : nullptr;
 }
 bool OwnedSpanProofs::Publish(std::uint32_t rva,std::span<const std::uint8_t> original,
         std::span<const std::uint8_t> replacement,std::shared_ptr<const void> witness,Verifier verify) noexcept {

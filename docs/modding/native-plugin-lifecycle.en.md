@@ -199,6 +199,11 @@ This also applies to plans containing only managed plugins.
   or a changed observation returns an error without writing the result. The
   service never returns code bytes or addresses and never authorizes a patch or
   proves quiescence.
+  Its framework publications and validation-service leases below use the same
+  native `engine-hooks/owned_span_proof` store. Camera registration is an adapter
+  into that store. Both routes share overlap checks, the process publication
+  budget and native session retirement. Retired or closed publications cannot
+  return `VERIFIED_HOST_OWNED`, including when closure occurs inside a verifier.
 - shroudforge.executable-span-validation v1 is a client-only, bounded
   callback service for package-registered engine guards. It requires an enabled
   package with `runtime`, `runtime-register-dll` and

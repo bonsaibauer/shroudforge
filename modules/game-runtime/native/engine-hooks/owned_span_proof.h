@@ -33,9 +33,12 @@ public:
     std::uint64_t SessionLocked() const noexcept;
     bool SessionLiveLocked(std::uint64_t session) const noexcept;
     bool LiveLocked(const std::shared_ptr<const Record>& record) const noexcept;
+    // Exact range lookup shared by the C observation API and proof leases.
+    // A partial overlap is a conflict, even if the supplied bytes are unchanged.
+    std::shared_ptr<const Record> FindRangeLocked(std::uint64_t session,
+        std::uint32_t rva, std::size_t count, bool& conflict) const noexcept;
     std::shared_ptr<const Record> FindLocked(std::uint64_t session,
         std::uint32_t rva, std::span<const std::uint8_t> original) const noexcept;
-    bool ReserveLegacyLocked() noexcept;
 
     bool Publish(std::uint32_t rva, std::span<const std::uint8_t> original,
         std::span<const std::uint8_t> replacement,

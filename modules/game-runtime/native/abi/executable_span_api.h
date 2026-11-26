@@ -37,6 +37,10 @@ typedef int32_t SFExecutableSpanStatusV1;
  * returns an error and leaves out_result untouched. No code bytes or addresses
  * are returned. This is evidence, not patch authorization or a quiescence
  * guarantee.
+ *
+ * Framework publications use the same native store as owned-prefix proof
+ * leases. Retirement or native session closure prevents VERIFIED_HOST_OWNED.
+ * A new native session never revives an old publication or package lease.
  */
 typedef struct SFExecutableSpanQueryV1 {
     uint32_t size;

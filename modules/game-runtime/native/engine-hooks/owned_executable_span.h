@@ -11,8 +11,9 @@ using OwnedExecutableSpanVerifier = bool(SF_EXECUTABLE_SPAN_CALL *)(
     const std::uint8_t* replacement,
     std::uint32_t byte_count) noexcept;
 
-// Internal framework registration only. Records are retained and immutable;
-// no native-mod registration, mutation, restoration, or retirement API exists.
+// Internal framework adapter to ExecutableProofs(), with its common lifetime,
+// overlap and capacity rules. Repeating the same live publication is harmless.
+// No native-mod registration, mutation or restoration API exists.
 bool PublishOwnedExecutableSpan(std::uint32_t rva,
     std::span<const std::uint8_t> original,
     std::span<const std::uint8_t> replacement,

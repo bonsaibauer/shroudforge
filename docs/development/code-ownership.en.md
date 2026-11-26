@@ -243,6 +243,15 @@ The native C++ runtime is built and shipped with the loader. It is not a separat
 
 A **profile** is reviewed information for a particular Enshrouded build and target, such as the client. It tells supported native operations which game structures to use. Approved profiles are under **modules/game-runtime/profiles/** and are shipped as JSON files in the configured **runtime/profiles/** directory. Both native readers use this external catalog, without embedded profile copies.
 
+`modules/game-runtime/native/engine-hooks/owned_span_proof.*` owns the single
+process publication store for native executable-span evidence. Camera
+publication through `owned_executable_span.*`, direct shared-call publication,
+the C observation service and activation proof leases use that same store.
+`owned_executable_span.*` retains the bounded main-image reader and its C-facing
+classification adapter. The package validation registry owns registrations,
+leases and revoke/drain, without keeping a second publication collection.
+Neither API grants a mod authority to install an engine hook.
+
 `modules/game-runtime/native/impact/` owns typed adapters for separately admitted original Impact operations and resolves their callbacks by registered name. `native/ecs/resolve_entity_command_queue.*` validates the original queue and its ownership for those adapters. `native/building/remove_building_prop.cpp` connects entity destruction to the existing ABI and confirms completion through the session-bound entity reader. Queue submission and confirmed world effects are distinct results. The Lua availability policy lives in `modules/mod-runtime/lua/ingame/check_ingame_access.rs`.
 
 `native/code-inventory/resolve_original_call_graph.*` decodes bounded original control flow with Zydis and follows direct calls from registered names. It owns code selection evidence and the shared exact-byte evidence checks used by spawn and voxel writes, not permission to invoke arbitrary functions. `native/impact/submit_building_prop_spawn.*` validates and submits the original building helper with owned command arguments. `native/building/spawn_building_prop.cpp` confirms the exact allocated entity ID and required building components before returning its handle. `native/voxels/write_registered_voxel_grid.*` owns the admitted exact-cell Store writer, aligned chunk preservation, readback, rollback and session fencing. `read_registered_voxel_grid.*` owns the canonical `PinnedRegion` reader used by public reads and writer snapshots/readback. The existing public voxel entrypoint owns bounded retries only for rejection before dispatch.

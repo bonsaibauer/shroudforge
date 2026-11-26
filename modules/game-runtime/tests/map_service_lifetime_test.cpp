@@ -1,5 +1,6 @@
 #include "map/serve_map_overlay.cpp"
 #include "engine-hooks/owned_executable_span.h"
+#include "engine-hooks/owned_span_proof.h"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -14,6 +15,8 @@ void check(bool value){++checks;if(!value){std::fprintf(stderr,"control lifetime
 std::uint32_t valid_verifier_rva{};
 std::array<std::uint8_t,8> valid_verifier_original{},valid_verifier_replacement{};
 unsigned valid_verifier_calls{};
+bool original_proof_sample=true,close_during_verification{};
+ExecutableSpanValidation::Registry* proof_registry{};
 std::int32_t callback(void*,const SFOverlayFrameV1* frame,const SFOverlayEncoderV1*){
     check(frame->map_frame && frame->map_frame->status==(expect_disabled?SF_MAP_DISABLED:SF_MAP_READY));
     ++callbacks;return 0;}}
@@ -22,15 +25,37 @@ __declspec(noinline) int span_anchor_owned(){return 0x2468;}
 __declspec(noinline) int span_anchor_unregistered_foreign(){return 0x579B;}
 __declspec(noinline) int span_anchor_invalid_relay(){return 0x369A;}
 __declspec(noinline) int span_anchor_stale_owner(){return 0x48AC;}
+__declspec(noinline) int span_anchor_shared_publication(){return 0x5ABD;}
 bool SF_EXECUTABLE_SPAN_CALL verify_fixture_owned(std::uint32_t rva,const std::uint8_t* original,
     const std::uint8_t* replacement,std::uint32_t count) noexcept {
     ++valid_verifier_calls;
+    if(close_during_verification)EngineHooks::ExecutableProofs().Close();
     return rva==valid_verifier_rva && count==valid_verifier_original.size() && original && replacement &&
         !std::memcmp(original,valid_verifier_original.data(),count) &&
         !std::memcmp(replacement,valid_verifier_replacement.data(),count);
 }
 bool SF_EXECUTABLE_SPAN_CALL verify_fixture_unavailable(std::uint32_t,const std::uint8_t*,const std::uint8_t*,std::uint32_t) noexcept {
     return false;
+}
+// Model preparation's original sample without patching this test executable.
+bool ReadProofSample(std::uint32_t rva,std::uint8_t* out,std::size_t size) noexcept {
+    if(!out || rva!=valid_verifier_rva || size!=valid_verifier_original.size())return false;
+    const auto& bytes=original_proof_sample ? valid_verifier_original : valid_verifier_replacement;
+    std::memcpy(out,bytes.data(),size);return true;
+}
+bool ProofStage() noexcept{return true;}
+bool ProofCallbackExecutable(SFExecutableSpanValidationCallbackV1 callback) noexcept{return callback!=nullptr;}
+bool PinProofFixture() noexcept{return true;}
+int32_t DispatchProof(void* context,const SFExecutableSpanProofQueryV1* query,
+    std::uint32_t capacity,SFExecutableSpanProofResultV1* out){
+    return proof_registry->ValidateProof(context,query,capacity,out);
+}
+int32_t RefuseGuard(void*,const SFExecutableSpanValidationRequestV1*,SFExecutableSpanValidationResponseV1*){return 1;}
+struct SharedWitness {std::uint64_t retire{};};
+bool VerifyShared(const void* context) noexcept {
+    const auto& witness=*static_cast<const SharedWitness*>(context);
+    if(witness.retire)EngineHooks::ExecutableProofs().Retire(witness.retire);
+    return true;
 }
 namespace MapRuntime {
 SnapshotStore& CapturedFrames(){return fixture;}
@@ -97,6 +122,19 @@ int main(){
     valid_verifier_rva=make_request(reinterpret_cast<const void*>(&span_anchor_owned),{},{}).rva;
     valid_verifier_replacement=sample(reinterpret_cast<const void*>(&span_anchor_owned));
     valid_verifier_original=valid_verifier_replacement;valid_verifier_original[0]^=0xFF;
+    ExecutableSpanValidation::Registry validation(ReadProofSample,ProofStage,ProofCallbackExecutable,
+        &EngineHooks::ExecutableProofs(),PinProofFixture,DispatchProof,{});
+    proof_registry=&validation;
+    SFExecutableSpanValidationServiceV2 validation_service{};
+    check(validation.Query("shared-proof",42,2,sizeof(validation_service),&validation_service)==0);
+    SFExecutableSpanRegistrationV1 span_registration{sizeof(span_registration),1,valid_verifier_rva,8,{}};
+    std::memcpy(span_registration.expected,valid_verifier_original.data(),8);span_registration.callback=RefuseGuard;
+    check(validation_service.base.register_span(validation_service.base.context,&span_registration)==0);
+    SFExecutableSpanProofBindingV1 binding{sizeof(binding),1,valid_verifier_rva,8,8,0,{}};
+    std::memcpy(binding.expected,valid_verifier_original.data(),8);
+    SFExecutableSpanProofLeaseV1 proof_lease{};
+    check(validation_service.acquire_owned_prefix_lease(validation_service.base.context,&binding,sizeof(proof_lease),&proof_lease)==0);
+    original_proof_sample=false;
     check(EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
         valid_verifier_replacement,verify_fixture_owned));
     check(EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
@@ -108,6 +146,32 @@ int main(){
     span_result={sizeof(span_result),0xA5A5A5A5};
     check(query_span(owned_request,span_result)==SF_EXECUTABLE_SPAN_STATUS_OK &&
         span_result.classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED && valid_verifier_calls==1);
+
+    // The adapter's publication is visible to the existing lease implementation.
+    SFExecutableSpanProofQueryV1 proof_query{sizeof(proof_query),1,1,8,{}};
+    std::memcpy(proof_query.observed_current,valid_verifier_replacement.data(),8);
+    SFExecutableSpanProofResultV1 proof_result{};
+    check(proof_lease.validate(proof_lease.context,&proof_query,sizeof(proof_result),&proof_result)==0 &&
+        proof_result.classification==SF_EXECUTABLE_SPAN_PROOF_VERIFIED_HOST_OWNED);
+    const auto adopted_identity=proof_result;
+
+    // Conversely, direct common publication is visible to the C service.
+    const auto shared_live=sample(reinterpret_cast<const void*>(&span_anchor_shared_publication));
+    auto shared_original=shared_live;shared_original[0]^=0xFF;
+    const auto shared_request=make_request(reinterpret_cast<const void*>(&span_anchor_shared_publication),shared_original,shared_live);
+    auto shared_witness=std::make_shared<SharedWitness>();
+    auto& proofs=EngineHooks::ExecutableProofs();
+    check(proofs.Publish(shared_request.rva,shared_original,shared_live,shared_witness,VerifyShared));
+    check(query_span(shared_request,span_result)==0 && span_result.classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED);
+    check(!EngineHooks::PublishOwnedExecutableSpan(shared_request.rva+1,shared_original,shared_live,verify_fixture_owned));
+    check(!EngineHooks::PublishOwnedExecutableSpan(shared_request.rva,shared_original,shared_live,verify_fixture_owned));
+    check(!proofs.Publish(valid_verifier_rva,valid_verifier_original,valid_verifier_replacement,shared_witness,VerifyShared));
+    {
+        std::lock_guard lock(proofs.Gate());
+        const auto record=proofs.FindLocked(proofs.SessionLocked(),shared_request.rva,shared_original);
+        check(record!=nullptr);shared_witness->retire=record->serial;
+    }
+    check(query_span(shared_request,span_result)==0 && span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
 
     auto stale_observation=owned_request;stale_observation.observed_current[0]^=0x01;
     span_result={sizeof(span_result),0xA5A5A5A5};
@@ -223,5 +287,24 @@ int main(){
         OverlayRuntime::activations.emplace(std::make_pair(std::string("capacity"),generation),OverlayRuntime::Activation{});
     check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),4)!=0);
     check(KfcRuntimeRevokeMapOverlayServices(package,sizeof(package),1)==0);
+    // Closure inside the native verifier precedes the observation API's commit.
+    close_during_verification=true;
+    check(EngineHooks::QueryMainImageExecutableSpan(owned_request,span_result)==0 &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+    close_during_verification=false;
+    check(!EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
+        valid_verifier_replacement,verify_fixture_owned));
+    proof_result=adopted_identity;
+    check(proof_lease.validate(proof_lease.context,&proof_query,sizeof(proof_result),&proof_result)!=0 &&
+        !std::memcmp(&proof_result,&adopted_identity,sizeof(proof_result)));
+    {std::lock_guard lock(proofs.Gate());check(proofs.BeginStageLocked()>1);}
+    check(EngineHooks::QueryMainImageExecutableSpan(owned_request,span_result)==0 &&
+        span_result.classification==SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE);
+    check(EngineHooks::PublishOwnedExecutableSpan(valid_verifier_rva,valid_verifier_original,
+        valid_verifier_replacement,verify_fixture_owned));
+    check(EngineHooks::QueryMainImageExecutableSpan(owned_request,span_result)==0 &&
+        span_result.classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED);
+    check(proof_lease.validate(proof_lease.context,&proof_query,sizeof(proof_result),&proof_result)!=0);
+    check(validation.Revoke("shared-proof",42)==0 && validation.Drain("shared-proof",42,0)==0);
     std::printf("PASS: %u actual native service terminal-revocation checks\n",checks);
 }

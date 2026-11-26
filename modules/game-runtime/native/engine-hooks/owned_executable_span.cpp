@@ -6,17 +6,19 @@
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <vector>
 
 namespace EngineHooks {
 namespace {
-struct Record {
-    std::uint32_t rva{};
-    std::vector<std::uint8_t> original,replacement;
+struct SpanWitness {
+    std::uint32_t rva{}, count{};
+    std::array<std::uint8_t,SF_EXECUTABLE_SPAN_MAX_BYTES> original{},replacement{};
     OwnedExecutableSpanVerifier verifier{};
 };
-std::mutex& registry_mutex=ExecutableProofs().Gate();
-std::vector<std::shared_ptr<const Record>> records;
+bool VerifySpan(const void* context) noexcept {
+    const auto& witness=*static_cast<const SpanWitness*>(context);
+    return witness.verifier && witness.verifier(witness.rva,witness.original.data(),
+        witness.replacement.data(),witness.count);
+}
 
 bool ReadProcess(const void* source,void* destination,std::size_t size) noexcept {
     if(!source || !destination || !size)return false;
@@ -105,21 +107,21 @@ bool PublishOwnedExecutableSpan(std::uint32_t rva,std::span<const std::uint8_t> 
        original.size()!=replacement.size() || rva>UINT32_MAX-original.size() ||
        !std::memcmp(original.data(),replacement.data(),original.size()))return false;
     try {
-        auto record=std::make_shared<Record>();
-        record->rva=rva;record->original.assign(original.begin(),original.end());
-        record->replacement.assign(replacement.begin(),replacement.end());record->verifier=verifier;
-        std::lock_guard lock(registry_mutex);
-        for(const auto& existing:records) {
-            const auto existing_end=std::uint64_t(existing->rva)+existing->original.size();
-            const auto end=std::uint64_t(rva)+original.size();
-            if(rva<existing_end && existing->rva<end) {
-                return rva==existing->rva && record->original==existing->original &&
-                    record->replacement==existing->replacement && verifier==existing->verifier;
-            }
-        }
-        if(records.size()>=4096 || !ExecutableProofs().ReserveLegacyLocked())return false;
-        records.push_back(std::move(record));
-        return true;
+        auto witness=std::make_shared<SpanWitness>();
+        witness->rva=rva;witness->count=static_cast<std::uint32_t>(original.size());
+        std::copy(original.begin(),original.end(),witness->original.begin());
+        std::copy(replacement.begin(),replacement.end(),witness->replacement.begin());
+        witness->verifier=verifier;
+        auto& proofs=ExecutableProofs();
+        if(proofs.Publish(rva,original,replacement,witness,VerifySpan))return true;
+        // Preserve idempotent framework publication, including concurrent
+        // duplicates, without retaining a second collection or invoking code
+        // under the common lifetime gate.
+        std::lock_guard lock(proofs.Gate());
+        const auto existing=proofs.FindLocked(proofs.SessionLocked(),rva,original);
+        return existing && existing->verify==VerifySpan && existing->witness &&
+            !std::memcmp(existing->replacement.data(),replacement.data(),replacement.size()) &&
+            static_cast<const SpanWitness*>(existing->witness.get())->verifier==verifier;
     } catch(...) { return false; }
 }
 
@@ -140,33 +142,29 @@ SFExecutableSpanStatusV1 QueryMainImageExecutableSpan(const SFExecutableSpanQuer
         if(!ReadExecutableSpan(module,request.rva,request.byte_count,current))return SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE;
         if(std::memcmp(current.data(),request.observed_current,request.byte_count))return SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE;
 
-        std::shared_ptr<const Record> exact;bool ambiguous{};
+        auto& proofs=ExecutableProofs();
+        std::shared_ptr<const OwnedSpanProofs::Record> exact;bool ambiguous{};
         {
-            std::lock_guard lock(registry_mutex);
-            const auto requested_end=std::uint64_t(request.rva)+request.byte_count;
-            for(const auto& record:records) {
-                const auto registered_end=std::uint64_t(record->rva)+record->original.size();
-                if(request.rva<registered_end && record->rva<requested_end) {
-                    if(record->rva==request.rva && record->original.size()==request.byte_count && !exact)exact=record;
-                    else ambiguous=true;
-                }
-            }
+            std::lock_guard lock(proofs.Gate());
+            exact=proofs.FindRangeLocked(proofs.SessionLocked(),request.rva,request.byte_count,ambiguous);
         }
 
         std::uint32_t classification=SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE;
         const bool original_matches=!std::memcmp(current.data(),request.expected_original,request.byte_count);
         if(ambiguous)classification=SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE;
         else if(original_matches)classification=SF_EXECUTABLE_SPAN_UNCHANGED;
-        else if(exact && exact->verifier && exact->original.size()==request.byte_count &&
-            exact->replacement.size()==request.byte_count &&
+        else if(exact && exact->verify && exact->witness &&
             !std::memcmp(exact->original.data(),request.expected_original,request.byte_count) &&
             !std::memcmp(exact->replacement.data(),current.data(),request.byte_count) &&
-            exact->verifier(request.rva,exact->original.data(),exact->replacement.data(),request.byte_count)) {
+            exact->verify(exact->witness.get())) {
             classification=SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED;
         }
         std::array<std::uint8_t,SF_EXECUTABLE_SPAN_MAX_BYTES> after_validation{};
         if(!ReadExecutableSpan(module,request.rva,request.byte_count,after_validation) ||
            std::memcmp(after_validation.data(),current.data(),request.byte_count))return SF_EXECUTABLE_SPAN_STATUS_UNAVAILABLE;
+        std::lock_guard lock(proofs.Gate());
+        if(classification==SF_EXECUTABLE_SPAN_VERIFIED_HOST_OWNED && !proofs.LiveLocked(exact))
+            classification=SF_EXECUTABLE_SPAN_FOREIGN_OR_UNAVAILABLE;
         result={sizeof(result),classification};
         return SF_EXECUTABLE_SPAN_STATUS_OK;
     } catch(...) { return SF_EXECUTABLE_SPAN_STATUS_FAILED; }
