@@ -4,6 +4,13 @@ namespace profile_development {
 bool validate_profile(const json& profile, std::string& error, const json* external_components) {
     try {
         if (profile.at("schemaVersion") != 1) throw std::runtime_error("unsupported schemaVersion");
+        if (profile.contains("profileRevision")) {
+            const auto& revision = profile.at("profileRevision");
+            if (!revision.is_number_integer() ||
+                (!revision.is_number_unsigned() && revision.get<std::int64_t>() <= 0) ||
+                revision.get<std::uint64_t>() == 0 || revision.get<std::uint64_t>() > UINT32_MAX)
+                throw std::runtime_error("invalid profileRevision");
+        }
         const auto target = profile.at("target").get<std::string>();
         if (target != "enshrouded.exe" && target != "enshrouded_server.exe") throw std::runtime_error("unsupported target");
         const auto kfc_format = profile.at("kfcFormat").get<unsigned>();

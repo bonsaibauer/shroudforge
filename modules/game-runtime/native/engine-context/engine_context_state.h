@@ -73,6 +73,10 @@ extern nlohmann::json system_dependency_layout;
 
 extern nlohmann::json service_layout;
 
+// Optional control-plane metadata must not add strings or allocating copies to
+// Layout, which is also borrowed while original engine lifetime gates are held.
+extern KfcRuntimeCompatibility::HudCaptureSelection hud_capture_selection;
+
 template<class T> bool read(std::uintptr_t address, T& value) {
     if (!address || address > UINTPTR_MAX - sizeof(value)) return false;
     __try { std::memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value)); return true; }

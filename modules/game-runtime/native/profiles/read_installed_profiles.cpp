@@ -3,6 +3,8 @@
 #include "game-profile-discovery/profile_discovery_log.h"
 #include <algorithm>
 #include <fstream>
+#include <map>
+#include <limits>
 
 namespace KfcRuntimeCompatibility {
 namespace {
@@ -20,6 +22,61 @@ std::string profile_id(const nlohmann::json& profile) {
 std::filesystem::path configured_path(const nlohmann::json& value) {
     const auto& bytes = value.get_ref<const std::string&>();
     return std::filesystem::path(std::u8string(bytes.begin(), bytes.end()));
+}
+
+struct ProfileFile { nlohmann::json profile; std::filesystem::path path; };
+
+// Revisions are complete replacements within one exact contract identity, never
+// overlays. Resolve here so execution, resource readers and discovery see the
+// same catalog. Unversioned duplicate files retain their existing ambiguity.
+bool resolve_revisions(const std::vector<ProfileFile>& files, const std::string& target, InstalledProfiles& result) {
+    std::map<std::string, std::vector<const ProfileFile*>> groups;
+    for (const auto& file : files) groups[profile_id(file.profile)].push_back(&file);
+    bool valid = true;
+    for (const auto& [id, group] : groups) {
+        if (std::none_of(group.begin(), group.end(), [&](const auto* file) { return file->profile.at("target") == target; })) continue;
+        std::uint32_t highest{};
+        bool invalid{};
+        const auto identity = [](const nlohmann::json& profile) {
+            nlohmann::json value;
+            for (const auto key : {"schemaVersion", "target", "kfcFormat", "image"})
+                value[key] = profile.value(key, nlohmann::json{});
+            return value;
+        };
+        const auto expected = identity(group.front()->profile);
+        for (const auto* file : group) {
+            const auto revision = file->profile.find("profileRevision");
+            if (revision == file->profile.end()) continue;
+            if (!revision->is_number_integer() ||
+                (!revision->is_number_unsigned() && revision->get<std::int64_t>() <= 0) ||
+                revision->get<std::uint64_t>() == 0 ||
+                revision->get<std::uint64_t>() > (std::numeric_limits<std::uint32_t>::max)()) {
+                invalid = true;
+                continue;
+            }
+            highest = (std::max)(highest, revision->get<std::uint32_t>());
+        }
+        if (highest) for (const auto* file : group)
+            invalid |= identity(file->profile) != expected || !expected.at("image").is_object() ||
+                !expected.at("image").contains("sha256");
+        if (invalid) {
+            valid = false;
+            if (result.errors.size() < 4) result.errors.push_back(id + ":invalid-or-conflicting-profile-revision");
+            continue; // Never fall back to the historical version of this ID.
+        }
+        std::size_t count{};
+        const ProfileFile* selected{};
+        for (const auto* file : group) {
+            if (file->profile.at("target") != target) continue;
+            if (file->profile.value("profileRevision", std::uint32_t{}) != highest) continue;
+            result.profiles.push_back(file->profile);
+            selected = file;
+            ++count;
+        }
+        if (count == 1) result.profile_sources[id] = {
+            {"path", path_utf8(selected->path)}, {"revision", highest}};
+    }
+    return valid;
 }
 
 // Status is polled and copied through bounded provider buffers. Full address
@@ -120,6 +177,7 @@ InstalledProfiles ReadInstalledProfiles(const std::filesystem::path& process_pat
     std::size_t invalid_profiles{};
     std::size_t target_mismatches{};
     std::size_t beta_profiles_excluded{};
+    std::vector<ProfileFile> files;
     if (std::filesystem::exists(result.directory))
     for (auto iterator = std::filesystem::recursive_directory_iterator(result.directory);
          iterator != std::filesystem::recursive_directory_iterator(); ++iterator) {
@@ -142,11 +200,12 @@ InstalledProfiles ReadInstalledProfiles(const std::filesystem::path& process_pat
             continue;
         }
         const auto candidate_target = candidate.find("target");
-        if (candidate_target == candidate.end() || !candidate_target->is_string() || *candidate_target != target) {
+        if (candidate_target == candidate.end() || !candidate_target->is_string()) continue;
+        const bool target_matches = *candidate_target == target;
+        if (!target_matches) {
             ++target_mismatches;
             GameProfileDiscovery::Log(game_root, 'T', "Profile candidate skipped because its target does not match. file=" +
                 path_utf8(entry.path()) + " expectedTarget=" + target);
-            continue;
         }
         const auto candidate_id = candidate.find("id");
         const bool beta_id = candidate_id != candidate.end() && candidate_id->is_string() &&
@@ -167,7 +226,8 @@ InstalledProfiles ReadInstalledProfiles(const std::filesystem::path& process_pat
                 path_utf8(entry.path()));
             continue;
         }
-        result.profiles.push_back(candidate);
+        files.push_back({candidate, entry.path()});
+        if (!target_matches) continue;
         ++accepted_profiles;
         GameProfileDiscovery::Log(game_root, 'T', "Normal profile candidate accepted. id=" +
             profile_id(candidate) + " file=" + path_utf8(entry.path()));
@@ -176,7 +236,13 @@ InstalledProfiles ReadInstalledProfiles(const std::filesystem::path& process_pat
         std::to_string(candidate_files) + " acceptedNormalProfiles=" + std::to_string(accepted_profiles) +
         " invalidProfiles=" + std::to_string(invalid_profiles) + " targetMismatches=" +
         std::to_string(target_mismatches) + " excludedBetaProfiles=" + std::to_string(beta_profiles_excluded));
-    if (discovery_enabled) {
+    const bool revisions_valid = resolve_revisions(files, target, result);
+    if (!revisions_valid) {
+        result.discovery = {{"enabled", discovery_enabled}, {"state", "unresolved"},
+            {"reason", "invalid-or-conflicting-profile-revision"}};
+        GameProfileDiscovery::Log(game_root, 'W', "Profile revision validation failed. Discovery cannot fall back to an older baseline in this catalog read");
+    }
+    if (discovery_enabled && revisions_valid) {
         result.discovery = {{"enabled", true}, {"state", "image-identity-unavailable"}};
         if (image.is_object() && image.contains("sha256") && image.contains("kfcFormat")) {
             try {
@@ -241,7 +307,7 @@ InstalledProfiles ReadInstalledProfiles(const std::filesystem::path& process_pat
         } else {
             GameProfileDiscovery::Log(game_root, 'W', "Discovery is enabled, but the current executable image identity is incomplete. No profile analysis or report was produced");
         }
-    } else {
+    } else if (!discovery_enabled) {
         GameProfileDiscovery::Log(game_root, 'I', "Game-profile discovery is disabled by loader configuration. config=" +
             path_utf8(config_path));
     }

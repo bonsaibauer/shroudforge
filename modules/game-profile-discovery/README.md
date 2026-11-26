@@ -11,6 +11,17 @@ current image identity to `GameProfileDiscovery::Prepare`. Normal profiles
 always take precedence over beta profiles. The caller also excludes files with
 a `beta_` filename from the normal baseline set.
 
+Before this module runs, the same shared catalog reader resolves complete
+`profileRevision` replacements for an identical stable ID and exact image
+identity. Historical files remain unchanged. Invalid or conflicting revisions
+block discovery instead of selecting an older baseline. See the
+[profile format](../game-runtime/profiles/README.md).
+
+The optional `hudCapture` contract is preserved only for complete mapped-image
+equivalence. Changed mapped images report `hud-capture-rebase-not-supported`.
+The canonical rebaser, automatic discovery and standalone report tool cannot
+replace HUD guard bytes or private UI offsets with an ECS live-layout proof.
+
 ## Automatic path
 
 When an exact normal profile is available, discovery saves a byte-exact copy of

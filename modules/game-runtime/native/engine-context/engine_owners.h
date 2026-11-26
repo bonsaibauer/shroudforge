@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <nlohmann/json_fwd.hpp>
+#include "profiles/read_hud_capture_profile.h"
 
 // Original engine ownership, shared by resource and ECS readers. A successful
 // read establishes borrowed data ownership, never a game-thread execution phase.
@@ -59,6 +60,7 @@ bool Configure(const nlohmann::json& exact_profile, std::string& error);
 nlohmann::json SystemDependencyLayout();
 // Exact-image named DI service layout. Snapshot before acquiring engine gates.
 nlohmann::json ServiceLayout();
+KfcRuntimeCompatibility::HudCaptureSelection ConfiguredHudCaptureProfile();
 // Snapshot the exact-image spawn contract before acquiring original gates.
 std::optional<BuildingPropSpawnLayout> ConfiguredBuildingPropSpawnLayout();
 void Shutdown();

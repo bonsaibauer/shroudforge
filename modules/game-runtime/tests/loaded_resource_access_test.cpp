@@ -211,11 +211,87 @@ int main() {
     std::ofstream(configured_profiles / "broken.json") << "{";
     auto other_target = selection_profile;
     other_target["target"] = "enshrouded_server.exe";
+    other_target["id"] = "enshrouded-server-fixture";
     std::ofstream(configured_profiles / "server.json") << other_target.dump();
     const auto installed = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
     check(installed.directory == configured_profiles && installed.requested_id == "manual-fixture");
     check(installed.profiles.size() == 1 && installed.profiles[0] == selection_profile);
     check(installed.errors.size() == 1);
+    const auto revision_path = configured_profiles / "client" / "revision.json";
+    const auto duplicate_path = configured_profiles / "client" / "duplicate.json";
+    const auto read_catalog = [&] {
+        return KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
+    };
+    auto revision = selection_profile;
+    revision["profileRevision"] = 1;
+    revision["fixtureReplacement"] = true;
+    std::ofstream(revision_path) << revision.dump();
+    auto revised = read_catalog();
+    check(revised.profiles.size() == 1 && revised.profiles[0] == revision);
+    check(select(revised.profiles).profile == revision);
+    check(revised.profile_sources.at(selection_profile.at("id").get<std::string>()).at("revision") == 1);
+    check(revised.requested_id == "manual-fixture");
+    std::ofstream(duplicate_path) << revision.dump();
+    check(select(read_catalog().profiles).error == "ambiguous-exact-resource-read-profile");
+    std::filesystem::remove(duplicate_path);
+    auto partial = revision;
+    partial.erase("provenance");
+    std::ofstream(revision_path) << partial.dump();
+    check(select(read_catalog().profiles).profile.is_null()); // No merge or fallback to old approval.
+    for (const json invalid : {json(-1), json(0), json(1.5), json("1"), json(true), json(nullptr), json(UINT64_MAX)}) {
+        auto malformed = revision;
+        malformed["profileRevision"] = invalid;
+        std::ofstream(revision_path) << malformed.dump();
+        const auto rejected = read_catalog();
+        check(rejected.profiles.empty() && rejected.discovery.at("reason") == "invalid-or-conflicting-profile-revision");
+    }
+    for (const char* key : {"schemaVersion", "kfcFormat", "image", "target"}) {
+        auto conflicting = revision;
+        if (std::string_view(key) == "image") conflicting["image"]["timestamp"] = 43;
+        else if (std::string_view(key) == "target") conflicting["target"] = "enshrouded_server.exe";
+        else conflicting[key] = 1;
+        std::ofstream(revision_path) << conflicting.dump();
+        check(read_catalog().profiles.empty());
+    }
+    std::ofstream(revision_path) << selection_profile.dump();
+    check(select(read_catalog().profiles).error == "ambiguous-exact-resource-read-profile");
+    std::filesystem::remove(revision_path);
+
+    auto hud_fixture = selection_profile;
+    hud_fixture["hudCapture"] = {{"id", "hud-observation-v1"}, {"callRva", 0x1000}, {"rendererRva", 0x1100},
+        {"contextGlobalRva", 0x2000}, {"holderOffset", 208}, {"playStateOffset", 56}, {"screenOffset", 7384},
+        {"maximumAgeMs", 500}, {"minimumScreen", 1}, {"maximumScreen", 53}, {"gameplayScreen", 1},
+        {"guardPolicy", "exact"}, {"guards", {{{"guardRva", 0x1000}, {"bytes", "e8fb000000"}},
+                                             {{"guardRva", 0x1100}, {"bytes", "c3"}}}}};
+    const auto hud = KfcRuntimeCompatibility::ReadHudCaptureProfile(hud_fixture);
+    check(hud.profile && hud.profile->renderer_rva == 0x1100 && hud.profile->guards.size() == 2);
+    check(!KfcRuntimeCompatibility::ReadHudCaptureProfile(selection_profile).profile);
+    for (unsigned kind = 0; kind != 18; ++kind) {
+        auto bad = hud_fixture;
+        auto& model = bad["hudCapture"];
+        switch (kind) {
+        case 0: model["id"] = "unknown"; break;
+        case 1: model["callRva"] = -1; break;
+        case 2: model["callRva"] = 1.5; break;
+        case 3: model["callRva"] = 65535; break;
+        case 4: model["holderOffset"] = 65537; break;
+        case 5: model["guardPolicy"] = "trust-callback"; break;
+        case 6: model["maximumAgeMs"] = 0; break;
+        case 7: model["maximumScreen"] = 256; break;
+        case 8: model["gameplayScreen"] = 54; break;
+        case 9: model["guards"][0]["bytes"] = "e8fc000000"; break;
+        case 10: model["guards"][0]["bytes"] = "gg"; break;
+        case 11: model["guards"][0]["bytes"] = "c"; break;
+        case 12: model["guards"][1]["guardRva"] = 0x1001; break;
+        case 13: model["guards"][1]["guardRva"] = 65536; break;
+        case 14: model["guards"][1]["bytes"] = std::string(130, '0'); break;
+        case 15: model["guards"].push_back(model["guards"][1]); break;
+        case 16: model["unexpected"] = true; break;
+        case 17: bad["target"] = "enshrouded_server.exe"; break;
+        }
+        const auto rejected = KfcRuntimeCompatibility::ReadHudCaptureProfile(bad);
+        check(!rejected.profile && rejected.status.starts_with("invalid-hud-capture-profile:"));
+    }
     std::ofstream(configured_profiles / "client" / "beta_fixture.json") << beta_profile.dump();
     auto discovery_catalog = KfcRuntimeCompatibility::ReadInstalledProfiles(catalog_root / "enshrouded.exe", "enshrouded.exe");
     check(discovery_catalog.profiles.size() == 1 && discovery_catalog.discovery["enabled"] == false);
@@ -284,6 +360,13 @@ int main() {
             {"controllerClientBackPointerOffset", offsetof(Controller, client)},
             {"controllerMainOwnerOffset", offsetof(Controller, main)}}}};
     std::string reason;
+    check(EngineContext::Configure(owner_profile, reason));
+    check(!EngineContext::ConfiguredHudCaptureProfile().profile);
+    auto invalid_optional_hud = owner_profile;
+    invalid_optional_hud["hudCapture"] = "malformed";
+    check(EngineContext::Configure(invalid_optional_hud, reason));
+    check(!EngineContext::ConfiguredHudCaptureProfile().profile &&
+        EngineContext::ConfiguredHudCaptureProfile().status.starts_with("invalid-hud-capture-profile:"));
     check(EngineContext::Configure(owner_profile, reason));
 
     Layout layout;

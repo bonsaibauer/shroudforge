@@ -1,5 +1,7 @@
 #include "map/read_map_frame.h"
-#include "map/current_client_hud_guards.h"
+#include "map/hud_visibility.cpp"
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -7,6 +9,19 @@
 #include <limits>
 #include <source_location>
 #include <vector>
+
+namespace {
+KfcRuntimeCompatibility::HudCaptureSelection hud_selection;
+std::vector<std::uint8_t> hud_memory;
+bool retained_call_owned{};
+}
+namespace EngineContext {
+KfcRuntimeCompatibility::HudCaptureSelection ConfiguredHudCaptureProfile() { return hud_selection; }
+}
+namespace MapRuntime {
+bool SharedCallOwned(std::size_t, std::size_t, void*) { return retained_call_owned; }
+bool InstallSharedCall(std::size_t, std::size_t, void*) { return false; }
+}
 
 namespace {
 unsigned checks{};
@@ -22,26 +37,47 @@ template<class T> void put(std::vector<std::uint8_t>& bytes, std::size_t at, con
 int main() {
     // Native renderer bytes remain mandatory even when our retained CALL is
     // independently normalized. A foreign detour cannot inherit admission.
-    using namespace MapRuntime::CurrentHud5d9ef2f1;
-    std::vector<std::uint8_t> image(Pins[8].rva + Pins[8].bytes.size());
-    for (const auto& pin : Pins)
-        std::memcpy(image.data() + pin.rva, pin.bytes.data(), pin.bytes.size());
-    const auto copy = +[](const std::uint8_t* at, void* out, std::size_t size) {
-        std::memcpy(out, at, size); return true;
-    };
-    check(Match(image.data(), image.size(), nullptr, 0, copy));
-    image[Pins[0].rva] = 0xe9;
-    check(!Match(image.data(), image.size(), nullptr, 0, copy));
-    image[Pins[0].rva] = std::uint8_t(Pins[0].bytes[0]);
-    image[Pins[7].rva + 1] ^= 1;
-    check(!Match(image.data(), image.size(), nullptr, 0, copy));
-    const auto* original_call = reinterpret_cast<const std::uint8_t*>(Pins[7].bytes.data());
-    check(Match(image.data(), image.size(), original_call, 5, copy));
-    image[Pins[0].rva] = 0xe9;
-    check(!Match(image.data(), image.size(), original_call, 5, copy));
-    image[Pins[0].rva] = std::uint8_t(Pins[0].bytes[0]);
-    image[Pins[7].rva + 6] ^= 1;
-    check(!Match(image.data(), image.size(), original_call, 5, copy));
+    for (const char* build : {"26430625", "26082781"}) {
+        const auto path = std::string(SHROUDFORGE_TEST_PROFILE_DIRECTORY) + "/enshrouded/client/" + build + ".revision-1.json";
+        const auto profile = nlohmann::json::parse(std::ifstream(path));
+        hud_selection = KfcRuntimeCompatibility::ReadHudCaptureProfile(profile);
+        check(hud_selection.profile && hud_selection.status == "ready");
+        const auto selected = hud_selection.profile;
+        const auto& pins = selected->guards;
+        hud_memory.assign(profile.at("image").at("size").get<std::size_t>(), 0);
+        for (const auto& pin : pins) std::memcpy(hud_memory.data() + pin.rva, pin.bytes.data(), pin.bytes.size());
+        MapRuntime::hud_prepared = false;
+        MapRuntime::hud_preflighted = false;
+        check(MapRuntime::PreflightHudPreparation(reinterpret_cast<std::uintptr_t>(hud_memory.data()), hud_memory.size()));
+        check(MapRuntime::NativeOwnership(*selected, false));
+        hud_memory[selected->renderer_rva] = 0xe9;
+        check(!MapRuntime::NativeOwnership(*selected, false));
+        hud_memory[selected->renderer_rva] = pins[0].bytes[0];
+        hud_memory[selected->call_rva + 1] ^= 1;
+        check(!MapRuntime::NativeOwnership(*selected, false));
+        retained_call_owned = false;
+        check(!MapRuntime::NativeOwnership(*selected, true));
+        retained_call_owned = true;
+        check(MapRuntime::NativeOwnership(*selected, true));
+        hud_memory[selected->renderer_rva] = 0xe9;
+        check(!MapRuntime::NativeOwnership(*selected, true));
+        hud_memory[selected->renderer_rva] = pins[0].bytes[0];
+        hud_memory[selected->call_rva + 6] ^= 1;
+        check(!MapRuntime::NativeOwnership(*selected, true));
+        hud_memory[selected->call_rva + 6] ^= 1;
+        MapRuntime::hud_size = selected->call_rva + 4;
+        check(!MapRuntime::NativeOwnership(*selected, true));
+        MapRuntime::hud_size = hud_memory.size();
+        MapRuntime::hud_active = true;
+        MapRuntime::observation = (1000ULL << 8) | selected->gameplay_screen;
+        check(MapRuntime::HudGameplay(1500) && !MapRuntime::HudGameplay(1501));
+        check(!MapRuntime::HudKnown(999));
+        MapRuntime::DisableHudVisibility();
+        check(!MapRuntime::HudKnown(1000));
+        hud_selection = {};
+        check(MapRuntime::hud_profile.load() == selected); // Forwarding keeps its original contract.
+        check(!MapRuntime::PreflightHudPreparation(reinterpret_cast<std::uintptr_t>(hud_memory.data()), hud_memory.size()));
+    }
     SFMapMarkerV1 identity{};const std::uint64_t identity_words[5]{UINT64_C(0x2233445566778899),UINT64_C(0x0102030405060708),3,4,5};
     MapRuntime::SetMarkerIdentity(identity,identity_words);
     check(identity.id==identity_words[0] && identity.icon_candidate_count==10);

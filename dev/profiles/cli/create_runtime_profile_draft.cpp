@@ -16,6 +16,10 @@ int generate_command(int argc, char** argv) {
     }
     try {
         auto profile = json::parse(std::ifstream(base_path));
+        if (profile.contains("hudCapture")) {
+            std::cerr << "generate-profile cannot rebase hudCapture guard bytes and UI layouts. Use an explicitly reviewed complete profile copy for the new image\n";
+            return 2;
+        }
         if (kfc_format_text == "4" && profile.contains("ownerLayout")) profile["schemaVersion"] = 2;
         profile["kfcFormat"] = kfc_format_text == "3" ? 3 : 4;
         // A relocated signature does not prove calculation semantics in a new build.

@@ -1,6 +1,7 @@
 #include "rebase_profile_contract.h"
 #include "profile_rebase_analysis.h"
 #include "prove_profile_layout.h"
+#include "verify_image_equivalence.h"
 #include <windows.h>
 #include <Zydis/Zydis.h>
 #include <algorithm>
@@ -1596,6 +1597,22 @@ bool RebaseProfile(const Image& source_image, const Image& target_image, const j
         {"fields", json::array()}, {"unresolved", json::array()},
         {"targetProfileRead", false}, {"gameplayEffectsTested", false}};
     try {
+        if (baseline.contains("hudCapture")) {
+            rebased = baseline;
+            json comparison;
+            if (Equivalent(source_image, target_image, comparison)) {
+                evidence["complete"] = true;
+                evidence["reason"] = "complete-mapped-image-equivalence";
+                evidence["comparison"] = std::move(comparison);
+                return true;
+            }
+            // Also covers the standalone report tool. Neither an ECS layout proof
+            // nor an unresolved field override can establish this byte contract.
+            evidence["reason"] = "hud-capture-rebase-not-supported";
+            evidence["unresolved"].push_back({{"path", "/hudCapture"},
+                {"reason", "HUD control-flow guards and UI layout need complete proof"}});
+            return false;
+        }
         const Pe source(source_image), target(target_image);
         std::vector<std::pair<std::string, std::uint32_t>> rvas;
         std::vector<std::pair<std::string, std::uint64_t>> offsets;

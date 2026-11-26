@@ -73,6 +73,8 @@ bool Initialize() {
             return false;
         }
         selected_profile = std::move(selection.profile);
+        const auto source = installed.profile_sources.find(selected_profile.at("id").get<std::string>());
+        if (source != installed.profile_sources.end()) profile_selection["selectedSource"] = *source;
         selected = parse_layout(selected_profile);
     } catch (const std::exception& error) {
         profile_status = std::string("resource-profile-error:") + error.what();

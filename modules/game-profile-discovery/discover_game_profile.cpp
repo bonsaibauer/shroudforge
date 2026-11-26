@@ -562,6 +562,14 @@ Result Prepare(const fs::path& executable_path, const fs::path& profile_director
             Log(game_root, 'D', "Rebasing profile addresses, reflected layouts, hooks, and resource contracts from the exact original images");
             static_complete = Detail::RebaseProfile(source, current, baseline, generated, rebase);
             log_evidence(game_root, "Static profile rebase", rebase, true);
+            if (!static_complete && rebase.value("reason", std::string{}) == "hud-capture-rebase-not-supported") {
+                result.diagnostics["state"] = "unresolved";
+                result.diagnostics["reason"] = "hud-capture-rebase-not-supported";
+                result.diagnostics["comparison"] = std::move(comparison);
+                result.diagnostics["rebase"] = std::move(rebase);
+                write_diagnostics_report(result, game_root, cache_directory, identity);
+                return result;
+            }
             if (!static_complete) {
                 remember_unresolved_analysis(memo_key, {generated, comparison, rebase, {}});
                 Log(game_root, 'W', "Static profile rebase is incomplete. A live in-process layout proof will be attempted before beta generation is rejected");

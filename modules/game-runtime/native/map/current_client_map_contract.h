@@ -11,7 +11,6 @@ inline constexpr std::uintptr_t IterInit=0x9c7b80,IterNext=0x9c2780,GetWorld=0x9
 inline constexpr std::uintptr_t Remote=0x31d390,Waypoints=0x314000,Clock=0x2b80e0,World=0x304470;
 inline constexpr std::uintptr_t WeatherCall=0x3031a8,WeatherSample=0xaaa4d0,FogCall=0x30c734,FogUpdate=0x3a2780,Discovery=0x41c3b2;
 inline constexpr std::size_t CustomList=0x396a28,WorldList=0x36ea00,SecondaryWorldList=0x3bea50,DeathList=0x3e6a78;
-inline constexpr std::uintptr_t HudCall=0xbd160a,Renderer=0xc603d0,UiGlobal=0x283f4a8;
 struct NamedSystem{std::size_t descriptor;const char* name;std::size_t callback;};
 inline constexpr NamedSystem Systems[]={
 {0x1E24E40,"player_camera_transform",0x2B7900},

@@ -13,6 +13,41 @@
     "schemaVersion": {
       "enum": [1, 2]
     },
+    "profileRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295,
+      "description": "Complete replacement for the same stable ID and exact schema, target, KFC and image identity. Missing means historical revision zero."
+    },
+    "hudCapture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "callRva", "rendererRva", "contextGlobalRva", "holderOffset", "playStateOffset", "screenOffset", "maximumAgeMs", "minimumScreen", "maximumScreen", "gameplayScreen", "guardPolicy", "guards"],
+      "properties": {
+        "id": {"const": "hud-observation-v1"},
+        "callRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "rendererRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "contextGlobalRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "holderOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "playStateOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "screenOffset": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "maximumAgeMs": {"type": "integer", "minimum": 1, "maximum": 5000},
+        "minimumScreen": {"type": "integer", "minimum": 1, "maximum": 255},
+        "maximumScreen": {"type": "integer", "minimum": 1, "maximum": 255},
+        "gameplayScreen": {"type": "integer", "minimum": 1, "maximum": 255},
+        "guardPolicy": {"enum": ["exact", "runtime-owned-prefix"]},
+        "guards": {
+          "type": "array", "minItems": 2, "maxItems": 32,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["guardRva", "bytes"],
+            "properties": {
+              "guardRva": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+              "bytes": {"type": "string", "pattern": "^(?:[0-9a-f]{2}){1,64}$"}
+            }
+          }
+        }
+      }
+    },
     "id": {
       "type": "string",
       "minLength": 1

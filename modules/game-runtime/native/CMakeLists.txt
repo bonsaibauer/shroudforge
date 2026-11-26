@@ -160,6 +160,7 @@ add_library(kfc-runtime SHARED
     patches/set_runtime_patch.cpp
     profiles/select_game_profile.cpp
     profiles/read_installed_profiles.cpp
+    profiles/read_hud_capture_profile.cpp
     loaded-resources/select_resource_profile.cpp
     profiles/identify_game_image.cpp
     profiles/read_game_profile.cpp
@@ -195,7 +196,7 @@ endif()
 add_executable(kfc-runtime-test-resource EXCLUDE_FROM_ALL
     ../tests/loaded_resource_access_test.cpp engine-context/resolve_engine_owners.cpp engine-context/resolve_registered_scene.cpp
     engine-context/configure_engine_layout.cpp engine-context/hold_resource_lifetime.cpp engine-context/lock_scene_access.cpp
-    profiles/read_installed_profiles.cpp loaded-resources/select_resource_profile.cpp)
+    profiles/read_installed_profiles.cpp profiles/read_hud_capture_profile.cpp loaded-resources/select_resource_profile.cpp)
 target_include_directories(kfc-runtime-test-resource PRIVATE
     "${generated_dir}" "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/loaded-resources" "${CMAKE_CURRENT_SOURCE_DIR}/engine-context"
@@ -368,7 +369,10 @@ set_property(TARGET kfc-runtime-test-world-context PROPERTY MSVC_RUNTIME_LIBRARY
 
 # Inert fixtures exercise the same owners and renderer as the native provider.
 add_executable(kfc-runtime-test-map-frame EXCLUDE_FROM_ALL
-    ../tests/map_frame_test.cpp map/read_map_frame.cpp)
+    ../tests/map_frame_test.cpp ../tests/executable_span_validation_held_entry_fixture.cpp
+    map/read_map_frame.cpp profiles/read_hud_capture_profile.cpp)
+target_compile_definitions(kfc-runtime-test-map-frame PRIVATE
+    SHROUDFORGE_TEST_PROFILE_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/../profiles")
 add_executable(kfc-runtime-test-executable-span-validation EXCLUDE_FROM_ALL
     ../tests/executable_span_validation_test.cpp ../tests/owned_span_proof_test.cpp
     host/executable_span_validation.cpp engine-hooks/owned_span_proof.cpp)
@@ -400,7 +404,7 @@ add_executable(kfc-runtime-test-overlay-gpu EXCLUDE_FROM_ALL
     engine-hooks/publish_engine_hook.cpp
     engine-hooks/owned_executable_span.cpp)
 foreach(test_target kfc-runtime-test-map-frame kfc-runtime-test-map-service-lifetime kfc-runtime-test-overlay-gpu)
-    target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(${test_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include")
     target_compile_features(${test_target} PRIVATE cxx_std_20)
     target_compile_definitions(${test_target} PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
     target_link_libraries(${test_target} PRIVATE bcrypt gdi32 user32)
@@ -420,7 +424,7 @@ target_compile_features(kfc-runtime-test-service-lifecycle PRIVATE cxx_std_20)
 target_compile_definitions(kfc-runtime-test-service-lifecycle PRIVATE KFC_RUNTIME_BUILD WIN32_LEAN_AND_MEAN NOMINMAX)
 set_property(TARGET kfc-runtime-test-service-lifecycle PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 foreach(test_target kfc-runtime-test-service-lifecycle kfc-runtime-test-map-service-lifetime
-    kfc-runtime-test-overlay-gpu)
+    kfc-runtime-test-overlay-gpu kfc-runtime-test-map-frame)
     target_sources(${test_target} PRIVATE $<TARGET_OBJECTS:kfc-runtime-test-span-service-runtime>)
 endforeach()
 target_sources(kfc-runtime-test-service-lifecycle PRIVATE

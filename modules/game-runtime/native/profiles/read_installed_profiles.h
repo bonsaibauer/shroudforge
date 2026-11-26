@@ -11,6 +11,7 @@ struct InstalledProfiles {
     std::string generated_profile_id;
     std::vector<nlohmann::json> profiles;
     std::vector<std::string> errors;
+    nlohmann::json profile_sources = nlohmann::json::object();
     nlohmann::json discovery = {{"enabled", false}, {"state", "disabled"}};
 };
 

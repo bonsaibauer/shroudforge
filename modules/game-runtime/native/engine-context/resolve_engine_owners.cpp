@@ -13,6 +13,8 @@ nlohmann::json system_dependency_layout;
 
 nlohmann::json service_layout;
 
+KfcRuntimeCompatibility::HudCaptureSelection hud_capture_selection;
+
 bool read_span(std::uintptr_t address, void* output, std::size_t size){
     if (!address || address > UINTPTR_MAX - size) return false;
     __try { std::memcpy(output, reinterpret_cast<const void*>(address), size); return true; }
@@ -178,6 +180,7 @@ void Shutdown() {
     active_layout = {};
     system_dependency_layout = nullptr;
     service_layout = nullptr;
+    hud_capture_selection = {};
 }
 
 nlohmann::json SystemDependencyLayout() {
@@ -188,6 +191,11 @@ nlohmann::json SystemDependencyLayout() {
 nlohmann::json ServiceLayout() {
     std::scoped_lock lock(context_mutex);
     return configured ? service_layout : nlohmann::json{};
+}
+
+KfcRuntimeCompatibility::HudCaptureSelection ConfiguredHudCaptureProfile() {
+    std::scoped_lock lock(context_mutex);
+    return configured ? hud_capture_selection : KfcRuntimeCompatibility::HudCaptureSelection{};
 }
 
 std::optional<BuildingPropSpawnLayout> ConfiguredBuildingPropSpawnLayout() {

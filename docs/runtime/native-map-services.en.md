@@ -53,6 +53,15 @@ guards and a trusted assertion that the game entrypoint remains held. It only
 normalizes independently verified framework-owned patches. Foreign detours
 are unsupported and refused; no mod identity, version or hash can admit one.
 
+HUD observation reads its optional `hudCapture` description from the same
+selected external exact-image owner profile as resource/ECS access. There is
+no HUD-specific profile catalog or compiled per-build address switch. The
+existing shared hook publisher still owns the renderer CALL. See the
+[profile format](../../modules/game-runtime/profiles/README.md) for revisions,
+guard policies, diagnostics and discovery limits. Other Map capture addresses
+and byte tables still await their profile migration. This internal change adds
+no public Lua function or native service-table entry.
+
 Map capture and generic world hooks publish and restore executable relays
 through the same internal `engine-hooks/publish_engine_hook` implementation.
 Their owning runtime domains retain separate receipt batches for their existing
