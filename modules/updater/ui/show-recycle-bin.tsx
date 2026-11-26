@@ -151,7 +151,7 @@ export function RecycleBin({
       />
       {!actionsEnabled ? null : (
         <>
-          {entries === null ? null : entries.length === 0 ? (
+          {entries === null || entries.length === 0 ? (
             <Empty
               title={t('recycleBin.empty.title')}
               text={t('recycleBin.empty.text')}
