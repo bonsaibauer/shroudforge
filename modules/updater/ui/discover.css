@@ -436,12 +436,6 @@
   background: var(--sf-gold-soft);
 }
 
-.discover-badge.incompatible {
-  border-color: rgba(255, 112, 120, 0.3);
-  color: var(--sf-red);
-  background: var(--sf-red-soft);
-}
-
 .discover-row-aside {
   display: flex;
   min-height: 100%;

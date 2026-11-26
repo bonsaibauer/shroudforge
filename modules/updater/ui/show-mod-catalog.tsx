@@ -664,11 +664,6 @@ export function Discover({
               const update = item.projectType === 'mod'
                 ? updateById.get(installedId) || updateByProjectId.get(item.id)
                 : undefined
-              const incompatible = Boolean(
-                gameVersion &&
-                  item.gameVersions.length &&
-                  !item.gameVersions.includes(gameVersion),
-              )
               const canInstall = Boolean(item.latestVersionId) && !installed && item.projectType !== 'server'
               const updated = relativeDate(item.dateModified, locale)
               return (
@@ -694,7 +689,6 @@ export function Discover({
                       ))}
                       {installed && <span className="discover-badge installed">{t('mod.installed')} · {installed.version}</span>}
                       {update && <span className="discover-badge update">{t('discover.status.update', { version: update.latestVersion || '' })}</span>}
-                      {incompatible && <span className="discover-badge incompatible">{t('discover.status.incompatible')}</span>}
                     </div>
                   </div>
                   <div className="discover-row-aside">

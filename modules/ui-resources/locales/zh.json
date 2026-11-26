@@ -321,7 +321,6 @@
   "discover.resultsByType": "{count} {type}",
   "discover.downloads": "downloads",
   "discover.status.update": "Update available · {version}",
-  "discover.status.incompatible": "Incompatible",
   "discover.status.updateButton": "Update",
   "discover.detail.loading": "Loading project details…",
   "discover.detail.failed": "Project details could not be loaded.",
