@@ -42,6 +42,13 @@ Unversioned duplicates retain their existing ambiguity. Launcher IDs do not
 change. Resource status `profileSelection.selectedSource` reports the selected
 file path and revision. Revisions grant no additional engine permissions.
 
+The developer capture action is an explicit review input, not a runtime profile
+selector. If several complete files match its executable, choose one with its
+existing `-ClientBaselineProfile` or `-ServerBaselineProfile` option. For exact
+matches, the supplied file must be one of those exact matches. It does not
+duplicate the native catalog's automatic revision policy. Unknown-image review
+continues to use the existing explicit baseline or unambiguous newest baseline.
+
 | Section | Meaning |
 | --- | --- |
 | `schemaVersion`, `id`, `target` | Profile format version, stable launcher selection ID, and executable name. |
