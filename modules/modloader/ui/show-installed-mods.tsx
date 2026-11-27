@@ -17,7 +17,6 @@ export function Installed({
   modpacks,
   removable,
   schematics,
-  schematicsPath,
   schematicConversionMode,
   schematicsEnabled,
   select,
@@ -28,7 +27,6 @@ export function Installed({
   modpacks: Snapshot['modpacks']
   removable: boolean
   schematics: SchematicInfo[]
-  schematicsPath: string
   schematicConversionMode: 'manual' | 'automatic'
   schematicsEnabled: boolean
   select(id: string): void
@@ -78,7 +76,6 @@ export function Installed({
       ) : visibleTab === 'schematics' ? (
         <InstalledSchematics
           schematics={schematics}
-          path={schematicsPath}
           conversionMode={schematicConversionMode}
         />
       ) : (

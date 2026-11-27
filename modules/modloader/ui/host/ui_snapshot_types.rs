@@ -102,7 +102,6 @@ pub(crate) struct Snapshot {
     pub(crate) modpacks: Vec<PackInfo>,
     pub(crate) schematics: Vec<shroudforge_schematics::schematic_library::SchematicInfo>,
     pub(crate) schematics_enabled: bool,
-    pub(crate) schematics_path: String,
     pub(crate) hotkey_conflicts: Vec<shroudforge_package::HotkeyConflict>,
     pub(crate) activity: Vec<Activity>,
     pub(crate) notices: Vec<shroudforge_news::Notice>,

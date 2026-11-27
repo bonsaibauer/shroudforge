@@ -1,12 +1,3 @@
-.schematic-library-path {
-  margin: 0 0 1rem;
-  overflow: hidden;
-  color: var(--muted, #8993a5);
-  font-size: 0.82rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .schematic-cover-input {
   display: none;
 }

@@ -103,7 +103,6 @@ export function Page({
         modpacks={data.modpacks}
         removable={data.mode !== 'SERVER'}
         schematics={data.schematics}
-        schematicsPath={data.schematicsPath}
         schematicConversionMode={settings.modulePreferences?.schematics?.conversionMode ?? 'automatic'}
         schematicsEnabled={settings.modulePreferences?.schematics?.enabled ?? data.schematicsEnabled}
         select={selectMod}

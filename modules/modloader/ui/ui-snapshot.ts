@@ -82,7 +82,6 @@ export type Snapshot = {
   }>
   schematics: SchematicInfo[]
   schematicsEnabled: boolean
-  schematicsPath: string
   hotkeyConflicts: Array<{
     firstId: string
     secondId: string
@@ -237,7 +236,6 @@ export const empty: Snapshot = {
   modpacks: [],
   schematics: [],
   schematicsEnabled: true,
-  schematicsPath: '',
   hotkeyConflicts: [],
   activity: [],
   notices: [],

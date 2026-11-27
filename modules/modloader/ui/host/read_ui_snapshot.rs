@@ -162,9 +162,6 @@ pub(crate) fn read_ui_snapshot(
             .pointer("/modules/schematics/enabled")
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(true),
-        schematics_path: shroudforge_schematics::schematic_library::directory(root)
-            .to_string_lossy()
-            .into_owned(),
         hotkey_conflicts,
         activity: read_activity(root, remote_target == "server").unwrap_or_default(),
         news_templates: shroudforge_news::read(root)

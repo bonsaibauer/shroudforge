@@ -13,11 +13,9 @@ function formatSize(size: number) {
 
 export function InstalledSchematics({
   schematics,
-  path,
   conversionMode,
 }: {
   schematics: SchematicInfo[]
-  path: string
   conversionMode: 'manual' | 'automatic'
 }) {
   const { t } = useI18n()
@@ -106,7 +104,6 @@ export function InstalledSchematics({
         </div>
       }
     >
-      <div className="schematic-library-path" title={path}>{path}</div>
       <input
         ref={coverInput}
         className="schematic-cover-input"
