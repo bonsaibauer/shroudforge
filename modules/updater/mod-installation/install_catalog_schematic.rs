@@ -136,7 +136,7 @@ pub fn install_schematic_from_catalog(
                 .iter()
                 .find(|file| file.filename.to_ascii_lowercase().ends_with(".sfbp"))
         })
-        .ok_or("This schematic version has no .sfbp blueprint file")?;
+        .ok_or("This version has no .sfbp schematic file")?;
     if !file.url.starts_with("https://")
         || file.size == 0
         || file.size > shroudforge_schematics::validate_schematic_v8::MAX_BYTES as u64
@@ -166,15 +166,15 @@ pub fn install_schematic_from_catalog(
         root,
         queue_item_id,
         "downloading",
-        Some("Downloading schematic blueprint"),
+        Some("Downloading blueprint"),
     )?;
     let (downloaded_bytes, _) = crate::download_response_body::download_response_body(
         root,
         download_client.get(&file.url),
         shroudforge_schematics::validate_schematic_v8::MAX_BYTES as u64,
         Duration::from_secs(30),
-        "Schematic download",
-        "Schematic exceeds 512 MiB",
+        "Blueprint download",
+        "Blueprint exceeds 256 MiB",
         |_| Ok(()),
         |chunk, _| {
             download
@@ -196,7 +196,7 @@ pub fn install_schematic_from_catalog(
         root,
         queue_item_id,
         "installing",
-        Some("Blueprint download verified. Adding it to the schematic library"),
+        Some("Blueprint download verified. Adding it to the local library"),
     )?;
     let title = project
         .get("title")

@@ -314,7 +314,7 @@
     },
     {
       "label": "Blueprint creation",
-      "description": "Capture voxel-and-prop or props-only blueprints and save them in the Modloader Schematics library.",
+      "description": "Capture voxel-and-prop or props-only blueprints and save them in the local library.",
       "tab": true,
       "settings": [
         "sourceX",

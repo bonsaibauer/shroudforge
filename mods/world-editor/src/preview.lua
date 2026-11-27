@@ -118,9 +118,9 @@ return function(editor)
             -- The native panel resolves these currently applied settings with SDL.
             lines[#lines + 1] = "keybind." .. key .. "=" .. tostring(editor.setting(key))
         end
-        for _, schematic in ipairs(editor.blueprint_library or {}) do
-            if schematic.name and schematic.name:match("^[%w_-]+$") and schematic.image then
-                lines[#lines + 1] = "blueprint." .. schematic.name .. "=" .. schematic.image
+        for _, blueprint in ipairs(editor.blueprint_library or {}) do
+            if blueprint.name and blueprint.name:match("^[%w_-]+$") and blueprint.image then
+                lines[#lines + 1] = "blueprint." .. blueprint.name .. "=" .. blueprint.image
             end
         end
         local text = table.concat(lines, "\n") .. "\n"
