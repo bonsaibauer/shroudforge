@@ -38,6 +38,7 @@ export function RecycleBin({
   const { t } = useI18n()
   const [entries, setEntries] = useState<Entry[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const pendingListRequestId = useRef<string | null>(null)
   const pendingActionRequestId = useRef<string | null>(null)
@@ -47,6 +48,7 @@ export function RecycleBin({
 
   const refresh = (reportResult = true) => {
     if (!actionsEnabled) return
+    setLoadError(false)
     setLoading(true)
     pendingListRequestId.current = postRequest('updater-request', {
       action: 'recycle-bin-list',
@@ -60,13 +62,16 @@ export function RecycleBin({
       if (result.requestId !== pendingListRequestId.current) return
       pendingListRequestId.current = null
       setLoading(false)
+      setLoadError(false)
       setEntries(result.entries)
     }
     const receiveCommandResult = (event: Event) => {
       const result = (event as CustomEvent<CommandResult>).detail
       if (result.requestId === pendingListRequestId.current) {
+        if (result.success) return
         pendingListRequestId.current = null
         setLoading(false)
+        setLoadError(true)
         return
       }
       if (result.requestId !== pendingActionRequestId.current) return
@@ -151,7 +156,11 @@ export function RecycleBin({
       />
       {!actionsEnabled ? null : (
         <>
-          {entries === null || entries.length === 0 ? (
+          {entries === null ? (
+            <div className="card">
+              {loadError ? t('recycleBin.error') : t('recycleBin.loading')}
+            </div>
+          ) : entries.length === 0 ? (
             <Empty
               title={t('recycleBin.empty.title')}
               text={t('recycleBin.empty.text')}
