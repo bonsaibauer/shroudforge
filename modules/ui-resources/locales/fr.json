@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "Oui, activer vanilla",
   "vanilla.serverWarning.link": "CONNEXION COUPÉE",
   "compatibility.title": "Compatibilité",
+  "discover.cacheCleared": "Le cache Discover a été vidé.",
   "discover.catalog.loading": "Chargement du catalogue…",
   "discover.catalog.unavailable": "Catalogue indisponible",
   "discover.catalog.retry": "Réessayer",

@@ -1,12 +1,14 @@
 use super::ModUpdateCheckLock;
 use super::catalog::{
-    current_game_version, fetch_catalog_mod_versions, installed_catalog_packs,
+    current_game_version, fetch_cached_catalog_mod_versions, installed_catalog_packs,
+    CatalogVersionStop,
 };
 use crate::provider_config::CatalogProviderConfig;
 use serde_json::{Value, json};
 use std::{path::Path, time::Duration};
 
 fn newer_version(
+    root: &Path,
     client: &reqwest::blocking::Client,
     provider: &CatalogProviderConfig,
     project_id: &str,
@@ -19,11 +21,13 @@ fn newer_version(
     } else {
         "[\"shroudtopia\",\"shroudforge\",\"eml\"]"
     };
-    let mut versions = fetch_catalog_mod_versions(
+    let mut versions = fetch_cached_catalog_mod_versions(
+        root,
         client,
         provider.base_url.trim_end_matches('/'),
         project_id,
         loaders,
+        CatalogVersionStop::Id(installed_version_id),
     )?;
     versions.sort_by(|left, right| {
         right["date_published"]
@@ -58,16 +62,24 @@ fn inspect_pack_changes(
     new: &shroudforge_package::modpack::ModpackManifest,
 ) -> Result<Vec<Value>, String> {
     let previous = shroudforge_loader_config::paths::mods_dir(root)
-        .join(&new.id).join("modpack.json");
+        .join(&new.id)
+        .join("modpack.json");
     let old = shroudforge_package::modpack::parse_manifest(
-        &std::fs::read(&previous).map_err(|error| format!("{}: {error}", previous.display()))?
+        &std::fs::read(&previous).map_err(|error| format!("{}: {error}", previous.display()))?,
     )?;
     let mut changes = Vec::new();
     for item in &new.mods {
-        let before = old.mods.iter().find(|candidate| candidate.id() == item.id());
+        let before = old
+            .mods
+            .iter()
+            .find(|candidate| candidate.id() == item.id());
         let kind = match before {
             None => "added",
-            Some(before) if serde_json::to_value(before).ok() != serde_json::to_value(item).ok() => "changed",
+            Some(before)
+                if serde_json::to_value(before).ok() != serde_json::to_value(item).ok() =>
+            {
+                "changed"
+            }
             _ => "unchanged",
         };
         if kind != "unchanged" {
@@ -132,6 +144,7 @@ pub fn check_catalog_content_updates(
     if content_type == "schematic" {
         for installed in shroudforge_schematics::schematic_library::catalog_installations(root)? {
             match newer_version(
+                root,
                 &client,
                 &provider,
                 &installed.project_id,
@@ -157,6 +170,7 @@ pub fn check_catalog_content_updates(
     } else {
         for (project_id, installed) in installed_catalog_packs(root) {
             match newer_version(
+                root,
                 &client,
                 &provider,
                 &project_id,

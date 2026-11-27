@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "Tak, włącz vanilla",
   "vanilla.serverWarning.link": "POŁĄCZENIE ZOSTANIE PRZERWANE",
   "compatibility.title": "Zgodność",
+  "discover.cacheCleared": "Wyczyszczono pamięć podręczną Discover.",
   "discover.catalog.loading": "Wczytywanie katalogu..",
   "discover.catalog.unavailable": "Katalog niedostępny",
   "discover.catalog.retry": "Spróbuj jeszcze raz",

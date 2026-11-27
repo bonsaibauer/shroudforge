@@ -374,6 +374,11 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
             "Backup Management".into(),
         ),
         "search-catalog" => ("search-catalog", "search-catalog", value.query.clone()?),
+        "clear-catalog-cache" => (
+            "clear-catalog-cache",
+            "clear-catalog-cache",
+            "ShroudEdit catalog cache".into(),
+        ),
         "load-catalog-project" => (
             "load-catalog-project",
             "load-catalog-project",

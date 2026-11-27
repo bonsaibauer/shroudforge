@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "Sí, activar vanilla",
   "vanilla.serverWarning.link": "CONEXIÓN CERRADA",
   "compatibility.title": "Compatibilidad",
+  "discover.cacheCleared": "Se ha borrado la caché de Discover.",
   "discover.catalog.loading": "Cargando el catálogo…",
   "discover.catalog.unavailable": "Catálogo no disponible",
   "discover.catalog.retry": "Intentar de nuevo",

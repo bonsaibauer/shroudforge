@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "Sì, attiva vanilla",
   "vanilla.serverWarning.link": "CONNESSIONE INTERROTTA",
   "compatibility.title": "Compatibilità",
+  "discover.cacheCleared": "Cache di Discover svuotata.",
   "discover.catalog.loading": "Caricamento catalogo…",
   "discover.catalog.unavailable": "Catalogo non disponibile",
   "discover.catalog.retry": "Riprova",

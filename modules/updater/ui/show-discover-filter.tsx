@@ -81,7 +81,12 @@ export function DiscoverFilter(props: SingleDiscoverFilter | MultipleDiscoverFil
   )
 
   return (
-    <details className={`discover-option-filter${className ? ` ${className}` : ''}`}>
+    <details
+      className={`discover-option-filter${className ? ` ${className}` : ''}`}
+      onMouseLeave={(event) => {
+        event.currentTarget.open = false
+      }}
+    >
       <summary aria-disabled={disabled} aria-label={summary === 'value' ? label : undefined}>
         {summary === 'both' ? (
           <><span>{label}</span><strong>{selectedLabel}</strong></>

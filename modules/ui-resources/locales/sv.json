@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "Ja, aktivera vanilla",
   "vanilla.serverWarning.link": "ANSLUTNINGEN BRYTS",
   "compatibility.title": "Kompatibilitet",
+  "discover.cacheCleared": "Discover-cachen har rensats.",
   "discover.catalog.loading": "Ledande katalog..",
   "discover.catalog.unavailable": "Katalog otillgänglig",
   "discover.catalog.retry": "Försök igen",

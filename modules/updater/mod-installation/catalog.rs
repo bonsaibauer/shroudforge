@@ -1,4 +1,4 @@
-use super::ModUpdateCheckLock;
+use super::{api_cache, ModUpdateCheckLock};
 use crate::{
     catalog_item::{CatalogItem, CatalogSearchResult},
     mod_package::ResolveContentPlan,
@@ -11,6 +11,43 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
+
+const CATALOG_SEARCH_CACHE_SECONDS: u64 = 15 * 60;
+const CATALOG_DETAIL_CACHE_SECONDS: u64 = 60 * 60;
+const CATALOG_OPTIONS_CACHE_SECONDS: u64 = 24 * 60 * 60;
+const CATALOG_UPDATE_CACHE_SECONDS: u64 = 6 * 60 * 60;
+const CATALOG_PROJECT_LOOKUP_CACHE_SECONDS: u64 = 24 * 60 * 60;
+
+pub fn clear_catalog_api_cache(root: &Path) -> Result<(), String> {
+    api_cache::clear(root)
+}
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+struct CatalogApiOptions {
+    categories_by_project_type: HashMap<String, Vec<String>>,
+    game_versions: Vec<String>,
+    project_types: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct CachedCatalogVersions {
+    complete: bool,
+    versions: Vec<serde_json::Value>,
+}
+
+pub(crate) enum CatalogVersionStop<'a> {
+    Id(&'a str),
+    Number(&'a str),
+}
+
+impl CatalogVersionStop<'_> {
+    fn cache_key(&self) -> serde_json::Value {
+        match self {
+            Self::Id(value) => serde_json::json!(["id", value]),
+            Self::Number(value) => serde_json::json!(["number", value]),
+        }
+    }
+}
 
 pub fn resolve_catalog_project(
     root: &Path,
@@ -150,28 +187,31 @@ struct CatalogModVersion {
 }
 
 fn installed_mod_packages(root: &Path) -> Vec<InstalledModPackage> {
-    shroudforge_package::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(root))
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|entry| entry.pack_id.is_none())
-        .filter_map(|entry| {
-            let package = entry.path;
-            if !package.is_dir() {
-                return None;
-            }
-            let manifest = shroudforge_package::config::read_manifest_path(root, &package).ok()?;
-            Some(InstalledModPackage {
-                id: manifest.id,
-                name: manifest.name,
-                version: manifest.version.to_string(),
-                release_channel: manifest.release_channel,
-                package,
-            })
+    shroudforge_package::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(
+        root,
+    ))
+    .unwrap_or_default()
+    .into_iter()
+    .filter(|entry| entry.pack_id.is_none())
+    .filter_map(|entry| {
+        let package = entry.path;
+        if !package.is_dir() {
+            return None;
+        }
+        let manifest = shroudforge_package::config::read_manifest_path(root, &package).ok()?;
+        Some(InstalledModPackage {
+            id: manifest.id,
+            name: manifest.name,
+            version: manifest.version.to_string(),
+            release_channel: manifest.release_channel,
+            package,
         })
-        .collect()
+    })
+    .collect()
 }
 
 fn lookup_catalog_mod_by_manifest_id(
+    root: &Path,
     client: &reqwest::blocking::Client,
     provider: &CatalogProviderConfig,
     mod_id: &str,
@@ -180,29 +220,60 @@ fn lookup_catalog_mod_by_manifest_id(
     release_channel: Option<shroudforge_package::ModReleaseChannel>,
 ) -> Result<Option<CatalogModVersion>, String> {
     let base = provider.base_url.trim_end_matches('/');
-    let response = client
-        .get(format!("{base}/v3/project/{mod_id}"))
-        .send()
-        .map_err(|error| format!("ShroudEdit is unreachable: {error}"))?;
-    if response.status().as_u16() == 404 {
-        return Ok(None);
-    }
-    if !response.status().is_success() {
-        return Err(format!(
-            "ShroudEdit project lookup returned HTTP {}",
-            response.status()
-        ));
-    }
-    let project: serde_json::Value = response
-        .json()
-        .map_err(|error| format!("Invalid ShroudEdit project response: {error}"))?;
+    let project_key = api_cache::key("project-lookup", base, &serde_json::json!(mod_id));
+    let project = if let Some(cached) = api_cache::read::<serde_json::Value>(
+        root,
+        &project_key,
+        CATALOG_PROJECT_LOOKUP_CACHE_SECONDS,
+    ) {
+        if cached.is_null() {
+            return Ok(None);
+        }
+        cached
+    } else {
+        let response = client
+            .get(format!("{base}/v3/project/{mod_id}"))
+            .send()
+            .map_err(|error| format!("ShroudEdit is unreachable: {error}"))?;
+        if response.status().as_u16() == 404 {
+            api_cache::write(root, project_key, &serde_json::Value::Null);
+            return Ok(None);
+        }
+        if !response.status().is_success() {
+            return Err(format!(
+                "ShroudEdit project lookup returned HTTP {}",
+                response.status()
+            ));
+        }
+        let project: serde_json::Value = response
+            .json()
+            .map_err(|error| format!("Invalid ShroudEdit project response: {error}"))?;
+        project
+    };
     let project_id = string_field(&project, &["id", "project_id"]);
     if project_id.is_empty() || project["slug"].as_str() != Some(mod_id) {
+        api_cache::write(
+            root,
+            api_cache::key("project-lookup", base, &serde_json::json!(mod_id)),
+            &serde_json::Value::Null,
+        );
         return Ok(None);
     }
+    api_cache::write(
+        root,
+        project_key,
+        &serde_json::json!({"id": project_id, "slug": mod_id}),
+    );
     let loaders =
         serde_json::to_string(&["shroudforge", "eml"]).map_err(|error| error.to_string())?;
-    let versions = fetch_catalog_mod_versions(client, base, &project_id, &loaders)?;
+    let versions = fetch_cached_catalog_mod_versions(
+        root,
+        client,
+        base,
+        &project_id,
+        &loaders,
+        CatalogVersionStop::Number(installed_version),
+    )?;
     let installed_version_id = versions
         .iter()
         .find(|version| version["version_number"].as_str() == Some(installed_version))
@@ -251,25 +322,7 @@ pub(crate) fn fetch_catalog_mod_versions(
 ) -> Result<Vec<serde_json::Value>, String> {
     let mut versions = Vec::new();
     for offset in (0..10_000).step_by(100) {
-        let response = client
-            .get(format!("{base}/v3/project/{project_id}/version"))
-            .query(&[
-                ("loaders", loaders),
-                ("limit", "100"),
-                ("offset", &offset.to_string()),
-                ("include_changelog", "false"),
-            ])
-            .send()
-            .map_err(|error| format!("Could not read ShroudEdit versions: {error}"))?;
-        if !response.status().is_success() {
-            return Err(format!(
-                "ShroudEdit version lookup returned HTTP {}",
-                response.status()
-            ));
-        }
-        let page = response
-            .json::<Vec<serde_json::Value>>()
-            .map_err(|error| format!("Invalid ShroudEdit versions response: {error}"))?;
+        let page = fetch_catalog_mod_version_page(client, base, project_id, loaders, offset)?;
         let count = page.len();
         versions.extend(page);
         if count < 100 {
@@ -277,6 +330,119 @@ pub(crate) fn fetch_catalog_mod_versions(
         }
     }
     Err("ShroudEdit project has more than 10,000 versions".into())
+}
+
+fn fetch_catalog_mod_version_page(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    project_id: &str,
+    loaders: &str,
+    offset: usize,
+) -> Result<Vec<serde_json::Value>, String> {
+    let offset = offset.to_string();
+    let response = client
+        .get(format!("{base}/v3/project/{project_id}/version"))
+        .query(&[
+            ("loaders", loaders),
+            ("limit", "100"),
+            ("offset", offset.as_str()),
+            ("include_changelog", "false"),
+        ])
+        .send()
+        .map_err(|error| format!("Could not read ShroudEdit versions: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "ShroudEdit version lookup returned HTTP {}",
+            response.status()
+        ));
+    }
+    response
+        .json::<Vec<serde_json::Value>>()
+        .map_err(|error| format!("Invalid ShroudEdit versions response: {error}"))
+}
+
+pub(crate) fn fetch_cached_catalog_mod_versions(
+    root: &Path,
+    client: &reqwest::blocking::Client,
+    base: &str,
+    project_id: &str,
+    loaders: &str,
+    stop_at: CatalogVersionStop<'_>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let cache_key = api_cache::key(
+        "project-versions",
+        base,
+        &serde_json::json!([project_id, loaders, stop_at.cache_key()]),
+    );
+    if let Some(cached) = api_cache::read::<CachedCatalogVersions>(
+        root,
+        &cache_key,
+        CATALOG_UPDATE_CACHE_SECONDS,
+    ) {
+        if cached.complete
+            || cached
+                .versions
+                .iter()
+                .any(|version| catalog_version_matches(version, &stop_at))
+        {
+            return Ok(cached.versions);
+        }
+    }
+
+    let mut versions = Vec::new();
+    let mut complete = false;
+    for offset in (0..10_000).step_by(100) {
+        let page = fetch_catalog_mod_version_page(client, base, project_id, loaders, offset)?;
+        let count = page.len();
+        versions.extend(page.into_iter().map(compact_catalog_version));
+        if let Some(position) = versions
+            .iter()
+            .position(|version| catalog_version_matches(version, &stop_at))
+        {
+            versions.truncate(position + 1);
+            break;
+        }
+        if count < 100 {
+            complete = true;
+            break;
+        }
+    }
+    if !complete && versions.len() >= 10_000 {
+        return Err("ShroudEdit project has more than 10,000 versions".into());
+    }
+    let cached = CachedCatalogVersions { complete, versions };
+    api_cache::write(root, cache_key, &cached);
+    Ok(cached.versions)
+}
+
+fn compact_catalog_version(version: serde_json::Value) -> serde_json::Value {
+    let Some(fields) = version.as_object() else {
+        return version;
+    };
+    let mut compact = serde_json::Map::new();
+    for field in [
+        "id",
+        "project_id",
+        "version_number",
+        "date_published",
+        "version_type",
+        "game_versions",
+        "project_types",
+    ] {
+        if let Some(value) = fields.get(field) {
+            compact.insert(field.to_owned(), value.clone());
+        }
+    }
+    serde_json::Value::Object(compact)
+}
+
+fn catalog_version_matches(version: &serde_json::Value, stop_at: &CatalogVersionStop<'_>) -> bool {
+    match stop_at {
+        CatalogVersionStop::Id(id) => version["id"].as_str() == Some(*id),
+        CatalogVersionStop::Number(number) => {
+            version["version_number"].as_str() == Some(*number)
+        }
+    }
 }
 
 pub(crate) fn current_game_version(root: &Path) -> Option<String> {
@@ -288,6 +454,7 @@ pub(crate) fn current_game_version(root: &Path) -> Option<String> {
 }
 
 fn newer_catalog_version_for_registered_mod(
+    root: &Path,
     client: &reqwest::blocking::Client,
     provider: &CatalogProviderConfig,
     project_id: &str,
@@ -298,7 +465,14 @@ fn newer_catalog_version_for_registered_mod(
     let base = provider.base_url.trim_end_matches('/');
     let loaders =
         serde_json::to_string(&["shroudforge", "eml"]).map_err(|error| error.to_string())?;
-    let mut versions = fetch_catalog_mod_versions(client, base, project_id, &loaders)?;
+    let mut versions = fetch_cached_catalog_mod_versions(
+        root,
+        client,
+        base,
+        project_id,
+        &loaders,
+        CatalogVersionStop::Id(installed_version_id),
+    )?;
     versions.sort_by(|left, right| {
         right["date_published"]
             .as_str()
@@ -371,6 +545,7 @@ pub fn ensure_catalog_project_for_installed_mod(
         .build()
         .map_err(|error| error.to_string())?;
     let Some(latest) = lookup_catalog_mod_by_manifest_id(
+        root,
         &client,
         provider,
         mod_id,
@@ -457,6 +632,7 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
         {
             if installed_version_id.is_empty() {
                 lookup_catalog_mod_by_manifest_id(
+                    root,
                     &client,
                     &provider,
                     &installed.id,
@@ -483,6 +659,7 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
                 })
             } else {
                 newer_catalog_version_for_registered_mod(
+                    root,
                     &client,
                     &provider,
                     project_id,
@@ -503,6 +680,7 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
             }
         } else {
             match lookup_catalog_mod_by_manifest_id(
+                root,
                 &client,
                 &provider,
                 &installed.id,
@@ -657,14 +835,6 @@ pub fn fetch_catalog(
     if provider.kind != "shroudedit" {
         return Err(format!("unsupported catalog provider: {}", provider.kind));
     }
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(12))
-        .user_agent(format!(
-            "ShroudForge/{} (catalog)",
-            env!("CARGO_PKG_VERSION")
-        ))
-        .build()
-        .map_err(|error| error.to_string())?;
     let query = search.query.trim().chars().take(100).collect::<String>();
     let project_type = match search.project_type.as_str() {
         "schematic" => "schematic",
@@ -700,6 +870,47 @@ pub fn fetch_catalog(
         &search.environment,
     );
     let facets = serde_json::to_string(&facets).map_err(|error| error.to_string())?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(12))
+        .user_agent(format!(
+            "ShroudForge/{} (catalog)",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .build()
+        .map_err(|error| error.to_string())?;
+    let search_key = api_cache::key(
+        "search-v2",
+        &provider.base_url,
+        &serde_json::json!({
+            "query": query,
+            "projectType": project_type,
+            "loader": loader,
+            "category": category,
+            "gameVersion": game_version,
+            "environment": search.environment,
+            "sort": sort,
+            "page": page,
+            "limit": limit
+        }),
+    );
+    if let Some(mut cached) =
+        api_cache::read::<CatalogSearchResult>(root, &search_key, CATALOG_SEARCH_CACHE_SECONDS)
+    {
+        let options = fetch_cached_catalog_api_options(root, &client, provider);
+        cached.categories = options
+            .categories_by_project_type
+            .get(&cached.project_type)
+            .cloned()
+            .unwrap_or_default();
+        cached.game_versions = options.game_versions;
+        cached.project_types = options.project_types;
+        for item in &mut cached.items {
+            item.installed_mod_id = (item.project_type == "mod")
+                .then(|| installed_mod_for_catalog_project(root, &item.id, &item.slug))
+                .flatten();
+        }
+        return Ok(cached);
+    }
     let response = client
         .get(format!(
             "{}/v3/search",
@@ -826,12 +1037,16 @@ pub fn fetch_catalog(
                 .flatten(),
         });
     }
-    let (categories, game_versions) = fetch_catalog_options(&client, provider, &project_type);
-    let project_types = fetch_catalog_project_types(&client, provider);
-    Ok(CatalogSearchResult {
+    let options = fetch_cached_catalog_api_options(root, &client, provider);
+    let categories = options
+        .categories_by_project_type
+        .get(&project_type)
+        .cloned()
+        .unwrap_or_default();
+    let result = CatalogSearchResult {
         query,
         project_type,
-        project_types,
+        project_types: options.project_types,
         loader,
         category,
         game_version,
@@ -845,8 +1060,12 @@ pub fn fetch_catalog(
             .unwrap_or(items.len() as u64) as usize,
         items,
         categories,
-        game_versions,
-    })
+        game_versions: options.game_versions,
+    };
+    if !result.items.is_empty() {
+        api_cache::write(root, search_key, &result);
+    }
+    Ok(result)
 }
 
 #[derive(Default, Deserialize)]
@@ -1029,39 +1248,59 @@ fn string_values(value: Option<&serde_json::Value>) -> Vec<String> {
         .collect()
 }
 
-fn fetch_catalog_options(
+fn fetch_catalog_api_options(
     client: &reqwest::blocking::Client,
     provider: &CatalogProviderConfig,
-    project_type: &str,
-) -> (Vec<String>, Vec<String>) {
+) -> (CatalogApiOptions, bool) {
+    const DISCOVER_TYPES: [&str; 4] = ["mod", "schematic", "modpack", "server"];
     let base = provider.base_url.trim_end_matches('/');
-    let categories = client
+    let category_values = client
         .get(format!("{base}/v2/tag/category"))
         .send()
         .ok()
         .filter(|response| response.status().is_success())
         .and_then(|response| response.json::<serde_json::Value>().ok())
-        .and_then(|value| value.as_array().cloned())
-        .unwrap_or_default()
-        .iter()
-        .filter(|value| {
-            value
-                .get("project_type")
-                .and_then(serde_json::Value::as_str)
-                == Some(project_type)
-        })
-        .filter_map(|value| value.get("name").and_then(serde_json::Value::as_str))
-        .filter(|value| !matches!(value.to_ascii_lowercase().as_str(), "eml" | "shroudforge"))
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    let game_versions = client
+        .and_then(|value| value.as_array().cloned());
+    let game_version_values = client
         .get(format!("{base}/v2/tag/game_version"))
         .query(&[("type", "release")])
         .send()
         .ok()
         .filter(|response| response.status().is_success())
         .and_then(|response| response.json::<serde_json::Value>().ok())
-        .and_then(|value| value.as_array().cloned())
+        .and_then(|value| value.as_array().cloned());
+    let project_type_values = client
+        .get(format!("{base}/v2/tag/project_type"))
+        .send()
+        .ok()
+        .filter(|response| response.status().is_success())
+        .and_then(|response| response.json::<Vec<String>>().ok());
+
+    let categories_by_project_type = category_values
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|value| {
+            let project_type = value
+                .get("project_type")
+                .and_then(serde_json::Value::as_str)?;
+            let name = value.get("name").and_then(serde_json::Value::as_str)?;
+            if !matches!(project_type, "mod" | "schematic" | "modpack" | "server")
+                || matches!(name.to_ascii_lowercase().as_str(), "eml" | "shroudforge")
+            {
+                return None;
+            }
+            Some((project_type.to_owned(), name.to_owned()))
+        })
+        .fold(
+            HashMap::<String, Vec<String>>::new(),
+            |mut categories, (kind, name)| {
+                categories.entry(kind).or_default().push(name);
+                categories
+            },
+        );
+    let game_versions = game_version_values
+        .as_deref()
         .unwrap_or_default()
         .iter()
         .filter_map(|value| {
@@ -1071,29 +1310,64 @@ fn fetch_catalog_options(
                 .map(str::to_owned)
         })
         .collect::<Vec<_>>();
-    (categories, game_versions)
-}
-
-fn fetch_catalog_project_types(
-    client: &reqwest::blocking::Client,
-    provider: &CatalogProviderConfig,
-) -> Vec<String> {
-    const DISCOVER_TYPES: [&str; 4] = ["mod", "schematic", "modpack", "server"];
-    let supported = client
-        .get(format!(
-            "{}/v2/tag/project_type",
-            provider.base_url.trim_end_matches('/')
-        ))
-        .send()
-        .ok()
-        .filter(|response| response.status().is_success())
-        .and_then(|response| response.json::<Vec<String>>().ok())
-        .unwrap_or_default();
-    DISCOVER_TYPES
+    let supported = project_type_values.as_deref().unwrap_or_default();
+    let project_types = DISCOVER_TYPES
         .into_iter()
         .filter(|project_type| supported.iter().any(|value| value == project_type))
         .map(str::to_owned)
-        .collect()
+        .collect::<Vec<_>>();
+    let cacheable =
+        category_values.is_some() && game_version_values.is_some() && project_type_values.is_some();
+    (
+        CatalogApiOptions {
+            categories_by_project_type,
+            game_versions,
+            project_types,
+        },
+        cacheable,
+    )
+}
+
+fn fetch_cached_catalog_api_options(
+    root: &Path,
+    client: &reqwest::blocking::Client,
+    provider: &CatalogProviderConfig,
+) -> CatalogApiOptions {
+    let options_key = api_cache::key(
+        "options-v2",
+        &provider.base_url,
+        &serde_json::Value::Null,
+    );
+    let cached = api_cache::read::<CatalogApiOptions>(
+        root,
+        &options_key,
+        CATALOG_OPTIONS_CACHE_SECONDS,
+    );
+    if let Some(options) = cached
+        .as_ref()
+        .filter(|options| catalog_api_options_are_complete(options))
+    {
+        return options.clone();
+    }
+
+    let (options, cacheable) = fetch_catalog_api_options(client, provider);
+    if cacheable && catalog_api_options_are_complete(&options) {
+        api_cache::write(root, options_key, &options);
+        options
+    } else {
+        cached.unwrap_or(options)
+    }
+}
+
+fn catalog_api_options_are_complete(options: &CatalogApiOptions) -> bool {
+    !options.game_versions.is_empty()
+        && !options.project_types.is_empty()
+        && options.project_types.iter().all(|project_type| {
+            options
+                .categories_by_project_type
+                .get(project_type)
+                .is_some_and(|categories| !categories.is_empty())
+        })
 }
 
 struct CatalogVersionSummary {
@@ -1152,6 +1426,24 @@ pub fn fetch_catalog_project(
     {
         return Err("invalid ShroudEdit project ID".into());
     }
+    let base = provider.base_url.trim_end_matches('/');
+    let detail_key = api_cache::key("project-detail", base, &serde_json::json!(project_id));
+    if let Some(mut cached) =
+        api_cache::read::<serde_json::Value>(root, &detail_key, CATALOG_DETAIL_CACHE_SECONDS)
+    {
+        let id = cached
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let slug = cached
+            .get("slug")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        cached["installedModId"] = installed_mod_for_catalog_project(root, id, slug)
+            .map(serde_json::Value::String)
+            .unwrap_or(serde_json::Value::Null);
+        return Ok(cached);
+    }
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(20))
         .user_agent(format!(
@@ -1160,7 +1452,6 @@ pub fn fetch_catalog_project(
         ))
         .build()
         .map_err(|error| error.to_string())?;
-    let base = provider.base_url.trim_end_matches('/');
     let mut projects = fetch_catalog_projects(&client, base, &[project_id.to_owned()])?;
     let project = projects
         .remove(project_id)
@@ -1290,7 +1581,7 @@ pub fn fetch_catalog_project(
         .filter(|slug| !slug.is_empty())
         .unwrap_or_else(|| project_id.clone());
     let installed_mod_id = installed_mod_for_catalog_project(root, &project_id, &slug);
-    Ok(serde_json::json!({
+    let detail = serde_json::json!({
         "id": project_id,
         "slug": slug,
         "projectTypes": string_values(project.get("project_types")),
@@ -1315,7 +1606,9 @@ pub fn fetch_catalog_project(
         "enshroudedMod": project.get("enshrouded_mod").cloned().unwrap_or(serde_json::Value::Null),
         "enshroudedServer": project.get("enshrouded_server").cloned().unwrap_or(serde_json::Value::Null),
         "installedModId": installed_mod_id
-    }))
+    });
+    api_cache::write(root, detail_key, &detail);
+    Ok(detail)
 }
 
 pub fn read_catalog_install_registry(root: &Path) -> serde_json::Value {
@@ -1502,13 +1795,7 @@ mod tests {
 
     #[test]
     fn environment_filters_match_discover_side_choices() {
-        let client = catalog_search_facets_for_type(
-            "mod",
-            &[],
-            &[],
-            &[],
-            &["client".into()],
-        );
+        let client = catalog_search_facets_for_type("mod", &[], &[], &[], &["client".into()]);
         assert!(
             !client
                 .last()

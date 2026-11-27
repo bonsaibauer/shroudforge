@@ -76,6 +76,7 @@ const discoverProjectTypes = [
 ] as const
 
 type ProjectTab = 'description' | 'versions' | 'gallery'
+const CATALOG_SEARCH_DEBOUNCE_MS = 300
 
 function readProjectTab(value: string | null): ProjectTab {
   return value === 'versions' || value === 'gallery' ? value : 'description'
@@ -191,6 +192,8 @@ export function Discover({
   const [selectedVersionId, setSelectedVersionId] = useState(
     () => new URLSearchParams(window.location.search).get('version') || '',
   )
+  const discoverPageRef = useRef<HTMLDivElement>(null)
+  const searchTimer = useRef<number | undefined>()
   const [detailLoading, setDetailLoading] = useState(false)
   const [pendingPack, setPendingPack] = useState<{ projectId: string; slug: string; versionId: string; title: string } | null>(null)
   const [selectedOptionals, setSelectedOptionals] = useState<string[]>([])
@@ -283,7 +286,11 @@ export function Discover({
     setVersionGame([])
     setDetailLoading(false)
     writeUrl(nextFilters, nextPage, null)
-    onCommand('search-catalog', { ...nextFilters, page: nextPage })
+    if (searchTimer.current !== undefined) window.clearTimeout(searchTimer.current)
+    searchTimer.current = window.setTimeout(() => {
+      searchTimer.current = undefined
+      onCommand('search-catalog', { ...nextFilters, page: nextPage })
+    }, CATALOG_SEARCH_DEBOUNCE_MS)
   }
 
   const openProjectById = (projectId: string) => {
@@ -348,6 +355,43 @@ export function Discover({
         setDetailLoading(true)
         onCommand('load-catalog-project', { projectId: selectedProjectId })
       }
+    }
+  }, [])
+
+  useEffect(() => () => {
+    if (searchTimer.current !== undefined) window.clearTimeout(searchTimer.current)
+  }, [])
+
+  useEffect(() => {
+    const closeFiltersOutside = (event: PointerEvent) => {
+      const page = discoverPageRef.current
+      const target = event.target
+      if (!page || !(target instanceof Node)) return
+
+      page
+        .querySelectorAll<HTMLDetailsElement>(
+          '.discover-option-filter[open], .discover-environment-filter[open]',
+        )
+        .forEach((filter) => {
+          if (!filter.contains(target)) filter.open = false
+        })
+    }
+    const closeFiltersOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      discoverPageRef.current
+        ?.querySelectorAll<HTMLDetailsElement>(
+          '.discover-option-filter[open], .discover-environment-filter[open]',
+        )
+        .forEach((filter) => {
+          filter.open = false
+        })
+    }
+
+    document.addEventListener('pointerdown', closeFiltersOutside)
+    document.addEventListener('keydown', closeFiltersOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeFiltersOutside)
+      document.removeEventListener('keydown', closeFiltersOnEscape)
     }
   }, [])
 
@@ -432,7 +476,10 @@ export function Discover({
   }
 
   return (
-    <div className={`discover-page${selectedProjectId ? ' project-open' : ''}`}>
+    <div
+      ref={discoverPageRef}
+      className={`discover-page${selectedProjectId ? ' project-open' : ''}`}
+    >
       <PageHeader
         eyebrow={t('nav.modsManagement')}
         title={t('discover.title')}
@@ -552,7 +599,12 @@ export function Discover({
             />
           )}
           {(filters.projectType === 'mod' || filters.projectType === 'modpack') && (
-            <details className="discover-environment-filter">
+            <details
+              className="discover-environment-filter"
+              onMouseLeave={(event) => {
+                event.currentTarget.open = false
+              }}
+            >
               <summary>{t('discover.filter.environment')}</summary>
               <div>
                 {(['client', 'server'] as const).map((side) => (
@@ -697,6 +749,7 @@ export function Discover({
           onInstall={installSelectedVersion}
           onOpenProject={openProjectById}
           onOpenLink={(url) => onCommand('open-url', { url })}
+          onClearCache={() => onCommand('clear-catalog-cache')}
         />
       )}
       {!selectedProjectId && (catalog.state === 'loading' ? (

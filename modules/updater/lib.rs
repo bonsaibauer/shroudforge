@@ -253,6 +253,8 @@ pub fn run_request(
                 result
             })
         }
+        "clear-catalog-cache" => mod_installation::catalog::clear_catalog_api_cache(root)
+            .map(|()| serde_json::json!({"cleared":true,"successMessage":"discover.cacheCleared"})),
         "install-system-update" => (|| {
             let release = checked_system_release(root)?;
             let version = request_string(&release, "version")?.to_owned();

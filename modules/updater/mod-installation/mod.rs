@@ -1,3 +1,4 @@
+mod api_cache;
 pub mod catalog;
 pub mod check_catalog_content_updates;
 mod check_lock;

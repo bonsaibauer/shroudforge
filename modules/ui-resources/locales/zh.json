@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "是，启用原版模式",
   "vanilla.serverWarning.link": "连接将断开",
   "compatibility.title": "兼容性",
+  "discover.cacheCleared": "Discover 缓存已清除。",
   "discover.catalog.loading": "正在加载目录...",
   "discover.catalog.unavailable": "目录不可用",
   "discover.catalog.retry": "再试一次",

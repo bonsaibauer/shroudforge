@@ -287,6 +287,7 @@
   "vanilla.serverWarning.confirm": "हाँ, वैनिला सक्रिय करें",
   "vanilla.serverWarning.link": "कनेक्शन समाप्त",
   "compatibility.title": "संगतता",
+  "discover.cacheCleared": "Discover कैश साफ़ कर दिया गया।",
   "discover.catalog.loading": "सूची लोड हो रहा है..",
   "discover.catalog.unavailable": "कैटलॉग अनुपलब्ध",
   "discover.catalog.retry": "फिर से कोशिश करो",
