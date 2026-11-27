@@ -1467,7 +1467,8 @@ return function(editor)
         editor.finish_server_remote_capture(job, content, reason)
     end
 
-    function editor.server_begin_remote_paste(peer, request_id, content, metadata, done, progress)
+    function editor.server_begin_remote_paste(peer, request_id, content, metadata, done, progress,
+        validated_blueprint, validated_cell_count, validated_prop_count)
         if not editor.editor_is_server then done(false, nil, "server-runtime-not-active"); return end
         local retained = editor.server_remote_transactions[peer]
         if retained and retained.undo.recovery_required then
@@ -1490,7 +1491,8 @@ return function(editor)
             "Received the complete blueprint from the authorized client.")
         editor.clipboard, editor.active_blueprint_name = nil, nil
         local blueprint_name = "remote-" .. tostring(request_id):gsub("[^%w_-]", "")
-        editor.load_blueprint(blueprint_name, content)
+        editor.load_blueprint(blueprint_name, content,
+            validated_blueprint, validated_cell_count, validated_prop_count)
         if not editor.clipboard then
             done(false, nil, editor.editor_hint or "server-could-not-parse-blueprint")
             editor.finish_process("error", "The uploaded blueprint could not be parsed.", "warn")
@@ -1507,7 +1509,7 @@ return function(editor)
         editor.server_remote_paste = {peer = peer, request_id = request_id, metadata = metadata, progress = progress,
             done = done, cursor = {x=anchor[1], y=anchor[2], z=anchor[3]}, elapsed = 0, started = false,
             session = editor.current_session(), initial_undo = editor.undo_state}
-        shroudforge.log.debug(string.format("World Editor P2P received validated V7 blueprint %s from Steam peer %s (%d bytes, server applies it natively)",
+        shroudforge.log.debug(string.format("World Editor P2P received validated V8 blueprint %s from Steam peer %s (%d bytes, server applies it natively)",
             blueprint_name, peer, #content))
         shroudforge.log.info("World Editor: dedicated server received and validated the blueprint. Native placement is starting.")
     end
@@ -1610,6 +1612,7 @@ return function(editor)
             on_result = editor.on_p2p_result,
             on_progress = editor.on_p2p_progress,
             on_stalled = editor.on_p2p_stalled,
+            validate_blueprint = editor.validate_blueprint_content,
             on_paste = editor.server_begin_remote_paste,
             on_undo = editor.server_begin_remote_undo,
             on_abandon = editor.server_begin_remote_abandon,
@@ -1651,7 +1654,7 @@ return function(editor)
             end
             editor.remote_request_pending = true
             editor.remote_active_request = {peer = peer, request_id = request, operation = "paste"}
-            editor.set_editor_message("building", "Sending the existing V7 blueprint to the dedicated server. Its runtime performs the placement. Wait for confirmation before pressing {{keybind:undoVoxels}}.")
+            editor.set_editor_message("building", "Sending the validated V8 blueprint to the dedicated server. Its runtime performs the placement. Wait for confirmation before pressing {{keybind:undoVoxels}}.")
             shroudforge.log.debug("World Editor queued P2P blueprint request " .. tostring(request) .. " to server Steam peer " .. peer ..
                 (discovered_local_server and " (discovered from the running Dedicated Server)" or " (configured fallback)"))
             shroudforge.log.info("World Editor: blueprint placement request sent to the dedicated server. Waiting for its result.")

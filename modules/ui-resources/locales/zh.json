@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "世界编辑器",
   "settings.modules.worldEditor.description": "管理窗口和快捷键。首选项会立即保存。",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "管理供 World Editor 和 Lua API 使用的本地 SFBP 库。",
+  "settings.modules.schematics.description": "管理本地蓝图库。",
   "settings.modules.schematics.conversionMode": "SFBP 转换",
   "settings.modules.schematics.conversionMode.manual": "仅手动",
   "settings.modules.schematics.conversionMode.automatic": "自动",

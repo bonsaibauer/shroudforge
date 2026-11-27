@@ -1,4 +1,4 @@
-use crate::mod_package::{ApiVersion, MAX_MOD_BYTES};
+use crate::mod_package::ApiVersion;
 use crate::provider_config::CatalogProviderConfig;
 use crate::verify_mod_checksum::ModHashVerifier;
 use std::{
@@ -171,7 +171,7 @@ pub fn install_schematic_from_catalog(
     let (downloaded_bytes, _) = crate::download_response_body::download_response_body(
         root,
         download_client.get(&file.url),
-        MAX_MOD_BYTES,
+        shroudforge_schematics::validate_schematic_v8::MAX_BYTES as u64,
         Duration::from_secs(30),
         "Schematic download",
         "Schematic exceeds 512 MiB",

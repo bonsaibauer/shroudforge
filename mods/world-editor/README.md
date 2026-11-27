@@ -1,7 +1,7 @@
 # World Editor mod
 
 This package restores the World Editor from the 0.9 reference with its existing
-settings, SFBP V7 files, editor actions, library, rotation, paste/undo journal,
+settings, SFBP V8 files, editor actions, library, rotation, paste/undo journal,
 and Steam P2P protocol. The Lua code uses the public `runtime.world` and asset
 APIs. It contains no game-code patches, fixed game RVAs, or function-hash lookups.
 
@@ -10,7 +10,7 @@ session-bound voxel reader resolves `ecs::VoxelGrid` and `VoxelWorld` by type
 name. Native writers and prop operations resolve the admitted original call
 paths from registered names and retain the original ownership and Scene gates.
 Local and dedicated-server tests include terrain, original-size props, rotation
-and verified undo. Online capture captured 648 cells and two props, saved the V7 file
+and verified undo. Online capture captured 648 cells and two props, saved the V8 file
 on the client, and the same blueprint was placed and undone on the server.
 Existing Scene-owner resolution remains profile-backed. Save/reload persistence,
 arbitrary prop scaling and a second connected game client are separate checks.
@@ -31,7 +31,7 @@ world and Steam P2P in a validated read-only server world. While the native
 world context is unknown, Paste at cursor and Undo last paste pause without sending a local write or a
 P2P request. Install and enable World Editor on both the client and the
 Dedicated Server. The server runs the same mod headlessly. it has no UI or
-keyboard hook. The client sends the existing SFBP V7 text through
+keyboard hook. The client sends validated SFBP V8 JSON through
 `runtime.network.send_mod`, and the server parses it and invokes the same native
 paste, snapshot, verification, and undo journal used by direct edits.
 
@@ -48,11 +48,11 @@ undo protocol.
 The P2P transfer limit is 32 MiB per
 blueprint. Local blueprint files keep their existing 256 MiB limit. Online capture
 sends the two marked world positions to the server. The server uses the same
-native capture action and returns the complete V7 file in ordered chunks. The
+native capture action and returns the complete V8 file in ordered chunks. The
 client checks the sender, request ID, byte count and checksum, validates the
 blueprint and saves it under the next available local `capture-N` name. Partial
 or stale responses never become files. Reset / release cancels an online capture without
-abandoning a placement journal. Paste at cursor sends V7 content to the server and Undo last paste sends
+abandoning a placement journal. Paste at cursor sends V8 content to the server and Undo last paste sends
 the server-issued undo token, so process-local handles never cross the network.
 
 The server serializes complete capture, paste, and undo requests in a FIFO queue. Requests
@@ -122,9 +122,9 @@ Modloader UI at the World Editor module settings. The configured World Editor
 window shortcut opens or hides the single editor window. The red **×** button
 also hides it. Modloader and Debug Console use their own configurable shortcuts.
 
-When the game starts, ShroudForge launches one World Editor window host using the same Tao/Wry window approach as the Modloader UI and Debug Console. The editor window is centered lower in the game HUD. Its instruction line is at the top and the blueprint cards are arranged underneath. The World Editor window shortcut only shows or hides this whole window. Other configured shortcuts perform their editor actions without changing window visibility. A single click loads/selects a blueprint and a double-click opens the blueprint manager. The manager discovers common Enshrouded screenshot folders, lets the user browse another folder, previews supported images, and copies the chosen image into the blueprint library as `.png` plus a thumbnail. It never modifies the original screenshot. New or copied `.sfbp` files placed in `exports/world-editor/blueprints` are discovered automatically. To start a capture, select the building hammer, choose a single voxel, aim at the first corner and use **Mark next selection corner**. aim at the opposite corner and use **Mark next selection corner** again, then use **Capture and save blueprint**. The mod does not attempt to inspect or select the hammer or voxel mode automatically.
+When the game starts, ShroudForge launches one World Editor window host using the same Tao/Wry window approach as the Modloader UI and Debug Console. The editor window is centered lower in the game HUD. Its instruction line is at the top and the blueprint cards are arranged underneath. The World Editor window shortcut only shows or hides this whole window. Other configured shortcuts perform their editor actions without changing window visibility. A single click loads/selects a blueprint and a double-click opens the blueprint manager. The manager discovers common Enshrouded screenshot folders, lets the user browse another folder, previews supported images, and copies the chosen image into the blueprint library as `.png` plus a thumbnail. It never modifies the original screenshot. New or copied `.sfbp` files in the configured library folder are discovered automatically. To start a capture, select the building hammer, choose a single voxel, aim at the first corner and use **Mark next selection corner**. aim at the opposite corner and use **Mark next selection corner** again, then use **Capture and save blueprint**. The mod does not attempt to inspect or select the hammer or voxel mode automatically.
 
-The persistent `.sfbp` format writes and accepts `SHROUDFORGE_WORLD_BLUEPRINT_V7`, with either a voxel channel plus props or props alone. Each voxel cell stores its value and ShroudEdit-compatible coverage (`Unknown`, `Empty`, or `Occupied`). Captures classify successfully read non-zero cells as occupied and zero cells as empty, preserving the reference format's coverage convention. On paste, unknown cells preserve the target, empty cells clear it in replace mode, and additive mode skips empty cells. The file also stores the local selection extent and voxel-channel offset from the selection anchor, along with item IDs, native entity-template UUIDs, prop transforms, and the blueprint up axis. On paste, the cursor world position is the anchor, as in ShroudEdit. Voxel pastes are refused when the resulting channel origin is not aligned to the active grid. Props-only blueprints carry no voxel channel. Spawn requests the captured native template UUID and ItemInfo tracking recipe through the public runtime API and requires verified native support for the active build. A confirmed spawn must return the actual opaque live entity handle. Transform lookup, target replacement, and undo use that handle through native APIs. Blueprints store no build-specific runtime entity address.
+The persistent `.sfbp` format is JSON formatVersion 8. Its canonical schema and format specification are owned by the [Schematics module](../../modules/schematics/schemas/8/manifest.schema.json) and [format contract](../../modules/schematics/schemas/8/format.txt). Captures preserve voxel values and ShroudEdit-compatible coverage (`Unknown`, `Empty`, or `Occupied`). On paste, unknown cells preserve the target, empty cells clear it in replace mode, and additive mode skips empty cells. The file stores selection extent and voxel-channel offset from the selection anchor, along with item IDs, native entity-template UUIDs, prop transforms, and the blueprint up axis. On paste, the cursor world position is the anchor, as in ShroudEdit. Voxel pastes are refused when the resulting channel origin is not aligned to the active grid. Props-only blueprints carry no voxel channel. Valid legacy v7 files can be imported locally for conversion. Conversion must succeed before the blueprint can be loaded, saved through the Lua API, or sent over multiplayer. Spawn requests the captured native template UUID and ItemInfo tracking recipe through the public runtime API and requires verified native support for the active build. A confirmed spawn must return the actual opaque live entity handle. Transform lookup, target replacement, and undo use that handle through native APIs. Blueprints store no build-specific runtime entity address.
 
 The Lua voxel contract limits each read or write to 65,536 cells and requests the `voxel` channel's grid origin and cell size from the runtime. The session-bound reader resolves named services and uses the original registered read interface. It uses the original 0.5 m grid, validates tile tasks and publishes only a complete result. Fixture tests cover complete reads, pending reads and session changes. Capture and terrain writes have also been verified live on local and dedicated-server worlds. Prop capture registers `ItemInfo` placement AABBs through the Lua API, then the native query applies rotated, scaled recipe bounds before returning matching handles and transforms. Original-size props keep the original spawn scale without requiring another transform write. Other scales still require an admitted guarded scale writer. The mod does not provide a second component writer.
 
@@ -143,8 +143,8 @@ Set **Maximum props per blueprint** in the mod settings to control the per-bluep
 
 Prop capture scans incrementally: each native scan slice checks at most 8,192 entity pointers and yields after approximately 2 ms of scan time. Initialization, final result validation, and individual memory reads are outside a hard real-time guarantee. Lua continues pending scans on subsequent updates. Incomplete results never become a saved blueprint. A changed ECS epoch, unavailable world, 30 seconds without native scan progress, or the 120-second overall scan deadline aborts capture. Reset / release cancels a local pending editor callback. For a remote server edit, Reset / release requests an authenticated server release and waits for confirmation. Recipe loading and voxel/file operations have separate execution paths. Capture stage messages in the log distinguish recipe resolution, pending enumeration, and completion.
 
-The V7 format reference is in `schemas/v7.txt`. The mod loads `src/sfbp_v7.lua` to validate and decode local and transferred blueprints before activating them. Validation also uses the current prop limit and placement recipes. The same reference and validation code are published under `/schemas/sfbp/` by the website build.
+The mod validates blueprints against format 8 and checks the current prop limit and placement recipes before activation or multiplayer transfer. The schema, example, and format specification are published under `/schemas/sfbp/8/` by the website build.
 
-The standalone mod implements its editor and V7 blueprint format itself. Direct world operations use the registered native Lua APIs. In multiplayer, the server executes those same APIs. the client never writes a replicated read-only grid or sends runtime entity handles. Runtime behavior that depends on the live game, including collision, replication and save persistence, requires in-game verification.
+The standalone mod implements its editor and V8 blueprint format itself. Direct world operations use the registered native Lua APIs. In multiplayer, the server executes those same APIs. The client never writes a replicated read-only grid or sends runtime entity handles. Runtime behavior that depends on the live game, including collision, replication and save persistence, requires in-game verification.
 
 The World Editor header shows the active operation and its current phase for capture/save, load, library refresh/rename/duplicate/delete, preview, placement, rollback, and undo. It reports a step count only when the operation has a known number of coarse phases. otherwise the bar is indeterminate and shows elapsed time. Progress and visible UI messages are written through the shared logger to the role-appropriate ShroudForge log under the `world-editor` source. there is no separate UI log. INFO records meaningful phase changes and confirmed results, WARN records blocked or uncertain work, ERROR records failed writes or verification, DEBUG records inputs, target details, readiness changes, and window visibility, and TRACE records deduplicated full UI snapshots. See the current [logging API](https://shroudforge.net/tools/modding/api-reference/) for new messages. In multiplayer the server logs its own native phases and sends phase updates over the existing P2P request so the client can show them and record the received server status in its own World Editor log. Live readback confirms the in-world result. it does not confirm save persistence.

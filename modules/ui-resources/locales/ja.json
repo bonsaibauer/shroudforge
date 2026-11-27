@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "ワールドエディタ",
   "settings.modules.worldEditor.description": "ウィンドウとショートカットを管理します。設定はすぐに保存されます。",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "World Editor と Lua API が使うローカル SFBP ライブラリを管理します。",
+  "settings.modules.schematics.description": "ローカルのブループリントライブラリを管理します。",
   "settings.modules.schematics.conversionMode": "SFBP の変換",
   "settings.modules.schematics.conversionMode.manual": "手動のみ",
   "settings.modules.schematics.conversionMode.automatic": "自動",

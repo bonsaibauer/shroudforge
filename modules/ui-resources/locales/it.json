@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "Editor del mondo",
   "settings.modules.worldEditor.description": "Gestisci finestre e scorciatoie. Le preferenze vengono salvate immediatamente.",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "Gestisci la libreria SFBP locale usata da World Editor e dall’API Lua.",
+  "settings.modules.schematics.description": "Gestisci la raccolta locale di blueprint.",
   "settings.modules.schematics.conversionMode": "Conversione SFBP",
   "settings.modules.schematics.conversionMode.manual": "Solo manuale",
   "settings.modules.schematics.conversionMode.automatic": "Automatica",

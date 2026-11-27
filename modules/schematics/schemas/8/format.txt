@@ -1,10 +1,14 @@
-ShroudForge blueprint format 8
+Blueprint format 8
 Schema: https://shroudforge.net/schemas/sfbp/8/manifest.schema.json
 Extension: .sfbp
 Encoding: UTF-8 JSON object without a byte order mark
 
-Exports and imports exclusively use formatVersion 8. Earlier line-based
-formats are unsupported. Renaming a file does not convert it into format 8.
+Format 8 is the current interchange format for `.sfbp` blueprints. Catalog
+downloads and multiplayer transfers exclusively use
+formatVersion 8. A local library can retain a valid SFBP v7 file only as a
+legacy import for conversion. V7 files cannot be loaded or sent over
+multiplayer until conversion succeeds. Renaming a file does not convert it
+into format 8.
 
 The schema defines the complete document. Unknown fields and duplicate object
 keys are rejected. All numbers must be finite. JSON null is not a substitute
@@ -24,12 +28,12 @@ order with a finite squared norm at least 1e-12. Scale retains each axis,
 including nonuniform scaling. Template UUID halves are hexadecimal strings of
 1 to 16 digits. They cannot both be zero and never pass through floating point.
 No process-local entity handle is serialized. Item IDs are unsigned 32-bit
-integers greater than zero. Placement requires a current recipe for each item.
+integers greater than zero. Applications need a compatible current recipe for
+each item ID to place props.
 
-Local files are limited to 256 MiB. Online transfers retain their 32 MiB limit.
-The format allows at most 1,000,000 props. The World Editor also enforces the
-configured per-blueprint prop limit, which defaults to 60,000. Upload services
-may impose a smaller transport limit without changing this format.
+Local library files are limited to 256 MiB. The format allows at most 1,000,000
+props. Consumers may enforce a lower configured per-blueprint prop limit.
+Transfer services may impose their own size limit without changing this format.
 
 JSON Schema cannot enforce dimensions multiplied across fields, matching array
 lengths, coverage/value relations, quaternion norm, UUID pair validity or live

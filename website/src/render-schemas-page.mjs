@@ -21,9 +21,10 @@ const schemaDefinitions = [
 	},
 ]
 
-const blueprintVersions = ['8']
+const blueprintVersions = ['8', '7']
 
 function blueprintSchemaPath(version) {
+	if (version === '7') return '/schemas/sfbp/v7.txt'
 	return `/schemas/sfbp/${version}/manifest.schema.json`
 }
 
@@ -63,7 +64,7 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Schema | ${escapeHtml(config.name)}</title>
-	<meta name="description" content="Versioned ShroudForge mod package schemas and World Editor blueprint format specifications.">
+	<meta name="description" content="Versioned ShroudForge mod package schemas and blueprint format specifications.">
 	<meta name="theme-color" content="#ffffff">
 	<meta name="color-scheme" content="light">
 	<meta name="robots" content="${indexable ? 'index, follow' : 'noindex, nofollow'}">
@@ -84,7 +85,7 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 			<section class="page-intro schema-intro" aria-labelledby="page-title">
 				<div class="eyebrow">SHROUDFORGE TOOLS · STANDARDS</div>
 				<h1 id="page-title">Schema</h1>
-				<p>Versioned contracts for ShroudForge mod packages and World Editor blueprints.</p>
+				<p>Versioned schemas for mod packages and blueprint formats.</p>
 			</section>
 			<section class="schema-reference panel" aria-labelledby="schema-reference-title">
 				<header class="tool-section-heading"><div><span class="eyebrow">MACHINE-READABLE REFERENCES</span><h2 id="schema-reference-title">Mod package schemas</h2><p>Open a schema in your editor or copy its version-specific URL into the <code>$schema</code> field.</p></div><label class="preview-version-picker schema-version-picker"><span>Modloader version</span><select data-schema-version aria-label="Modloader version">${versionOptions}</select></label></header>
@@ -101,10 +102,18 @@ export function renderSchemasPage({ config, siteUrl, generatedAt, schemaVersions
 				</article></div>
 			</section>
 			<section class="schema-reference panel" aria-labelledby="blueprint-reference-title">
-				<header class="tool-section-heading"><div><span class="eyebrow">FILE FORMAT REFERENCE</span><h2 id="blueprint-reference-title">World Editor blueprints</h2><p>Blueprints use JSON format 8. Copy the schema URL into your editor to validate a .sfbp file.</p></div><label class="preview-version-picker schema-version-picker"><span>Blueprint version</span><select data-blueprint-version aria-label="Blueprint version">${blueprintVersions.map(version => `<option value="${escapeHtml(version)}" ${version === blueprintVersions[0] ? 'selected' : ''}>${escapeHtml(version)}</option>`).join('')}</select></label></header>
+				<header class="tool-section-heading"><div><span class="eyebrow">FILE FORMAT REFERENCE</span><h2 id="blueprint-reference-title">Blueprints and schematics</h2><p>Format 8 is current. Format 7 remains documented for local conversion.</p></div><label class="preview-version-picker schema-version-picker"><span>Blueprint version</span><select data-blueprint-version aria-label="Blueprint version">${blueprintVersions.map(version => `<option value="${escapeHtml(version)}" ${version === blueprintVersions[0] ? 'selected' : ''}>${escapeHtml(version)}</option>`).join('')}</select></label></header>
 				<div class="schema-manifest-example"><span>Blueprint specification URL</span><code class="schema-url-value" data-blueprint-url>${escapeHtml(blueprintSchemaUrl)}</code></div>
 				${blueprintVersions.map(version => {
 					const url = new URL(blueprintSchemaPath(version), siteUrl).href
+					if (version === '7') {
+						return `<section class="schema-version-section" data-blueprint-version-section="${escapeHtml(version)}" aria-label="Legacy blueprint format version 7" hidden><div class="schema-grid"><article class="schema-card panel">
+						<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">V7</span><div><h3>Legacy import format</h3><code>.sfbp · version 7</code></div></div>
+						<p>Line-based SFBP V7 files remain documented for local conversion to current format 8. The archived decoder is provided as a historical reference.</p>
+						<div class="schema-card-actions"><a class="schema-action-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open V7 specification</a><a class="schema-action-link" href="${escapeHtml(url)}" download>Download specification</a><button class="schema-copy-button" type="button" data-copy-schema="${escapeHtml(url)}">Copy URL</button><a class="schema-action-link" href="/schemas/sfbp/v7.lua" target="_blank" rel="noopener">Archived V7 decoder</a></div>
+						<output class="schema-copy-status" aria-live="polite"></output>
+					</article></div></section>`
+					}
 					return `<section class="schema-version-section" data-blueprint-version-section="${escapeHtml(version)}" aria-label="Blueprint format version ${escapeHtml(version)}" ${version === blueprintVersions[0] ? '' : 'hidden'}><div class="schema-grid"><article class="schema-card panel">
 						<div class="schema-card-heading"><span class="schema-file-mark" aria-hidden="true">BP</span><div><h3>Blueprint format</h3><code>.sfbp</code></div></div>
 						<p>JSON Schema for .sfbp files. Readers also validate voxel counts, coverage, transforms and placement recipes.</p>

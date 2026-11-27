@@ -35,7 +35,7 @@ Spieltransaktion muss bei verbundenem Client beobachtet werden.
 | `sf-infinite-item-split` | Subtraktion vom Quellbestand in gemeinsamem Inventarhelfer unterdrücken | Binding vorhanden, nicht auf Teilen beschränkt | Inventartransaktion und Rückabgleich entscheiden über das Ergebnis | Server-Binding vorhanden. Aufrufer umfassen Crafting, Ausrüstung, Loot und andere Systeme; frühere Aussage „split-spezifisch“ korrigiert |
 | `sf-unlock-blueprints` | Beim Assetstart Rezeptbedingungen auf `Unlock_Flame_Altar_PK / NPC_Flame_Hint01` umstellen | KFC-Transformation im gestarteten Spiel | Verändert Rezeptdaten dieser Installation; Anzeige ist keine serverseitige Freigabe | Für übereinstimmende Rezeptbedingungen auf beiden Installationen vorbereiten. Kein direkter Spielstand-Unlock und kein Runtime-Mod |
 | `sf-production-time` | Positive `RecipeInfo.craftingDuration` auf eine feste Basisdauer setzen | Vor Spielstart vorbereiten; Weltfaktor gilt zusätzlich | Gleiche Einstellung wie beim Host für passende Anzeige verwenden | Vor Serverstart separat vorbereiten. Keine automatische Übertragung der Mod-Einstellung; standardmäßig deaktiviert |
-| `world-editor` | Client-Cursor, UI und Blueprintdateien; direkte native Welt-API im Singleplayer; SFBP-V7-Transport per Steam P2P im beigetretenen Multiplayer | Direkte Platzierung und Undo bleiben lokal | Sendet denselben V7-Blueprinttext samt Cursoranker an die konfigurierte Server-Peer-ID; F4 sendet nur das Undo-Token zurück | Derselbe Mod läuft headless als Serverziel, validiert die Peer-Allowlist und führt Paste, Snapshot, Readback und Undo in seinem eigenen nativen World-Editor-Journal aus. Replikation und Persistenz bleiben Liveprüfungen |
+| `world-editor` | Client-Cursor, UI und Blueprintdateien; direkte native Welt-API im Singleplayer; validierter SFBP-Format-8-Transport per Steam P2P im beigetretenen Multiplayer | Direkte Platzierung und Undo bleiben lokal | Sendet einen validierten Format-8-Blueprint samt Cursoranker an die konfigurierte Server-Peer-ID; Format 7 wird abgewiesen. F4 sendet nur das Undo-Token zurück | Derselbe Mod läuft headless als Serverziel, validiert Format 8 und die Peer-Allowlist und führt Paste, Snapshot, Readback und Undo in seinem nativen Journal aus. Replikation und Persistenz bleiben Liveprüfungen |
 
 ## Tatsächlich laufender Stand der früheren Prüfung (vor dem P2P-Ziel)
 
@@ -64,9 +64,9 @@ Steam P2P zum Dedicated Server. Ist der Kontext nicht sicher verfügbar, sendet
 F7/F4 weder einen lokalen Schreibaufruf noch einen P2P-Auftrag. Der Server lädt
 den Mod headless und führt angeforderte Änderungen mit seiner nativen Runtime
 aus.
-P2P überträgt dieselbe `.sfbp`-V7-Datei; es gibt keinen zweiten
+P2P überträgt dieselbe `.sfbp`-Format-8-Datei; es gibt keinen zweiten
 Zell-/Prop-Befehlskatalog und keine ECS-Handles im Netzwerk. Der Server lädt
-den Mod ohne UI, prüft das vorhandene V7-Format und nutzt denselben
+den Mod ohne UI, prüft das Format 8 und nutzt denselben
 `paste_voxels`/`undo_voxels`-Pfad wie lokale native Änderungen.
 
 Wenn Client und Dedicated Server in derselben Windows-Sitzung laufen, ermittelt

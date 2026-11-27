@@ -1,5 +1,5 @@
--- Small, reliable transport for World Editor requests. Blueprint bodies are the
--- existing SFBP V7 text; this module only frames/chunks them for Steam P2P.
+-- Small, reliable transport for World Editor requests. Blueprint bodies use
+-- SFBP format 8 and are validated before sending or server dispatch.
 return function(api, callbacks)
     local M = {}
     local mod_id = "world-editor"
@@ -135,6 +135,16 @@ return function(api, callbacks)
         return callbacks.is_allowed_peer and callbacks.is_allowed_peer(peer) == true
     end
 
+    local function validate_blueprint(content)
+        if type(callbacks.validate_blueprint) ~= "function" then
+            return nil, "SFBP format 8 validation is unavailable"
+        end
+        local ok, blueprint, cell_count, prop_count = pcall(callbacks.validate_blueprint, content)
+        if not ok then return nil, tostring(blueprint) end
+        if not blueprint then return nil, cell_count or "invalid SFBP format 8 blueprint" end
+        return blueprint, cell_count, prop_count
+    end
+
     local function abandon_key(peer, request_id)
         return peer .. ":" .. request_id
     end
@@ -264,6 +274,12 @@ return function(api, callbacks)
             reply(peer, upload.request_id, "paste", false, nil, "blueprint-integrity-check-failed")
             return
         end
+        local blueprint, cell_count, prop_count = validate_blueprint(content)
+        if not blueprint then
+            reply(peer, upload.request_id, "paste", false, nil,
+                "invalid-sfbp-v8-blueprint: " .. clean(cell_count))
+            return
+        end
         queue_server_request(peer,upload.request_id,"paste",#content,function()
             local finished = false
             local function progress(phase, completed, total, message)
@@ -278,7 +294,8 @@ return function(api, callbacks)
                 drain_deferred_abandons()
             end
             progress("Validating blueprint", 1, 5, "The server received the complete blueprint and is validating it.")
-            local ok, reason = pcall(callbacks.on_paste, peer, upload.request_id, content, upload.metadata, done, progress)
+            local ok, reason = pcall(callbacks.on_paste, peer, upload.request_id, content, upload.metadata,
+                done, progress, blueprint, cell_count, prop_count)
             if not ok then done(false, nil, "server-paste-handler-failed: " .. tostring(reason)) end
         end)
     end
@@ -459,6 +476,10 @@ return function(api, callbacks)
         if client_pending then return false, "A World Editor P2P request is already waiting for the server." end
         if type(content) ~= "string" or #content == 0 or #content > maximum_blueprint_bytes then
             return false, "This blueprint exceeds the 32 MiB multiplayer transfer limit. Local blueprints are unchanged."
+        end
+        local blueprint, validation_error = validate_blueprint(content)
+        if not blueprint then
+            return false, "Only a valid SFBP format 8 blueprint can be uploaded: " .. clean(validation_error)
         end
         if type(metadata) ~= "table" or type(metadata.turns) ~= "number" or metadata.turns % 1 ~= 0 or
            metadata.turns < 0 or metadata.turns > 3 or

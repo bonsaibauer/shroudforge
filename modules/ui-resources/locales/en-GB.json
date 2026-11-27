@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "World Editor",
   "settings.modules.worldEditor.description": "Manage windows and hotkeys. Preferences are saved immediately.",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "Manage the local SFBP library used by World Editor and the Lua API.",
+  "settings.modules.schematics.description": "Manage the local blueprint library.",
   "settings.modules.schematics.conversionMode": "SFBP conversion",
   "settings.modules.schematics.conversionMode.manual": "Manual only",
   "settings.modules.schematics.conversionMode.automatic": "Automatic",

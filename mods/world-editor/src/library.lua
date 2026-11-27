@@ -1,4 +1,4 @@
--- Blueprint gameplay integration through the Modloader Schematics API.
+-- World Editor integration through the Schematics API.
 return function(editor)
     function editor.finish_save_progress()
         local capture_save = editor.process_progress.operation == "Capture and save blueprint"
@@ -28,8 +28,8 @@ return function(editor)
         local name
         local ok, schematics = pcall(shroudforge.schematics.list)
         if not ok or type(schematics) ~= "table" then
-            editor.set_editor_message("ready", "Capture stopped. The Schematics library could not be checked. Check the export folder and try {{keybind:captureAndSave}} again.")
-            editor.finish_process("error", "Could not inspect the Schematics library: " .. tostring(schematics), "error")
+            editor.set_editor_message("ready", "Capture stopped. The schematic library could not be checked. Check the export folder and try {{keybind:captureAndSave}} again.")
+            editor.finish_process("error", "Could not inspect the schematic library: " .. tostring(schematics), "error")
             return false
         end
         local existing = {}
@@ -50,9 +50,9 @@ return function(editor)
         end
         editor.active_blueprint_name = name
         editor.editor_stage = "selected"
-        editor.set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the Modloader Schematics library.")
+        editor.set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the library.")
         editor.finish_save_progress()
-        shroudforge.log.debug("World Editor help: blueprint saved as '" .. name .. editor.format_keybind_hint("' and selected. Click to select it. Manage it in the Modloader Schematics library. Press {{keybind:pasteAtCursor}} to place it."))
+        shroudforge.log.debug("World Editor help: blueprint saved as '" .. name .. editor.format_keybind_hint("' and selected. Click to select it. Manage it in the library. Press {{keybind:pasteAtCursor}} to place it."))
         return editor.save_progress.state == "complete"
     end
 
@@ -99,9 +99,9 @@ return function(editor)
             editor.finish_process("error", "The encoded blueprint exceeds the supported file limit.", "warn")
             return false
         end
-        editor.process_step("Saving schematic", capture_save and 4 or 2, capture_save and 5 or 3,
-            string.format("Saving %s (%d bytes) to the Schematics library.", name, #content))
-        editor.save_step(2, "Saving schematic")
+        editor.process_step("Saving blueprint", capture_save and 4 or 2, capture_save and 5 or 3,
+            string.format("Saving %s (%d bytes) to the local library.", name, #content))
+        editor.save_step(2, "Saving blueprint")
         local ok, err = pcall(shroudforge.schematics.save, name, content)
         if not ok then
             editor.set_editor_message("ready", "Save failed. Check that export storage is enabled, then try again.")
@@ -112,7 +112,7 @@ return function(editor)
         editor.save_step(3, "Updating library")
         shroudforge.log.info("World Editor saved persistent schematic: " .. name)
         editor.process_step("Blueprint file written", capture_save and 4 or 2, capture_save and 5 or 3,
-            "The Schematic was saved. Refreshing the blueprint list.")
+            "The blueprint was saved. Refreshing the list.")
         return true
     end
 
@@ -120,12 +120,12 @@ return function(editor)
         local name = editor.setting("blueprintName")
         if editor.save_blueprint_named(name) then
             editor.active_blueprint_name = name
-            editor.set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the Modloader Schematics library.")
+            editor.set_editor_message("selected", "Blueprint " .. name .. " saved and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the library.")
             editor.finish_save_progress()
         end
     end
 
-    function editor.load_blueprint(name, supplied_content)
+    function editor.load_blueprint(name, supplied_content, validated_blueprint, validated_cell_count, validated_prop_count)
         local remote_paste = editor.process_progress.state == "running" and
             editor.process_progress.operation == "Place blueprint from client"
         if remote_paste then
@@ -135,7 +135,8 @@ return function(editor)
             editor.begin_process("Load blueprint", "Reading blueprint", 0,
                 "Reading and checking the selected blueprint.")
         end
-        local ok, loaded = pcall(editor.load_blueprint_content, name, supplied_content)
+        local ok, loaded = pcall(editor.load_blueprint_content, name, supplied_content,
+            validated_blueprint, validated_cell_count, validated_prop_count)
         if not ok then
             editor.finish_process("error", "Blueprint loading stopped: " .. tostring(loaded), "error")
             return false
@@ -158,7 +159,7 @@ return function(editor)
     editor.refresh_blueprint_library = function()
         local ok, schematics = pcall(shroudforge.schematics.list)
         if not ok or type(schematics) ~= "table" then
-            shroudforge.log.warn("World Editor could not read the Modloader Schematics library: " .. tostring(schematics))
+            shroudforge.log.warn("World Editor could not read the schematic library: " .. tostring(schematics))
             return false
         end
         local entries = {}

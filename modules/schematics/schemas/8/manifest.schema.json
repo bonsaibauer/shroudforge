@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://shroudforge.net/schemas/sfbp/8/manifest.schema.json",
-  "title": "ShroudForge blueprint 8",
+  "title": "Blueprint format 8",
   "description": "UTF-8 JSON stored in a .sfbp file. Semantic validation also checks cell counts, coverage, quaternion norms, nonzero UUIDs and available placement recipes.",
   "type": "object",
   "additionalProperties": false,

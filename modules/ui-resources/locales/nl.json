@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "Wereldeditor",
   "settings.modules.worldEditor.description": "Beheer vensters en sneltoetsen. Voorkeuren worden direct opgeslagen.",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "Beheer de lokale SFBP-bibliotheek voor World Editor en de Lua-API.",
+  "settings.modules.schematics.description": "Beheer de lokale bibliotheek met blueprints.",
   "settings.modules.schematics.conversionMode": "SFBP-conversie",
   "settings.modules.schematics.conversionMode.manual": "Alleen handmatig",
   "settings.modules.schematics.conversionMode.automatic": "Automatisch",

@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "विश्व संपादक",
   "settings.modules.worldEditor.description": "विंडो और कीबोर्ड शॉर्टकट प्रबंधित करें। प्राथमिकताएँ तुरंत सहेजी जाती हैं।",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "World Editor और Lua API की स्थानीय SFBP लाइब्रेरी प्रबंधित करें।",
+  "settings.modules.schematics.description": "स्थानीय ब्लूप्रिंट लाइब्रेरी प्रबंधित करें।",
   "settings.modules.schematics.conversionMode": "SFBP रूपांतरण",
   "settings.modules.schematics.conversionMode.manual": "केवल मैन्युअल",
   "settings.modules.schematics.conversionMode.automatic": "स्वचालित",

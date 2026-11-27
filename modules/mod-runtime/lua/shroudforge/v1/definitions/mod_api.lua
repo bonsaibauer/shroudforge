@@ -194,7 +194,7 @@ function shroudforge.contents.read(params) end
 --- @field source string `local` or `shroudedit`.
 --- @field project_id string|nil Discover project ID when imported from ShroudEdit.
 --- @field version_id string|nil Discover version ID when imported from ShroudEdit.
---- @field valid boolean Whether the file has a supported SFBP header.
+--- @field valid boolean Whether the file is a valid SFBP format 8 document.
 --- @field size integer File size in bytes.
 --- @field modified_at integer Unix timestamp of the file modification time.
 
@@ -210,7 +210,7 @@ function shroudforge.schematics.list() end
 --- @return string
 function shroudforge.schematics.read(name) end
 
---- Saves a valid SFBP binary string using a new name in the managed library.
+--- Saves a valid SFBP format 8 JSON document using a new name in the managed library.
 --- @param name string Schematic name without a path or extension.
 --- @param data string SFBP binary data.
 function shroudforge.schematics.save(name, data) end

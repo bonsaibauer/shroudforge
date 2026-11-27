@@ -346,7 +346,11 @@ return function(editor)
         return sfbp_v8.encode(editor, source)
     end
 
-    function editor.load_blueprint_content(name, supplied_content)
+    function editor.validate_blueprint_content(content)
+        return sfbp_v8.decode(editor, content)
+    end
+
+    function editor.load_blueprint_content(name, supplied_content, validated_blueprint, validated_cell_count, validated_prop_count)
         name = name or editor.setting("blueprintName")
         local valid_name, reason = editor.valid_blueprint_name(name)
         if not valid_name then shroudforge.log.warn("World Editor: " .. reason); return end
@@ -363,14 +367,15 @@ return function(editor)
             shroudforge.log.warn("World Editor: blueprint exceeds the 256 MiB file limit")
             return
         end
-        local blueprint, cell_count, prop_count = sfbp_v8.decode(editor, content)
+        local blueprint, cell_count, prop_count = validated_blueprint, validated_cell_count, validated_prop_count
+        if not blueprint then blueprint, cell_count, prop_count = sfbp_v8.decode(editor, content) end
         if not blueprint then return end
         editor.clipboard = blueprint
         editor.selection_a, editor.selection_b = nil, nil
         editor.placement_preview = nil
         editor.active_blueprint_name = name
         editor.editor_stage = "selected"
-        editor.set_editor_message("selected", "Blueprint " .. name .. " loaded and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the Modloader Schematics library.")
+        editor.set_editor_message("selected", "Blueprint " .. name .. " loaded and selected. Press {{keybind:pasteAtCursor}} to place it. Covers can be managed in the library.")
         shroudforge.log.info(editor.format_keybind_hint(string.format("World Editor loaded blueprint '%s' (%d cells, %d props). It is selected and ready for {{keybind:pasteAtCursor}} placement.", editor.active_blueprint_name, cell_count, prop_count)))
         return true
     end

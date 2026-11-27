@@ -259,9 +259,18 @@ async function validate() {
   assert(schemaHtml.includes('href="/schemas/1.8.2/modpack.schema.json"'), "The schema catalog must link to the modpack schema.");
   const blueprintSchema = JSON.parse(await readRequired("schemas/sfbp/8/manifest.schema.json"));
   const blueprintExample = JSON.parse(await readRequired("schemas/sfbp/8/manifest.example.json"));
+  for (const name of ["manifest.schema.json", "manifest.example.json", "format.txt"]) {
+    const canonicalSource = await fs.readFile(path.resolve(import.meta.dirname, `../../modules/schematics/schemas/8/${name}`), "utf8");
+    assert(await readRequired(`schemas/sfbp/8/${name}`) === canonicalSource, `The published blueprint ${name} must match its canonical schema.`);
+  }
   assert(blueprintSchema.$id === "https://shroudforge.net/schemas/sfbp/8/manifest.schema.json" && blueprintExample.$schema === blueprintSchema.$id && blueprintExample.formatVersion === 8, "Blueprint format 8 must publish its JSON schema and matching example.");
   assert(schemaHtml.includes('href="https://shroudforge.net/schemas/sfbp/8/manifest.schema.json"') || schemaHtml.includes(`/schemas/sfbp/8/manifest.schema.json`), "The schema catalog must expose blueprint format 8.");
   assert((await readRequired("schemas/sfbp/8/format.txt")).includes("formatVersion 8"), "The blueprint format 8 semantic contract must be published.");
+  for (const [sourceName, publishedName] of [["format.txt", "v7.txt"], ["sfbp_v7.lua", "v7.lua"]]) {
+    const legacySource = await fs.readFile(path.resolve(import.meta.dirname, `../../modules/schematics/schemas/7/${sourceName}`), "utf8");
+    assert(await readRequired(`schemas/sfbp/${publishedName}`) === legacySource, `The published legacy blueprint reference ${publishedName} must match its canonical source.`);
+  }
+  assert(schemaHtml.includes("/schemas/sfbp/v7.txt") && schemaHtml.includes("/schemas/sfbp/v7.lua"), "The schema catalog must retain V7 documentation for legacy conversion.");
   const snapshotDirectory = path.resolve(import.meta.dirname, "../schema-snapshots");
   const versions = (await fs.readdir(snapshotDirectory, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name);
   assert(versions.includes(repositoryVersion), "The current versioned schema snapshot is missing.");

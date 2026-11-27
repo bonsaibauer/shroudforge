@@ -338,10 +338,16 @@ async function build() {
   const blueprintV8Directory = path.join(blueprintSchemaDirectory, "8");
   await fs.mkdir(blueprintV8Directory, { recursive: true });
   for (const name of ["manifest.schema.json", "manifest.example.json", "format.txt"]) {
-    const source = path.join(repositoryDirectory, "mods", "world-editor", "schemas", "8", name);
+    const source = path.join(repositoryDirectory, "modules", "schematics", "schemas", "8", name);
     const stat = await fs.lstat(source);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Blueprint schema must be a regular file: ${source}`);
     await fs.copyFile(source, path.join(blueprintV8Directory, name));
+  }
+  for (const [sourceName, publishedName] of [["format.txt", "v7.txt"], ["sfbp_v7.lua", "v7.lua"]]) {
+    const source = path.join(repositoryDirectory, "modules", "schematics", "schemas", "7", sourceName);
+    const stat = await fs.lstat(source);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Legacy blueprint reference must be a regular file: ${source}`);
+    await fs.copyFile(source, path.join(blueprintSchemaDirectory, publishedName));
   }
   const toolDirectory = path.join(outputDirectory, modSettingsRelativePath);
   await fs.mkdir(toolDirectory, { recursive: true });

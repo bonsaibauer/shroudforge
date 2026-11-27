@@ -964,10 +964,35 @@ do
     end
     local peer,client_id="76561198000000001","76561198000000002"
     local results={}
-    local client=bridge_factory(api(client_id,c_messages,s_messages,false),{on_result=function(op,ok,tx) results[op]={ok,tx} end})
+    local function validate_v8(content)
+        if content:find('"formatVersion"%s*:%s*8') then return true end
+        return nil, "unsupported blueprint format"
+    end
+    local client=bridge_factory(api(client_id,c_messages,s_messages,false),{
+        validate_blueprint=validate_v8,
+        on_result=function(op,ok,tx) results[op]={ok,tx} end})
     local server=bridge_factory(api(peer,s_messages,c_messages,true),{is_allowed_peer=function(p) return p==client_id end,
+        validate_blueprint=validate_v8,
         on_paste=function(_,_,content,_,done) paste_calls=paste_calls+1;paste_content=content;done(true,"tx_fixture","ok") end,
         on_undo=function(_,_,tx,done) equal(tx,"tx_fixture","retained undo token");undo_calls=undo_calls+1;done(true,"ok") end})
+    local legacy_v7="SHROUDFORGE_WORLD_BLUEPRINT_V7\ny\n1,1,1\nprops\n-\n-\n-\n-\n-\n0"
+    local denied, denial=client.start_paste(peer,legacy_v7,
+        {anchor={0,0,0},turns=1,voxelMode="replace",targetPropMode="keep"})
+    assert(not denied and denial:find("format 8",1,true),"client refuses to upload SFBP v7")
+    equal(#s_messages,0,"rejected SFBP v7 never enters the upload queue")
+    local function adler32(content)
+        local a,b=1,0
+        for index=1,#content do a=(a+content:byte(index))%65521;b=(b+a)%65521 end
+        return string.format("%08x",b*65536+a)
+    end
+    s_messages[#s_messages+1]={peer_steam_id=client_id,from_mod="world-editor",payload=table.concat({
+        "B","forged-v7",#legacy_v7,1,adler32(legacy_v7),0,0,0,0,"replace","keep","v1"},"|")}
+    s_messages[#s_messages+1]={peer_steam_id=client_id,from_mod="world-editor",
+        payload="C|forged-v7|1|v1\n"..legacy_v7}
+    server.tick(0.1)
+    equal(paste_calls,0,"server rejects a direct SFBP v7 upload before dispatch")
+    assert(c_messages[#c_messages].payload:find("invalid-sfbp-v8-blueprint",1,true),
+        "server reports invalid SFBP v7 content")
     assert(client.start_paste(peer,online_file,{anchor={0,0,0},turns=1,voxelMode="replace",targetPropMode="keep"}))
     for _=1,10 do client.tick(0.1);server.tick(0.1) end
     equal(paste_calls,1,"F7 dispatches exactly once through shared multi-chunk framing")
@@ -992,7 +1017,12 @@ do
                 send_mod=function(peer,_,payload) replies[#replies+1]={peer=peer,payload=payload};return true end,
                 receive_mod=function(limit) local r={};while #inbox>0 and #r<limit do r[#r+1]=table.remove(inbox,1) end;return r end}}
     end
+    local function validate_v8(content)
+        if content:find('"formatVersion"%s*:%s*8') then return true end
+        return nil, "unsupported blueprint format"
+    end
     local callbacks={is_allowed_peer=function(peer) return authorized[peer]==true end,
+        validate_blueprint=validate_v8,
         on_paste=function(peer,id,content,_,done) calls[#calls+1]={peer=peer,id=id,content=content,done=done} end,
         on_capture=function(peer,id,_,done) calls[#calls+1]={peer=peer,id=id,done=done,capture=true} end,
         on_abandon=function(_,_,_,_,done) done(true,"released") end}
@@ -1004,7 +1034,7 @@ do
                     payload=payload:gsub("^([BC])|[^|]+|","%1|same-request|")
                     inbox[#inbox+1]={peer_steam_id=peer,from_mod=mod,payload=payload};return true
                 end}}
-        local client=factory(api,{})
+        local client=factory(api,{validate_blueprint=validate_v8})
         assert(client.start_paste("76561198000000001",online_file,{anchor={10,10,10},turns=0,voxelMode="replace",targetPropMode="keep"}))
         -- Both headers arrive before either multi-chunk body is complete.
         return client

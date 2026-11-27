@@ -783,7 +783,7 @@
   "settings.modules.worldEditor.title": "Editor del mundo",
   "settings.modules.worldEditor.description": "Administra ventanas y atajos. Las preferencias se guardan al instante.",
   "settings.modules.schematics.title": "Schematics",
-  "settings.modules.schematics.description": "Administra la biblioteca SFBP local que usan World Editor y la API de Lua.",
+  "settings.modules.schematics.description": "Administra la biblioteca local de planos.",
   "settings.modules.schematics.conversionMode": "Conversión de SFBP",
   "settings.modules.schematics.conversionMode.manual": "Solo manual",
   "settings.modules.schematics.conversionMode.automatic": "Automática",

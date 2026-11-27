@@ -688,7 +688,7 @@ pub fn migrate_legacy_directory(
         if let Some(parent) = legacy.parent()
             && fs::read_dir(parent)
                 .map_err(|error| {
-                    format!("Could not inspect the legacy World Editor folder: {error}")
+                    format!("Could not inspect the legacy blueprint folder: {error}")
                 })?
                 .next()
                 .is_none()

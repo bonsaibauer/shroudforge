@@ -71,7 +71,10 @@ end
 
 function schema.decode(editor, content)
     local ok, blueprint = pcall(function() return validate(editor, json.decode(content), true) end)
-    if not ok then shroudforge.log.warn("World Editor: " .. tostring(blueprint)); return end
+    if not ok then
+        shroudforge.log.warn("World Editor: " .. tostring(blueprint))
+        return nil, tostring(blueprint)
+    end
     return blueprint, #(blueprint.cells or {}), #blueprint.props
 end
 
