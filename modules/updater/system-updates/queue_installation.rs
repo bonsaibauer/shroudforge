@@ -10,8 +10,15 @@ pub fn queue_latest_installation(root: &Path) -> Result<serde_json::Value, Strin
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         let installed = crate::installed_release(root);
-        let release = crate::fetch_system_release::fetch_latest(&provider, &installed.version)?
-            .ok_or("No compatible ShroudForge release is available for installation.")?;
+        let cached_release = config.pointer("/modules/updates/system/latestRelease");
+        let release = crate::fetch_system_release::fetch_latest_with_cached_checksum(
+            &provider,
+            &installed.version,
+            cached_release.and_then(|release| release["version"].as_str()),
+            cached_release.and_then(|release| release["checksum"].as_str()),
+            cached_release.and_then(|release| release["downloadUrl"].as_str()),
+        )?
+        .ok_or("No compatible ShroudForge release is available for installation.")?;
         let version = release.version;
         let payload = serde_json::json!({
             "version": version.clone(),

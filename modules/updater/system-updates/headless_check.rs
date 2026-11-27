@@ -52,7 +52,14 @@ pub(crate) fn headless_check_system_updates(
                 .and_then(|value| value["build"].as_str()?.parse().ok())
         })
         .unwrap_or(0);
-    let result = crate::fetch_system_release::fetch_latest(&provider, current_version)?;
+    let cached_release = config.pointer("/modules/updates/system/latestRelease");
+    let result = crate::fetch_system_release::fetch_latest_with_cached_checksum(
+        &provider,
+        current_version,
+        cached_release.and_then(|release| release["version"].as_str()),
+        cached_release.and_then(|release| release["checksum"].as_str()),
+        cached_release.and_then(|release| release["downloadUrl"].as_str()),
+    )?;
     let Some(release) = result else {
         let checked_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

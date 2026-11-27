@@ -49,6 +49,30 @@ pub fn fetch_latest(
     include_prereleases: bool,
     include_checksum: bool,
 ) -> Result<Option<ReleaseMetadata>, String> {
+    fetch_latest_with_cached_checksum(
+        base_url,
+        project_id,
+        current_version,
+        include_prereleases,
+        include_checksum,
+        None,
+        None,
+        None,
+    )
+}
+
+/// Find the newest compatible release and reuse its previously verified
+/// checksum when the selected release tag has not changed.
+pub fn fetch_latest_with_cached_checksum(
+    base_url: &str,
+    project_id: &str,
+    current_version: &str,
+    include_prereleases: bool,
+    include_checksum: bool,
+    cached_version: Option<&str>,
+    cached_checksum: Option<&str>,
+    cached_download_url: Option<&str>,
+) -> Result<Option<ReleaseMetadata>, String> {
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(15))
         .user_agent(format!("ShroudForge/{current_version} (modloader-ui)"))
@@ -109,7 +133,18 @@ pub fn fetch_latest(
         return Ok(None);
     };
     let checksum = if include_checksum {
-        Some(fetch_checksum(&client, &checksum_url)?)
+        let cached_checksum = cached_version
+            .zip(cached_checksum)
+            .filter(|(cached_version, checksum)| {
+                *cached_version == version.as_str()
+                    && cached_download_url == Some(download_url.as_str())
+                    && is_sha256(checksum)
+            })
+            .map(|(_, checksum)| checksum.to_ascii_lowercase());
+        Some(match cached_checksum {
+            Some(checksum) => checksum,
+            None => fetch_checksum(&client, &checksum_url)?,
+        })
     } else {
         None
     };
@@ -143,10 +178,14 @@ fn fetch_checksum(client: &reqwest::blocking::Client, url: &str) -> Result<Strin
         .next()
         .unwrap_or_default()
         .to_ascii_lowercase();
-    if checksum.len() != 64 || !checksum.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if !is_sha256(&checksum) {
         return Err("GitHub release does not contain a valid SHA-256 checksum".into());
     }
     Ok(checksum)
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 pub fn parse_release_tag(tag: &str) -> Result<(String, u64), String> {
