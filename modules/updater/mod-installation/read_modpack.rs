@@ -1,218 +1,109 @@
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashSet,
-    io::{Read, Seek},
-    sync::LazyLock,
-};
+use shroudforge_package::modpack::{ModpackManifest, PackMod};
+use std::{collections::HashSet, io::{Read, Seek, SeekFrom}, sync::LazyLock};
 
-pub const MAX_PACK_BYTES: u64 = 1024 * 1024;
-pub const MANIFEST_NAME: &str = "shroudforge.index.json";
-pub const SCHEMA: &str = include_str!("../../modloader/manifest/modpack.schema.json");
+pub const MAX_ARCHIVE_BYTES: u64 = 95 * 1024 * 1024;
+pub const MAX_EXPANDED_BYTES: u64 = 512 * 1024 * 1024;
+pub const MAX_ENTRIES: usize = 10_000;
+pub const MANIFEST_NAME: &str = "modpack.json";
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Modpack {
-    #[serde(rename = "$schema", skip_serializing_if = "Option::is_none")]
-    pub schema: Option<String>,
-    pub format_version: u32,
-    pub game: String,
-    pub name: String,
-    pub version_id: String,
-    pub summary: Option<String>,
-    pub game_versions: Vec<String>,
-    pub mods: Vec<PackMod>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PackMod {
-    pub project_id: String,
-    pub version_id: String,
-    pub sha512: String,
-}
-
-pub fn parse_manifest(bytes: &[u8]) -> Result<Modpack, String> {
-    if bytes.len() as u64 > MAX_PACK_BYTES {
-        return Err("modpack manifest exceeds 1 MiB".into());
+pub fn read_modpack<R: Read + Seek>(mut input: R) -> Result<ModpackManifest, String> {
+    let size = input.seek(SeekFrom::End(0)).map_err(|error| error.to_string())?;
+    if size > MAX_ARCHIVE_BYTES {
+        return Err(".sfpack exceeds 95 MiB".into());
     }
-    static VALIDATOR: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
-        jsonschema::validator_for(
-            &serde_json::from_str::<serde_json::Value>(SCHEMA)
-                .expect("bundled sfpack schema is JSON"),
-        )
-        .expect("bundled sfpack schema is valid")
+    input.seek(SeekFrom::Start(0)).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(input).map_err(|error| error.to_string())?;
+    if archive.len() > MAX_ENTRIES {
+        return Err(".sfpack contains more than 10,000 entries".into());
+    }
+    let manifest_bytes = read_json_entry(&mut archive, MANIFEST_NAME)?;
+    let pack = shroudforge_package::modpack::parse_manifest(&manifest_bytes)?;
+    let bundled = pack.mods.iter().filter_map(|item| match item {
+        PackMod::Bundled { path, .. } => Some(path.as_str()),
+        _ => None,
+    }).collect::<Vec<_>>();
+    let mut names = HashSet::new();
+    let mut payloads = HashSet::new();
+    let mut expanded = 0_u64;
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index).map_err(|error| error.to_string())?;
+        let name = entry.name().map_err(|error| error.to_string())?.into_owned();
+        let path = name.trim_end_matches('/');
+        if !portable_archive_path(path)
+            || !names.insert(path.to_ascii_lowercase())
+            || entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000)
+            || !matches!(entry.compression(), zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated)
+        {
+            return Err(format!("invalid .sfpack entry {name}"));
+        }
+        let owner = bundled.iter().find(|root| path == **root || path.strip_prefix(**root).is_some_and(|rest| rest.starts_with('/')));
+        if path != MANIFEST_NAME && owner.is_none() && !(entry.is_dir() && path == "mods") {
+            return Err(format!("undeclared .sfpack entry {name}"));
+        }
+        if owner.is_some_and(|root| path == *root) && !entry.is_dir() {
+            return Err(format!("bundled mod root {name} must be a directory"));
+        }
+        if path == MANIFEST_NAME && entry.is_dir() {
+            return Err("modpack.json must be a file".into());
+        }
+        if entry.is_dir() { continue }
+        if let Some(root) = owner { payloads.insert(*root); }
+        expanded = expanded.checked_add(entry.size()).ok_or("expanded .sfpack size overflow")?;
+        if expanded > MAX_EXPANDED_BYTES { return Err("expanded .sfpack exceeds 512 MiB".into()) }
+        let copied = std::io::copy(&mut entry.take(MAX_EXPANDED_BYTES + 1), &mut std::io::sink())
+            .map_err(|error| error.to_string())?;
+        if copied > MAX_EXPANDED_BYTES { return Err(format!(".sfpack entry {name} exceeds 512 MiB")) }
+    }
+    static MOD_VALIDATOR: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
+        jsonschema::validator_for(&serde_json::from_str::<serde_json::Value>(
+            include_str!("../../modloader/manifest/manifest.schema.json"))
+            .expect("bundled mod schema is JSON")).expect("bundled mod schema is valid")
     });
-    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
-    if let Err(error) = VALIDATOR.validate(&value) {
-        return Err(format!(
-            "invalid sfpack manifest at {}: {error}",
-            error.instance_path
-        ));
-    }
-    let pack: Modpack = serde_json::from_value(value).map_err(|e| e.to_string())?;
-    let mut projects = HashSet::new();
-    for item in &pack.mods {
-        if !projects.insert(&item.project_id) {
-            return Err(format!("duplicate modpack project `{}`", item.project_id));
+    static EXTENSION_VALIDATOR: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
+        jsonschema::validator_for(&serde_json::from_str::<serde_json::Value>(
+            include_str!("../../modloader/manifest/extended.mod.schema.json"))
+            .expect("bundled extension schema is JSON")).expect("bundled extension schema is valid")
+    });
+    for root in bundled {
+        if !payloads.contains(root) { return Err(format!("bundled mod folder {root} is empty or missing")) }
+        let mod_path = format!("{root}/mod.json");
+        if names.contains(&mod_path.to_ascii_lowercase()) {
+            let value: serde_json::Value = serde_json::from_slice(&read_json_entry(&mut archive, &mod_path)?)
+                .map_err(|error| format!("{mod_path}: {error}"))?;
+            MOD_VALIDATOR.validate(&value).map_err(|error| format!("{mod_path}: {error}"))?;
+            if value["id"].as_str() != root.rsplit('/').next() {
+                return Err(format!("{mod_path} id differs from its folder"));
+            }
+        }
+        let extension_path = format!("{root}/extended.mod.json");
+        if names.contains(&extension_path.to_ascii_lowercase()) {
+            let value: serde_json::Value = serde_json::from_slice(&read_json_entry(&mut archive, &extension_path)?)
+                .map_err(|error| format!("{extension_path}: {error}"))?;
+            EXTENSION_VALIDATOR.validate(&value).map_err(|error| format!("{extension_path}: {error}"))?;
         }
     }
     Ok(pack)
 }
 
-pub fn read_modpack<R: Read + Seek>(input: R) -> Result<Modpack, String> {
-    let mut zip = zip::ZipArchive::new(input).map_err(|e| e.to_string())?;
-    if zip.len() != 1 {
-        return Err("sfpack must contain only shroudforge.index.json".into());
-    }
-    let mut entry = zip
-        .by_name(MANIFEST_NAME)
-        .map_err(|_| "missing shroudforge.index.json")?;
-    if entry.is_dir()
-        || entry
-            .unix_mode()
-            .is_some_and(|mode| mode & 0o170000 == 0o120000)
-        || !matches!(
-            entry.compression(),
-            zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated
-        )
-        || entry.size() > MAX_PACK_BYTES
-    {
-        return Err("invalid sfpack manifest entry".into());
-    }
+fn read_json_entry<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, name: &str) -> Result<Vec<u8>, String> {
+    let mut entry = archive.by_name(name).map_err(|_| format!("missing {name}"))?;
+    if entry.is_dir() || entry.size() > 1024 * 1024 { return Err(format!("invalid {name}")) }
     let mut bytes = Vec::new();
-    (&mut entry)
-        .take(MAX_PACK_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
-    parse_manifest(&bytes)
+    entry.by_ref().take(1024 * 1024 + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
+    if bytes.len() > 1024 * 1024 { return Err(format!("{name} exceeds 1 MiB")) }
+    Ok(bytes)
 }
 
-/// Validate a complete pinned set against v3 version metadata. Catalog readers
-/// and the installer both enforce this contract before writing any package.
-pub fn validate_versions(pack: &Modpack, versions: &[serde_json::Value]) -> Result<(), String> {
-    for item in &pack.mods {
-        let version = versions
-            .iter()
-            .find(|version| version["id"].as_str() == Some(&item.version_id))
-            .ok_or_else(|| format!("modpack version `{}` is unavailable", item.version_id))?;
-        if version["project_id"].as_str() != Some(&item.project_id)
-            || !matches!(
-                version["status"].as_str(),
-                Some("listed" | "archived" | "unlisted")
-            )
-            || !contains(&version["project_types"], "mod")
-            || !(contains(&version["loaders"], "shroudforge")
-                || contains(&version["loaders"], "eml"))
-        {
-            return Err(format!(
-                "version `{}` is not a public ShroudForge/EML mod of project `{}`",
-                item.version_id, item.project_id
-            ));
-        }
-        if !pack
-            .game_versions
-            .iter()
-            .all(|game| contains(&version["game_versions"], game))
-        {
-            return Err(format!(
-                "mod `{}` does not support every game version declared by the pack",
-                item.project_id
-            ));
-        }
-        let file = version["files"]
-            .as_array()
-            .and_then(|files| {
-                files
-                    .iter()
-                    .find(|file| file["primary"].as_bool() == Some(true))
-                    .or_else(|| files.first())
-            })
-            .ok_or_else(|| format!("version `{}` has no primary package", item.version_id))?;
-        if !file["hashes"]["sha512"]
-            .as_str()
-            .is_some_and(|hash| hash.eq_ignore_ascii_case(&item.sha512))
-        {
-            return Err(format!(
-                "pinned ZIP checksum does not match the selected package of version `{}`",
-                item.version_id
-            ));
-        }
-        if !file["filename"]
-            .as_str()
-            .is_some_and(|name| name.to_ascii_lowercase().ends_with(".zip"))
-            || !file["url"]
-                .as_str()
-                .is_some_and(|url| url.starts_with("https://"))
-            || !file["size"]
-                .as_u64()
-                .is_some_and(|size| size > 0 && size <= 512 * 1024 * 1024)
-        {
-            return Err(format!(
-                "version `{}` does not contain a supported mod ZIP",
-                item.version_id
-            ));
-        }
-        for dependency in version["dependencies"].as_array().into_iter().flatten() {
-            let project_id = dependency["project_id"].as_str();
-            let version_id = dependency["version_id"].as_str();
-            let matches = pack.mods.iter().any(|candidate| {
-                (project_id.is_some() || version_id.is_some())
-                    && project_id.is_none_or(|id| candidate.project_id == id)
-                    && version_id.is_none_or(|id| candidate.version_id == id)
-            });
-            match dependency["dependency_type"].as_str() {
-                Some("required") if !matches => {
-                    return Err(format!(
-                        "mod `{}` requires an unlisted or conflicting dependency `{}`",
-                        item.project_id,
-                        version_id.or(project_id).unwrap_or("unknown")
-                    ));
-                }
-                Some("incompatible") if matches => {
-                    return Err(format!(
-                        "mod `{}` conflicts with another pinned pack mod",
-                        item.project_id
-                    ));
-                }
-                _ => {}
-            }
-        }
+fn portable_archive_path(path: &str) -> bool {
+    if path.is_empty() || path.len() > 4096 || path.starts_with('/') || path.contains('\\')
+        || path.chars().any(|character| character.is_control() || matches!(character, ':' | '<' | '>' | '"' | '?' | '*' | '|')) {
+        return false;
     }
-    Ok(())
-}
-
-fn contains(value: &serde_json::Value, expected: &str) -> bool {
-    value
-        .as_array()
-        .is_some_and(|values| values.iter().any(|value| value.as_str() == Some(expected)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn modpack_182_schema_accepts_three_sources_and_rejects_old_format() {
-        let validator = jsonschema::validator_for(
-            &serde_json::from_str::<serde_json::Value>(SCHEMA).unwrap(),
-        )
-        .unwrap();
-        let example: serde_json::Value =
-            serde_json::from_str(include_str!("../../modloader/manifest/modpack.example.json"))
-                .unwrap();
-        assert!(validator.is_valid(&example));
-
-        let mut old = example.clone();
-        old["formatVersion"] = json!(1);
-        assert!(!validator.is_valid(&old));
-
-        let mut missing_hash = example.clone();
-        missing_hash["mods"][2].as_object_mut().unwrap().remove("sha512");
-        assert!(!validator.is_valid(&missing_hash));
-
-        let mut unsafe_path = example;
-        unsafe_path["mods"][0]["path"] = json!("mods/../escape");
-        assert!(!validator.is_valid(&unsafe_path));
-    }
+    path.split('/').all(|part| {
+        if part.is_empty() || matches!(part, "." | "..") || part.ends_with(' ') || part.ends_with('.') { return false }
+        let base = part.split('.').next().unwrap_or_default().to_ascii_uppercase();
+        !matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+            && !(base.len() == 4 && (base.starts_with("COM") || base.starts_with("LPT"))
+                && base.as_bytes()[3].is_ascii_digit() && base.as_bytes()[3] != b'0')
+    })
 }

@@ -703,6 +703,24 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                         next_refresh = Instant::now();
                         continue;
                     }
+                    if result.operation == "preview-modpack" {
+                        if let Ok(mut catalog) = catalog_state.lock() {
+                            match result.result {
+                                Ok(preview) => {
+                                    catalog["packPreview"] = preview;
+                                    catalog["packPreviewState"] = "ready".into();
+                                    catalog["packPreviewError"] = serde_json::Value::Null;
+                                }
+                                Err(error) => {
+                                    catalog["packPreview"] = serde_json::Value::Null;
+                                    catalog["packPreviewState"] = "error".into();
+                                    catalog["packPreviewError"] = error.into();
+                                }
+                            }
+                        }
+                        next_refresh = Instant::now();
+                        continue;
+                    }
                     if result.operation == "check-system-update" {
                         if let Ok(mut release) = release_state.lock() {
                             match &result.result {
@@ -1385,6 +1403,12 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                                     catalog["detailState"] = "loading".into();
                                     catalog["detailError"] = serde_json::Value::Null;
                                 }
+                            } else if request["command"] == "preview-modpack" {
+                                if let Ok(mut catalog) = catalog_state.lock() {
+                                    catalog["packPreviewState"] = "loading".into();
+                                    catalog["packPreviewError"] = serde_json::Value::Null;
+                                    catalog["packPreview"] = serde_json::Value::Null;
+                                }
                             }
                             if operation == "check-system-update" {
                                 if let Ok(mut release) = release_state.lock() {
@@ -1394,7 +1418,7 @@ pub(crate) fn run_with_arguments(arguments: Arguments) -> Result<(), Box<dyn std
                             }
                             if matches!(
                                 request["command"].as_str(),
-                                Some("search-catalog" | "load-catalog-project" | "install-mod" | "update-mod")
+                                Some("search-catalog" | "load-catalog-project" | "preview-modpack" | "install-mod" | "update-mod")
                             ) {
                                 request["provider"] = active_provider.clone();
                             }

@@ -3,7 +3,7 @@ use crate::{SettingControl, read_manifest_path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use shroudforge_hotkeys::Hotkey;
-use std::{fs, path::Path};
+use std::path::Path;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -150,21 +150,12 @@ pub fn validate_hotkey_configuration(
         }
     }
 
-    let packages = match fs::read_dir(crate::paths::mods_dir(root)) {
-        Ok(packages) => Some(packages),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(format!("Could not inspect mod hotkeys: {error}")),
-    };
-    for entry in packages.into_iter().flatten() {
-        let entry = entry.map_err(|error| format!("Could not inspect mod hotkeys: {error}"))?;
-        let package = entry.path();
-        if entry.file_name().to_string_lossy().starts_with('.')
-            || !entry
-                .file_type()
-                .map_err(|error| error.to_string())?
-                .is_dir()
-            || !package.join("mod.json").is_file()
-        {
+    let packages = crate::modpack::package_locations(&crate::paths::mods_dir(root))
+        .map_err(|error| format!("Could not inspect mod hotkeys: {error}"))?;
+    for location in packages {
+        if !location.pack_ready { continue }
+        let package = location.path;
+        if !package.join("mod.json").is_file() {
             continue;
         }
         let manifest = match read_manifest_path(root, &package) {
@@ -311,7 +302,7 @@ pub fn assess_hotkey_change(
             assess_binding(root, &config, binding, None)
         }
         HotkeyAssessmentTarget::Mod { id, key, values } => {
-            let package = crate::package_lookup::find_mod_package(root, id)
+            let package = crate::package_lookup::find_mod_package_by_reference(root, id)
                 .ok_or("mod package not found")?;
             let manifest = crate::config::read_manifest_path(root, &package)?;
             if !manifest.settings.iter().any(|setting| {
@@ -324,7 +315,7 @@ pub fn assess_hotkey_change(
                 .get(key)
                 .ok_or_else(|| format!("Missing hotkey setting '{}.{key}'", id))?;
             let config = crate::config::read_loader(root)?;
-            assess_binding(root, &config, binding, Some((id, values, None)))
+            assess_binding(root, &config, binding, Some((&manifest.id, values, None)))
         }
     }
 }

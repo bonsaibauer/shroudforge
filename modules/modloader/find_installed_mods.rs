@@ -5,10 +5,10 @@ use crate::{
     FileSystem, IoError, Mod, ModEnvironmentErrorReport, ModError, ModErrorReport, ModRegistry,
 };
 use parking_lot::Mutex;
-use std::{collections::HashMap, fs::DirEntry, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 impl ModRegistry {
-    pub(crate) fn load(mods_dir: impl AsRef<Path>) -> Result<Self, ModEnvironmentErrorReport> {
+    pub(crate) fn load(mods_dir: impl AsRef<Path>, game_dir: &Path) -> Result<Self, ModEnvironmentErrorReport> {
         let mods_dir = mods_dir.as_ref().to_path_buf();
         let mut mods = HashMap::new();
 
@@ -19,52 +19,59 @@ impl ModRegistry {
             }));
         }
 
-        let mod_files = match std::fs::read_dir(&mods_dir) {
+        let mod_files = match crate::modpack::package_locations(mods_dir.as_std_path()) {
             Ok(entries) => entries,
-            Err(e) => {
+            Err(message) => {
                 return Err(ModEnvironmentErrorReport::base_io(IoError {
                     path: mods_dir.into_string(),
-                    source: e,
+                    source: std::io::Error::other(message),
                 }));
             }
         };
 
         let mut errors = Vec::new();
-        let mut duplicate_ids = std::collections::HashSet::new();
+        let mut candidates: HashMap<String, Vec<(Mod, PathBuf)>> = HashMap::new();
 
-        for entry in mod_files {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    warn!(
-                        error = %e,
-                        path = mods_dir.as_str(),
-                        "Error reading entry in mods directory, skipping",
-                    );
-
+        for location in mod_files {
+            if !location.pack_ready {
+                warn!(pack = ?location.pack_id, "Skipping incomplete modpack");
+                continue;
+            }
+            let path = match PathBuf::from_path_buf(location.path) {
+                Ok(path) => path,
+                Err(error) => {
+                    warn!(path = %error.display(), "Skipping mod package with non-UTF-8 path");
                     continue;
                 }
             };
-
-            let r#mod = match Self::load_mod(&mods, entry, mods_dir.parent().unwrap_or(&mods_dir)) {
+            let r#mod = match Self::load_mod(&path, game_dir) {
                 Ok(Some(m)) => m,
                 Ok(None) => continue,
                 Err(e) => {
-                    if let ModError::DuplicateModId(id) = &e.error {
-                        duplicate_ids.insert(id.clone());
-                    }
                     errors.push(e);
                     continue;
                 }
             };
-
-            let mod_id = r#mod.info().id.clone();
-
-            mods.insert(mod_id, r#mod);
+            candidates.entry(r#mod.info().id.clone()).or_default().push((r#mod, path));
         }
 
-        for id in duplicate_ids {
-            mods.remove(&id);
+        for (id, copies) in candidates {
+            let active = copies.iter().filter(|(item, _)| item.info().enabled).count();
+            if active > 1 {
+                errors.push(ModErrorReport::new(
+                    copies[0].1.clone(),
+                    ModError::DuplicateModId(id.clone()),
+                ).with_id(id));
+                continue;
+            }
+            let selected = if active == 1 {
+                copies.into_iter().find(|(item, _)| item.info().enabled)
+            } else {
+                copies.into_iter().next()
+            };
+            if let Some((item, _)) = selected {
+                mods.insert(id, item);
+            }
         }
         let registry = Self { mods };
 
@@ -76,18 +83,10 @@ impl ModRegistry {
     }
 
     fn load_mod(
-        mods: &HashMap<String, Mod>,
-        entry: DirEntry,
+        path: &PathBuf,
         root: &Path,
     ) -> Result<Option<Mod>, ModErrorReport> {
-        let path = PathBuf::from_path_buf(entry.path()).map_err(|e| {
-            ModErrorReport::new(
-                entry.path().to_string_lossy().to_string(),
-                ModError::Utf8(e),
-            )
-        })?;
-
-        let file_type = entry.file_type().map_err(|e| {
+        let file_type = std::fs::symlink_metadata(path.as_std_path()).map_err(|e| {
             ModErrorReport::new(
                 path.clone(),
                 ModError::Io(IoError {
@@ -95,7 +94,7 @@ impl ModRegistry {
                     source: e,
                 }),
             )
-        })?;
+        })?.file_type();
         let file_name = path.file_name().unwrap_or_default();
 
         if file_name.starts_with('.') {
@@ -104,7 +103,7 @@ impl ModRegistry {
             return Ok(None);
         }
 
-        if !file_type.is_dir() {
+        if !file_type.is_dir() || file_type.is_symlink() {
             debug!(path = path.as_str(), "Skipping non-package file");
             return Ok(None);
         }
@@ -117,7 +116,7 @@ impl ModRegistry {
             return Ok(None);
         }
 
-        let mut fs = FileSystem::new_disk(&path).map_err(|e| {
+        let mut fs = FileSystem::new_disk(path).map_err(|e| {
             ModErrorReport::new(
                 path.clone(),
                 ModError::Io(IoError {
@@ -140,16 +139,6 @@ impl ModRegistry {
                     },
                 )
             })?;
-
-        let mod_id = mod_info.id.clone();
-
-        if mods.contains_key(&mod_id) {
-            return Err(ModErrorReport::new(
-                path.clone(),
-                ModError::DuplicateModId(mod_id.clone()),
-            )
-            .with_id(mod_id));
-        }
 
         Ok(Some(Mod {
             inner: Arc::new(ModInner {

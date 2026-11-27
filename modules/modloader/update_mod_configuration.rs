@@ -1,6 +1,6 @@
 use crate::config_revision;
 use crate::package_files::{package_has_file, read_package_file, write_package_json};
-use crate::package_lookup::find_mod_package;
+use crate::package_lookup::find_mod_package_by_reference;
 use std::path::Path;
 
 pub(crate) fn update_mod_configuration(
@@ -10,7 +10,7 @@ pub(crate) fn update_mod_configuration(
     update: impl FnOnce(&mut serde_json::Value, &crate::ModManifest) -> Result<(), String>,
 ) -> Result<(), String> {
     let _lock = shroudforge_loader_config::config::installation_lock(root)?;
-    let package = find_mod_package(root, id).ok_or("mod package not found")?;
+    let package = find_mod_package_by_reference(root, id).ok_or("mod package not found")?;
     let manifest = crate::config::read_manifest_path(root, &package)?;
     let current_state =
         serde_json::json!({"enabled":manifest.enabled,"settings":manifest.setting_values});

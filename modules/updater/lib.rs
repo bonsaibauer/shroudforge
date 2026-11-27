@@ -28,6 +28,8 @@ mod download_response_body;
 mod install_catalog_schematic;
 #[path = "mod-installation/read_modpack.rs"]
 mod read_modpack;
+#[path = "mod-installation/install_modpack.rs"]
+mod install_modpack;
 
 #[path = "windows/entry.rs"]
 mod windows_entry;
@@ -289,6 +291,18 @@ pub fn run_request(
             let project_id = request_string(request, "projectId")?;
             mod_installation::catalog::fetch_catalog_project(root, &provider, project_id)
         })(),
+        "preview-modpack" => (|| {
+            let provider = read_request_provider(request)?;
+            let project_id = request_string(request, "projectId")?;
+            let version_id = request_string(request, "versionId")?;
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build().map_err(|error| error.to_string())?;
+            let pack = install_modpack::download_sfpack_manifest(root, &client, &provider, project_id, version_id)?;
+            let mut preview = serde_json::to_value(pack).map_err(|error| error.to_string())?;
+            preview["catalogVersionId"] = version_id.into();
+            Ok(preview)
+        })(),
         "install-mod" => (|| {
             let provider = read_request_provider(request)?;
             let provider = serde_json::to_value(provider)
@@ -303,7 +317,10 @@ pub fn run_request(
                 .get("contentType")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("mod");
-            request_mod_install(root, project_id, title, provider, version_id, content_type)?;
+            let optional_mods = request.get("optionalMods").and_then(serde_json::Value::as_array)
+                .map(|items| items.iter().map(|item| item.as_str().map(str::to_owned).ok_or("optional mod ID must be text")).collect::<Result<Vec<_>, _>>())
+                .transpose()?;
+            request_mod_install(root, project_id, title, provider, version_id, content_type, optional_mods.as_deref())?;
             Ok(
                 serde_json::json!({"message":format!("Mod installation for {project_id} added to the update queue.")}),
             )
@@ -502,6 +519,11 @@ pub fn run_request(
                 .and_then(serde_json::Value::as_str)
                 .ok_or("recycle mod request is missing its mod ID")?;
             recycle_bin::recycle_mod(root, id).map(|()| serde_json::json!({"removed": true}))
+        }
+        "recycle-modpack" => {
+            let id = request.get("modId").and_then(serde_json::Value::as_str)
+                .ok_or("recycle modpack request is missing its pack ID")?;
+            recycle_bin::recycle_modpack(root, id).map(|()| serde_json::json!({"removed": true}))
         }
         _ => Err(format!("unsupported updater request: {command}")),
     })();

@@ -528,15 +528,15 @@ export function Compatibility({
           <Card title={t('compatibility.modDetection.found')}>
             <p className="hint settings-module-description">{t('compatibility.modDetection.inventory')}</p>
             {data.mods.map((mod) => (
-              <div className="settings-option" key={mod.id}>
+              <div className="settings-option" key={mod.instanceKey ?? mod.id}>
                 <span className="compatibility-row-copy">
                   <strong>{mod.name}<EcosystemBadge ecosystem={mod.ecosystem} /></strong>
-                  <small>{mod.id} · {mod.version}</small>
+                  <small>{mod.packId ? `${mod.packId} / ` : ''}{mod.id} · {mod.version}</small>
                 </span>
-                <button className="button ghost" onClick={() => selectMod(mod.id)}>{t('compatibility.action.openMod')}</button>
+                <button className="button ghost" onClick={() => selectMod(mod.instanceKey ?? mod.id)}>{t('compatibility.action.openMod')}</button>
               </div>
             ))}
-            {data.dllCandidates.filter((item) => item.manifestState !== 'valid').map((item) => (
+            {data.dllCandidates.filter((item) => item.manifestState !== 'valid' && !data.mods.some((mod) => mod.nativeOnly && mod.instanceKey === item.packageDirectory)).map((item) => (
               <div className="settings-option" key={item.packageDirectory}>
                 <span className="compatibility-row-copy">
                   <strong>{item.name}</strong>
@@ -586,10 +586,10 @@ export function Compatibility({
               {t(showAllDependencies ? 'compatibility.dependencies.noDependencies' : 'compatibility.dependencies.ok')}
             </p>}
             {visibleDependencyMods.map(({ mod, problems, issue }) => (
-              <div className="compatibility-dependency-mod" key={mod.id}>
+              <div className="compatibility-dependency-mod" key={mod.instanceKey ?? mod.id}>
                 <div className="settings-option">
                   <h4>{mod.name}</h4>
-                  <button className="button ghost" onClick={() => selectMod(mod.id)}>
+                  <button className="button ghost" onClick={() => selectMod(mod.instanceKey ?? mod.id)}>
                     {t('compatibility.action.openMod')}
                   </button>
                 </div>

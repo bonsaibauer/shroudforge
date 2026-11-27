@@ -70,6 +70,8 @@ pub(crate) struct UiCommand {
     #[serde(default)]
     pub(crate) version_id: Option<String>,
     #[serde(default)]
+    pub(crate) optional_mods: Option<Vec<String>>,
+    #[serde(default)]
     pub(crate) title: Option<String>,
     #[serde(default)]
     pub(crate) message: Option<String>,
@@ -377,6 +379,7 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
             "load-catalog-project",
             value.project_id.clone()?,
         ),
+        "preview-modpack" => ("preview-modpack", "preview-modpack", value.project_id.clone()?),
         "install-mod" => ("install-mod", "install-mod", value.project_id.clone()?),
         "update-mod" => ("update-mod", "update-mod", value.mod_id.clone()?),
         "update-schematic" | "update-modpack" => (
@@ -385,6 +388,7 @@ fn parse_updater_request(value: &UiCommand, desktop: bool, server: bool) -> Opti
             value.project_id.clone()?,
         ),
         "remove-mod" => ("remove-mod", "recycle-mod", value.mod_id.clone()?),
+        "remove-modpack" => ("remove-modpack", "recycle-modpack", value.mod_id.clone()?),
         "updater-request" => {
             let action = value.action.as_deref()?;
             if !matches!(

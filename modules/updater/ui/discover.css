@@ -15,45 +15,49 @@
   white-space: nowrap;
 }
 
-.discover-type-tabs {
+.discover-type-tabs,
+.discover-project-tabs {
   display: flex;
   width: max-content;
   max-width: 100%;
-  gap: 4px;
-  padding: 5px;
+  gap: 7px;
+  padding: 0;
   overflow-x: auto;
-  border: 1px solid var(--sf-line);
-  border-radius: 11px;
-  background: var(--sf-glass-strong);
-  box-shadow: var(--sf-shadow-soft);
 }
 
-.discover-type-tab {
-  min-height: 37px;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: var(--sf-text);
-  background: transparent;
+.discover-type-tab,
+.discover-project-tab {
+  min-height: 42px;
+  padding: 0 17px;
+  border: 1px solid var(--sf-line-strong);
+  border-radius: 9px;
+  color: var(--sf-muted);
+  background: var(--sf-glass);
   font-size: 12px;
   font-weight: 750;
   white-space: nowrap;
   cursor: pointer;
-  transition: var(--sf-transition);
+  transition: color var(--sf-speed) ease, border-color var(--sf-speed) ease,
+    background var(--sf-speed) ease, box-shadow var(--sf-speed) ease;
 }
 
-.discover-type-tab:hover:not(:disabled) {
-  border-color: var(--sf-line);
-  background: var(--sf-glass-soft);
+.discover-type-tab:hover:not(:disabled),
+.discover-project-tab:hover:not(:disabled) {
+  color: var(--sf-gold-bright);
+  border-color: rgba(225, 203, 145, 0.58);
+  background: var(--sf-gold-soft);
 }
 
-.discover-type-tab.active {
-  border-color: rgba(98, 214, 154, 0.28);
-  color: var(--sf-green);
-  background: var(--sf-green-soft);
+.discover-type-tab.active,
+.discover-project-tab.active {
+  border-color: var(--sf-gold);
+  color: var(--sf-gold-bright);
+  background: linear-gradient(135deg, rgba(201, 173, 110, 0.2), rgba(201, 173, 110, 0.08));
+  box-shadow: inset 0 1px rgba(225, 203, 145, 0.12), 0 5px 16px rgba(0, 0, 0, 0.12);
 }
 
-.discover-type-tab:disabled {
+.discover-type-tab:disabled,
+.discover-project-tab:disabled {
   cursor: default;
   opacity: 0.6;
 }
@@ -163,44 +167,141 @@
   opacity: 0.6;
 }
 
-.discover-environment-filter {
+.discover-environment-filter,
+.discover-option-filter {
   position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
   color: var(--sf-text);
   font-size: 12px;
 }
 
-.discover-environment-filter > summary {
+.discover-environment-filter > summary,
+.discover-option-filter > summary {
   display: flex;
-  min-height: 37px;
+  min-height: 42px;
   align-items: center;
+  gap: 10px;
   padding: 0 12px;
   border: 1px solid var(--sf-line-strong);
   border-radius: 9px;
   background: var(--sf-glass);
   font-weight: 700;
   cursor: pointer;
+  list-style: none;
+  transition: border-color var(--sf-speed) ease, background var(--sf-speed) ease;
 }
 
-.discover-environment-filter > div {
+.discover-environment-filter > summary::-webkit-details-marker,
+.discover-option-filter > summary::-webkit-details-marker {
+  display: none;
+}
+
+.discover-environment-filter > summary::after,
+.discover-option-filter > summary::after {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border-right: 1.5px solid var(--sf-text);
+  border-bottom: 1.5px solid var(--sf-text);
+  content: "";
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--sf-speed) ease;
+}
+
+.discover-environment-filter[open] > summary::after,
+.discover-option-filter[open] > summary::after {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.discover-environment-filter > summary:hover,
+.discover-option-filter > summary:hover,
+.discover-environment-filter[open] > summary,
+.discover-option-filter[open] > summary {
+  border-color: rgba(225, 203, 145, 0.58);
+  background: var(--sf-glass-strong);
+}
+
+.discover-option-filter > summary > span {
+  flex: 0 0 auto;
+  color: var(--sf-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.discover-option-filter > summary > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sf-text-strong);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-option-filter.loader > summary { min-width: 176px; }
+.discover-option-filter.sort > summary { min-width: 194px; }
+.discover-option-filter.page-size > summary { min-width: 112px; }
+.discover-option-filter.category > summary { min-width: 205px; }
+.discover-option-filter.game-version > summary { min-width: 172px; }
+.discover-option-filter.version-channel > summary { min-width: 170px; }
+.discover-option-filter.version-game > summary { min-width: 190px; }
+
+.discover-environment-filter > div,
+.discover-option-filter > div {
   position: absolute;
-  z-index: 10;
+  z-index: 20;
   display: grid;
   gap: 5px;
   min-width: 150px;
+  max-height: min(340px, 60vh);
   margin-top: 5px;
+  overflow-y: auto;
   padding: 7px;
   border: 1px solid var(--sf-line-strong);
   border-radius: 9px;
-  background: var(--sf-bg);
+  background: rgba(7, 16, 19, 0.98);
   box-shadow: var(--sf-shadow-soft);
 }
 
-.discover-environment-filter label {
+.discover-environment-filter label,
+.discover-option-filter label {
   display: flex;
+  min-height: 34px;
   align-items: center;
   gap: 8px;
-  padding: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--sf-text);
   cursor: pointer;
+}
+
+.discover-environment-filter label:hover,
+.discover-option-filter label:hover {
+  background: var(--sf-glass-soft);
+}
+
+.discover-environment-filter label input,
+.discover-option-filter label input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--sf-gold);
+  cursor: pointer;
+}
+
+.discover-option-filter label input[type="radio"] {
+  appearance: none;
+  border: 1px solid var(--sf-muted);
+  border-radius: 3px;
+  background: transparent;
+}
+
+.discover-option-filter label input[type="radio"]:checked {
+  border-color: var(--sf-gold);
+  background: var(--sf-gold);
+  box-shadow: inset 0 0 0 3px #102023;
 }
 
 .discover-environment-filter label .icon {
@@ -208,8 +309,9 @@
   height: 16px;
 }
 
-.discover-page-size select {
-  min-width: 45px;
+.discover-option-filter [aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .discover-result-count {
@@ -322,7 +424,8 @@
 .discover-row-icon img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  padding: 5px;
+  object-fit: contain;
 }
 
 .discover-row-content,
@@ -533,21 +636,12 @@
   gap: 12px;
 }
 
-.discover-detail-title > img,
-.catalog-icon-fallback {
+.discover-detail-title > img {
   width: 50px;
   height: 50px;
   flex: 0 0 auto;
   border-radius: 12px;
-  object-fit: cover;
-}
-
-.catalog-icon-fallback {
-  display: grid;
-  place-items: center;
-  color: var(--sf-gold);
-  background: var(--sf-gold-soft);
-  font-weight: 800;
+  object-fit: contain;
 }
 
 .discover-detail-title h2 {
@@ -800,13 +894,24 @@
     width: 100%;
   }
 
-  .discover-toolbar-control {
+  .discover-environment-filter,
+  .discover-option-filter {
     flex: 1 1 135px;
+  }
+
+  .discover-environment-filter > summary,
+  .discover-option-filter > summary {
+    width: 100%;
     justify-content: space-between;
   }
 
-  .discover-page-size {
-    flex: 0 0 auto;
+  .discover-option-filter.page-size {
+    flex: 0 0 120px;
+  }
+
+  .discover-toolbar-control {
+    flex: 1 1 135px;
+    justify-content: space-between;
   }
 
   .discover-pagination {
@@ -887,7 +992,7 @@
 
 .discover-project-header {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto;
+  grid-template-columns: 96px minmax(0, 1fr) max-content;
   align-items: start;
   gap: 18px;
   padding-bottom: 20px;
@@ -895,10 +1000,13 @@
 }
 
 .discover-project-icon {
+  box-sizing: border-box;
+  display: block;
   width: 96px;
-  height: auto;
+  height: 96px;
   aspect-ratio: 1;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 5px;
   border: 1px solid var(--sf-line-strong);
   border-radius: 11px;
   background: var(--sf-glass-soft);
@@ -953,6 +1061,12 @@
   justify-content: flex-end;
 }
 
+.discover-project-actions .button,
+.discover-project-error .button {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
 .discover-project-install {
   min-height: 42px;
   border: 1px solid rgba(202, 170, 103, 0.48);
@@ -966,38 +1080,6 @@
 .discover-project-install:hover:not(:disabled) {
   border-color: var(--sf-gold-bright);
   background: rgba(202, 170, 103, 0.2);
-}
-
-.discover-project-tabs {
-  display: flex;
-  width: max-content;
-  max-width: 100%;
-  gap: 4px;
-  padding: 5px;
-  overflow-x: auto;
-  border: 1px solid var(--sf-line);
-  border-radius: 10px;
-  background: var(--sf-glass-strong);
-}
-
-.discover-project-tab {
-  min-height: 36px;
-  padding: 0 15px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: var(--sf-text);
-  background: transparent;
-  font-size: 12px;
-  font-weight: 750;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.discover-project-tab.active,
-.discover-project-tab:hover {
-  border-color: rgba(98, 214, 154, 0.28);
-  color: var(--sf-green);
-  background: var(--sf-green-soft);
 }
 
 .discover-project-content {
@@ -1215,38 +1297,6 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
-}
-
-.discover-platform-filter {
-  position: relative;
-  color: var(--sf-text);
-  font-size: 12px;
-}
-
-.discover-platform-filter > summary {
-  padding: 10px;
-  border: 1px solid var(--sf-line-strong);
-  border-radius: 9px;
-  background: var(--sf-glass);
-  cursor: pointer;
-}
-
-.discover-platform-filter > div {
-  position: absolute;
-  z-index: 10;
-  display: grid;
-  min-width: 180px;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--sf-line-strong);
-  border-radius: 9px;
-  background: var(--sf-bg);
-}
-
-.discover-platform-filter label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .discover-clear-filters {
@@ -1545,19 +1595,19 @@
 .discover-gallery-image-button {
   display: block;
   width: 100%;
+  aspect-ratio: 16 / 9;
   padding: 0;
   overflow: hidden;
   border: 0;
-  background: #111;
+  background: var(--sf-bg-deep);
   cursor: zoom-in;
 }
 
 .discover-gallery-image-button img {
   display: block;
   width: 100%;
-  max-height: 360px;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+  height: 100%;
+  object-fit: contain;
 }
 
 .discover-gallery-copy {
@@ -1656,6 +1706,7 @@
 
   .discover-project-icon {
     width: 72px;
+    height: 72px;
     border-radius: 11px;
   }
 
@@ -1692,8 +1743,7 @@
   }
 
   .discover-project-tab {
-    flex: 1 0 auto;
-    padding-inline: 10px;
+    padding-inline: 12px;
   }
 
   .discover-version-filters {

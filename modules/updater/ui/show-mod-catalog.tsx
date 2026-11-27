@@ -14,15 +14,18 @@ import { PageHeader } from '../../ui-resources/show-page-header'
 import { postRequest } from '../../transport/ui/send-host-command'
 import { UpdaterAvailability } from './show-updater-availability'
 import { CatalogProjectPage } from './show-catalog-project'
+import { CatalogIcon } from './show-catalog-icon'
+import { DiscoverFilter } from './show-discover-filter'
 import type { ModInfo } from '../../modloader/ui/mod-types'
+import type { Snapshot } from '../../modloader/ui/ui-snapshot'
 import './discover.css'
 
 type SearchFilters = {
   query: string
   projectType: 'mod' | 'schematic' | 'modpack' | 'server'
-  loader: string
-  category: string
-  gameVersion: string
+  loader: string[]
+  category: string[]
+  gameVersion: string[]
   environment: string[]
   sort: string
   limit: number
@@ -33,9 +36,9 @@ const emptyCatalog: Catalog = {
   query: '',
   projectType: 'mod',
   projectTypes: [],
-  loader: 'all',
-  category: '',
-  gameVersion: '',
+  loader: [],
+  category: [],
+  gameVersion: [],
   sort: 'relevance',
   limit: 20,
   page: 1,
@@ -56,9 +59,9 @@ function filtersFromUrl(catalog?: Catalog): SearchFilters {
   return {
     query: params.get('q') ?? catalog?.query ?? '',
     projectType,
-    loader: params.get('loader') ?? catalog?.loader ?? 'all',
-    category: params.get('category') ?? catalog?.category ?? '',
-    gameVersion: params.get('gameVersion') ?? catalog?.gameVersion ?? '',
+    loader: filterValues(params.get('loader') ?? catalog?.loader, 'all'),
+    category: filterValues(params.get('category') ?? catalog?.category),
+    gameVersion: filterValues(params.get('gameVersion') ?? catalog?.gameVersion),
     environment: (params.get('environment') || '').split(',').filter((value) => value === 'client' || value === 'server'),
     sort: params.get('sort') ?? catalog?.sort ?? 'relevance',
     limit: pageSize(params.get('limit') ?? catalog?.limit),
@@ -80,6 +83,11 @@ function readProjectTab(value: string | null): ProjectTab {
 
 function strings(values: string[] | undefined) {
   return (values || []).filter(Boolean)
+}
+
+function filterValues(value: string | string[] | null | undefined, allValue = '') {
+  const values = Array.isArray(value) ? value : (value || '').split(',')
+  return [...new Set(values.map((entry) => entry.trim()).filter((entry) => entry && entry !== allValue))]
 }
 
 function pageSize(value: string | number | undefined, fallback = 20) {
@@ -145,6 +153,7 @@ export function Discover({
   updaterAvailable,
   enabled,
   installedMods,
+  installedPacks,
   modUpdates,
   gameVersion,
   onCommand,
@@ -153,6 +162,7 @@ export function Discover({
   updaterAvailable: boolean
   enabled: boolean
   installedMods: Pick<ModInfo, 'id' | 'version'>[]
+  installedPacks: Snapshot['modpacks']
   modUpdates: ModUpdate[]
   gameVersion: string
   onCommand: UpdaterCommand
@@ -173,19 +183,39 @@ export function Discover({
     Math.max(1, Number(new URLSearchParams(window.location.search).get('vpage')) || 1),
   )
   const [versionChannel, setVersionChannel] = useState(
-    () => new URLSearchParams(window.location.search).get('channel') || 'all',
+    () => filterValues(new URLSearchParams(window.location.search).get('channel'), 'all'),
   )
   const [versionGame, setVersionGame] = useState(
-    () => new URLSearchParams(window.location.search).get('versionGame') || '',
+    () => filterValues(new URLSearchParams(window.location.search).get('versionGame')),
   )
   const [selectedVersionId, setSelectedVersionId] = useState(
     () => new URLSearchParams(window.location.search).get('version') || '',
   )
   const [detailLoading, setDetailLoading] = useState(false)
+  const [pendingPack, setPendingPack] = useState<{ projectId: string; slug: string; versionId: string; title: string } | null>(null)
+  const [selectedOptionals, setSelectedOptionals] = useState<string[]>([])
+  const initializedPreview = useRef('')
   const started = useRef(false)
   const actionsEnabled = updaterAvailable && enabled
   const detail = catalog.detail?.id === selectedProjectId ? catalog.detail : null
   const installedById = new Map(installedMods.map((mod) => [mod.id, mod]))
+  const preview = pendingPack && catalog.packPreview?.id === pendingPack.slug && catalog.packPreview?.catalogVersionId === pendingPack.versionId ? catalog.packPreview : null
+  const previewMemberId = (item: { id?: string; path?: string }) => item.id || item.path?.split('/').at(-1) || ''
+  const requestPackPreview = (projectId: string, slug: string, versionId: string, title: string) => {
+    initializedPreview.current = ''
+    setPendingPack({ projectId, slug, versionId, title })
+    setSelectedOptionals([])
+    onCommand('preview-modpack', { projectId, versionId })
+  }
+  useEffect(() => {
+    if (preview && catalog.packPreviewState === 'ready') {
+      const key = `${pendingPack?.projectId}:${pendingPack?.versionId}`
+      if (initializedPreview.current === key) return
+      const existing = installedPacks.find((pack) => pack.id === preview.id)
+      setSelectedOptionals(preview.mods.filter((item) => item.optional && (!existing || existing.mods.some((member) => member.id === previewMemberId(item) && member.selected))).map(previewMemberId))
+      initializedPreview.current = key
+    }
+  }, [preview, catalog.packPreviewState, installedPacks, pendingPack])
   const updateById = new Map(modUpdates.map((update) => [update.modId, update]))
   const updateByProjectId = new Map(modUpdates.map((update) => [update.projectId, update]))
 
@@ -203,9 +233,9 @@ export function Discover({
     const values: Record<string, string> = {
       q: next.query,
       type: next.projectType,
-      loader: next.loader,
-      category: next.category,
-      gameVersion: next.gameVersion,
+      loader: next.loader.join(','),
+      category: next.category.join(','),
+      gameVersion: next.gameVersion.join(','),
       environment: next.environment.join(','),
       sort: next.sort,
       limit: String(next.limit),
@@ -222,9 +252,9 @@ export function Discover({
       else params.delete('version')
       if (nextVersionsPage > 1) params.set('vpage', String(nextVersionsPage))
       else params.delete('vpage')
-      if (nextVersionChannel !== 'all') params.set('channel', nextVersionChannel)
+      if (nextVersionChannel.length) params.set('channel', nextVersionChannel.join(','))
       else params.delete('channel')
-      if (nextVersionGame) params.set('versionGame', nextVersionGame)
+      if (nextVersionGame.length) params.set('versionGame', nextVersionGame.join(','))
       else params.delete('versionGame')
     } else {
       params.delete('project')
@@ -249,8 +279,8 @@ export function Discover({
     setSelectedVersionId('')
     setProjectTab('description')
     setVersionsPage(1)
-    setVersionChannel('all')
-    setVersionGame('')
+    setVersionChannel([])
+    setVersionGame([])
     setDetailLoading(false)
     writeUrl(nextFilters, nextPage, null)
     onCommand('search-catalog', { ...nextFilters, page: nextPage })
@@ -261,10 +291,10 @@ export function Discover({
     setSelectedVersionId('')
     setProjectTab('description')
     setVersionsPage(1)
-    setVersionChannel('all')
-    setVersionGame('')
+    setVersionChannel([])
+    setVersionGame([])
     setDetailLoading(true)
-    writeUrl(filters, page, projectId, 'description')
+    writeUrl(filters, page, projectId, 'description', null, 1, [], [])
     onCommand('load-catalog-project', { projectId })
   }
 
@@ -302,8 +332,8 @@ export function Discover({
     setSelectedVersionId('')
     setProjectTab('description')
     setVersionsPage(1)
-    setVersionChannel('all')
-    setVersionGame('')
+    setVersionChannel([])
+    setVersionGame([])
     setDetailLoading(false)
     writeUrl(filters, page, null)
   }
@@ -338,8 +368,8 @@ export function Discover({
       const nextTab = readProjectTab(params.get('tab'))
       const nextVersionId = params.get('version') || ''
       const nextVersionsPage = Math.max(1, Number(params.get('vpage')) || 1)
-      const nextVersionChannel = params.get('channel') || 'all'
-      const nextVersionGame = params.get('versionGame') || ''
+      const nextVersionChannel = filterValues(params.get('channel'), 'all')
+      const nextVersionGame = filterValues(params.get('versionGame'))
       setFilters(nextFilters)
       setPage(nextPage)
       setProjectTab(nextTab)
@@ -377,12 +407,15 @@ export function Discover({
     ? t('discover.placeholder')
     : t('discover.searchByType', { type: activeTypeLabel.toLowerCase() })
   const resultCount = catalog.total || catalog.items.length
-
   const installSelectedVersion = (requestedVersionId?: string) => {
     if (!detail || !actionsEnabled) return
     if (filters.projectType === 'server') return
     const versionId = requestedVersionId || selectedVersionId || detail.versions[0]?.id
     if (!versionId) return
+    if (filters.projectType === 'modpack') {
+      requestPackPreview(detail.id, detail.slug, versionId, detail.name)
+      return
+    }
     const installed = filters.projectType === 'mod'
       ? installedById.get(detail.installedModId || detail.slug)
       : undefined
@@ -419,6 +452,31 @@ export function Discover({
           </a>
         }
       />
+      {pendingPack && <section className="card" aria-label={t('modpack.chooseMods')}>
+        <h2>{t('modpack.chooseMods')} · {pendingPack.title}</h2>
+        {catalog.packPreviewState === 'loading' && <p>{t('discover.detail.loading')}</p>}
+        {catalog.packPreviewState === 'error' && <p className="notice warning">{catalog.packPreviewError}</p>}
+        {preview?.mods.map((item) => {
+          const id = previewMemberId(item)
+          return <label className="settings-option" key={id}>
+            <input type="checkbox" checked={!item.optional || selectedOptionals.includes(id)}
+              disabled={!item.optional}
+              onChange={(event) => setSelectedOptionals((current) => event.target.checked
+                ? [...current, id]
+                : current.filter((selected) => selected !== id))} />
+            <span>{id} · {item.optional ? t('modpack.member.optional') : t('modpack.member.required')}</span>
+          </label>
+        })}
+        <div className="settings-actions">
+          <button className="button ghost" onClick={() => setPendingPack(null)}>{t('common.cancel')}</button>
+          <button className="button" disabled={!preview} onClick={() => {
+            if (!pendingPack) return
+            onCommand('install-mod', { projectId: pendingPack.projectId, title: pendingPack.title,
+              versionId: pendingPack.versionId, contentType: 'modpack', optionalMods: selectedOptionals })
+            setPendingPack(null)
+          }}>{t('discover.detail.installPack')}</button>
+        </div>
+      </section>}
       {!selectedProjectId && <>
       <UpdaterAvailability
         updaterAvailable={updaterAvailable}
@@ -440,9 +498,9 @@ export function Discover({
                 {
                   ...filters,
                   projectType: tab.value,
-                  loader: 'all',
-                  category: '',
-                  gameVersion: '',
+                  loader: [],
+                  category: [],
+                  gameVersion: [],
                   environment: [],
                 },
                 1,
@@ -476,22 +534,26 @@ export function Discover({
       <div className="discover-toolbar">
         <div className="discover-toolbar-filters">
           {filters.projectType === 'mod' && (
-            <label className="discover-toolbar-control">
-              <span>{t('discover.filter.loader')}</span>
-              <select
-                value={filters.loader}
-                disabled={!actionsEnabled}
-                onChange={(event) => searchCatalog({ ...filters, loader: event.target.value }, 1)}
-              >
-                <option value="all">{t('common.all')}</option>
-                <option value="shroudforge">ShroudForge</option>
-                <option value="eml">EML</option>
-              </select>
-            </label>
+            <DiscoverFilter
+              name="discover-loader"
+              className="loader"
+              multiple
+              allValue="all"
+              label={t('discover.filter.loader')}
+              summary="label"
+              value={filters.loader}
+              options={[
+                { value: 'all', label: t('common.all') },
+                { value: 'shroudforge', label: 'ShroudForge' },
+                { value: 'eml', label: 'EML' },
+              ]}
+              disabled={!actionsEnabled}
+              onChange={(loader) => searchCatalog({ ...filters, loader }, 1)}
+            />
           )}
           {(filters.projectType === 'mod' || filters.projectType === 'modpack') && (
             <details className="discover-environment-filter">
-              <summary>{t('discover.filter.environment')}{filters.environment.length ? ` · ${filters.environment.length}` : ''}</summary>
+              <summary>{t('discover.filter.environment')}</summary>
               <div>
                 {(['client', 'server'] as const).map((side) => (
                   <label key={side}>
@@ -513,59 +575,60 @@ export function Discover({
               </div>
             </details>
           )}
-          <label className="discover-toolbar-control">
-            <span>{t('discover.filter.sort')}</span>
-            <select
-              value={filters.sort}
-              disabled={!actionsEnabled}
-              onChange={(event) => searchCatalog({ ...filters, sort: event.target.value }, 1)}
-            >
-              <option value="relevance">{t('discover.sort.relevance')}</option>
-              <option value="downloads">{t('discover.sort.downloads')}</option>
-              <option value="newest">{t('discover.sort.newest')}</option>
-              <option value="updated">{t('discover.sort.updated')}</option>
-            </select>
-          </label>
-          <label className="discover-toolbar-control discover-page-size">
-            <span>{t('wiki.itemsPerPage')}</span>
-            <select
-              value={filters.limit}
-              disabled={!actionsEnabled}
-              onChange={(event) =>
-                searchCatalog({ ...filters, limit: pageSize(event.target.value) }, 1)
-              }
-            >
-              {[20, 40, 60].map((limit) => (
-                <option key={limit} value={limit}>{limit}</option>
-              ))}
-            </select>
-          </label>
-          <label className="discover-toolbar-control">
-            <span>{t('wiki.filterCategory')}</span>
-            <select
-              value={filters.category}
-              disabled={!actionsEnabled}
-              onChange={(event) => searchCatalog({ ...filters, category: event.target.value }, 1)}
-            >
-              <option value="">{t('wiki.allCategories')}</option>
-              {strings(catalog.categories).map((category) => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </label>
-          <label className="discover-toolbar-control">
-            <span>{t('discover.filter.gameVersion')}</span>
-            <select
-              value={filters.gameVersion}
-              disabled={!actionsEnabled}
-              onChange={(event) => searchCatalog({ ...filters, gameVersion: event.target.value }, 1)}
-            >
-              <option value="">{t('common.all')}</option>
-              {strings(catalog.gameVersions).map((version) => (
-                <option key={version} value={version}>{version}</option>
-              ))}
-            </select>
-          </label>
+          <DiscoverFilter
+            name="discover-sort"
+            className="sort"
+            label={t('discover.filter.sort')}
+            summary="value"
+            value={filters.sort}
+            options={[
+              { value: 'relevance', label: t('discover.sort.relevance') },
+              { value: 'downloads', label: t('discover.sort.downloads') },
+              { value: 'newest', label: t('discover.sort.newest') },
+              { value: 'updated', label: t('discover.sort.updated') },
+            ]}
+            disabled={!actionsEnabled}
+            onChange={(sort) => searchCatalog({ ...filters, sort }, 1)}
+          />
+          <DiscoverFilter
+            name="discover-page-size"
+            className="page-size"
+            label={t('wiki.itemsPerPage')}
+            value={String(filters.limit)}
+            options={[20, 40, 60].map((limit) => ({ value: String(limit), label: String(limit) }))}
+            disabled={!actionsEnabled}
+            onChange={(limit) => searchCatalog({ ...filters, limit: pageSize(limit) }, 1)}
+          />
+          <DiscoverFilter
+            name="discover-category"
+            className="category"
+            multiple
+            allValue=""
+            label={t('wiki.filterCategory')}
+            summary="label"
+            value={filters.category}
+            options={[
+              { value: '', label: t('wiki.allCategories') },
+              ...strings(catalog.categories).map((category) => ({ value: category, label: category })),
+            ]}
+            disabled={!actionsEnabled}
+            onChange={(category) => searchCatalog({ ...filters, category }, 1)}
+          />
+          <DiscoverFilter
+            name="discover-game-version"
+            className="game-version"
+            multiple
+            allValue=""
+            label={t('discover.filter.gameVersion')}
+            summary="label"
+            value={filters.gameVersion}
+            options={[
+              { value: '', label: t('common.all') },
+              ...strings(catalog.gameVersions).map((version) => ({ value: version, label: version })),
+            ]}
+            disabled={!actionsEnabled}
+            onChange={(gameVersion) => searchCatalog({ ...filters, gameVersion }, 1)}
+          />
         </div>
         <span className="discover-result-count">
           {filters.projectType === 'mod'
@@ -671,7 +734,10 @@ export function Discover({
                   if (!(event.target as HTMLElement).closest('button, a, input, select')) openProject(item)
                 }}>
                   <button className="discover-row-icon" type="button" onClick={() => openProject(item)} aria-label={item.name}>
-                    {item.iconUrl ? <img src={item.iconUrl} alt="" /> : item.name.slice(0, 2).toUpperCase()}
+                    <CatalogIcon
+                      url={item.iconUrl}
+                      className="discover-row-icon-image"
+                    />
                   </button>
                   <div className="discover-row-content">
                     <div className="discover-row-title">
@@ -704,6 +770,8 @@ export function Discover({
                               versionId: update.latestVersionId || item.latestVersionId,
                               contentType: 'mod',
                             })
+                          } else if (item.projectType === 'modpack' && item.latestVersionId) {
+                            requestPackPreview(item.id, item.slug, item.latestVersionId, item.name)
                           } else if (!installed) {
                             onCommand('install-mod', {
                               projectId: item.id,

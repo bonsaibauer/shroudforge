@@ -96,9 +96,9 @@ export type Catalog = {
   state: string
   query: string
   projectType?: string
-  loader?: string
-  category?: string
-  gameVersion?: string
+  loader?: string[]
+  category?: string[]
+  gameVersion?: string[]
   sort?: string
   page?: number
   limit?: number
@@ -111,6 +111,15 @@ export type Catalog = {
   detail?: CatalogProject | null
   detailState?: string
   detailError?: string | null
+  packPreview?: {
+    id: string
+    catalogVersionId: string
+    name: string
+    version: string
+    mods: Array<{ id?: string; path?: string; version?: string; optional?: boolean; url?: string }>
+  } | null
+  packPreviewState?: string
+  packPreviewError?: string | null
 }
 
 export type CatalogProject = {

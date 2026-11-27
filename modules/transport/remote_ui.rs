@@ -1715,7 +1715,7 @@ fn handle_mod_operation(
     }
     let Some(id) = request["modId"]
         .as_str()
-        .filter(|id| mod_loader::package_lookup::valid_identifier(id))
+        .filter(|id| mod_loader::package_lookup::valid_package_reference(id))
     else {
         let _ = send_mod_result(
             peer,
@@ -1874,7 +1874,7 @@ fn handle_mod_operation(
         }
         "run-action" => {
             let action = request["action"].as_str().unwrap_or_default();
-            let package = mod_loader::package_lookup::find_mod_package(root, id);
+            let package = mod_loader::package_lookup::find_mod_package_by_reference(root, id);
             match package.and_then(|package| mod_loader::read_manifest_path(root, &package).ok()) {
                 Some(manifest)
                     if manifest.enabled

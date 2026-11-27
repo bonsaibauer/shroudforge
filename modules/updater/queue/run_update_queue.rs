@@ -229,6 +229,8 @@ pub(crate) fn run_update_queue(root: &std::path::Path) -> Result<(), String> {
                     payload["contentType"]
                         .as_str()
                         .unwrap_or_else(|| item["kind"].as_str().unwrap_or("mod")),
+                    payload["optionalMods"].as_array().map(|items| items.iter()
+                        .filter_map(serde_json::Value::as_str).map(str::to_owned).collect::<Vec<_>>()).as_deref(),
                 )
                 .map(|_| ())
             }

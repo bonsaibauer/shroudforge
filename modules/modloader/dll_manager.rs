@@ -315,6 +315,24 @@ pub fn resolve_load_plan(root: &Path, is_server: bool) -> DllLoadPlan {
             }
         }
     }
+    let mut native_packages: HashMap<String, std::collections::HashSet<String>> = HashMap::new();
+    for entry in &result.entries {
+        if entry.mod_id.is_some() || entry.source == "chain" { continue }
+        let id = entry.package_directory.rsplit(':').next().unwrap_or(&entry.package_directory).to_ascii_lowercase();
+        native_packages.entry(id).or_default().insert(entry.package_directory.clone());
+    }
+    result.entries.retain(|entry| {
+        if entry.mod_id.is_some() || entry.source == "chain" { return true }
+        let id = entry.package_directory.rsplit(':').next().unwrap_or(&entry.package_directory).to_ascii_lowercase();
+        if native_packages.get(&id).is_some_and(|packages| packages.len() > 1) {
+            result.issues.push(DllPlanIssue {
+                status_id: entry.status_id.clone(),
+                detail: format!("Multiple native-only packages with ID {id} are active"),
+            });
+            return false;
+        }
+        true
+    });
     // Keep declaration aliases for UI status. The process executor deduplicates
     // canonical paths, so a chain entry and profile share one loaded handle.
     tracing::debug!(target: "shroudforge::dll_manager", dlls = result.entries.len(), issues = result.issues.len(), server = is_server, "Resolved DLL load plan");
@@ -324,25 +342,21 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
     let profiles = mod_profiles::read_profiles(root).unwrap_or_default();
     let selections = read_selections(root);
     let excluded = excluded_dll_names(root);
-    let entries = match fs::read_dir(crate::paths::mods_dir(root)) {
+    let entries = match crate::modpack::package_locations(&crate::paths::mods_dir(root)) {
         Ok(entries) => entries,
         Err(error) => {
-            if error.kind() != std::io::ErrorKind::NotFound {
-                tracing::warn!(target: "shroudforge::dll_manager", %error, "Could not scan mods folder");
-            }
+            tracing::warn!(target: "shroudforge::dll_manager", %error, "Could not scan mods folder");
             return (Vec::new(), PackagePlan::default());
         }
     };
-    let mut directories: Vec<_> = entries
-        .flatten()
-        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
-        .filter(|entry| !entry.file_name().to_string_lossy().starts_with('.'))
-        .collect();
-    directories.sort_by_key(|entry| entry.file_name().to_string_lossy().to_ascii_lowercase());
+    let mut directories = entries;
+    directories.sort_by_key(|entry| entry.key().to_ascii_lowercase());
     let (mut candidates, mut plan) = (Vec::new(), PackagePlan::default());
     for entry in directories {
-        let package = entry.path();
-        let directory = entry.file_name().to_string_lossy().into_owned();
+        let pack_ready = entry.pack_ready;
+        let packed = entry.pack_id.is_some();
+        let directory = if entry.pack_id.is_some() { entry.key() } else { entry.id.clone() };
+        let package = entry.path;
         let raw = fs::read(package.join("mod.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
@@ -357,9 +371,10 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
             .and_then(|selection| selection.compatibility_profile.as_deref())
             .filter(|id| !id.is_empty());
         let profile =
-            mod_profiles::select_profile(&profiles, &directory, mod_id.as_deref(), selected);
+            mod_profiles::select_profile(&profiles, &entry.id, mod_id.as_deref(), selected);
         let (ini_state, declared_dll) = read_plugin_ini(&package);
         let mut issues = Vec::new();
+        if !pack_ready { issues.push("A required modpack member is missing".into()); }
         if selected.is_some_and(|id| id != "none") && profile.is_none() {
             issues.push("Selected compatibility profile was not found".into());
         }
@@ -432,6 +447,7 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
         );
         let selection_active = selection
             .is_none_or(|selection| selection.enabled && selection.approved)
+            && (!packed || mod_id.is_some() || selection.is_some())
             && selected.is_none_or(|id| id == "none" || profile.is_some());
         if let Some(selection) = selection.filter(|selection| !selection.files.is_empty()) {
             files = selection.files.clone();
@@ -455,7 +471,7 @@ fn inspect_packages(root: &Path) -> (Vec<DllCandidate>, PackagePlan) {
             issues.push("native-plugin.ini has an invalid [Plugin] declaration".into());
         }
         let mut load_entries = Vec::new();
-        let active = selection_active
+        let active = pack_ready && selection_active
             && manifest_state != "invalid"
             && manifest.is_none_or(|manifest| manifest.enabled);
         let effective_target = match target {
@@ -789,7 +805,8 @@ pub fn validate_profiles(root: &Path, value: &Value) -> Result<Value, String> {
             || profile.id.len() > 128
             || profile.name.trim().is_empty()
             || profile.name.len() > 160
-            || !single_folder(&profile.package_directory)
+            || !(single_folder(&profile.package_directory)
+                || crate::modpack::package_by_key(root, &profile.package_directory).is_some())
             || !ids.insert(&profile.id)
             || !directories.insert(profile.package_directory.to_ascii_lowercase())
         {
@@ -825,7 +842,7 @@ pub fn resolve_package_dll_path(
     directory: &str,
     file: &DllProfileFile,
 ) -> Result<PathBuf, String> {
-    if !single_folder(directory)
+    if !(single_folder(directory) || crate::modpack::package_by_key(root, directory).is_some())
         || directory.starts_with('.')
         || !relative_file(&file.path)
         || !file.path.to_ascii_lowercase().ends_with(".dll")
@@ -838,15 +855,16 @@ pub fn resolve_package_dll_path(
     let mods = crate::paths::mods_dir(root)
         .canonicalize()
         .map_err(|error| error.to_string())?;
-    let package = mods
-        .join(directory)
+    let package = crate::modpack::package_by_key(root, directory)
+        .map(|location| location.path)
+        .unwrap_or_else(|| mods.join(directory))
         .canonicalize()
         .map_err(|error| error.to_string())?;
     let path = package
         .join(&file.path)
         .canonicalize()
         .map_err(|error| format!("DLL {}: {error}", file.path))?;
-    if package.parent() != Some(mods.as_path())
+    if !package.starts_with(&mods)
         || package
             .file_name()
             .is_none_or(|name| name.to_string_lossy().starts_with('.'))

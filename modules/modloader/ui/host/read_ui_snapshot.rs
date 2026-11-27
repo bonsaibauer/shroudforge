@@ -7,6 +7,7 @@ use super::read_runtime_profiles::runtime_profile_ids;
 use super::read_storage_paths::storage_paths;
 use super::save_language::is_valid_locale;
 use super::ui_snapshot_types::ModInfo;
+use super::ui_snapshot_types::{PackInfo, PackMemberInfo};
 use super::ui_snapshot_types::Snapshot;
 use super::ui_snapshot_types::SnapshotSettings;
 use super::validate_message_name::default_message_name_fallback;
@@ -155,6 +156,7 @@ pub(crate) fn read_ui_snapshot(
         version,
         notices: shroudforge_news::read_notifications(root, &notification_mods),
         mods,
+        modpacks: read_installed_packs(root),
         schematics,
         schematics_enabled: central
             .pointer("/modules/schematics/enabled")
@@ -242,6 +244,35 @@ pub(crate) fn read_ui_snapshot(
     (snapshot, resolved_username)
 }
 
+fn read_installed_packs(root: &Path) -> Vec<PackInfo> {
+    let mods_dir = shroudforge_loader_config::paths::mods_dir(root);
+    let receipts = std::fs::read(shroudforge_loader_config::paths::state_file(root)).ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|state| state.pointer("/catalog/packs").cloned())
+        .unwrap_or_default();
+    shroudforge_package::modpack::installed_packs(&mods_dir)
+        .into_iter()
+        .map(|pack| {
+            let selected_optionals = receipts.as_object().and_then(|packs| packs.values().find(|receipt| receipt["packId"] == pack.manifest.id))
+                .and_then(|receipt| receipt["selectedOptionalIds"].as_array());
+            PackInfo {
+            id: pack.manifest.id,
+            name: pack.manifest.name,
+            version: pack.manifest.version,
+            mods: pack.manifest.mods.iter().map(|item| PackMemberInfo {
+                id: item.id().into(),
+                source: item.source(),
+                optional: item.optional(),
+                selected: !item.optional() || selected_optionals.map_or_else(
+                    || pack.path.join("mods").join(item.id()).is_dir(),
+                    |items| items.iter().any(|selected| selected.as_str() == Some(item.id())),
+                ),
+                installed: pack.path.join("mods").join(item.id()).is_dir(),
+            }).collect(),
+        }})
+        .collect()
+}
+
 fn hotkey_conflicts(
     central: &serde_json::Value,
     mods: &[ModInfo],
@@ -313,5 +344,5 @@ fn read_update_queue(root: &std::path::Path) -> serde_json::Value {
 }
 
 pub(crate) fn default_catalog_state() -> serde_json::Value {
-    serde_json::json!({"state":"idle","query":"","loader":"shroudforge","category":"","gameVersion":"","sort":"relevance","page":1,"limit":20,"total":0,"message":null,"items":[],"categories":[],"gameVersions":[],"detail":null,"detailState":"idle","detailError":null})
+    serde_json::json!({"state":"idle","query":"","loader":"shroudforge","category":"","gameVersion":"","sort":"relevance","page":1,"limit":20,"total":0,"message":null,"items":[],"categories":[],"gameVersions":[],"detail":null,"detailState":"idle","detailError":null,"packPreview":null,"packPreviewState":"idle","packPreviewError":null})
 }

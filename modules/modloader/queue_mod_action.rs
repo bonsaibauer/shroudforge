@@ -1,4 +1,3 @@
-use crate::package_lookup::find_mod_package;
 use crate::package_lookup::valid_identifier;
 use std::fs;
 use std::path::Path;
@@ -7,10 +6,10 @@ use std::time::UNIX_EPOCH;
 
 /// Queue a declared action for the runtime attached to this installation.
 pub fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<(), String> {
-    if !crate::package_lookup::valid_mod_identifier(id) || !valid_identifier(action) {
+    if !valid_identifier(action) {
         return Err("invalid mod action".into());
     }
-    let package = find_mod_package(root, id).ok_or("mod package not found")?;
+    let package = crate::package_lookup::find_mod_package_by_reference(root, id).ok_or("mod package not found")?;
     let manifest = crate::config::read_manifest_path(root, &package)?;
     let declared = manifest
         .groups
@@ -27,12 +26,12 @@ pub fn queue_mod_action(root: &Path, id: &str, action: &str) -> Result<(), Strin
     crate::config::write_json(
         &actions.join(format!(
             "{}-{}-{}.json",
-            id,
+            manifest.id,
             timestamp.as_nanos(),
             std::process::id()
         )),
         &serde_json::json!({
-            "modId": id,
+            "modId": manifest.id,
             "action": action,
             "createdAt": timestamp.as_secs()
         }),

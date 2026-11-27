@@ -74,6 +74,12 @@ export type Snapshot = {
   gameVersion: string
   version: string
   mods: ModInfo[]
+  modpacks: Array<{
+    id: string
+    name: string
+    version: string
+    mods: Array<{ id: string; source: string; optional: boolean; selected: boolean; installed: boolean }>
+  }>
   schematics: SchematicInfo[]
   schematicsEnabled: boolean
   schematicsPath: string
@@ -228,6 +234,7 @@ export const empty: Snapshot = {
   gameVersion: '',
   version: '',
   mods: [],
+  modpacks: [],
   schematics: [],
   schematicsEnabled: true,
   schematicsPath: '',

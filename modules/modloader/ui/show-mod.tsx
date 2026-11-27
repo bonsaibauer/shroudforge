@@ -17,6 +17,24 @@ import { ModSetting, settingIsEnabled } from './edit-mod-setting'
 import { useModSettings } from './save-mod-settings'
 import linkOrder from '../mod_link_order.json'
 
+export function NativeModPage({ mod, openDllManager, remoteTarget }: { mod: ModInfo; openDllManager: () => void; remoteTarget: 'client' | 'server' }) {
+  const { t } = useI18n()
+  return <>
+    <PageHeader eyebrow="MOD" title={<span className="mod-title-lockup"><ModIcon mod={mod} variant="page" /><span>{mod.name}</span></span>}
+      subtitle={mod.packId ?? mod.id}
+      actions={<>
+        <button className="button" onClick={openDllManager}>{t('nav.compatibility')}</button>
+        {remoteTarget === 'client' && <button className="button danger" onClick={() => {
+          if (window.confirm(t('mod.remove.confirm', { name: mod.name })))
+            postRequest('remove-mod', { modId: mod.instanceKey ?? mod.id })
+        }}>{t('mod.remove')}</button>}
+      </>} />
+    <Card title={t('compatibility.dllManager.title')}>
+      <p className="hint">{t('compatibility.dllManager.chooseFiles')}</p>
+    </Card>
+  </>
+}
+
 export function ModPage({
   mod,
   status,
@@ -53,7 +71,7 @@ export function ModPage({
   const hasSettingsTab = settingsGroups.length > 0 || tabGroups.length === 0
   const defaultTab = hasSettingsTab ? 'settings' : 'group-0'
   const [pageTab, setPageTab] = useState(defaultTab)
-  useEffect(() => setPageTab(defaultTab), [mod.id, defaultTab])
+  useEffect(() => setPageTab(defaultTab), [mod.instanceKey, defaultTab])
   const validTabs = new Set([
     'information',
     'dependencies',
@@ -72,7 +90,7 @@ export function ModPage({
         : []
   const remove = () => {
     if (window.confirm(t('mod.remove.confirm', { name: mod.name })))
-      postRequest('remove-mod', { modId: mod.id })
+      postRequest('remove-mod', { modId: mod.instanceKey ?? mod.id })
   }
   const disablePending = status?.code === 'native-dll-disable-pending'
   const stateCode =
@@ -181,7 +199,7 @@ export function ModPage({
               className="button"
               onClick={() => {
                 if (remoteTarget === 'client') save()
-                postRequest('refresh-mod', { modId: mod.id })
+                postRequest('refresh-mod', { modId: mod.instanceKey ?? mod.id })
               }}
             >
               {t('common.refresh')}
@@ -307,7 +325,7 @@ export function ModPage({
                         value={values[definition.key]}
                         assessmentTarget={{
                           scope: 'mod',
-                          modId: mod.id,
+                          modId: mod.instanceKey ?? mod.id,
                           key: definition.key,
                           revision: mod.revision,
                           values,
@@ -317,7 +335,7 @@ export function ModPage({
                         contexts={mod.inputContexts}
                         onReserve={(device, reserved) =>
                           postRequest('save-key-reservation', {
-                            modId: mod.id,
+                            modId: mod.instanceKey ?? mod.id,
                             key: definition.key,
                             device,
                             enabled: reserved,

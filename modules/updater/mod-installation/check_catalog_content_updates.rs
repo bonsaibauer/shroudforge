@@ -1,7 +1,6 @@
 use super::ModUpdateCheckLock;
 use super::catalog::{
-    InstalledCatalogPack, current_game_version, fetch_catalog_mod_versions,
-    installed_catalog_packs, read_catalog_install_registry,
+    current_game_version, fetch_catalog_mod_versions, installed_catalog_packs,
 };
 use crate::provider_config::CatalogProviderConfig;
 use serde_json::{Value, json};
@@ -56,96 +55,32 @@ fn newer_version(
 
 fn inspect_pack_changes(
     root: &Path,
-    client: &reqwest::blocking::Client,
-    provider: &CatalogProviderConfig,
-    project_id: &str,
-    old: &InstalledCatalogPack,
-    new: &crate::read_modpack::Modpack,
-    pinned_versions: &[Value],
-) -> Result<(Vec<Value>, Vec<String>), String> {
-    let registry = read_catalog_install_registry(root);
-    let other_packs = installed_catalog_packs(root);
+    new: &shroudforge_package::modpack::ModpackManifest,
+) -> Result<Vec<Value>, String> {
+    let previous = shroudforge_loader_config::paths::mods_dir(root)
+        .join(&new.id).join("modpack.json");
+    let old = shroudforge_package::modpack::parse_manifest(
+        &std::fs::read(&previous).map_err(|error| format!("{}: {error}", previous.display()))?
+    )?;
     let mut changes = Vec::new();
-    let mut conflicts = Vec::new();
-    for member in &new.mods {
-        let previous = old
-            .mods
-            .iter()
-            .find(|previous| previous.project_id == member.project_id);
-        let kind = match previous {
+    for item in &new.mods {
+        let before = old.mods.iter().find(|candidate| candidate.id() == item.id());
+        let kind = match before {
             None => "added",
-            Some(previous) if previous.version_id != member.version_id => "changed",
+            Some(before) if serde_json::to_value(before).ok() != serde_json::to_value(item).ok() => "changed",
             _ => "unchanged",
         };
         if kind != "unchanged" {
-            changes.push(json!({
-                "kind": kind,
-                "projectId": member.project_id,
-                "previousVersionId": previous.map(|value| value.version_id.as_str()),
-                "versionId": member.version_id,
-            }));
-        }
-        if kind == "changed" {
-            conflicts.push(format!(
-                "The pinned version of mod {} changed. Replace it only after resolving the installed package.",
-                member.project_id
-            ));
-        }
-        if other_packs.iter().any(|(other_id, other)| {
-            other_id != project_id
-                && other.mods.iter().any(|existing| {
-                    existing.project_id == member.project_id
-                        && existing.version_id != member.version_id
-                })
-        }) {
-            conflicts.push(format!(
-                "Mod {} is pinned differently by another installed modpack.",
-                member.project_id
-            ));
-        }
-        let slug =
-            crate::install_catalog_mod::catalog_project_slug(client, provider, &member.project_id)?;
-        if let Some(local) = shroudforge_package::package_lookup::find_mod_package(root, &slug) {
-            let recorded = &registry["projects"][member.project_id.as_str()];
-            if recorded["versionId"].as_str() != Some(member.version_id.as_str())
-                || recorded["modId"].as_str() != Some(slug.as_str())
-            {
-                conflicts.push(format!(
-                    "Installed mod {slug} does not match the version required by this modpack."
-                ));
-            } else {
-                let manifest = shroudforge_package::config::read_manifest_path(root, &local)
-                    .map_err(|error| format!("Could not read installed mod {slug}: {error}"))?;
-                let published_number = pinned_versions
-                    .iter()
-                    .find(|version| version["id"].as_str() == Some(member.version_id.as_str()))
-                    .and_then(|version| version["version_number"].as_str());
-                let local_number = manifest.version.to_string();
-                if manifest.id != slug || published_number != Some(local_number.as_str()) {
-                    conflicts.push(format!(
-                        "Installed mod {slug} differs from its pinned ShroudEdit package version."
-                    ));
-                }
-            }
+            changes.push(json!({"kind":kind,"modId":item.id()}));
         }
     }
-    for member in &old.mods {
-        if !new
-            .mods
-            .iter()
-            .any(|candidate| candidate.project_id == member.project_id)
-        {
-            changes.push(json!({
-                "kind": "removed",
-                "projectId": member.project_id,
-                "previousVersionId": member.version_id,
-                "versionId": null,
-            }));
+    for item in &old.mods {
+        if !new.mods.iter().any(|candidate| candidate.id() == item.id()) {
+            changes.push(json!({"kind":"removed","modId":item.id()}));
         }
     }
-    Ok((changes, conflicts))
+    Ok(changes)
 }
-
 pub fn check_catalog_content_updates(
     root: &Path,
     content_type: &str,
@@ -234,38 +169,28 @@ pub fn check_catalog_content_updates(
                         errors.push(format!("{project_id}: candidate has no version ID"));
                         continue;
                     };
-                    match crate::install_catalog_mod::download_sfpack_manifest(
+                    match crate::install_modpack::download_sfpack_manifest(
                         root,
                         &client,
                         &provider,
                         &project_id,
                         version_id,
                     )
-                    .and_then(|(pack, pinned_versions)| {
-                        inspect_pack_changes(
-                            root,
-                            &client,
-                            &provider,
-                            &project_id,
-                            &installed,
-                            &pack,
-                            &pinned_versions,
-                        )
-                        .map(|(changes, conflicts)| (pack, changes, conflicts))
+                    .and_then(|pack| {
+                        inspect_pack_changes(root, &pack).map(|changes| (pack, changes))
                     }) {
-                        Ok((pack, changes, conflicts)) => {
+                        Ok((pack, changes)) => {
                             checked += 1;
-                            let can_update = conflicts.is_empty();
                             updates.push(json!({
                                 "projectId": project_id,
                                 "name": pack.name,
                                 "currentVersion": installed.version_number,
                                 "currentVersionId": installed.version_id,
-                                "latestVersion": pack.version_id,
+                                "latestVersion": pack.version,
                                 "latestVersionId": version_id,
                                 "changes": changes,
-                                "conflicts": conflicts,
-                                "canUpdate": can_update,
+                                "conflicts": [],
+                                "canUpdate": true,
                             }));
                         }
                         Err(error) => errors.push(format!("{project_id}: {error}")),

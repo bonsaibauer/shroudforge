@@ -348,6 +348,19 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
     if let Ok(entries) = fs::read_dir(shroudforge_loader_config::paths::mods_dir(root)) {
         for entry in entries.flatten() {
             let path = entry.path();
+            if !path.join("modpack.json").is_file() { continue }
+            match fs::read(path.join("modpack.json"))
+                .map_err(|error| error.to_string())
+                .and_then(|bytes| crate::modpack::parse_manifest(&bytes)) {
+                Ok(pack) if path.file_name().and_then(|name| name.to_str()) == Some(pack.id.as_str()) => {}
+                Ok(_) => errors.push(format!("{}: modpack id differs from its folder", path.display())),
+                Err(error) => errors.push(format!("{}: {error}", path.display())),
+            }
+        }
+    }
+    if let Ok(entries) = crate::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(root)) {
+        for entry in entries {
+            let path = entry.path;
             if !path.is_dir() && path.extension().is_none_or(|extension| extension != "zip") {
                 continue;
             }
@@ -423,7 +436,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 let state = if manifest.id == "world-editor"
                     && world_editor_module_enabled == Some(false)
                 {
-                    json!({"state":"disabled","code":"module-disabled","detail":"World Editor module is disabled in Settings. The World Editor mod is unavailable until it is enabled."})
+                    json!({"state":"disabled","code":"module-disabled","detail":"This module is disabled in Settings. Enable it to use this feature."})
                 } else if runtime_mod
                     && runtime_error.is_some_and(|reason| {
                         reason.starts_with("plan-blocked:")
@@ -660,12 +673,10 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                     Some("loaded" | "loading" | "error")
                 )
             {
-                let mut parts = id.splitn(3, ':');
-                let _ = parts.next();
-                let directory = parts.next().unwrap_or_default();
-                let relative = parts.next().unwrap_or_default();
-                let selected_by_plan = shroudforge_loader_config::paths::mods_dir(root)
-                    .join(directory)
+                let (directory, relative) = id.strip_prefix("dll:").and_then(|value| value.rsplit_once(':')).unwrap_or(("", ""));
+                let package = crate::modpack::package_by_key(root, directory).map(|location| location.path)
+                    .unwrap_or_else(|| shroudforge_loader_config::paths::mods_dir(root).join(directory));
+                let selected_by_plan = package
                     .join(relative)
                     .canonicalize()
                     .is_ok_and(|path| {
@@ -674,7 +685,7 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 let lua_active = effect["nativeSource"] == "Lua register_dll"
                     && dll_enabled
                     && !crate::dll_manager::is_excluded_dll_name(root, relative)
-                    && id.split(':').nth(1).is_some_and(|directory| {
+                    && !directory.is_empty() && {
                         let enabled = crate::dll_manager::read_selections(root)
                             .into_iter()
                             .find(|selection| {
@@ -686,14 +697,11 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                                     && selection.target.applies_to(server)
                             });
                         enabled
-                            && crate::read_manifest_path(
-                                root,
-                                &shroudforge_loader_config::paths::mods_dir(root).join(directory),
-                            )
+                            && crate::read_manifest_path(root, &package)
                             .is_ok_and(|manifest| {
                                 manifest.enabled && manifest.target.supports_process(server)
                             })
-                    });
+                    };
                 let state = if effect["state"] == "error" {
                     json!({"state":"failed","detail":effect["detail"]})
                 } else if (lua_active || selected_by_plan) && !dll_plan_changed {
@@ -719,6 +727,28 @@ pub fn configuration(root: &Path, server: bool, api: &str, game_pid: Option<u32>
                 } else { "DLL Manager is disabled." }
             })
         });
+    }
+    if let Ok(locations) = crate::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(root)) {
+        let copies = locations.into_iter().filter_map(|location| {
+            crate::config::read_manifest_path(root, &location.path).ok().map(|manifest| (location.key(), manifest, location.pack_ready))
+        }).collect::<Vec<_>>();
+        let mut enabled_counts = std::collections::HashMap::<String, usize>::new();
+        for (_, manifest, ready) in &copies {
+            if manifest.enabled && *ready { *enabled_counts.entry(manifest.id.clone()).or_default() += 1; }
+        }
+        for (key, manifest, ready) in copies {
+            let state = if !ready {
+                json!({"state":"blocked","detail":"A required modpack member is missing. The pack is not loaded."})
+            } else if enabled_counts.get(&manifest.id).copied().unwrap_or_default() > 1 {
+                errors.push(format!("multiple enabled copies of mod {}", manifest.id));
+                json!({"state":"blocked","detail":"Multiple copies of this mod are enabled. Disable all but one."})
+            } else if !manifest.enabled {
+                json!({"state":"disabled","detail":"The mod is disabled."})
+            } else {
+                mod_states.get(&manifest.id).cloned().unwrap_or_else(|| json!({"state":"unconfirmed","detail":"Activation is saved. No current runtime report is available."}))
+            };
+            mod_states.insert(key, state);
+        }
     }
     let executable = root.join(if server {
         "enshrouded_server.exe"

@@ -74,6 +74,9 @@ export type ModDependencyInfo = {
 }
 
 export type ModInfo = {
+  instanceKey?: string
+  packId?: string | null
+  nativeOnly?: boolean
   revision: string
   id: string
   name: string

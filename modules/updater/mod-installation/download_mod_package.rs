@@ -62,6 +62,18 @@ pub fn download_catalog_version(
     update_mod_id: Option<&str>,
     queue_item_id: &str,
 ) -> Result<(String, PathBuf), String> {
+    download_catalog_version_into(root, provider, client, resolved, update_mod_id, queue_item_id, None)
+}
+
+pub(crate) fn download_catalog_version_into(
+    root: &Path,
+    provider: &CatalogProviderConfig,
+    client: &reqwest::blocking::Client,
+    resolved: &ResolvedContent,
+    update_mod_id: Option<&str>,
+    queue_item_id: &str,
+    destination_parent: Option<&Path>,
+) -> Result<(String, PathBuf), String> {
     shroudforge_updater::check_update_cancelled(root)?;
     shroudforge_updater::set_active_queue_item_state(
         root,
@@ -201,7 +213,7 @@ pub fn download_catalog_version(
             manifest.id
         ));
     }
-    if update_mod_id.is_none() && find_mod_package(root, &manifest.id).is_some() {
+    if update_mod_id.is_none() && destination_parent.is_none() && find_mod_package(root, &manifest.id).is_some() {
         return Err(format!("Mod '{}' is already installed", manifest.name));
     }
     if let Some(expected_id) = update_mod_id
@@ -258,7 +270,7 @@ pub fn download_catalog_version(
     // belong to extraction and are removed by its guard.
     drop(extraction_cleanup);
     shroudforge_updater::check_update_cancelled(root)?;
-    let destination = mods.join(&manifest.id);
+    let destination = destination_parent.unwrap_or(&mods).join(&manifest.id);
     if let Some(expected_id) = update_mod_id {
         if manifest.id != expected_id {
             return Err("updated mod identity changed".into());
@@ -302,7 +314,7 @@ fn valid_native_ini_entrypoint(package: &Path) -> Result<bool, String> {
 }
 
 /// Archive layout belongs to installation. The running mod loader sees folders only.
-fn select_extracted_package(
+pub(crate) fn select_extracted_package(
     root: &Path,
     extraction: &Path,
     expected_id: Option<&str>,

@@ -112,8 +112,12 @@ pub struct InstalledPackMember {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstalledCatalogPack {
+    #[serde(default)]
+    pub pack_id: String,
     pub version_id: String,
     pub version_number: String,
+    #[serde(default)]
+    pub selected_optional_ids: Vec<String>,
     pub mods: Vec<InstalledPackMember>,
 }
 
@@ -127,13 +131,6 @@ pub fn installed_catalog_packs(root: &Path) -> Vec<(String, InstalledCatalogPack
                 .ok()
                 .map(|pack| (id.clone(), pack))
         })
-        .collect()
-}
-
-pub fn pack_pinned_mod_ids(root: &Path) -> std::collections::HashSet<String> {
-    installed_catalog_packs(root)
-        .into_iter()
-        .flat_map(|(_, pack)| pack.mods.into_iter().map(|item| item.mod_id))
         .collect()
 }
 
@@ -153,12 +150,12 @@ struct CatalogModVersion {
 }
 
 fn installed_mod_packages(root: &Path) -> Vec<InstalledModPackage> {
-    std::fs::read_dir(shroudforge_loader_config::paths::mods_dir(root))
+    shroudforge_package::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(root))
+        .unwrap_or_default()
         .into_iter()
-        .flatten()
-        .flatten()
+        .filter(|entry| entry.pack_id.is_none())
         .filter_map(|entry| {
-            let package = entry.path();
+            let package = entry.path;
             if !package.is_dir() {
                 return None;
             }
@@ -452,14 +449,9 @@ pub fn check_catalog_mod_updates(root: &Path, manual: bool) -> Result<serde_json
     let mut latest_updates = Vec::new();
     let mut failures = Vec::new();
     let mut checked = 0usize;
-    let pinned_mods = pack_pinned_mod_ids(root);
-    let mut protected = 0usize;
+    let protected = 0usize;
     let game_version = current_game_version(root);
     for installed in installed_mod_packages(root) {
-        if pinned_mods.contains(&installed.id) {
-            protected += 1;
-            continue;
-        }
         let result = if let Some((project_id, installed_version_id)) =
             registered_projects.get(&installed.id)
         {
@@ -681,14 +673,12 @@ pub fn fetch_catalog(
         _ => "mod",
     }
     .to_owned();
-    let loader = match search.loader.as_str() {
-        "eml" => "eml",
-        "all" => "all",
-        _ => "shroudforge",
-    }
-    .to_owned();
-    let category = safe_filter_value(&search.category);
-    let game_version = safe_filter_value(&search.game_version);
+    let loader = safe_filter_values(&search.loader)
+        .into_iter()
+        .filter(|value| matches!(value.as_str(), "shroudforge" | "eml"))
+        .collect::<Vec<_>>();
+    let category = safe_filter_values(&search.category);
+    let game_version = safe_filter_values(&search.game_version);
     let sort = match search.sort.as_str() {
         "downloads" => "downloads".to_owned(),
         "newest" => "newest".to_owned(),
@@ -736,6 +726,16 @@ pub fn fetch_catalog(
         .or_else(|| payload.get("projects").and_then(|value| value.as_array()))
         .or_else(|| payload.get("data").and_then(|value| value.as_array()))
         .ok_or("ShroudEdit search response contains no result list")?;
+    let project_ids = values
+        .iter()
+        .map(|value| string_field(value, &["project_id", "projectId", "id"]))
+        .filter(|id| !id.is_empty())
+        .collect::<Vec<_>>();
+    let projects = fetch_catalog_projects(
+        &client,
+        provider.base_url.trim_end_matches('/'),
+        &project_ids,
+    )?;
     let version_ids = values
         .iter()
         .filter_map(|value| value.get("version_id").and_then(|value| value.as_str()))
@@ -789,6 +789,7 @@ pub fn fetch_catalog(
                 .get("game_versions")
                 .or_else(|| project_loader_fields.and_then(|fields| fields.get("game_versions"))),
         );
+        let icon_url = projects.get(&id).and_then(catalog_icon_url);
         let installed_mod_id = installed_mod_for_catalog_project(root, &id, &slug);
         let project_types = string_values(value.get("project_types"));
         items.push(CatalogItem {
@@ -798,7 +799,7 @@ pub fn fetch_catalog(
             project_types,
             name,
             summary: string_field(value, &["summary", "description"]),
-            icon_url: optional_string_field(value, &["icon_url", "iconUrl"]),
+            icon_url,
             author: optional_string_field(value, &["author", "owner_name", "ownerName"]),
             downloads: value
                 .get("downloads")
@@ -853,9 +854,9 @@ pub fn fetch_catalog(
 pub struct CatalogSearchParameters {
     pub query: String,
     pub project_type: String,
-    pub loader: String,
-    pub category: String,
-    pub game_version: String,
+    pub loader: Vec<String>,
+    pub category: Vec<String>,
+    pub game_version: Vec<String>,
     pub environment: Vec<String>,
     pub sort: String,
     pub page: usize,
@@ -873,29 +874,102 @@ fn safe_filter_value(value: &str) -> String {
         .collect()
 }
 
+fn catalog_icon_url(project: &serde_json::Value) -> Option<String> {
+    optional_string_field(project, &["icon_url"])
+}
+
+fn fetch_catalog_projects(
+    client: &reqwest::blocking::Client,
+    base_url: &str,
+    project_ids: &[String],
+) -> Result<HashMap<String, serde_json::Value>, String> {
+    if project_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let ids = serde_json::to_string(project_ids).map_err(|error| error.to_string())?;
+    let response = client
+        .get(format!("{}/v3/projects", base_url.trim_end_matches('/')))
+        .query(&[("ids", ids.as_str())])
+        .send()
+        .map_err(|error| format!("ShroudEdit is unreachable: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "ShroudEdit project lookup returned HTTP {}",
+            response.status()
+        ));
+    }
+    let projects = response
+        .json::<serde_json::Value>()
+        .map_err(|error| format!("Invalid ShroudEdit project response: {error}"))?;
+    let projects = projects
+        .as_array()
+        .ok_or("ShroudEdit project response contains no project list")?;
+    Ok(projects
+        .iter()
+        .filter_map(|project| {
+            project
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .map(|id| (id.to_owned(), project.clone()))
+        })
+        .collect())
+}
+
+fn safe_filter_values(values: &[String]) -> Vec<String> {
+    values
+        .iter()
+        .map(|value| safe_filter_value(value))
+        .filter(|value| !value.is_empty())
+        .fold(Vec::new(), |mut unique, value| {
+            if !unique.contains(&value) {
+                unique.push(value);
+            }
+            unique
+        })
+}
+
 fn catalog_search_facets_for_type(
     project_type: &str,
-    loader: &str,
-    category: &str,
-    game_version: &str,
+    loader: &[String],
+    category: &[String],
+    game_version: &[String],
     environment: &[String],
 ) -> Vec<Vec<String>> {
     let mut facets = vec![vec![format!("project_types:{project_type}")]];
     if project_type == "mod" {
-        match loader {
-            "eml" => facets.push(vec!["categories:eml".to_owned()]),
-            "all" => facets.push(vec![
-                "categories:shroudforge".to_owned(),
-                "categories:eml".to_owned(),
-            ]),
-            _ => facets.push(vec!["categories:shroudforge".to_owned()]),
+        let selected_loaders = if loader.is_empty() {
+            vec!["shroudforge", "eml"]
+        } else {
+            loader
+                .iter()
+                .map(String::as_str)
+                .filter(|value| matches!(*value, "shroudforge" | "eml"))
+                .collect()
+        };
+        if !selected_loaders.is_empty() {
+            facets.push(
+                selected_loaders
+                    .into_iter()
+                    .map(|value| format!("categories:{value}"))
+                    .collect(),
+            );
         }
     }
     if !category.is_empty() {
-        facets.push(vec![format!("categories:{category}")]);
+        facets.push(
+            category
+                .iter()
+                .map(|value| format!("categories:{value}"))
+                .collect(),
+        );
     }
     if !game_version.is_empty() {
-        facets.push(vec![format!("game_versions:{game_version}")]);
+        facets.push(
+            game_version
+                .iter()
+                .map(|value| format!("game_versions:{value}"))
+                .collect(),
+        );
     }
     if matches!(project_type, "mod" | "modpack") {
         let client = environment.iter().any(|value| value == "client");
@@ -1087,19 +1161,10 @@ pub fn fetch_catalog_project(
         .build()
         .map_err(|error| error.to_string())?;
     let base = provider.base_url.trim_end_matches('/');
-    let project = client
-        .get(format!("{base}/v3/project/{project_id}"))
-        .send()
-        .map_err(|error| format!("ShroudEdit is unreachable: {error}"))?;
-    if !project.status().is_success() {
-        return Err(format!(
-            "ShroudEdit project lookup returned HTTP {}",
-            project.status()
-        ));
-    }
-    let project: serde_json::Value = project
-        .json()
-        .map_err(|error| format!("Invalid ShroudEdit project response: {error}"))?;
+    let mut projects = fetch_catalog_projects(&client, base, &[project_id.to_owned()])?;
+    let project = projects
+        .remove(project_id)
+        .ok_or_else(|| format!("ShroudEdit did not return project {project_id}"))?;
     let project_id = string_field(&project, &["id", "project_id"]);
     let advertised_versions = project
         .get("versions")
@@ -1237,7 +1302,7 @@ pub fn fetch_catalog_project(
         "dateModified": optional_string_field(&project, &["updated", "date_modified"]),
         "dateCreated": optional_string_field(&project, &["published", "date_created"]),
         "author": optional_string_field(&project, &["author", "owner_name"]),
-        "iconUrl": optional_string_field(&project, &["icon_url"]),
+        "iconUrl": catalog_icon_url(&project),
         "links": links,
         "loaders": string_values(project.get("loaders")),
         "categories": string_values(project.get("categories")),
@@ -1269,37 +1334,6 @@ pub fn remember_catalog_pack_install(
             .unwrap_or_else(|| serde_json::json!({"schemaVersion":1,"projects":{},"packs":{}}));
         if registry.get("packs").is_none() {
             registry["packs"] = serde_json::json!({});
-        }
-        for member in &pack.mods {
-            let installed = &registry["projects"][member.project_id.as_str()];
-            if installed["versionId"].as_str() != Some(member.version_id.as_str())
-                || installed["modId"].as_str() != Some(member.mod_id.as_str())
-            {
-                return Err(format!(
-                    "modpack member '{}' is not installed at its pinned version",
-                    member.mod_id
-                ));
-            }
-        }
-        if let Some(packs) = registry["packs"].as_object() {
-            for (other_id, other) in packs {
-                if other_id == project_id {
-                    continue;
-                }
-                let other: InstalledCatalogPack = serde_json::from_value(other.clone())
-                    .map_err(|error| format!("invalid installed modpack receipt: {error}"))?;
-                for member in &pack.mods {
-                    if other.mods.iter().any(|existing| {
-                        existing.project_id == member.project_id
-                            && existing.version_id != member.version_id
-                    }) {
-                        return Err(format!(
-                            "mod '{}' is pinned to a different version by another modpack",
-                            member.mod_id
-                        ));
-                    }
-                }
-            }
         }
         registry["packs"][project_id] =
             serde_json::to_value(pack).map_err(|error| error.to_string())?;
@@ -1404,15 +1438,6 @@ pub fn forget_catalog_install(root: &Path, mod_id: &str) -> Result<(), String> {
             .as_object_mut()
             .ok_or("invalid catalog install registry")?
             .retain(|_, value| value.get("modId").and_then(|value| value.as_str()) != Some(mod_id));
-        if let Some(packs) = registry["packs"].as_object_mut() {
-            packs.retain(|_, value| {
-                !value["mods"].as_array().is_some_and(|members| {
-                    members
-                        .iter()
-                        .any(|member| member["modId"].as_str() == Some(mod_id))
-                })
-            });
-        }
         shroudforge_loader_config::config::validate_document(
             root,
             crate::documents::CATALOG_STATE,
@@ -1449,14 +1474,20 @@ mod tests {
     #[test]
     fn shrouedit_catalog_facets_use_the_project_types_field() {
         assert_eq!(
-            catalog_search_facets_for_type("mod", "shroudforge", "", "", &[]),
+            catalog_search_facets_for_type("mod", &["shroudforge".into()], &[], &[], &[]),
             vec![
                 vec!["project_types:mod".to_owned()],
                 vec!["categories:shroudforge".to_owned()]
             ]
         );
         assert_eq!(
-            catalog_search_facets_for_type("mod", "all", "technology", "1.0.1.2", &[]),
+            catalog_search_facets_for_type(
+                "mod",
+                &[],
+                &["technology".into()],
+                &["1.0.1.2".into()],
+                &[],
+            ),
             vec![
                 vec!["project_types:mod".to_owned()],
                 vec![
@@ -1471,7 +1502,13 @@ mod tests {
 
     #[test]
     fn environment_filters_match_discover_side_choices() {
-        let client = catalog_search_facets_for_type("mod", "all", "", "", &["client".into()]);
+        let client = catalog_search_facets_for_type(
+            "mod",
+            &[],
+            &[],
+            &[],
+            &["client".into()],
+        );
         assert!(
             !client
                 .last()
@@ -1487,9 +1524,9 @@ mod tests {
 
         let both = catalog_search_facets_for_type(
             "modpack",
-            "all",
-            "",
-            "",
+            &[],
+            &[],
+            &[],
             &["client".into(), "server".into()],
         );
         assert!(

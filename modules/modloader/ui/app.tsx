@@ -17,7 +17,7 @@ import { useNotifications } from '../../notifications/ui/read-notifications'
 import { Toasts, useCommandToasts } from '../../notifications/ui/show-toasts'
 import { Nav, NavGroup } from '../../ui-resources/show-navigation'
 import { ModIcon } from './show-mod-icon'
-import { ModPage } from './show-mod'
+import { ModPage, NativeModPage } from './show-mod'
 import { useUiUpdates } from './receive-ui-updates'
 import { RemoteTargetSwitch, ServerAdminVisual, TopBar } from './show-top-bar'
 import { Page } from './show-page'
@@ -54,7 +54,7 @@ export function App() {
   const { t, setLocale } = useI18n()
   const [data, setData] = useState<Snapshot>(empty)
   const [page, setPage] = useState<PageId>('news')
-  const [installedTab, setInstalledTab] = useState<'mods' | 'schematics'>('mods')
+  const [installedTab, setInstalledTab] = useState<'mods' | 'schematics' | 'modpacks'>('mods')
   const [selectedMod, setSelectedMod] = useState<string | null>(null)
   const [selectedWikiArticle, setSelectedWikiArticle] = useState<string | null>(null)
   const [wikiCategory, setWikiCategory] = useState(DEFAULT_WIKI_CATEGORY)
@@ -159,7 +159,7 @@ export function App() {
         const updated = detail.mod
         setServerView((current) =>
           current
-            ? { ...current, mods: current.mods.map((mod) => (mod.id === updated.id ? updated : mod)) }
+            ? { ...current, mods: current.mods.map((mod) => ((mod.instanceKey ?? mod.id) === (updated.instanceKey ?? updated.id) ? updated : mod)) }
             : current,
         )
       } else if (detail?.serverRights) {
@@ -262,7 +262,7 @@ export function App() {
       ? data.newsTemplates !== undefined
       : serverAdminAuthenticated && serverView !== null,
   )
-  const activeMod = displayedMods.find((mod) => mod.id === selectedMod)
+  const activeMod = displayedMods.find((mod) => (mod.instanceKey ?? mod.id) === selectedMod)
   const compatibilityStatus = compatibilityNavigationStatus(activeData)
   const runtimeCheck = activeData.configuration?.checks.find((check) => check.id === 'runtime')
   const clientRuntimeCheck = data.configuration?.checks.find((check) => check.id === 'runtime')
@@ -420,13 +420,13 @@ export function App() {
     setSelectedWikiArticle(null)
     setPage(next)
   }
-  const changeInstalledTab = (tab: 'mods' | 'schematics') => {
+  const changeInstalledTab = (tab: 'mods' | 'schematics' | 'modpacks') => {
     if (
       tab === 'schematics' &&
       !(settings.modulePreferences?.schematics?.enabled ?? data.schematicsEnabled)
     ) return
     setInstalledTab(tab)
-    if (tab === 'schematics') setSelectedMod(null)
+    if (tab !== 'mods') setSelectedMod(null)
   }
   useEffect(() => {
     if (
@@ -465,7 +465,7 @@ export function App() {
         setSelectedWikiArticle(null)
         setInstalledTab('mods')
         setPage('installed')
-        setSelectedMod(action.target)
+        setSelectedMod(activeData.mods.find((mod) => mod.id === action.target)?.instanceKey ?? action.target)
       } else navigate('installed')
     } else if (
       action.kind === 'open-debug-console' &&
@@ -631,15 +631,15 @@ export function App() {
               <div className="sidebar-mods">
                 {displayedMods.map((mod) => (
                   <button
-                    key={mod.id}
-                    className={`nav-item ${activeMod?.id === mod.id ? 'active' : ''}`}
+                    key={mod.instanceKey ?? mod.id}
+                    className={`nav-item ${activeMod?.instanceKey === mod.instanceKey ? 'active' : ''}`}
                     onClick={() => {
                       setInstalledTab('mods')
-                      setSelectedMod(mod.id)
+                      setSelectedMod(mod.instanceKey ?? mod.id)
                     }}
                   >
                     <ModIcon mod={mod} variant="nav" />
-                    <span>{mod.name}</span>
+                    <span>{mod.name}{mod.packId ? ` · ${mod.packId}` : ''}</span>
                   </button>
                 ))}
               </div>
@@ -729,22 +729,28 @@ export function App() {
                 {page === 'installed' && (
                   <Segmented
                     value={installedTab}
-                    onChange={(value) => changeInstalledTab(value as 'mods' | 'schematics')}
+                    onChange={(value) => changeInstalledTab(value as 'mods' | 'schematics' | 'modpacks')}
                     items={[
                       ['mods', t('installed.tab.mods')],
+                      ['modpacks', t('installed.tab.modpacks')],
                       ...((settings.modulePreferences?.schematics?.enabled ?? activeData.schematicsEnabled)
                         ? ([['schematics', t('installed.tab.schematics')]] as [string, string][])
                         : []),
                     ]}
                   />
                 )}
-                <ModPage
-                  key={activeMod.id}
+                {activeMod.nativeOnly ? <NativeModPage
+                  key={activeMod.instanceKey ?? activeMod.id}
                   mod={activeMod}
-                  status={activeData.configuration?.modStates?.[activeMod.id]}
+                  openDllManager={() => openCompatibility('dll-manager')}
+                  remoteTarget={remoteTarget}
+                /> : <ModPage
+                  key={activeMod.instanceKey ?? activeMod.id}
+                  mod={activeMod}
+                  status={activeData.configuration?.modStates?.[activeMod.instanceKey ?? activeMod.id] ?? activeData.configuration?.modStates?.[activeMod.id]}
                   dependencyStates={activeData.configuration?.modStates || {}}
                   remoteTarget={remoteTarget}
-                />
+                />}
               </>
             ) : (
               <Page

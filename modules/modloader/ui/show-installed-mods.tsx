@@ -1,4 +1,5 @@
 import type { ModInfo } from './mod-types'
+import type { Snapshot } from './ui-snapshot'
 import type { SchematicInfo } from '../../schematics/ui/schematic-types'
 import { useI18n } from '../../ui-resources/i18n'
 
@@ -9,9 +10,12 @@ import { PageHeader } from '../../ui-resources/show-page-header'
 import { ModIcon } from './show-mod-icon'
 import { Segmented } from '../../ui-resources/choose-segment'
 import { InstalledSchematics } from '../../schematics/ui/show-installed-schematics'
+import { postRequest } from '../../transport/ui/send-host-command'
 
 export function Installed({
   mods,
+  modpacks,
+  removable,
   schematics,
   schematicsPath,
   schematicConversionMode,
@@ -21,13 +25,15 @@ export function Installed({
   setTab,
 }: {
   mods: ModInfo[]
+  modpacks: Snapshot['modpacks']
+  removable: boolean
   schematics: SchematicInfo[]
   schematicsPath: string
   schematicConversionMode: 'manual' | 'automatic'
   schematicsEnabled: boolean
   select(id: string): void
-  tab: 'mods' | 'schematics'
-  setTab(tab: 'mods' | 'schematics'): void
+  tab: 'mods' | 'schematics' | 'modpacks'
+  setTab(tab: 'mods' | 'schematics' | 'modpacks'): void
 }) {
   const { t } = useI18n()
   const visibleTab = tab === 'schematics' && !schematicsEnabled ? 'mods' : tab
@@ -40,15 +46,36 @@ export function Installed({
       />
       <Segmented
         value={visibleTab}
-        onChange={(value) => setTab(value as 'mods' | 'schematics')}
+        onChange={(value) => setTab(value as 'mods' | 'schematics' | 'modpacks')}
         items={[
           ['mods', t('installed.tab.mods')],
+          ['modpacks', t('installed.tab.modpacks')],
           ...(schematicsEnabled
             ? ([['schematics', t('installed.tab.schematics')]] as [string, string][])
             : []),
         ]}
       />
-      {visibleTab === 'schematics' ? (
+      {visibleTab === 'modpacks' ? (
+        <Card flush>
+          {modpacks.length ? <div className="mod-list">
+            {modpacks.map((pack) => <section className="mod-row" key={pack.id}>
+              <span className="mod-name">
+                <strong>{pack.name}</strong>
+                <small>{pack.id} · {pack.mods.filter((item) => item.installed).length}/{pack.mods.filter((item) => item.selected).length} Mods</small>
+                {pack.mods.map((item) => <small key={item.id}>
+                  {item.id} · {item.source}{item.optional ? ` · ${t('modpack.member.optional')}` : ''}
+                  {!item.selected ? ` · ${t('modpack.member.notSelected')}` : !item.installed ? ` · ${t('modpack.member.missing')}` : ''}
+                </small>)}
+              </span>
+              <span className="mod-version">{pack.version}</span>
+              {removable && <button className="button danger" onClick={() => {
+                if (window.confirm(t('mod.remove.confirm', { name: pack.name })))
+                  postRequest('remove-modpack', { modId: pack.id })
+              }}>{t('mod.remove')}</button>}
+            </section>)}
+          </div> : <Empty title={t('modpack.empty')} text={t('modpack.empty')} icon="installed" />}
+        </Card>
+      ) : visibleTab === 'schematics' ? (
         <InstalledSchematics
           schematics={schematics}
           path={schematicsPath}
@@ -61,8 +88,8 @@ export function Installed({
               {mods.map((mod) => (
                 <button
                   className="mod-row"
-                  key={mod.id}
-                  onClick={() => select(mod.id)}
+                  key={mod.instanceKey ?? mod.id}
+                  onClick={() => select(mod.instanceKey ?? mod.id)}
                 >
                   <ModIcon mod={mod} variant="list" />
                   <span className="mod-name">
@@ -71,7 +98,7 @@ export function Installed({
                       <EcosystemBadge ecosystem={mod.ecosystem} />
                     </strong>
                     <small title={mod.description || mod.id}>
-                      {mod.description || mod.id}
+                      {mod.packId ? `${mod.packId} · ` : ''}{mod.description || mod.id}
                     </small>
                   </span>
                   <span className="mod-version">{mod.version}</span>

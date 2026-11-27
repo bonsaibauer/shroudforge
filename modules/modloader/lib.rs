@@ -61,6 +61,7 @@ pub mod documents;
 pub mod ensure_eml_extension;
 pub mod package_files;
 pub mod package_lookup;
+pub mod modpack;
 pub mod config {
     pub use crate::validate_mod_settings::validate_settings;
     pub use crate::{

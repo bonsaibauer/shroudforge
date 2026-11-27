@@ -23,6 +23,9 @@ pub(crate) struct UserConfig {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ModInfo {
+    pub(crate) instance_key: String,
+    pub(crate) pack_id: Option<String>,
+    pub(crate) native_only: bool,
     pub(crate) revision: String,
     pub(crate) id: String,
     pub(crate) name: String,
@@ -47,6 +50,25 @@ pub(crate) struct ModInfo {
     pub(crate) assets: std::collections::HashMap<String, String>,
     pub(crate) setting_values: serde_json::Value,
     pub(crate) input_contexts: serde_json::Value,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PackInfo {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) version: String,
+    pub(crate) mods: Vec<PackMemberInfo>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PackMemberInfo {
+    pub(crate) id: String,
+    pub(crate) source: &'static str,
+    pub(crate) optional: bool,
+    pub(crate) selected: bool,
+    pub(crate) installed: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -77,6 +99,7 @@ pub(crate) struct Snapshot {
     pub(crate) game_version: String,
     pub(crate) version: String,
     pub(crate) mods: Vec<ModInfo>,
+    pub(crate) modpacks: Vec<PackInfo>,
     pub(crate) schematics: Vec<shroudforge_schematics::schematic_library::SchematicInfo>,
     pub(crate) schematics_enabled: bool,
     pub(crate) schematics_path: String,

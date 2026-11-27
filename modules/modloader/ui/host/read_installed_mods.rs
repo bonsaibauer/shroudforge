@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
-    let Ok(entries) = fs::read_dir(shroudforge_loader_config::paths::mods_dir(root)) else {
+    let Ok(entries) = shroudforge_package::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(root)) else {
         return Vec::new();
     };
     let catalog_mods: std::collections::HashSet<String> =
@@ -22,36 +22,36 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
             .filter_map(|project| project.get("modId")?.as_str().map(str::to_owned))
             .collect();
     let manifests: Vec<_> = entries
-        .flatten()
-        .filter_map(|entry| {
-            let package = entry.path();
+        .into_iter()
+        .filter_map(|location| {
+            let package = &location.path;
+            if !package.join("mod.json").is_file() && location.pack_id.is_some() {
+                let id = location.id.clone();
+                return Some((location, serde_json::json!({"id":id,"name":id,"version":"native","enabled":false,"settingValues":{},"settings":[],"groups":[]})));
+            }
             shroudforge_package::config::read_manifest_path(root, &package)
                 .map(|manifest| shroudforge_package::localized_manifest(&manifest, locale))
                 .and_then(|manifest| {
                     serde_json::to_value(manifest)
-                        .map(|value| (package, value))
+                        .map(|value| (location, value))
                         .map_err(|error| error.to_string())
                 })
                 .ok()
         })
         .collect();
-    let installed: std::collections::HashMap<String, (String, bool)> = manifests
-        .iter()
-        .filter_map(|(_, value)| {
-            Some((
-                value.get("id")?.as_str()?.to_owned(),
-                (
-                    value.get("version")?.as_str()?.to_owned(),
-                    value
-                        .get("enabled")
-                        .and_then(serde_json::Value::as_bool)
-                        .unwrap_or(false),
-                ),
-            ))
-        })
-        .collect();
+    let mut installed: std::collections::HashMap<String, (String, bool)> = std::collections::HashMap::new();
+    for (location, value) in &manifests {
+        if !location.pack_ready || !location.path.join("mod.json").is_file() { continue }
+        let (Some(id), Some(version)) = (value["id"].as_str(), value["version"].as_str()) else { continue };
+        let enabled = value["enabled"].as_bool().unwrap_or(false);
+        if enabled || !installed.contains_key(id) {
+            installed.insert(id.into(), (version.into(), enabled));
+        }
+    }
     let mut mods = Vec::new();
-    for (package, value) in manifests {
+    for (location, value) in manifests {
+        let package = &location.path;
+        let native_only = !package.join("mod.json").is_file();
         let Some(id) = value.get("id").and_then(|value| value.as_str()) else {
             continue;
         };
@@ -67,7 +67,7 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
                 .any(|item| item == "export" || item == "runtime" || item == "runtime-register-dll")
         });
         let revision = config_revision(&config);
-        let ecosystem = mod_ecosystem_for_package(&package);
+        let ecosystem = if native_only { "SF" } else { mod_ecosystem_for_package(&package) };
         let icon = value
             .get("icon")
             .and_then(|value| value.as_str())
@@ -116,6 +116,9 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
             })
             .collect();
         mods.push(ModInfo {
+            instance_key: location.key(),
+            pack_id: location.pack_id.clone(),
+            native_only,
             revision,
             id: id.into(),
             name: value
@@ -159,7 +162,9 @@ pub(crate) fn read_mods(root: &Path, locale: &str) -> Vec<ModInfo> {
             icon,
             links: serde_json::from_value(value.get("links").cloned().unwrap_or_default())
                 .unwrap_or_default(),
-            source: if catalog_mods.contains(id) {
+            source: if location.pack_id.is_some() {
+                "modpack"
+            } else if catalog_mods.contains(id) {
                 "shroudedit"
             } else {
                 "local"

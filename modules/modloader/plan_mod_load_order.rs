@@ -69,7 +69,7 @@ impl ModEnvironment {
             game_dir.as_std_path(),
         ))
         .expect("a UTF-8 game path joined with fixed loader paths remains UTF-8");
-        let registry = match ModRegistry::load(&mods_dir) {
+        let registry = match ModRegistry::load(&mods_dir, &game_dir) {
             Ok(registry) => registry,
             Err(report) if report.error.is_none() => {
                 for error in &report.mods {

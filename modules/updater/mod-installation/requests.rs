@@ -6,6 +6,7 @@ pub fn request_mod_install(
     provider: serde_json::Value,
     version_id: Option<&str>,
     content_type: &str,
+    optional_mods: Option<&[String]>,
 ) -> Result<(), String> {
     if !crate::update_check::updates_enabled(root) {
         return Err(crate::UPDATE_MODULE_DISABLED_MESSAGE.into());
@@ -24,7 +25,7 @@ pub fn request_mod_install(
     validate_version_id(version_id)?;
     enqueue_update_item(
         root,
-        serde_json::json!({"id":format!("{content_type}-install:{project_id}"),"kind":content_type,"operation":"install","title":title,"version":"","state":"queued","selected":true,"payload":{"projectId":project_id,"versionId":version_id,"provider":provider,"contentType":content_type}}),
+        serde_json::json!({"id":format!("{content_type}-install:{project_id}"),"kind":content_type,"operation":"install","title":title,"version":"","state":"queued","selected":true,"payload":{"projectId":project_id,"versionId":version_id,"provider":provider,"contentType":content_type,"optionalMods":optional_mods}}),
     )
     .map(|_| ())
 }
@@ -141,11 +142,6 @@ fn enqueue_mod_update(
 ) -> Result<bool, String> {
     if !crate::update_check::updates_enabled(root) {
         return Err(crate::UPDATE_MODULE_DISABLED_MESSAGE.into());
-    }
-    if crate::mod_installation::catalog::pack_pinned_mod_ids(root).contains(mod_id) {
-        return Err(format!(
-            "mod '{mod_id}' is pinned by an installed modpack and cannot be updated separately"
-        ));
     }
     if project_id.is_empty()
         || project_id.len() > 128

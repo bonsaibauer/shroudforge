@@ -1,4 +1,5 @@
 use crate::package_files::{package_has_file, read_package_file};
+use crate::modpack::{package_by_key, package_locations};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -16,8 +17,27 @@ pub fn find_mod_package(root: &Path, id: &str) -> Option<PathBuf> {
         })
 }
 
+pub fn find_mod_package_by_reference(root: &Path, reference: &str) -> Option<PathBuf> {
+    if reference.starts_with("pack:") || reference.starts_with("direct:") {
+        return package_by_key(root, reference).map(|location| location.path);
+    }
+    find_mod_package(root, reference)
+}
+
+pub fn mod_packages_with_id(root: &Path, id: &str) -> Vec<PathBuf> {
+    package_locations(&shroudforge_loader_config::paths::mods_dir(root))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|location| {
+            let manifest = read_package_file(&location.path, "mod.json").ok()?;
+            let value: serde_json::Value = serde_json::from_slice(&manifest).ok()?;
+            (value.get("id").and_then(|value| value.as_str()) == Some(id)).then_some(location.path)
+        })
+        .collect()
+}
+
 pub fn mod_ecosystem(root: &Path, id: &str) -> Option<&'static str> {
-    let package = find_mod_package(root, id)?;
+    let package = find_mod_package_by_reference(root, id)?;
     Some(mod_ecosystem_for_package(&package))
 }
 
@@ -54,4 +74,11 @@ pub fn valid_identifier(value: &str) -> bool {
 
 pub fn valid_mod_identifier(value: &str) -> bool {
     value.len() <= 64 && valid_identifier(value)
+}
+
+pub fn valid_package_reference(value: &str) -> bool {
+    if valid_identifier(value) { return true }
+    if let Some(id) = value.strip_prefix("direct:") { return valid_identifier(id) }
+    value.strip_prefix("pack:").and_then(|rest| rest.split_once(':'))
+        .is_some_and(|(pack, id)| valid_mod_identifier(pack) && valid_mod_identifier(id))
 }

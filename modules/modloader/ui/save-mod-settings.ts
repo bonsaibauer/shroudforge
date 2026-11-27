@@ -28,7 +28,7 @@ export function useModSettings(mod: ModInfo) {
   const [values, setValues] = useState<Record<string, unknown>>(initial)
   const valuesRef = useRef(values)
   const revisionRef = useRef(mod.revision)
-  const modIdRef = useRef(mod.id)
+  const modIdRef = useRef(mod.instanceKey ?? mod.id)
   const autoSaveTimer = useRef<number | undefined>(undefined)
   const pendingAutoSave = useRef(false)
   const latestMod = useRef(mod)
@@ -42,7 +42,7 @@ export function useModSettings(mod: ModInfo) {
     requests.current.set(requestId, { command, modId: payload.modId })
   }
   useEffect(() => {
-    const changedMod = modIdRef.current !== mod.id
+    const changedMod = modIdRef.current !== (mod.instanceKey ?? mod.id)
     if (changedMod) {
       if (autoSaveTimer.current !== undefined) {
         window.clearTimeout(autoSaveTimer.current)
@@ -56,7 +56,7 @@ export function useModSettings(mod: ModInfo) {
           revision: revisionRef.current,
         })
       }
-      modIdRef.current = mod.id
+      modIdRef.current = mod.instanceKey ?? mod.id
       valuesRef.current = initial()
       setValues(valuesRef.current)
     } else if (!pendingAutoSave.current) {
@@ -65,7 +65,7 @@ export function useModSettings(mod: ModInfo) {
     }
     revisionRef.current = mod.revision
     setLocalEnabled(mod.enabled)
-  }, [mod.id, mod.revision])
+  }, [mod.id, mod.instanceKey, mod.revision])
   useEffect(
     () => () => {
       if (autoSaveTimer.current !== undefined)
@@ -95,7 +95,7 @@ export function useModSettings(mod: ModInfo) {
       const current = latestMod.current
       if (
         result.success ||
-        request.modId !== current.id ||
+        request.modId !== (current.instanceKey ?? current.id) ||
         request.modId !== modIdRef.current
       ) return
       if (request.command === 'set-mod-enabled') {
@@ -116,7 +116,7 @@ export function useModSettings(mod: ModInfo) {
   useEffect(() => {
     const updateFromServer = (event: Event) => {
       const remote = (event as CustomEvent<{ mod?: ModInfo }>).detail?.mod
-      if (!remote || remote.id !== modIdRef.current) return
+      if (!remote || (remote.instanceKey ?? remote.id) !== modIdRef.current) return
       latestMod.current = remote
       revisionRef.current = remote.revision
       if (!pendingAutoSave.current) {
@@ -136,7 +136,7 @@ export function useModSettings(mod: ModInfo) {
     }
     pendingAutoSave.current = false
     request('save-mod-settings', {
-      modId: mod.id,
+      modId: mod.instanceKey ?? mod.id,
       values: valuesRef.current,
       revision: revisionRef.current,
     })
@@ -167,7 +167,7 @@ export function useModSettings(mod: ModInfo) {
   const setEnabled = (next: boolean) => {
     setLocalEnabled(next)
     request('set-mod-enabled', {
-      modId: mod.id,
+      modId: mod.instanceKey ?? mod.id,
       enabled: next,
       revision: revisionRef.current,
     })

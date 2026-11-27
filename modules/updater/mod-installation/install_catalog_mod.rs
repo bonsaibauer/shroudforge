@@ -1,19 +1,15 @@
 use crate as shroudforge_updater;
 use crate::download_mod_package::download_catalog_version;
 use crate::mod_installation::catalog::{
-    InstalledCatalogPack, InstalledPackMember, catalog_project_for_mod, forget_catalog_install,
-    forget_catalog_pack_install, installed_catalog_packs, pack_pinned_mod_ids,
-    read_catalog_install_registry, remember_catalog_install, remember_catalog_pack_install,
-    resolve_catalog_content_version, resolve_catalog_version,
+    catalog_project_for_mod, forget_catalog_install, remember_catalog_install,
+    resolve_catalog_version,
 };
 use crate::provider_config::CatalogProviderConfig;
 use crate::replace_installed_mod::replace_catalog_mod_with_runtime_dependencies;
-use crate::verify_mod_checksum::verify_mod_hash;
 use shroudforge_loader_config::runtime_status::runtime_is_active;
 use shroudforge_package::package_lookup::find_mod_package;
 use std::{
     fs,
-    io::{Cursor, Read},
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -26,6 +22,7 @@ pub fn install_catalog_content(
     update_mod_id: Option<&str>,
     queue_item_id: &str,
     content_type: &str,
+    optional_mods: Option<&[String]>,
 ) -> Result<Vec<String>, String> {
     match content_type {
         "mod" => install_mod_from_catalog(
@@ -42,6 +39,7 @@ pub fn install_catalog_content(
             project_id,
             selected_version_id,
             queue_item_id,
+            optional_mods,
         ),
         "schematic" if update_mod_id.is_none() => {
             crate::install_catalog_schematic::install_schematic_from_catalog(
@@ -63,332 +61,10 @@ pub fn install_modpack_from_catalog(
     project_id: &str,
     selected_version_id: Option<&str>,
     queue_item_id: &str,
+    optional_mods: Option<&[String]>,
 ) -> Result<Vec<String>, String> {
-    if provider.kind != "shroudedit" {
-        return Err("unsupported catalog provider".into());
-    }
-    shroudforge_updater::check_update_cancelled(root)?;
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .connect_timeout(Duration::from_secs(10))
-        .user_agent(format!(
-            "ShroudForge/{} (modpack-installer)",
-            env!("CARGO_PKG_VERSION")
-        ))
-        .build()
-        .map_err(|error| error.to_string())?;
-    let registry = read_catalog_install_registry(root);
-    let previous_pack = installed_catalog_packs(root)
-        .into_iter()
-        .find(|(id, _)| id == project_id)
-        .map(|(_, pack)| pack);
-    let plan = resolve_catalog_content_version(
-        root,
-        &client,
-        provider,
-        project_id,
-        &[],
-        selected_version_id,
-        "modpack",
-    )?;
-    if plan.primary.project_id != project_id {
-        return Err("ShroudEdit resolved a different modpack project".into());
-    }
-    let (pack, pinned_versions) = download_sfpack_manifest(
-        root,
-        &client,
-        provider,
-        project_id,
-        &plan.primary.version_id,
-    )?;
-    shroudforge_updater::check_update_cancelled(root)?;
-    let mut installed_paths = Vec::new();
-    let mut installed = Vec::new();
-    let mut members = Vec::new();
-    let mut runtime_ids = Vec::new();
-    let result = (|| {
-        let mut all_package_paths = Vec::new();
-        for item in &pack.mods {
-            shroudforge_updater::check_update_cancelled(root)?;
-            let slug = catalog_project_slug(&client, provider, &item.project_id)?;
-            if let Some(local) = find_mod_package(root, &slug) {
-                let recorded = registry["projects"][item.project_id.as_str()]["versionId"].as_str()
-                    == Some(item.version_id.as_str())
-                    && registry["projects"][item.project_id.as_str()]["modId"].as_str()
-                        == Some(slug.as_str());
-                if !recorded {
-                    return Err(format!(
-                        "Modpack requires exact catalog version {} of '{}', but a different local package is installed",
-                        item.version_id, slug
-                    ));
-                }
-                let published_number = pinned_versions
-                    .iter()
-                    .find(|version| version["id"].as_str() == Some(item.version_id.as_str()))
-                    .and_then(|version| version["version_number"].as_str())
-                    .ok_or("pinned mod version has no published version number")?;
-                let manifest = shroudforge_package::config::read_manifest_path(root, &local)
-                    .map_err(|error| format!("Could not read pinned mod '{}': {error}", slug))?;
-                if manifest.id != slug || manifest.version.to_string() != published_number {
-                    return Err(format!(
-                        "Installed mod '{}' differs from its pinned ShroudEdit version",
-                        slug
-                    ));
-                }
-                all_package_paths.push(local);
-                members.push(InstalledPackMember {
-                    project_id: item.project_id.clone(),
-                    version_id: item.version_id.clone(),
-                    mod_id: slug,
-                });
-                continue;
-            }
-            let dependency = crate::mod_package::ResolvedContent {
-                project_id: item.project_id.clone(),
-                version_id: item.version_id.clone(),
-            };
-            let package = download_catalog_version(
-                root,
-                provider,
-                &client,
-                &dependency,
-                None,
-                queue_item_id,
-            )?;
-            installed_paths.push(package.1.clone());
-            all_package_paths.push(package.1.clone());
-            remember_catalog_install(
-                root,
-                &dependency.project_id,
-                &dependency.version_id,
-                &package.0,
-                &package.1,
-            )?;
-            members.push(InstalledPackMember {
-                project_id: item.project_id.clone(),
-                version_id: item.version_id.clone(),
-                mod_id: package.0.clone(),
-            });
-            installed.push(package.0);
-        }
-        shroudforge_updater::check_update_cancelled(root)?;
-        verify_installed_mod_dependencies(root, &all_package_paths)?;
-        runtime_ids = installed
-            .iter()
-            .filter_map(|id| {
-                let package = shroudforge_loader_config::paths::mods_dir(root).join(id);
-                shroudforge_package::config::read_manifest_path(root, &package)
-                    .ok()
-                    .filter(|manifest| {
-                        manifest
-                            .capabilities
-                            .iter()
-                            .any(|capability| capability.requires_runtime())
-                    })
-                    .map(|manifest| manifest.id)
-            })
-            .collect::<Vec<_>>();
-        if runtime_is_active(root) && !runtime_ids.is_empty() {
-            shroudforge_updater::request_runtime_mod_reload(root, &runtime_ids).map_err(|error| {
-                format!("modpack dependencies were installed, but runtime modules could not be loaded: {error}")
-            })?;
-        }
-        remember_catalog_pack_install(
-            root,
-            project_id,
-            &InstalledCatalogPack {
-                version_id: plan.primary.version_id.clone(),
-                version_number: pack.version_id.clone(),
-                mods: members,
-            },
-        )?;
-        Ok(())
-    })();
-    if let Err(error) = result {
-        if runtime_is_active(root) && !runtime_ids.is_empty() {
-            if let Err(unload_error) =
-                shroudforge_updater::request_runtime_mod_unload(root, &runtime_ids)
-            {
-                return Err(format!(
-                    "{error}. Could not unload newly installed runtime mods: {unload_error}. Their files and catalog entries were retained."
-                ));
-            }
-        }
-        let mut cleanup_errors = Vec::new();
-        let mut removed_mod_ids = Vec::new();
-        for path in installed_paths {
-            let mod_id = path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned());
-            match move_directory_to_recycle_bin(root, &path, "Failed modpack installation") {
-                Ok(()) => {
-                    if let Some(mod_id) = mod_id {
-                        removed_mod_ids.push(mod_id);
-                    }
-                }
-                Err(cleanup_error) => cleanup_errors.push(cleanup_error),
-            }
-        }
-        for mod_id in removed_mod_ids {
-            if let Err(cleanup_error) = forget_catalog_install(root, &mod_id) {
-                cleanup_errors.push(format!(
-                    "could not clear catalog record for recycled mod {mod_id}: {cleanup_error}"
-                ));
-            }
-        }
-        let receipt_restore = if let Some(previous) = previous_pack.as_ref() {
-            remember_catalog_pack_install(root, project_id, previous)
-        } else {
-            forget_catalog_pack_install(root, project_id)
-        };
-        if let Err(restore_error) = receipt_restore {
-            cleanup_errors.push(format!(
-                "could not restore modpack receipt: {restore_error}"
-            ));
-        }
-        return Err(if cleanup_errors.is_empty() {
-            error
-        } else {
-            format!(
-                "{error}. Cleanup also reported: {}",
-                cleanup_errors.join("; ")
-            )
-        });
-    }
-    Ok(installed)
+    crate::install_modpack::install_modpack_from_catalog(root, provider, project_id, selected_version_id, queue_item_id, optional_mods)
 }
-
-pub(crate) fn download_sfpack_manifest(
-    root: &Path,
-    client: &reqwest::blocking::Client,
-    provider: &CatalogProviderConfig,
-    project_id: &str,
-    version_id: &str,
-) -> Result<(crate::read_modpack::Modpack, Vec<serde_json::Value>), String> {
-    let base = provider.base_url.trim_end_matches('/');
-    let response = client
-        .get(format!("{base}/v3/version/{version_id}"))
-        .send()
-        .map_err(|error| format!("Could not read modpack version: {error}"))?;
-    if !response.status().is_success() {
-        return Err(format!(
-            "Modpack version lookup returned HTTP {}",
-            response.status()
-        ));
-    }
-    let version: serde_json::Value = response
-        .json()
-        .map_err(|error| format!("Invalid modpack version metadata: {error}"))?;
-    if version["id"].as_str() != Some(version_id)
-        || version["project_id"].as_str() != Some(project_id)
-        || !version["project_types"]
-            .as_array()
-            .is_some_and(|types| types.iter().any(|value| value == "modpack"))
-        || !version["loaders"]
-            .as_array()
-            .is_some_and(|loaders| loaders.iter().any(|value| value == "sfpack"))
-    {
-        return Err("Selected version is not a ShroudForge modpack".into());
-    }
-    let file = version["files"]
-        .as_array()
-        .and_then(|files| {
-            files
-                .iter()
-                .find(|file| file["primary"] == true)
-                .or_else(|| files.first())
-        })
-        .ok_or("Modpack version contains no archive")?;
-    let url = file["url"]
-        .as_str()
-        .filter(|url| url.starts_with("https://"))
-        .ok_or("Modpack archive has no HTTPS URL")?;
-    if !file["filename"]
-        .as_str()
-        .is_some_and(|name| name.to_ascii_lowercase().ends_with(".sfpack"))
-        || !file["size"]
-            .as_u64()
-            .is_some_and(|size| size > 0 && size <= 2 * 1024 * 1024)
-    {
-        return Err("Selected modpack archive is invalid".into());
-    }
-    let hashes =
-        serde_json::from_value::<std::collections::HashMap<String, String>>(file["hashes"].clone())
-            .map_err(|error| format!("Invalid modpack checksum metadata: {error}"))?;
-    if !hashes.contains_key("sha512") {
-        return Err("Modpack archive has no SHA-512 checksum".into());
-    }
-    shroudforge_updater::check_update_cancelled(root)?;
-    let mut response = client
-        .get(url)
-        .send()
-        .map_err(|error| format!("Could not download .sfpack archive: {error}"))?;
-    if !response.status().is_success() {
-        return Err(format!(
-            "Modpack download returned HTTP {}",
-            response.status()
-        ));
-    }
-    let mut bytes = Vec::new();
-    (&mut response)
-        .take(2 * 1024 * 1024 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|error| format!("Could not read .sfpack archive: {error}"))?;
-    if bytes.len() > 2 * 1024 * 1024 {
-        return Err("The .sfpack archive exceeds 2 MiB".into());
-    }
-    verify_mod_hash(&bytes, &hashes)?;
-    let pack = crate::read_modpack::read_modpack(Cursor::new(bytes))?;
-    if pack.version_id != version["version_number"].as_str().unwrap_or_default() {
-        return Err(".sfpack versionId does not match its published version".into());
-    }
-    if let Some(game) = crate::mod_installation::catalog::current_game_version(root)
-        && !pack.game_versions.contains(&game)
-    {
-        return Err(format!(
-            "Modpack does not support installed game version {game}"
-        ));
-    }
-    let mut published_games = version["game_versions"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(serde_json::Value::as_str)
-        .collect::<Vec<_>>();
-    published_games.sort_unstable();
-    let mut pack_games = pack
-        .game_versions
-        .iter()
-        .map(String::as_str)
-        .collect::<Vec<_>>();
-    pack_games.sort_unstable();
-    if published_games != pack_games {
-        return Err(".sfpack gameVersions differ from the published version".into());
-    }
-    let mut pinned_versions = Vec::with_capacity(pack.mods.len());
-    for item in &pack.mods {
-        shroudforge_updater::check_update_cancelled(root)?;
-        let response = client
-            .get(format!("{base}/v3/version/{}", item.version_id))
-            .send()
-            .map_err(|error| format!("Could not read pinned mod version: {error}"))?;
-        if !response.status().is_success() {
-            return Err(format!(
-                "Pinned mod version {} returned HTTP {}",
-                item.version_id,
-                response.status()
-            ));
-        }
-        pinned_versions.push(
-            response
-                .json::<serde_json::Value>()
-                .map_err(|error| format!("Invalid pinned mod metadata: {error}"))?,
-        );
-    }
-    crate::read_modpack::validate_versions(&pack, &pinned_versions)?;
-    Ok((pack, pinned_versions))
-}
-
 pub fn install_mod_from_catalog(
     root: &Path,
     provider: &CatalogProviderConfig,
@@ -411,9 +87,6 @@ pub fn install_mod_from_catalog(
         .build()
         .map_err(|error| error.to_string())?;
     if let Some(mod_id) = update_mod_id {
-        if pack_pinned_mod_ids(root).contains(mod_id) {
-            return Err(format!("mod '{mod_id}' is pinned by an installed modpack"));
-        }
         if catalog_project_for_mod(root, mod_id).as_deref() != Some(project_id) {
             return Err(
                 "catalog update target does not match the installed ShroudEdit project".into(),

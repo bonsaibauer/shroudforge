@@ -66,6 +66,12 @@ struct EntryManifest {
     restore_paths: Vec<String>,
     #[serde(default)]
     restore_mod_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    restore_mod_pack_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    restore_pack_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    catalog_pack: Option<serde_json::Value>,
     #[serde(default)]
     restore_root_files: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -826,6 +832,7 @@ pub(crate) fn list_entries(root: &Path) -> Result<Vec<serde_json::Value>, String
                     .iter()
                     .fold(0u64, |total, file| total.saturating_add(file.size)),
                 can_restore: manifest.restore_mod_id.is_some()
+                    || manifest.restore_pack_id.is_some()
                     || manifest.restore_root_files
                     || manifest.restore_schematic_name.is_some(),
                 restore_mod_id: manifest.restore_mod_id,
@@ -840,12 +847,130 @@ pub(crate) fn list_entries(root: &Path) -> Result<Vec<serde_json::Value>, String
 pub(crate) fn recycle_mod(root: &Path, mod_id: &str) -> Result<(), String> {
     let _operation_lock = acquire_operation_lock(root)?;
     ensure_queue_idle(root, "mods cannot be removed while an update is running")?;
+    if let Some(location) = shroudforge_package::modpack::package_by_key(root, mod_id) {
+        if let Some(pack_id) = location.pack_id.as_deref() {
+            return recycle_pack_member(root, pack_id, &location.id, &location.path);
+        }
+        let manifest = shroudforge_package::config::read_manifest_path(root, &location.path)?;
+        return recycle_mod_directory(root, &location.path, &manifest.id, "Removed installed mod");
+    }
     if !shroudforge_package::package_lookup::valid_identifier(mod_id) {
         return Err("invalid mod id".into());
     }
     let source = shroudforge_package::package_lookup::find_mod_package(root, mod_id)
         .ok_or("mod package not found")?;
     recycle_mod_directory(root, &source, mod_id, "Removed installed mod")
+}
+
+fn recycle_pack_member(root: &Path, pack_id: &str, mod_id: &str, source: &Path) -> Result<(), String> {
+    let active = shroudforge_package::config::read_manifest_path(root, source).ok()
+        .filter(|manifest| manifest.enabled && manifest.capabilities.iter().any(|capability| capability.requires_runtime()))
+        .map(|manifest| manifest.id);
+    if runtime_is_active(root) && let Some(id) = &active {
+        shroudforge_updater::request_runtime_mod_unload(root, &[id.clone()])?;
+    }
+    let entry_id = format!("removed-pack-mod-{}", unique_stamp());
+    let saved = match preserve_directory(root, source, &entry_id, "Removed modpack member") {
+        Ok(saved) => saved,
+        Err(error) => {
+            if runtime_is_active(root) && let Some(id) = &active { let _ = shroudforge_updater::request_runtime_mod_reload(root, &[id.clone()]); }
+            return Err(error);
+        }
+    };
+    let entry = saved.parent().ok_or("recycle-bin entry has no parent")?;
+    let metadata_path = entry.join("manifest.json");
+    let mut removal_attempted = false;
+    let result = (|| {
+        let mut metadata: serde_json::Value = serde_json::from_slice(&fs::read(&metadata_path).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
+        metadata["restoreModId"] = mod_id.into();
+        metadata["restoreModPackId"] = pack_id.into();
+        shroudforge_loader_config::config::write_json(&metadata_path, &metadata)?;
+        removal_attempted = true;
+        remove_directory_with_cancellation(root, source)
+    })();
+    if let Err(error) = result {
+        if !removal_attempted {
+            let _ = fs::remove_dir_all(entry);
+            if runtime_is_active(root) && let Some(id) = &active { let _ = shroudforge_updater::request_runtime_mod_reload(root, &[id.clone()]); }
+            return Err(error);
+        }
+        if source.exists() { let _ = fs::remove_dir_all(source); }
+        let restored = restore_directory(&saved, source);
+        if restored.is_ok() { let _ = fs::remove_dir_all(entry); }
+        if runtime_is_active(root) && let Some(id) = &active { let _ = shroudforge_updater::request_runtime_mod_reload(root, &[id.clone()]); }
+        return Err(match restored {
+            Ok(()) => error,
+            Err(rollback) => format!("{error}. Mod remains recoverable in recycle-bin entry {entry_id}: {rollback}"),
+        });
+    }
+    Ok(())
+}
+
+pub(crate) fn recycle_modpack(root: &Path, pack_id: &str) -> Result<(), String> {
+    let _operation_lock = acquire_operation_lock(root)?;
+    ensure_queue_idle(root, "modpacks cannot be removed while an update is running")?;
+    if !shroudforge_package::package_lookup::valid_mod_identifier(pack_id) {
+        return Err("invalid modpack id".into());
+    }
+    let source = shroudforge_loader_config::paths::mods_dir(root).join(pack_id);
+    let pack = shroudforge_package::modpack::parse_manifest(
+        &fs::read(source.join("modpack.json")).map_err(|error| error.to_string())?
+    )?;
+    if pack.id != pack_id { return Err("modpack id differs from its folder".into()) }
+    let receipt = crate::mod_installation::catalog::installed_catalog_packs(root)
+        .into_iter().find(|(_, stored)| stored.pack_id == pack_id);
+    let active = shroudforge_package::modpack::package_locations(&shroudforge_loader_config::paths::mods_dir(root))?
+        .into_iter().filter(|location| location.pack_id.as_deref() == Some(pack_id))
+        .filter_map(|location| shroudforge_package::config::read_manifest_path(root, &location.path).ok())
+        .filter(|manifest| manifest.enabled && manifest.capabilities.iter().any(|capability| capability.requires_runtime()))
+        .map(|manifest| manifest.id).collect::<Vec<_>>();
+    if runtime_is_active(root) && !active.is_empty() {
+        shroudforge_updater::request_runtime_mod_unload(root, &active)?;
+    }
+    let entry_id = format!("removed-pack-{}", unique_stamp());
+    let saved = match preserve_directory(root, &source, &entry_id, "Removed installed modpack") {
+        Ok(saved) => saved,
+        Err(error) => {
+            if !active.is_empty() { let _ = shroudforge_updater::request_runtime_mod_reload(root, &active); }
+            return Err(error);
+        }
+    };
+    let entry = saved.parent().ok_or("recycle-bin entry has no parent")?;
+    let manifest_path = entry.join("manifest.json");
+    let mut removal_attempted = false;
+    let result = (|| -> Result<(), String> {
+        let mut metadata: serde_json::Value = serde_json::from_slice(&fs::read(&manifest_path).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
+        metadata["restorePackId"] = pack_id.into();
+        if let Some((project_id, stored)) = &receipt {
+            metadata["catalogProjectId"] = project_id.as_str().into();
+            metadata["catalogPack"] = serde_json::to_value(stored).map_err(|error| error.to_string())?;
+        }
+        shroudforge_loader_config::config::write_json(&manifest_path, &metadata)?;
+        removal_attempted = true;
+        remove_directory_with_cancellation(root, &source)?;
+        if let Some((project_id, _)) = &receipt {
+            crate::mod_installation::catalog::forget_catalog_pack_install(root, project_id)?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        if !removal_attempted {
+            let _ = fs::remove_dir_all(entry);
+            if !active.is_empty() { let _ = shroudforge_updater::request_runtime_mod_reload(root, &active); }
+            return Err(error);
+        }
+        if source.exists() { let _ = fs::remove_dir_all(&source); }
+        let restored = restore_directory(&saved, &source);
+        if restored.is_ok() { let _ = fs::remove_dir_all(entry); }
+        if !active.is_empty() { let _ = shroudforge_updater::request_runtime_mod_reload(root, &active); }
+        return Err(match restored {
+            Ok(()) => error,
+            Err(rollback) => format!("{error}. Modpack remains recoverable in recycle-bin entry {entry_id}: {rollback}"),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn recycle_mod_directory(
@@ -1053,7 +1178,11 @@ pub(crate) fn restore_entry(root: &Path, id: &str) -> Result<(), String> {
     if read_file_records(&saved)? != manifest.files {
         return Err("recycle-bin entry failed its integrity check".into());
     }
-    if let Some(mod_id) = manifest.restore_mod_id.as_deref() {
+    if let Some(pack_id) = manifest.restore_pack_id.as_deref() {
+        restore_pack_entry(root, &entry, &saved, &manifest, pack_id)
+    } else if let (Some(pack_id), Some(mod_id)) = (manifest.restore_mod_pack_id.as_deref(), manifest.restore_mod_id.as_deref()) {
+        restore_pack_member_entry(root, &entry, &saved, pack_id, mod_id)
+    } else if let Some(mod_id) = manifest.restore_mod_id.as_deref() {
         restore_mod_entry(root, &entry, &saved, &manifest, mod_id)
     } else if manifest.restore_root_files {
         restore_root_files_entry(root, &entry, &saved, &manifest)
@@ -1062,6 +1191,61 @@ pub(crate) fn restore_entry(root: &Path, id: &str) -> Result<(), String> {
     } else {
         Err("this recycle-bin entry cannot be restored".into())
     }
+}
+
+fn restore_pack_member_entry(root: &Path, entry: &Path, saved: &Path, pack_id: &str, mod_id: &str) -> Result<(), String> {
+    if !shroudforge_package::package_lookup::valid_mod_identifier(pack_id)
+        || !shroudforge_package::package_lookup::valid_mod_identifier(mod_id) {
+        return Err("invalid modpack member identity".into());
+    }
+    let pack_path = shroudforge_loader_config::paths::mods_dir(root).join(pack_id);
+    let pack = shroudforge_package::modpack::parse_manifest(&fs::read(pack_path.join("modpack.json")).map_err(|error| error.to_string())?)?;
+    if pack.id != pack_id || !pack.mods.iter().any(|item| item.id() == mod_id) {
+        return Err("modpack no longer declares this member".into());
+    }
+    if saved.join("mod.json").is_file() {
+        let manifest = shroudforge_package::config::read_manifest_path(root, saved)?;
+        if manifest.id != mod_id { return Err("saved mod identity differs from modpack member".into()); }
+    }
+    let destination = pack_path.join("mods").join(mod_id);
+    restore_directory(saved, &destination)?;
+    let active = shroudforge_package::config::read_manifest_path(root, &destination).ok()
+        .filter(|manifest| manifest.enabled && manifest.capabilities.iter().any(|capability| capability.requires_runtime()))
+        .map(|manifest| manifest.id);
+    if runtime_is_active(root) && let Some(id) = active {
+        if let Err(error) = shroudforge_updater::request_runtime_mod_reload(root, &[id]) {
+            let _ = fs::remove_dir_all(&destination);
+            return Err(error);
+        }
+    }
+    fs::remove_dir_all(entry).map_err(|error| error.to_string())
+}
+
+fn restore_pack_entry(root: &Path, entry: &Path, saved: &Path, manifest: &EntryManifest, pack_id: &str) -> Result<(), String> {
+    if !shroudforge_package::package_lookup::valid_mod_identifier(pack_id) { return Err("invalid modpack id".into()) }
+    let pack = shroudforge_package::modpack::parse_manifest(&fs::read(saved.join("modpack.json")).map_err(|error| error.to_string())?)?;
+    if pack.id != pack_id { return Err("recycled modpack id differs from its folder".into()) }
+    let destination = shroudforge_loader_config::paths::mods_dir(root).join(pack_id);
+    restore_directory(saved, &destination)?;
+    if let (Some(project_id), Some(receipt)) = (&manifest.catalog_project_id, &manifest.catalog_pack) {
+        let receipt = serde_json::from_value(receipt.clone()).map_err(|error| format!("invalid recycled modpack state: {error}"))?;
+        if let Err(error) = crate::mod_installation::catalog::remember_catalog_pack_install(root, project_id, &receipt) {
+            let _ = fs::remove_dir_all(&destination);
+            return Err(error);
+        }
+    }
+    if runtime_is_active(root) {
+        let reload = crate::install_modpack::enabled_runtime_mods(root, &destination)
+            .and_then(|active| if active.is_empty() { Ok(()) } else { shroudforge_updater::request_runtime_mod_reload(root, &active) });
+        if let Err(error) = reload {
+            if let Some(project_id) = &manifest.catalog_project_id {
+                let _ = crate::mod_installation::catalog::forget_catalog_pack_install(root, project_id);
+            }
+            let _ = fs::remove_dir_all(&destination);
+            return Err(error);
+        }
+    }
+    fs::remove_dir_all(entry).map_err(|error| error.to_string())
 }
 
 fn restore_mod_entry(
@@ -1380,6 +1564,10 @@ fn read_manifest(entry: &Path) -> Result<EntryManifest, String> {
     if manifest.schema_version != 1
         || entry.file_name().and_then(|name| name.to_str()) != Some(manifest.id.as_str())
         || validate_entry_id(&manifest.id).is_err()
+        || manifest.restore_mod_pack_id.as_deref().is_some_and(|id| {
+            !shroudforge_package::package_lookup::valid_mod_identifier(id)
+                || manifest.restore_mod_id.is_none()
+        })
         || manifest
             .restore_schematic_name
             .as_deref()
@@ -1584,6 +1772,9 @@ fn write_manifest(
         files,
         restore_paths,
         restore_mod_id: restore.mod_id,
+        restore_mod_pack_id: None,
+        restore_pack_id: None,
+        catalog_pack: None,
         restore_root_files: restore.root_files,
         restore_schematic_name: restore.schematic_name,
         catalog_project_id: restore.catalog_entry.as_ref().map(|entry| entry.0.clone()),

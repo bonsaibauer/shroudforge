@@ -9,9 +9,11 @@
       "type": "object",
       "required": ["versionId", "versionNumber", "mods"],
       "properties": {
+        "packId": { "type": "string" },
         "versionId": { "type": "string", "minLength": 1 },
         "versionNumber": { "type": "string", "minLength": 1 },
-        "mods": { "type": "array", "minItems": 1, "items": {
+        "selectedOptionalIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "mods": { "type": "array", "items": {
           "type": "object",
           "required": ["projectId", "versionId", "modId"],
           "properties": {

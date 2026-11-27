@@ -4,6 +4,8 @@ import { useI18n } from '../../ui-resources/i18n'
 import { Icon } from '../../ui-resources/show-icon'
 import { EnvironmentBadge } from '../../ui-resources/show-environment-badge'
 import { Loading } from '../../ui-resources/show-empty-state'
+import { CatalogIcon } from './show-catalog-icon'
+import { DiscoverFilter } from './show-discover-filter'
 import type { CatalogGalleryImage, CatalogProject, CatalogProjectVersion } from './update-types'
 
 type ProjectTab = 'description' | 'versions' | 'gallery'
@@ -14,8 +16,8 @@ type Props = {
   tab: ProjectTab
   versionId: string
   versionPage: number
-  channel: string
-  gameVersion: string
+  channel: string[]
+  gameVersion: string[]
   loading: boolean
   error?: string | null
   enabled: boolean
@@ -25,7 +27,7 @@ type Props = {
   onVersion: (versionId: string) => void
   onVersionList: () => void
   onVersionPage: (page: number) => void
-  onVersionFilter: (channel: string, gameVersion: string) => void
+  onVersionFilter: (channel: string[], gameVersion: string[]) => void
   onInstall: (versionId?: string) => void
   onOpenProject: (projectId: string) => void
   onOpenLink: (url: string) => void
@@ -135,8 +137,8 @@ export function CatalogProjectPage({
   const versions = project?.versions || []
   const visibleGallery = (project?.gallery || []).filter((image) => Boolean(galleryUrl(image)))
   const filteredVersions = useMemo(() => versions.filter((version) => {
-    const channelMatches = channel === 'all' || versionChannel(version) === channel
-    const gameMatches = !gameVersion || version.gameVersions.includes(gameVersion)
+    const channelMatches = !channel.length || channel.includes(versionChannel(version))
+    const gameMatches = !gameVersion.length || version.gameVersions.some((value) => gameVersion.includes(value))
     const platformMatches = !selectedPlatforms.length || version.loaders.some((loader) => selectedPlatforms.includes(loader))
     return channelMatches && gameMatches && platformMatches
   }), [versions, channel, gameVersion, selectedPlatforms])
@@ -229,7 +231,11 @@ export function CatalogProjectPage({
       ) : project ? (
         <>
           <header className="discover-project-header">
-            {project.iconUrl ? <img className="discover-project-icon" src={project.iconUrl} alt="" /> : <span className="discover-project-icon catalog-icon-fallback">{project.name.slice(0, 2).toUpperCase()}</span>}
+            <CatalogIcon
+              key={project.id}
+              url={project.iconUrl}
+              className="discover-project-icon"
+            />
             <div className="discover-project-heading">
               <h2>{project.name}</h2>
               <p>{project.summary}</p>
@@ -333,42 +339,57 @@ export function CatalogProjectPage({
           {tab === 'versions' && !versionId && (
             <section className="discover-versions-page">
               <div className="discover-version-filters">
-                <label className="discover-toolbar-control">
-                  <span>{t('discover.detail.channel')}</span>
-                  <select value={channel} onChange={(event) => onVersionFilter(event.target.value, gameVersion)}>
-                    <option value="all">{t('common.all')}</option>
-                    {channels.map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                </label>
-                <label className="discover-toolbar-control">
-                  <span>{t('discover.filter.gameVersion')}</span>
-                  <select value={gameVersion} onChange={(event) => onVersionFilter(channel, event.target.value)}>
-                    <option value="">{t('common.all')}</option>
-                    {games.map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                </label>
+                <DiscoverFilter
+                  name="discover-version-channel"
+                  className="version-channel"
+                  multiple
+                  allValue="all"
+                  label={t('discover.detail.channel')}
+                  summary="label"
+                  value={channel}
+                  options={[
+                    { value: 'all', label: t('common.all') },
+                    ...channels.map((value) => ({ value, label: value })),
+                  ]}
+                  onChange={(nextChannel) => onVersionFilter(nextChannel, gameVersion)}
+                />
+                <DiscoverFilter
+                  name="discover-version-game"
+                  className="version-game"
+                  multiple
+                  allValue=""
+                  label={t('discover.filter.gameVersion')}
+                  summary="label"
+                  value={gameVersion}
+                  options={[
+                    { value: '', label: t('common.all') },
+                    ...games.map((value) => ({ value, label: value })),
+                  ]}
+                  onChange={(nextGameVersion) => onVersionFilter(channel, nextGameVersion)}
+                />
                 {platforms.length > 0 && (
-                  <details className="discover-platform-filter">
-                    <summary>{t('discover.detail.platform')}{selectedPlatforms.length ? `: ${selectedPlatforms.length}` : ''}</summary>
-                    <div>
-                      {platforms.map((platform) => (
-                        <label key={platform}>
-                          <input type="checkbox" checked={selectedPlatforms.includes(platform)} onChange={(event) => {
-                            setSelectedPlatforms((current) => event.target.checked
-                              ? [...current, platform]
-                              : current.filter((value) => value !== platform))
-                            onVersionPage(1)
-                          }} />
-                          {platform}
-                        </label>
-                      ))}
-                    </div>
-                  </details>
+                  <DiscoverFilter
+                    name="discover-version-platform"
+                    className="version-channel"
+                    multiple
+                    allValue=""
+                    label={t('discover.detail.platform')}
+                    summary="label"
+                    value={selectedPlatforms}
+                    options={[
+                      { value: '', label: t('common.all') },
+                      ...platforms.map((value) => ({ value, label: value })),
+                    ]}
+                    onChange={(nextPlatforms) => {
+                      setSelectedPlatforms(nextPlatforms)
+                      onVersionPage(1)
+                    }}
+                  />
                 )}
-                {(selectedPlatforms.length > 0 || channel !== 'all' || gameVersion) && (
+                {(selectedPlatforms.length > 0 || channel.length > 0 || gameVersion.length > 0) && (
                   <button className="discover-clear-filters" type="button" onClick={() => {
                     setSelectedPlatforms([])
-                    onVersionFilter('all', '')
+                    onVersionFilter([], [])
                   }}>{t('discover.detail.clearFilters')}</button>
                 )}
                 <span className="discover-result-count">{t(filteredVersions.length === 1 ? 'discover.detail.versionCount' : 'discover.detail.versionsCount', { count: filteredVersions.length })}</span>

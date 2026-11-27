@@ -18,7 +18,7 @@ pub(crate) fn refresh_installed_mod(
         .unwrap_or("en-GB");
     let result = if read_mods(&arguments.root, locale)
         .iter()
-        .any(|mod_info| mod_info.id == id)
+        .any(|mod_info| mod_info.instance_key == id || mod_info.id == id)
     {
         Ok(())
     } else {

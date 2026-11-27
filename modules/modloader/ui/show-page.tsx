@@ -65,8 +65,8 @@ export function Page({
   onUpdaterCommand: UpdaterCommand
   compatibilityTab: CompatibilityTab
   setCompatibilityTab(tab: CompatibilityTab): void
-  installedTab: 'mods' | 'schematics'
-  setInstalledTab(tab: 'mods' | 'schematics'): void
+  installedTab: 'mods' | 'schematics' | 'modpacks'
+  setInstalledTab(tab: 'mods' | 'schematics' | 'modpacks'): void
   serverAdminAuthenticated: boolean
 }) {
   const wikiPreferences = settings.modulePreferences?.wiki ?? data.settings.modulePreferences?.wiki
@@ -100,6 +100,8 @@ export function Page({
     return (
       <Installed
         mods={data.mods}
+        modpacks={data.modpacks}
+        removable={data.mode !== 'SERVER'}
         schematics={data.schematics}
         schematicsPath={data.schematicsPath}
         schematicConversionMode={settings.modulePreferences?.schematics?.conversionMode ?? 'automatic'}
