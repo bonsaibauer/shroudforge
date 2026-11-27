@@ -206,7 +206,7 @@ export function CatalogProjectPage({
       disabled={!url}
       title={label}
       aria-label={label}
-    ><Icon name="virustotal" /><span>VirusTotal</span></button>
+    ><Icon name="virustotal" /><span>View on VirusTotal</span></button>
   }
   const renderInstallButton = (version?: string) => canInstall && (
     <button className="button discover-project-install" type="button" disabled={!enabled || !(version || latestVersionId)} onClick={() => onInstall(version || latestVersionId)}>
