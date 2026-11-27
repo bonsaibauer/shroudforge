@@ -66,6 +66,7 @@ export function TopBar({
     <WikiHelp
       articleId="modloader-p2p-connection"
       compact
+      showGuideToggle={false}
       moduleSettings={serverAdminWikiSettings}
       onOpenCategory={onOpenWikiCategory}
       onOpenWikiArticle={onOpenWikiArticle}

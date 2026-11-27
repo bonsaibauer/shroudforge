@@ -35,7 +35,7 @@ export function DiscoverFilter(props: SingleDiscoverFilter | MultipleDiscoverFil
       : options.find((option) => option.value === props.allValue)?.label || ''
     : options.find((option) => option.value === props.value)?.label || props.value
   const selection = props.multiple ? (
-    <div role="group" aria-label={label}>
+    <div className="discover-filter-menu" role="group" aria-label={label}>
       {options.map((option) => {
         const isAll = option.value === props.allValue
         const checked = isAll ? props.value.length === 0 : props.value.includes(option.value)
@@ -63,7 +63,7 @@ export function DiscoverFilter(props: SingleDiscoverFilter | MultipleDiscoverFil
       })}
     </div>
   ) : (
-    <div role="radiogroup" aria-label={label}>
+    <div className="discover-filter-menu" role="radiogroup" aria-label={label}>
       {options.map((option) => (
         <label key={option.value}>
           <input
@@ -83,16 +83,18 @@ export function DiscoverFilter(props: SingleDiscoverFilter | MultipleDiscoverFil
   return (
     <details
       className={`discover-option-filter${className ? ` ${className}` : ''}`}
-      onMouseLeave={(event) => {
-        event.currentTarget.open = false
-      }}
     >
       <summary aria-disabled={disabled} aria-label={summary === 'value' ? label : undefined}>
-        {summary === 'both' ? (
-          <><span>{label}</span><strong>{selectedLabel}</strong></>
-        ) : (
-          <strong>{summary === 'label' ? label : selectedLabel}</strong>
-        )}
+        <span className="discover-filter-visible">
+          {summary === 'both' ? (
+            <><span>{label}</span><strong>{selectedLabel}</strong></>
+          ) : (
+            <strong>{summary === 'label' ? label : selectedLabel}</strong>
+          )}
+        </span>
+        <span className="discover-filter-measure" aria-hidden="true">
+          {options.map((option) => <span key={option.value}>{option.label}</span>)}
+        </span>
       </summary>
       {selection}
     </details>

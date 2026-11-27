@@ -16,9 +16,10 @@ function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCategory, onOpenWikiArticle }: {
+export function WikiHelp({ articleId, compact = false, showGuideToggle = true, moduleSettings, onOpenCategory, onOpenWikiArticle }: {
   articleId: string
   compact?: boolean
+  showGuideToggle?: boolean
   moduleSettings?: WikiModuleSettings
   onOpenCategory(category: string): void
   onOpenWikiArticle?(articleId: string): void
@@ -150,21 +151,24 @@ export function WikiHelp({ articleId, compact = false, moduleSettings, onOpenCat
       ? <div className="wiki-help-compact-actions">{openInWikiTabButton}</div>
       : null
   }
-  if (!visible) return <div className="wiki-help-compact-actions">
-    <button type="button" className="button ghost wiki-help-trigger"
-      aria-label={t('wiki.openGuide', { title: currentArticle.title })} title={t('wiki.openGuide', { title: currentArticle.title })}
-      onClick={() => showHelp(true, true)}>
-      <Icon name="wiki" />{!compact && t('wiki.showGuide')}
-    </button>
-    {openInWikiTabButton}
-  </div>
+  if (!visible) {
+    if (!showGuideToggle) return openInWikiTabButton ?? null
+    return <div className="wiki-help-compact-actions">
+      <button type="button" className="button ghost wiki-help-trigger"
+        aria-label={t('wiki.openGuide', { title: currentArticle.title })} title={t('wiki.openGuide', { title: currentArticle.title })}
+        onClick={() => showHelp(true, true)}>
+        <Icon name="wiki" />{!compact && t('wiki.showGuide')}
+      </button>
+      {openInWikiTabButton}
+    </div>
+  }
   return <section className="wiki-help">
     <WikiArticle article={currentArticle} expanded={expanded} onSelectCategory={onOpenCategory}>
       <div className="feature-banner-actions">
-        <button type="button" className="button ghost" aria-expanded={expanded}
+        {showGuideToggle && <button type="button" className="button ghost" aria-expanded={expanded}
           onClick={() => showHelp(true, !expanded)}><Icon name="wiki" />
           {t(expanded ? 'wiki.collapseGuide' : 'wiki.showGuide')}
-        </button>
+        </button>}
         <button type="button" className="button ghost" onClick={() => showHelp(false, expanded)}>{t('wiki.hideGuide')}</button>
         {openInWikiTabButton}
       </div>

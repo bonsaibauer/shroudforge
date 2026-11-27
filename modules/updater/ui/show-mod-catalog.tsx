@@ -193,7 +193,7 @@ export function Discover({
     () => new URLSearchParams(window.location.search).get('version') || '',
   )
   const discoverPageRef = useRef<HTMLDivElement>(null)
-  const searchTimer = useRef<number | undefined>()
+  const searchTimer = useRef<number | undefined>(undefined)
   const [detailLoading, setDetailLoading] = useState(false)
   const [pendingPack, setPendingPack] = useState<{ projectId: string; slug: string; versionId: string; title: string } | null>(null)
   const [selectedOptionals, setSelectedOptionals] = useState<string[]>([])
@@ -611,14 +611,16 @@ export function Discover({
             />
           )}
           {(filters.projectType === 'mod' || filters.projectType === 'modpack') && (
-            <details
-              className="discover-environment-filter"
-              onMouseLeave={(event) => {
-                event.currentTarget.open = false
-              }}
-            >
-              <summary>{t('discover.filter.environment')}</summary>
-              <div>
+            <details className="discover-environment-filter">
+              <summary>
+                <span className="discover-filter-visible"><strong>{t('discover.filter.environment')}</strong></span>
+                <span className="discover-filter-measure" aria-hidden="true">
+                  {(['client', 'server'] as const).map((side) => (
+                    <span key={side}><Icon name={side} />{t(side === 'client' ? 'mod.environment.client' : 'mod.environment.server')}</span>
+                  ))}
+                </span>
+              </summary>
+              <div className="discover-filter-menu">
                 {(['client', 'server'] as const).map((side) => (
                   <label key={side}>
                     <input

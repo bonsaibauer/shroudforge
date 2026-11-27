@@ -22,11 +22,13 @@ pub(crate) struct UiCommand {
     #[serde(default)]
     pub(crate) query: Option<String>,
     #[serde(default)]
-    pub(crate) loader: Option<String>,
+    pub(crate) loader: Option<Vec<String>>,
     #[serde(default)]
-    pub(crate) category: Option<String>,
+    pub(crate) category: Option<Vec<String>>,
     #[serde(default)]
-    pub(crate) game_version: Option<String>,
+    pub(crate) game_version: Option<Vec<String>>,
+    #[serde(default)]
+    pub(crate) environment: Option<Vec<String>>,
     #[serde(default)]
     pub(crate) project_type: Option<String>,
     #[serde(default)]

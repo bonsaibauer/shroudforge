@@ -91,6 +91,7 @@ export function Page({
         updaterAvailable={data.release.updaterAvailable === true}
         enabled={data.settings.modulePreferences?.updates?.enabled === true}
         installedMods={data.mods.map(({ id, version }) => ({ id, version }))}
+        installedPacks={data.modpacks}
         modUpdates={(data.settings.modulePreferences?.updates?.mods?.latestUpdates || []) as ModUpdate[]}
         gameVersion={data.gameVersion}
         onCommand={onUpdaterCommand}

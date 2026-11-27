@@ -387,7 +387,6 @@ html,body,#root{width:100%;height:100%;margin:0;overflow:hidden}body{color:var(-
 .server-admin-overlay{z-index:100}
 .server-admin-modal{width:min(480px,100%)}
 .server-admin-modal .modal-body{display:grid;gap:14px}
-.server-admin-modal .wiki-help-trigger{box-sizing:border-box;display:grid;place-items:center;flex:0 0 83px;width:83px;height:36px;min-height:36px;padding:0;margin:0}
 .server-admin-visual{overflow:hidden;border:1px solid var(--sf-line);border-radius:14px;background:#0b1418;box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
 .server-admin-visual svg{display:block;width:100%;height:auto}
 .server-admin-modal .modal-body>p{margin:0;color:var(--sf-muted);font-size:12px;line-height:1.5}
@@ -410,7 +409,10 @@ body.reduced-motion .server-admin-spinner{animation:none;border-color:var(--sf-g
 .remote-admin-status{margin-left:8px;color:var(--sf-gold-bright);font:600 11px var(--sf-font);white-space:nowrap}
 
 @property --remote-server-glint-angle{syntax:'<angle>';inherits:false;initial-value:0deg}
-.vanilla-mode-button{box-sizing:border-box;width:100%;height:36px;margin-bottom:6px}
+.game-mode-target{margin-bottom:6px}.game-mode-target button{min-width:0}.game-mode-target button:disabled{opacity:.45;cursor:default}.game-mode-target button:disabled:hover{background:transparent}.game-mode-target button.active:disabled:hover{background:var(--sf-gold-soft)}
+.modded-dragon-flight{position:fixed;z-index:150;inset:0;width:100vw;height:100vh;object-fit:fill;pointer-events:none;user-select:none}
+body.reduced-motion .modded-dragon-flight{display:none}
+@media(prefers-reduced-motion:reduce){.modded-dragon-flight{display:none}}
 .remote-target button.server-target{position:relative;isolation:isolate;overflow:visible;border:1px solid rgba(255,220,145,.34);color:#f2d59b;background:rgba(202,170,103,.05)}
 .remote-target button.server-target::after{content:"";position:absolute;z-index:1;inset:-2px;box-sizing:border-box;padding:1.5px;border-radius:inherit;background:conic-gradient(from var(--remote-server-glint-angle),transparent 0deg 294deg,rgba(255,221,145,.34) 316deg,rgba(255,250,224,.98) 333deg,rgba(255,221,145,.7) 344deg,transparent 360deg);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;pointer-events:none;animation:remote-server-glint 2.6s linear infinite}
 .remote-target.server-selected button.server-target[aria-pressed="true"]{border-color:rgba(255,220,145,.82);color:#ffe7ae;background-color:var(--sf-gold-soft);box-shadow:0 0 0 1px rgba(222,170,70,.24),0 0 9px 2px rgba(235,185,76,.48)}

@@ -31,6 +31,7 @@ import { Icon } from '../../ui-resources/show-icon'
 import type { TranslationKey } from '../../ui-resources/i18n'
 import { DEFAULT_WIKI_CATEGORY } from '../../wiki/mediawiki-api'
 import { createRoot } from 'react-dom/client'
+import flyingDragon from '../../../assets/flying_dragon.svg'
 import './styles.css'
 
 function runtimeProblemMessage(code: RuntimeProblemCode | undefined): TranslationKey {
@@ -70,6 +71,8 @@ export function App() {
   const [serverAdminLoginError, setServerAdminLoginError] = useState<string | null>(null)
   const [confirmServerVanilla, setConfirmServerVanilla] = useState(false)
   const pendingServerLogin = useRef<string | null>(null)
+  const pendingDragonRequest = useRef<string | null>(null)
+  const [dragonFlight, setDragonFlight] = useState(0)
   const [read, setRead] = useState<Record<'client' | 'server', string[]>>({
     client: [],
     server: [],
@@ -128,10 +131,23 @@ export function App() {
         setServerView(null)
         setServerAdminLoginError(result.message ?? 'Server admin access expired')
       }
+      if (result?.requestId === pendingDragonRequest.current) {
+        pendingDragonRequest.current = null
+        if (result.success && !settings.reducedMotion &&
+            !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          setDragonFlight((flight) => flight + 1)
+        }
+      }
     }
     window.addEventListener('shroudforge-command-result', onCommandResult)
     return () => window.removeEventListener('shroudforge-command-result', onCommandResult)
-  }, [remoteTarget])
+  }, [remoteTarget, settings.reducedMotion])
+
+  useEffect(() => {
+    if (!dragonFlight) return
+    const timeout = window.setTimeout(() => setDragonFlight(0), 9000)
+    return () => window.clearTimeout(timeout)
+  }, [dragonFlight])
 
   useEffect(() => {
     const onRemoteModData = (event: Event) => {
@@ -221,6 +237,22 @@ export function App() {
   const displayedMods = activeData.mods
   const vanillaKey = remoteTarget === 'server' ? 'vanillaServer' : 'vanillaClient'
   const vanillaRequested = data.settings.modulePreferences?.modloaderUi?.[vanillaKey] === true
+  const gameModeDisabled = remoteTarget === 'server' && data.installationTarget !== 'server' &&
+    (!serverAdminAuthenticated || data.vanillaSession === true)
+  const localVanillaRequested = data.settings.modulePreferences?.modloaderUi?.[
+    data.installationTarget === 'server' ? 'vanillaServer' : 'vanillaClient'
+  ] === true
+  const selectGameMode = (nextVanilla: boolean) => {
+    if (nextVanilla === vanillaRequested || gameModeDisabled) return
+    if (remoteTarget === 'server' && nextVanilla) {
+      setConfirmServerVanilla(true)
+      return
+    }
+    const requestId = postRequest('save-setting', {
+      scope: 'module', module: 'modloaderUi', key: vanillaKey, value: nextVanilla,
+    })
+    if (!nextVanilla) pendingDragonRequest.current = requestId
+  }
   useEffect(() => {
     if (!confirmServerVanilla) return
     const cancel = (event: KeyboardEvent) => {
@@ -316,11 +348,12 @@ export function App() {
   const profileWaitingForWorld = profileDiscovery?.state === 'waiting-for-world'
   const profileBetaActive = profileDiscovery?.state === 'beta-active'
   const profileDiscoveryPending = profileSearching || profileWaitingForWorld
-  const runtimeBannerKey = isTargetUiVisible('modules', 'runtimeDiagnostics', remoteTarget, targetUi) &&
+  const runtimeBannerKey = data.vanillaSession !== true &&
+    isTargetUiVisible('modules', 'runtimeDiagnostics', remoteTarget, targetUi) &&
     runtimeCheck?.state === 'warning'
     ? `runtime:${runtimeCheck.code ?? 'generic'}`
     : null
-  const profileBannerKey = runtimeCheck?.state !== 'warning' &&
+  const profileBannerKey = data.vanillaSession !== true && runtimeCheck?.state !== 'warning' &&
     profileDiscovery &&
     (profileDiscoveryPending || (profileBetaActive && !runtimeCheck?.code))
     ? `profile:${profileDiscovery.state}:${profileDiscovery.profileId ?? ''}`
@@ -489,6 +522,10 @@ export function App() {
 
   return (
     <main className={`shell ${remoteTarget === 'server' ? 'server-target-active' : ''}`}>
+      {dragonFlight > 0 && (
+        <img key={dragonFlight} className="modded-dragon-flight"
+          src={flyingDragon} alt="" aria-hidden="true" draggable={false} />
+      )}
       <Toasts
         errors={activeData.configuration?.errors}
         message={saveMessage}
@@ -530,21 +567,16 @@ export function App() {
         <div className="workspace">
           <aside className="sidebar">
             <div className="sidebar-target">
-              <button
-                className="button vanilla-mode-button"
-                disabled={remoteTarget === 'server' && data.installationTarget !== 'server' && (!serverAdminAuthenticated || data.vanillaSession === true)}
-                onClick={() => {
-                  if (remoteTarget === 'server' && !vanillaRequested) {
-                    setConfirmServerVanilla(true)
-                    return
-                  }
-                  postRequest('save-setting', {
-                    scope: 'module', module: 'modloaderUi', key: vanillaKey, value: !vanillaRequested,
-                  })
-                }}
+              <div className="remote-target game-mode-target" role="group"
+                aria-label={`${t('vanilla.enable')} / ${t('vanilla.button')}`}
               >
-                {t(vanillaRequested ? 'vanilla.enable' : 'vanilla.button')}
-              </button>
+                <button type="button" className={!vanillaRequested ? 'active' : ''}
+                  aria-pressed={!vanillaRequested} disabled={gameModeDisabled}
+                  onClick={() => selectGameMode(false)}>{t('vanilla.enable')}</button>
+                <button type="button" className={vanillaRequested ? 'active' : ''}
+                  aria-pressed={vanillaRequested} disabled={gameModeDisabled}
+                  onClick={() => selectGameMode(true)}>{t('vanilla.button')}</button>
+              </div>
               <RemoteTargetSwitch
                 remoteTarget={remoteTarget}
                 onChange={changeRemoteTarget}
@@ -646,6 +678,25 @@ export function App() {
             </NavGroup>}
           </aside>
           <section className="content">
+            {data.vanillaSession === true && (
+              <FeatureBanner
+                variant="warning"
+                brand="ShroudForge"
+                title={t('vanilla.banner.title')}
+                titleId="vanilla-mode-banner-title"
+                description={t(localVanillaRequested
+                  ? 'vanilla.banner.select'
+                  : 'vanilla.banner.restart', {
+                  mode: t('vanilla.enable'),
+                  target: t(data.installationTarget === 'server'
+                    ? 'settings.modules.serverTargetVisibility.serverTarget'
+                    : 'settings.modules.serverTargetVisibility.clientTarget'),
+                })}
+                media={<Icon name="warning" />}
+                badge={t('vanilla.button')}
+                role="status"
+              />
+            )}
             {showProfileDiscovery && (
               <FeatureBanner
                 variant={profileBetaActive ? 'warning' : 'info'}
