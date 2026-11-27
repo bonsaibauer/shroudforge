@@ -31,7 +31,6 @@ type Props = {
   onInstall: (versionId?: string) => void
   onOpenProject: (projectId: string) => void
   onOpenLink: (url: string) => void
-  onClearCache: () => void
 }
 
 function safeUrl(value: string | undefined): string | undefined {
@@ -130,7 +129,6 @@ export function CatalogProjectPage({
   onInstall,
   onOpenProject,
   onOpenLink,
-  onClearCache,
 }: Props) {
   const { t, locale } = useI18n()
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
@@ -521,16 +519,6 @@ export function CatalogProjectPage({
           <header>
             <div><strong>{visibleGallery[viewerIndex].title || project.name}</strong><span>{viewerIndex + 1} / {visibleGallery.length}</span></div>
             <div className="discover-image-viewer-actions">
-              <button
-                type="button"
-                className="button danger"
-                aria-label={t('wiki.clearCache')}
-                title={t('wiki.clearCache')}
-                disabled={!enabled}
-                onClick={onClearCache}
-              >
-                <Icon name="trash" /> {t('wiki.clearCache')}
-              </button>
               <button type="button" aria-label={t('common.zoomOut')} onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))}>−</button>
               <span>{Math.round(zoom * 100)}%</span>
               <button type="button" aria-label={t('common.zoomIn')} onClick={() => setZoom((value) => Math.min(3, value + 0.25))}>+</button>

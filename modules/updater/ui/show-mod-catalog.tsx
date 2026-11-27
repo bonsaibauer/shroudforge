@@ -485,18 +485,30 @@ export function Discover({
         title={t('discover.title')}
         subtitle={t('discover.subtitle')}
         actions={
-          <a
-            className="button ghost discover-explore-link"
-            href="https://shroudedit.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(event) => {
-              event.preventDefault()
-              postRequest('open-url', { url: 'https://shroudedit.com' })
-            }}
-          >
-            {t('discover.exploreShroudEdit')}
-          </a>
+          <>
+            <a
+              className="button ghost discover-explore-link"
+              href="https://shroudedit.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                event.preventDefault()
+                postRequest('open-url', { url: 'https://shroudedit.com' })
+              }}
+            >
+              {t('discover.exploreShroudEdit')}
+            </a>
+            <button
+              type="button"
+              className="button danger"
+              aria-label={t('wiki.clearCache')}
+              title={t('wiki.clearCache')}
+              disabled={!actionsEnabled}
+              onClick={() => onCommand('clear-catalog-cache')}
+            >
+              <Icon name="trash" /> {t('wiki.clearCache')}
+            </button>
+          </>
         }
       />
       {pendingPack && <section className="card" aria-label={t('modpack.chooseMods')}>
@@ -749,7 +761,6 @@ export function Discover({
           onInstall={installSelectedVersion}
           onOpenProject={openProjectById}
           onOpenLink={(url) => onCommand('open-url', { url })}
-          onClearCache={() => onCommand('clear-catalog-cache')}
         />
       )}
       {!selectedProjectId && (catalog.state === 'loading' ? (
